@@ -12,6 +12,12 @@ export interface PackagedRuntimeOptions {
   archiveRoot: string
 }
 
+/** Return the archive root used by packaged Unix targets with an embedded Node runtime. */
+export function packagedRuntimeArchiveRoot(platform: NodeJS.Platform, arch: string): string | undefined {
+  if (platform !== 'darwin' && platform !== 'linux') return undefined
+  return `desktop-runtime-${platform}-${arch}`
+}
+
 async function exists(path: string): Promise<boolean> {
   try {
     await access(path, constants.F_OK)

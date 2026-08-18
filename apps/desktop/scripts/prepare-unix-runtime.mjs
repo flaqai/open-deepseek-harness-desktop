@@ -1,4 +1,4 @@
-/** Prepare a self-contained macOS Harness production runtime archive. */
+/** Prepare a self-contained macOS or Linux Harness production runtime archive. */
 
 import { chmod, cp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -10,14 +10,45 @@ import { fileURLToPath } from 'node:url'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
-const runtimeName = 'desktop-runtime-darwin-arm64'
+const target = `${process.platform}-${process.arch}`
+const targets = {
+  'darwin-arm64': {
+    nodeSha256: 'b05aa3a66efe680023f930bd5af3fdbbd542794da5644ca2ad711d68cbd4dc35',
+    nativePackages: [
+      '@koromix/koffi-darwin-arm64',
+      '@img/sharp-darwin-arm64/sharp.node',
+      'node-addon-require-builtin-darwin-arm64',
+    ],
+  },
+  'darwin-x64': {
+    nodeSha256: '096081b6d6fcdd3f5ba0f5f1d44a47e83037ad2e78eada26671c252fe64dd111',
+    nativePackages: [
+      '@koromix/koffi-darwin-x64',
+      '@img/sharp-darwin-x64/sharp.node',
+      'node-addon-require-builtin-darwin-x64',
+    ],
+  },
+  'linux-x64': {
+    nodeSha256: '58a5ff5cc8f2200e458bea22e329d5c1994aa1b111d499ca46ec2411d58239ca',
+    nativePackages: [
+      '@koromix/koffi-linux-x64',
+      '@img/sharp-linux-x64/sharp.node',
+      'node-addon-require-builtin-linux-x64-gnu',
+    ],
+  },
+}
+const targetConfig = targets[target]
+if (targetConfig === undefined) {
+  throw new Error(`prepare-unix-runtime: unsupported native target ${target}`)
+}
+const runtimeName = `desktop-runtime-${target}`
 const staging = join(repositoryRoot, '.artifacts', runtimeName)
 const archive = join(repositoryRoot, '.artifacts', `${runtimeName}.tar.gz`)
 const runtimeMarker = '.desktop-runtime-v3'
 const nodeVersion = '24.11.1'
 const pnpmVersion = '11.7.0'
-const nodeArchiveName = `node-v${nodeVersion}-darwin-arm64.tar.gz`
-const nodeArchiveSha256 = 'b05aa3a66efe680023f930bd5af3fdbbd542794da5644ca2ad711d68cbd4dc35'
+const nodeArchiveName = `node-v${nodeVersion}-${target}.tar.gz`
+const nodeArchiveSha256 = targetConfig.nodeSha256
 const downloads = join(repositoryRoot, '.artifacts', 'downloads')
 const nodeArchive = join(downloads, nodeArchiveName)
 
@@ -42,11 +73,11 @@ async function ensureNodeArchive() {
   await rm(nodeArchive, { force: true })
   const url = `https://nodejs.org/dist/v${nodeVersion}/${nodeArchiveName}`
   const response = await fetch(url)
-  if (!response.ok) throw new Error(`prepare-macos-runtime: failed to download ${url}: HTTP ${response.status}`)
+  if (!response.ok) throw new Error(`prepare-unix-runtime: failed to download ${url}: HTTP ${response.status}`)
   const data = Buffer.from(await response.arrayBuffer())
   const actual = createHash('sha256').update(data).digest('hex')
   if (actual !== nodeArchiveSha256) {
-    throw new Error(`prepare-macos-runtime: Node archive checksum mismatch: expected ${nodeArchiveSha256}, received ${actual}`)
+    throw new Error(`prepare-unix-runtime: Node archive checksum mismatch: expected ${nodeArchiveSha256}, received ${actual}`)
   }
   await writeFile(nodeArchive, data)
 }
@@ -61,7 +92,7 @@ async function stagePackageRuntime() {
   const pnpmManifestPath = desktopRequire.resolve('pnpm')
   const pnpmManifest = JSON.parse(await readFile(pnpmManifestPath, 'utf8'))
   if (pnpmManifest.version !== pnpmVersion) {
-    throw new Error(`prepare-macos-runtime: expected pnpm ${pnpmVersion}, received ${String(pnpmManifest.version)}`)
+    throw new Error(`prepare-unix-runtime: expected pnpm ${pnpmVersion}, received ${String(pnpmManifest.version)}`)
   }
   const pnpmDestination = join(packageRuntime, 'lib', 'node_modules', 'pnpm')
   await cp(dirname(pnpmManifestPath), pnpmDestination, {
@@ -136,7 +167,7 @@ async function injectWorkspaceClosure() {
       filter: path => !relative(project.directory, path).split(sep).includes('node_modules'),
     })
   }
-  console.log(`prepare-macos-runtime: injected ${injected.size} workspace packages`)
+  console.log(`prepare-unix-runtime: injected ${injected.size} workspace packages`)
 }
 
 async function verifyRuntime() {
@@ -144,9 +175,7 @@ async function verifyRuntime() {
   if (!existsSync(entry)) throw new Error(`desktop package runtime is missing ${entry}`)
   const require = createRequire(entry)
   for (const packagePath of [
-    '@koromix/koffi-darwin-arm64',
-    '@img/sharp-darwin-arm64/sharp.node',
-    'node-addon-require-builtin-darwin-arm64',
+    ...targetConfig.nativePackages,
     '@deepseek-ai/cosmokit',
     '@deepseek-ai/cordis-plugin-group',
     '@deepseek-ai/dsh-web-frontend/dist/index.html',
@@ -163,9 +192,9 @@ async function verifyRuntime() {
   }
   await writeFile(
     join(staging, runtimeMarker),
-    `${manifest.name}@${manifest.version}\nnode@${nodeVersion}\npnpm@${pnpmVersion}\n`,
+    `${manifest.name}@${manifest.version}\ntarget=${target}\nnode@${nodeVersion}\npnpm@${pnpmVersion}\n`,
   )
-  console.log(`prepare-macos-runtime: verified ${manifest.name}@${manifest.version} in ${staging}`)
+  console.log(`prepare-unix-runtime: verified ${manifest.name}@${manifest.version} for ${target} in ${staging}`)
 }
 
 if (staging === repositoryRoot || repositoryRoot.startsWith(staging + sep)) {
@@ -187,4 +216,4 @@ await injectWorkspaceClosure()
 await stagePackageRuntime()
 await verifyRuntime()
 await run('tar', ['-czf', archive, '-C', dirname(staging), basename(staging)])
-console.log(`prepare-macos-runtime: wrote ${archive}`)
+console.log(`prepare-unix-runtime: wrote ${archive}`)

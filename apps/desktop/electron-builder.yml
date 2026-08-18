@@ -20,7 +20,10 @@ extraResources:
 win:
   icon: build/icon.ico
   target:
-    - target: zip
+    - target: nsis
       arch:
         - x64
-  artifactName: DeepSeek-Harness-${version}-windows-${arch}.${ext}
+  artifactName: DeepSeek-Harness-windows-${arch}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

@@ -3,13 +3,19 @@
   "description": "Cross-platform Electron host for the DeepSeek Harness Web GUI",
   "version": "0.1.0-rc.5",
   "private": true,
+  "author": {
+    "name": "FLAQ.AI",
+    "email": "haoweibing@6677.ai"
+  },
   "type": "module",
   "main": "lib/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
+    "build": "tsc -p tsconfig.json && pnpm --config.verifyDepsBeforeRun=false exec tsdown --config tsdown.preload.config.ts && node scripts/copy-assets.mjs",
     "dev": "pnpm run build && electron lib/main.js",
-    "package:win:x64": "node scripts/prepare-windows-runtime.mjs && node node_modules/electron-builder/out/cli/cli.js --win zip --x64 --publish never",
-    "package:macos:arm64": "pnpm run build && node scripts/prepare-macos-runtime.mjs && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --arm64 --publish never",
+    "package:win:x64": "pnpm run build && node scripts/prepare-windows-runtime.mjs && node node_modules/electron-builder/out/cli/cli.js --win nsis --x64 --publish never",
+    "package:macos:arm64": "pnpm run build && node scripts/prepare-unix-runtime.mjs && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --arm64 --publish never",
+    "package:macos:x64": "pnpm run build && node scripts/prepare-unix-runtime.mjs && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --x64 --publish never",
+    "package:linux:x64": "pnpm run build && node scripts/prepare-unix-runtime.mjs && node node_modules/electron-builder/out/cli/cli.js --config electron-builder.linux.yml --linux deb rpm --x64 --publish never",
     "start": "electron lib/main.js",
     "test": "vitest run --config vitest.config.ts"
   },

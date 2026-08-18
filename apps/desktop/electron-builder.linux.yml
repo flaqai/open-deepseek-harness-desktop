@@ -1,0 +1,24 @@
+appId: ai.flaq.deepseek-harness
+productName: DeepSeek Harness
+asar: true
+npmRebuild: false
+directories:
+  buildResources: build
+  output: ../../.artifacts/desktop-linux
+files:
+  - lib/**/*
+  - package.json
+extraResources:
+  - from: bundled-plugins
+    to: bundled-plugins
+    filter:
+      - "**/*"
+  - from: ../../.artifacts/desktop-runtime-linux-${arch}.tar.gz
+    to: harness-runtime.tar.gz
+linux:
+  icon: src/icon.png
+  category: Development
+  target:
+    - deb
+    - rpm
+  artifactName: DeepSeek-Harness-linux-${arch}.${ext}

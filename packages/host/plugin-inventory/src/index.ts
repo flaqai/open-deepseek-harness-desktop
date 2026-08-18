@@ -189,7 +189,11 @@ export class PluginInventoryGateway extends TypertRemoteService {
     return snapshot
   }
 
-  /** Start one guarded profile package removal through the product CLI. */
+  /**
+   * Start one guarded profile package removal through the product CLI.
+   * @param request - Validated profile and package identity to remove.
+   * @returns The new or already-running removal job snapshot.
+   */
   @Remote('startUninstall')
   startUninstall(request: PluginUninstallRequest): PluginInstallSnapshot {
     validateUninstallRequest(request)

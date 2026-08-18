@@ -18,29 +18,36 @@ The app opens the same onboarding and settings surfaces as `dsh web`. Users can 
 
 Packaged releases include a pinned `dshmarket` archive as an offline, removable first-run seed. Its durable seed marker survives a later uninstall, so subsequent launches do not silently restore the plugin.
 
-## macOS arm64 package
+## Desktop packages
 
-Build the ad-hoc-signed, unnotarized DMG and ZIP from this checkout with:
+Build the ad-hoc-signed, unnotarized macOS packages on a matching Mac with:
 
 ```sh
 npm run package:desktop:macos:arm64
+npm run package:desktop:macos:x64
 ```
 
-Artifacts are written to `.artifacts/desktop-macos/`. The package embeds the Harness production closure, Node 24.11.1, and pnpm 11.7.0 in one runtime archive. Preparation accepts the pinned Node archive only after its official SHA-256 matches. On first launch, the app extracts the archive into its versioned user-data directory so Node ESM sees a real `node_modules` hierarchy. The embedded Node starts Harness, and the plugin manager receives the embedded pnpm by absolute path; the runtime `bin` directory leads plugin lifecycle-script `PATH`. A layout marker invalidates caches produced by incomplete packages.
+Artifacts are written to `.artifacts/desktop-macos/`. Each package embeds the target's Harness production closure, Node 24.11.1, and pnpm 11.7.0 in one runtime archive. Preparation accepts the pinned Node archive only after its official SHA-256 matches. On first launch, the app extracts the archive into its versioned user-data directory so Node ESM sees a real `node_modules` hierarchy. The embedded Node starts Harness, and the plugin manager receives the embedded pnpm by absolute path; the runtime `bin` directory leads plugin lifecycle-script `PATH`. A layout marker invalidates caches produced by incomplete packages.
 
-## Windows x64 ZIP package
-
-Build the reviewed Windows x64 ZIP from this checkout with:
+Build the unsigned Windows x64 NSIS installer on Windows with:
 
 ```sh
 npm run package:desktop:win:x64
 ```
 
-The artifact is written to `.artifacts/desktop-windows/DeepSeek-Harness-<version>-windows-x64.zip`. It carries Electron's Node-compatible executable, pnpm 11.7.0, and a symlink-free production Harness closure, so a user does not need Node or pnpm on `PATH`. The package is unsigned, is not an installer, and has not yet been executed on a native Windows runner; release it only after native lifecycle, PTY, and update-path validation.
+The installer is written to `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`. It carries Electron's Node-compatible executable, pnpm 11.7.0, and a symlink-free production Harness closure, so a user does not need Node or pnpm on `PATH`.
+
+Build the Linux x64 packages on Linux with:
+
+```sh
+npm run package:desktop:linux:x64
+```
+
+The DEB and RPM files are written to `.artifacts/desktop-linux/`. Like macOS, they carry a target-native Node, pnpm, and production Harness runtime archive. The manual `Desktop packages` GitHub Actions workflow builds all four native jobs, uploads the five installer variants, and produces `SHA256SUMS` without publishing a GitHub Release.
 
 ## Process lifecycle
 
-The Electron main process starts `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0` directly, without a shell. A packaged macOS app uses its embedded Node rather than Electron or a user-installed executable. It treats only `dsh web: http://127.0.0.1:<port>` as readiness, appends stdout and stderr to Electron's platform log directory, restarts unexpected exits with bounded exponential delay, and sends `SIGTERM` before a bounded `SIGKILL` during application shutdown.
+The Electron main process starts `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0` directly, without a shell. Packaged macOS and Linux apps use their embedded Node rather than Electron or a user-installed executable; Windows uses Electron's Node-compatible process with the bundled production closure. The host treats only `dsh web: http://127.0.0.1:<port>` as readiness, appends stdout and stderr to Electron's platform log directory, restarts unexpected exits with bounded exponential delay, and sends `SIGTERM` before a bounded `SIGKILL` during application shutdown.
 
 Set `DSH_DESKTOP_DSH_BIN` to test another built `dsh` launcher. Set `DSH_DESKTOP_NODE_BIN` when `node` is not available through the environment inherited by Electron.
 
@@ -60,13 +67,18 @@ API keys remain owned by the Harness credentials service. The desktop host neith
 
 Profile plugins are trusted executable code. The embedded package runtime makes their pnpm lifecycle scripts deterministic, but it does not sandbox or endorse code installed from a registry, Git repository, tarball, or local checkout.
 
-## Cross-platform release plan
+## Cross-platform release matrix
 
-The source host uses only Electron and Node process APIs that are shared by macOS, Windows, and Linux. macOS retains its native title bar and traffic lights. Windows and Linux use a frameless window with a Harness-owned draggable title bar and explicit minimize, maximize or restore, and close controls. A Windows x64 ZIP package is available for native validation; the remaining release work is:
+The source host uses only Electron and Node process APIs that are shared by macOS, Windows, and Linux. macOS retains its native title bar and traffic lights. Windows and Linux use a frameless window with a Harness-owned draggable title bar and explicit minimize, maximize or restore, and close controls. The package workflow builds this matrix on matching native runners:
 
-1. Add Developer ID signing and notarization if the project later needs Gatekeeper-trusted arm64 and x64 macOS artifacts; build signed Windows x64/arm64 installers; build Linux AppImage and deb artifacts on their native CI runners.
-2. Exercise shutdown, child cleanup, native directory selection, file opening, PTY, and sandbox behavior on each platform before adding it to the supported matrix.
-3. Add signed update metadata only after release signing and rollback are operational.
+| Platform | Native runner | Artifacts |
+| --- | --- | --- |
+| macOS arm64 | `macos-15` | DMG and ZIP |
+| macOS x64 | `macos-15-intel` | DMG and ZIP |
+| Windows x64 | `windows-2025` | NSIS EXE |
+| Linux x64 | `ubuntu-24.04` | DEB and RPM |
+
+Native installation, first launch, shutdown, child cleanup, directory selection, file opening, PTY, and sandbox behavior remain release validation requirements. Signed update metadata waits for release signing and rollback support.
 
 Do not package the checkout by copying all workspace sources into Electron. The release artifact must contain the published runtime closure, generated third-party notices, and no development credentials.
 
@@ -79,7 +91,7 @@ The next desktop milestones are signed installers, native notifications for appr
 ## Limitations
 
 - The current source run requires a built repository and a compatible Node executable.
-- The macOS arm64 DMG and ZIP use ad-hoc signing and are not notarized; Gatekeeper requires explicit user approval on first launch.
-- The Windows x64 ZIP is unsigned and has only structural verification from macOS; it is not a supported Windows release, an installer, or an auto-updating package.
+- The macOS arm64 and x64 DMG and ZIP packages use ad-hoc signing and are not notarized; Gatekeeper requires explicit user approval on first launch.
+- The Windows x64 installer is unsigned, and the Linux x64 packages are not repository-signed; users must verify `SHA256SUMS` and the release source.
 - Developer ID signing, notarization, packaged auto-update, tray behavior, native notifications, and IM control are not implemented. The source updater accepts only a clean fast-forward from official `master`; local divergence stays a manual Git operation.
-- macOS is the first locally exercised platform; source compatibility does not yet constitute Windows or Linux release support.
+- A successful package job proves native assembly, not complete product support; each platform still requires installation and runtime validation.

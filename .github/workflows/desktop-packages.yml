@@ -1,0 +1,137 @@
+# Build each desktop artifact on the operating system and CPU architecture it ships for.
+name: Desktop packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PRIMARY_NODE_VERSION: '24.11.1'
+  DSH_TELEMETRY_DISABLED: '1'
+
+jobs:
+  macos:
+    name: macOS ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build macOS package
+        run: pnpm run package:desktop:macos:${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos-${{ matrix.arch }}
+          path: |
+            .artifacts/desktop-macos/DeepSeek-Harness-macos-${{ matrix.arch }}.dmg
+            .artifacts/desktop-macos/DeepSeek-Harness-macos-${{ matrix.arch }}.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Windows x64
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build Windows installer
+        run: pnpm run package:desktop:win:x64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-x64
+          path: .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  linux:
+    name: Linux x64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install package tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq rpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build Linux packages
+        run: pnpm run package:desktop:linux:x64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux-x64
+          path: |
+            .artifacts/desktop-linux/DeepSeek-Harness-linux-x64.deb
+            .artifacts/desktop-linux/DeepSeek-Harness-linux-x64.rpm
+          if-no-files-found: error
+          retention-days: 14
+
+  checksums:
+    name: SHA-256 checksums
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: dist
+          merge-multiple: true
+
+      - name: Write checksums
+        working-directory: dist
+        run: sha256sum DeepSeek-Harness-* > SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-checksums
+          path: dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14

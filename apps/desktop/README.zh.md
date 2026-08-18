@@ -18,29 +18,36 @@ pnpm run dev:desktop
 
 打包版本内置固定的 `dshmarket` 归档，作为离线、可卸载的首次启动种子。持久种子标记会在用户卸载后保留，因此后续启动不会擅自把插件装回。
 
-## macOS arm64 包
+## 桌面发行包
 
-在当前仓库中使用下列命令构建 Ad-hoc 签名、未公证的 DMG 和 ZIP：
+在架构匹配的 Mac 上使用下列命令构建 ad-hoc 签名、未公证的 macOS 软件包：
 
 ```sh
 npm run package:desktop:macos:arm64
+npm run package:desktop:macos:x64
 ```
 
-产物写入 `.artifacts/desktop-macos/`。安装包在同一个运行时归档中内嵌 Harness 生产依赖闭包、Node 24.11.1 和 pnpm 11.7.0；准备脚本仅在固定 Node 归档与官方 SHA-256 一致时接受它。首次启动时，应用会把归档解压到按版本隔离的用户数据目录，使 Node ESM 能看到真实的 `node_modules` 层级。内置 Node 负责启动 Harness，插件管理器通过绝对路径使用内置 pnpm，插件生命周期脚本的 `PATH` 则以内置运行时的 `bin` 目录开头。布局标记会让不完整的安装包缓存自动失效。
+产物写入 `.artifacts/desktop-macos/`。每个安装包在同一个运行时归档中内嵌目标平台的 Harness 生产依赖闭包、Node 24.11.1 和 pnpm 11.7.0；准备脚本仅在固定 Node 归档与官方 SHA-256 一致时接受它。首次启动时，应用会把归档解压到按版本隔离的用户数据目录，使 Node ESM 能看到真实的 `node_modules` 层级。内置 Node 负责启动 Harness，插件管理器通过绝对路径使用内置 pnpm，插件生命周期脚本的 `PATH` 则以内置运行时的 `bin` 目录开头。布局标记会让不完整的安装包缓存自动失效。
 
-## Windows x64 ZIP 包
-
-在当前仓库中使用下列命令构建经过审查的 Windows x64 ZIP：
+在 Windows 上使用下列命令构建未签名的 Windows x64 NSIS 安装程序：
 
 ```sh
 npm run package:desktop:win:x64
 ```
 
-产物写入 `.artifacts/desktop-windows/DeepSeek-Harness-<version>-windows-x64.zip`。它包含 Electron 的 Node 兼容可执行文件和无符号链接的 Harness 生产依赖闭包，用户无需在 `PATH` 中安装 Node。该包未签名、不是安装器，且尚未在原生 Windows runner 上执行；只能在完成原生生命周期、PTY 和更新路径验证后再发布。
+安装程序写入 `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`。它包含 Electron 的 Node 兼容可执行文件、pnpm 11.7.0 和无符号链接的 Harness 生产依赖闭包，用户无需在 `PATH` 中安装 Node 或 pnpm。
+
+在 Linux 上使用下列命令构建 Linux x64 软件包：
+
+```sh
+npm run package:desktop:linux:x64
+```
+
+DEB 与 RPM 文件写入 `.artifacts/desktop-linux/`。与 macOS 相同，它们包含目标平台原生的 Node、pnpm 与 Harness 生产运行时归档。手动触发的 `Desktop packages` GitHub Actions 工作流会运行四个原生任务，上传五种安装包，并生成 `SHA256SUMS`，但不会发布 GitHub Release。
 
 ## 进程生命周期
 
-Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0`。打包后的 macOS 应用使用内置 Node，不使用 Electron 或用户安装的 Node 可执行文件。它只把 `dsh web: http://127.0.0.1:<port>` 识别为就绪信号，将 stdout 和 stderr 追加到 Electron 的平台日志目录；进程意外退出后按有上限的指数延迟重启；应用退出时先发送 `SIGTERM`，超过固定期限后再发送 `SIGKILL`。
+Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0`。打包后的 macOS 与 Linux 应用使用内置 Node，不使用 Electron 或用户安装的 Node 可执行文件；Windows 使用 Electron 的 Node 兼容进程与内置生产依赖闭包。宿主只把 `dsh web: http://127.0.0.1:<port>` 识别为就绪信号，将 stdout 和 stderr 追加到 Electron 的平台日志目录；进程意外退出后按有上限的指数延迟重启；应用退出时先发送 `SIGTERM`，超过固定期限后再发送 `SIGKILL`。
 
 可通过 `DSH_DESKTOP_DSH_BIN` 测试其他已构建的 `dsh` 启动文件。若 Electron 继承的环境无法找到 `node`，可设置 `DSH_DESKTOP_NODE_BIN`。
 
@@ -60,13 +67,18 @@ API 密钥仍由 Harness credentials 服务持有；桌面宿主不会读取或�
 
 Profile 插件属于可信的可执行代码。内置包管理运行时让插件的 pnpm 生命周期脚本使用确定的工具版本，但不会对从 registry、Git 仓库、tarball 或本地 checkout 安装的代码提供沙箱或背书。
 
-## 跨平台发布计划
+## 跨平台发行矩阵
 
-源码宿主只使用 macOS、Windows 和 Linux 共用的 Electron 与 Node 进程 API。macOS 保留原生标题栏与交通灯按钮；Windows 和 Linux 使用无系统边框窗口，由 Harness 自绘可拖拽标题栏及最小化、最大化或还原、关闭按钮。现已提供 Windows x64 ZIP 用于原生验证，剩余发布工作如下：
+源码宿主只使用 macOS、Windows 和 Linux 共用的 Electron 与 Node 进程 API。macOS 保留原生标题栏与交通灯按钮；Windows 和 Linux 使用无系统边框窗口，由 Harness 自绘可拖拽标题栏及最小化、最大化或还原、关闭按钮。打包工作流会在匹配的原生运行器上构建以下矩阵：
 
-1. 如果项目之后需要 Gatekeeper 信任的 macOS 产物，再为 arm64、x64 加入 Developer ID 签名与公证；构建已签名的 Windows x64、arm64 安装包；在原生 CI runner 上构建 Linux AppImage 与 deb 产物。
-2. 在每个平台验证退出、子进程清理、原生目录选择、文件打开、PTY 和沙盒行为，再将其加入支持矩阵。
-3. 只有在发布签名和回滚流程可用后，才添加已签名的更新元数据。
+| 平台 | 原生运行器 | 产物 |
+| --- | --- | --- |
+| macOS arm64 | `macos-15` | DMG 与 ZIP |
+| macOS x64 | `macos-15-intel` | DMG 与 ZIP |
+| Windows x64 | `windows-2025` | NSIS EXE |
+| Linux x64 | `ubuntu-24.04` | DEB 与 RPM |
+
+原生安装、首次启动、退出、子进程清理、目录选择、文件打开、PTY 与沙箱行为仍属于发布验证要求。只有在发布签名与回滚可用后才添加已签名的更新元数据。
 
 不得通过把整个工作区源码复制进 Electron 来打包仓库。发布产物必须只包含已发布的运行时闭包、生成的第三方声明，且不得包含开发凭证。
 
@@ -79,7 +91,7 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 ## 限制
 
 - 当前源码运行需要已构建的仓库和兼容的 Node 可执行文件。
-- macOS arm64 DMG 与 ZIP 使用 Ad-hoc 签名且未公证；首次启动时需要用户在 Gatekeeper 中明确授权。
-- Windows x64 ZIP 未签名，当前只在 macOS 完成结构验证；它不是受支持的 Windows 发布、安装器或自动更新包。
+- macOS arm64 与 x64 的 DMG 和 ZIP 使用 ad-hoc 签名且未公证；首次启动时需要用户在 Gatekeeper 中明确授权。
+- Windows x64 安装程序未签名，Linux x64 软件包也没有仓库签名；用户必须核对 `SHA256SUMS` 与发布来源。
 - Developer ID 签名、公证、安装包自动更新、托盘、原生通知和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
-- macOS 是首个本地验证平台；源码兼容不等于已经支持发布 Windows 或 Linux 版本。
+- 打包任务成功只能证明原生组装完成，不代表产品已获完整支持；每个平台仍需完成安装与运行时验证。

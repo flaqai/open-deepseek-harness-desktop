@@ -9,7 +9,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { seedBundledPlugin, type BundledPluginManifestEntry } from './bundled-plugin-seed.ts'
 import { resolveHarnessInvocation, resolveHarnessLaunch, type DesktopLaunchOptions, type HarnessLaunch } from './launch.ts'
 import { allowsHarnessPermission } from './permissions.ts'
-import { ensurePackagedRuntime } from './packaged-runtime.ts'
+import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
 import { HarnessSupervisor, type HarnessState } from './supervisor.ts'
 import { SourceUpdater } from './source-updater.ts'
 import { usesCustomWindowFrame } from './window-frame.ts'
@@ -18,7 +18,7 @@ import { ensureWindowsRuntimeTools } from './windows-runtime-tools.ts'
 const APP_NAME = 'DeepSeek Harness'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
 const WINDOW_ICON = fileURLToPath(new URL('./icon.png', import.meta.url))
-const PRELOAD = fileURLToPath(new URL('./preload.js', import.meta.url))
+const PRELOAD = fileURLToPath(new URL('./preload.cjs', import.meta.url))
 const DEFAULT_SOURCE_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 
 let mainWindow: BrowserWindow | undefined
@@ -165,11 +165,14 @@ async function startApplication(): Promise<void> {
   })
   createWindow()
 
-  const packagedRuntime = app.isPackaged && process.platform === 'darwin'
+  const packagedRuntimeRoot = app.isPackaged
+    ? packagedRuntimeArchiveRoot(process.platform, process.arch)
+    : undefined
+  const packagedRuntime = packagedRuntimeRoot !== undefined
     ? await ensurePackagedRuntime({
       archivePath: join(process.resourcesPath, 'harness-runtime.tar.gz'),
       destination: join(app.getPath('userData'), 'runtime', app.getVersion()),
-      archiveRoot: 'desktop-runtime-darwin-arm64',
+      archiveRoot: packagedRuntimeRoot,
     })
     : undefined
   const packageRuntimeBin = packagedRuntime === undefined

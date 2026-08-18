@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { isPackagedRuntimeReady } from '../src/packaged-runtime.ts'
+import { isPackagedRuntimeReady, packagedRuntimeArchiveRoot } from '../src/packaged-runtime.ts'
 
 async function createRuntime(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-packaged-runtime-'))
@@ -16,6 +16,13 @@ async function createRuntime(): Promise<string> {
 }
 
 describe('packaged desktop runtime', () => {
+  it('selects embedded runtime archives for macOS and Linux only', () => {
+    expect(packagedRuntimeArchiveRoot('darwin', 'arm64')).toBe('desktop-runtime-darwin-arm64')
+    expect(packagedRuntimeArchiveRoot('darwin', 'x64')).toBe('desktop-runtime-darwin-x64')
+    expect(packagedRuntimeArchiveRoot('linux', 'x64')).toBe('desktop-runtime-linux-x64')
+    expect(packagedRuntimeArchiveRoot('win32', 'x64')).toBeUndefined()
+  })
+
   it('rejects an extracted cache from the old incomplete layout', async () => {
     const runtime = await createRuntime()
     expect(await isPackagedRuntimeReady(runtime)).toBe(false)

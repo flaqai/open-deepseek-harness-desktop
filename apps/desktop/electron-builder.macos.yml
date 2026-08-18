@@ -13,19 +13,16 @@ extraResources:
     to: bundled-plugins
     filter:
       - "**/*"
-  - from: ../../.artifacts/desktop-runtime-darwin-arm64.tar.gz
+  - from: ../../.artifacts/desktop-runtime-darwin-${arch}.tar.gz
     to: harness-runtime.tar.gz
 mac:
   icon: build/icon.icns
   # Open-source release baseline: keep Apple Silicon code structurally signed
   # without binding artifacts to a short-lived development certificate.
   identity: "-"
+  hardenedRuntime: false
   timestamp: none
   target:
-    - target: dmg
-      arch:
-        - arm64
-    - target: zip
-      arch:
-        - arm64
-  artifactName: DeepSeek-Harness-${version}-macos-${arch}.${ext}
+    - dmg
+    - zip
+  artifactName: DeepSeek-Harness-macos-${arch}.${ext}
