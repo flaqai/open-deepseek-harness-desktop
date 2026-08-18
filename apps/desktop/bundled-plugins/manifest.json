@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "plugins": [
+    {
+      "seedId": "dshmarket",
+      "packageName": "dshmarket",
+      "version": "1.12.1",
+      "profile": "web",
+      "archive": "dshmarket-1.12.1.tgz",
+      "integrity": "sha512-jjpwAA8tJEnbVDVsN9R4e59CUoVMv/L+qTNOl7BHO791PpMqZLAM+5VZcZs05C069jGFnyu5r2M/NT8OKoXU7Q=="
+    }
+  ]
+}

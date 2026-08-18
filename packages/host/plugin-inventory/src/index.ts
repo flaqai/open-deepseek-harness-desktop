@@ -16,6 +16,7 @@ import type {
   PluginInstallId,
   PluginInstallRequest,
   PluginInstallSnapshot,
+  PluginUninstallRequest,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -63,6 +64,7 @@ export interface Config {
 interface InstallJob {
   snapshot: PluginInstallSnapshot
   target: string
+  operation: 'add' | 'remove'
 }
 
 /** Brand one generated installation id. */
@@ -72,15 +74,27 @@ function pluginInstallId(value: string): PluginInstallId {
 
 /** npm registry package specifier accepted by the installer Remote. */
 const REGISTRY_PACKAGE_SPEC = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)(?:@[a-z0-9][a-z0-9._+~-]*)?$/iu
+const REGISTRY_PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/iu
 
 /** Reject paths, URLs, flags, and shell text at the Host wire boundary. */
 function validateInstallRequest(request: PluginInstallRequest): void {
-  if (request.profile === '' || request.profile === '.' || request.profile === '..'
-    || request.profile === 'node_modules' || request.profile.includes('/') || request.profile.includes('\\')) {
-    throw new TypeError(`pluginInventory: invalid profile ${JSON.stringify(request.profile)}`)
-  }
+  validateProfile(request.profile)
   if (!REGISTRY_PACKAGE_SPEC.test(request.packageSpec)) {
     throw new TypeError(`pluginInventory: invalid registry package spec ${JSON.stringify(request.packageSpec)}`)
+  }
+}
+
+function validateProfile(profile: string): void {
+  if (profile === '' || profile === '.' || profile === '..'
+    || profile === 'node_modules' || profile.includes('/') || profile.includes('\\')) {
+    throw new TypeError(`pluginInventory: invalid profile ${JSON.stringify(profile)}`)
+  }
+}
+
+function validateUninstallRequest(request: PluginUninstallRequest): void {
+  validateProfile(request.profile)
+  if (!REGISTRY_PACKAGE_NAME.test(request.packageName)) {
+    throw new TypeError(`pluginInventory: invalid registry package name ${JSON.stringify(request.packageName)}`)
   }
 }
 
@@ -156,7 +170,7 @@ export class PluginInventoryGateway extends TypertRemoteService {
   @Remote('startInstall')
   startInstall(request: PluginInstallRequest): PluginInstallSnapshot {
     validateInstallRequest(request)
-    const target = `${request.profile}\0${request.packageSpec}`
+    const target = `add\0${request.profile}\0${request.packageSpec}`
     const activeId = this.activeTargets.get(target)
     if (activeId !== undefined) return this.expectJob(activeId).snapshot
 
@@ -168,7 +182,30 @@ export class PluginInventoryGateway extends TypertRemoteService {
       command: `dsh plugin --profile ${request.profile} add ${request.packageSpec}`,
       phase: 'running',
     }
-    const job: InstallJob = { snapshot, target }
+    const job: InstallJob = { snapshot, target, operation: 'add' }
+    this.jobs.set(installId, job)
+    this.activeTargets.set(target, installId)
+    void this.runInstall(job)
+    return snapshot
+  }
+
+  /** Start one guarded profile package removal through the product CLI. */
+  @Remote('startUninstall')
+  startUninstall(request: PluginUninstallRequest): PluginInstallSnapshot {
+    validateUninstallRequest(request)
+    const target = `remove\0${request.profile}\0${request.packageName}`
+    const activeId = this.activeTargets.get(target)
+    if (activeId !== undefined) return this.expectJob(activeId).snapshot
+
+    const installId = pluginInstallId(crypto.randomUUID())
+    const snapshot: PluginInstallSnapshot = {
+      installId,
+      profile: request.profile,
+      packageSpec: request.packageName,
+      command: `dsh plugin --profile ${request.profile} remove ${request.packageName}`,
+      phase: 'running',
+    }
+    const job: InstallJob = { snapshot, target, operation: 'remove' }
     this.jobs.set(installId, job)
     this.activeTargets.set(target, installId)
     void this.runInstall(job)
@@ -199,7 +236,7 @@ export class PluginInventoryGateway extends TypertRemoteService {
       const handle = this.ctx.subprocess.spawn({
         argv: [
           ...launcher,
-          'plugin', '--profile', job.snapshot.profile, 'add', job.snapshot.packageSpec,
+          'plugin', '--profile', job.snapshot.profile, job.operation, job.snapshot.packageSpec,
         ],
         cwd: process.cwd(),
         stdio: {

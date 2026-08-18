@@ -34,7 +34,8 @@ async function bench() {
     .mockResolvedValue({ ok: true, value: EMPTY })
   const startInstall = vi.fn(async () => ({ ok: false as const, error: { code: 'REMOTE_ERROR', message: 'blocked' } }))
   const getInstall = vi.fn(async () => ({ ok: false as const, error: { code: 'REMOTE_ERROR', message: 'missing' } }))
-  ctx.provide('remote.pluginInventory', { list, startInstall, getInstall })
+  const startUninstall = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
+  ctx.provide('remote.pluginInventory', { list, startInstall, startUninstall, getInstall })
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, list, startInstall, getInstall }
 }
 

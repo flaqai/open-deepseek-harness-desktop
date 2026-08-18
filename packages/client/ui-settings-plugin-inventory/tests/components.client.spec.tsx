@@ -20,6 +20,8 @@ function props(list: PluginInventorySettingsTabInjected['list']): PluginInventor
   return {
     t,
     list,
+    startUninstall: vi.fn(),
+    getInstall: vi.fn(),
   } as PluginInventorySettingsTabProps
 }
 
@@ -32,6 +34,7 @@ const SNAPSHOT = {
     { entryId: 'unloading', moduleName: '@fixture/unloading-name', enabled: true, fiberPhase: 'unloading' },
     { entryId: 'unobserved', moduleName: '@fixture/unobserved-name', enabled: true, fiberPhase: null },
     { entryId: 'disabled-entry', moduleName: '@deepseek-ai/dsh-host-directory-picker-native', enabled: false, fiberPhase: null },
+    { entryId: 'dsh-market', moduleName: 'dshmarket', enabled: true, fiberPhase: 'active' },
   ],
 } as unknown as Snapshot
 
@@ -46,9 +49,9 @@ describe('PluginInventorySettingsTab', () => {
     expect(list).toHaveBeenCalledOnce()
     expect(screen.getByRole('searchbox', { name: en.search })).toBeTruthy()
     expect(screen.getByRole('heading', { name: en.catalog })).toBeTruthy()
-    expect(view.container.querySelector('[data-plugin-count]')?.textContent).toBe('7')
-    expect(screen.getAllByRole('listitem')).toHaveLength(7)
-    expect(screen.getAllByText(en.enabledTag)).toHaveLength(6)
+    expect(view.container.querySelector('[data-plugin-count]')?.textContent).toBe('8')
+    expect(screen.getAllByRole('listitem')).toHaveLength(8)
+    expect(screen.getAllByText(en.enabledTag)).toHaveLength(7)
     expect(screen.getByText(en.disabledTag)).toBeTruthy()
     for (const value of [
       'Mounted',
@@ -58,7 +61,7 @@ describe('PluginInventorySettingsTab', () => {
       'Unloading',
       'Not mounted',
     ]) {
-      expect(screen.getByRole('img', { name: value })).toBeTruthy()
+      expect(screen.getAllByRole('img', { name: value }).length).toBeGreaterThan(0)
     }
     const active = screen.getByRole('button', { name: 'hmr, Mounted, Enabled' })
     expect(active.getAttribute('aria-expanded')).toBe('false')
@@ -79,6 +82,27 @@ describe('PluginInventorySettingsTab', () => {
     expect(screen.getAllByText(en.disabledTag)).toHaveLength(2)
     expect(screen.queryByText(en.cordis)).toBeNull()
     expect(screen.queryByText(en.unobserved)).toBeNull()
+  })
+
+  it('confirms and invokes the core dshmarket uninstall operation', async () => {
+    const succeeded: PluginInstallSnapshot = {
+      installId: 'remove-1' as PluginInstallId,
+      profile: 'web',
+      packageSpec: 'dshmarket',
+      command: 'dsh plugin --profile web remove dshmarket',
+      phase: 'succeeded',
+      exitCode: 0,
+    }
+    const startUninstall = vi.fn(async () => succeeded)
+    render(<PluginInventorySettingsTab {...props(async () => SNAPSHOT)} startUninstall={startUninstall} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'dshmarket, Mounted, Enabled' }))
+    fireEvent.click(screen.getByRole('button', { name: en['uninstall.action'] }))
+    const confirm = screen.getByRole('button', { name: en['uninstall.confirm.action'] })
+    expect(confirm.hasAttribute('disabled')).toBe(true)
+    fireEvent.click(screen.getByRole('checkbox', { name: en['uninstall.confirm.acknowledge'] }))
+    fireEvent.click(confirm)
+    await waitFor(() => { expect(startUninstall).toHaveBeenCalledWith({ profile: 'web', packageName: 'dshmarket' }) })
+    expect(await screen.findByText(en['uninstall.succeeded'])).toBeTruthy()
   })
 
   it('filters by module name or Loader entry id', async () => {

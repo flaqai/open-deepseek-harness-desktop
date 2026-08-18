@@ -1,14 +1,19 @@
 /** Electron application host for the existing DeepSeek Harness Web GUI. */
 
+import { spawn } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import { resolveHarnessLaunch } from './launch.ts'
+import { seedBundledPlugin, type BundledPluginManifestEntry } from './bundled-plugin-seed.ts'
+import { resolveHarnessInvocation, resolveHarnessLaunch, type DesktopLaunchOptions, type HarnessLaunch } from './launch.ts'
 import { allowsHarnessPermission } from './permissions.ts'
 import { ensurePackagedRuntime } from './packaged-runtime.ts'
 import { HarnessSupervisor, type HarnessState } from './supervisor.ts'
 import { SourceUpdater } from './source-updater.ts'
 import { usesCustomWindowFrame } from './window-frame.ts'
+import { ensureWindowsRuntimeTools } from './windows-runtime-tools.ts'
 
 const APP_NAME = 'DeepSeek Harness'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
@@ -20,6 +25,28 @@ let mainWindow: BrowserWindow | undefined
 let supervisor: HarnessSupervisor | undefined
 let harnessOrigin: string | undefined
 let quitting = false
+
+async function runHarnessInvocation(launch: HarnessLaunch, logPath: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(launch.command, launch.args, {
+      env: { ...process.env, ...launch.environment },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    })
+    const output: Buffer[] = []
+    child.stdout.on('data', (chunk: Buffer) => { output.push(chunk) })
+    child.stderr.on('data', (chunk: Buffer) => { output.push(chunk) })
+    child.once('error', reject)
+    child.once('close', (code, signal) => {
+      if (code === 0) resolve()
+      else reject(new Error(`desktop: bundled plugin install failed (${String(code)}, ${String(signal)}): ${Buffer.concat(output).toString('utf8').slice(-4000)}`))
+    })
+  }).catch(async (error: unknown) => {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error)
+    await import('node:fs/promises').then(({ appendFile }) => appendFile(logPath, `[bundled-plugin] ${message}\n`))
+    throw error
+  })
+}
 
 function showLoading(state: HarnessState): void {
   if (mainWindow === undefined || mainWindow.isDestroyed() || state === 'ready' || state === 'stopped') return
@@ -148,8 +175,9 @@ async function startApplication(): Promise<void> {
   const packageRuntimeBin = packagedRuntime === undefined
     ? undefined
     : join(packagedRuntime, 'package-runtime', 'bin')
-  const launch = resolveHarnessLaunch(process.env, app.isPackaged
-    ? {
+  let launchOptions: DesktopLaunchOptions = {}
+  if (app.isPackaged) {
+    launchOptions = {
       harnessBin: join(packagedRuntime ?? process.resourcesPath, packagedRuntime === undefined ? 'harness-runtime/lib/bin.js' : 'lib/bin.js'),
       nodeCommand: packageRuntimeBin === undefined ? process.execPath : join(packageRuntimeBin, 'node'),
       electronNodeMode: packageRuntimeBin === undefined,
@@ -163,7 +191,40 @@ async function startApplication(): Promise<void> {
         ? { dependenciesPath: join(process.resourcesPath, 'harness-runtime', 'runtime-dependencies') }
         : {}),
     }
-    : {})
+    if (process.platform === 'win32') {
+      const runtimeRoot = join(process.resourcesPath, 'harness-runtime')
+      const tools = await ensureWindowsRuntimeTools(
+        join(app.getPath('userData'), 'runtime-tools', app.getVersion()),
+        process.execPath,
+        join(runtimeRoot, 'runtime-dependencies', 'pnpm', 'bin', 'pnpm.mjs'),
+      )
+      launchOptions.packageManagerBin = tools.packageManagerBin
+      launchOptions.runtimeBinPath = tools.directory
+    }
+
+    const bundledDirectory = join(process.resourcesPath, 'bundled-plugins')
+    const manifest = JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8')) as {
+      plugins: BundledPluginManifestEntry[]
+    }
+    const dshHome = process.env.DSH_HOME?.trim() || join(homedir(), '.dsh')
+    for (const entry of manifest.plugins) {
+      try {
+        await seedBundledPlugin({
+          entry,
+          resourcesDirectory: bundledDirectory,
+          dshHome,
+          install: async (archivePath, plugin) => {
+            await runHarnessInvocation(resolveHarnessInvocation(process.env, [
+              'plugin', '--profile', plugin.profile, 'add', '--save-exact', archivePath,
+            ], launchOptions), join(app.getPath('logs'), 'harness.log'))
+          },
+        })
+      } catch (error) {
+        console.error(error)
+      }
+    }
+  }
+  const launch = resolveHarnessLaunch(process.env, launchOptions)
   supervisor = new HarnessSupervisor({
     launch,
     logPath: join(app.getPath('logs'), 'harness.log'),

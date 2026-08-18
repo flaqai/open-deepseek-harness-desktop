@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+当清单包含 `dshmarket` 时，展开卡片会显示由核心 Host Remote 支持的风险确认卸载操作。打包应用会尊重成功移除，不会重新预装市场。
+
 Web 插件清单与发现界面。浏览器插件注册一个 id 为 `all` 的本地化 `settings.plugins.tab` 贡献；“插件”分区拥有导航入口与标签栏。它还会向新会话主页贡献根作用域 `conversation.hero.pluginDiscovery` 入口。该入口打开一个社区项目精选指引，所列项目都明确记录了官方 `dsh plugin --profile ... add ...` 流程。每张卡片会标明第三方来源与许可证、显示带日期的 Star 档位、链接到源码仓库、复制项目记录的命令，并通过结构化 Host Remote 提供受保护安装。安装需要明确确认风险，展示后台进度与有界诊断，并说明重启后新 bundle 才会生效。界面不会转发任意 shell 文本，也不会在运行时请求 GitHub。底部链接进入完整 GitHub `dsh-plugin` 专题以继续发现；进入专题和 Star 数量都不代表安全审核或 DeepSeek 官方背书。
 
 插件清单标签页在插件激活期间不会读取 Remote；首次选择该标签页时才挂载组件，并通过 [`api-remotes`](../../api/remotes/README.md) 懒调用 `ctx.remote.pluginInventory.list()`。

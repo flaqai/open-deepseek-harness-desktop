@@ -9,6 +9,10 @@ files:
   - lib/**/*
   - package.json
 extraResources:
+  - from: bundled-plugins
+    to: bundled-plugins
+    filter:
+      - "**/*"
   - from: ../../.artifacts/desktop-runtime-darwin-arm64.tar.gz
     to: harness-runtime.tar.gz
 mac:

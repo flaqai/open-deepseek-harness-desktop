@@ -256,6 +256,25 @@
   line-height: 17px;
 }
 
+.pluginActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pluginActions p {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.pluginActions p[role='alert'] {
+  color: var(--dsw-alias-state-error-primary);
+}
+
 .visuallyHidden {
   position: absolute;
   width: 1px;

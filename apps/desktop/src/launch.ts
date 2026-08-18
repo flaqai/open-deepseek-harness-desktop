@@ -44,6 +44,15 @@ export function resolveHarnessLaunch(
   environment: DesktopLaunchEnvironment,
   options: DesktopLaunchOptions = {},
 ): HarnessLaunch {
+  return resolveHarnessInvocation(environment, ['web', '--host', '127.0.0.1', '--port', '0'], options)
+}
+
+/** Resolve an arbitrary structured Harness CLI invocation with desktop runtime defaults. */
+export function resolveHarnessInvocation(
+  environment: DesktopLaunchEnvironment,
+  invocationArgs: readonly string[],
+  options: DesktopLaunchOptions = {},
+): HarnessLaunch {
   const harnessBin = environment.DSH_DESKTOP_DSH_BIN
     ?? options.harnessBin
     ?? fileURLToPath(new URL('../../cli/lib/bin.js', import.meta.url))
@@ -56,7 +65,7 @@ export function resolveHarnessLaunch(
     : []
   const launch: HarnessLaunch = {
     command,
-    args: [...nodeArguments, harnessBin, 'web', '--host', '127.0.0.1', '--port', '0'],
+    args: [...nodeArguments, harnessBin, ...invocationArgs],
   }
   const launchEnvironment: NodeJS.ProcessEnv = {}
   if (options.electronNodeMode === true && environment.DSH_DESKTOP_NODE_BIN === undefined) {

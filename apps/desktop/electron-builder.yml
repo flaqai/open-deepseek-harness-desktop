@@ -9,6 +9,10 @@ files:
   - lib/**/*
   - package.json
 extraResources:
+  - from: bundled-plugins
+    to: bundled-plugins
+    filter:
+      - "**/*"
   - from: ../../.artifacts/desktop-runtime-win-x64
     to: harness-runtime
     filter:

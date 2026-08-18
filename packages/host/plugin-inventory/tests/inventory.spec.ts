@@ -80,8 +80,27 @@ describe('PluginInventoryGateway', () => {
     expect(remoteMethods(inventory)).toEqual([
       { method: 'list', invocation: { kind: 'direct' } },
       { method: 'startInstall', invocation: { kind: 'direct' } },
+      { method: 'startUninstall', invocation: { kind: 'direct' } },
       { method: 'getInstall', invocation: { kind: 'direct' } },
     ])
+  })
+
+  it('starts an exact package uninstall and rejects versioned or path-like targets', async () => {
+    const { inventory, subprocess } = await harness()
+    const started = inventory.startUninstall({ profile: 'web', packageName: 'dshmarket' })
+    expect(started).toMatchObject({
+      packageSpec: 'dshmarket',
+      command: 'dsh plugin --profile web remove dshmarket',
+      phase: 'running',
+    })
+    expect(subprocess.spawns[0]?.argv.slice(-5)).toEqual([
+      'plugin', '--profile', 'web', 'remove', 'dshmarket',
+    ])
+    await expect.poll(() => inventory.getInstall(started.installId).phase).toBe('succeeded')
+    expect(() => inventory.startUninstall({ profile: 'web', packageName: 'dshmarket@1.12.1' }))
+      .toThrow(/invalid registry package name/)
+    expect(() => inventory.startUninstall({ profile: 'web', packageName: '../dshmarket' }))
+      .toThrow(/invalid registry package name/)
   })
 
   it('projects current non-group Loader entries without a second cache', async () => {

@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+When inventory contains `dshmarket`, its expanded card exposes a risk-confirmed uninstall action backed by the core Host Remote. Packaged launches honor a successful removal instead of reinstalling the market.
+
 Web plugin inventory and discovery UI. The browser plugin registers one localized `settings.plugins.tab` contribution with id `all`; the Plugins section owns the navigation entry and tab chrome. It also contributes the root-scoped `conversation.hero.pluginDiscovery` entry to the new-session home screen. The entry opens a curated guide to community projects that explicitly document the official `dsh plugin --profile ... add ...` flow. Each card identifies the third-party source and license, shows a dated Star band, links to its repository, copies the documented command, and offers guarded installation through the structured Host Remote. Installation requires an explicit risk acknowledgement, reports background progress and bounded diagnostics, and explains that restart activates the new bundle. The UI never forwards arbitrary shell text or fetches GitHub data at runtime. The footer links to the complete GitHub `dsh-plugin` topic for broader discovery; topic membership and Star counts are not security review or DeepSeek endorsement.
 
 The inventory tab performs no Remote read during plugin activation. Selecting the tab for the first time mounts it and lazily calls `ctx.remote.pluginInventory.list()` through [`api-remotes`](../../api/remotes/README.md).

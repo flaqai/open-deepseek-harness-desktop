@@ -38,6 +38,14 @@ export interface PluginInstallRequest {
   readonly packageSpec: string
 }
 
+/** Exact registry package removal accepted by the profile plugin manager. */
+export interface PluginUninstallRequest {
+  /** Profile from which the dependency and bundle layer will be removed. */
+  readonly profile: string
+  /** Exact installed npm package name. Versions, paths, and URLs are rejected. */
+  readonly packageName: string
+}
+
 /** Observable lifecycle of one package-manager process. */
 export type PluginInstallPhase = 'running' | 'succeeded' | 'failed'
 

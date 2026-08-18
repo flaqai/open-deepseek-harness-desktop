@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+Besides guarded installation, `startUninstall` accepts an exact registry package name and runs `dsh plugin --profile <name> remove <package>` through the managed subprocess boundary. Versions, paths, URLs, flags, and shell text are rejected.
+
 Host projection of the current Cordis Loader tree plus controlled profile-plugin installation. `PluginInventoryGateway` registers the `pluginInventory` service and publishes three generated direct Remotes: `pluginInventory/list`, `startInstall`, and `getInstall`. Every list call reads `ctx.loader.entries()` directly, skips structural group rows, and returns the remaining entries in Loader order with only their Loader entry id, module specifier, effective enablement, and current root Fiber phase.
 
 `startInstall` accepts a structured profile name and npm registry package specifier. It rejects paths, URLs, flags, and shell text, requires the managed subprocess capability, and starts the running product launcher's `dsh plugin --profile <name> add <package>` mode without shell interpolation. The call returns immediately with a job id; `getInstall` polls running, succeeded, or failed state and bounded package-manager diagnostics. One target has at most one running job. A successful install updates the profile dependency and bundle layer through the same CLI path, but never mutates the already-booted Loader tree; restart activates the new composition.

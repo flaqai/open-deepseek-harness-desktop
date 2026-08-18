@@ -73,12 +73,24 @@ async function injectVendoredDependencies() {
     if (!existsSync(manifestPath)) continue
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
     if (typeof manifest.name !== 'string' || !manifest.name.startsWith('@deepseek-ai/')) continue
-    await cp(source, join(staging, 'node_modules', manifest.name), {
+    const destination = join(staging, 'node_modules', manifest.name)
+    await rm(destination, { recursive: true, force: true })
+    await cp(source, destination, {
       recursive: true,
       dereference: true,
       filter: path => !relative(source, path).split(sep).includes('node_modules'),
     })
   }
+}
+
+async function injectPackageManager() {
+  const desktopRequire = createRequire(join(desktopRoot, 'package.json'))
+  const manifestPath = desktopRequire.resolve('pnpm')
+  const source = dirname(manifestPath)
+  await cp(source, join(staging, 'node_modules', 'pnpm'), {
+    recursive: true,
+    dereference: true,
+  })
 }
 
 async function verifyRuntime() {
@@ -92,6 +104,9 @@ async function verifyRuntime() {
   ]
   for (const packagePath of requiredPackages) require.resolve(packagePath)
   require.resolve('@deepseek-ai/dsh-web-frontend/dist/index.html')
+  if (!existsSync(join(staging, 'node_modules', 'pnpm', 'bin', 'pnpm.mjs'))) {
+    throw new Error('desktop package runtime is missing embedded pnpm')
+  }
   const remainingLink = await firstSymlink(staging)
   if (remainingLink !== undefined) throw new Error(`desktop package runtime retains symlink ${remainingLink}`)
   for (const secretName of ['.env', 'auth.json']) {
@@ -117,6 +132,7 @@ await run(pnpm, [
 ])
 await materializeLinks()
 await injectVendoredDependencies()
+await injectPackageManager()
 await verifyRuntime()
 // electron-builder intentionally excludes directories named node_modules from
 // extraResources. Keep this bundled production closure under a neutral name;

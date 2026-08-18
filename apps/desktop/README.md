@@ -16,6 +16,8 @@ pnpm run dev:desktop
 
 The app opens the same onboarding and settings surfaces as `dsh web`. Users can configure DeepSeek or another compatible API provider, choose models, inspect installed plugins, edit supported plugin settings, invoke Skills, select workspaces, and manage sessions without a second configuration store.
 
+Packaged releases include a pinned `dshmarket` archive as an offline, removable first-run seed. Its durable seed marker survives a later uninstall, so subsequent launches do not silently restore the plugin.
+
 ## macOS arm64 package
 
 Build the unsigned DMG and ZIP from this checkout with:
@@ -34,7 +36,7 @@ Build the reviewed Windows x64 ZIP from this checkout with:
 npm run package:desktop:win:x64
 ```
 
-The artifact is written to `.artifacts/desktop-windows/DeepSeek-Harness-<version>-windows-x64.zip`. It carries Electron's Node-compatible executable plus a symlink-free production Harness closure, so a user does not need Node on `PATH`. The package is unsigned, is not an installer, and has not yet been executed on a native Windows runner; release it only after native lifecycle, PTY, and update-path validation.
+The artifact is written to `.artifacts/desktop-windows/DeepSeek-Harness-<version>-windows-x64.zip`. It carries Electron's Node-compatible executable, pnpm 11.7.0, and a symlink-free production Harness closure, so a user does not need Node or pnpm on `PATH`. The package is unsigned, is not an installer, and has not yet been executed on a native Windows runner; release it only after native lifecycle, PTY, and update-path validation.
 
 ## Process lifecycle
 

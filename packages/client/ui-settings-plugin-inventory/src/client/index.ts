@@ -37,7 +37,20 @@ export function apply(ctx: ClientContext): void {
     }
     return result.value
   }
-  const injected = (): PluginInventorySettingsTabInjected => ({ list })
+  const getInstall: PluginInventorySettingsTabInjected['getInstall'] = async (installId) => {
+    const result = await ctx.remote.pluginInventory.getInstall(installId)
+    if (!result.ok) throw new Error(`pluginInventory.getInstall failed: ${result.error.code}: ${result.error.message}`)
+    return result.value
+  }
+  const injected = (): PluginInventorySettingsTabInjected => ({
+    list,
+    getInstall,
+    startUninstall: async (request) => {
+      const result = await ctx.remote.pluginInventory.startUninstall(request)
+      if (!result.ok) throw new Error(`pluginInventory.startUninstall failed: ${result.error.code}: ${result.error.message}`)
+      return result.value
+    },
+  })
   const discoveryInjected = (): PluginDiscoveryInjected => ({
     startInstall: async (request) => {
       const result = await ctx.remote.pluginInventory.startInstall(request)
@@ -46,13 +59,7 @@ export function apply(ctx: ClientContext): void {
       }
       return result.value
     },
-    getInstall: async (installId) => {
-      const result = await ctx.remote.pluginInventory.getInstall(installId)
-      if (!result.ok) {
-        throw new Error(`pluginInventory.getInstall failed: ${result.error.code}: ${result.error.message}`)
-      }
-      return result.value
-    },
+    getInstall,
   })
 
   ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({

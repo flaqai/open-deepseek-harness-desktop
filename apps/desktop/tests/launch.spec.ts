@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { resolveHarnessLaunch } from '../src/launch.ts'
+import { resolveHarnessInvocation, resolveHarnessLaunch } from '../src/launch.ts'
 
 describe('desktop Harness launch', () => {
   it('uses explicit executable overrides without a shell', () => {
@@ -21,6 +21,16 @@ describe('desktop Harness launch', () => {
   it('fails before spawning when the Harness launcher is absent', () => {
     expect(() => resolveHarnessLaunch({}, { harnessBin: '/does/not/exist/dsh.js' }))
       .toThrow('Harness launcher not found')
+  })
+
+  it('resolves structured plugin lifecycle invocations through the same runtime', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-plugin-launch-'))
+    const harnessBin = join(root, 'bin.js')
+    writeFileSync(harnessBin, '')
+    expect(resolveHarnessInvocation({}, ['plugin', '--profile', 'web', 'remove', 'dshmarket'], {
+      harnessBin,
+      nodeCommand: '/runtime/node',
+    }).args).toEqual([harnessBin, 'plugin', '--profile', 'web', 'remove', 'dshmarket'])
   })
 
   it('uses the packaged Electron executable as a Node carrier', () => {

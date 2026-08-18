@@ -1,8 +1,11 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PluginInstallSnapshot, PluginUninstallRequest } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import {
+  Button,
   IconChevronDownOutline14,
   IconSearchOutline16,
+  RiskConfirmation,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PluginInventoryLocaleKey } from './locales.ts'
@@ -12,6 +15,10 @@ import css from './PluginInventorySettingsTab.module.css'
 export interface PluginInventorySettingsTabInjected {
   /** Read a current Host inventory snapshot. */
   list: () => Promise<PluginInventorySnapshot>
+  /** Start an exact profile-plugin removal. */
+  startUninstall: (request: PluginUninstallRequest) => Promise<PluginInstallSnapshot>
+  /** Poll the package-manager operation. */
+  getInstall: (installId: PluginInstallSnapshot['installId']) => Promise<PluginInstallSnapshot>
 }
 
 type PluginInventoryEntry = PluginInventorySnapshot['entries'][number]
@@ -61,12 +68,16 @@ function matches(entry: PluginInventoryEntry, normalizedQuery: string): boolean 
 }
 
 /** Render the read-only current Loader inventory. */
-export function PluginInventorySettingsTab({ list, t }: PluginInventorySettingsTabProps): ReactNode {
+export function PluginInventorySettingsTab({ list, startUninstall, getInstall, t }: PluginInventorySettingsTabProps): ReactNode {
   const catalogId = useId()
   const [request, setRequest] = useState(0)
   const [query, setQuery] = useState('')
   const [expanded, setExpanded] = useState<PluginInventoryEntry['entryId'] | null>(null)
   const [state, setState] = useState<ViewState>({ status: 'loading' })
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [uninstall, setUninstall] = useState<PluginInstallSnapshot | null>(null)
+  const [uninstallError, setUninstallError] = useState(false)
 
   useEffect(() => {
     let current = true
@@ -76,6 +87,21 @@ export function PluginInventorySettingsTab({ list, t }: PluginInventorySettingsT
     )
     return () => { current = false }
   }, [list, request])
+
+  useEffect(() => {
+    if (uninstall?.phase !== 'running') return
+    let current = true
+    const timer = window.setInterval(() => {
+      void getInstall(uninstall.installId).then(
+        (snapshot) => { if (current) setUninstall(snapshot) },
+        () => { if (current) setUninstallError(true) },
+      )
+    }, 500)
+    return () => {
+      current = false
+      window.clearInterval(timer)
+    }
+  }, [getInstall, uninstall])
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filteredEntries = useMemo(
@@ -94,6 +120,18 @@ export function PluginInventorySettingsTab({ list, t }: PluginInventorySettingsT
   const retry = (): void => {
     setState({ status: 'loading' })
     setRequest(value => value + 1)
+  }
+
+  const confirmUninstall = (): void => {
+    setUninstallError(false)
+    void startUninstall({ profile: 'web', packageName: 'dshmarket' }).then(
+      (snapshot) => {
+        setUninstall(snapshot)
+        setConfirmationOpen(false)
+        setAcknowledged(false)
+      },
+      () => { setUninstallError(true) },
+    )
   }
 
   return (
@@ -183,6 +221,22 @@ export function PluginInventorySettingsTab({ list, t }: PluginInventorySettingsT
                             </div>
                           ) : null}
                         </dl>
+                        {entry.moduleName === 'dshmarket' ? (
+                          <div className={css.pluginActions}>
+                            <Button
+                              variant="outline"
+                              disabled={uninstall?.phase === 'running' || uninstall?.phase === 'succeeded'}
+                              onClick={() => {
+                                setAcknowledged(false)
+                                setConfirmationOpen(true)
+                              }}
+                            >
+                              {uninstall?.phase === 'running' ? t('uninstall.running') : t('uninstall.action')}
+                            </Button>
+                            {uninstall?.phase === 'succeeded' ? <p role="status">{t('uninstall.succeeded')}</p> : null}
+                            {uninstall?.phase === 'failed' || uninstallError ? <p role="alert">{t('uninstall.failed')}</p> : null}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </li>
@@ -192,6 +246,22 @@ export function PluginInventorySettingsTab({ list, t }: PluginInventorySettingsT
           ) : null}
         </div>
       ) : null}
+      <RiskConfirmation
+        open={confirmationOpen}
+        title={t('uninstall.confirm.title')}
+        description={t('uninstall.confirm.description')}
+        acknowledgeLabel={t('uninstall.confirm.acknowledge')}
+        cancelLabel={t('uninstall.confirm.cancel')}
+        confirmLabel={t('uninstall.confirm.action')}
+        acknowledged={acknowledged}
+        disabled={uninstall?.phase === 'running'}
+        onAcknowledgedChange={setAcknowledged}
+        onCancel={() => {
+          setConfirmationOpen(false)
+          setAcknowledged(false)
+        }}
+        onConfirm={confirmUninstall}
+      />
     </div>
   )
 }
