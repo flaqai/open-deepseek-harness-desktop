@@ -52,4 +52,4 @@ pre-merge-commit:
 pre-push:
   jobs:
     - name: typecheck
-      run: pnpm run typecheck
+      run: pnpm --config.verifyDepsBeforeRun=false run typecheck
