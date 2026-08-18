@@ -10,7 +10,9 @@ import { fileURLToPath } from 'node:url'
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
 const staging = join(repositoryRoot, '.artifacts', 'desktop-runtime-win-x64')
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const desktopRequire = createRequire(join(desktopRoot, 'package.json'))
+const pnpmManifestPath = desktopRequire.resolve('pnpm')
+const pnpmEntry = join(dirname(pnpmManifestPath), 'bin', 'pnpm.mjs')
 
 function run(command, args) {
   return new Promise((resolvePromise, reject) => {
@@ -84,9 +86,7 @@ async function injectVendoredDependencies() {
 }
 
 async function injectPackageManager() {
-  const desktopRequire = createRequire(join(desktopRoot, 'package.json'))
-  const manifestPath = desktopRequire.resolve('pnpm')
-  const source = dirname(manifestPath)
+  const source = dirname(pnpmManifestPath)
   await cp(source, join(staging, 'node_modules', 'pnpm'), {
     recursive: true,
     dereference: true,
@@ -120,7 +120,8 @@ if (staging === repositoryRoot || repositoryRoot.startsWith(staging + sep)) {
   throw new Error(`refusing to clear unsafe runtime staging path ${staging}`)
 }
 await rm(staging, { recursive: true, force: true })
-await run(pnpm, [
+await run(process.execPath, [
+  pnpmEntry,
   '--filter',
   '@deepseek-ai/dsh',
   'deploy',
