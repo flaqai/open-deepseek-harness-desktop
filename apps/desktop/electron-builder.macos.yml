@@ -17,6 +17,10 @@ extraResources:
     to: harness-runtime.tar.gz
 mac:
   icon: build/icon.icns
+  # Open-source release baseline: keep Apple Silicon code structurally signed
+  # without binding artifacts to a short-lived development certificate.
+  identity: "-"
+  timestamp: none
   target:
     - target: dmg
       arch:

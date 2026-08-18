@@ -20,7 +20,7 @@ Packaged releases include a pinned `dshmarket` archive as an offline, removable 
 
 ## macOS arm64 package
 
-Build the unsigned DMG and ZIP from this checkout with:
+Build the ad-hoc-signed, unnotarized DMG and ZIP from this checkout with:
 
 ```sh
 npm run package:desktop:macos:arm64
@@ -64,7 +64,7 @@ Profile plugins are trusted executable code. The embedded package runtime makes 
 
 The source host uses only Electron and Node process APIs that are shared by macOS, Windows, and Linux. macOS retains its native title bar and traffic lights. Windows and Linux use a frameless window with a Harness-owned draggable title bar and explicit minimize, maximize or restore, and close controls. A Windows x64 ZIP package is available for native validation; the remaining release work is:
 
-1. Sign and notarize arm64 and x64 macOS artifacts; build signed Windows x64/arm64 installers; build Linux AppImage and deb artifacts on their native CI runners.
+1. Add Developer ID signing and notarization if the project later needs Gatekeeper-trusted arm64 and x64 macOS artifacts; build signed Windows x64/arm64 installers; build Linux AppImage and deb artifacts on their native CI runners.
 2. Exercise shutdown, child cleanup, native directory selection, file opening, PTY, and sandbox behavior on each platform before adding it to the supported matrix.
 3. Add signed update metadata only after release signing and rollback are operational.
 
@@ -79,7 +79,7 @@ The next desktop milestones are signed installers, native notifications for appr
 ## Limitations
 
 - The current source run requires a built repository and a compatible Node executable.
-- The macOS arm64 DMG and ZIP are unsigned and not notarized; they are development-validation artifacts rather than a supported release.
+- The macOS arm64 DMG and ZIP use ad-hoc signing and are not notarized; Gatekeeper requires explicit user approval on first launch.
 - The Windows x64 ZIP is unsigned and has only structural verification from macOS; it is not a supported Windows release, an installer, or an auto-updating package.
-- Signing, notarization, packaged auto-update, tray behavior, native notifications, and IM control are not implemented. The source updater accepts only a clean fast-forward from official `master`; local divergence stays a manual Git operation.
+- Developer ID signing, notarization, packaged auto-update, tray behavior, native notifications, and IM control are not implemented. The source updater accepts only a clean fast-forward from official `master`; local divergence stays a manual Git operation.
 - macOS is the first locally exercised platform; source compatibility does not yet constitute Windows or Linux release support.

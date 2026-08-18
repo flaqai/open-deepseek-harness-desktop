@@ -20,7 +20,7 @@ pnpm run dev:desktop
 
 ## macOS arm64 包
 
-在当前仓库中使用下列命令构建未签名的 DMG 和 ZIP：
+在当前仓库中使用下列命令构建 Ad-hoc 签名、未公证的 DMG 和 ZIP：
 
 ```sh
 npm run package:desktop:macos:arm64
@@ -64,7 +64,7 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 
 源码宿主只使用 macOS、Windows 和 Linux 共用的 Electron 与 Node 进程 API。macOS 保留原生标题栏与交通灯按钮；Windows 和 Linux 使用无系统边框窗口，由 Harness 自绘可拖拽标题栏及最小化、最大化或还原、关闭按钮。现已提供 Windows x64 ZIP 用于原生验证，剩余发布工作如下：
 
-1. 签名并公证 arm64、x64 macOS 产物；构建已签名的 Windows x64、arm64 安装包；在原生 CI runner 上构建 Linux AppImage 与 deb 产物。
+1. 如果项目之后需要 Gatekeeper 信任的 macOS 产物，再为 arm64、x64 加入 Developer ID 签名与公证；构建已签名的 Windows x64、arm64 安装包；在原生 CI runner 上构建 Linux AppImage 与 deb 产物。
 2. 在每个平台验证退出、子进程清理、原生目录选择、文件打开、PTY 和沙盒行为，再将其加入支持矩阵。
 3. 只有在发布签名和回滚流程可用后，才添加已签名的更新元数据。
 
@@ -79,7 +79,7 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 ## 限制
 
 - 当前源码运行需要已构建的仓库和兼容的 Node 可执行文件。
-- macOS arm64 DMG 与 ZIP 尚未签名和公证，仅作为开发验证产物，不是受支持发布。
+- macOS arm64 DMG 与 ZIP 使用 Ad-hoc 签名且未公证；首次启动时需要用户在 Gatekeeper 中明确授权。
 - Windows x64 ZIP 未签名，当前只在 macOS 完成结构验证；它不是受支持的 Windows 发布、安装器或自动更新包。
-- 签名、公证、安装包自动更新、托盘、原生通知和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
+- Developer ID 签名、公证、安装包自动更新、托盘、原生通知和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
 - macOS 是首个本地验证平台；源码兼容不等于已经支持发布 Windows 或 Linux 版本。
