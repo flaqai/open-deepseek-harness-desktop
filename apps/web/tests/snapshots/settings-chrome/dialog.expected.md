@@ -30,13 +30,14 @@
     - text: 中文
     - img
   - region "主题皮肤":
-    - text: 主题皮肤 外观 10 套皮肤
+    - text: 主题皮肤 外观 11 套皮肤
     - button "跟随系统" [pressed]
     - button "浅色"
     - button "深色"
     - button "深海蓝鲸"
     - button "月光鲸语"
     - button "气泡乐园"
+    - button "灵感拼贴"
     - button "星光次元"
     - button "海盗远航"
     - button "忍者赤焰"
@@ -47,6 +48,7 @@
     - button "深海鲸游"
     - button "月光小鲸"
     - button "软萌气泡"
+    - button "灵感拼贴"
     - button "星光程序姬"
     - button "海盗远航"
     - button "忍者赤焰"

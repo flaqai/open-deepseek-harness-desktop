@@ -21,7 +21,8 @@
 }
 
 .sessionRow.selected {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 11%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dsw-alias-state-business-primary) 72%, transparent);
 }
 
 .searchResultRow {
@@ -45,7 +46,8 @@
 }
 
 .searchResultRow.selected {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 11%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dsw-alias-state-business-primary) 72%, transparent);
 }
 
 .searchResultHeading {

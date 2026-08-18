@@ -24,4 +24,13 @@ describe('chat background persistence', () => {
     localStorage.setItem('dsh.theme.chat-background', '{broken')
     expect(readChatBackground()).toEqual({ id: 'none' })
   })
+
+  it('round-trips the shipped inspiration collage with its subject-safe layout', () => {
+    writeChatBackground(CHAT_BACKGROUND_PRESETS['idea-collage'])
+    expect(readChatBackground()).toEqual({
+      id: 'idea-collage',
+      url: '/theme-backgrounds/idea-collage.webp',
+      layout: 'focus-right',
+    })
+  })
 })

@@ -9,7 +9,7 @@ const MAX_HEIGHT = 1200
 /** Shipped and user-provided chat background identifiers. */
 export const CHAT_BACKGROUND_IDS = [
   'none', 'deep-ocean', 'moon-whale', 'bubble-whale',
-  'anime-starlight', 'pirate-horizon', 'shinobi-ember', 'rift-arena', 'custom',
+  'idea-collage', 'anime-starlight', 'pirate-horizon', 'shinobi-ember', 'rift-arena', 'custom',
 ] as const
 
 /** One chat background accepted by the settings UI and presenter. */
@@ -34,6 +34,9 @@ export const CHAT_BACKGROUND_PRESETS: Readonly<Record<Exclude<ChatBackgroundId, 
   'deep-ocean': Object.freeze({ id: 'deep-ocean', url: '/theme-backgrounds/deep-ocean-whale.webp' }),
   'moon-whale': Object.freeze({ id: 'moon-whale', url: '/theme-backgrounds/moon-whale.webp' }),
   'bubble-whale': Object.freeze({ id: 'bubble-whale', url: '/theme-backgrounds/bubble-whale.webp' }),
+  'idea-collage': Object.freeze({
+    id: 'idea-collage', url: '/theme-backgrounds/idea-collage.webp', layout: 'focus-right',
+  }),
   'anime-starlight': Object.freeze({
     id: 'anime-starlight', url: '/theme-backgrounds/anime-starlight.webp', layout: 'focus-right',
   }),

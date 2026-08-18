@@ -21,8 +21,8 @@
     "build:lib": "npm run build:lib:host && npm run build:lib:client",
     "build:lib:host": "tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host",
     "build:lib:client": "tsc -b tsconfig.client.json && tsdown --env.DSH_BUILD_FACE client",
-    "build:web": "pnpm --filter @deepseek-ai/dsh-web-frontend run build",
-    "build:desktop": "pnpm --filter @deepseek-ai/dsh-desktop run build",
+    "build:web": "pnpm --config.verifyDepsBeforeRun=false --filter @deepseek-ai/dsh-web-frontend run build",
+    "build:desktop": "pnpm --config.verifyDepsBeforeRun=false --filter @deepseek-ai/dsh-desktop run build",
     "clean": "tsx scripts/clean.ts",
     "change-scope": "tsx scripts/change-scope.ts",
     "typecheck": "npm run build:lib:host && npm run typecheck:contracts-ready && npm run typecheck:desktop",
@@ -142,6 +142,8 @@
     "mock:llm": "node --import tsx packages/test-support/llm-mock-server/src/bin.ts",
     "dev:web": "tsx scripts/dev-web.ts --poll",
     "dev:desktop": "pnpm --filter @deepseek-ai/dsh-desktop run dev",
+    "package:desktop:win:x64": "npm run build && node apps/desktop/scripts/prepare-windows-runtime.mjs && node apps/desktop/node_modules/electron-builder/out/cli/cli.js --projectDir apps/desktop --win zip --x64 --publish never",
+    "package:desktop:macos:arm64": "npm run build && node apps/desktop/scripts/prepare-macos-runtime.mjs && CSC_IDENTITY_AUTO_DISCOVERY=false node apps/desktop/node_modules/electron-builder/out/cli/cli.js --projectDir apps/desktop --config electron-builder.macos.yml --mac dmg zip --arm64 --publish never",
     "postinstall": "node scripts/install-lefthook.mjs"
   },
   "devDependencies": {

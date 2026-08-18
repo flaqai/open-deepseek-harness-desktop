@@ -1,7 +1,8 @@
-/** Narrow desktop bridge for source update checks and confirmed upgrades. */
+/** Narrow update bridge plus desktop-owned Windows and Linux title-bar chrome. */
 
 import { contextBridge, ipcRenderer } from 'electron'
 import type { SourceUpdateResult, SourceUpdateStatus } from './source-updater.ts'
+import { usesCustomWindowFrame } from './window-frame.ts'
 
 /** Renderer-visible update methods; no generic process or filesystem access is exposed. */
 export interface DesktopUpdateBridge {
@@ -17,3 +18,162 @@ const bridge: DesktopUpdateBridge = {
 }
 
 contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({ updater: Object.freeze(bridge) }))
+
+const TITLE_BAR_STYLE = `
+  html.dsh-desktop-custom-frame {
+    box-sizing: border-box;
+    height: 100%;
+    overflow: hidden;
+    padding-top: 36px;
+  }
+  html.dsh-desktop-custom-frame body {
+    box-sizing: border-box;
+    height: 100% !important;
+    min-height: 100% !important;
+  }
+  #dsh-desktop-titlebar {
+    -webkit-app-region: drag;
+    align-items: center;
+    background: color-mix(in srgb, var(--dsw-alias-bg-base, #fff) 94%, transparent);
+    border-bottom: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+    color: var(--dsw-alias-label-primary, #171719);
+    display: flex;
+    font-family: var(--dsw-font-family, "Segoe UI", sans-serif);
+    height: 36px;
+    inset: 0 0 auto;
+    position: fixed;
+    user-select: none;
+    z-index: 2147483647;
+  }
+  #dsh-desktop-titlebar-title {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 36px;
+    min-width: 0;
+    overflow: hidden;
+    padding: 0 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #dsh-desktop-window-controls {
+    -webkit-app-region: no-drag;
+    align-self: stretch;
+    display: flex;
+  }
+  .dsh-desktop-window-control {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    height: 36px;
+    margin: 0;
+    outline: none;
+    padding: 0;
+    position: relative;
+    width: 46px;
+  }
+  .dsh-desktop-window-control:hover { background: var(--dsw-alias-bg-mask-2, rgb(0 0 0 / 8%)); }
+  .dsh-desktop-window-control:focus-visible { box-shadow: inset 0 0 0 2px #4176e6; }
+  .dsh-desktop-window-control[data-action="close"]:hover { background: #c42b1c; color: #fff; }
+  .dsh-desktop-window-control::before,
+  .dsh-desktop-window-control::after {
+    box-sizing: border-box;
+    content: "";
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .dsh-desktop-window-control[data-action="minimize"]::before { border-top: 1px solid currentColor; width: 10px; }
+  .dsh-desktop-window-control[data-action="maximize"]::before { border: 1px solid currentColor; height: 10px; width: 10px; }
+  .dsh-desktop-window-control[data-action="maximize"][data-maximized="true"]::before {
+    height: 8px;
+    margin: 1px 0 0 -1px;
+    width: 8px;
+  }
+  .dsh-desktop-window-control[data-action="maximize"][data-maximized="true"]::after {
+    border: 1px solid currentColor;
+    height: 8px;
+    margin: -2px 0 0 2px;
+    width: 8px;
+  }
+  .dsh-desktop-window-control[data-action="close"]::before,
+  .dsh-desktop-window-control[data-action="close"]::after { border-top: 1px solid currentColor; width: 12px; }
+  .dsh-desktop-window-control[data-action="close"]::before { transform: translate(-50%, -50%) rotate(45deg); }
+  .dsh-desktop-window-control[data-action="close"]::after { transform: translate(-50%, -50%) rotate(-45deg); }
+  @media (prefers-color-scheme: dark) {
+    #dsh-desktop-titlebar { background: color-mix(in srgb, var(--dsw-alias-bg-base, #202024) 94%, transparent); color: var(--dsw-alias-label-primary, #f4f4f5); }
+  }
+`
+
+function installCustomTitleBar(): void {
+  const root = document.documentElement
+  root.classList.add('dsh-desktop-custom-frame')
+
+  const style = document.createElement('style')
+  style.id = 'dsh-desktop-titlebar-style'
+  style.textContent = TITLE_BAR_STYLE
+  document.head.append(style)
+
+  const titleBar = document.createElement('header')
+  titleBar.id = 'dsh-desktop-titlebar'
+  titleBar.setAttribute('role', 'banner')
+
+  const title = document.createElement('div')
+  title.id = 'dsh-desktop-titlebar-title'
+  const syncTitle = (): void => {
+    title.textContent = document.title || 'DeepSeek Harness'
+  }
+  syncTitle()
+  const documentTitle = document.querySelector('title')
+  if (documentTitle !== null) new MutationObserver(syncTitle).observe(documentTitle, { childList: true })
+  titleBar.append(title)
+
+  const controls = document.createElement('div')
+  controls.id = 'dsh-desktop-window-controls'
+  const chinese = navigator.language.toLowerCase().startsWith('zh')
+  const labels = chinese
+    ? { minimize: '最小化', maximize: '最大化', restore: '还原', close: '关闭' }
+    : { minimize: 'Minimize', maximize: 'Maximize', restore: 'Restore', close: 'Close' }
+
+  const minimize = document.createElement('button')
+  minimize.className = 'dsh-desktop-window-control'
+  minimize.dataset.action = 'minimize'
+  minimize.type = 'button'
+  minimize.ariaLabel = labels.minimize
+  minimize.addEventListener('click', () => {
+    ipcRenderer.send('dsh:window:minimize')
+  })
+
+  const maximize = document.createElement('button')
+  maximize.className = 'dsh-desktop-window-control'
+  maximize.dataset.action = 'maximize'
+  maximize.dataset.maximized = 'false'
+  maximize.type = 'button'
+  maximize.ariaLabel = labels.maximize
+  maximize.addEventListener('click', () => {
+    ipcRenderer.send('dsh:window:toggle-maximize')
+  })
+  ipcRenderer.on('dsh:window:maximized', (_event, maximized: boolean) => {
+    maximize.dataset.maximized = String(maximized)
+    maximize.ariaLabel = maximized ? labels.restore : labels.maximize
+  })
+
+  const close = document.createElement('button')
+  close.className = 'dsh-desktop-window-control'
+  close.dataset.action = 'close'
+  close.type = 'button'
+  close.ariaLabel = labels.close
+  close.addEventListener('click', () => {
+    ipcRenderer.send('dsh:window:close')
+  })
+
+  controls.append(minimize, maximize, close)
+  titleBar.append(controls)
+  document.body.prepend(titleBar)
+}
+
+if (usesCustomWindowFrame(process.platform)) {
+  window.addEventListener('DOMContentLoaded', installCustomTitleBar, { once: true })
+}

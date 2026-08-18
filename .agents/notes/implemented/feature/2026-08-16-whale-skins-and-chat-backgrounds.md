@@ -12,7 +12,7 @@ The desktop application exposed only light, dark, and system appearance choices.
 
 `ui-theme` ships seven complete product skins—`ocean`, `moonlight`, `bubble`, `starlight`, `pirate`, `shinobi`, and `rift`—beside the existing palette preferences. They remain ordinary `ThemeDefinition` entries and persist through `ui-theme.preference`, so every UI package continues to consume semantic tokens instead of skin-specific selectors.
 
-Chat background selection is independent from the palette. The default Web application owns three original whale WebP assets and four original subject-led assets. A background may carry `focus-left` or `focus-right` placement metadata; ui-layout is the only DOM writer, and ui-conversation keeps the work area over the low-detail field while exposing the subject along the named outer edge. Narrow layouts replace the edge treatment with a stronger uniform readability veil.
+Chat background state and persistence are independent from the palette. The default Web application owns three original whale WebP assets and five original subject-led assets. A background may carry `focus-left` or `focus-right` placement metadata; ui-layout is the only DOM writer, and ui-conversation keeps the work area over the low-detail field while exposing the subject along the named outer edge. Narrow layouts replace the edge treatment with a stronger uniform readability veil. The [`inspiration-collage` curated pairing](2026-08-17-inspiration-collage-paired-skin.md) lets one settings-row gesture choose a matching palette and background without coupling their runtime or persistence paths.
 
 A custom PNG, JPEG, or WebP is decoded and downscaled in the browser, encoded as a bounded WebP data URL, and retained in browser-local storage. The source and encoded sizes are capped. The custom image never enters Host settings, session events, attachments, or model requests.
 
@@ -26,6 +26,6 @@ A custom PNG, JPEG, or WebP is decoded and downscaled in the browser, encoded as
 
 ## Consequences
 
-Users gain ten palette choices, seven shipped artwork backgrounds, and one local custom background while all conversation and model behavior remains unchanged. Custom images do not roam between browsers and disappear when browser storage is cleared. GIF and SVG sources are not accepted, and the default application must continue serving the seven paths under `/theme-backgrounds/`.
+Users gain eleven palette choices, eight shipped artwork backgrounds, and one local custom background while all conversation and model behavior remains unchanged. Custom images do not roam between browsers and disappear when browser storage is cleared. GIF and SVG sources are not accepted, and the default application must continue serving the eight paths under `/theme-backgrounds/`.
 
 Focused tests cover palette registration, background persistence, settings actions, DOM projection, and retraction. The assembled Web snapshot and a real-server browser recording cover the visible selection flow.

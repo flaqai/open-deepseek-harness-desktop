@@ -12,7 +12,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import {
   DEFAULT_PROFILE_BUNDLES,
   initProfile,
@@ -26,6 +26,20 @@ import {
 import { INSTALL_ANCHOR } from './profile-boot.ts'
 
 const NAME = 'dsh'
+
+/**
+ * Resolve the pnpm executable selected by the host process.
+ * @param environment - Environment inherited by the CLI.
+ * @returns The configured absolute executable or the ordinary PATH name.
+ */
+export function resolvePnpmCommand(environment: NodeJS.ProcessEnv): string {
+  const configured = environment.DSH_PNPM_BIN?.trim()
+  if (configured === undefined || configured.length === 0) return 'pnpm'
+  if (!isAbsolute(configured)) {
+    throw new Error(`${NAME}: DSH_PNPM_BIN must be an absolute path, received ${configured}`)
+  }
+  return configured
+}
 
 /**
  * Whether a resolved dependency exports a profile patch, i.e. is a bundle.
@@ -118,6 +132,7 @@ function anchorPathSpec(argument: string, cwd: string): string {
  * @returns the pnpm exit code.
  */
 export function runPlugin(profile: string, args: readonly string[]): number {
+  const pnpmCommand = resolvePnpmCommand(process.env)
   const dir = resolveProfileDir(profile)
   if (!existsSync(join(dir, 'package.json'))) {
     initProfile(dir, PROFILE_TEMPLATES[profile] ?? DEFAULT_PROFILE_BUNDLES)
@@ -126,7 +141,7 @@ export function runPlugin(profile: string, args: readonly string[]): number {
   const before = readProfileManifest(NAME, dir)
   // Windows resolves pnpm through its .cmd shim, which spawn() refuses
   // without a shell since the CVE-2024-27980 hardening.
-  const result = spawnSync('pnpm', args.map(argument => anchorPathSpec(argument, process.cwd())), {
+  const result = spawnSync(pnpmCommand, args.map(argument => anchorPathSpec(argument, process.cwd())), {
     cwd: dir,
     stdio: 'inherit',
     shell: process.platform === 'win32',
@@ -134,7 +149,8 @@ export function runPlugin(profile: string, args: readonly string[]): number {
   if (result.error !== undefined) {
     const code = (result.error as NodeJS.ErrnoException).code
     if (code === 'ENOENT') {
-      process.stderr.write(`${NAME}: pnpm not found on PATH — install pnpm to manage profile plugins\n`)
+      const location = pnpmCommand === 'pnpm' ? 'on PATH' : `at ${pnpmCommand}`
+      process.stderr.write(`${NAME}: pnpm not found ${location} — install pnpm to manage profile plugins\n`)
       return 127
     }
     throw result.error

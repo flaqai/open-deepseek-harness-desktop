@@ -6,7 +6,7 @@
 
 ## 从当前仓库运行
 
-当前里程碑是在 macOS 上从源码运行。使用 Node `^22.19.0 || >=24.0.0`，先构建仓库，再启动桌面应用：
+使用 Node `^22.19.0 || >=24.0.0`，先构建仓库，再启动桌面应用：
 
 ```sh
 pnpm install
@@ -16,9 +16,29 @@ pnpm run dev:desktop
 
 应用提供与 `dsh web` 相同的引导和设置界面。用户无需维护第二份配置，即可配置 DeepSeek 或其他兼容 API Provider、选择模型、查看已安装插件、编辑受支持的插件设置、调用 Skill、选择工作区并管理会话。
 
+## macOS arm64 包
+
+在当前仓库中使用下列命令构建未签名的 DMG 和 ZIP：
+
+```sh
+npm run package:desktop:macos:arm64
+```
+
+产物写入 `.artifacts/desktop-macos/`。安装包在同一个运行时归档中内嵌 Harness 生产依赖闭包、Node 24.11.1 和 pnpm 11.7.0；准备脚本仅在固定 Node 归档与官方 SHA-256 一致时接受它。首次启动时，应用会把归档解压到按版本隔离的用户数据目录，使 Node ESM 能看到真实的 `node_modules` 层级。内置 Node 负责启动 Harness，插件管理器通过绝对路径使用内置 pnpm，插件生命周期脚本的 `PATH` 则以内置运行时的 `bin` 目录开头。布局标记会让不完整的安装包缓存自动失效。
+
+## Windows x64 ZIP 包
+
+在当前仓库中使用下列命令构建经过审查的 Windows x64 ZIP：
+
+```sh
+npm run package:desktop:win:x64
+```
+
+产物写入 `.artifacts/desktop-windows/DeepSeek-Harness-<version>-windows-x64.zip`。它包含 Electron 的 Node 兼容可执行文件和无符号链接的 Harness 生产依赖闭包，用户无需在 `PATH` 中安装 Node。该包未签名、不是安装器，且尚未在原生 Windows runner 上执行；只能在完成原生生命周期、PTY 和更新路径验证后再发布。
+
 ## 进程生命周期
 
-Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0`。它只把 `dsh web: http://127.0.0.1:<port>` 识别为就绪信号，将 stdout 和 stderr 追加到 Electron 的平台日志目录；进程意外退出后按有上限的指数延迟重启；应用退出时先发送 `SIGTERM`，超过固定期限后再发送 `SIGKILL`。
+Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0`。打包后的 macOS 应用使用内置 Node，不使用 Electron 或用户安装的 Node 可执行文件。它只把 `dsh web: http://127.0.0.1:<port>` 识别为就绪信号，将 stdout 和 stderr 追加到 Electron 的平台日志目录；进程意外退出后按有上限的指数延迟重启；应用退出时先发送 `SIGTERM`，超过固定期限后再发送 `SIGKILL`。
 
 可通过 `DSH_DESKTOP_DSH_BIN` 测试其他已构建的 `dsh` 启动文件。若 Electron 继承的环境无法找到 `node`，可设置 `DSH_DESKTOP_NODE_BIN`。
 
@@ -32,18 +52,19 @@ Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web -
 
 ## 安全性
 
-渲染进程使用 `nodeIntegration: false`、`contextIsolation: true` 和 `sandbox: true`。导航仅允许 Harness 进程对应的精确回环来源。新开的 HTTPS 窗口交给系统浏览器，其余新窗口全部拒绝。渲染进程的权限请求全部拒绝。Web 代码无法访问任何高权限 Electron API。
+渲染进程使用 `nodeIntegration: false`、`contextIsolation: true` 和 `sandbox: true`。导航仅允许 Harness 进程对应的精确回环来源。新开的 HTTPS 窗口交给系统浏览器，其余新窗口全部拒绝。除受监管 Harness 来源的主框架发起的安全剪贴板写入外，渲染进程的权限请求全部拒绝；剪贴板读取和其他所有权限仍保持拒绝。因此，共用客户端可直接使用标准 Web Clipboard API，而不必暴露通用的高权限 Electron bridge。
 
-API 密钥仍由 Harness credentials 服务持有；桌面宿主不会读取或复制密钥。沙箱 preload 只暴露更新检查、确认升级和应用重启调用，不暴露通用命令或文件系统方法。
+API 密钥仍由 Harness credentials 服务持有；桌面宿主不会读取或复制密钥。沙箱 preload 只向 Web 代码暴露更新检查、确认升级和应用重启调用。在 Windows 和 Linux 上，它还会渲染桌面宿主自有的标题栏，并将固定的最小化、最大化或还原、关闭意图直接发送给主进程；这些控制能力不会作为通用 Web API 暴露。preload 不暴露通用命令或文件系统方法。
+
+Profile 插件属于可信的可执行代码。内置包管理运行时让插件的 pnpm 生命周期脚本使用确定的工具版本，但不会对从 registry、Git 仓库、tarball 或本地 checkout 安装的代码提供沙箱或背书。
 
 ## 跨平台发布计划
 
-源码宿主只使用 macOS、Windows 和 Linux 共用的 Electron 与 Node 进程 API。要发布可安装版本，仍需完成以下平台工作：
+源码宿主只使用 macOS、Windows 和 Linux 共用的 Electron 与 Node 进程 API。macOS 保留原生标题栏与交通灯按钮；Windows 和 Linux 使用无系统边框窗口，由 Harness 自绘可拖拽标题栏及最小化、最大化或还原、关闭按钮。现已提供 Windows x64 ZIP 用于原生验证，剩余发布工作如下：
 
-1. 打包经过审查的 Node 运行时和已发布 Harness 依赖闭包，使安装包不依赖用户的 `PATH`。
-2. 构建并公证 arm64、x64 macOS 产物；构建已签名的 Windows x64、arm64 安装包；在原生 CI runner 上构建 Linux AppImage 与 deb 产物。
-3. 在每个平台验证退出、子进程清理、原生目录选择、文件打开、PTY 和沙盒行为，再将其加入支持矩阵。
-4. 只有在发布签名和回滚流程可用后，才添加已签名的更新元数据。
+1. 签名并公证 arm64、x64 macOS 产物；构建已签名的 Windows x64、arm64 安装包；在原生 CI runner 上构建 Linux AppImage 与 deb 产物。
+2. 在每个平台验证退出、子进程清理、原生目录选择、文件打开、PTY 和沙盒行为，再将其加入支持矩阵。
+3. 只有在发布签名和回滚流程可用后，才添加已签名的更新元数据。
 
 不得通过把整个工作区源码复制进 Electron 来打包仓库。发布产物必须只包含已发布的运行时闭包、生成的第三方声明，且不得包含开发凭证。
 
@@ -51,10 +72,12 @@ API 密钥仍由 Harness credentials 服务持有；桌面宿主不会读取或�
 
 桌面专属行为保持在 agent loop 之外。插件与 Skill 管理继续使用 Harness 服务和现有设置界面。远程控制应通过 transport 插件接入：它把经过身份验证的 IM 会话映射为持久化 Harness 会话输入，并通过 interaction 服务回传审批或问题答复。微信、Discord 和 Slack 适配器应作为建立在公共 transport 服务之上的独立 Provider 插件，并明确实现身份映射、授权、审计事件、限流和撤销。
 
-后续桌面里程碑依次为自包含打包、审批请求的原生通知、托盘状态、深层链接和经过身份验证的本地控制端点。内置浏览器、Git 面板、终端和插件市场只应作为由 Harness 服务支撑的 client 插件加入，不能依赖 Electron 专属状态。
+后续桌面里程碑依次为已签名安装器、审批请求的原生通知、托盘状态、深层链接和经过身份验证的本地控制端点。内置浏览器、Git 面板、终端和插件市场只应作为由 Harness 服务支撑的 client 插件加入，不能依赖 Electron 专属状态。
 
 ## 限制
 
 - 当前源码运行需要已构建的仓库和兼容的 Node 可执行文件。
-- 安装包生成、签名、公证、安装包自动更新、托盘、原生通知和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
+- macOS arm64 DMG 与 ZIP 尚未签名和公证，仅作为开发验证产物，不是受支持发布。
+- Windows x64 ZIP 未签名，当前只在 macOS 完成结构验证；它不是受支持的 Windows 发布、安装器或自动更新包。
+- 签名、公证、安装包自动更新、托盘、原生通知和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
 - macOS 是首个本地验证平台；源码兼容不等于已经支持发布 Windows 或 Linux 版本。

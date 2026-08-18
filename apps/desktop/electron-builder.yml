@@ -1,0 +1,22 @@
+appId: ai.flaq.deepseek-harness
+productName: DeepSeek Harness
+asar: true
+npmRebuild: false
+directories:
+  buildResources: build
+  output: ../../.artifacts/desktop-windows
+files:
+  - lib/**/*
+  - package.json
+extraResources:
+  - from: ../../.artifacts/desktop-runtime-win-x64
+    to: harness-runtime
+    filter:
+      - "**/*"
+win:
+  icon: build/icon.ico
+  target:
+    - target: zip
+      arch:
+        - x64
+  artifactName: DeepSeek-Harness-${version}-windows-${arch}.${ext}

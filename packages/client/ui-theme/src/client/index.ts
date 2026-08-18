@@ -177,6 +177,28 @@ const BUILTIN_THEMES: readonly ThemeDefinition[] = Object.freeze([
     }),
   }),
   Object.freeze({
+    id: 'inspiration-collage',
+    colorScheme: 'light' as const,
+    tokens: Object.freeze({
+      '--dsw-alias-bg-base': '#f1faf8',
+      '--dsw-alias-bg-layer-1': 'rgba(255, 255, 255, 0.88)',
+      '--dsw-alias-bg-layer-2': '#e2f3f0',
+      '--dsw-alias-bg-overlay': 'rgba(255, 255, 255, 0.96)',
+      '--dsw-alias-border-l1': 'rgba(45, 189, 183, 0.14)',
+      '--dsw-alias-border-l2': 'rgba(45, 189, 183, 0.28)',
+      '--dsw-alias-brand-primary': '#147f7b',
+      '--dsw-alias-label-primary': '#173033',
+      '--dsw-alias-label-secondary': '#567a77',
+      '--dsw-alias-state-business-primary': '#147f7b',
+      '--dsw-alias-state-error-primary': '#c94f45',
+      '--dsw-alias-state-success-primary': '#147f7b',
+      '--dsw-alias-state-warn-primary': '#9b7000',
+      '--dsw-specific-sidebar-fill': 'rgba(255, 255, 255, 0.92)',
+      '--dsw-specific-bubble': 'rgba(226, 243, 240, 0.90)',
+      '--dsw-specific-bubble-highlight': 'rgba(83, 169, 223, 0.35)',
+    }),
+  }),
+  Object.freeze({
     id: 'starlight',
     colorScheme: 'dark' as const,
     tokens: Object.freeze({

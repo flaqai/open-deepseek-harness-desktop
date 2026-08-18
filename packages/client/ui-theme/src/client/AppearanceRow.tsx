@@ -25,13 +25,22 @@ export type AppearanceRowComponentProps =
   PropsRuntime<'settings.general.item'> & PropsStore<ReturnType<typeof createAppearanceRowStore>>
   & PropsLocale<'settings.theme'> & AppearanceRowInjected
 
-const SKINS: readonly { id: ThemePreference; labelKey: ThemeKey; preview: string }[] = [
+const SKINS: readonly {
+  id: ThemePreference
+  labelKey: ThemeKey
+  preview: string
+  pairedBackground?: ChatBackgroundId
+}[] = [
   { id: 'system', labelKey: 'appearance.system', preview: 'system' },
   { id: 'light', labelKey: 'appearance.light', preview: 'light' },
   { id: 'dark', labelKey: 'appearance.dark', preview: 'dark' },
   { id: 'ocean', labelKey: 'appearance.ocean', preview: 'ocean' },
   { id: 'moonlight', labelKey: 'appearance.moonlight', preview: 'moonlight' },
   { id: 'bubble', labelKey: 'appearance.bubble', preview: 'bubble' },
+  {
+    id: 'inspiration-collage', labelKey: 'appearance.inspirationCollage', preview: 'inspiration-collage',
+    pairedBackground: 'idea-collage',
+  },
   { id: 'starlight', labelKey: 'appearance.starlight', preview: 'starlight' },
   { id: 'pirate', labelKey: 'appearance.pirate', preview: 'pirate' },
   { id: 'shinobi', labelKey: 'appearance.shinobi', preview: 'shinobi' },
@@ -48,6 +57,7 @@ const BACKGROUNDS: readonly {
   { id: 'deep-ocean', labelKey: 'background.deepOcean', preview: 'deep-ocean' },
   { id: 'moon-whale', labelKey: 'background.moonWhale', preview: 'moon-whale' },
   { id: 'bubble-whale', labelKey: 'background.bubbleWhale', preview: 'bubble-whale' },
+  { id: 'idea-collage', labelKey: 'background.ideaCollage', preview: 'idea-collage', focus: 'right' },
   { id: 'anime-starlight', labelKey: 'background.animeStarlight', preview: 'anime-starlight', focus: 'right' },
   { id: 'pirate-horizon', labelKey: 'background.pirateHorizon', preview: 'pirate-horizon', focus: 'right' },
   { id: 'shinobi-ember', labelKey: 'background.shinobiEmber', preview: 'shinobi-ember', focus: 'right' },
@@ -91,9 +101,12 @@ export function AppearanceRow({ t, setTheme, setBackground, setCustomBackground,
           <span className={css.badge}>{t('appearance.collection')}</span>
         </div>
         <div className={css.skinGrid}>
-          {SKINS.map(({ id, labelKey, preview }) => (
+          {SKINS.map(({ id, labelKey, preview, pairedBackground }) => (
             <button key={id} type="button" className={clsx(css.choiceCard, preference === id && css.selected)}
-              aria-pressed={preference === id} onClick={() => { setTheme(id) }}>
+              aria-pressed={preference === id} onClick={() => {
+                setTheme(id)
+                if (pairedBackground !== undefined) setBackground(pairedBackground)
+              }}>
               <span className={css.skinPreview} data-preview={preview} aria-hidden="true">
                 <span className={css.previewSidebar} />
                 <span className={css.previewBubble} />

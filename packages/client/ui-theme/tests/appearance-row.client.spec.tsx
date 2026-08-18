@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-/** AppearanceRow behavior: three cubes, selection follows the persisted
- * preference, clicks drive setTheme. */
+/** AppearanceRow behavior: palette and background cards mirror persisted
+ * state; a curated palette may also restore its paired background. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createSnapshotStore, type SessionListState, type WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
@@ -21,17 +21,19 @@ const COPY: Record<string, string> = {
   'appearance.ocean': 'Deep Ocean',
   'appearance.moonlight': 'Moon Whale',
   'appearance.bubble': 'Bubble Cove',
+  'appearance.inspirationCollage': 'Idea Collage',
   'appearance.starlight': 'Starlight',
   'appearance.pirate': 'Pirate Horizon',
   'appearance.shinobi': 'Shinobi Ember',
   'appearance.rift': 'Rift Arena',
-  'appearance.collection': '10 skins',
+  'appearance.collection': '11 skins',
   'background.title': 'Chat background',
   'background.description': 'Choose a background.',
   'background.none': 'Solid',
   'background.deepOcean': 'Ocean Whale',
   'background.moonWhale': 'Moon Whale',
   'background.bubbleWhale': 'Bubble Whale',
+  'background.ideaCollage': 'Idea Collage',
   'background.animeStarlight': 'Anime Coder',
   'background.pirateHorizon': 'Pirate Horizon',
   'background.shinobiEmber': 'Shinobi Ember',
@@ -78,10 +80,10 @@ const pressed = (name: RegExp): string | null =>
   screen.getByRole('button', { name }).getAttribute('aria-pressed')
 
 describe('AppearanceRow', () => {
-  it('renders ten skins and original background choices with persisted selections', () => {
+  it('renders eleven skins and original background choices with persisted selections', () => {
     mount('dark')
     expect(screen.getByText('Theme skins')).toBeDefined()
-    expect(screen.getByText('10 skins')).toBeDefined()
+    expect(screen.getByText('11 skins')).toBeDefined()
     expect(screen.getAllByRole('button', { pressed: false }).length).toBeGreaterThan(3)
     expect(pressed(/Dark/)).toBe('true')
     expect(pressed(/Light/)).toBe('false')
@@ -109,5 +111,12 @@ describe('AppearanceRow', () => {
     const mounted = mount()
     fireEvent.click(screen.getByRole('button', { name: /Anime Coder/ }))
     expect(mounted.setBackground).toHaveBeenCalledWith('anime-starlight')
+  })
+
+  it('selects the inspiration collage palette and its paired background in one gesture', () => {
+    const mounted = mount('inspiration-collage')
+    fireEvent.click(screen.getAllByRole('button', { name: /Idea Collage/ })[0]!)
+    expect(mounted.setTheme).toHaveBeenCalledWith('inspiration-collage')
+    expect(mounted.setBackground).toHaveBeenCalledWith('idea-collage')
   })
 })

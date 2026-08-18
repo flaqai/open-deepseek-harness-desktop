@@ -4,7 +4,8 @@ import z from '@deepseek-ai/schemastery'
 
 /** Built-in preferences accepted at the registry and settings boundaries. */
 export const THEME_PREFERENCES = [
-  'light', 'dark', 'system', 'ocean', 'moonlight', 'bubble', 'starlight', 'pirate', 'shinobi', 'rift',
+  'light', 'dark', 'system', 'ocean', 'moonlight', 'bubble', 'inspiration-collage',
+  'starlight', 'pirate', 'shinobi', 'rift',
 ] as const
 
 /** Settings namespace owned by the theme plugin. */

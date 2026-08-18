@@ -44,7 +44,7 @@ export class HarnessSupervisor {
     this.#options.onState(this.#restartCount === 0 ? 'starting' : 'restarting')
 
     const child = spawn(this.#options.launch.command, this.#options.launch.args, {
-      env: this.#options.environment,
+      env: { ...this.#options.environment, ...this.#options.launch.environment },
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     })

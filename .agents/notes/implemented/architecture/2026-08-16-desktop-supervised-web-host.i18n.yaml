@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-16-desktop-supervised-web-host.md
-2026-08-16-desktop-supervised-web-host.md: 054d80324b8cae7220d9b922c37ba04a03a69600
-2026-08-16-desktop-supervised-web-host.zh.md: 13fb2191abbd508ef4e0a6240007d3c8b69c4659
+2026-08-16-desktop-supervised-web-host.md: 92e1d9c795af45873820bb603394dce643229497
+2026-08-16-desktop-supervised-web-host.zh.md: e4cc79e7d0d19cd1d1ea618a2b07bf6bacb3e388

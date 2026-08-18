@@ -12,7 +12,7 @@ Status: implemented
 
 `ui-theme` 在现有配色偏好之外提供七个完整产品皮肤：`ocean`、`moonlight`、`bubble`、`starlight`、`pirate`、`shinobi` 与 `rift`。它们仍是普通 `ThemeDefinition` 条目，并通过 `ui-theme.preference` 持久化，因此所有 UI 包继续消费语义 token，无需使用皮肤专属选择器。
 
-聊天背景选择与配色相互独立。默认 Web 应用拥有三张原创鲸鱼 WebP 资产和四张原创主体插画。背景可以携带 `focus-left` 或 `focus-right` 布局元数据；ui-layout 是唯一 DOM 写入方，ui-conversation 将工作区放在低细节画面之上，并沿指定外侧露出主体。窄布局会把侧边处理替换成更强的均匀可读性遮罩。
+聊天背景的状态和持久化与配色相互独立。默认 Web 应用拥有三张原创鲸鱼 WebP 资产和五张原创主体插画。背景可以携带 `focus-left` 或 `focus-right` 布局元数据；ui-layout 是唯一 DOM 写入方，ui-conversation 将工作区放在低细节画面之上，并沿指定外侧露出主体。窄布局会把侧边处理替换成更强的均匀可读性遮罩。[`inspiration-collage` 精选配对](2026-08-17-inspiration-collage-paired-skin.md)允许设置行中的一次操作选择匹配的配色和背景，但不会耦合两者的运行时或持久化路径。
 
 自定义 PNG、JPEG 或 WebP 在浏览器内解码和缩小，再编码为有大小上限的 WebP data URL，并保留在浏览器本地存储。源文件和编码结果都有上限。自定义图片绝不会进入 Host settings、会话事件、附件或模型请求。
 
@@ -26,6 +26,6 @@ Status: implemented
 
 ## Consequences
 
-用户获得十种配色选择、七张内置插画背景和一个本地自定义背景，同时会话与模型行为保持不变。自定义图片不会跨浏览器同步，清除浏览器存储后也会消失。不接受 GIF 和 SVG 源文件，默认应用必须继续提供 `/theme-backgrounds/` 下的七个路径。
+用户获得十一种配色选择、八张内置插画背景和一个本地自定义背景，同时会话与模型行为保持不变。自定义图片不会跨浏览器同步，清除浏览器存储后也会消失。不接受 GIF 和 SVG 源文件，默认应用必须继续提供 `/theme-backgrounds/` 下的八个路径。
 
 聚焦测试覆盖配色注册、背景持久化、设置动作、DOM 投射和撤销。装配后的 Web 快照与真实服务器浏览器录制覆盖可见的选择流程。

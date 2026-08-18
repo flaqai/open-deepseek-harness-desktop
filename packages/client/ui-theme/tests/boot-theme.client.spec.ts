@@ -54,6 +54,14 @@ describe('theme boot index transform', () => {
     expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(true)
   })
 
+  it('boots the inspiration collage skin on the light base palette', () => {
+    document.body.setAttribute(DARK_ATTRIBUTE, '')
+    mockSystemDark(true)
+    executeBootstrap('inspiration-collage')
+    expect(document.documentElement.style.colorScheme).toBe('light')
+    expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(false)
+  })
+
   it.each([
     [true, 'dark', true],
     [false, 'light', false],

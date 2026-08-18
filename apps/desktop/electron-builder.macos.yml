@@ -1,0 +1,23 @@
+appId: ai.flaq.deepseek-harness
+productName: DeepSeek Harness
+asar: true
+npmRebuild: false
+directories:
+  buildResources: build
+  output: ../../.artifacts/desktop-macos
+files:
+  - lib/**/*
+  - package.json
+extraResources:
+  - from: ../../.artifacts/desktop-runtime-darwin-arm64.tar.gz
+    to: harness-runtime.tar.gz
+mac:
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - arm64
+    - target: zip
+      arch:
+        - arm64
+  artifactName: DeepSeek-Harness-${version}-macos-${arch}.${ext}

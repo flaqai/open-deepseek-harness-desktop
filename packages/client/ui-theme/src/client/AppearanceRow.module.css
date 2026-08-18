@@ -55,6 +55,12 @@
 .skinPreview[data-preview='ocean'] { background: radial-gradient(circle at 75% 18%, #1889cb, #06192c 62%); }
 .skinPreview[data-preview='moonlight'] { background: radial-gradient(circle at 22% 20%, #b8c7ff 0 8%, #252c58 30%, #11172f 75%); }
 .skinPreview[data-preview='bubble'] { background: radial-gradient(circle at 80% 20%, #fff 0 6%, transparent 7%), linear-gradient(145deg, #edfbff, #dcecff 60%, #f2e9ff); }
+.skinPreview[data-preview='inspiration-collage'] {
+  background:
+    radial-gradient(circle at 84% 18%, #f0c928 0 4%, transparent 5%),
+    linear-gradient(132deg, transparent 0 69%, rgb(239 112 100 / 32%) 70% 76%, transparent 77%),
+    linear-gradient(145deg, #f1faf8 8%, #e2f3f0 62%, #a8dce6 100%);
+}
 .skinPreview[data-preview='starlight'] { background: radial-gradient(circle at 78% 24%, #9d8cff, #111a34 45%, #0a1022 78%); }
 .skinPreview[data-preview='pirate'] { background: radial-gradient(circle at 82% 30%, #f0b35c, #1e5255 38%, #0d1c22 76%); }
 .skinPreview[data-preview='shinobi'] { background: linear-gradient(145deg, #150c11 10%, #321820 58%, #ff735c 140%); }
@@ -78,6 +84,7 @@
 .backgroundPreview[data-background='deep-ocean'] { background-image: url('/theme-backgrounds/deep-ocean-whale.webp'); }
 .backgroundPreview[data-background='moon-whale'] { background-image: url('/theme-backgrounds/moon-whale.webp'); }
 .backgroundPreview[data-background='bubble-whale'] { background-image: url('/theme-backgrounds/bubble-whale.webp'); }
+.backgroundPreview[data-background='idea-collage'] { background-image: url('/theme-backgrounds/idea-collage.webp'); }
 .backgroundPreview[data-background='anime-starlight'] { background-image: url('/theme-backgrounds/anime-starlight.webp'); }
 .backgroundPreview[data-background='pirate-horizon'] { background-image: url('/theme-backgrounds/pirate-horizon.webp'); }
 .backgroundPreview[data-background='shinobi-ember'] { background-image: url('/theme-backgrounds/shinobi-ember.webp'); }

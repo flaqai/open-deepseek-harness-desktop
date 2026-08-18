@@ -31,7 +31,8 @@ describe('ThemeRuntime', () => {
     expect(snapshot.active.id).toBe('light')
     expect(snapshot.active.colorScheme).toBe('light')
     expect(snapshot.themes.map(t => t.id)).toEqual([
-      'light', 'dark', 'ocean', 'moonlight', 'bubble', 'starlight', 'pirate', 'shinobi', 'rift',
+      'light', 'dark', 'ocean', 'moonlight', 'bubble', 'inspiration-collage',
+      'starlight', 'pirate', 'shinobi', 'rift',
     ])
     expect(snapshot.background).toEqual({ id: 'none' })
   })
@@ -80,14 +81,16 @@ describe('ThemeRuntime', () => {
     const { theme, events, host } = make()
     const dispose = theme.register({ id: 'sepia', colorScheme: 'light', tokens: { '--dsw-alias-bg-base': 'red' } })
     expect(theme.getTheme().themes.map(t => t.id)).toEqual([
-      'light', 'dark', 'ocean', 'moonlight', 'bubble', 'starlight', 'pirate', 'shinobi', 'rift', 'sepia',
+      'light', 'dark', 'ocean', 'moonlight', 'bubble', 'inspiration-collage',
+      'starlight', 'pirate', 'shinobi', 'rift', 'sepia',
     ])
     theme.setTheme('sepia')
     expect(theme.getTheme().active.tokens['--dsw-alias-bg-base']).toBe('red')
     dispose()
     expect(theme.getTheme().preference).toBe('system')
     expect(theme.getTheme().themes.map(t => t.id)).toEqual([
-      'light', 'dark', 'ocean', 'moonlight', 'bubble', 'starlight', 'pirate', 'shinobi', 'rift',
+      'light', 'dark', 'ocean', 'moonlight', 'bubble', 'inspiration-collage',
+      'starlight', 'pirate', 'shinobi', 'rift',
     ])
     // Custom ids are in-process extension themes; only the built-in product
     // preferences cross the Host settings schema.
@@ -115,6 +118,27 @@ describe('ThemeRuntime', () => {
     expect(theme.getTheme().background).toEqual({
       id: 'anime-starlight',
       url: '/theme-backgrounds/anime-starlight.webp',
+      layout: 'focus-right',
+    })
+  })
+
+  it('publishes the inspiration collage on the light palette with its accessible state colors', () => {
+    const { theme } = make()
+    theme.setTheme('inspiration-collage')
+    theme.setBackground('idea-collage')
+    expect(theme.getTheme().active).toMatchObject({
+      id: 'inspiration-collage',
+      colorScheme: 'light',
+      tokens: {
+        '--dsw-alias-bg-base': '#f1faf8',
+        '--dsw-alias-state-business-primary': '#147f7b',
+        '--dsw-alias-state-error-primary': '#c94f45',
+        '--dsw-alias-state-warn-primary': '#9b7000',
+      },
+    })
+    expect(theme.getTheme().background).toEqual({
+      id: 'idea-collage',
+      url: '/theme-backgrounds/idea-collage.webp',
       layout: 'focus-right',
     })
   })

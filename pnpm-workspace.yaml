@@ -24,7 +24,20 @@ packages:
 # builds must resolve those matching names to this workspace's pinned sources.
 linkWorkspacePackages: true
 
+# Desktop cross-packaging needs the Windows native optional packages in the
+# lockfile and store even when preparation runs on a macOS developer host.
+supportedArchitectures:
+  os:
+    - current
+    - win32
+  cpu:
+    - current
+    - x64
+
 overrides:
+  # electron-builder 26.15 uses the cache-mode API introduced in @electron/get
+  # 3.1 while declaring ^3.0; pin the first compatible 3.x release.
+  '@electron/get': '3.1.0'
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
 
@@ -47,6 +60,9 @@ allowBuilds:
   # need, so we deny them — install still succeeds.
   '@google/genai': false
   protobufjs: false
+  # Optional Squirrel.Windows backend pulled by electron-builder; this desktop
+  # package uses ZIP/NSIS targets and does not need its install script.
+  electron-winstaller: false
   node-addon-require-builtin: false
   # JSONL durability calls MoveFileExW with write-through publication on Windows.
   koffi: true

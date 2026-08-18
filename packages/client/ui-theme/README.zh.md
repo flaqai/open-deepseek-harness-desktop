@@ -2,9 +2,9 @@
 
 [English](README.md) | 中文
 
-主题插件：基于 --dsw-* token 基础样式表（静态尺度 + 别名语义层）的 ThemeRuntime。该服务拥有实时主题偏好（`light`／`dark`／`system`，以及产品内置的 `ocean`、`moonlight`、`bubble`、`starlight`、`pirate`、`shinobi`、`rift` 皮肤），将 `system` 通过 `prefers-color-scheme` 解析为实际主题，并发布不可变的 `ThemeSnapshot`，通过 `theme/change` 事件通知变化；它绝不接触 DOM：ui-layout 的呈现器会应用解析后的快照（`html { color-scheme }`、`body[data-ds-dark-theme]`、聊天背景字段，以及主题的别名 token 内联变量）。来自回环地址的浏览器会先以 `system` 立即提供该服务，随后在后台加载 `ui-theme.preference`，并将每次内置主题选择通过 Host settings API 写入；其本地提供方默认将设置存入 `$DSH_HOME/settings.yaml`。收到推送的 settings 变更时或重连后，浏览器都会重新拉取该设置；连续快速选择会按操作顺序携带 namespace revision 串行写入，最新写入被拒时则重新加载持久化值。远程浏览器无法访问特权 settings API，因此它的选择仅保留在进程内。已注册的第三方主题 id 仍是进程内扩展，不会跨越内置 settings schema；移除其中任意一个都绝不会覆盖最后一个持久化的内置偏好。该持久化边界由[Host settings 支撑的偏好决策](../../../.agents/notes/implemented/bug-fix/2026-08-06-host-backed-web-preferences.md)拥有。
+主题插件：基于 --dsw-* token 基础样式表（静态尺度 + 别名语义层）的 ThemeRuntime。该服务拥有实时主题偏好（`light`／`dark`／`system`，以及产品内置的 `ocean`、`moonlight`、`bubble`、`inspiration-collage`、`starlight`、`pirate`、`shinobi`、`rift` 皮肤），将 `system` 通过 `prefers-color-scheme` 解析为实际主题，并发布不可变的 `ThemeSnapshot`，通过 `theme/change` 事件通知变化；它绝不接触 DOM：ui-layout 的呈现器会应用解析后的快照（`html { color-scheme }`、`body[data-ds-dark-theme]`、聊天背景字段，以及主题的别名 token 内联变量）。来自回环地址的浏览器会先以 `system` 立即提供该服务，随后在后台加载 `ui-theme.preference`，并将每次内置主题选择通过 Host settings API 写入；其本地提供方默认将设置存入 `$DSH_HOME/settings.yaml`。收到推送的 settings 变更时或重连后，浏览器都会重新拉取该设置；连续快速选择会按操作顺序携带 namespace revision 串行写入，最新写入被拒时则重新加载持久化值。远程浏览器无法访问特权 settings API，因此它的选择仅保留在进程内。已注册的第三方主题 id 仍是进程内扩展，不会跨越内置 settings schema；移除其中任意一个都绝不会覆盖最后一个持久化的内置偏好。该持久化边界由[Host settings 支撑的偏好决策](../../../.agents/notes/implemented/bug-fix/2026-08-06-host-backed-web-preferences.md)拥有。
 
-外观设置还可独立选择七张原创插画或一张用户图片。四张带人物或场景主体的背景使用 `focus-right` 布局，另外三张鲸鱼背景保持沉浸式构图。内置插画由默认 Web 应用从 `/theme-backgrounds/` 提供。自定义 PNG、JPEG 或 WebP 会在浏览器中缩放到最大 1920×1200、编码为 WebP，并且只写入该浏览器的 `localStorage`；它不会进入 Host settings，也不会发送给模型。超过 12 MB 的源文件和编码后超过 3 MB 的结果会被拒绝。ui-layout 呈现器把选择与可选主体安全布局投射为 body 属性和 CSS 图片变量。ui-conversation 将聚焦插画的低细节区域放在工作区下方、把主体露在外侧；低于 900px、无法保留独立画面侧栏时会加强可读性遮罩。
+外观设置还可独立选择八张原创插画或一张用户图片。五张带人物或场景主体的背景使用 `focus-right` 布局，另外三张鲸鱼背景保持沉浸式构图。在该设置行选择 `inspiration-collage` 皮肤时，同一操作还会选择配套的 `idea-collage` 背景；此后两项设置仍可独立编辑，Host 主题采用也不会替换用户后来选择的背景。内置插画由默认 Web 应用从 `/theme-backgrounds/` 提供。自定义 PNG、JPEG 或 WebP 会在浏览器中缩放到最大 1920×1200、编码为 WebP，并且只写入该浏览器的 `localStorage`；它不会进入 Host settings，也不会发送给模型。超过 12 MB 的源文件和编码后超过 3 MB 的结果会被拒绝。ui-layout 呈现器把选择与可选主体安全布局投射为 body 属性和 CSS 图片变量。ui-conversation 将聚焦插画的低细节区域放在工作区下方、把主体露在外侧；低于 900px、无法保留独立画面侧栏时会加强可读性遮罩。
 
 当主机组合包含 HTTP 服务器时，主机侧紧接 `<body>` 起始标签注入同步引导代码。每份 index 响应会嵌入已注册的 Host 设置 `ui-theme.preference`，没有 settings provider 时则嵌入 `system`；浏览器按操作系统配色解析 `system`，随后在外壳加载页面渲染前设置 `color-scheme` 和 `body[data-ds-dark-theme]`。不含 HTTP 服务器的组合不受影响，插件树激活后，ThemeRuntime 与 ui-layout 仍分别是客户端状态和后续 DOM 更新的权威来源。
 
@@ -24,6 +24,6 @@
 
 ## 已知限制与暂缓事项
 
-- **第三方主题是扩展点，不是产品**：注册主题意味着覆盖同名别名变量；目前不会验证一组覆盖是否完整。七个命名产品皮肤是完整内置项，并会跨越 Host settings schema。
+- **第三方主题是扩展点，不是产品**：注册主题意味着覆盖同名别名变量；目前不会验证一组覆盖是否完整。八个命名产品皮肤是完整内置项，并会跨越 Host settings schema。
 - **自定义背景只保存在浏览器**：它不会跨设备同步，清除浏览器存储也会移除它；不接受 GIF 动图与 SVG 上传。
 - **token 样式表是颜色值的唯一权威来源**：会有意不补入 cssdesign 中缺失的值（例如设计中的 #4176E6 标签页蓝色）；一律采用最接近的语义 token。设计负责人批准的新增值是例外：须在同一变更中以一个静态尺度层级与一个语义别名的形式进入（`--dsw-static-blue-900` / `--dsw-alias-label-primary-bluish`）。

@@ -16,3 +16,4 @@
 | [0002](0002-js-expression-disabled-filesystem-tools.md) | 文件系统快照工具被一个字面量 `!!js` 对象永久禁用 |
 | [0003](0003-web-agent-gui-feedback-loop.md) | Web agent（智能体）验证了替代服务器，而非承载其会话的 GUI |
 | [0004](0004-landlock-partial-notice-misclassified-child-failures.md) | Landlock 部分强制执行通知导致子进程失败被误归类 |
+| [0005](0005-openai-compatible-gateway-empty-tool-identity.md) | 兼容网关的空分片抹除了工具调用身份 |
