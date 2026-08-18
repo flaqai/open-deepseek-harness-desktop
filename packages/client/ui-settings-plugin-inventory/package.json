@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-plugin-inventory",
   "description": "Cordis Loader inventory and curated community plugin discovery for Web",
-  "version": "0.1.0-rc.5",
+  "version": "0.1.0-rc.7",
   "publishConfig": {
     "access": "public"
   },

@@ -36,6 +36,8 @@
 - region "Ready to continue?":
   - text: Checkpoint
   - heading "Ready to continue?" [level=2]
+  - button "Collapse the question card" [expanded]:
+    - img
   - button "Dismiss all questions":
     - img
   - radiogroup:
