@@ -18,10 +18,13 @@ extraResources:
 linux:
   icon: src/icon.png
   category: Development
-  packageName: deepseek-harness
   executableName: deepseek-harness
   syncDesktopName: true
   target:
     - deb
     - rpm
   artifactName: DeepSeek-Harness-linux-x64.${ext}
+deb:
+  packageName: deepseek-harness
+rpm:
+  packageName: deepseek-harness
