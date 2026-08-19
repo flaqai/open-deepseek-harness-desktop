@@ -32,7 +32,9 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "js-yaml": "^4.2.0"
+    "js-yaml": "^4.2.0",
+    "semver": "^7.7.4",
+    "yaml": "^2.9.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis-plugin-group": "workspace:^",
@@ -61,6 +63,7 @@
     "@deepseek-ai/dsh-home-paths": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@types/js-yaml": "^4.0.9",
+    "@types/semver": "^7.7.1",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

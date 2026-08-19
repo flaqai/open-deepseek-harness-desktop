@@ -1,0 +1,7 @@
+interface:
+  display_name: "iOS App Store Release Manager"
+  short_description: "Localize selected App Store languages safely"
+  default_prompt: "Use $ios-appstore-release-manager to check Computer Use availability, ask whether to include unlocalized languages, translate and fill the confirmed scope, verify every saved field, and stop before review submission."
+
+policy:
+  allow_implicit_invocation: true

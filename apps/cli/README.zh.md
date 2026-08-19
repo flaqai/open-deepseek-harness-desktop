@@ -12,6 +12,7 @@
 | `dsh --profile headless "job"` | 运行一个全新的持久化会话，打印最终答案并退出。 |
 | `dsh web` | `--profile web` 的别名。 |
 | `dsh plugin --profile <name> <pnpm args>` | 通过在 profile 目录中转发给 pnpm 来管理该 profile 的插件。 |
+| `dsh plugin --profile <name> doctor [--repair]` | 检查共享 Host 依赖身份，或修复并隔离冲突。 |
 
 运行命令时所在的目录将作为默认 workspace 根目录。`web` 和 `headless` profile 在首次使用时会从随附模板自动初始化；其他任何 profile 都必须通过 `dsh plugin` 创建。
 
@@ -37,6 +38,10 @@ profile 目录包含一个 `package.json`，其中记录树外插件依赖，以
 - `--patch` 指定的覆盖层
 
 `dsh.profile.bundles` 中列出的组合包先从 dsh 安装目录解析（`@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-web-app`、`@deepseek-ai/dsh-headless`），再从 profile 自身的 `node_modules` 解析；pnpm 会将树外插件安装到该目录。
+
+profile 开始组合前，启动器会检查身份敏感的 Host 包是否被插件安装了影子副本。兼容的声明会通过 Harness 管理的 pnpm `link:` override 收敛到安装目录自有副本；不兼容或收敛后仍冲突的根插件会从活动 profile 移除，并记录到 `$DSH_HOME/quarantine/profile-plugins.json`。如果收敛或隔离仍无法得到干净依赖树，启动会失败，而不会加载混合运行时。`dsh plugin` 改动后也会运行相同检查，因此 Electron、`dsh web` 与其他 profile 启动路径共享同一策略。
+
+不带选项的 `doctor` 只读运行：健康时退出 `0`，存在冲突时退出 `2`。`--repair` 在无损收敛后退出 `10`，发生隔离后退出 `11`，无法令 profile 安全时退出 `1`。可用 `doctor --retry <quarantine-id>` 重试隔离插件；只有普通健康策略成功时，才会保留其原始依赖说明符与 bundle 位置。
 
 使用 `--dump-default-config` 和 `--dump-config` 可在不启动的情况下检查组合后的配置树。
 

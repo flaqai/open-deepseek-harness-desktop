@@ -36,11 +36,11 @@ interface DumpConfigInvocation {
   patches: string[]
 }
 
-/** Manage a profile's plugins: forward `args` to pnpm inside the profile directory. */
+/** Manage a profile's plugins through pnpm or the built-in dependency-health doctor. */
 interface PluginInvocation {
   mode: 'plugin'
   profile: string
-  /** Raw pnpm arguments, verbatim. */
+  /** Raw pnpm arguments, or `doctor` arguments, verbatim. */
   args: string[]
 }
 
@@ -69,6 +69,7 @@ Examples:
   dsh --profile tui --resume <session>       arguments after the launcher flags reach the app
   dsh --profile web --help                   the web app's own flags and help
   dsh plugin --profile tui add <package>     install a plugin into the tui profile
+  dsh plugin --profile web doctor --repair   repair shared Host dependency conflicts
 `
 
 /**

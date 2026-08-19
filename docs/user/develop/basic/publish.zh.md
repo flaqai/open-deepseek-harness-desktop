@@ -63,6 +63,8 @@ export function apply() {
 
 没有 `dsh.bundle` 声明的包仍然可以安装，但只作为普通依赖：`dsh plugin` 会打印警告，且不激活任何层。如果一个库供插件包 import，而不是供用户启用，就使用这种包格式。
 
+身份敏感的 Host 包必须声明为 `peerDependencies`，并在 `devDependencies` 中镜像以供本地构建；不要把它们放进 `dependencies` 或 `optionalDependencies`。首批共享集合包括 `@deepseek-ai/cordis`、`@deepseek-ai/dsh-attachment`、`@deepseek-ai/dsh-llm`、`@deepseek-ai/dsh-system-prompt` 与 `@deepseek-ai/dsh-tools`。即使版本相同，私有副本也可能拆分 Cordis 服务、上下文与 symbol。profile 启动会检测这种物理身份冲突，将兼容范围收敛到 Host 副本；无法安全收敛时则隔离根 bundle。使用 `dsh plugin --profile <name> doctor` 可执行只读诊断。
+
 ### profile manifest
 
 profile 目录包含两个文件：

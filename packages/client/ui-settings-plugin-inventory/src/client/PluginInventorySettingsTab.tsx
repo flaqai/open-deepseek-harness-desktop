@@ -1,6 +1,9 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
-import type { PluginInstallSnapshot, PluginUninstallRequest } from '@deepseek-ai/dsh-host-plugin-inventory/types'
+import type {
+  PluginInstallSnapshot,
+  PluginUninstallRequest,
+} from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import {
   Button,
   IconChevronDownOutline14,
@@ -68,7 +71,12 @@ function matches(entry: PluginInventoryEntry, normalizedQuery: string): boolean 
 }
 
 /** Render the read-only current Loader inventory. */
-export function PluginInventorySettingsTab({ list, startUninstall, getInstall, t }: PluginInventorySettingsTabProps): ReactNode {
+export function PluginInventorySettingsTab({
+  list,
+  startUninstall,
+  getInstall,
+  t,
+}: PluginInventorySettingsTabProps): ReactNode {
   const catalogId = useId()
   const [request, setRequest] = useState(0)
   const [query, setQuery] = useState('')

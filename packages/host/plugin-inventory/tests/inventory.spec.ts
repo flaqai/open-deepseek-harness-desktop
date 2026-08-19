@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
@@ -12,10 +15,24 @@ import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import PluginInventoryGateway from '../src/index.ts'
 
 const contexts: Context[] = []
+const temporaryDirectories: string[] = []
 
 afterEach(async () => {
   await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
+  for (const path of temporaryDirectories.splice(0)) rmSync(path, { recursive: true, force: true })
+  vi.unstubAllEnvs()
 })
+
+function temporaryDirectory(): string {
+  const path = mkdtempSync(join(tmpdir(), 'dsh-plugin-inventory-'))
+  temporaryDirectories.push(path)
+  return path
+}
+
+function writeJson(path: string, value: unknown): void {
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, `${JSON.stringify(value, undefined, 2)}\n`)
+}
 
 const activePlugin: Plugin.Function = () => {}
 const pendingPlugin: Plugin.Object = {
@@ -26,6 +43,7 @@ const pendingPlugin: Plugin.Object = {
 class StubSubprocessRuntime extends SubprocessRuntime {
   readonly spawns: SubprocessSpawnSpec[] = []
   exitCode = 0
+  stdout = ''
   stderr = ''
 
   async resolveExecutable(command: string): Promise<string> {
@@ -42,7 +60,7 @@ class StubSubprocessRuntime extends SubprocessRuntime {
       stdin: undefined,
       stdout: undefined,
       stderr: undefined,
-      collected: { stdout: output(''), stderr: output(this.stderr) },
+      collected: { stdout: output(this.stdout), stderr: output(this.stderr) },
       done: Promise.resolve({ exitCode: this.exitCode, signal: null }),
       terminate: () => {},
       waitForExit: () => Promise.resolve(true),
@@ -79,10 +97,56 @@ describe('PluginInventoryGateway', () => {
     })
     expect(remoteMethods(inventory)).toEqual([
       { method: 'list', invocation: { kind: 'direct' } },
+      { method: 'dismissDependencyHealth', invocation: { kind: 'direct' } },
+      { method: 'uninstallQuarantine', invocation: { kind: 'direct' } },
+      { method: 'startQuarantineRetry', invocation: { kind: 'direct' } },
       { method: 'startInstall', invocation: { kind: 'direct' } },
       { method: 'startUninstall', invocation: { kind: 'direct' } },
+      { method: 'startDependencyDoctor', invocation: { kind: 'direct' } },
+      { method: 'getDependencyDoctor', invocation: { kind: 'direct' } },
       { method: 'getInstall', invocation: { kind: 'direct' } },
     ])
+  })
+
+  it('runs the core doctor in read-only and repair modes with structured phases', async () => {
+    const { inventory, subprocess } = await harness()
+    subprocess.stdout = JSON.stringify({
+      schema: 'dsh/profile-dependency-repair/v1',
+      profile: 'web',
+      status: 'failed',
+      conflicts: [{
+        profile: 'web',
+        rootPackage: 'dsh-computer-use',
+        dependencyChain: ['dsh-computer-use', '@deepseek-ai/dsh-tools'],
+        dependency: '@deepseek-ai/dsh-tools',
+        declaredRange: '^0.1.0-rc.6',
+        declaredIn: 'dependencies',
+        hostVersion: '0.1.0-rc.7',
+        hostPath: '/host/dsh-tools',
+        resolvedPath: '/profile/dsh-tools',
+        compatible: true,
+      }],
+      orphanedBundles: [],
+      quarantined: [],
+    })
+    subprocess.exitCode = 2
+
+    const inspected = inventory.startDependencyDoctor({ profile: 'web', repair: false })
+    await expect.poll(() => inventory.getDependencyDoctor(inspected.doctorId).phase).toBe('issues')
+    expect(inventory.getDependencyDoctor(inspected.doctorId).report?.conflicts[0]).not.toHaveProperty('hostPath')
+    expect(subprocess.spawns[0]?.argv.slice(-4)).toEqual(['plugin', '--profile', 'web', 'doctor'])
+
+    subprocess.stdout = JSON.stringify({
+      schema: 'dsh/profile-dependency-repair/v1',
+      profile: 'web',
+      status: 'repaired',
+      conflicts: [],
+      quarantined: [],
+    })
+    subprocess.exitCode = 10
+    const repaired = inventory.startDependencyDoctor({ profile: 'web', repair: true })
+    await expect.poll(() => inventory.getDependencyDoctor(repaired.doctorId).phase).toBe('repaired')
+    expect(subprocess.spawns[1]?.argv.slice(-5)).toEqual(['plugin', '--profile', 'web', 'doctor', '--repair'])
   })
 
   it('starts an exact package uninstall and rejects versioned or path-like targets', async () => {
@@ -190,5 +254,94 @@ describe('PluginInventoryGateway', () => {
       diagnostic: 'pnpm install failed',
     })
     expect(() => inventory.getInstall('not-real' as typeof started.installId)).toThrow(/unknown install/)
+  })
+
+  it('projects an automatic convergence outcome as a distinct successful install phase', async () => {
+    const { inventory, subprocess } = await harness()
+    subprocess.stderr = `dsh: profile dependency health ${JSON.stringify({
+      schema: 'dsh/profile-dependency-repair/v1',
+      profile: 'web',
+      status: 'repaired',
+      conflicts: [],
+      quarantined: [],
+    })}`
+    const started = inventory.startInstall({ profile: 'web', packageSpec: 'safe-plugin' })
+    await expect.poll(() => inventory.getInstall(started.installId).phase).toBe('repaired')
+    expect(inventory.getInstall(started.installId).diagnostic).toContain('profile dependency health')
+  })
+
+  it('retries a quarantine through the core doctor command and clears the successful record', async () => {
+    const home = temporaryDirectory()
+    vi.stubEnv('DSH_HOME', home)
+    const quarantineId = '00000000-0000-4000-8000-000000000001'
+    const quarantinePath = join(home, 'quarantine', 'profile-plugins.json')
+    writeJson(quarantinePath, {
+      schema: 1,
+      plugins: [{
+        quarantineId,
+        profile: 'web',
+        packageName: 'fixture-plugin',
+        packageSpec: 'github:fixture/plugin',
+        installedVersion: '1.2.3',
+        bundleIndex: 1,
+        quarantinedAt: '2026-08-19T01:02:03.000Z',
+        reason: 'incompatible-host-dependency',
+        conflicts: [],
+      }],
+    })
+    const { inventory, subprocess } = await harness()
+    subprocess.stderr = JSON.stringify({
+      schema: 'dsh/profile-dependency-repair/v1',
+      profile: 'web',
+      status: 'healthy',
+      conflicts: [],
+      quarantined: [],
+    })
+
+    const started = inventory.startQuarantineRetry({ quarantineId })
+    expect(started).toMatchObject({
+      packageSpec: 'github:fixture/plugin',
+      command: `dsh plugin --profile web doctor --retry ${quarantineId}`,
+      phase: 'running',
+    })
+    expect(subprocess.spawns[0]?.argv.slice(-6)).toEqual([
+      'plugin', '--profile', 'web', 'doctor', '--retry', quarantineId,
+    ])
+    await expect.poll(() => inventory.getInstall(started.installId).phase).toBe('succeeded')
+    expect((JSON.parse(readFileSync(quarantinePath, 'utf8')) as { plugins: unknown[] }).plugins).toEqual([])
+  })
+
+  it('uninstalls an inactive quarantined plugin and removes its record', async () => {
+    const home = temporaryDirectory()
+    vi.stubEnv('DSH_HOME', home)
+    const quarantineId = '00000000-0000-4000-8000-000000000001'
+    const profileDir = join(home, 'profiles', 'web')
+    const pluginDir = join(profileDir, 'node_modules', 'fixture-plugin')
+    const quarantinePath = join(home, 'quarantine', 'profile-plugins.json')
+    writeJson(join(profileDir, 'package.json'), {
+      name: 'dsh-profile-web',
+      dependencies: {},
+      dsh: { profile: { bundles: [] } },
+    })
+    writeJson(join(pluginDir, 'package.json'), { name: 'fixture-plugin', version: '1.2.3' })
+    writeJson(quarantinePath, {
+      schema: 1,
+      plugins: [{
+        quarantineId,
+        profile: 'web',
+        packageName: 'fixture-plugin',
+        packageSpec: '^1.2.0',
+        installedVersion: '1.2.3',
+        bundleIndex: 1,
+        quarantinedAt: '2026-08-19T01:02:03.000Z',
+        reason: 'convergence-failed',
+        conflicts: [],
+      }],
+    })
+    const { inventory } = await harness()
+
+    expect(inventory.uninstallQuarantine({ quarantineId })).toBe(true)
+    expect(() => readFileSync(join(pluginDir, 'package.json'), 'utf8')).toThrow()
+    expect((JSON.parse(readFileSync(quarantinePath, 'utf8')) as { plugins: unknown[] }).plugins).toEqual([])
   })
 })

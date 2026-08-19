@@ -8,13 +8,14 @@ import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject, NS } from '../src/client/index.ts'
 import { PluginInventorySettingsTab } from '../src/client/PluginInventorySettingsTab.tsx'
+import { PluginDiagnosticsSection } from '../src/client/PluginDiagnosticsSection.tsx'
 import { PluginDiscovery } from '../src/client/PluginDiscovery.tsx'
 import type { PluginInventorySettingsTabInjected } from '../src/client/PluginInventorySettingsTab.tsx'
 
 usePinnedBrowserLanguages('zh-CN')
 afterEach(cleanup)
 
-const EMPTY = { entries: [] }
+const EMPTY = { entries: [], dependencyHealth: { lastRepair: null, quarantined: [] } }
 type ListResult =
   | { readonly ok: true; readonly value: typeof EMPTY }
   | { readonly ok: false; readonly error: { readonly code: string; readonly message: string } }
@@ -35,7 +36,22 @@ async function bench() {
   const startInstall = vi.fn(async () => ({ ok: false as const, error: { code: 'REMOTE_ERROR', message: 'blocked' } }))
   const getInstall = vi.fn(async () => ({ ok: false as const, error: { code: 'REMOTE_ERROR', message: 'missing' } }))
   const startUninstall = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
-  ctx.provide('remote.pluginInventory', { list, startInstall, startUninstall, getInstall })
+  const startQuarantineRetry = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
+  const uninstallQuarantine = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
+  const dismissDependencyHealth = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
+  const startDependencyDoctor = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
+  const getDependencyDoctor = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
+  ctx.provide('remote.pluginInventory', {
+    list,
+    startInstall,
+    startUninstall,
+    getInstall,
+    startQuarantineRetry,
+    uninstallQuarantine,
+    dismissDependencyHealth,
+    startDependencyDoctor,
+    getDependencyDoctor,
+  })
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, list, startInstall, getInstall }
 }
 
@@ -44,6 +60,7 @@ function declare(slots: SlotRegistry): () => void {
     name: 'root',
     children: {
       'settings.plugins.tab': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
       'conversation.hero.pluginDiscovery': { kind: 'single', scope: 'root' },
     },
   } as never, () => null)
@@ -64,6 +81,10 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     expect(entry.options).toMatchObject({ id: 'all', order: 10 })
     expect(entry.locale).toBe(NS)
     expect(resolveSlotLabel(entry.options.label)).toBe('插件列表')
+    const diagnostics = b.slots.entries('settings.section')[0]!
+    expect(diagnostics.component).toBe(PluginDiagnosticsSection)
+    expect(diagnostics.options).toMatchObject({ id: 'diagnostics', order: 25 })
+    expect(resolveSlotLabel(diagnostics.options.label)).toBe('诊断')
     expect(b.slots.entries('conversation.hero.pluginDiscovery')[0]?.component).toBe(PluginDiscovery)
     expect(b.list).not.toHaveBeenCalled()
 
@@ -80,24 +101,29 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
+    expect(b.slots.entries('settings.section')).toHaveLength(0)
     expect(b.slots.entries('conversation.hero.pluginDiscovery')).toHaveLength(0)
 
     const stop = declare(b.slots)
     await vi.waitFor(() => { expect(b.slots.entries('settings.plugins.tab')).toHaveLength(1) })
     b.locale.setLocale('en')
     expect(resolveSlotLabel(b.slots.entries('settings.plugins.tab')[0]!.options.label)).toBe('Plugin list')
+    expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('Diagnostics')
 
     stop()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
+    expect(b.slots.entries('settings.section')).toHaveLength(0)
     expect(b.slots.entries('conversation.hero.pluginDiscovery')).toHaveLength(0)
     declare(b.slots)
     await vi.waitFor(() => {
       expect(b.slots.entries('settings.plugins.tab')[0]?.component).toBe(PluginInventorySettingsTab)
+      expect(b.slots.entries('settings.section')[0]?.component).toBe(PluginDiagnosticsSection)
       expect(b.slots.entries('conversation.hero.pluginDiscovery')[0]?.component).toBe(PluginDiscovery)
     })
 
     await fiber.dispose()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
+    expect(b.slots.entries('settings.section')).toHaveLength(0)
     expect(b.slots.entries('conversation.hero.pluginDiscovery')).toHaveLength(0)
     expect(() => b.locale.register(NS, 'zh', {})).not.toThrow()
     await b.ctx.fiber.dispose()

@@ -35,6 +35,8 @@
 .dialog {
   width: min(820px, calc(100vw - 32px));
   max-width: 820px;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 .dialogContent {

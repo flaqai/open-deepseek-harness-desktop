@@ -2,13 +2,22 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PluginInventorySettingsTab } from '../src/client/PluginInventorySettingsTab.tsx'
+import {
+  PluginDiagnosticsSection,
+  type PluginDiagnosticsSectionProps,
+} from '../src/client/PluginDiagnosticsSection.tsx'
 import { PluginDiscovery } from '../src/client/PluginDiscovery.tsx'
 import type {
   PluginInventorySettingsTabInjected,
   PluginInventorySettingsTabProps,
 } from '../src/client/PluginInventorySettingsTab.tsx'
 import type { PluginDiscoveryProps } from '../src/client/PluginDiscovery.tsx'
-import type { PluginInstallId, PluginInstallSnapshot } from '@deepseek-ai/dsh-host-plugin-inventory/types'
+import type {
+  PluginDoctorId,
+  PluginDoctorSnapshot,
+  PluginInstallId,
+  PluginInstallSnapshot,
+} from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import { en, type PluginInventoryLocaleKey } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -36,6 +45,7 @@ const SNAPSHOT = {
     { entryId: 'disabled-entry', moduleName: '@deepseek-ai/dsh-host-directory-picker-native', enabled: false, fiberPhase: null },
     { entryId: 'dsh-market', moduleName: 'dshmarket', enabled: true, fiberPhase: 'active' },
   ],
+  dependencyHealth: { lastRepair: null, quarantined: [] },
 } as unknown as Snapshot
 
 describe('PluginInventorySettingsTab', () => {
@@ -125,7 +135,7 @@ describe('PluginInventorySettingsTab', () => {
   it('shows a generic failure and retries into the empty state', async () => {
     const list = vi.fn<PluginInventorySettingsTabInjected['list']>()
       .mockRejectedValueOnce(new Error('private transport detail'))
-      .mockResolvedValueOnce({ entries: [] })
+      .mockResolvedValueOnce({ entries: [], dependencyHealth: { lastRepair: null, quarantined: [] } })
     render(<PluginInventorySettingsTab {...props(list)} />)
 
     expect((await screen.findByRole('alert')).textContent).toBe(en.error)
@@ -150,6 +160,216 @@ describe('PluginInventorySettingsTab', () => {
     const pendingFailure = render(<PluginInventorySettingsTab {...props(() => deferredFailure.promise)} />)
     pendingFailure.unmount()
     await act(async () => { deferredFailure.reject(new Error('late failure')) })
+  })
+})
+
+describe('PluginDiagnosticsSection', () => {
+  const diagnosticsSnapshot = { entries: [], dependencyHealth: { lastRepair: null, quarantined: [] } } as unknown as Snapshot
+  const doctorId = 'doctor-1' as PluginDoctorId
+  const healthy: PluginDoctorSnapshot = {
+    doctorId,
+    profile: 'web',
+    command: 'dsh plugin --profile web doctor',
+    phase: 'healthy',
+    exitCode: 0,
+    report: {
+      schema: 'dsh/profile-dependency-repair/v1',
+      profile: 'web',
+      status: 'healthy',
+      conflicts: [],
+      orphanedBundles: [],
+      quarantined: [],
+    },
+  }
+  const issues: PluginDoctorSnapshot = {
+    ...healthy,
+    phase: 'issues',
+    exitCode: 2,
+    report: {
+      ...healthy.report!,
+      status: 'failed',
+      conflicts: [{
+        rootPackage: 'dsh-computer-use',
+        dependencyChain: ['dsh-computer-use', '@deepseek-ai/dsh-tools'],
+        dependency: '@deepseek-ai/dsh-tools',
+        declaredRange: '^0.1.0-rc.6',
+        declaredIn: 'dependencies',
+        hostVersion: '0.1.0-rc.7',
+        compatible: true,
+      }],
+    },
+  }
+
+  it('runs a current read-only check and presents the structured result', async () => {
+    const startDependencyDoctor = vi.fn(async () => healthy)
+    render(<PluginDiagnosticsSection {...({
+      t,
+      list: async () => diagnosticsSnapshot,
+      startDependencyDoctor,
+      getDependencyDoctor: vi.fn(),
+      getInstall: vi.fn(),
+      startUninstall: vi.fn(),
+      startQuarantineRetry: vi.fn(),
+      uninstallQuarantine: vi.fn(),
+      dismissDependencyHealth: vi.fn(),
+    } as PluginDiagnosticsSectionProps)} />)
+
+    fireEvent.click(screen.getByRole('button', { name: en['diagnostics.check'] }))
+    await waitFor(() => { expect(startDependencyDoctor).toHaveBeenCalledWith({ profile: 'web', repair: false }) })
+    expect(await screen.findByText(en['diagnostics.healthy'])).toBeTruthy()
+  })
+
+  it('labels a retained repair as history and hides it after a healthy check', async () => {
+    const retainedSnapshot = {
+      entries: [],
+      dependencyHealth: {
+        lastRepair: { status: 'quarantined', conflicts: [] },
+        quarantined: [],
+      },
+    } as unknown as Snapshot
+    render(<PluginDiagnosticsSection {...({
+      t,
+      list: async () => retainedSnapshot,
+      startDependencyDoctor: vi.fn(async () => healthy),
+      getDependencyDoctor: vi.fn(),
+      getInstall: vi.fn(),
+      startUninstall: vi.fn(),
+      startQuarantineRetry: vi.fn(),
+      uninstallQuarantine: vi.fn(),
+      dismissDependencyHealth: vi.fn(),
+    } as PluginDiagnosticsSectionProps)} />)
+
+    expect(await screen.findByText(en['health.quarantined'])).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: en['diagnostics.check'] }))
+    expect(await screen.findByText(en['diagnostics.healthy'])).toBeTruthy()
+    expect(screen.queryByText(en['health.quarantined'])).toBeNull()
+  })
+
+  it('shows the concrete Remote failure when a check cannot start', async () => {
+    render(<PluginDiagnosticsSection {...({
+      t,
+      list: async () => diagnosticsSnapshot,
+      startDependencyDoctor: vi.fn(async () => { throw new Error('Remote method is unavailable') }),
+      getDependencyDoctor: vi.fn(),
+      getInstall: vi.fn(),
+      startUninstall: vi.fn(),
+      startQuarantineRetry: vi.fn(),
+      uninstallQuarantine: vi.fn(),
+      dismissDependencyHealth: vi.fn(),
+    } as PluginDiagnosticsSectionProps)} />)
+
+    fireEvent.click(screen.getByRole('button', { name: en['diagnostics.check'] }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain(en['health.actionFailed'])
+    expect(alert.textContent).toContain('Remote method is unavailable')
+  })
+
+  it('shows dependency chains and starts the guarded repair mode', async () => {
+    const startDependencyDoctor = vi.fn(async (request: { repair: boolean }) => request.repair ? healthy : issues)
+    render(<PluginDiagnosticsSection {...({
+      t,
+      list: async () => diagnosticsSnapshot,
+      startDependencyDoctor,
+      getDependencyDoctor: vi.fn(),
+      getInstall: vi.fn(),
+      startUninstall: vi.fn(),
+      startQuarantineRetry: vi.fn(),
+      uninstallQuarantine: vi.fn(),
+      dismissDependencyHealth: vi.fn(),
+    } as PluginDiagnosticsSectionProps)} />)
+
+    fireEvent.click(screen.getByRole('button', { name: en['diagnostics.check'] }))
+    expect(await screen.findByText('dsh-computer-use → @deepseek-ai/dsh-tools')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: en['diagnostics.repair'] }))
+    await waitFor(() => { expect(startDependencyDoctor).toHaveBeenLastCalledWith({ profile: 'web', repair: true }) })
+  })
+
+  it('confirms and starts the standard removal for an active conflicting plugin', async () => {
+    const removed: PluginInstallSnapshot = {
+      installId: 'remove-conflict-1' as PluginInstallId,
+      profile: 'web',
+      packageSpec: 'dsh-computer-use',
+      command: 'dsh plugin --profile web remove dsh-computer-use',
+      phase: 'succeeded',
+      exitCode: 0,
+    }
+    const startUninstall = vi.fn(async () => removed)
+    render(<PluginDiagnosticsSection {...({
+      t,
+      list: async () => diagnosticsSnapshot,
+      startDependencyDoctor: vi.fn(async () => issues),
+      getDependencyDoctor: vi.fn(),
+      getInstall: vi.fn(),
+      startUninstall,
+      startQuarantineRetry: vi.fn(),
+      uninstallQuarantine: vi.fn(),
+      dismissDependencyHealth: vi.fn(),
+    } as PluginDiagnosticsSectionProps)} />)
+
+    fireEvent.click(screen.getByRole('button', { name: en['diagnostics.check'] }))
+    fireEvent.click(await screen.findByRole('button', { name: en['diagnostics.uninstall.action'] }))
+    const confirm = screen.getByRole('button', { name: en['diagnostics.uninstall.confirm.action'] })
+    expect(confirm.hasAttribute('disabled')).toBe(true)
+    fireEvent.click(screen.getByRole('checkbox', { name: en['diagnostics.uninstall.confirm.acknowledge'] }))
+    fireEvent.click(confirm)
+    await waitFor(() => {
+      expect(startUninstall).toHaveBeenCalledWith({ profile: 'web', packageName: 'dsh-computer-use' })
+    })
+    expect(await screen.findByText(en['diagnostics.uninstall.succeeded'])).toBeTruthy()
+  })
+
+  it('confirms before physically removing an inactive quarantined plugin', async () => {
+    const quarantinedSnapshot = {
+      entries: [],
+      dependencyHealth: {
+        lastRepair: null,
+        quarantined: [{
+          quarantineId: 'quarantine-1',
+          profile: 'web',
+          packageName: 'dsh-computer-use',
+          packageSpec: 'dsh-computer-use@1.5.2',
+          reason: 'Host dependency is incompatible',
+          conflicts: [],
+        }],
+      },
+    } as unknown as Snapshot
+    const uninstallQuarantine = vi.fn(async () => true)
+    render(<PluginDiagnosticsSection {...({
+      t,
+      list: async () => quarantinedSnapshot,
+      startDependencyDoctor: vi.fn(),
+      getDependencyDoctor: vi.fn(),
+      getInstall: vi.fn(),
+      startUninstall: vi.fn(),
+      startQuarantineRetry: vi.fn(),
+      uninstallQuarantine,
+      dismissDependencyHealth: vi.fn(),
+    } as PluginDiagnosticsSectionProps)} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: en['health.uninstall'] }))
+    expect(uninstallQuarantine).not.toHaveBeenCalled()
+    const confirm = screen.getByRole('button', { name: en['health.uninstall.confirm.action'] })
+    fireEvent.click(screen.getByRole('checkbox', { name: en['health.uninstall.confirm.acknowledge'] }))
+    fireEvent.click(confirm)
+    await waitFor(() => { expect(uninstallQuarantine).toHaveBeenCalledWith({ quarantineId: 'quarantine-1' }) })
+  })
+
+  it('reports enabled Loader entries whose root Fiber failed', async () => {
+    render(<PluginDiagnosticsSection {...({
+      t,
+      list: async () => SNAPSHOT,
+      startDependencyDoctor: vi.fn(),
+      getDependencyDoctor: vi.fn(),
+      getInstall: vi.fn(),
+      startUninstall: vi.fn(),
+      startQuarantineRetry: vi.fn(),
+      uninstallQuarantine: vi.fn(),
+      dismissDependencyHealth: vi.fn(),
+    } as PluginDiagnosticsSectionProps)} />)
+
+    expect(await screen.findByText(en['diagnostics.runtimeIssues'])).toBeTruthy()
+    expect(screen.getByText('@fixture/failed-name')).toBeTruthy()
+    expect(screen.getByText(en['diagnostics.runtimeDescription'])).toBeTruthy()
   })
 })
 

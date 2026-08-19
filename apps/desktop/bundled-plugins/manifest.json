@@ -8,6 +8,22 @@
       "profile": "web",
       "archive": "dshmarket-1.12.1.tgz",
       "integrity": "sha512-jjpwAA8tJEnbVDVsN9R4e59CUoVMv/L+qTNOl7BHO791PpMqZLAM+5VZcZs05C069jGFnyu5r2M/NT8OKoXU7Q=="
+    },
+    {
+      "seedId": "xmanrui-dsh-im",
+      "packageName": "@xmanrui/dsh-im",
+      "version": "0.11.0",
+      "profile": "web",
+      "archive": "xmanrui-dsh-im-0.11.0.tgz",
+      "integrity": "sha512-cxwI+6I+5A1sUIKOaqmCMPUuuLu6bqMuKV+cT/1mEGJKwn2AAdtdBf/Kh216P757+o6O1F/dUSckeINS3oU4KA=="
+    },
+    {
+      "seedId": "dsh-skill-picker",
+      "packageName": "dsh-skill-picker",
+      "version": "0.2.0",
+      "profile": "web",
+      "archive": "dsh-skill-picker-0.2.0.tgz",
+      "integrity": "sha512-qSnpKKafj2Zt3rGTn+plrTlxEOmrgaZ550s3zK3kQ/tPMZlNqHGMXsVyzNnIYK0lCYFyCZICe0SUykjhXgCU4g=="
     }
   ]
 }

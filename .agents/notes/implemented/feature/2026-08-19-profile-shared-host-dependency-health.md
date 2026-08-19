@@ -1,0 +1,33 @@
+# Agent Note: Profile shared Host dependency health
+
+Status: implemented
+
+English | [中文](2026-08-19-profile-shared-host-dependency-health.zh.md)
+
+## Problem
+
+An out-of-tree profile plugin can declare a Harness Host package as an ordinary dependency. pnpm then installs another physical copy below the profile, and Node resolves plugin imports to that copy before the installation-owned runtime. Equal versions do not make the instances interchangeable: Cordis services, contexts, and exported symbols use module identity. Disabling the plugin leaves its dependency tree installed, so a profile may continue failing with symptoms such as a missing tool scheduler or `Cannot read properties of undefined (reading 'prepare')` until the duplicate package is removed.
+
+## Decision
+
+Shared Host dependency health is a default profile-boot capability, not an optional plugin. The protected set initially contains `@deepseek-ai/cordis`, `@deepseek-ai/dsh-attachment`, `@deepseek-ai/dsh-llm`, `@deepseek-ai/dsh-system-prompt`, and `@deepseek-ai/dsh-tools`.
+
+Inspection starts from every direct profile dependency and recursively follows installed `dependencies` and `optionalDependencies`. A legal `peerDependencies` declaration is not a conflict. For each protected package, the inspector compares the plugin-resolved real path with the installation-owned real path, so an equal-version shadow copy is still detected. Diagnostics retain the root plugin, dependency chain, declared range and location, Host version, compatibility, and both paths; client projections omit filesystem paths.
+
+Every profile launch inspects before composition. New profiles disable pnpm peer-dependent deduplication, and repair migrates existing workspace settings before package-manager execution. pnpm 11.7.0 otherwise enters `inheritedParentPkgBreaksPeerDiamond()` for this hoisted graph with linked Host providers and can call `Object.keys()` on absent peer metadata. Repair also prunes root `pnpm-lock.yaml` importer entries whose declarations no longer exist in the profile manifest, so a prior interrupted physical quarantine cannot carry an inactive root into the next plugin mutation. A profile with no other issue runs no package-manager operation. On conflict, repair merges Harness-reserved `link:` overrides into `pnpm-workspace.yaml` through a comment-preserving YAML document, runs the caller's packaged pnpm, and reinspects. Unrelated configuration and overrides remain user-owned. If a root plugin's range rejects the Host version, or convergence fails, the root plugin is removed from dependencies and bundle order and a retryable record is written to `$DSH_HOME/quarantine/profile-plugins.json`. The root package directory must also be absent before quarantine succeeds. A minimum-release-age rejection while pruning an already-installed lockfile receives one process-local override retry, and a retained report recovers interrupted cleanups whose manifest, lockfile importer, package directory, and durable record diverged. If pnpm crashes while recovering that known inactive state, Harness directly removes only the retained root plugin, removes its stale importer entry, and relinks profile-local shared Host packages to their installation copies before reinspection. Startup fails closed if the resulting tree cannot be proven clean.
+
+The same repair policy runs after successful `dsh plugin` mutations. `dsh plugin --profile <name> doctor` is read-only; `--repair` mutates through the ordinary policy, and `--retry <quarantine-id>` restores the recorded specifier and bundle position transactionally. Electron and Web Settings register a first-party Diagnostics section, separate from both the Plugins inventory tabs and `dshmarket`. The page can run a fresh read-only doctor, explicitly start repair, project structured conflict and orphan results without filesystem paths, and manage retained repair and quarantine records. An active root plugin reported by a conflict uses the core structured `dsh plugin remove` background job after explicit risk confirmation; an orphaned Loader row is not offered that action because no manageable dependency remains. Residual uninstall is accepted only after the package has left both profile dependencies and bundle order; after a second explicit confirmation it removes the top-level installed package before clearing the record. This covers Electron, `dsh web`, Web shortcuts, and every other launch through `runProfile()`.
+
+## Alternatives considered
+
+- **Pure client detection:** rejected because CLI and official Web launches could still compose the broken profile before a client existed, and each client would duplicate package-manager policy.
+- **Pure plugin:** rejected because the conflicting plugin graph must be made safe before Cordis loads plugins; a doctor plugin can diagnose only after crossing the boundary it is meant to protect and can itself be removed or broken.
+- **Hybrid core guard plus optional doctor plugin:** deferred because the core guard already owns every safety-critical operation. A separately published plugin may later provide richer reporting for upstream Harness users, but it must not become required for safe boot.
+- **Warn without repair or quarantine:** rejected because the known failure corrupts runtime identity and produces misleading downstream tool errors. Continuing is not a safe degraded mode.
+- **Always uninstall the offending plugin:** rejected because quarantine preserves the original dependency specification, bundle position, diagnosis, and an explicit retry path.
+
+## Consequences
+
+Profile startup gains a fast dependency-graph and real-path check; package installation occurs only after a conflict is found. Harness owns override keys for the protected package set and may remove an incompatible plugin from the active profile, but it preserves enough state to retry. Repair, quarantine, and failure are versioned structured outcomes, and UI/package-manager callers can distinguish them from an ordinary successful install.
+
+Tests cover direct, transitive, optional, peer, and same-version physical conflicts; YAML preservation; convergence; incompatible and failed-repair quarantine; retry rollback; CLI read-only behavior; Host projection and jobs; and Settings notices and actions. Cross-platform execution still depends on the packaged Node and pnpm boundary; missing executables, lockfile corruption, or permission failures stop startup with the repair diagnostic rather than permitting a mixed runtime.

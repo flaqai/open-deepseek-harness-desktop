@@ -12,6 +12,7 @@ The `dsh` command is the product launcher for profiles: ordered stacks of plugin
 | `dsh --profile headless "job"` | Run one fresh persisted session, print the final answer, and exit. |
 | `dsh web` | Alias of `--profile web`. |
 | `dsh plugin --profile <name> <pnpm args>` | Manage a profile's plugins by forwarding to pnpm in the profile directory. |
+| `dsh plugin --profile <name> doctor [--repair]` | Inspect shared Host dependency identity, or repair and quarantine conflicts. |
 
 The invoking directory is the default workspace root. The `web` and `headless` profiles auto-initialize on first use from shipped templates; any other profile must be created through `dsh plugin`.
 
@@ -37,6 +38,10 @@ The tree composes over an empty root:
 - then `--patch` overlays
 
 Bundles named in `dsh.profile.bundles` resolve from the dsh installation first (`@deepseek-ai/dsh-base`, `@deepseek-ai/dsh-web-app`, `@deepseek-ai/dsh-headless`), then from the profile's own `node_modules`, where pnpm installs out-of-tree plugins.
+
+Before a profile composes, the launcher checks identity-sensitive Host packages for plugin-installed shadow copies. Compatible declarations converge to the installation-owned copies through Harness-managed pnpm `link:` overrides; incompatible or still-conflicting root plugins are removed from the active profile and recorded under `$DSH_HOME/quarantine/profile-plugins.json`. If convergence or quarantine cannot leave a clean dependency tree, startup fails instead of loading a mixed runtime. The same check runs after `dsh plugin` changes, so Electron, `dsh web`, and other profile launches share the policy.
+
+`doctor` without an option is read-only and exits `0` when healthy or `2` when conflicts exist. `--repair` exits `10` after lossless convergence, `11` after quarantine, and `1` when the profile cannot be made safe. A quarantined plugin can be retried with `doctor --retry <quarantine-id>`; its original dependency specifier and bundle position are restored only if the ordinary health policy succeeds.
 
 Use `--dump-default-config` and `--dump-config` to inspect the composed tree without booting it.
 

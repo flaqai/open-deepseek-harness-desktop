@@ -25,6 +25,92 @@ export interface PluginInventoryEntry {
 /** Point-in-time inventory returned by the plugin inventory Remote. */
 export interface PluginInventorySnapshot {
   readonly entries: readonly PluginInventoryEntry[]
+  readonly dependencyHealth: PluginDependencyHealthSnapshot
+}
+
+/** Client-safe shared Host dependency conflict projection. */
+export interface PluginDependencyConflict {
+  readonly rootPackage: string
+  readonly dependencyChain: readonly string[]
+  readonly dependency: string
+  readonly declaredRange: string
+  readonly declaredIn: 'dependencies' | 'optionalDependencies'
+  readonly hostVersion: string
+  readonly compatible: boolean
+}
+
+/** Client-safe retained repair result. */
+export interface PluginDependencyRepairNotice {
+  readonly status: 'repaired' | 'quarantined' | 'failed'
+  readonly conflicts: readonly PluginDependencyConflict[]
+  readonly diagnostic?: string
+}
+
+/** Client-safe durable quarantine record. */
+export interface PluginQuarantineRecord {
+  readonly quarantineId: string
+  readonly profile: string
+  readonly packageName: string
+  readonly packageSpec: string
+  readonly installedVersion?: string
+  readonly quarantinedAt: string
+  readonly reason: 'incompatible-host-dependency' | 'convergence-failed' | 'orphaned-bundle'
+  readonly conflicts: readonly PluginDependencyConflict[]
+}
+
+/** Dependency-health state shown by trusted clients. */
+export interface PluginDependencyHealthSnapshot {
+  readonly lastRepair: PluginDependencyRepairNotice | null
+  readonly quarantined: readonly PluginQuarantineRecord[]
+}
+
+/** One Loader bundle that remains configured without a manageable profile dependency. */
+export interface PluginOrphanedBundle {
+  readonly profile: string
+  readonly packageName: string
+  readonly bundleIndex: number
+  readonly installedVersion?: string
+}
+
+/** Client-safe result returned by the core profile dependency doctor. */
+export interface PluginDependencyDoctorReport {
+  readonly schema: 'dsh/profile-dependency-repair/v1'
+  readonly profile: string
+  readonly status: 'healthy' | 'repaired' | 'quarantined' | 'failed'
+  readonly conflicts: readonly PluginDependencyConflict[]
+  readonly orphanedBundles: readonly PluginOrphanedBundle[]
+  readonly quarantined: readonly PluginQuarantineRecord[]
+  readonly diagnostic?: string
+}
+
+/** Stable identity of one background dependency-doctor operation. */
+export type PluginDoctorId = Branded<'PluginDoctorId'>
+
+/** Requested profile check mode. */
+export interface PluginDoctorRequest {
+  readonly profile: string
+  readonly repair: boolean
+}
+
+/** Observable lifecycle of one current-profile dependency check. */
+export interface PluginDoctorSnapshot {
+  readonly doctorId: PluginDoctorId
+  readonly profile: string
+  readonly command: string
+  readonly phase: 'running' | 'healthy' | 'issues' | 'repaired' | 'quarantined' | 'failed'
+  readonly report?: PluginDependencyDoctorReport
+  readonly exitCode?: number | null
+  readonly diagnostic?: string
+}
+
+/** Opaque durable quarantine selection. */
+export interface PluginQuarantineRequest {
+  readonly quarantineId: string
+}
+
+/** Profile whose retained repair notification should be dismissed. */
+export interface PluginRepairNoticeRequest {
+  readonly profile: string
 }
 
 /** Stable identity of one background profile-plugin installation. */
@@ -47,7 +133,7 @@ export interface PluginUninstallRequest {
 }
 
 /** Observable lifecycle of one package-manager process. */
-export type PluginInstallPhase = 'running' | 'succeeded' | 'failed'
+export type PluginInstallPhase = 'running' | 'succeeded' | 'repaired' | 'quarantined' | 'failed'
 
 /** Point-in-time state returned when starting or polling an installation. */
 export interface PluginInstallSnapshot {

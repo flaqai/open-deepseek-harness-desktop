@@ -49,6 +49,28 @@ export {
   type ProfileManifest,
 } from './profile.ts'
 
+export {
+  clearQuarantinedProfilePlugin,
+  clearLastProfileRepairReport,
+  inspectProfileDependencies,
+  inspectOrphanedProfileBundles,
+  listQuarantinedProfilePlugins,
+  PROFILE_QUARANTINE_SCHEMA,
+  repairProfileDependencies,
+  retryQuarantinedProfilePlugin,
+  readLastProfileRepairReport,
+  SHARED_HOST_PACKAGES,
+  uninstallQuarantinedProfilePlugin,
+  type ProfileDependencyConflict,
+  type OrphanedProfileBundle,
+  type ProfileDependencyOptions,
+  type ProfilePackageManagerResult,
+  type ProfileRepairOptions,
+  type ProfileRepairReport,
+  type ProfileQuarantineRetryOptions,
+  type QuarantinedProfilePlugin,
+} from './profile-health.ts'
+
 /**
  * Resolve the config to boot. Replay swaps a `cordis.yml` basename for
  * `cordis.snapshot.yml` in the same directory; every other mode keeps the path.

@@ -5,11 +5,13 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { PluginInventorySettingsTab, type PluginInventorySettingsTabInjected } from './PluginInventorySettingsTab.tsx'
+import { PluginDiagnosticsSection, type PluginDiagnosticsSectionInjected } from './PluginDiagnosticsSection.tsx'
 import { PluginDiscovery } from './PluginDiscovery.tsx'
 import type { PluginDiscoveryInjected } from './PluginDiscovery.tsx'
 import { en, zh, type PluginInventoryLocaleKey } from './locales.ts'
 
 export type { PluginInventorySettingsTabInjected, PluginInventorySettingsTabProps } from './PluginInventorySettingsTab.tsx'
+export type { PluginDiagnosticsSectionInjected, PluginDiagnosticsSectionProps } from './PluginDiagnosticsSection.tsx'
 export type { PluginInventoryLocaleKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -42,12 +44,43 @@ export function apply(ctx: ClientContext): void {
     if (!result.ok) throw new Error(`pluginInventory.getInstall failed: ${result.error.code}: ${result.error.message}`)
     return result.value
   }
+  const startUninstall: PluginInventorySettingsTabInjected['startUninstall'] = async (request) => {
+    const result = await ctx.remote.pluginInventory.startUninstall(request)
+    if (!result.ok) throw new Error(`pluginInventory.startUninstall failed: ${result.error.code}: ${result.error.message}`)
+    return result.value
+  }
   const injected = (): PluginInventorySettingsTabInjected => ({
     list,
     getInstall,
-    startUninstall: async (request) => {
-      const result = await ctx.remote.pluginInventory.startUninstall(request)
-      if (!result.ok) throw new Error(`pluginInventory.startUninstall failed: ${result.error.code}: ${result.error.message}`)
+    startUninstall,
+  })
+  const diagnosticsInjected = (): PluginDiagnosticsSectionInjected => ({
+    list,
+    getInstall,
+    startUninstall,
+    startDependencyDoctor: async (request) => {
+      const result = await ctx.remote.pluginInventory.startDependencyDoctor(request)
+      if (!result.ok) throw new Error(`pluginInventory.startDependencyDoctor failed: ${result.error.code}: ${result.error.message}`)
+      return result.value
+    },
+    getDependencyDoctor: async (doctorId) => {
+      const result = await ctx.remote.pluginInventory.getDependencyDoctor(doctorId)
+      if (!result.ok) throw new Error(`pluginInventory.getDependencyDoctor failed: ${result.error.code}: ${result.error.message}`)
+      return result.value
+    },
+    startQuarantineRetry: async (request) => {
+      const result = await ctx.remote.pluginInventory.startQuarantineRetry(request)
+      if (!result.ok) throw new Error(`pluginInventory.startQuarantineRetry failed: ${result.error.code}: ${result.error.message}`)
+      return result.value
+    },
+    uninstallQuarantine: async (request) => {
+      const result = await ctx.remote.pluginInventory.uninstallQuarantine(request)
+      if (!result.ok) throw new Error(`pluginInventory.uninstallQuarantine failed: ${result.error.code}: ${result.error.message}`)
+      return result.value
+    },
+    dismissDependencyHealth: async (request) => {
+      const result = await ctx.remote.pluginInventory.dismissDependencyHealth(request)
+      if (!result.ok) throw new Error(`pluginInventory.dismissDependencyHealth failed: ${result.error.code}: ${result.error.message}`)
       return result.value
     },
   })
@@ -70,6 +103,14 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: injected,
   }, PluginInventorySettingsTab))
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'diagnostics',
+    order: 25,
+    label: () => t('diagnostics.nav'),
+    locale: NS,
+    inject: diagnosticsInjected,
+  }, PluginDiagnosticsSection))
   ctx.slots.inject('conversation.hero.pluginDiscovery', () => ctx.slots.register({
     name: 'conversation.hero.pluginDiscovery',
     locale: NS,

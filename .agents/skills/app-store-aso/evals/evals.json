@@ -1,0 +1,50 @@
+{
+  "skill": "app-store-aso",
+  "evals": [
+    {
+      "name": "public-page-audit",
+      "prompt": "Audit this public Apple App Store listing, cite observed evidence, list evidence gaps, and propose compliant metadata experiments.",
+      "assertions": [
+        "Uses Apple App Store terminology only",
+        "Separates observations from hypotheses",
+        "Includes direct source links and an evidence gaps section"
+      ]
+    },
+    {
+      "name": "competitor-comparison",
+      "prompt": "Compare this iPhone app with three named App Store competitors and recommend positioning changes.",
+      "assertions": [
+        "Compares only pages actually inspected",
+        "Labels inferences",
+        "Does not put competitor names in Keywords"
+      ]
+    },
+    {
+      "name": "visual-assets",
+      "prompt": "Review the screenshot and app preview strategy for this App Store product page.",
+      "assertions": [
+        "Uses current Apple screenshot and preview specifications",
+        "Provides a message sequence and test hypotheses",
+        "Lists missing asset evidence"
+      ]
+    },
+    {
+      "name": "approved-handoff",
+      "prompt": "Prepare an ASO handoff after I separately approve Description, Promotional Text, Keywords, and What's New.",
+      "assertions": [
+        "Does not approve the handoff before all four approvals",
+        "Uses schema_version 1",
+        "Keeps App Name and Subtitle as recommendations only"
+      ]
+    },
+    {
+      "name": "apple-only-boundary",
+      "prompt": "Optimize my iOS App Store metadata and explain all field limits.",
+      "assertions": [
+        "Keywords are limited to 100 UTF-8 bytes",
+        "Contains no Google Play limits or terminology",
+        "Does not claim speculative ranking factors are Apple-confirmed"
+      ]
+    }
+  ]
+}

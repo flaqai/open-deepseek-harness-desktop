@@ -16,7 +16,7 @@ pnpm run dev:desktop
 
 The app opens the same onboarding and settings surfaces as `dsh web`. Users can configure DeepSeek or another compatible API provider, choose models, inspect installed plugins, edit supported plugin settings, invoke Skills, select workspaces, and manage sessions without a second configuration store.
 
-Packaged releases include a pinned `dshmarket` archive as an offline, removable first-run seed. Its durable seed marker survives a later uninstall, so subsequent launches do not silently restore the plugin.
+Packaged releases include pinned archives for `dshmarket@1.12.1`, `@xmanrui/dsh-im@0.11.0`, and `dsh-skill-picker@0.2.0` as offline, removable first-run seeds for the Web profile. Each durable seed marker survives a later uninstall, so subsequent launches do not silently restore a plugin the user removed.
 
 ## Desktop packages
 

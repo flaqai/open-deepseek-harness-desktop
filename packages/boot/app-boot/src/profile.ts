@@ -140,6 +140,7 @@ const PROFILE_PNPM_WORKSPACE = `packages:
 
 nodeLinker: hoisted
 autoInstallPeers: false
+dedupePeerDependents: false
 `
 
 /**

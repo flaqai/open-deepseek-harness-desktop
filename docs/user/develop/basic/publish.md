@@ -63,6 +63,8 @@ Create `hello-plugin/cordis.patch.yml`. The patch is a YAML array like the `--pa
 
 A package without the `dsh.bundle` declaration still installs, but only as a plain dependency: `dsh plugin` prints a warning and activates no layer. Use that package format for a library that plugin packages import rather than a plugin users enable.
 
+Declare identity-sensitive Host packages as `peerDependencies`, mirrored in `devDependencies` for local builds; do not place them in `dependencies` or `optionalDependencies`. The initial shared set is `@deepseek-ai/cordis`, `@deepseek-ai/dsh-attachment`, `@deepseek-ai/dsh-llm`, `@deepseek-ai/dsh-system-prompt`, and `@deepseek-ai/dsh-tools`. A private copy can split Cordis services, contexts, and symbols even at the same version. Profile startup detects that physical-identity conflict, converges a compatible range to the Host copy, and quarantines the root bundle when safe convergence is impossible. Use `dsh plugin --profile <name> doctor` for a read-only diagnosis.
+
 ### The profile manifest
 
 A profile directory holds two files:

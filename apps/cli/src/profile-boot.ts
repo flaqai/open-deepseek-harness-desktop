@@ -11,7 +11,7 @@
  * @module @deepseek-ai/dsh/profile-boot
  */
 
-import { writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FiberState, type Context } from '@deepseek-ai/cordis'
@@ -20,12 +20,17 @@ import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import {
   boot,
   composeEntries,
+  DEFAULT_PROFILE_BUNDLES,
   healProfilesModuleFallback,
   installFailLoud,
+  initProfile,
   loadOptionalPatches,
   loadOverlayPatches,
   loadProfile,
+  repairProfileDependencies,
+  resolveProfileDir,
   PROFILE_PATCH_FILENAME,
+  PROFILE_TEMPLATES,
   watchUserPatches,
   type Profile,
 } from '@deepseek-ai/dsh-app-boot'
@@ -37,6 +42,8 @@ const SHIPPED_PRESET_ROOT = fileURLToPath(new URL('../config/agent-presets/', im
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
+import { INSTALL_ANCHOR } from './install-anchor.ts'
+import { runProfilePackageManager } from './profile-package-manager.ts'
 
 const NAME = 'dsh'
 
@@ -50,8 +57,7 @@ export function homePatchPath(): string {
   return join(resolveDshHome(), PROFILE_PATCH_FILENAME)
 }
 
-/** Absolute path of this dsh installation's package.json (both anchors: src/ and lib/ sit one level under apps/cli). */
-export const INSTALL_ANCHOR = fileURLToPath(new URL('../package.json', import.meta.url))
+export { INSTALL_ANCHOR } from './install-anchor.ts'
 
 /** The session-telemetry row id the DSH_TELEMETRY_DISABLED switch targets. */
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
@@ -205,6 +211,26 @@ function suppressShutdownError(ctx: Context, signal: AbortSignal, error: unknown
  * @returns the settled root context and the shutdown controller.
  */
 export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown }> {
+  const profileDir = resolveProfileDir(options.profile)
+  if (existsSync(join(profileDir, 'package.json'))) {
+    initProfile(profileDir, PROFILE_TEMPLATES[options.profile] ?? DEFAULT_PROFILE_BUNDLES)
+    healProfilesModuleFallback(INSTALL_ANCHOR)
+    const dependencyHealth = repairProfileDependencies({
+      binName: NAME,
+      profile: options.profile,
+      installAnchor: INSTALL_ANCHOR,
+      runPackageManager: args => runProfilePackageManager(profileDir, args),
+    })
+    if (dependencyHealth.status === 'failed') {
+      throw new Error(
+        `${NAME}: profile ${options.profile} has unresolved shared Host dependency conflicts: `
+        + (dependencyHealth.diagnostic ?? JSON.stringify(dependencyHealth.conflicts)),
+      )
+    }
+    if (dependencyHealth.status === 'repaired' || dependencyHealth.status === 'quarantined') {
+      process.stderr.write(`${NAME}: profile dependency health ${JSON.stringify(dependencyHealth)}\n`)
+    }
+  }
   const composed = composeProfile(options.profile, options.patchFiles)
   const app: { current?: Context } = {}
   const shutdown = createProcessShutdown(async () => { await app.current?.fiber.dispose() })

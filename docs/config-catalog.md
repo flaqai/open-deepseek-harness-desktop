@@ -798,10 +798,12 @@ export interface Config {
   installOutputMaxBytes?: number
   /** Process-tree termination grace used during Host teardown. */
   installTerminationGraceMs?: number
+  /** Profile whose dependency health is projected to clients. */
+  profile?: string
 }
 ```
 
-Source: [`packages/host/plugin-inventory/src/index.ts:56`](../packages/host/plugin-inventory/src/index.ts)
+Source: [`packages/host/plugin-inventory/src/index.ts:67`](../packages/host/plugin-inventory/src/index.ts)
 
 <a id="deepseek-aidsh-host-webserver"></a>
 

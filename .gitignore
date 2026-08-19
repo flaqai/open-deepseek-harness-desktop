@@ -39,3 +39,4 @@ apps/desktop/lib/
 worktrees/
 .agents/worktrees/
 .typert-*/
+release/

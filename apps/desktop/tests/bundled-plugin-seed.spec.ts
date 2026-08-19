@@ -40,6 +40,24 @@ async function fixture(): Promise<{
 }
 
 describe('bundled plugin seed', () => {
+  it('ships the pinned preset archives with matching integrity', async () => {
+    const manifest = JSON.parse(await readFile(new URL('../bundled-plugins/manifest.json', import.meta.url), 'utf8')) as {
+      schema: number
+      plugins: BundledPluginManifestEntry[]
+    }
+    expect(manifest.schema).toBe(1)
+    expect(manifest.plugins.map(entry => [entry.packageName, entry.version])).toEqual([
+      ['dshmarket', '1.12.1'],
+      ['@xmanrui/dsh-im', '0.11.0'],
+      ['dsh-skill-picker', '0.2.0'],
+    ])
+    expect(new Set(manifest.plugins.map(entry => entry.seedId)).size).toBe(manifest.plugins.length)
+    for (const entry of manifest.plugins) {
+      const bytes = await readFile(new URL(`../bundled-plugins/${entry.archive}`, import.meta.url))
+      expect(`sha512-${createHash('sha512').update(bytes).digest('base64')}`).toBe(entry.integrity)
+    }
+  })
+
   it('installs once and preserves the marker as an uninstall tombstone', async () => {
     const options = await fixture()
     const install = vi.fn(async () => {})

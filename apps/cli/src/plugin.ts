@@ -10,36 +10,30 @@
  * @module @deepseek-ai/dsh/plugin
  */
 
-import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { isAbsolute, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import {
   DEFAULT_PROFILE_BUNDLES,
+  healProfilesModuleFallback,
   initProfile,
+  inspectProfileDependencies,
+  inspectOrphanedProfileBundles,
   PROFILE_TEMPLATES,
   readProfileManifest,
+  repairProfileDependencies,
+  retryQuarantinedProfilePlugin,
   resolveBundleDir,
   resolveProfileDir,
   writeProfileManifest,
   type ProfileManifest,
+  type ProfileRepairReport,
 } from '@deepseek-ai/dsh-app-boot'
-import { INSTALL_ANCHOR } from './profile-boot.ts'
+import { INSTALL_ANCHOR } from './install-anchor.ts'
+import { runProfilePackageManager } from './profile-package-manager.ts'
+
+export { resolvePnpmCommand } from './profile-package-manager.ts'
 
 const NAME = 'dsh'
-
-/**
- * Resolve the pnpm executable selected by the host process.
- * @param environment - Environment inherited by the CLI.
- * @returns The configured absolute executable or the ordinary PATH name.
- */
-export function resolvePnpmCommand(environment: NodeJS.ProcessEnv): string {
-  const configured = environment.DSH_PNPM_BIN?.trim()
-  if (configured === undefined || configured.length === 0) return 'pnpm'
-  if (!isAbsolute(configured)) {
-    throw new Error(`${NAME}: DSH_PNPM_BIN must be an absolute path, received ${configured}`)
-  }
-  return configured
-}
 
 /**
  * Whether a resolved dependency exports a profile patch, i.e. is a bundle.
@@ -132,32 +126,105 @@ function anchorPathSpec(argument: string, cwd: string): string {
  * @returns the pnpm exit code.
  */
 export function runPlugin(profile: string, args: readonly string[]): number {
-  const pnpmCommand = resolvePnpmCommand(process.env)
   const dir = resolveProfileDir(profile)
-  if (!existsSync(join(dir, 'package.json'))) {
-    initProfile(dir, PROFILE_TEMPLATES[profile] ?? DEFAULT_PROFILE_BUNDLES)
-    process.stderr.write(`${NAME}: initialized profile ${profile} at ${dir}\n`)
+  if (args[0] === 'doctor') {
+    const repair = args.length === 2 && args[1] === '--repair'
+    const retryId = args.length === 3 && args[1] === '--retry' ? args[2] : undefined
+    if (args.length !== 1 && !repair && retryId === undefined) {
+      process.stderr.write(`${NAME}: usage: dsh plugin --profile ${profile} doctor [--repair | --retry <quarantine-id>]\n`)
+      return 1
+    }
+    const mutatesProfile = repair || retryId !== undefined
+    if (!existsSync(join(dir, 'package.json'))) {
+      if (!mutatesProfile) {
+        process.stderr.write(`${NAME}: profile ${profile} is not initialized at ${dir}\n`)
+        return 1
+      }
+      initProfile(dir, PROFILE_TEMPLATES[profile] ?? DEFAULT_PROFILE_BUNDLES)
+      process.stderr.write(`${NAME}: initialized profile ${profile} at ${dir}\n`)
+    }
+    if (mutatesProfile) healProfilesModuleFallback(INSTALL_ANCHOR)
+    let outcome: ProfileRepairReport
+    if (retryId !== undefined) {
+      outcome = retryQuarantinedProfilePlugin({
+        binName: NAME,
+        profile,
+        installAnchor: INSTALL_ANCHOR,
+        runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+      }, retryId)
+    } else if (repair) {
+      outcome = repairProfileDependencies({
+        binName: NAME,
+        profile,
+        installAnchor: INSTALL_ANCHOR,
+        runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+      })
+    } else {
+      const orphanedBundles = inspectOrphanedProfileBundles({
+        binName: NAME,
+        profile,
+        installAnchor: INSTALL_ANCHOR,
+      })
+      outcome = {
+        schema: 'dsh/profile-dependency-repair/v1' as const,
+        profile,
+        status: 'healthy' as const,
+        conflicts: inspectProfileDependencies({ binName: NAME, profile, installAnchor: INSTALL_ANCHOR }),
+        ...(orphanedBundles.length === 0 ? {} : { orphanedBundles }),
+        quarantined: [],
+      }
+    }
+    const normalized = !mutatesProfile
+      && (outcome.conflicts.length > 0 || (outcome.orphanedBundles?.length ?? 0) > 0)
+      ? { ...outcome, status: 'failed' as const }
+      : outcome
+    process.stdout.write(`${JSON.stringify(normalized, undefined, 2)}\n`)
+    if (!mutatesProfile) return normalized.status === 'healthy' ? 0 : 2
+    if (normalized.status === 'repaired') return 10
+    if (normalized.status === 'quarantined') return 11
+    return normalized.status === 'healthy' ? 0 : 1
+  }
+  const initialized = !existsSync(join(dir, 'package.json'))
+  initProfile(dir, PROFILE_TEMPLATES[profile] ?? DEFAULT_PROFILE_BUNDLES)
+  if (initialized) process.stderr.write(`${NAME}: initialized profile ${profile} at ${dir}\n`)
+  healProfilesModuleFallback(INSTALL_ANCHOR)
+  const preflight = repairProfileDependencies({
+    binName: NAME,
+    profile,
+    installAnchor: INSTALL_ANCHOR,
+    runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+  })
+  if (preflight.status === 'failed') {
+    process.stderr.write(`${NAME}: plugin dependency preflight failed: ${preflight.diagnostic ?? 'unknown error'}\n`)
+    return 1
+  }
+  if (preflight.status === 'repaired' || preflight.status === 'quarantined') {
+    process.stderr.write(`${NAME}: profile dependency health ${JSON.stringify(preflight)}\n`)
   }
   const before = readProfileManifest(NAME, dir)
   // Windows resolves pnpm through its .cmd shim, which spawn() refuses
   // without a shell since the CVE-2024-27980 hardening.
-  const result = spawnSync(pnpmCommand, args.map(argument => anchorPathSpec(argument, process.cwd())), {
-    cwd: dir,
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-  })
-  if (result.error !== undefined) {
-    const code = (result.error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT') {
-      const location = pnpmCommand === 'pnpm' ? 'on PATH' : `at ${pnpmCommand}`
-      process.stderr.write(`${NAME}: pnpm not found ${location} — install pnpm to manage profile plugins\n`)
-      return 127
-    }
-    throw result.error
-  }
-  const exitCode = result.status ?? 1
+  const result = runProfilePackageManager(
+    dir,
+    args.map(argument => anchorPathSpec(argument, process.cwd())),
+  )
+  if (result.diagnostic !== undefined) process.stderr.write(`${result.diagnostic}\n`)
+  const exitCode = result.exitCode ?? 1
   if (exitCode === 0) {
     reconcilePlugins(before, dir)
+    const dependencyHealth = repairProfileDependencies({
+      binName: NAME,
+      profile,
+      installAnchor: INSTALL_ANCHOR,
+      runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+    })
+    if (dependencyHealth.status === 'failed') {
+      process.stderr.write(`${NAME}: plugin dependency repair failed: ${dependencyHealth.diagnostic ?? 'unknown error'}\n`)
+      return 1
+    }
+    if (dependencyHealth.status === 'repaired' || dependencyHealth.status === 'quarantined') {
+      process.stderr.write(`${NAME}: profile dependency health ${JSON.stringify(dependencyHealth)}\n`)
+    }
   } else {
     // pnpm's own diagnostics name pnpm-workspace.yaml without saying WHICH
     // one; the profile owns it, and the commonest failure here is pnpm ≥10
