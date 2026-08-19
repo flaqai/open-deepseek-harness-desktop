@@ -63,6 +63,7 @@ function mount({
       }, [])
       return select(current)
     },
+    t: key => key,
     renderSlot,
   }
   const view = render(<SettingsRoot {...props} />)
@@ -215,11 +216,35 @@ describe('SettingsPanel navigation', () => {
     expect(second?.[1]).toMatchObject({ stepId: 'credential' })
     expect(second?.[2]).toEqual({ only: 'credential' })
 
+    const finishSection = vi.fn()
     act(() => {
-      (second?.[1] as { openSection: (id: string) => void }).openSection('models')
+      (second?.[1] as {
+        openSection: (request: {
+          sectionId: string
+          subsectionId?: string
+          step: 1 | 2
+          complete: () => void
+        }) => void
+      }).openSection({
+        sectionId: 'models',
+        subsectionId: 'provider',
+        step: 1,
+        complete: finishSection,
+      })
     })
-    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'onboarding.start' })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'onboarding.start' }).parentElement?.parentElement)
+      .toBe(document.body)
     expect(screen.getByTestId('section-models')).toBeTruthy()
+    expect(renderSlot).toHaveBeenCalledWith(
+      'settings.section',
+      expect.objectContaining({ preferredSubsectionId: 'provider' }),
+      { only: 'models' },
+    )
+    expect(screen.queryByRole('button', { name: 'General' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'onboarding.done' }))
+    expect(finishSection).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog', { name: 'onboarding.start' })).toBeNull()
 
     cleanup()
     const inactive = mount({ onboardingActive: false }).renderSlot.mock.calls

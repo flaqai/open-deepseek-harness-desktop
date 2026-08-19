@@ -30,11 +30,13 @@ export type PluginsSettingsSectionProps =
   & InjectFace<PluginsSettingsSectionInjected>
 
 /** Render one Plugins page whose contents arrive from feature-owned tabs. */
-export function PluginsSettingsSection({ t, renderSlot, useTabs }: PluginsSettingsSectionProps) {
+export function PluginsSettingsSection({
+  t, renderSlot, useTabs, preferredSubsectionId,
+}: PluginsSettingsSectionProps) {
   const tabsId = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const rows = useTabs(value => value)
-  const [activeId, setActiveId] = useState<string>()
+  const [activeId, setActiveId] = useState<string | undefined>(() => preferredSubsectionId)
   const [visitedIds, setVisitedIds] = useState<ReadonlySet<string>>(() => new Set())
   const active = rows.find(row => row.id === activeId)?.id ?? rows[0]?.id
 
@@ -48,6 +50,10 @@ export function PluginsSettingsSection({ t, renderSlot, useTabs }: PluginsSettin
       return new Set([...previous, active])
     })
   }, [active])
+
+  useEffect(() => {
+    if (preferredSubsectionId !== undefined) setActiveId(preferredSubsectionId)
+  }, [preferredSubsectionId])
 
   return (
     <div className={css.section}>

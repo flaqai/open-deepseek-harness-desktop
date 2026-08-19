@@ -49,9 +49,10 @@ function cardActions() {
   return { edit: vi.fn(), resetField: vi.fn(), save: vi.fn(), discard: vi.fn() }
 }
 
-function renderSection(rows: readonly PluginsSettingsTabEntry[]) {
+function renderSection(rows: readonly PluginsSettingsTabEntry[], preferredSubsectionId?: string) {
   const props = {
     t,
+    preferredSubsectionId,
     useTabs: (selector: (value: readonly PluginsSettingsTabEntry[]) => unknown) => selector(rows),
     renderSlot: (_name: string, _owner: unknown, options: { only?: string }) => (
       <span>{options.only}</span>
@@ -119,6 +120,17 @@ describe('PluginsSettingsSection', () => {
     fireEvent.click(configurable)
     expect(configurable.getAttribute('aria-selected')).toBe('true')
     expect(screen.getByText('all').closest('[role="tabpanel"]')).toHaveProperty('hidden', true)
+  })
+
+  it('opens the subsection requested by the onboarding shell', () => {
+    renderSection([
+      { id: 'configurable', order: 0, label: en.configurableTab },
+      { id: 'im', order: 20, label: 'IM bots' },
+    ], 'im')
+
+    expect(screen.getByRole('tab', { name: 'IM bots' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByText('im')).toBeTruthy()
+    expect(screen.queryByText('configurable')).toBeNull()
   })
 
   it('leads with its own heading and intro', () => {

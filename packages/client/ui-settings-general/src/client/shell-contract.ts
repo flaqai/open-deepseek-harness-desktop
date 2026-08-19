@@ -6,7 +6,7 @@
  * reference graph closes a cycle through ui-sidebar → ui-layout → ui-theme.
  * The settings SLOT types (what registrants contribute) stay in ui-settings.
  */
-import type { HostObservable, InjectFace, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls ui-sidebar's SlotMap merge (the 'sidebar.settings' entry)
 // into every program that sees this contract.
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -48,6 +48,7 @@ export type SettingsRootInjected = {
  */
 export type SettingsRootComponentProps =
   PropsRuntime<'sidebar.settings'>
+  & PropsLocale<'settings'>
   & PropsRenderSlots<
     | 'settings.trigger'
     | 'settings.header'

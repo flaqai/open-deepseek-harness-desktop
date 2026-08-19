@@ -224,3 +224,183 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* First-run configuration page: the ordinary section renderer stays intact,
+   while this shell replaces only the settings navigation and footer. */
+.onboardingOverlay {
+  z-index: 1200;
+}
+
+.onboardingPanel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  width: min(1120px, calc(100vw - 48px));
+  height: min(820px, calc(100vh - 48px));
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-shadow-lv3);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.onboardingRail {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 38px 28px;
+  border-right: 1px solid var(--dsw-alias-border-l2);
+}
+
+.onboardingRailTitle {
+  margin: 0 0 30px;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.onboardingStep {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 92px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.onboardingStep:not(:last-child)::after {
+  position: absolute;
+  top: 63px;
+  bottom: -29px;
+  left: 16px;
+  width: 1px;
+  background: var(--dsw-alias-border-l2);
+  content: '';
+}
+
+.onboardingStep[data-active='true'] {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.onboardingStepNumber {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+}
+
+.onboardingStep[data-active='true'] .onboardingStepNumber {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 9%, transparent);
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.onboardingStepNumber.onboardingStepComplete {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 32%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.onboardingSectionContent {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.onboardingSectionBody {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 34px 44px 28px;
+}
+
+.onboardingFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 44px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.onboardingBack,
+.onboardingDone {
+  min-height: 40px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.onboardingBack {
+  border: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.onboardingDone {
+  border: 1px solid var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-label-primary);
+}
+
+.onboardingBack:hover,
+.onboardingDone:hover {
+  filter: brightness(0.96);
+}
+
+.onboardingBack:focus-visible,
+.onboardingDone:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 840px) {
+  .onboardingPanel {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .onboardingRail {
+    padding-inline: 20px;
+  }
+
+  .onboardingSectionBody,
+  .onboardingFooter {
+    padding-inline: 28px;
+  }
+}
+
+@media (max-width: 680px) {
+  .onboardingPanel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .onboardingRail {
+    display: none;
+  }
+
+  .onboardingSectionBody {
+    padding: 24px 20px;
+  }
+
+  .onboardingFooter {
+    padding: 14px 20px;
+  }
+}

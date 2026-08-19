@@ -1,8 +1,8 @@
 /**
  * Models settings and product-onboarding plugin, browser half. It registers
- * the Models page plus the ordered internal-testing and official-DeepSeek
- * onboarding dialogs, whose UI shares this package's modal wrapper. The Host
- * settings and credential contracts stay behind their existing wire APIs.
+ * the Models page plus the first-run setup wizard that routes into the existing
+ * Models and IM settings pages. Host settings and credential contracts stay
+ * behind their existing wire APIs.
  * Export discipline:
  * packages/client/AGENTS.md.
  */
@@ -18,10 +18,8 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { ModelsSection } from './ModelsSection.tsx'
 import type { ModelsSectionInjected } from './ModelsSection.tsx'
-import { DeepSeekOnboardingDialog } from './DeepSeekOnboardingDialog.tsx'
-import type { DeepSeekOnboardingInjected } from './DeepSeekOnboardingDialog.tsx'
-import { WelcomeNotice } from './WelcomeNotice.tsx'
-import type { WelcomeNoticeInjected } from './WelcomeNotice.tsx'
+import { SetupWizard } from './SetupWizard.tsx'
+import type { SetupWizardInjected } from './SetupWizard.tsx'
 import { refreshWelcomeIfLoaded, WelcomeNoticeStore } from './welcome-store.ts'
 import { ModelsSettingsStore } from './store.ts'
 import { en, zh, type ModelsKey } from './locales.ts'
@@ -79,19 +77,19 @@ export function apply(ctx: ClientContext): void {
     api: connection.api,
     t,
   })
-  const deepSeekOnboardingInjected = (): DeepSeekOnboardingInjected => ({
-    controller,
-    hooks: { models: controller.store },
-    api: connection.api,
-    t,
-  })
   const welcomeController = new WelcomeNoticeStore(
     connection.api,
     connection.isLoopback ? 'host' : 'memory',
   )
-  const welcomeInjected = (): WelcomeNoticeInjected => ({
-    controller: welcomeController,
-    hooks: { welcome: welcomeController.store },
+  const setupInjected = (): SetupWizardInjected => ({
+    modelsController: controller,
+    welcomeController,
+    setLocale: (id) => { ctx.locale.setLocale(id) },
+    hooks: {
+      models: controller.store,
+      welcome: welcomeController.store,
+      locale: ctx.locale,
+    },
     t,
   })
 
@@ -124,14 +122,8 @@ export function apply(ctx: ClientContext): void {
   }, ModelsSection))
   ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
     name: 'settings.onboarding',
-    id: 'welcome-notice',
-    order: -100,
-    inject: welcomeInjected,
-  }, WelcomeNotice))
-  ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
-    name: 'settings.onboarding',
-    id: 'deepseek-official',
+    id: 'setup-wizard',
     order: 0,
-    inject: deepSeekOnboardingInjected,
-  }, DeepSeekOnboardingDialog))
+    inject: setupInjected,
+  }, SetupWizard))
 }

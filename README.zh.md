@@ -34,6 +34,16 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
 
 安装包内置插件市场，并在首次启动时完成预设安装，无需额外配置即可发现、安装和管理插件。插件市场仍是普通 Harness 插件：用户可以在客户端中将其卸载，桌面应用会尊重该选择，不会再次自动安装。
 
+### 预设 IM 机器人连接
+
+安装包预设 `dsh-im`，可从客户端设置中通过扫码、应用清单或已有机器人凭据连接微信、飞书、钉钉、企业微信、QQ、Slack、Telegram、Discord 和 WhatsApp。不同渠道统一在一个 IM 管理入口中配置，并可为机器人切换 Harness 工作区或重新绑定已有会话。机器人凭据只提交给本机 Harness Host，并由受保护的凭据存储管理。该功能仍由可卸载插件提供；用户移除后，客户端不会在后续启动时擅自装回。
+
+### 依赖诊断与插件隔离
+
+客户端能够识别插件依赖图中的共享运行时冲突、残留的 Loader 条目和根插件挂载失败等问题。只读检查会先展示问题及依赖链；执行修复时，客户端尝试让插件统一使用安装包提供的共享 Host 依赖。仍无法安全收敛的插件会从当前 profile 的活动依赖和启动顺序中移出，并留下持久的隔离记录，因此其他功能仍可继续启动。用户之后可以在“设置 → 插件 → 诊断”中重试安装，或确认后卸载隔离残留。
+
+这项能力必须位于客户端启动层，而不能做成普通插件：插件只有在依赖解析和运行时装载成功后才能执行，而依赖冲突恰好可能发生在这之前，并阻止诊断插件自身启动。只有拥有 profile 清单、锁文件、组合包顺序和安装级共享运行时的启动层，才能在插件代码执行前完成检查，以统一规则停用故障插件，并在修复失败时保持关闭式保护。隔离不会把未知依赖错误静默忽略，也不会让故障插件继续进入当前运行时。
+
 ### 主题与背景
 
 你可以在跟随系统、浅色、深色及八套产品主题之间切换，并搭配八张原创内置插画，或使用自己的 PNG、JPEG、WebP 图片替换聊天背景。自定义图片仅保存在本地浏览器存储中，不会发送给模型。支持格式与大小限制见[主题与背景参考](packages/client/ui-theme/README.md)。
@@ -169,7 +179,7 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 - 提供可复现的 macOS arm64/x64 DMG、Windows x64 EXE 和 Linux x64 DEB/RPM 版本，并附带校验值与第三方许可证声明。
 - 改进插件与 Skill 的发现、兼容性元数据、生命周期管理和更新可见性。
 - 增加原生审批、通知、托盘状态、深度链接和经过身份验证的本地控制端点。
-- 通过独立且经过身份验证的传输插件支持微信、Discord、Slack 等 IM 控制，并提供身份映射、授权、审计事件、速率限制和撤销能力。
+- 继续完善预设 IM 机器人连接的身份映射、授权、审计事件、速率限制和撤销能力。
 
 以上内容是项目方向，并不代表已经完成支持。当前实现边界见[桌面发行矩阵](apps/desktop/README.md#cross-platform-release-matrix)。
 
@@ -179,6 +189,14 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 - 通过 [GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues) 提交可复现的缺陷和功能建议。
 - 在 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 或其 [Discord 社区](https://discord.gg/Ycq5dCaS4)讨论上游运行时。
 - 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；使用编码智能体处理本仓库时请遵循 [AGENTS.md](AGENTS.md)。
+
+## 致谢
+
+感谢以下社区插件的作者与维护者。它们作为可卸载的首次启动预设随桌面安装包提供，让常用扩展能力可以开箱即用：
+
+- [`dsh-im`](https://github.com/xmanrui/dsh-im)，由 [xmanrui](https://github.com/xmanrui) 维护：连接微信、飞书等九种 IM 机器人。
+- [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)，由 [a735624258](https://github.com/a735624258) 维护：在输入区选择 Skill，并插入 Harness 的 Skill 调用指令。
+- [`dsh-market`](https://github.com/dsh-market/dsh-market)，由 [dsh-market](https://github.com/dsh-market) 社区维护：在 Harness 内浏览、搜索、安装和管理插件。
 
 ## 关于 FLAQ.AI
 

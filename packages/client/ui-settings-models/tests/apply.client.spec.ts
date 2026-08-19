@@ -7,8 +7,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { TestRemote, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject, refreshIfLoaded } from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import { ModelsSection } from '../src/client/ModelsSection.tsx'
-import { DeepSeekOnboardingDialog } from '../src/client/DeepSeekOnboardingDialog.tsx'
-import { WelcomeNotice } from '../src/client/WelcomeNotice.tsx'
+import { SetupWizard } from '../src/client/SetupWizard.tsx'
 
 // The service reads its initial locale from the browser; these specs assert
 // the shipped Chinese copy, so they state the browser they assume.
@@ -62,19 +61,19 @@ describe('ui-settings-models apply', () => {
     expect(typeof injected.useSnapshot).toBe('function')
     expect(injected.api).toBeDefined()
     const onboarding = before.slots.entries('settings.onboarding')
-    expect(onboarding).toHaveLength(2)
-    expect(onboarding.find(entry => entry.options.id === 'welcome-notice')).toMatchObject({
-      component: WelcomeNotice,
-      options: { id: 'welcome-notice', order: -100 },
-    })
-    const deepSeek = onboarding.find(entry => entry.options.id === 'deepseek-official')!
-    expect(deepSeek.component).toBe(DeepSeekOnboardingDialog)
-    expect(deepSeek.options).toMatchObject({ id: 'deepseek-official', order: 0 })
-    const deepSeekInjected = (
-      deepSeek.inject as unknown as () => import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
+    expect(onboarding).toHaveLength(1)
+    const setup = onboarding.find(entry => entry.options.id === 'setup-wizard')!
+    expect(setup.component).toBe(SetupWizard)
+    expect(setup.options).toMatchObject({ id: 'setup-wizard', order: 0 })
+    const setupInjected = (
+      setup.inject as unknown as () => import('../src/client/SetupWizard.tsx').SetupWizardInjected
     )()
-    expect(deepSeekInjected.hooks.models).toBe(injected.controller.store)
-    expect(deepSeekInjected.api).toBeDefined()
+    expect(setupInjected.hooks.models).toBe(injected.controller.store)
+    expect(setupInjected.modelsController).toBe(injected.controller)
+    expect(setupInjected.hooks.welcome).toBe(setupInjected.welcomeController.store)
+    expect(setupInjected.hooks.locale).toBe(before.locale)
+    setupInjected.setLocale('en')
+    expect(before.locale.getLocale().active).toBe('en')
 
     const after = await bench()
     await after.ctx.plugin({ inject: [...inject], apply }).await()
@@ -83,7 +82,7 @@ describe('ui-settings-models apply', () => {
     declare(after.slots)
     await Promise.resolve()
     expect(after.slots.entries('settings.section')[0]!.component).toBe(ModelsSection)
-    expect(after.slots.entries('settings.onboarding')).toHaveLength(2)
+    expect(after.slots.entries('settings.onboarding')).toHaveLength(1)
     // The self-inflicted ledger notifications hit the duplicate guard.
     expect(after.slots.entries('settings.section')).toHaveLength(1)
   })
@@ -122,7 +121,7 @@ describe('ui-settings-models apply', () => {
     declare(b.slots)
     await Promise.resolve()
     expect(b.slots.entries('settings.section')[0]!.component).toBe(ModelsSection)
-    expect(b.slots.entries('settings.onboarding')).toHaveLength(2)
+    expect(b.slots.entries('settings.onboarding')).toHaveLength(1)
     // The locale path also recovers through the same ledger re-check.
     b.locale.setLocale('en')
     expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('Models')
@@ -148,13 +147,13 @@ describe('ui-settings-models apply', () => {
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = b.slots.entries('settings.onboarding')
-      .find(candidate => candidate.options.id === 'welcome-notice')!
+      .find(candidate => candidate.options.id === 'setup-wizard')!
     const injected = (
-      entry.inject as unknown as () => import('../src/client/WelcomeNotice.tsx').WelcomeNoticeInjected
+      entry.inject as unknown as () => import('../src/client/SetupWizard.tsx').SetupWizardInjected
     )()
 
-    await injected.controller.load()
-    expect(injected.controller.store.getSnapshot()).toEqual({
+    await injected.welcomeController.load()
+    expect(injected.welcomeController.store.getSnapshot()).toEqual({
       status: 'ready', acknowledged: false, error: null,
     })
   })
@@ -193,13 +192,13 @@ describe('pushed invalidations', () => {
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = b.slots.entries('settings.onboarding')
-      .find(candidate => candidate.options.id === 'deepseek-official')!
+      .find(candidate => candidate.options.id === 'setup-wizard')!
     const injected = (
       entry.inject as unknown as
-      () => import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
+      () => import('../src/client/SetupWizard.tsx').SetupWizardInjected
     )()
-    injected.controller.store.update((state) => { state.status = 'ready' })
-    const load = vi.spyOn(injected.controller, 'load').mockResolvedValue()
+    injected.modelsController.store.update((state) => { state.status = 'ready' })
+    const load = vi.spyOn(injected.modelsController, 'load').mockResolvedValue()
     b.ctx.remote.$dispatch('credentials/updated', ['DEEPSEEK_API_KEY'])
     expect(load).toHaveBeenCalledTimes(1)
   })
@@ -209,13 +208,13 @@ describe('pushed invalidations', () => {
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = b.slots.entries('settings.onboarding')
-      .find(candidate => candidate.options.id === 'welcome-notice')!
+      .find(candidate => candidate.options.id === 'setup-wizard')!
     const injected = (
       entry.inject as unknown as
-      () => import('../src/client/WelcomeNotice.tsx').WelcomeNoticeInjected
+      () => import('../src/client/SetupWizard.tsx').SetupWizardInjected
     )()
     injected.hooks.welcome.update((state) => { state.status = 'ready' })
-    const load = vi.spyOn(injected.controller, 'load').mockResolvedValue()
+    const load = vi.spyOn(injected.welcomeController, 'load').mockResolvedValue()
 
     b.ctx.remote.$dispatch('settings/document-updated', ['llm-deepseek', 1])
     expect(load).not.toHaveBeenCalled()

@@ -34,6 +34,16 @@ The Electron host grants sanitized clipboard-write permission to the supervised 
 
 Packaged installations include the Plugin Marketplace and seed it on first launch, so plugin discovery, installation, and management are available without a separate setup step. The marketplace remains an ordinary Harness plugin: users can uninstall it from the client, and the desktop app respects that choice instead of installing it again.
 
+### Preset IM bot connections
+
+Packaged installations seed `dsh-im`, which lets users connect WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord, and WhatsApp from the client settings through QR codes, app manifests, or existing bot credentials. The channels share one IM management surface, with controls for switching Harness workspaces and rebinding existing sessions. Bot credentials are submitted only to the local Harness Host and managed by protected credential storage. This capability remains a removable plugin; after users remove it, the client does not silently restore it on a later launch.
+
+### Dependency diagnostics and plugin quarantine
+
+The client can detect shared-runtime conflicts in plugin dependency graphs, orphaned Loader entries, and failed root-plugin mounts. A read-only check first reports the problem and its dependency chain. During repair, the client tries to converge plugins on the shared Host dependencies supplied by the installation. A plugin that still cannot converge safely is removed from the active profile dependencies and startup order, with a durable quarantine record left behind so the rest of the application can continue to start. Users can later retry it or explicitly remove its quarantined residue from **Settings → Plugins → Diagnostics**.
+
+This must live in the client boot layer rather than in an ordinary plugin. Plugin code runs only after dependency resolution and runtime mounting have succeeded, while these failures can happen earlier and prevent a diagnostic plugin from loading at all. Only the boot layer owns the profile manifest, lockfile, bundle order, and installation-level shared runtime needed to inspect the graph before plugin execution, disable a faulty root consistently, and fail closed when repair is incomplete. Quarantine does not silently accept an unknown dependency error or allow the faulty plugin into the current runtime.
+
 ### Themes and backgrounds
 
 Switch between system, light, dark, and eight product themes; pair them with eight original built-in illustrations or replace the chat background with your own PNG, JPEG, or WebP image. Custom images remain in local browser storage and are not sent to the model. See the [theme and background reference](packages/client/ui-theme/README.md) for formats and size limits.
@@ -169,7 +179,7 @@ API keys remain owned by the Harness credentials service. Do not commit credenti
 - Produce reproducible macOS arm64/x64 DMG, Windows x64 EXE, and Linux x64 DEB/RPM releases with checksums and generated third-party notices.
 - Improve plugin and Skill discovery, compatibility metadata, lifecycle management, and update visibility.
 - Add native approvals, notifications, tray status, deep links, and an authenticated local control endpoint.
-- Support WeChat, Discord, Slack, and other IM control through separate authenticated transport plugins with identity mapping, authorization, audit events, rate limits, and revocation.
+- Continue strengthening identity mapping, authorization, audit events, rate limits, and revocation for the preset IM bot connections.
 
 These items describe direction, not completed support. See the [desktop release matrix](apps/desktop/README.md#cross-platform-release-matrix) for the current implementation boundary.
 
@@ -179,6 +189,14 @@ These items describe direction, not completed support. See the [desktop release 
 - Use [GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues) for reproducible bugs and feature requests.
 - Discuss the upstream runtime in [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) or its [Discord community](https://discord.gg/Ycq5dCaS4).
 - See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing and [AGENTS.md](AGENTS.md) when working with coding agents in this repository.
+
+## Acknowledgements
+
+Thank you to the authors and maintainers of these community plugins. They ship as removable first-launch presets with the desktop installer so commonly used extensions are ready to use:
+
+- [`dsh-im`](https://github.com/xmanrui/dsh-im), maintained by [xmanrui](https://github.com/xmanrui): connects nine IM bot channels, including WeChat and Feishu.
+- [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), maintained by [a735624258](https://github.com/a735624258): selects a Skill from the composer and inserts the Harness Skill invocation.
+- [`dsh-market`](https://github.com/dsh-market/dsh-market), maintained by the [dsh-market](https://github.com/dsh-market) community: browses, searches, installs, and manages plugins inside Harness.
 
 ## About FLAQ.AI
 

@@ -11,11 +11,13 @@
  * to the step, so a mounted-but-deciding step paints nothing here.
  */
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
-  IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
+  IconAgentPresetOutline16, IconCheckOutline16, IconCloseOutline16, IconDataOutline16,
   IconPersonalizationOutline16, IconSettingsOutline16, IconWarningOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SettingsOnboardingSectionRequest } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import css from './SettingsRoot.module.css'
 
@@ -34,6 +36,67 @@ type PanelProps = {
   activeId: string | undefined
   onSelect: (id: string) => void
   onClose: () => void
+}
+
+type OnboardingPanelProps = {
+  request: SettingsOnboardingSectionRequest
+  renderSlot: SettingsRootComponentProps['renderSlot']
+  t: SettingsRootComponentProps['t']
+  onBack: () => void
+  onComplete: () => void
+}
+
+/** Reuse one settings section inside the selected first-run progress shell. */
+function OnboardingSectionPanel({ request, renderSlot, t, onBack, onComplete }: OnboardingPanelProps) {
+  const titleId = useId()
+  const backButton = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => { backButton.current?.focus() }, [])
+
+  return createPortal((
+    <div className={clsx(css.overlay, css.onboardingOverlay)} role="presentation">
+      <div className={css.mask} aria-hidden="true" />
+      <div className={css.onboardingPanel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <aside className={css.onboardingRail}>
+          <h2 id={titleId} className={css.onboardingRailTitle}>{t('onboarding.start')}</h2>
+          {[1, 2, 3].map((step) => {
+            const active = step === request.step
+            const complete = step < request.step
+            return (
+              <div key={step} className={css.onboardingStep} data-active={active ? 'true' : undefined}>
+                <span className={clsx(css.onboardingStepNumber, complete && css.onboardingStepComplete)}>
+                  {complete ? <IconCheckOutline16 size={14} /> : step}
+                </span>
+                <span>{t(step === 1
+                  ? 'onboarding.step.models'
+                  : step === 2
+                    ? 'onboarding.step.messages'
+                    : 'onboarding.step.ready')}</span>
+              </div>
+            )
+          })}
+        </aside>
+        <div className={css.onboardingSectionContent}>
+          <div className={css.onboardingSectionBody}>
+            {renderSlot('settings.section', {
+              close: onBack,
+              ...request.subsectionId === undefined
+                ? {}
+                : { preferredSubsectionId: request.subsectionId },
+            }, { only: request.sectionId })}
+          </div>
+          <footer className={css.onboardingFooter}>
+            <button ref={backButton} type="button" className={css.onboardingBack} onClick={onBack}>
+              {t('onboarding.back')}
+            </button>
+            <button type="button" className={css.onboardingDone} onClick={onComplete}>
+              {t('onboarding.done')}
+            </button>
+          </footer>
+        </div>
+      </div>
+    </div>
+  ), document.body)
 }
 
 /**
@@ -103,19 +166,15 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
  * @returns the settings shell element tree.
  */
 export function SettingsRoot(props: SettingsRootComponentProps) {
-  const { wide, useSections, useOnboardingSteps, useSessions, renderSlot } = props
+  const { wide, useSections, useOnboardingSteps, useSessions, renderSlot, t } = props
   const [open, setOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
+  const [onboardingSection, setOnboardingSection] = useState<SettingsOnboardingSectionRequest>()
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const close = useCallback(() => {
     setOpen(false)
     setActiveId(undefined)
   }, [])
-  const openSection = useCallback((id: string) => {
-    setActiveId(id)
-    setOpen(true)
-  }, [])
-
   // The ledger tick keeps the nav rows fresh: registrants re-register with
   // freshly localized text on locale change, and the trigger/header/close
   // seats re-render through their own outlets' subscriptions.
@@ -131,6 +190,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   useEffect(() => {
     if (onboardingActive) return
     setCompletedOnboarding(new Set())
+    setOnboardingSection(undefined)
   }, [onboardingActive])
 
   const completeOnboardingStep = useCallback((id: string) => {
@@ -166,8 +226,20 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
       {onboardingStep !== undefined && renderSlot('settings.onboarding', {
         stepId: onboardingStep.id,
         complete: () => { completeOnboardingStep(onboardingStep.id) },
-        openSection,
+        openSection: setOnboardingSection,
       }, { only: onboardingStep.id })}
+      {onboardingSection !== undefined && (
+        <OnboardingSectionPanel
+          request={onboardingSection}
+          renderSlot={renderSlot}
+          t={t}
+          onBack={() => { setOnboardingSection(undefined) }}
+          onComplete={() => {
+            onboardingSection.complete()
+            setOnboardingSection(undefined)
+          }}
+        />
+      )}
     </>
   )
 }

@@ -122,6 +122,20 @@ export interface SettingsHeaderOwnerProps {
 export interface SettingsSectionOwnerProps {
   /** Close the settings panel (the shell owns the open state). */
   close: () => void
+  /** Select one feature-owned subsection when onboarding opens this page. */
+  preferredSubsectionId?: string
+}
+
+/** A settings page requested by one onboarding step. */
+export interface SettingsOnboardingSectionRequest {
+  /** Settings section id to render without the ordinary settings navigation. */
+  sectionId: string
+  /** Optional feature-owned subsection, such as the IM plugin tab. */
+  subsectionId?: string
+  /** Which progress-rail step this page configures. */
+  step: 1 | 2
+  /** Mark the task complete after the user leaves the reused settings page. */
+  complete: () => void
 }
 
 /** Owner share of the currently active settings-backed onboarding step. */
@@ -130,6 +144,6 @@ export interface SettingsOnboardingOwnerProps {
   stepId: string
   /** Complete or skip this step and transfer ownership to the next entry. */
   complete: () => void
-  /** Open the settings panel directly on one registered section. */
-  openSection: (id: string) => void
+  /** Open one registered settings page inside the onboarding shell. */
+  openSection: (request: SettingsOnboardingSectionRequest) => void
 }
