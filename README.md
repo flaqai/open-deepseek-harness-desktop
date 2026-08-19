@@ -8,7 +8,7 @@
   <strong>An open, extensible desktop workspace for DeepSeek Harness</strong>
 </p>
 
-English | [简体中文](README.zh.md) | [繁體中文](README_tw.md) | [日本語](README_ja.md) | [한국어](README_ko.md) | [Deutsch](README_de.md) | [Español](README_es.md) | [Français](README_fr.md) | [Italiano](README_it.md) | [Português](README_pt.md) | [Русский](README_ru.md) | [العربية](README_ar.md) | [Bahasa Indonesia](README_id.md) | [ไทย](README_th.md) | [Tiếng Việt](README_vi.md)
+English | [中文](README.zh.md)
 
 <p align="center">
   <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="Downloads"></a>
@@ -22,6 +22,33 @@ This repository is not an official DeepSeek product. It is released under the [M
 
 **Development notice:** Open DeepSeek Harness Desktop is under active development. Features, packaging, and the local data schema may change. This is an independent community project, not an official DeepSeek product.
 
+## Desktop enhancements to the upstream Web experience
+
+This distribution preserves the upstream DeepSeek Harness Web client while adding desktop-specific integration and ready-to-use features.
+
+### Copy from the desktop client
+
+The Electron host grants sanitized clipboard-write permission to the supervised Harness page, so message, code, and conversation copy controls work in the desktop client just as they do in the upstream Web client. Clipboard reads and unrelated browser permissions remain denied.
+
+### Plugin Marketplace included
+
+Packaged installations include the Plugin Marketplace and seed it on first launch, so plugin discovery, installation, and management are available without a separate setup step. The marketplace remains an ordinary Harness plugin: users can uninstall it from the client, and the desktop app respects that choice instead of installing it again.
+
+### Themes and backgrounds
+
+Switch between system, light, dark, and eight product themes; pair them with eight original built-in illustrations or replace the chat background with your own PNG, JPEG, or WebP image. Custom images remain in local browser storage and are not sent to the model. See the [theme and background reference](packages/client/ui-theme/README.md) for formats and size limits.
+
+<table>
+  <tr>
+    <th width="50%">Theme settings</th>
+    <th width="50%">Background settings</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./assets/readme/theme-settings-en.png" alt="Theme settings in English"></td>
+    <td align="center"><img src="./assets/readme/background-settings-en.png" alt="Background settings in English"></td>
+  </tr>
+</table>
+
 ## Release status
 
 The project is in developer preview and may introduce breaking changes. We are preparing the same five desktop release variants listed below. macOS Apple Silicon is the first locally packaged and validated target; the other rows describe the committed release matrix and will become downloadable as their native build and validation work is completed.
@@ -31,10 +58,8 @@ The project is in developer preview and may introduce breaking changes. We are p
 - Connect to DeepSeek by default or configure a compatible API base URL, API key reference, and custom model identifiers from onboarding or Settings.
 - Open local workspaces, create persistent sessions, stream agent responses, copy messages, remove sessions, and clear conversation history.
 - Review model-visible execution records and concise key-step summaries so important tool activity is easier to confirm.
-- Discover Harness plugins, install supported registry plugins through a reviewed one-click flow, inspect installed plugins, and invoke Skills.
-- Personalize the client with color palettes, original built-in backgrounds, and a local custom chat background without obscuring the working area.
+- Invoke Skills and extend the product through Cordis plugins.
 - Check the fixed official upstream for stable Harness changes and perform a guarded clean fast-forward update from desktop source runs.
-- Extend the product through Cordis plugins instead of storing desktop-only copies of provider, session, plugin, or Skill state.
 
 ## Installation
 

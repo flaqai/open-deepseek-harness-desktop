@@ -8,7 +8,7 @@
   <strong>面向 DeepSeek Harness 的开放、可扩展桌面工作区</strong>
 </p>
 
-[English](README.md) | 简体中文 | [繁體中文](README_tw.md) | [日本語](README_ja.md) | [한국어](README_ko.md) | [Deutsch](README_de.md) | [Español](README_es.md) | [Français](README_fr.md) | [Italiano](README_it.md) | [Português](README_pt.md) | [Русский](README_ru.md) | [العربية](README_ar.md) | [Bahasa Indonesia](README_id.md) | [ไทย](README_th.md) | [Tiếng Việt](README_vi.md)
+[English](README.md) | 中文
 
 <p align="center">
   <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="下载量"></a>
@@ -22,6 +22,33 @@ Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](htt
 
 **开发提示：** Open DeepSeek Harness Desktop 正在积极开发中，功能、打包方式和本地数据结构可能发生变化。本项目由社区独立维护，并非 DeepSeek 官方产品。
 
+## 相比官方 Web 版的桌面增强
+
+本项目保留 DeepSeek Harness 官方 Web 客户端的使用体验，并加入适合桌面应用的系统集成和开箱即用功能。
+
+### 客户端复制
+
+Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板写入权限，因此消息、代码和对话的复制按钮可以像官方 Web 端一样在桌面客户端正常使用。剪贴板读取及其他无关的浏览器权限仍保持禁用。
+
+### 预装插件市场
+
+安装包内置插件市场，并在首次启动时完成预设安装，无需额外配置即可发现、安装和管理插件。插件市场仍是普通 Harness 插件：用户可以在客户端中将其卸载，桌面应用会尊重该选择，不会再次自动安装。
+
+### 主题与背景
+
+你可以在跟随系统、浅色、深色及八套产品主题之间切换，并搭配八张原创内置插画，或使用自己的 PNG、JPEG、WebP 图片替换聊天背景。自定义图片仅保存在本地浏览器存储中，不会发送给模型。支持格式与大小限制见[主题与背景参考](packages/client/ui-theme/README.md)。
+
+<table>
+  <tr>
+    <th width="50%">主题栏</th>
+    <th width="50%">背景栏</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="./assets/readme/theme-settings-zh.png" alt="中文主题栏设置"></td>
+    <td align="center"><img src="./assets/readme/background-settings-zh.png" alt="中文背景栏设置"></td>
+  </tr>
+</table>
+
 ## 发布状态
 
 项目目前处于开发者预览阶段，可能发生破坏兼容性的变更。我们将准备下方列出的五种桌面发行版本。macOS Apple Silicon 是首个在本地完成打包与验证的目标；其他行代表已经确定的发行矩阵，会在对应原生构建与验证工作完成后提供下载。
@@ -31,10 +58,8 @@ Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](htt
 - 默认接入 DeepSeek，也可在首次引导或设置中配置兼容 API 的基础地址、API 密钥引用和自定义模型标识。
 - 打开本地工作区、创建持久会话、流式接收智能体回复、复制消息、删除会话和清空对话记录。
 - 查看进入模型上下文的执行记录与精简的关键步骤摘要，便于确认重要工具操作。
-- 发现 Harness 插件，通过经过约束的一键流程安装受支持的注册表插件，查看已安装插件并调用 Skill。
-- 使用多套配色、原创内置背景和本地自定义聊天背景个性化客户端，同时避免遮挡主要工作区域。
+- 调用 Skill，并通过 Cordis 插件扩展产品。
 - 检查固定的官方上游稳定变更，并在桌面源码运行模式下执行受保护的干净快进更新。
-- 通过 Cordis 插件扩展产品，不为提供商、会话、插件或 Skill 状态创建桌面端专属副本。
 
 ## 安装
 
