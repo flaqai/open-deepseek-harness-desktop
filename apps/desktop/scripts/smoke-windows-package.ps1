@@ -20,12 +20,26 @@ $installStart = [System.Diagnostics.ProcessStartInfo]::new()
 $installStart.FileName = $installer
 $installStart.UseShellExecute = $false
 $installStart.ArgumentList.Add('/S')
+$installStart.ArgumentList.Add('/currentuser')
 $installStart.ArgumentList.Add("/D=$installRoot")
 $install = [System.Diagnostics.Process]::Start($installStart)
-if (-not $install.WaitForExit(300000)) {
+$installDeadline = (Get-Date).AddMinutes(15)
+$nextInstallProgress = (Get-Date).AddSeconds(30)
+while (-not $install.HasExited -and (Get-Date) -lt $installDeadline) {
+  Start-Sleep -Milliseconds 500
+  $install.Refresh()
+  if ((Get-Date) -ge $nextInstallProgress) {
+    $installedExecutable = Test-Path (Join-Path $installRoot 'DeepSeek Harness.exe')
+    $installedHarness = Test-Path (Join-Path $installRoot 'resources/harness/lib/bin.js')
+    $elapsed = [Math]::Round(((Get-Date) - $install.StartTime).TotalSeconds)
+    Write-Host "Installer still running after ${elapsed}s (executable=$installedExecutable, harness=$installedHarness)."
+    $nextInstallProgress = (Get-Date).AddSeconds(30)
+  }
+}
+if (-not $install.HasExited) {
   $install.Kill($true)
   $install.WaitForExit()
-  throw 'Windows installer did not exit within 300 seconds'
+  throw 'Windows installer did not exit within 15 minutes'
 }
 if ($install.ExitCode -ne 0) {
   throw "Windows installer exited with $($install.ExitCode)"
