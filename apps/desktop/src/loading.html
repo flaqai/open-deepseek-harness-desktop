@@ -15,7 +15,8 @@
       .track { height: 3px; overflow: hidden; border-radius: 999px; background: #dedbd4; }
       .track::after { content: ""; display: block; width: 36%; height: 100%; border-radius: inherit; background: #3f7f67; animation: progress 1.2s ease-in-out infinite alternate; }
       .failure { margin-top: 22px; text-align: left; }
-      .failure[hidden], .track[hidden] { display: none; }
+      .slow { margin-top: 22px; text-align: left; }
+      .failure[hidden], .slow[hidden], .track[hidden] { display: none; }
       .failure-message { color: #a12b27; margin: 0 0 10px; }
       .log-path { background: rgb(36 34 31 / 6%); border-radius: 8px; color: inherit; font: 12px/1.5 ui-monospace, monospace; margin: 0 0 16px; overflow-wrap: anywhere; padding: 10px 12px; }
       .actions { display: flex; gap: 10px; }
@@ -32,6 +33,12 @@
       <h1 id="title">Starting DeepSeek Harness</h1>
       <p id="description">Checking plugin compatibility and preparing your local agent workspace. Your sessions and credentials stay on this machine.</p>
       <div id="progress" class="track" role="progressbar" aria-label="Checking plugin compatibility and starting Harness"></div>
+      <section id="slow" class="slow" aria-live="polite" hidden>
+        <p id="slow-message"></p>
+        <div class="actions">
+          <button id="open-slow-log" type="button">Open Harness log</button>
+        </div>
+      </section>
       <section id="failure" class="failure" role="alert" hidden>
         <p id="failure-message" class="failure-message"></p>
         <p id="log-path" class="log-path"></p>

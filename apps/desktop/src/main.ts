@@ -3,27 +3,153 @@
 import { spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray, type MenuItemConstructorOptions } from 'electron'
 import { appendBundledPluginFailure, seedBundledPlugin, type BundledPluginManifestEntry } from './bundled-plugin-seed.ts'
 import { resolveHarnessInvocation, resolveHarnessLaunch, type DesktopLaunchOptions, type HarnessLaunch } from './launch.ts'
 import { allowsHarnessPermission } from './permissions.ts'
 import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
 import { HarnessSupervisor, type HarnessFailure, type HarnessState } from './supervisor.ts'
+import { revealHarnessLog, type OpenLogResult } from './log-reveal.ts'
+import { createNotificationThrottle, desktopNotificationDictionary } from './notifications.ts'
+import {
+  createDesktopPreferencesStore, DEFAULT_DESKTOP_PREFERENCES, parseDesktopPreferencesPatch,
+  type DesktopPreferences, type DesktopPreferencesStore,
+} from './preferences.ts'
+import { DesktopReleaseChecker, isAllowedReleaseUrl, type DesktopReleaseStatus } from './release-checker.ts'
 import { SourceUpdater } from './source-updater.ts'
+import { createDesktopLifecycle, type DesktopLifecycle } from './window-lifecycle.ts'
 import { usesCustomWindowFrame } from './window-frame.ts'
 
 const APP_NAME = 'DeepSeek Harness'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
 const WINDOW_ICON = fileURLToPath(new URL('./icon.png', import.meta.url))
+const MACOS_TRAY_ICON = fileURLToPath(new URL('./tray-iconTemplate.png', import.meta.url))
 const PRELOAD = fileURLToPath(new URL('./preload.cjs', import.meta.url))
 const DEFAULT_SOURCE_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 
 let mainWindow: BrowserWindow | undefined
 let supervisor: HarnessSupervisor | undefined
 let harnessOrigin: string | undefined
-let quitting = false
+let lifecycle: DesktopLifecycle | undefined
+let preferencesStore: DesktopPreferencesStore | undefined
+let preferences: DesktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES }
+let tray: Tray | undefined
+let quitReleased = false
+let hiddenLaunch = false
+let harnessLogPath = ''
+let releaseChecker: DesktopReleaseChecker | undefined
+
+interface DesktopCapabilities {
+  platform: NodeJS.Platform
+  packaged: boolean
+  launchAtLoginAvailable: boolean
+  sourceUpdateAvailable: boolean
+}
+
+function desktopCapabilities(): DesktopCapabilities {
+  return {
+    platform: process.platform,
+    packaged: app.isPackaged,
+    launchAtLoginAvailable: app.isPackaged && process.platform === 'darwin',
+    sourceUpdateAvailable: !app.isPackaged,
+  }
+}
+
+function desktopCopy(): {
+  open: string
+  openLog: string
+  launchAtLogin: string
+  notifications: string
+  quit: string
+  logErrorTitle: string
+} {
+  return app.getLocale().toLowerCase().startsWith('zh')
+    ? {
+      open: '打开窗口', openLog: '打开 Harness 日志', launchAtLogin: '开机自启',
+      notifications: '系统通知', quit: '退出', logErrorTitle: '无法打开日志',
+    }
+    : {
+      open: 'Open Window', openLog: 'Open Harness Log', launchAtLogin: 'Launch at Login',
+      notifications: 'Notifications', quit: 'Quit', logErrorTitle: 'Could Not Open Log',
+    }
+}
+
+function applyLaunchAtLogin(enabled: boolean): void {
+  if (!desktopCapabilities().launchAtLoginAvailable) return
+  app.setLoginItemSettings({ openAtLogin: enabled, openAsHidden: enabled })
+}
+
+function publishPreferences(): void {
+  const window = mainWindow
+  if (window !== undefined && !window.isDestroyed()) {
+    window.webContents.send('dsh:desktop:preferences', preferences)
+  }
+  refreshTrayMenu()
+}
+
+function updatePreferences(raw: unknown): DesktopPreferences {
+  const patch = parseDesktopPreferencesPatch(raw)
+  if (patch.launchAtLoginEnabled !== undefined) {
+    if (!desktopCapabilities().launchAtLoginAvailable && patch.launchAtLoginEnabled) {
+      throw new Error('desktop: launch at login is available only in a packaged macOS application')
+    }
+    applyLaunchAtLogin(patch.launchAtLoginEnabled)
+  }
+  preferences = { ...preferences, ...patch }
+  preferencesStore?.write(preferences)
+  publishPreferences()
+  return preferences
+}
+
+async function openHarnessLog(): Promise<OpenLogResult> {
+  const result = await revealHarnessLog(harnessLogPath, shell)
+  if (result.error !== '') dialog.showErrorBox(desktopCopy().logErrorTitle, result.error)
+  return result
+}
+
+function buildTrayMenu(): Menu {
+  const copy = desktopCopy()
+  const capabilities = desktopCapabilities()
+  const template: MenuItemConstructorOptions[] = [
+    { label: copy.open, click: () => { lifecycle?.showWindow() } },
+    { label: copy.openLog, click: () => { void openHarnessLog() } },
+    { type: 'separator' },
+    {
+      label: copy.launchAtLogin,
+      type: 'checkbox',
+      visible: capabilities.launchAtLoginAvailable,
+      checked: preferences.launchAtLoginEnabled,
+      click: (item) => { updatePreferences({ launchAtLoginEnabled: item.checked }) },
+    },
+    {
+      label: copy.notifications,
+      type: 'checkbox',
+      checked: preferences.notificationsEnabled,
+      click: (item) => { updatePreferences({ notificationsEnabled: item.checked }) },
+    },
+    { type: 'separator' },
+    { label: copy.quit, click: () => { void lifecycle?.requestQuit() } },
+  ]
+  return Menu.buildFromTemplate(template)
+}
+
+function refreshTrayMenu(): void {
+  tray?.setContextMenu(buildTrayMenu())
+}
+
+function createTray(): void {
+  const image = nativeImage.createFromPath(process.platform === 'darwin' ? MACOS_TRAY_ICON : WINDOW_ICON)
+  if (process.platform === 'darwin') {
+    image.setTemplateImage(true)
+  }
+  tray = new Tray(image)
+  tray.setToolTip(APP_NAME)
+  refreshTrayMenu()
+  tray.on('click', () => { lifecycle?.showWindow() })
+  tray.on('right-click', refreshTrayMenu)
+}
 
 async function runHarnessInvocation(launch: HarnessLaunch, logPath: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
@@ -108,6 +234,7 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       preload: PRELOAD,
+      additionalArguments: [app.isPackaged ? '--dsh-packaged' : '--dsh-source'],
     },
   })
   configureNavigation(window)
@@ -119,8 +246,9 @@ function createWindow(): BrowserWindow {
     window.on('unmaximize', sendMaximizedState)
   }
   window.once('ready-to-show', () => {
-    window.show()
+    if (!hiddenLaunch && lifecycle?.isQuitting !== true) window.show()
   })
+  window.on('close', (event) => { lifecycle?.onWindowClose(event) })
   window.on('closed', () => {
     if (mainWindow === window) mainWindow = undefined
   })
@@ -134,10 +262,41 @@ async function startApplication(): Promise<void> {
   app.setName(APP_NAME)
   if (process.platform === 'win32') app.setAppUserModelId('ai.flaq.deepseek-harness')
   await app.whenReady()
-  const harnessLogPath = join(app.getPath('logs'), 'harness.log')
+  harnessLogPath = join(app.getPath('logs'), 'harness.log')
+  preferencesStore = createDesktopPreferencesStore(
+    join(app.getPath('userData'), 'desktop-preferences.json'),
+    (error) => { console.error('desktop: could not read preferences; using defaults', error) },
+  )
+  preferences = preferencesStore.read()
+  if (!desktopCapabilities().launchAtLoginAvailable) preferences.launchAtLoginEnabled = false
+  applyLaunchAtLogin(preferences.launchAtLoginEnabled)
+  hiddenLaunch = process.platform === 'darwin'
+    && preferences.launchAtLoginEnabled
+    && app.getLoginItemSettings().wasOpenedAtLogin
   const updater = new SourceUpdater({
     sourceRoot: process.env.DSH_DESKTOP_SOURCE_ROOT ?? DEFAULT_SOURCE_ROOT,
     nodeCommand: process.env.DSH_DESKTOP_NODE_BIN ?? 'node',
+  })
+  releaseChecker = app.isPackaged ? new DesktopReleaseChecker(app.getVersion()) : undefined
+  releaseChecker?.subscribe((status) => {
+    const window = mainWindow
+    if (window !== undefined && !window.isDestroyed()) window.webContents.send('dsh:desktop:release-status', status)
+  })
+  ipcMain.handle('dsh:desktop:capabilities', () => desktopCapabilities())
+  ipcMain.handle('dsh:desktop:preferences:get', () => preferences)
+  ipcMain.handle('dsh:desktop:preferences:update', (_event, patch: unknown) => updatePreferences(patch))
+  ipcMain.handle('dsh:desktop:log:open', () => openHarnessLog())
+  ipcMain.handle('dsh:desktop:releases:get', (): DesktopReleaseStatus => (
+    releaseChecker?.status ?? { phase: 'unsupported' }
+  ))
+  ipcMain.handle('dsh:desktop:releases:check', () => (
+    releaseChecker?.check() ?? Promise.resolve({ phase: 'unsupported' } satisfies DesktopReleaseStatus)
+  ))
+  ipcMain.handle('dsh:desktop:releases:open', async (_event, releaseUrl: unknown) => {
+    if (typeof releaseUrl !== 'string' || !isAllowedReleaseUrl(releaseUrl)) {
+      throw new TypeError('desktop: invalid Release URL')
+    }
+    return { error: await shell.openExternal(releaseUrl).then(() => '') }
   })
   ipcMain.handle('dsh:source-update:check', () => updater.check())
   ipcMain.handle('dsh:source-update:upgrade', (_event, expectedCommit: unknown) => {
@@ -154,7 +313,7 @@ async function startApplication(): Promise<void> {
     return { restarting: true as const }
   })
   ipcMain.handle('dsh:harness:retry', () => ({ started: supervisor?.retry() ?? false }))
-  ipcMain.handle('dsh:harness:open-logs', async () => ({ error: await shell.openPath(dirname(harnessLogPath)) }))
+  ipcMain.handle('dsh:harness:open-logs', () => openHarnessLog())
   ipcMain.on('dsh:window:minimize', (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
     if (window === mainWindow && usesCustomWindowFrame(process.platform)) window.minimize()
@@ -169,6 +328,20 @@ async function startApplication(): Promise<void> {
     const window = BrowserWindow.fromWebContents(event.sender)
     if (window === mainWindow && usesCustomWindowFrame(process.platform)) window.close()
   })
+  lifecycle = createDesktopLifecycle({
+    getWindow: () => mainWindow,
+    createWindow,
+    readCloseBehavior: () => preferences.closeBehavior,
+    disposeHost: async () => { await supervisor?.stop() },
+    releaseQuit: () => {
+      quitReleased = true
+      tray?.destroy()
+      tray = undefined
+      app.quit()
+    },
+    reportError: (error) => { console.error('desktop: shutdown failed', error) },
+  })
+  createTray()
   createWindow()
 
   const packagedRuntimeRoot = app.isPackaged
@@ -228,6 +401,15 @@ async function startApplication(): Promise<void> {
     }
   }
   const launch = resolveHarnessLaunch(process.env, launchOptions)
+  const notificationCopy = desktopNotificationDictionary(app.getLocale())
+  const allowNotification = createNotificationThrottle(5 * 60_000)
+  let recovering = false
+  const showNotification = (key: string, copy: { title: string; body: string }): void => {
+    if (!preferences.notificationsEnabled || !Notification.isSupported() || !allowNotification(key, Date.now())) return
+    const notification = new Notification({ title: copy.title, body: copy.body, icon: WINDOW_ICON })
+    notification.on('click', () => { lifecycle?.showWindow() })
+    notification.show()
+  }
   supervisor = new HarnessSupervisor({
     launch,
     logPath: harnessLogPath,
@@ -235,19 +417,32 @@ async function startApplication(): Promise<void> {
     onReady: (url) => {
       harnessOrigin = new URL(url).origin
       if (mainWindow !== undefined && !mainWindow.isDestroyed()) void mainWindow.loadURL(url)
+      if (recovering) {
+        recovering = false
+        showNotification('recovered', notificationCopy.recovered)
+      }
     },
     onState: (state) => {
       if (state === 'restarting' || state === 'failed') harnessOrigin = undefined
       if (state !== 'failed') showLoading(state)
+      if (state === 'restarting' && !recovering) {
+        recovering = true
+        showNotification('restart', notificationCopy.restart)
+      }
     },
     onFailure: (failure) => {
       showLoading('failed', { ...failure, logPath: harnessLogPath })
+      showNotification('failed', notificationCopy.failed)
     },
   })
   supervisor.start()
 
+  if (releaseChecker !== undefined) {
+    setTimeout(() => { void releaseChecker?.check() }, 10_000)
+  }
+
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    lifecycle?.showWindow()
   })
 }
 
@@ -255,26 +450,23 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    if (mainWindow === undefined) createWindow()
-    if (mainWindow?.isMinimized() === true) mainWindow.restore()
-    mainWindow?.show()
-    mainWindow?.focus()
+    lifecycle?.showWindow()
   })
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
+    // The tray owns application lifetime on every platform.
   })
   app.on('before-quit', (event) => {
-    if (quitting) return
+    if (quitReleased) return
     event.preventDefault()
-    quitting = true
-    const shutdown = supervisor?.stop()
-    if (shutdown === undefined) app.quit()
-    else void shutdown.finally(() => {
-      app.quit()
-    })
+    void lifecycle?.requestQuit()
   })
   void startApplication().catch((error: unknown) => {
     console.error(error)
-    app.quit()
+    if (lifecycle === undefined) {
+      quitReleased = true
+      app.quit()
+    } else {
+      void lifecycle.requestQuit()
+    }
   })
 }

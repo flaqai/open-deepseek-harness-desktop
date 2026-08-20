@@ -14,6 +14,8 @@ pnpm run build
 pnpm run dev:desktop
 ```
 
+The desktop `dev` command watches the shell sources, rebuilds after a short debounce, and restarts Electron only after a successful build. A failed build leaves the current application running and the watcher retries after the next edit.
+
 The app opens the same onboarding and settings surfaces as `dsh web`. Users can configure DeepSeek or another compatible API provider, choose models, inspect installed plugins, edit supported plugin settings, invoke Skills, select workspaces, and manage sessions without a second configuration store.
 
 Packaged releases include pinned archives for `dshmarket@1.12.1`, `@xmanrui/dsh-im@0.11.0`, and `dsh-skill-picker@0.2.0` as offline, removable first-run seeds for the Web profile. Each durable seed marker survives a later uninstall, so subsequent launches do not silently restore a plugin the user removed.
@@ -43,11 +45,13 @@ Build the Linux x64 packages on Linux with:
 npm run package:desktop:linux:x64
 ```
 
-The DEB and RPM files are written to `.artifacts/desktop-linux/`. Like macOS, they carry a target-native Node, pnpm, and production Harness runtime archive. The manual `Desktop packages` GitHub Actions workflow builds all four native jobs, uploads the five installer variants, and produces `SHA256SUMS` without publishing a GitHub Release.
+The DEB and RPM files are written to `.artifacts/desktop-linux/`. Like macOS, they carry a target-native Node, pnpm, and production Harness runtime archive. The `Desktop packages` workflow builds all four native jobs, uploads the five installer variants, and produces `SHA256SUMS`. Manual runs remain artifact-only unless publication is explicitly requested from a `dsh-v*` tag; a tag push creates or updates the matching GitHub Release with fixed platform filenames.
 
 ## Process lifecycle
 
-The Electron main process starts `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0` directly, without a shell. Every packaged platform uses its embedded target-native Node rather than Electron or a user-installed executable. The host treats only `dsh web: http://127.0.0.1:<port>` as readiness, appends stdout and stderr to Electron's platform log directory, and sends `SIGTERM` before a bounded `SIGKILL` during application shutdown. Three consecutive exits before readiness stop automatic restarts and display the diagnostic log location with explicit retry and open-folder actions.
+The Electron main process starts `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0` directly, without a shell. Every packaged platform uses its embedded target-native Node rather than Electron or a user-installed executable. The host treats only `dsh web: http://127.0.0.1:<port>` as readiness, appends stdout and stderr to Electron's platform log directory, and sends `SIGTERM` before a bounded `SIGKILL` during application shutdown. Closing the window hides it to the system tray by default; a preference can make close request a full quit, and every explicit quit waits for Harness teardown. Three consecutive exits before readiness stop automatic restarts and display retry and log actions. A still-connecting page exposes the same fixed log after fifteen seconds without declaring failure.
+
+The tray can restore the window, reveal the Harness log, toggle notifications, enable packaged macOS login launch, or quit. Crash, terminal startup failure, and recovery notifications are optional and throttled. Desktop preferences are stored atomically under Electron `userData`; invalid fields fall back independently to safe defaults.
 
 Set `DSH_DESKTOP_DSH_BIN` to test another built `dsh` launcher. Set `DSH_DESKTOP_NODE_BIN` when `node` is not available through the environment inherited by Electron.
 
@@ -59,11 +63,15 @@ A confirmed upgrade fast-forwards the checkout, runs `pnpm install --frozen-lock
 
 Set `DSH_DESKTOP_SOURCE_ROOT` only when testing a different trusted checkout. The updater never runs for a packaged application without a Git checkout; signed release metadata and installer rollback remain prerequisites for packaged automatic updates.
 
+## Packaged Release discovery
+
+Packaged applications check Releases from `https://github.com/flaqai/open-deepseek-harness-desktop` after startup and on explicit request. Stable clients ignore prereleases; an rc or beta client follows the same prerelease channel and also accepts a higher stable version. Available versions appear above Settings and in General Settings. The action opens the validated GitHub Release page in the system browser; the application never downloads, installs, or replaces an installer.
+
 ## Security
 
 The renderer has `nodeIntegration: false`, `contextIsolation: true`, and `sandbox: true`. Navigation is limited to the Harness process's exact loopback origin. New HTTPS windows open in the system browser; every other new window is denied. Renderer permission requests are denied except for sanitized clipboard writes initiated by the main frame at the supervised Harness origin; clipboard reads and every other permission remain denied. The shared client therefore uses the standard Web Clipboard API without exposing a generic privileged Electron bridge.
 
-API keys remain owned by the Harness credentials service. The desktop host neither reads nor duplicates them. The sandboxed preload exposes only update check, confirmed upgrade, and application restart calls to Web code. On Windows and Linux it also renders the desktop-owned title bar and sends its fixed minimize, maximize or restore, and close intents directly to the main process; those controls are not exposed as a generic Web API. The preload exposes no generic command or filesystem method.
+API keys remain owned by the Harness credentials service. The desktop host neither reads nor duplicates them. The sandboxed preload exposes typed source-update calls in source runs plus desktop capabilities, preference updates, fixed-log reveal, and Release discovery. Release URLs are restricted to this repository and the renderer cannot provide a filesystem path. On Windows and Linux the preload also renders the desktop-owned title bar and sends its fixed minimize, maximize or restore, and close intents directly to the main process. It exposes no generic command, filesystem, URL-opening, download, or installation method.
 
 Profile plugins are trusted executable code. The embedded package runtime makes their pnpm lifecycle scripts deterministic, but it does not sandbox or endorse code installed from a registry, Git repository, tarball, or local checkout.
 
@@ -93,5 +101,5 @@ The next desktop milestones are signed installers, native notifications for appr
 - The current source run requires a built repository and a compatible Node executable.
 - The macOS arm64 and x64 DMG and ZIP packages use ad-hoc signing and are not notarized; Gatekeeper requires explicit user approval on first launch.
 - The Windows x64 installer is unsigned, and the Linux x64 packages are not repository-signed; users must verify `SHA256SUMS` and the release source.
-- Developer ID signing, notarization, packaged auto-update, tray behavior, native notifications, and IM control are not implemented. The source updater accepts only a clean fast-forward from official `master`; local divergence stays a manual Git operation.
+- Developer ID signing, notarization, packaged automatic installation, Windows/Linux login launch, deep links, and IM control are not implemented. The source updater accepts only a clean fast-forward from official `master`; local divergence stays a manual Git operation.
 - The Windows package job verifies installation and Harness readiness on its build runner. macOS and Linux package jobs still prove native assembly only and require installation and runtime validation.

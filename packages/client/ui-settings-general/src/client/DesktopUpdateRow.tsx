@@ -31,9 +31,9 @@ export interface DesktopUpdateBridge {
 
 declare global {
   /** Desktop preload bridge when this client runs inside the Electron host. */
-  var deepSeekHarnessDesktop: { updater: DesktopUpdateBridge } | undefined
+  var deepSeekHarnessDesktop: { updater?: DesktopUpdateBridge; shell?: unknown; releases?: unknown } | undefined
   interface Window {
-    deepSeekHarnessDesktop?: { updater: DesktopUpdateBridge }
+    deepSeekHarnessDesktop?: { updater?: DesktopUpdateBridge; shell?: unknown; releases?: unknown }
   }
 }
 
