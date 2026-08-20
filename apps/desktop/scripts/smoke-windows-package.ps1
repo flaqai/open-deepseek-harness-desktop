@@ -59,7 +59,11 @@ foreach ($path in $required) {
 
 $env:APPDATA = $appData
 $env:DSH_HOME = $dshHome
-$app = Start-Process -FilePath (Join-Path $installRoot 'DeepSeek Harness.exe') -PassThru
+$appStart = [System.Diagnostics.ProcessStartInfo]::new()
+$appStart.FileName = Join-Path $installRoot 'DeepSeek Harness.exe'
+$appStart.UseShellExecute = $false
+$appStart.ArgumentList.Add("--user-data-dir=$appData")
+$app = [System.Diagnostics.Process]::Start($appStart)
 $deadline = (Get-Date).AddSeconds(180)
 $ready = $false
 try {
