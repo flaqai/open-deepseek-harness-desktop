@@ -19,6 +19,53 @@ const bridge: DesktopUpdateBridge = {
 
 contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({ updater: Object.freeze(bridge) }))
 
+function installLoadingPage(): void {
+  if (!location.pathname.endsWith('/loading.html')) return
+  const query = new URLSearchParams(location.search)
+  if (query.get('state') !== 'failed') return
+  const chinese = navigator.language.toLowerCase().startsWith('zh')
+  const copy = chinese
+    ? {
+      title: 'DeepSeek Harness 启动失败',
+      description: '内置 Harness 连续三次未能完成启动。你可以重试或打开日志目录查看详情。',
+      retry: '重新启动',
+      logs: '打开日志目录',
+      logLabel: '日志：',
+    }
+    : {
+      title: 'DeepSeek Harness could not start',
+      description: 'The embedded Harness failed to become ready after three attempts. Retry or open the log folder for details.',
+      retry: 'Retry',
+      logs: 'Open log folder',
+      logLabel: 'Log: ',
+    }
+  const title = document.querySelector<HTMLElement>('#title')
+  const description = document.querySelector<HTMLElement>('#description')
+  const progress = document.querySelector<HTMLElement>('#progress')
+  const failure = document.querySelector<HTMLElement>('#failure')
+  const message = document.querySelector<HTMLElement>('#failure-message')
+  const logPath = document.querySelector<HTMLElement>('#log-path')
+  const retry = document.querySelector<HTMLButtonElement>('#retry')
+  const openLogs = document.querySelector<HTMLButtonElement>('#open-logs')
+  if (
+    title === null || description === null || progress === null || failure === null
+    || message === null || logPath === null || retry === null || openLogs === null
+  ) return
+  title.textContent = copy.title
+  description.textContent = copy.description
+  message.textContent = query.get('message') ?? copy.description
+  logPath.textContent = `${copy.logLabel}${query.get('logPath') ?? ''}`
+  retry.textContent = copy.retry
+  openLogs.textContent = copy.logs
+  progress.hidden = true
+  failure.hidden = false
+  retry.addEventListener('click', () => {
+    retry.disabled = true
+    void ipcRenderer.invoke('dsh:harness:retry').finally(() => { retry.disabled = false })
+  })
+  openLogs.addEventListener('click', () => { void ipcRenderer.invoke('dsh:harness:open-logs') })
+}
+
 const TITLE_BAR_STYLE = `
   html.dsh-desktop-custom-frame {
     box-sizing: border-box;
@@ -174,6 +221,7 @@ function installCustomTitleBar(): void {
   document.body.prepend(titleBar)
 }
 
-if (usesCustomWindowFrame(process.platform)) {
-  window.addEventListener('DOMContentLoaded', installCustomTitleBar, { once: true })
-}
+window.addEventListener('DOMContentLoaded', () => {
+  installLoadingPage()
+  if (usesCustomWindowFrame(process.platform)) installCustomTitleBar()
+}, { once: true })

@@ -35,7 +35,7 @@ npm run package:desktop:macos:x64
 npm run package:desktop:win:x64
 ```
 
-安装程序写入 `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`。它包含 Electron 的 Node 兼容可执行文件、pnpm 11.7.0 和无符号链接的 Harness 生产依赖闭包，用户无需在 `PATH` 中安装 Node 或 pnpm。
+安装程序写入 `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`。它包含官方 Windows x64 Node 24.11.1 可执行文件、pnpm 11.7.0，以及保留真实 `node_modules` 层级且无符号链接的 Harness 生产依赖闭包，用户无需在 `PATH` 中安装 Node 或 pnpm。Electron Builder 运行前，准备脚本会校验官方 Node 归档的 SHA-256、必需的 Windows 原生模块、内置 pnpm 版本，并实际启动 Harness 等待就绪。
 
 在 Linux 上使用下列命令构建 Linux x64 软件包：
 
@@ -47,7 +47,7 @@ DEB 与 RPM 文件写入 `.artifacts/desktop-linux/`。与 macOS 相同，它们
 
 ## 进程生命周期
 
-Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0`。打包后的 macOS 与 Linux 应用使用内置 Node，不使用 Electron 或用户安装的 Node 可执行文件；Windows 使用 Electron 的 Node 兼容进程与内置生产依赖闭包。宿主只把 `dsh web: http://127.0.0.1:<port>` 识别为就绪信号，将 stdout 和 stderr 追加到 Electron 的平台日志目录；进程意外退出后按有上限的指数延迟重启；应用退出时先发送 `SIGTERM`，超过固定期限后再发送 `SIGKILL`。
+Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0`。所有打包平台都使用内置的目标平台原生 Node，不使用 Electron 或用户安装的 Node 可执行文件。宿主只把 `dsh web: http://127.0.0.1:<port>` 识别为就绪信号，将 stdout 和 stderr 追加到 Electron 的平台日志目录；应用退出时先发送 `SIGTERM`，超过固定期限后再发送 `SIGKILL`。Harness 在就绪前连续退出三次后，宿主会停止自动重启，并显示诊断日志位置以及明确的重试、打开目录操作。
 
 可通过 `DSH_DESKTOP_DSH_BIN` 测试其他已构建的 `dsh` 启动文件。若 Electron 继承的环境无法找到 `node`，可设置 `DSH_DESKTOP_NODE_BIN`。
 
@@ -78,7 +78,7 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 | Windows x64 | `windows-2025` | NSIS EXE |
 | Linux x64 | `ubuntu-24.04` | DEB 与 RPM |
 
-原生安装、首次启动、退出、子进程清理、目录选择、文件打开、PTY 与沙箱行为仍属于发布验证要求。只有在发布签名与回滚可用后才添加已签名的更新元数据。
+Windows 任务会把最终 NSIS 产物静默安装到包含空格和中文字符的路径，检查安装后的运行时与预设插件布局，使用隔离的应用数据启动已安装程序，并在上传产物前要求 Harness 输出就绪行。其他平台仍需完成原生安装、首次启动、退出、子进程清理、目录选择、文件打开、PTY 与沙箱行为的发布验证。只有在发布签名与回滚可用后才添加已签名的更新元数据。
 
 不得通过把整个工作区源码复制进 Electron 来打包仓库。发布产物必须只包含已发布的运行时闭包、生成的第三方声明，且不得包含开发凭证。
 
@@ -94,4 +94,4 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 - macOS arm64 与 x64 的 DMG 和 ZIP 使用 ad-hoc 签名且未公证；首次启动时需要用户在 Gatekeeper 中明确授权。
 - Windows x64 安装程序未签名，Linux x64 软件包也没有仓库签名；用户必须核对 `SHA256SUMS` 与发布来源。
 - Developer ID 签名、公证、安装包自动更新、托盘、原生通知和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
-- 打包任务成功只能证明原生组装完成，不代表产品已获完整支持；每个平台仍需完成安装与运行时验证。
+- Windows 打包任务会在构建运行器上验证安装和 Harness 就绪；macOS 与 Linux 打包任务仍只证明原生组装完成，还需安装与运行时验证。

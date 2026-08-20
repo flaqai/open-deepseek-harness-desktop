@@ -35,7 +35,7 @@ Build the unsigned Windows x64 NSIS installer on Windows with:
 npm run package:desktop:win:x64
 ```
 
-The installer is written to `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`. It carries Electron's Node-compatible executable, pnpm 11.7.0, and a symlink-free production Harness closure, so a user does not need Node or pnpm on `PATH`.
+The installer is written to `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`. It carries the official Windows x64 Node 24.11.1 executable, pnpm 11.7.0, and a symlink-free production Harness closure with its real `node_modules` hierarchy, so a user does not need Node or pnpm on `PATH`. Preparation verifies the official Node archive SHA-256, required Windows native modules, the embedded pnpm version, and a real Harness readiness launch before Electron Builder runs.
 
 Build the Linux x64 packages on Linux with:
 
@@ -47,7 +47,7 @@ The DEB and RPM files are written to `.artifacts/desktop-linux/`. Like macOS, th
 
 ## Process lifecycle
 
-The Electron main process starts `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0` directly, without a shell. Packaged macOS and Linux apps use their embedded Node rather than Electron or a user-installed executable; Windows uses Electron's Node-compatible process with the bundled production closure. The host treats only `dsh web: http://127.0.0.1:<port>` as readiness, appends stdout and stderr to Electron's platform log directory, restarts unexpected exits with bounded exponential delay, and sends `SIGTERM` before a bounded `SIGKILL` during application shutdown.
+The Electron main process starts `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0` directly, without a shell. Every packaged platform uses its embedded target-native Node rather than Electron or a user-installed executable. The host treats only `dsh web: http://127.0.0.1:<port>` as readiness, appends stdout and stderr to Electron's platform log directory, and sends `SIGTERM` before a bounded `SIGKILL` during application shutdown. Three consecutive exits before readiness stop automatic restarts and display the diagnostic log location with explicit retry and open-folder actions.
 
 Set `DSH_DESKTOP_DSH_BIN` to test another built `dsh` launcher. Set `DSH_DESKTOP_NODE_BIN` when `node` is not available through the environment inherited by Electron.
 
@@ -78,7 +78,7 @@ The source host uses only Electron and Node process APIs that are shared by macO
 | Windows x64 | `windows-2025` | NSIS EXE |
 | Linux x64 | `ubuntu-24.04` | DEB and RPM |
 
-Native installation, first launch, shutdown, child cleanup, directory selection, file opening, PTY, and sandbox behavior remain release validation requirements. Signed update metadata waits for release signing and rollback support.
+The Windows job silently installs its final NSIS artifact into a path containing spaces and Chinese characters, verifies the installed runtime and bundled-plugin layout, launches the installed application with isolated app data, and requires the Harness readiness line before uploading the artifact. Native installation, first launch, shutdown, child cleanup, directory selection, file opening, PTY, and sandbox behavior remain release validation requirements for the other platforms. Signed update metadata waits for release signing and rollback support.
 
 Do not package the checkout by copying all workspace sources into Electron. The release artifact must contain the published runtime closure, generated third-party notices, and no development credentials.
 
@@ -94,4 +94,4 @@ The next desktop milestones are signed installers, native notifications for appr
 - The macOS arm64 and x64 DMG and ZIP packages use ad-hoc signing and are not notarized; Gatekeeper requires explicit user approval on first launch.
 - The Windows x64 installer is unsigned, and the Linux x64 packages are not repository-signed; users must verify `SHA256SUMS` and the release source.
 - Developer ID signing, notarization, packaged auto-update, tray behavior, native notifications, and IM control are not implemented. The source updater accepts only a clean fast-forward from official `master`; local divergence stays a manual Git operation.
-- A successful package job proves native assembly, not complete product support; each platform still requires installation and runtime validation.
+- The Windows package job verifies installation and Harness readiness on its build runner. macOS and Linux package jobs still prove native assembly only and require installation and runtime validation.

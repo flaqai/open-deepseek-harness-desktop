@@ -8,10 +8,16 @@ import type { HarnessLaunch } from './launch.ts'
 
 const RESTART_BASE_DELAY_MS = 500
 const RESTART_MAX_DELAY_MS = 15_000
+const PRE_READY_EXIT_LIMIT = 3
 const STOP_TIMEOUT_MS = 5_000
 
 /** Observable lifecycle states for the desktop chrome. */
-export type HarnessState = 'starting' | 'ready' | 'restarting' | 'stopped'
+export type HarnessState = 'starting' | 'ready' | 'restarting' | 'failed' | 'stopped'
+
+/** Bounded diagnostic emitted when Harness cannot reach readiness. */
+export interface HarnessFailure {
+  message: string
+}
 
 /** Dependencies and lifecycle callbacks for {@link HarnessSupervisor}. */
 export interface HarnessSupervisorOptions {
@@ -20,6 +26,7 @@ export interface HarnessSupervisorOptions {
   environment: NodeJS.ProcessEnv
   onReady(url: string): void
   onState(state: HarnessState): void
+  onFailure(failure: HarnessFailure): void
 }
 
 /** Owns one restartable Harness child and its durable combined log. */
@@ -29,6 +36,8 @@ export class HarnessSupervisor {
   #log: WriteStream | undefined
   #restartTimer: NodeJS.Timeout | undefined
   #restartCount = 0
+  #preReadyExitCount = 0
+  #failed = false
   #stopping = false
 
   /** @param options - Process launch, log destination, and lifecycle observers. */
@@ -38,7 +47,7 @@ export class HarnessSupervisor {
 
   /** Start the child process; repeated calls while it is running are ignored. */
   start(): void {
-    if (this.#child !== undefined || this.#stopping) return
+    if (this.#child !== undefined || this.#stopping || this.#failed) return
     mkdirSync(dirname(this.#options.logPath), { recursive: true })
     this.#log ??= createWriteStream(this.#options.logPath, { flags: 'a' })
     this.#options.onState(this.#restartCount === 0 ? 'starting' : 'restarting')
@@ -50,6 +59,7 @@ export class HarnessSupervisor {
     })
     this.#child = child
     let ready = false
+    let spawnError: Error | undefined
     const stdoutLines = new LineBuffer()
 
     child.stdout.on('data', (chunk: Buffer) => {
@@ -59,12 +69,16 @@ export class HarnessSupervisor {
         if (url === undefined || ready) continue
         ready = true
         this.#restartCount = 0
+        this.#preReadyExitCount = 0
         this.#options.onState('ready')
         this.#options.onReady(url)
       }
     })
     child.stderr.on('data', (chunk: Buffer) => this.#log?.write(chunk))
-    child.on('error', error => this.#log?.write(`[desktop] failed to start Harness: ${error.message}\n`))
+    child.on('error', (error) => {
+      spawnError = error
+      this.#log?.write(`[desktop] failed to start Harness: ${error.message}\n`)
+    })
     child.on('close', (code, signal) => {
       stdoutLines.flush()
       this.#log?.write(`[desktop] Harness exited code=${String(code)} signal=${String(signal)}\n`)
@@ -72,6 +86,19 @@ export class HarnessSupervisor {
       if (this.#stopping) {
         this.#options.onState('stopped')
         return
+      }
+      if (!ready) {
+        this.#preReadyExitCount += 1
+        if (this.#preReadyExitCount >= PRE_READY_EXIT_LIMIT) {
+          this.#failed = true
+          const message = spawnError === undefined
+            ? `Harness exited before becoming ready (code ${String(code)}, signal ${String(signal)}).`
+            : `Harness could not start: ${spawnError.message}`
+          this.#log?.write(`[desktop] Harness startup failed after ${PRE_READY_EXIT_LIMIT} attempts: ${message}\n`)
+          this.#options.onState('failed')
+          this.#options.onFailure({ message })
+          return
+        }
       }
       const delay = Math.min(RESTART_BASE_DELAY_MS * 2 ** this.#restartCount, RESTART_MAX_DELAY_MS)
       this.#restartCount += 1
@@ -81,6 +108,16 @@ export class HarnessSupervisor {
         this.start()
       }, delay)
     })
+  }
+
+  /** Retry a startup that exhausted its pre-readiness attempts. */
+  retry(): boolean {
+    if (!this.#failed || this.#stopping) return false
+    this.#failed = false
+    this.#restartCount = 0
+    this.#preReadyExitCount = 0
+    this.start()
+    return true
   }
 
   /** Stop automatic restarts and give the child a bounded graceful shutdown. */

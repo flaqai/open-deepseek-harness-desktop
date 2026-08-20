@@ -14,16 +14,32 @@
       p { margin: 12px 0 28px; color: #706c65; font-size: 14px; line-height: 1.6; }
       .track { height: 3px; overflow: hidden; border-radius: 999px; background: #dedbd4; }
       .track::after { content: ""; display: block; width: 36%; height: 100%; border-radius: inherit; background: #3f7f67; animation: progress 1.2s ease-in-out infinite alternate; }
+      .failure { margin-top: 22px; text-align: left; }
+      .failure[hidden], .track[hidden] { display: none; }
+      .failure-message { color: #a12b27; margin: 0 0 10px; }
+      .log-path { background: rgb(36 34 31 / 6%); border-radius: 8px; color: inherit; font: 12px/1.5 ui-monospace, monospace; margin: 0 0 16px; overflow-wrap: anywhere; padding: 10px 12px; }
+      .actions { display: flex; gap: 10px; }
+      button { border: 1px solid #c9c5bd; border-radius: 8px; background: #fff; color: inherit; cursor: pointer; font: inherit; padding: 8px 13px; }
+      button.primary { background: #24221f; border-color: #24221f; color: #fff; }
+      button:disabled { cursor: wait; opacity: .6; }
       @keyframes progress { from { transform: translateX(-80%); } to { transform: translateX(260%); } }
-      @media (prefers-color-scheme: dark) { body { background: #1b1b1a; color: #f3f1ec; } .mark { background: #f3f1ec; color: #1b1b1a; } p { color: #aaa69f; } .track { background: #343330; } }
+      @media (prefers-color-scheme: dark) { body { background: #1b1b1a; color: #f3f1ec; } .mark { background: #f3f1ec; color: #1b1b1a; } p { color: #aaa69f; } .track { background: #343330; } .log-path { background: rgb(255 255 255 / 8%); } button { background: #292826; border-color: #4a4843; } button.primary { background: #f3f1ec; border-color: #f3f1ec; color: #1b1b1a; } }
     </style>
   </head>
   <body>
     <main>
       <div class="mark" aria-hidden="true">DS</div>
-      <h1>Starting DeepSeek Harness</h1>
-      <p>Checking plugin compatibility and preparing your local agent workspace. Your sessions and credentials stay on this machine.</p>
-      <div class="track" role="progressbar" aria-label="Checking plugin compatibility and starting Harness"></div>
+      <h1 id="title">Starting DeepSeek Harness</h1>
+      <p id="description">Checking plugin compatibility and preparing your local agent workspace. Your sessions and credentials stay on this machine.</p>
+      <div id="progress" class="track" role="progressbar" aria-label="Checking plugin compatibility and starting Harness"></div>
+      <section id="failure" class="failure" role="alert" hidden>
+        <p id="failure-message" class="failure-message"></p>
+        <p id="log-path" class="log-path"></p>
+        <div class="actions">
+          <button id="retry" class="primary" type="button">Retry</button>
+          <button id="open-logs" type="button">Open log folder</button>
+        </div>
+      </section>
     </main>
   </body>
 </html>

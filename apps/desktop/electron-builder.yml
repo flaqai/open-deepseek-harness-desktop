@@ -13,8 +13,12 @@ extraResources:
     to: bundled-plugins
     filter:
       - "**/*"
-  - from: ../../.artifacts/desktop-runtime-win-x64
-    to: harness-runtime
+  - from: ../../.artifacts/desktop-runtime-win-x64/harness
+    to: harness
+    filter:
+      - "**/*"
+  - from: ../../.artifacts/desktop-runtime-win-x64/runtime
+    to: runtime
     filter:
       - "**/*"
 win:

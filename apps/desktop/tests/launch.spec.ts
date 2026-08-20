@@ -33,33 +33,16 @@ describe('desktop Harness launch', () => {
     }).args).toEqual([harnessBin, 'plugin', '--profile', 'web', 'remove', 'dshmarket'])
   })
 
-  it('uses the packaged Electron executable as a Node carrier', () => {
+  it('uses the packaged Windows Node executable without Electron compatibility flags', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-packaged-launch-'))
     const harnessBin = join(root, 'bin.js')
     writeFileSync(harnessBin, '')
     expect(resolveHarnessLaunch({}, {
       harnessBin,
-      nodeCommand: 'C:\\Program Files\\DeepSeek Harness\\DeepSeek Harness.exe',
-      electronNodeMode: true,
+      nodeCommand: 'C:\\Program Files\\DeepSeek Harness\\resources\\runtime\\win32-x64\\node.exe',
     })).toEqual({
-      command: 'C:\\Program Files\\DeepSeek Harness\\DeepSeek Harness.exe',
-      args: ['--expose-internals', harnessBin, 'web', '--host', '127.0.0.1', '--port', '0'],
-      environment: { ELECTRON_RUN_AS_NODE: '1' },
-    })
-  })
-
-  it('exposes the packaged production closure through NODE_PATH', () => {
-    const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-packaged-modules-'))
-    const harnessBin = join(root, 'bin.js')
-    writeFileSync(harnessBin, '')
-    expect(resolveHarnessLaunch({}, {
-      harnessBin,
-      nodeCommand: 'DeepSeek Harness.exe',
-      electronNodeMode: true,
-      dependenciesPath: 'C:\\Program Files\\DeepSeek Harness\\resources\\harness-runtime\\runtime-dependencies',
-    }).environment).toEqual({
-      ELECTRON_RUN_AS_NODE: '1',
-      NODE_PATH: 'C:\\Program Files\\DeepSeek Harness\\resources\\harness-runtime\\runtime-dependencies',
+      command: 'C:\\Program Files\\DeepSeek Harness\\resources\\runtime\\win32-x64\\node.exe',
+      args: [harnessBin, 'web', '--host', '127.0.0.1', '--port', '0'],
     })
   })
 

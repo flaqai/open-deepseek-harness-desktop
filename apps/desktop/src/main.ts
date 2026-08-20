@@ -3,17 +3,16 @@
 import { spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { seedBundledPlugin, type BundledPluginManifestEntry } from './bundled-plugin-seed.ts'
 import { resolveHarnessInvocation, resolveHarnessLaunch, type DesktopLaunchOptions, type HarnessLaunch } from './launch.ts'
 import { allowsHarnessPermission } from './permissions.ts'
 import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
-import { HarnessSupervisor, type HarnessState } from './supervisor.ts'
+import { HarnessSupervisor, type HarnessFailure, type HarnessState } from './supervisor.ts'
 import { SourceUpdater } from './source-updater.ts'
 import { usesCustomWindowFrame } from './window-frame.ts'
-import { ensureWindowsRuntimeTools } from './windows-runtime-tools.ts'
 
 const APP_NAME = 'DeepSeek Harness'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
@@ -48,9 +47,14 @@ async function runHarnessInvocation(launch: HarnessLaunch, logPath: string): Pro
   })
 }
 
-function showLoading(state: HarnessState): void {
+function showLoading(state: HarnessState, failure?: HarnessFailure & { logPath: string }): void {
   if (mainWindow === undefined || mainWindow.isDestroyed() || state === 'ready' || state === 'stopped') return
-  void mainWindow.loadFile(LOADING_PAGE, { query: { state } })
+  void mainWindow.loadFile(LOADING_PAGE, {
+    query: {
+      state,
+      ...(failure === undefined ? {} : { message: failure.message, logPath: failure.logPath }),
+    },
+  })
 }
 
 function configureNavigation(window: BrowserWindow): void {
@@ -131,6 +135,7 @@ async function startApplication(): Promise<void> {
   app.setName(APP_NAME)
   if (process.platform === 'win32') app.setAppUserModelId('ai.flaq.deepseek-harness')
   await app.whenReady()
+  const harnessLogPath = join(app.getPath('logs'), 'harness.log')
   const updater = new SourceUpdater({
     sourceRoot: process.env.DSH_DESKTOP_SOURCE_ROOT ?? DEFAULT_SOURCE_ROOT,
     nodeCommand: process.env.DSH_DESKTOP_NODE_BIN ?? 'node',
@@ -149,6 +154,8 @@ async function startApplication(): Promise<void> {
     }, 250)
     return { restarting: true as const }
   })
+  ipcMain.handle('dsh:harness:retry', () => ({ started: supervisor?.retry() ?? false }))
+  ipcMain.handle('dsh:harness:open-logs', async () => ({ error: await shell.openPath(dirname(harnessLogPath)) }))
   ipcMain.on('dsh:window:minimize', (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
     if (window === mainWindow && usesCustomWindowFrame(process.platform)) window.minimize()
@@ -180,29 +187,23 @@ async function startApplication(): Promise<void> {
     : join(packagedRuntime, 'package-runtime', 'bin')
   let launchOptions: DesktopLaunchOptions = {}
   if (app.isPackaged) {
-    launchOptions = {
-      harnessBin: join(packagedRuntime ?? process.resourcesPath, packagedRuntime === undefined ? 'harness-runtime/lib/bin.js' : 'lib/bin.js'),
-      nodeCommand: packageRuntimeBin === undefined ? process.execPath : join(packageRuntimeBin, 'node'),
-      electronNodeMode: packageRuntimeBin === undefined,
-      ...(packageRuntimeBin === undefined
-        ? {}
-        : {
-          packageManagerBin: join(packageRuntimeBin, 'pnpm'),
-          runtimeBinPath: packageRuntimeBin,
-        }),
-      ...(packagedRuntime === undefined
-        ? { dependenciesPath: join(process.resourcesPath, 'harness-runtime', 'runtime-dependencies') }
-        : {}),
-    }
     if (process.platform === 'win32') {
-      const runtimeRoot = join(process.resourcesPath, 'harness-runtime')
-      const tools = await ensureWindowsRuntimeTools(
-        join(app.getPath('userData'), 'runtime-tools', app.getVersion()),
-        process.execPath,
-        join(runtimeRoot, 'runtime-dependencies', 'pnpm', 'bin', 'pnpm.mjs'),
-      )
-      launchOptions.packageManagerBin = tools.packageManagerBin
-      launchOptions.runtimeBinPath = tools.directory
+      const windowsRuntime = join(process.resourcesPath, 'runtime', 'win32-x64')
+      launchOptions = {
+        harnessBin: join(process.resourcesPath, 'harness', 'lib', 'bin.js'),
+        nodeCommand: join(windowsRuntime, 'node.exe'),
+        packageManagerBin: join(windowsRuntime, 'pnpm.cmd'),
+        runtimeBinPath: windowsRuntime,
+      }
+    } else if (packagedRuntime !== undefined && packageRuntimeBin !== undefined) {
+      launchOptions = {
+        harnessBin: join(packagedRuntime, 'lib', 'bin.js'),
+        nodeCommand: join(packageRuntimeBin, 'node'),
+        packageManagerBin: join(packageRuntimeBin, 'pnpm'),
+        runtimeBinPath: packageRuntimeBin,
+      }
+    } else {
+      throw new Error(`desktop: packaged runtime is unavailable for ${process.platform}-${process.arch}`)
     }
 
     const bundledDirectory = join(process.resourcesPath, 'bundled-plugins')
@@ -219,7 +220,7 @@ async function startApplication(): Promise<void> {
           install: async (archivePath, plugin) => {
             await runHarnessInvocation(resolveHarnessInvocation(process.env, [
               'plugin', '--profile', plugin.profile, 'add', '--save-exact', archivePath,
-            ], launchOptions), join(app.getPath('logs'), 'harness.log'))
+            ], launchOptions), harnessLogPath)
           },
         })
       } catch (error) {
@@ -230,15 +231,18 @@ async function startApplication(): Promise<void> {
   const launch = resolveHarnessLaunch(process.env, launchOptions)
   supervisor = new HarnessSupervisor({
     launch,
-    logPath: join(app.getPath('logs'), 'harness.log'),
+    logPath: harnessLogPath,
     environment: { ...process.env },
     onReady: (url) => {
       harnessOrigin = new URL(url).origin
       if (mainWindow !== undefined && !mainWindow.isDestroyed()) void mainWindow.loadURL(url)
     },
     onState: (state) => {
-      if (state === 'restarting') harnessOrigin = undefined
-      showLoading(state)
+      if (state === 'restarting' || state === 'failed') harnessOrigin = undefined
+      if (state !== 'failed') showLoading(state)
+    },
+    onFailure: (failure) => {
+      showLoading('failed', { ...failure, logPath: harnessLogPath })
     },
   })
   supervisor.start()
