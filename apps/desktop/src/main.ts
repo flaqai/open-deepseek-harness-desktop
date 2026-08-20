@@ -6,7 +6,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import { seedBundledPlugin, type BundledPluginManifestEntry } from './bundled-plugin-seed.ts'
+import { appendBundledPluginFailure, seedBundledPlugin, type BundledPluginManifestEntry } from './bundled-plugin-seed.ts'
 import { resolveHarnessInvocation, resolveHarnessLaunch, type DesktopLaunchOptions, type HarnessLaunch } from './launch.ts'
 import { allowsHarnessPermission } from './permissions.ts'
 import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
@@ -41,8 +41,7 @@ async function runHarnessInvocation(launch: HarnessLaunch, logPath: string): Pro
       else reject(new Error(`desktop: bundled plugin install failed (${String(code)}, ${String(signal)}): ${Buffer.concat(output).toString('utf8').slice(-4000)}`))
     })
   }).catch(async (error: unknown) => {
-    const message = error instanceof Error ? error.stack ?? error.message : String(error)
-    await import('node:fs/promises').then(({ appendFile }) => appendFile(logPath, `[bundled-plugin] ${message}\n`))
+    await appendBundledPluginFailure(logPath, error)
     throw error
   })
 }
@@ -192,7 +191,7 @@ async function startApplication(): Promise<void> {
       launchOptions = {
         harnessBin: join(process.resourcesPath, 'harness', 'lib', 'bin.js'),
         nodeCommand: join(windowsRuntime, 'node.exe'),
-        packageManagerBin: join(windowsRuntime, 'pnpm.cmd'),
+        packageManagerBin: join(windowsRuntime, 'node_modules', 'pnpm', 'bin', 'pnpm.mjs'),
         runtimeBinPath: windowsRuntime,
       }
     } else if (packagedRuntime !== undefined && packageRuntimeBin !== undefined) {

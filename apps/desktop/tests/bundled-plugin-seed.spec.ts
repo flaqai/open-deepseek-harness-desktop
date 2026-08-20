@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { seedBundledPlugin, type BundledPluginManifestEntry } from '../src/bundled-plugin-seed.ts'
+import { appendBundledPluginFailure, seedBundledPlugin, type BundledPluginManifestEntry } from '../src/bundled-plugin-seed.ts'
 
 const roots: string[] = []
 
@@ -40,6 +40,14 @@ async function fixture(): Promise<{
 }
 
 describe('bundled plugin seed', () => {
+  it('creates the log directory before persisting an early install failure', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-bundled-plugin-log-'))
+    roots.push(root)
+    const logPath = join(root, 'missing', 'logs', 'harness.log')
+    await appendBundledPluginFailure(logPath, new Error('pnpm failed'))
+    await expect(readFile(logPath, 'utf8')).resolves.toContain('[bundled-plugin] Error: pnpm failed')
+  })
+
   it('ships the pinned preset archives with matching integrity', async () => {
     const manifest = JSON.parse(await readFile(new URL('../bundled-plugins/manifest.json', import.meta.url), 'utf8')) as {
       schema: number

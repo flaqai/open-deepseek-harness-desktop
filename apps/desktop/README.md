@@ -78,7 +78,7 @@ The source host uses only Electron and Node process APIs that are shared by macO
 | Windows x64 | `windows-2025` | NSIS EXE |
 | Linux x64 | `ubuntu-24.04` | DEB and RPM |
 
-The Windows job silently installs its final NSIS artifact into a path containing spaces and Chinese characters, verifies the installed runtime and bundled-plugin layout, launches the installed application with isolated app data, and requires the Harness readiness line before uploading the artifact. Native installation, first launch, shutdown, child cleanup, directory selection, file opening, PTY, and sandbox behavior remain release validation requirements for the other platforms. Signed update metadata waits for release signing and rollback support.
+The Windows job silently installs its final NSIS artifact into a path containing spaces and Chinese characters, verifies the installed runtime, launches the installed application with isolated app data, and requires Harness readiness, all three preset dependencies and bundle entries, the profile lockfile, and durable seed markers before uploading the artifact. Native installation, first launch, shutdown, child cleanup, directory selection, file opening, PTY, and sandbox behavior remain release validation requirements for the other platforms. Signed update metadata waits for release signing and rollback support.
 
 Do not package the checkout by copying all workspace sources into Electron. The release artifact must contain the published runtime closure, generated third-party notices, and no development credentials.
 

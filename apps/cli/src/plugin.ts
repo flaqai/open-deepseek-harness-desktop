@@ -202,8 +202,8 @@ export function runPlugin(profile: string, args: readonly string[]): number {
     process.stderr.write(`${NAME}: profile dependency health ${JSON.stringify(preflight)}\n`)
   }
   const before = readProfileManifest(NAME, dir)
-  // Windows resolves pnpm through its .cmd shim, which spawn() refuses
-  // without a shell since the CVE-2024-27980 hardening.
+  // A host-provided pnpm.mjs is executed by the current Node process without a
+  // shell; ordinary Windows pnpm.cmd discovery retains its compatibility path.
   const result = runProfilePackageManager(
     dir,
     args.map(argument => anchorPathSpec(argument, process.cwd())),

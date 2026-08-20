@@ -1,7 +1,7 @@
 /** One-time, removable installation of plugins shipped with the desktop app. */
 
 import { createHash } from 'node:crypto'
-import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { appendFile, copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
 export interface BundledPluginManifestEntry {
@@ -21,6 +21,18 @@ export interface SeedBundledPluginOptions {
 }
 
 export type SeedBundledPluginResult = 'installed' | 'already-seeded' | 'already-installed'
+
+/**
+ * Persist a preset installation failure before the Harness supervisor starts.
+ * @param logPath - Desktop Harness log path.
+ * @param error - Installation failure to render.
+ * @returns Completion after the diagnostic is durable.
+ */
+export async function appendBundledPluginFailure(logPath: string, error: unknown): Promise<void> {
+  const message = error instanceof Error ? error.stack ?? error.message : String(error)
+  await mkdir(dirname(logPath), { recursive: true })
+  await appendFile(logPath, `[bundled-plugin] ${message}\n`)
+}
 
 function assertEntry(entry: BundledPluginManifestEntry): void {
   if (!/^[a-z0-9][a-z0-9._-]*$/iu.test(entry.seedId)

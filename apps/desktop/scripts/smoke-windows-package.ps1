@@ -11,6 +11,7 @@ foreach ($path in @(
   (Join-Path $unpackedResources 'harness/node_modules'),
   (Join-Path $unpackedResources 'runtime/win32-x64/node.exe'),
   (Join-Path $unpackedResources 'runtime/win32-x64/pnpm.cmd'),
+  (Join-Path $unpackedResources 'runtime/win32-x64/node_modules/pnpm/bin/pnpm.mjs'),
   (Join-Path $unpackedResources 'bundled-plugins/manifest.json')
 )) {
   if (-not (Test-Path $path)) { throw "Unpacked package is missing $path" }
@@ -51,6 +52,7 @@ $required = @(
   (Join-Path $installRoot 'resources/harness/node_modules'),
   (Join-Path $installRoot 'resources/runtime/win32-x64/node.exe'),
   (Join-Path $installRoot 'resources/runtime/win32-x64/pnpm.cmd'),
+  (Join-Path $installRoot 'resources/runtime/win32-x64/node_modules/pnpm/bin/pnpm.mjs'),
   (Join-Path $installRoot 'resources/bundled-plugins/manifest.json')
 )
 foreach ($path in $required) {
@@ -89,4 +91,39 @@ try {
   }
 }
 
-Write-Host 'Installed Windows package reached Harness readiness.'
+$profileDirectory = Join-Path $dshHome 'profiles/web'
+$profileManifestPath = Join-Path $profileDirectory 'package.json'
+$profileLockPath = Join-Path $profileDirectory 'pnpm-lock.yaml'
+if (-not (Test-Path $profileManifestPath)) { throw "Bundled plugin seed did not create $profileManifestPath" }
+if (-not (Test-Path $profileLockPath)) { throw "Bundled plugin seed did not create $profileLockPath" }
+$profileManifest = Get-Content $profileManifestPath -Raw | ConvertFrom-Json
+$bundledManifestPath = Join-Path $installRoot 'resources/bundled-plugins/manifest.json'
+$bundledManifest = Get-Content $bundledManifestPath -Raw | ConvertFrom-Json
+$bundledPlugins = @($bundledManifest.plugins)
+foreach ($packageName in @('dshmarket', '@xmanrui/dsh-im', 'dsh-skill-picker')) {
+  if ($bundledPlugins.PackageName -notcontains $packageName) {
+    throw "Bundled plugin manifest is missing required preset $packageName"
+  }
+}
+foreach ($plugin in $bundledPlugins) {
+  if ($null -eq $profileManifest.dependencies.PSObject.Properties[$plugin.PackageName]) {
+    throw "Bundled plugin dependency $($plugin.PackageName) is absent from $profileManifestPath"
+  }
+  if ($profileManifest.dsh.profile.bundles -notcontains $plugin.PackageName) {
+    throw "Bundled plugin $($plugin.PackageName) is absent from the Web profile bundle list"
+  }
+  $markerPath = Join-Path $dshHome "bundled-plugins/$($plugin.SeedId).seeded.json"
+  if (-not (Test-Path $markerPath)) { throw "Bundled plugin seed marker is missing: $markerPath" }
+  $marker = Get-Content $markerPath -Raw | ConvertFrom-Json
+  if ($marker.packageName -ne $plugin.PackageName -or $marker.version -ne $plugin.Version) {
+    throw "Bundled plugin seed marker has unexpected package metadata: $markerPath"
+  }
+}
+$bundledFailure = Get-ChildItem -Path $appData -Filter harness.log -File -Recurse -ErrorAction SilentlyContinue |
+  Where-Object { (Get-Content $_.FullName -Raw) -match '(?m)^\[bundled-plugin\]' } |
+  Select-Object -First 1
+if ($null -ne $bundledFailure) {
+  throw "Bundled plugin failure was written to $($bundledFailure.FullName)"
+}
+
+Write-Host 'Installed Windows package reached Harness readiness with all bundled plugins seeded.'

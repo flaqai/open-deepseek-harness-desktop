@@ -24,6 +24,7 @@ const pnpmCommand = join(runtimeRoot, 'pnpm.cmd')
 const desktopRequire = createRequire(join(desktopRoot, 'package.json'))
 const pnpmManifestPath = desktopRequire.resolve('pnpm')
 const pnpmEntry = join(dirname(pnpmManifestPath), 'bin', 'pnpm.mjs')
+const stagedPnpmEntry = join(runtimeRoot, 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
 
 if (process.platform !== 'win32' || process.arch !== 'x64') {
   throw new Error(`prepare-windows-runtime: requires Windows x64, received ${process.platform}-${process.arch}`)
@@ -236,7 +237,7 @@ async function smokeHarness() {
         env: {
           ...process.env,
           DSH_HOME: smokeHome,
-          DSH_PNPM_BIN: pnpmCommand,
+          DSH_PNPM_BIN: stagedPnpmEntry,
           PATH: `${runtimeRoot};${process.env.PATH ?? ''}`,
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -272,6 +273,31 @@ async function smokeHarness() {
   }
 }
 
+async function smokeBundledPlugins() {
+  const entry = join(harnessRoot, 'lib', 'bin.js')
+  const smokeHome = join(outputRoot, 'plugin-smoke-home')
+  const bundledDirectory = join(desktopRoot, 'bundled-plugins')
+  const manifest = JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8'))
+  try {
+    for (const plugin of manifest.plugins) {
+      await run(nodeExecutable, [
+        entry,
+        'plugin', '--profile', plugin.profile,
+        'add', '--save-exact', join(bundledDirectory, plugin.archive),
+      ], {
+        env: {
+          ...process.env,
+          DSH_HOME: smokeHome,
+          DSH_PNPM_BIN: stagedPnpmEntry,
+          PATH: `${runtimeRoot};${process.env.PATH ?? ''}`,
+        },
+      })
+    }
+  } finally {
+    await rm(smokeHome, { recursive: true, force: true })
+  }
+}
+
 async function verifyRuntime() {
   const entry = join(harnessRoot, 'lib', 'bin.js')
   if (!existsSync(entry)) throw new Error(`prepare-windows-runtime: missing ${entry}`)
@@ -283,7 +309,7 @@ async function verifyRuntime() {
     '@deepseek-ai/dsh-scope',
     '@deepseek-ai/dsh-web-frontend/dist/index.html',
   ]) require.resolve(packagePath)
-  for (const path of [nodeExecutable, pnpmCommand, join(runtimeRoot, 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')]) {
+  for (const path of [nodeExecutable, pnpmCommand, stagedPnpmEntry]) {
     if (!existsSync(path)) throw new Error(`prepare-windows-runtime: missing ${path}`)
   }
   const remainingLink = await firstSymlink(outputRoot)
@@ -292,7 +318,8 @@ async function verifyRuntime() {
     if (existsSync(join(harnessRoot, secretName))) throw new Error(`prepare-windows-runtime: contains forbidden ${secretName}`)
   }
   await run(nodeExecutable, ['--version'])
-  await run(pnpmCommand, ['--version'], { shell: true })
+  await run(nodeExecutable, [stagedPnpmEntry, '--version'])
+  await smokeBundledPlugins()
   await smokeHarness()
   const manifest = JSON.parse(await readFile(join(harnessRoot, 'package.json'), 'utf8'))
   await writeFile(join(outputRoot, '.desktop-runtime-v4'), `${manifest.name}@${manifest.version}\ntarget=win32-x64\nnode@${nodeVersion}\npnpm@${pnpmVersion}\n`)

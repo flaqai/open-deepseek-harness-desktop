@@ -40,7 +40,7 @@ dsh --profile web --patch ./extra.yml --dump-config
 
 ## 插件管理
 
-`dsh plugin --profile <name> <args...>` 在 profile 缺失时先初始化它（有随附模板的用模板，其他名称只装 `@deepseek-ai/dsh-base`），然后以 profile 目录为工作目录，把 `<args...>` 转发给 `pnpm`：`add`、`remove`、`why`、`update` 及其他所有 pnpm 子命令都照常可用。源码运行与普通 CLI 从 `PATH` 解析 pnpm；宿主可以通过 `DSH_PNPM_BIN` 指定绝对可执行文件，打包桌面宿主以此使用内置 pnpm。相对路径 spec（`.`、`../plugin` 及其 `file:`/`link:` 形式）会先锚定到调用目录，因此在插件 checkout 中执行 `add .` 安装的是该 checkout，而不是 profile。每次成功运行后，系统都会根据当前安装状态更新 `dsh.profile.bundles`：如果某项依赖解析到的包在 manifest 中声明了 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`，该依赖就会加入配置层栈；如果某项依赖在 `update` 后获得该声明，也会随即激活。没有组合包声明的依赖仍作为普通依赖保留，并显示一次性警告；已移除的依赖则从配置层栈中删除。
+`dsh plugin --profile <name> <args...>` 在 profile 缺失时先初始化它（有随附模板的用模板，其他名称只装 `@deepseek-ai/dsh-base`），然后以 profile 目录为工作目录，把 `<args...>` 转发给 `pnpm`：`add`、`remove`、`why`、`update` 及其他所有 pnpm 子命令都照常可用。源码运行与普通 CLI 从 `PATH` 解析 pnpm；宿主可以通过 `DSH_PNPM_BIN` 指定绝对可执行文件或 `pnpm.mjs` 入口。JavaScript 入口会由当前 Node 进程直接运行，不经过 shell 插值，因此打包桌面宿主可以完整保留包含空格的 Windows 路径。相对路径 spec（`.`、`../plugin` 及其 `file:`/`link:` 形式）会先锚定到调用目录，因此在插件 checkout 中执行 `add .` 安装的是该 checkout，而不是 profile。每次成功运行后，系统都会根据当前安装状态更新 `dsh.profile.bundles`：如果某项依赖解析到的包在 manifest 中声明了 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`，该依赖就会加入配置层栈；如果某项依赖在 `update` 后获得该声明，也会随即激活。没有组合包声明的依赖仍作为普通依赖保留，并显示一次性警告；已移除的依赖则从配置层栈中删除。
 
 成功的插件改动会在返回前继续执行 profile 共享 Host 依赖策略。`dsh plugin --profile <name> doctor` 只检查已安装依赖图和 real path（健康退出 `0`，存在冲突退出 `2`）；它不会初始化缺失的 profile，也不会运行 pnpm。`doctor --repair` 会在需要时初始化，并以 `0` 表示健康、`10` 表示无损修复、`11` 表示已隔离、`1` 表示无法令 profile 安全。`doctor --retry <quarantine-id>` 使用相同的修改型退出码，并以事务方式恢复记录中的依赖说明符与 bundle 位置。JSON 结果使用 `dsh/profile-dependency-repair/v1` schema。
 

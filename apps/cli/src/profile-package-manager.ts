@@ -1,7 +1,7 @@
 /** Host-selected pnpm execution for profile dependency maintenance. */
 
 import { spawnSync } from 'node:child_process'
-import { isAbsolute } from 'node:path'
+import { extname, isAbsolute } from 'node:path'
 import type { ProfilePackageManagerResult } from '@deepseek-ai/dsh-app-boot'
 
 const NAME = 'dsh'
@@ -20,6 +20,31 @@ export function resolvePnpmCommand(environment: NodeJS.ProcessEnv): string {
   return configured
 }
 
+/** Exact process invocation for one pnpm operation. */
+export interface PnpmInvocation {
+  readonly command: string
+  readonly args: string[]
+  readonly shell: boolean
+}
+
+/**
+ * Resolve pnpm without interpolating packaged paths into a Windows shell command.
+ * @param environment - Environment carrying an optional host-owned pnpm entry.
+ * @param args - Arguments forwarded to pnpm.
+ * @returns Executable, argument vector, and whether an ordinary Windows shim needs a shell.
+ */
+export function resolvePnpmInvocation(environment: NodeJS.ProcessEnv, args: readonly string[]): PnpmInvocation {
+  const pnpmCommand = resolvePnpmCommand(environment)
+  if (extname(pnpmCommand).toLowerCase() === '.mjs') {
+    return { command: process.execPath, args: [pnpmCommand, ...args], shell: false }
+  }
+  return {
+    command: pnpmCommand,
+    args: [...args],
+    shell: process.platform === 'win32',
+  }
+}
+
 /**
  * Run pnpm in one profile and retain bounded diagnostics for automatic repair.
  * @param profileDir - profile working directory.
@@ -30,17 +55,17 @@ export function runProfilePackageManager(
   profileDir: string,
   args: readonly string[],
 ): ProfilePackageManagerResult {
-  const pnpmCommand = resolvePnpmCommand(process.env)
-  const result = spawnSync(pnpmCommand, [...args], {
+  const invocation = resolvePnpmInvocation(process.env, args)
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: profileDir,
     encoding: 'utf8',
     maxBuffer: 1024 * 1024,
-    shell: process.platform === 'win32',
+    shell: invocation.shell,
   })
   if (result.error !== undefined) {
     const code = (result.error as NodeJS.ErrnoException).code
     if (code === 'ENOENT') {
-      const location = pnpmCommand === 'pnpm' ? 'on PATH' : `at ${pnpmCommand}`
+      const location = invocation.command === 'pnpm' ? 'on PATH' : `at ${invocation.command}`
       return { exitCode: 127, diagnostic: `${NAME}: pnpm not found ${location}` }
     }
     throw result.error

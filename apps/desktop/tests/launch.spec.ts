@@ -64,4 +64,16 @@ describe('desktop Harness launch', () => {
       },
     })
   })
+
+  it('passes a packaged pnpm JavaScript entry without composing a command string', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-windows-runtime-'))
+    const harnessBin = join(root, 'bin.js')
+    writeFileSync(harnessBin, '')
+    const pnpmEntry = 'C:\\Program Files\\DeepSeek Harness\\resources\\runtime\\win32-x64\\node_modules\\pnpm\\bin\\pnpm.mjs'
+    expect(resolveHarnessLaunch({}, {
+      harnessBin,
+      nodeCommand: 'C:\\Program Files\\DeepSeek Harness\\resources\\runtime\\win32-x64\\node.exe',
+      packageManagerBin: pnpmEntry,
+    }).environment).toEqual({ DSH_PNPM_BIN: pnpmEntry })
+  })
 })

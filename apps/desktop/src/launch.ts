@@ -24,7 +24,7 @@ export interface DesktopLaunchOptions {
   harnessBin?: string
   /** Node-compatible executable used when no environment override exists. */
   nodeCommand?: string
-  /** Host-owned pnpm executable used for profile plugin management. */
+  /** Host-owned pnpm executable or JavaScript entry used for profile plugin management. */
   packageManagerBin?: string
   /** Directory prepended to PATH for plugin lifecycle scripts. */
   runtimeBinPath?: string

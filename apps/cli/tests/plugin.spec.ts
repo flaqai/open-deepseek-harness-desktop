@@ -1,8 +1,9 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolvePnpmCommand, runPlugin } from '../src/plugin.ts'
+import { resolvePnpmInvocation, runProfilePackageManager } from '../src/profile-package-manager.ts'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -16,6 +17,34 @@ describe('profile plugin package manager', () => {
   it('uses a host-owned absolute pnpm executable', () => {
     const executable = process.platform === 'win32' ? 'C:\\runtime\\pnpm.cmd' : '/runtime/bin/pnpm'
     expect(resolvePnpmCommand({ DSH_PNPM_BIN: executable })).toBe(executable)
+  })
+
+  it('runs a packaged pnpm entry through Node without shell interpolation', () => {
+    const entry = process.platform === 'win32'
+      ? 'C:\\Program Files\\DeepSeek Harness\\resources\\runtime\\pnpm\\pnpm.mjs'
+      : '/Applications/DeepSeek Harness/resources/runtime/pnpm/pnpm.mjs'
+    expect(resolvePnpmInvocation({ DSH_PNPM_BIN: entry }, ['add', 'C:\\Plugin Archives\\market.tgz']))
+      .toEqual({
+        command: process.execPath,
+        args: [entry, 'add', 'C:\\Plugin Archives\\market.tgz'],
+        shell: false,
+      })
+  })
+
+  it('preserves spaces in real packaged pnpm arguments', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-pnpm-entry with spaces-'))
+    const entry = join(root, 'pnpm entry.mjs')
+    const archive = join(root, 'plugin archives', 'market.tgz')
+    writeFileSync(entry, 'process.stdout.write(JSON.stringify(process.argv.slice(2)))\n')
+    vi.stubEnv('DSH_PNPM_BIN', entry)
+    try {
+      expect(runProfilePackageManager(root, ['add', '--save-exact', archive])).toEqual({
+        exitCode: 0,
+        diagnostic: JSON.stringify(['add', '--save-exact', archive]),
+      })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('rejects a relative host override', () => {
