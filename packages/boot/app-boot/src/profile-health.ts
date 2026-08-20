@@ -33,6 +33,7 @@ export const SHARED_HOST_PACKAGES = [
   '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-attachment',
   '@deepseek-ai/dsh-llm',
+  '@deepseek-ai/dsh-scope',
   '@deepseek-ai/dsh-system-prompt',
   '@deepseek-ai/dsh-tools',
 ] as const
@@ -427,6 +428,34 @@ function pruneStaleLockfileImporter(profileDir: string): string[] {
   return removed
 }
 
+/** Replace undeclared profile-local Host packages left by another installation with the running installation. */
+function repairUnmanagedSharedHostResidue(
+  options: ProfileDependencyOptions,
+  home: string,
+  profileDir: string,
+): string[] {
+  const manifest = readPackageManifest(join(profileDir, 'package.json'))
+  const declared = new Set([
+    ...Object.keys(manifest.dependencies ?? {}),
+    ...Object.keys(manifest.optionalDependencies ?? {}),
+    ...Object.keys(manifest.devDependencies ?? {}),
+  ])
+  const hosts = hostPackages(options.installAnchor, home)
+  const repaired: string[] = []
+  for (const packageName of SHARED_HOST_PACKAGES) {
+    if (declared.has(packageName)) continue
+    const profileCopy = profilePackageDirectory(profileDir, packageName)
+    if (!existsSync(join(profileCopy, 'package.json'))) continue
+    const host = hosts.get(packageName)
+    if (host === undefined || canonical(profileCopy) === host.path) continue
+    rmSync(profileCopy, { recursive: true, force: true })
+    mkdirSync(dirname(profileCopy), { recursive: true })
+    symlinkSync(host.path, profileCopy, process.platform === 'win32' ? 'junction' : 'dir')
+    repaired.push(packageName)
+  }
+  return repaired
+}
+
 function quarantineFilePath(home: string): string {
   return join(home, QUARANTINE_DIRECTORY, QUARANTINE_FILENAME)
 }
@@ -765,18 +794,27 @@ export function repairProfileDependencies(options: ProfileRepairOptions): Profil
   const profileDir = resolveProfileDir(options.profile, home)
   writeProfilePnpmCompatibility(profileDir)
   const prunedLockfileDependencies = pruneStaleLockfileImporter(profileDir)
+  const repairedHostResidue = repairUnmanagedSharedHostResidue(options, home, profileDir)
   const initial = inspectProfileDependencies({ ...options, home })
   const initialOrphans = inspectOrphanedProfileBundles({ ...options, home })
   if (initial.length === 0 && initialOrphans.length === 0) {
     const recovered = recoverInterruptedQuarantine(options, home, profileDir)
     if (recovered !== undefined) return recovered
-    if (prunedLockfileDependencies.length > 0) {
+    if (prunedLockfileDependencies.length > 0 || repairedHostResidue.length > 0) {
+      const diagnostics = [
+        ...(prunedLockfileDependencies.length === 0
+          ? []
+          : [`removed stale lockfile dependencies: ${prunedLockfileDependencies.join(', ')}`]),
+        ...(repairedHostResidue.length === 0
+          ? []
+          : [`relinked unmanaged Host packages: ${repairedHostResidue.join(', ')}`]),
+      ]
       return retainMaterialReport(home, report(
         options.profile,
         'repaired',
         [],
         [],
-        `removed stale lockfile dependencies: ${prunedLockfileDependencies.join(', ')}`,
+        diagnostics.join('\n'),
       ))
     }
     return report(options.profile, 'healthy', [])

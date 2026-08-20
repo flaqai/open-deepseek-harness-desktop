@@ -3,6 +3,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -210,6 +211,7 @@ describe('profile shared Host dependency inspection', () => {
         compatible: true,
       })])
   })
+
 })
 
 describe('profile composition inspection', () => {
@@ -395,6 +397,41 @@ describe('profile composition inspection', () => {
 })
 
 describe('profile shared Host dependency repair', () => {
+  it('relinks undeclared Host residue to the running installation without invoking pnpm', () => {
+    const { anchor, packageDirs } = stageHarness()
+    const home = temporaryDirectory('dsh-health-home-')
+    const { profileDir } = stageProfile(home, {})
+    const staleHost = join(temporaryDirectory('dsh-health-stale-host-'), 'dsh-system-prompt')
+    writeManifest(join(staleHost, 'package.json'), {
+      name: '@deepseek-ai/dsh-system-prompt',
+      version: '0.1.0-rc.7',
+    })
+    const profileCopy = join(profileDir, 'node_modules', '@deepseek-ai/dsh-system-prompt')
+    mkdirSync(dirname(profileCopy), { recursive: true })
+    symlinkSync(staleHost, profileCopy, 'junction')
+    let installs = 0
+
+    const result = repairProfileDependencies({
+      binName: 'test',
+      profile: 'web',
+      installAnchor: anchor,
+      home,
+      runPackageManager: () => {
+        installs += 1
+        return { exitCode: 0 }
+      },
+    })
+
+    expect(result).toMatchObject({
+      status: 'repaired',
+      diagnostic: 'relinked unmanaged Host packages: @deepseek-ai/dsh-system-prompt',
+    })
+    expect(installs).toBe(0)
+    expect(realpathSync.native(profileCopy))
+      .toBe(realpathSync.native(packageDirs.get('@deepseek-ai/dsh-system-prompt')!))
+    expect(readlinkSync(profileCopy)).not.toContain('dsh-health-stale-host-')
+  })
+
   it('prunes stale lockfile importer dependencies without invoking pnpm', () => {
     const { anchor } = stageHarness()
     const home = temporaryDirectory('dsh-health-home-')

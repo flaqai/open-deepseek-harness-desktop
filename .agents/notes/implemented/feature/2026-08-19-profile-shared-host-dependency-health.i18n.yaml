@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-19-profile-shared-host-dependency-health.md
-2026-08-19-profile-shared-host-dependency-health.md: 717bb0b8694fb70b4670699cfcd160a6f21551fd
-2026-08-19-profile-shared-host-dependency-health.zh.md: 8de2dac955828edd6d408deb9181971406042510
+2026-08-19-profile-shared-host-dependency-health.md: 2d639c6fde0b338a5e806024328331d4e1f21607
+2026-08-19-profile-shared-host-dependency-health.zh.md: 6774461fa9d664ab224794970f06f20e05a1742d
