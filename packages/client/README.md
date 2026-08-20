@@ -40,6 +40,7 @@ The browser side of the dsh web GUI: shell boot, browser-host communication, sha
 | [`ui-agent-preset/`](ui-agent-preset/README.md) | Selects a session's agent preset and authors preset compositions. |
 | [`ui-settings/`](ui-settings/README.md) | Hosts the settings interface and its extension areas. |
 | [`ui-settings-general/`](ui-settings-general/README.md) | Provides the general settings section. |
+| [`ui-desktop-shell/`](ui-desktop-shell/README.md) | Adds Electron-only desktop preferences and Release discovery. |
 | [`ui-settings-models/`](ui-settings-models/README.md) | Provides model-provider configuration and DeepSeek onboarding. |
 | [`ui-settings-plugin-inventory/`](ui-settings-plugin-inventory/README.md) | Contributes the Host Loader inventory and guarded plugin discovery/install UI. |
 

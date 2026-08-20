@@ -12,7 +12,8 @@
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json && pnpm --config.verifyDepsBeforeRun=false exec tsdown --config tsdown.preload.config.ts && node scripts/copy-assets.mjs",
-    "dev": "pnpm run build && electron lib/main.js",
+    "dev": "node scripts/dev-watch.mjs",
+    "dev:once": "pnpm run build && electron lib/main.js",
     "package:win:x64": "pnpm run build && node scripts/prepare-windows-runtime.mjs && node node_modules/electron-builder/out/cli/cli.js --win nsis --x64 --publish never",
     "package:macos:arm64": "pnpm run build && node scripts/prepare-unix-runtime.mjs && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --arm64 --publish never",
     "package:macos:x64": "pnpm run build && node scripts/prepare-unix-runtime.mjs && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --x64 --publish never",

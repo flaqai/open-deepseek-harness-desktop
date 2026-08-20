@@ -14,6 +14,8 @@ pnpm run build
 pnpm run dev:desktop
 ```
 
+桌面 `dev` 命令会监听宿主源码，短暂防抖后重新构建，并且只在构建成功后重启 Electron。构建失败时当前应用继续运行，监听器会在下一次编辑后重试。
+
 应用提供与 `dsh web` 相同的引导和设置界面。用户无需维护第二份配置，即可配置 DeepSeek 或其他兼容 API Provider、选择模型、查看已安装插件、编辑受支持的插件设置、调用 Skill、选择工作区并管理会话。
 
 打包版本内置固定的 `dshmarket@1.12.1`、`@xmanrui/dsh-im@0.11.0` 和 `dsh-skill-picker@0.2.0` 归档，作为 Web profile 离线、可卸载的首次启动种子。每个持久种子标记都会在用户卸载后保留，因此后续启动不会擅自装回用户已经移除的插件。
@@ -43,11 +45,13 @@ npm run package:desktop:win:x64
 npm run package:desktop:linux:x64
 ```
 
-DEB 与 RPM 文件写入 `.artifacts/desktop-linux/`。与 macOS 相同，它们包含目标平台原生的 Node、pnpm 与 Harness 生产运行时归档。手动触发的 `Desktop packages` GitHub Actions 工作流会运行四个原生任务，上传五种安装包，并生成 `SHA256SUMS`，但不会发布 GitHub Release。
+DEB 与 RPM 文件写入 `.artifacts/desktop-linux/`。与 macOS 相同，它们包含目标平台原生的 Node、pnpm 与 Harness 生产运行时归档。`Desktop packages` 工作流会运行四个原生任务，上传五种安装包并生成 `SHA256SUMS`。手动运行默认只保留 Actions artifact；仅从 `dsh-v*` 标签明确要求发布，或推送该标签时，才会使用固定平台文件名创建或更新对应 GitHub Release。
 
 ## 进程生命周期
 
-Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0`。所有打包平台都使用内置的目标平台原生 Node，不使用 Electron 或用户安装的 Node 可执行文件。宿主只把 `dsh web: http://127.0.0.1:<port>` 识别为就绪信号，将 stdout 和 stderr 追加到 Electron 的平台日志目录；应用退出时先发送 `SIGTERM`，超过固定期限后再发送 `SIGKILL`。Harness 在就绪前连续退出三次后，宿主会停止自动重启，并显示诊断日志位置以及明确的重试、打开目录操作。
+Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web --host 127.0.0.1 --port 0`。所有打包平台都使用内置的目标平台原生 Node，不使用 Electron 或用户安装的 Node 可执行文件。宿主只把 `dsh web: http://127.0.0.1:<port>` 识别为就绪信号，将 stdout 和 stderr 追加到 Electron 的平台日志目录；应用退出时先发送 `SIGTERM`，超过固定期限后再发送 `SIGKILL`。默认关闭窗口只会隐藏到系统托盘；用户可以改为关闭即请求完整退出，所有显式退出都会等待 Harness 清理。Harness 在就绪前连续退出三次后会停止自动重启，并显示重试与日志操作。连接页等待十五秒后也会显示同一个固定日志入口，但不会把缓慢启动判为失败。
+
+托盘可以恢复窗口、定位 Harness 日志、切换通知、启用已打包 macOS 的登录启动或退出。崩溃、最终启动失败和恢复通知均可关闭并按事件节流。桌面偏好以原子方式存入 Electron `userData`；非法字段会各自恢复安全默认值。
 
 可通过 `DSH_DESKTOP_DSH_BIN` 测试其他已构建的 `dsh` 启动文件。若 Electron 继承的环境无法找到 `node`，可设置 `DSH_DESKTOP_NODE_BIN`。
 
@@ -59,11 +63,15 @@ Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web -
 
 只有在测试另一个可信工作树时才设置 `DSH_DESKTOP_SOURCE_ROOT`。没有 Git 工作树的安装包不会运行该升级器；安装包自动更新仍以签名发布元数据和可用回退为前提。
 
+## 打包版本的 Release 发现
+
+打包应用会在启动后和用户明确请求时检查 `https://github.com/flaqai/open-deepseek-harness-desktop` 的 Releases。稳定版忽略预发布；rc 或 beta 客户端跟随同名预发布通道，也接受更高稳定版。可用版本会显示在“设置”上方和“通用设置”中。操作只会在系统浏览器打开经过校验的 GitHub Release 页面；应用不会下载、安装或替换安装程序。
+
 ## 安全性
 
 渲染进程使用 `nodeIntegration: false`、`contextIsolation: true` 和 `sandbox: true`。导航仅允许 Harness 进程对应的精确回环来源。新开的 HTTPS 窗口交给系统浏览器，其余新窗口全部拒绝。除受监管 Harness 来源的主框架发起的安全剪贴板写入外，渲染进程的权限请求全部拒绝；剪贴板读取和其他所有权限仍保持拒绝。因此，共用客户端可直接使用标准 Web Clipboard API，而不必暴露通用的高权限 Electron bridge。
 
-API 密钥仍由 Harness credentials 服务持有；桌面宿主不会读取或复制密钥。沙箱 preload 只向 Web 代码暴露更新检查、确认升级和应用重启调用。在 Windows 和 Linux 上，它还会渲染桌面宿主自有的标题栏，并将固定的最小化、最大化或还原、关闭意图直接发送给主进程；这些控制能力不会作为通用 Web API 暴露。preload 不暴露通用命令或文件系统方法。
+API 密钥仍由 Harness credentials 服务持有；桌面宿主不会读取或复制密钥。沙箱 preload 在源码运行中暴露类型化源码更新调用，并提供桌面能力、偏好更新、固定日志定位与 Release 发现。Release URL 仅限本仓库，渲染进程不能提供文件路径。在 Windows 和 Linux 上，preload 还会渲染桌面宿主自有标题栏，并将固定的最小化、最大化或还原、关闭意图直接发送给主进程。它不暴露通用命令、文件系统、URL 打开、下载或安装方法。
 
 Profile 插件属于可信的可执行代码。内置包管理运行时让插件的 pnpm 生命周期脚本使用确定的工具版本，但不会对从 registry、Git 仓库、tarball 或本地 checkout 安装的代码提供沙箱或背书。
 
@@ -93,5 +101,5 @@ Windows 任务会把最终 NSIS 产物静默安装到包含空格和中文字符
 - 当前源码运行需要已构建的仓库和兼容的 Node 可执行文件。
 - macOS arm64 与 x64 的 DMG 和 ZIP 使用 ad-hoc 签名且未公证；首次启动时需要用户在 Gatekeeper 中明确授权。
 - Windows x64 安装程序未签名，Linux x64 软件包也没有仓库签名；用户必须核对 `SHA256SUMS` 与发布来源。
-- Developer ID 签名、公证、安装包自动更新、托盘、原生通知和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
+- Developer ID 签名、公证、安装包自动安装、Windows/Linux 登录启动、深链接和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
 - Windows 打包任务会在构建运行器上验证安装和 Harness 就绪；macOS 与 Linux 打包任务仍只证明原生组装完成，还需安装与运行时验证。

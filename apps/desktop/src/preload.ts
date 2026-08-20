@@ -1,6 +1,9 @@
 /** Narrow update bridge plus desktop-owned Windows and Linux title-bar chrome. */
 
 import { contextBridge, ipcRenderer } from 'electron'
+import type { OpenLogResult } from './log-reveal.ts'
+import type { DesktopPreferences, DesktopPreferencesPatch } from './preferences.ts'
+import type { DesktopReleaseStatus } from './release-checker.ts'
 import type { SourceUpdateResult, SourceUpdateStatus } from './source-updater.ts'
 import { usesCustomWindowFrame } from './window-frame.ts'
 
@@ -17,12 +20,64 @@ const bridge: DesktopUpdateBridge = {
   restart: () => ipcRenderer.invoke('dsh:source-update:restart') as Promise<{ restarting: true }>,
 }
 
-contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({ updater: Object.freeze(bridge) }))
+/** Capability flags returned by the trusted main process. */
+export interface DesktopCapabilities {
+  platform: NodeJS.Platform
+  packaged: boolean
+  launchAtLoginAvailable: boolean
+  sourceUpdateAvailable: boolean
+}
+
+/** Narrow desktop-shell preference and diagnostics bridge. */
+export interface DesktopShellBridge {
+  getCapabilities(): Promise<DesktopCapabilities>
+  getPreferences(): Promise<DesktopPreferences>
+  updatePreferences(patch: DesktopPreferencesPatch): Promise<DesktopPreferences>
+  onPreferences(callback: (preferences: DesktopPreferences) => void): () => void
+  openLog(): Promise<OpenLogResult>
+}
+
+/** Release discovery bridge; it never downloads or installs application files. */
+export interface DesktopReleasesBridge {
+  getStatus(): Promise<DesktopReleaseStatus>
+  check(): Promise<DesktopReleaseStatus>
+  onStatus(callback: (status: DesktopReleaseStatus) => void): () => void
+  openDownload(releaseUrl: string): Promise<{ error: string }>
+}
+
+const shellBridge: DesktopShellBridge = {
+  getCapabilities: () => ipcRenderer.invoke('dsh:desktop:capabilities') as Promise<DesktopCapabilities>,
+  getPreferences: () => ipcRenderer.invoke('dsh:desktop:preferences:get') as Promise<DesktopPreferences>,
+  updatePreferences: patch => ipcRenderer.invoke('dsh:desktop:preferences:update', patch) as Promise<DesktopPreferences>,
+  onPreferences(callback) {
+    const listener = (_event: Electron.IpcRendererEvent, next: DesktopPreferences): void => { callback(next) }
+    ipcRenderer.on('dsh:desktop:preferences', listener)
+    return () => { ipcRenderer.removeListener('dsh:desktop:preferences', listener) }
+  },
+  openLog: () => ipcRenderer.invoke('dsh:desktop:log:open') as Promise<OpenLogResult>,
+}
+
+const releasesBridge: DesktopReleasesBridge = {
+  getStatus: () => ipcRenderer.invoke('dsh:desktop:releases:get') as Promise<DesktopReleaseStatus>,
+  check: () => ipcRenderer.invoke('dsh:desktop:releases:check') as Promise<DesktopReleaseStatus>,
+  onStatus(callback) {
+    const listener = (_event: Electron.IpcRendererEvent, next: DesktopReleaseStatus): void => { callback(next) }
+    ipcRenderer.on('dsh:desktop:release-status', listener)
+    return () => { ipcRenderer.removeListener('dsh:desktop:release-status', listener) }
+  },
+  openDownload: releaseUrl => ipcRenderer.invoke('dsh:desktop:releases:open', releaseUrl) as Promise<{ error: string }>,
+}
+
+const sourceMode = process.argv.includes('--dsh-source')
+contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({
+  shell: Object.freeze(shellBridge),
+  releases: Object.freeze(releasesBridge),
+  ...(sourceMode ? { updater: Object.freeze(bridge) } : {}),
+}))
 
 function installLoadingPage(): void {
   if (!location.pathname.endsWith('/loading.html')) return
   const query = new URLSearchParams(location.search)
-  if (query.get('state') !== 'failed') return
   const chinese = navigator.language.toLowerCase().startsWith('zh')
   const copy = chinese
     ? {
@@ -31,6 +86,7 @@ function installLoadingPage(): void {
       retry: '重新启动',
       logs: '打开日志目录',
       logLabel: '日志：',
+      slow: '启动时间较长，你可以打开 Harness 日志查看当前进度。',
     }
     : {
       title: 'DeepSeek Harness could not start',
@@ -38,6 +94,7 @@ function installLoadingPage(): void {
       retry: 'Retry',
       logs: 'Open log folder',
       logLabel: 'Log: ',
+      slow: 'Startup is taking longer than expected. Open the Harness log to inspect its progress.',
     }
   const title = document.querySelector<HTMLElement>('#title')
   const description = document.querySelector<HTMLElement>('#description')
@@ -47,23 +104,37 @@ function installLoadingPage(): void {
   const logPath = document.querySelector<HTMLElement>('#log-path')
   const retry = document.querySelector<HTMLButtonElement>('#retry')
   const openLogs = document.querySelector<HTMLButtonElement>('#open-logs')
+  const slow = document.querySelector<HTMLElement>('#slow')
+  const slowMessage = document.querySelector<HTMLElement>('#slow-message')
+  const openSlowLog = document.querySelector<HTMLButtonElement>('#open-slow-log')
   if (
     title === null || description === null || progress === null || failure === null
     || message === null || logPath === null || retry === null || openLogs === null
+    || slow === null || slowMessage === null || openSlowLog === null
   ) return
+  const openLog = (): void => { void ipcRenderer.invoke('dsh:desktop:log:open') }
+  openLogs.textContent = copy.logs
+  openSlowLog.textContent = copy.logs
+  openLogs.addEventListener('click', openLog)
+  openSlowLog.addEventListener('click', openLog)
+  if (query.get('state') !== 'failed') {
+    setTimeout(() => {
+      slowMessage.textContent = copy.slow
+      slow.hidden = false
+    }, 15_000)
+    return
+  }
   title.textContent = copy.title
   description.textContent = copy.description
   message.textContent = query.get('message') ?? copy.description
   logPath.textContent = `${copy.logLabel}${query.get('logPath') ?? ''}`
   retry.textContent = copy.retry
-  openLogs.textContent = copy.logs
   progress.hidden = true
   failure.hidden = false
   retry.addEventListener('click', () => {
     retry.disabled = true
     void ipcRenderer.invoke('dsh:harness:retry').finally(() => { retry.disabled = false })
   })
-  openLogs.addEventListener('click', () => { void ipcRenderer.invoke('dsh:harness:open-logs') })
 }
 
 const TITLE_BAR_STYLE = `

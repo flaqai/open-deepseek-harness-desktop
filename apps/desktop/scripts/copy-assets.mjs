@@ -11,3 +11,9 @@ copyFileSync(
   fileURLToPath(new URL('../src/icon.png', import.meta.url)),
   fileURLToPath(new URL('../lib/icon.png', import.meta.url)),
 )
+for (const filename of ['tray-iconTemplate.png', 'tray-iconTemplate@2x.png']) {
+  copyFileSync(
+    fileURLToPath(new URL(`../src/${filename}`, import.meta.url)),
+    fileURLToPath(new URL(`../lib/${filename}`, import.meta.url)),
+  )
+}

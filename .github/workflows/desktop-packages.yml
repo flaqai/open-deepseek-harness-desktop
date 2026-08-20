@@ -2,6 +2,9 @@
 name: Desktop packages
 
 on:
+  push:
+    tags:
+      - 'dsh-v*'
   workflow_dispatch:
     inputs:
       target:
@@ -12,6 +15,11 @@ on:
         options:
           - all
           - windows-x64
+      publish:
+        description: Create or update the GitHub Release; requires a dsh-v* tag
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,7 +35,7 @@ env:
 jobs:
   macos:
     name: macOS ${{ matrix.arch }}
-    if: ${{ inputs.target == 'all' }}
+    if: ${{ github.event_name == 'push' || inputs.target == 'all' }}
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +73,7 @@ jobs:
 
   windows:
     name: Windows x64
-    if: ${{ inputs.target == 'all' || inputs.target == 'windows-x64' }}
+    if: ${{ github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'windows-x64' }}
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v6
@@ -97,7 +105,7 @@ jobs:
 
   linux:
     name: Linux x64
-    if: ${{ inputs.target == 'all' }}
+    if: ${{ github.event_name == 'push' || inputs.target == 'all' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -152,3 +160,39 @@ jobs:
           path: dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    name: GitHub Release
+    needs: [macos, windows, linux, checksums]
+    if: ${{ always() && needs.checksums.result == 'success' && (github.event_name == 'push' || inputs.publish) }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify release tag
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/dsh-v*) ;;
+            *) echo "::error::Desktop publication requires a dsh-v* tag"; exit 1 ;;
+          esac
+
+      - name: Create or update Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          version="${tag#dsh-v}"
+          prerelease=()
+          case "$version" in *-*) prerelease=(--prerelease) ;; esac
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" --title "DeepSeek Harness Desktop $version" --generate-notes "${prerelease[@]}" dist/*
+          fi
