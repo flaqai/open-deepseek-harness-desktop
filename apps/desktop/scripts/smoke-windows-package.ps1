@@ -16,9 +16,13 @@ foreach ($path in @(
   if (-not (Test-Path $path)) { throw "Unpacked package is missing $path" }
 }
 
-& $installer /S "/D=$installRoot"
-if ($LASTEXITCODE -ne 0) {
-  throw "Windows installer exited with $LASTEXITCODE"
+$install = Start-Process `
+  -FilePath $installer `
+  -ArgumentList "/S `"/D=$installRoot`"" `
+  -Wait `
+  -PassThru
+if ($install.ExitCode -ne 0) {
+  throw "Windows installer exited with $($install.ExitCode)"
 }
 
 $required = @(
