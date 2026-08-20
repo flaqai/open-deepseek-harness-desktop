@@ -10,7 +10,7 @@ The packaged desktop host exited with its only window, offered no login launch o
 
 ## Decision
 
-The Electron main process owns one durable preference file under `userData`, one serialized application lifecycle, and one system tray. Closing the window hides it by default while explicit quit waits for Harness shutdown. Users may switch close behavior, native lifecycle notifications, and packaged macOS login launch through a narrow preload bridge; unsupported platforms report login launch as unavailable.
+The Electron main process owns one durable preference file under `userData`, one serialized application lifecycle, and one system tray. Closing the window hides it by default while explicit quit waits for Harness shutdown. Users may switch close behavior, native lifecycle notifications, and packaged macOS login launch through a narrow preload bridge; unsupported platforms report login launch as unavailable. Preference switches use the application blue token when enabled, an adaptive medium gray when disabled, and a white thumb in both states so their state remains visible across light and dark themes.
 
 The connecting page reveals the fixed Harness log after fifteen seconds without treating a slow start as failure. The main process reveals that known file or its parent directory and never accepts a renderer path. Restart, repeated failure, and recovery notifications are localized from the operating-system locale and throttled by event kind.
 

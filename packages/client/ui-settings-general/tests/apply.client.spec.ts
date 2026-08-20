@@ -1,6 +1,6 @@
 /** Ownerless-copy registrations: the five seats, dictionaries, thunked labels, and HMR recovery. */
 import { Context } from '@deepseek-ai/cordis'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
@@ -10,15 +10,10 @@ import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from '../src/client/SettingsDocumentAction.tsx'
-import { DesktopUpdateRow } from '../src/client/DesktopUpdateRow.tsx'
 
 // The service reads its initial locale from the browser; these specs assert
 // the shipped Chinese copy, so they state the browser they assume.
 usePinnedBrowserLanguages('zh-CN')
-
-afterEach(() => {
-  globalThis.deepSeekHarnessDesktop = undefined
-})
 
 /** The seats this plugin fills for a loopback browser (slot name → expected component). */
 const SEATS = [
@@ -81,23 +76,6 @@ function generalEntry(slots: SlotRegistry) {
 describe('ui-settings-general apply', () => {
   it('declares the services it uses', () => {
     expect(inject).toEqual(['slots', 'locale', 'connection'])
-  })
-
-  it('adds the source updater row only when the desktop preload bridge exists', async () => {
-    globalThis.deepSeekHarnessDesktop = {
-      updater: {
-        check: vi.fn(),
-        upgrade: vi.fn(),
-        restart: vi.fn(),
-      },
-    }
-    const b = await bench()
-    declare(b.slots)
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const entry = b.slots.entries('settings.general.item')[0]!
-    expect(entry.component).toBe(DesktopUpdateRow)
-    expect(entry.options).toMatchObject({ id: 'desktop-source-update', order: 80 })
-    expect(entry.locale).toBe('settings')
   })
 
   it('fills all five seats for declarations before or after apply', async () => {

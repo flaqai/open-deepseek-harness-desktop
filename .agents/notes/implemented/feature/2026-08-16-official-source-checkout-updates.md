@@ -16,7 +16,7 @@ Check fetches the branch into `FETCH_HEAD` without moving the current branch. Th
 
 Upgrade fetches and verifies the expected commit again, fast-forwards, installs the frozen lockfile, and performs a complete build. Installation and build receive no inherited environment variable whose name contains `KEY`, `SECRET`, `TOKEN`, or `PASSWORD`. Preparation failure resets to the recorded prior commit and prepares it again; failure of either rollback step remains visible. The app restarts only through a separate explicit action after success.
 
-The settings General page registers the update card only when the Electron preload bridge exists. It shows the official source, branch and short commits, explains every blocked state, and confirms the dependency scripts that a source update runs. Ordinary Web clients receive no updater control.
+The renderer no longer registers an official-source update card in General settings. The narrow Electron updater remains host-owned for development compatibility, but ordinary product settings and Web clients expose no updater control.
 
 ## Alternatives considered
 
@@ -27,4 +27,4 @@ The settings General page registers the update card only when the Electron prelo
 
 ## Consequences
 
-Desktop source users can discover and apply official fast-forward updates from Settings without exposing a general native bridge. Local edits and downstream divergence stop the operation before source mutation. The feature intentionally does not update packaged releases and treats official dependency scripts as trusted code only after explicit confirmation.
+The host retains bounded official fast-forward mechanics without exposing a general native bridge, but users perform source synchronization through the repository workflow instead of Settings. Local edits and downstream divergence still stop the operation before source mutation. The feature intentionally does not update packaged releases.

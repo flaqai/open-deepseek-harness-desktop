@@ -57,8 +57,6 @@ Set `DSH_DESKTOP_DSH_BIN` to test another built `dsh` launcher. Set `DSH_DESKTOP
 
 ## Official source updates
 
-The General settings page exposes **DeepSeek Harness core updates** in desktop source runs. It checks `master` from the fixed official repository `https://github.com/deepseek-ai/deepseek-harness.git`, displays the current and fetched commits, and enables the upgrade action only when the local commit is an ancestor of the official commit and the worktree is clean. A fork that already contains the fetched official commit is current; diverged histories require a manual merge.
-
 A confirmed upgrade fast-forwards the checkout, runs `pnpm install --frozen-lockfile`, and runs the complete repository build through the Node executable selected for the desktop Harness. Dependency and build children receive an environment with credential-bearing variable names removed. A failed preparation resets the checkout to the prior commit and prepares that version again. The result reports an incomplete rollback instead of presenting the old build as healthy when restoration fails. Successful updates require an application restart, offered by the same settings card.
 
 Set `DSH_DESKTOP_SOURCE_ROOT` only when testing a different trusted checkout. The updater never runs for a packaged application without a Git checkout; signed release metadata and installer rollback remain prerequisites for packaged automatic updates.

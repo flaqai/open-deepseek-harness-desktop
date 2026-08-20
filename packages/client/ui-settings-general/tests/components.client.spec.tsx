@@ -8,12 +8,10 @@ import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.
 import type { TriggerContentProps } from '../src/client/chrome.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
-import { DesktopUpdateRow, type DesktopUpdateBridge } from '../src/client/DesktopUpdateRow.tsx'
 import { en } from '../src/client/locales.ts'
 
 afterEach(() => {
   cleanup()
-  delete window.deepSeekHarnessDesktop
 })
 
 // The seat's key domain is settings ∪ common; the stub answers from the
@@ -151,58 +149,5 @@ describe('SettingsDocumentAction', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Open configuration file' }))
     expect((await screen.findByRole('alert')).textContent).toBe('Could not open configuration file')
     expect(screen.getByRole('button', { name: 'Open configuration file' })).toBeTruthy()
-  })
-})
-
-describe('DesktopUpdateRow', () => {
-  it('checks, confirms, upgrades, and offers restart through the narrow desktop bridge', async () => {
-    const current = '1'.repeat(40)
-    const latest = '2'.repeat(40)
-    const check = vi.fn(() => Promise.resolve({
-      repository: 'https://github.com/deepseek-ai/deepseek-harness.git',
-      branch: 'master',
-      reason: 'ready' as const,
-      currentCommit: current,
-      latestCommit: latest,
-      dirtyFiles: 0,
-    }))
-    const upgrade = vi.fn(() => Promise.resolve({
-      ok: true as const,
-      previousCommit: current,
-      currentCommit: latest,
-      restartRequired: true as const,
-    }))
-    const restart = vi.fn(() => Promise.resolve({ restarting: true as const }))
-    const updater: DesktopUpdateBridge = { check, upgrade, restart }
-    render(<DesktopUpdateRow {...kit} updater={updater} t={t} />)
-
-    expect(await screen.findByText('A newer stable version is available as a safe fast-forward update.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Upgrade Harness core' }))
-    expect(screen.getByRole('dialog', { name: 'Upgrade DeepSeek Harness?' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm upgrade' }))
-    expect(await screen.findByText('Update complete. Restart the app to apply it.')).toBeTruthy()
-    expect(upgrade).toHaveBeenCalledWith(latest)
-    fireEvent.click(screen.getByRole('button', { name: 'Restart app now' }))
-    expect(restart).toHaveBeenCalledOnce()
-  })
-
-  it('explains why a dirty source checkout cannot update', async () => {
-    const updater: DesktopUpdateBridge = {
-      check: () => Promise.resolve({
-        repository: 'https://github.com/deepseek-ai/deepseek-harness.git',
-        branch: 'master',
-        reason: 'dirty',
-        currentCommit: '1'.repeat(40),
-        latestCommit: '2'.repeat(40),
-        dirtyFiles: 7,
-      }),
-      upgrade: vi.fn(),
-      restart: vi.fn(),
-    }
-    render(<DesktopUpdateRow {...kit} updater={updater} t={t} />)
-
-    expect(await screen.findByText('Automatic update is blocked by uncommitted local changes.')).toBeTruthy()
-    expect(screen.getByText('Commit or safely preserve 7 local changes, then check again.')).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'Upgrade Harness core' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })
