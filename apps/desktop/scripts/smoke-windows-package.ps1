@@ -16,11 +16,17 @@ foreach ($path in @(
   if (-not (Test-Path $path)) { throw "Unpacked package is missing $path" }
 }
 
-$install = Start-Process `
-  -FilePath $installer `
-  -ArgumentList "/S `"/D=$installRoot`"" `
-  -Wait `
-  -PassThru
+$installStart = [System.Diagnostics.ProcessStartInfo]::new()
+$installStart.FileName = $installer
+$installStart.UseShellExecute = $false
+$installStart.ArgumentList.Add('/S')
+$installStart.ArgumentList.Add("/D=$installRoot")
+$install = [System.Diagnostics.Process]::Start($installStart)
+if (-not $install.WaitForExit(300000)) {
+  $install.Kill($true)
+  $install.WaitForExit()
+  throw 'Windows installer did not exit within 300 seconds'
+}
 if ($install.ExitCode -ne 0) {
   throw "Windows installer exited with $($install.ExitCode)"
 }

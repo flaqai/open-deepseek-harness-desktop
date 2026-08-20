@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-20-windows-desktop-uses-native-node-runtime.md
-2026-08-20-windows-desktop-uses-native-node-runtime.md: 8984d8315150ada7ef08d0073c8114e03f4e7cb7
-2026-08-20-windows-desktop-uses-native-node-runtime.zh.md: cfb2cdc2536a6e98b2ce01c3de2c1d1eae953bb1
+2026-08-20-windows-desktop-uses-native-node-runtime.md: 81a3065b5da61c5e5a5977cf8099cda042e27a44
+2026-08-20-windows-desktop-uses-native-node-runtime.zh.md: cbf8e9ae6955aed6dbe85d6ee2b6b3532f3ba163

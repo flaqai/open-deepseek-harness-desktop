@@ -18,7 +18,7 @@ Three consecutive child exits before readiness enter a terminal startup-failure 
 
 ## Verification
 
-Desktop unit tests pin the native Node launch arguments, embedded package-manager environment, three-attempt failure limit, and explicit retry. Runtime preparation executes the embedded Node, pnpm, and Harness readiness path. The Windows workflow waits for the final NSIS process and checks its exit code while installing into a path containing spaces and Chinese characters, verifies the installed resource layout, and requires the installed application to reach Harness readiness before artifact upload.
+Desktop unit tests pin the native Node launch arguments, embedded package-manager environment, three-attempt failure limit, and explicit retry. Runtime preparation executes the embedded Node, pnpm, and Harness readiness path. The Windows workflow passes silent-install and destination arguments separately to the final NSIS process, bounds and checks that process while installing into a path containing spaces and Chinese characters, verifies the installed resource layout, and requires the installed application to reach Harness readiness before artifact upload.
 
 ## Alternatives considered
 
