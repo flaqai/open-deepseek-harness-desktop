@@ -147,7 +147,13 @@ function createTray(): void {
   tray = new Tray(image)
   tray.setToolTip(APP_NAME)
   refreshTrayMenu()
-  tray.on('click', () => { lifecycle?.showWindow() })
+  // A macOS tray with a context menu opens that menu on a primary click. Do
+  // not also focus the application window: doing so lets an auto-hidden menu
+  // bar collapse behind the still-open tray menu. Other platforms retain the
+  // conventional primary-click shortcut for restoring the window.
+  if (process.platform !== 'darwin') {
+    tray.on('click', () => { lifecycle?.showWindow() })
+  }
   tray.on('right-click', refreshTrayMenu)
 }
 
