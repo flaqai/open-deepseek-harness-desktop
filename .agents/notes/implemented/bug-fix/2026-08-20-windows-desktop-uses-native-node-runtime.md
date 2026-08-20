@@ -10,7 +10,7 @@ The Windows desktop package renamed the Harness production `node_modules` direct
 
 ## Decision
 
-The Windows x64 package carries the official Node 24.11.1 distribution under `resources/runtime/win32-x64` and the deployed Harness closure under `resources/harness` with its real `node_modules` hierarchy. The preparation script accepts only the pinned official archive hash, materializes deployment links, recursively injects declared workspace dependencies omitted by legacy deploy, removes foreign native packages, stages pnpm 11.7.0 behind a command wrapper that invokes the embedded Node, verifies required Windows modules, and starts Harness through that exact runtime before packaging.
+The Windows x64 package carries the official Node 24.11.1 distribution under `resources/runtime/win32-x64` and the deployed Harness closure under `resources/harness` with its real `node_modules` hierarchy. The preparation script accepts only the pinned official archive hash, materializes deployment links, recursively injects declared workspace dependencies omitted by legacy deploy, removes foreign native packages, stages pnpm 11.7.0 behind a command wrapper that invokes the embedded Node, verifies required Windows modules, and starts Harness through that exact runtime before packaging. Electron Builder 26 receives the closure's top-level `node_modules` through a dedicated resource mapping because its generic directory copier intentionally omits a source-root directory with that name.
 
 The Electron host launches `resources/harness/lib/bin.js` with the embedded `node.exe`, passes the embedded pnpm through `DSH_PNPM_BIN`, and prepends the runtime directory to plugin lifecycle `PATH`. It does not set `ELECTRON_RUN_AS_NODE`, `NODE_PATH`, or Electron-only Node flags.
 

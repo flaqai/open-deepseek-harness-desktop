@@ -17,6 +17,13 @@ extraResources:
     to: harness
     filter:
       - "**/*"
+      - "!node_modules{,/**/*}"
+  # electron-builder 26 omits a source-root node_modules directory. Copy its
+  # contents from one level deeper while preserving the final Harness layout.
+  - from: ../../.artifacts/desktop-runtime-win-x64/harness/node_modules
+    to: harness/node_modules
+    filter:
+      - "**/*"
   - from: ../../.artifacts/desktop-runtime-win-x64/runtime
     to: runtime
     filter:
