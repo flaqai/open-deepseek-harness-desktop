@@ -115,6 +115,54 @@ async function materializeLinks() {
   }
 }
 
+async function indexWorkspacePackages(directory, packages, depth = 0) {
+  if (depth > 4) return
+  const manifestPath = join(directory, 'package.json')
+  if (existsSync(manifestPath)) {
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+    if (typeof manifest.name === 'string') packages.set(manifest.name, { directory, manifest })
+  }
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (!entry.isDirectory() || ['.artifacts', '.git', 'lib', 'node_modules'].includes(entry.name)) continue
+    await indexWorkspacePackages(join(directory, entry.name), packages, depth + 1)
+  }
+}
+
+function workspaceDependencies(manifest, packages) {
+  const names = new Set()
+  for (const dependencies of [manifest.dependencies, manifest.optionalDependencies, manifest.peerDependencies]) {
+    if (dependencies === undefined) continue
+    for (const name of Object.keys(dependencies)) {
+      if (packages.has(name)) names.add(name)
+    }
+  }
+  return names
+}
+
+async function injectWorkspaceClosure() {
+  const packages = new Map()
+  await indexWorkspacePackages(repositoryRoot, packages)
+  const rootManifest = JSON.parse(await readFile(join(repositoryRoot, 'apps', 'cli', 'package.json'), 'utf8'))
+  const queue = [...workspaceDependencies(rootManifest, packages)]
+  const injected = new Set()
+  while (queue.length > 0) {
+    const name = queue.shift()
+    if (name === undefined || injected.has(name)) continue
+    const project = packages.get(name)
+    if (project === undefined) continue
+    injected.add(name)
+    for (const dependency of workspaceDependencies(project.manifest, packages)) queue.push(dependency)
+    const destination = join(harnessRoot, 'node_modules', ...name.split('/'))
+    await rm(destination, { recursive: true, force: true })
+    await cp(project.directory, destination, {
+      recursive: true,
+      dereference: true,
+      filter: path => !relative(project.directory, path).split(sep).includes('node_modules'),
+    })
+  }
+  console.log(`prepare-windows-runtime: injected ${injected.size} workspace packages`)
+}
+
 async function injectVendoredDependencies() {
   const vendorRoot = join(repositoryRoot, 'vendor')
   for (const entry of await readdir(vendorRoot, { withFileTypes: true })) {
@@ -232,6 +280,7 @@ async function verifyRuntime() {
     '@koromix/koffi-win32-x64',
     '@img/sharp-win32-x64/sharp.node',
     'node-addon-require-builtin-win32-x64-msvc',
+    '@deepseek-ai/dsh-scope',
     '@deepseek-ai/dsh-web-frontend/dist/index.html',
   ]) require.resolve(packagePath)
   for (const path of [nodeExecutable, pnpmCommand, join(runtimeRoot, 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')]) {
@@ -264,9 +313,11 @@ await run(process.execPath, [
   '--legacy',
   '--config.node-linker=hoisted',
   '--config.auto-install-peers=false',
+  '--config.link-workspace-packages=true',
   harnessRoot,
 ])
 await materializeLinks()
+await injectWorkspaceClosure()
 await injectVendoredDependencies()
 await pruneForeignNativePackages()
 await stageNodeRuntime()

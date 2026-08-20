@@ -10,7 +10,7 @@ Windows 桌面安装包会重命名 Harness 生产运行时的 `node_modules` �
 
 ## 决策
 
-Windows x64 安装包在 `resources/runtime/win32-x64` 中携带官方 Node 24.11.1，在 `resources/harness` 中携带保留真实 `node_modules` 层级的 Harness 部署闭包。准备脚本只接受固定的官方归档哈希，将部署链接实体化，删除非目标平台原生包，通过调用内置 Node 的命令包装器提供 pnpm 11.7.0，验证必需的 Windows 模块，并在打包前通过这套准确运行时启动 Harness。
+Windows x64 安装包在 `resources/runtime/win32-x64` 中携带官方 Node 24.11.1，在 `resources/harness` 中携带保留真实 `node_modules` 层级的 Harness 部署闭包。准备脚本只接受固定的官方归档哈希，将部署链接实体化，递归注入旧版 deploy 遗漏的已声明工作区依赖，删除非目标平台原生包，通过调用内置 Node 的命令包装器提供 pnpm 11.7.0，验证必需的 Windows 模块，并在打包前通过这套准确运行时启动 Harness。
 
 Electron 宿主使用内置 `node.exe` 启动 `resources/harness/lib/bin.js`，通过 `DSH_PNPM_BIN` 传入内置 pnpm，并把运行时目录放到插件生命周期脚本 `PATH` 的开头。宿主不会设置 `ELECTRON_RUN_AS_NODE`、`NODE_PATH` 或 Electron 专属 Node 参数。
 
