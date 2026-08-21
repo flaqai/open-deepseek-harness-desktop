@@ -8,7 +8,7 @@
   <strong>开箱即用、依赖安全的 DeepSeek Harness 桌面版</strong>
 </p>
 
-[English](README.md) | 中文
+[English](README.md) · 简体中文 · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
 <p align="center">
   <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="下载量"></a>
@@ -17,6 +17,8 @@
 </p>
 
 Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 桌面发行版。它将上游基于插件的智能体运行时与可视化工作区结合起来，可用于配置模型、运行编码会话、查看执行过程和管理扩展。
+
+本项目由 FLAQ AI 团队基于模型接入、桌面客户端打包和插件化 Agent 产品工作流的一线实践持续维护。我们把其中可复用的工程层开源出来，让启动监管、依赖安全、跨平台打包和实用集成能够被公开检查、复用并共同改进。
 
 本仓库并非 DeepSeek 官方产品。项目采用 [MIT 许可证](LICENSE)，并保留 Harness 的架构原则：各项能力仍由插件提供，Electron 应用仅作为现有 Web 客户端的安全本地宿主。
 
@@ -225,6 +227,15 @@ Skill 继续由 Harness 提供程序管理，并与智能体的其他能力在�
 
 API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何兼容提供商前，请核对其端点、模型支持、工具调用行为、价格、速率限制和数据处理条款。
 
+## 可免费试用的 API Token 渠道
+
+希望先体验 Harness、暂不购买模型额度的用户，可以评估以下 OpenAI 兼容渠道。它们都是独立第三方服务，本项目不会内置或默认选中；免费额度、模型名称、速率限制、日志政策和可用性都可能随时变化。
+
+- **[Agnes AI](https://agnes-ai.com/)**：提供 API Key 申请和多模态网关的免费使用入口。可按 OpenAI 兼容提供商添加，Base URL 填写 `https://apihub.agnes-ai.com/v1`；当前适合编码、推理、工具调用和 Agent 工作流的通用选择是 `agnes-2.5-flash`。正式依赖前请在 Agnes 控制台确认账号当前的 Token Plan 与限额。
+- **[OpenRouter · Ox Alpha](https://openrouter.ai/stealth/ox-alpha?view=api)**：Base URL 使用 `https://openrouter.ai/api/v1`，模型 ID 使用 `stealth/ox-alpha`。其当前目录价格为输入、输出 Token 均为零，但 stealth/alpha 模型属于预览能力，之后可能改名、下线、限流或调整价格，同时仍受 OpenRouter 账号级免费模型限额约束。
+
+请只在提供商官方网站创建 Key，并通过 Harness 凭据服务保存。不要把 API Token 粘贴到 Issue、截图、README 或会被提交的配置文件中。
+
 ## 项目方向
 
 - 提供可复现的 macOS arm64/x64 DMG、Windows x64 EXE 和 Linux x64 DEB/RPM 版本，并附带校验值与第三方许可证声明。
@@ -252,11 +263,13 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 - [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)，由 [a735624258](https://github.com/a735624258) 维护：在输入区选择 Skill，并插入 Harness 的 Skill 调用指令。
 - [`dsh-market`](https://github.com/dsh-market/dsh-market)，由 [dsh-market](https://github.com/dsh-market) 社区维护：在 Harness 内浏览、搜索、安装和管理插件。
 
-## 关于 FLAQ.AI
+## 关于 FLAQ AI 团队
 
-[FLAQ.AI](https://flaq.ai/) 通过 API、文档和面向开发者的工作流提供图像、视频、音频及语言模型能力。如果其当前 API 与模型能力符合项目需求，可将它作为可选兼容提供商或配套平台进行评估。
+[FLAQ.AI](https://flaq.ai/) 面向 AI Agent 和生产应用，提供图片、视频、音乐及语言模型的统一 API 接入、文档和开发者工作流。本桌面项目来自团队在模型集成、本地 Agent 环境、插件交付与跨平台应用打包中的反复实践；我们将它开源，是希望把这些实施经验整理成可检查、可复用、可继续改进的社区项目。
 
-运行本仓库不依赖 FLAQ.AI，项目也不会将其设为隐藏的默认服务；提及 FLAQ.AI 不代表 DeepSeek 对其背书。提供商可用性和商业条款可能变化，使用前请在 [FLAQ.AI 文档](https://flaq.ai/docs/)中核对最新信息。
+相关开源项目包括 [Backlink Skills](https://github.com/flaqai/backlink_skills)、[Awesome Codex Skills](https://github.com/flaqai/awesome_codex_skills) 和 [Awesome Claude Code Skills](https://github.com/flaqai/awesome_claude_code_skills)。
+
+FLAQ.AI 仍只是可选的兼容提供商或配套平台。运行本仓库不依赖 FLAQ.AI，项目也不会将其设为隐藏默认服务；提及 FLAQ.AI 不代表 DeepSeek 对其背书。提供商能力、可用性和商业条款可能变化，投入生产前请在 [FLAQ.AI 文档](https://flaq.ai/docs/)中核对最新信息。
 
 ## 许可证
 
