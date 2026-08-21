@@ -40,25 +40,53 @@ The Electron host grants sanitized clipboard-write permission to the supervised 
 
 Packaged installations include the Plugin Marketplace and seed it on first launch, so plugin discovery, installation, and management are available without a separate setup step. The marketplace remains an ordinary Harness plugin: users can uninstall it from the client, and the desktop app respects that choice instead of installing it again.
 
+### Dependency safety before plugin execution
+
+Third-party plugins share the Host's Node.js runtime. One incompatible transitive dependency, orphaned Loader entry, or failed root-plugin mount can otherwise take down the whole Harness before its Settings page is available. This client adds an independent dependency-safety layer before plugin code executes: it reads the profile manifest, lockfile, Bundle order, and installation-level shared runtime, constructs the complete dependency relationship first, and only then decides which plugins may enter the current process.
+
+- **Earlier than plugin execution:** Inspection happens before the faulty plugin is imported and mounted. Even when that plugin cannot start at all, the client can still produce a diagnosis and protect the remaining features.
+- **Dependency-graph evidence, not error-string guessing:** Diagnostics expose the conflicting dependency, declared range, actual Host version, and complete reference chain, distinguishing version conflicts, orphaned Bundles, and runtime mount failures.
+- **Converge first, quarantine second:** Repair first attempts to make plugins share the Host dependencies supplied by the installation. If safe convergence remains impossible, only the faulty root plugin is removed from the active profile dependencies and startup order instead of failing the whole client.
+- **Fail closed and remain recoverable:** Unknown conflicts are not silently accepted, and a faulty plugin is not allowed into the live runtime. The quarantine reason and disposition remain durable, while users can retry repair or explicitly uninstall it from Diagnostics.
+
+This capability must belong to the desktop client's boot layer rather than another ordinary diagnostic plugin. A plugin can run only after dependency resolution and Loader mounting have already succeeded, while this feature must handle failures before that point. Governing extension dependencies before extension code executes is the boundary that lets an open plugin ecosystem coexist with the stability expected by ordinary desktop users.
+
 ### Official Codex connection included
 
 Each platform installer carries the official DeepSeek Harness [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) plugin, a pinned [`@openai/codex`](https://github.com/openai/codex) wrapper, and only the native payload matching that operating system and CPU. Onboarding and **Settings → External tools** expose the Codex connection; installation, startup, and delegation do not depend on a system Node, pnpm, or Codex CLI. The plugin remains removable, and a durable seed marker remembers that choice so upgrades and restarts do not silently restore it.
 
 The official connector currently treats every delegation as an independent, ephemeral Codex task. Codex uses the parent session's working directory and the login, model, MCP, and Skill configuration already present under the local `CODEX_HOME`, but it does not inherit the Harness conversation transcript or persist its temporary Codex thread into the Harness session. The parent receives only the final answer or a sanitized failure diagnostic; intermediate reasoning, tool traffic, raw stderr, and the complete workspace diff are not copied back.
 
+<p align="center">
+  <img src="./assets/readme/codex-task-in-session-zh.jpg" width="900" alt="Using Codex from a full-mode DeepSeek Harness session">
+  <br>
+  <sub>Using the connected Codex capability from a full-mode session</sub>
+</p>
+
 ### External coding tools connection center
 
 **Settings → External tools** brings Codex, Claude Code, and placeholders for future Hermes and Trae Providers into one discoverable surface. After a supported Provider is connected, existing and new full-mode sessions receive its tool at the next safe turn boundary; an already running turn is never rewritten, and minimal mode stays intentionally lean. Disconnecting withdraws the tool without deleting Harness sessions or data owned by the external product.
 
+<p align="center">
+  <img src="./assets/readme/codex-connection-center-zh.png" width="760" alt="Codex connection state in the external coding tools center">
+  <br>
+  <sub>External tools center: Codex is connected and the other Provider states remain visible</sub>
+</p>
+
+### Dynamic tool projection: connection becomes capability
+
+Conventional Agent compositions pin tools to a particular preset: users must choose the right specialized preset in advance, while existing sessions often cannot receive a product connected later. This client treats an external-product connection as independent, durable Host capability state, then dynamically projects `subagent_codex` into each eligible Agent scope at a safe model-request boundary. Users therefore do not need to recreate a conversation or switch to a dedicated “external tools” preset: new and historical sessions both receive the currently connected capability from their next turn.
+
+- **Turn safety:** A connection change never mutates the tool schema in the middle of a request. Connections take effect on the next turn; disconnections wait until the Agent is idle before removing the tool safely.
+- **Mode isolation:** Projection is limited to full modes such as `standard`, `code`, and `cordis`; `minimal` remains lean to prevent capability inflation and accidental delegation.
+- **Model discovery:** The tool and its product-specific usage guidance appear together. When a user explicitly asks to use Codex, the model is directed to call `subagent_codex` instead of guessing at or searching for a similarly named CLI through Shell.
+- **Auditable state:** The external tools actually available to every model request are recorded as an `external-tools/resolved` event. Session recovery and inspection can reconstruct the capability boundary that existed then instead of guessing history from today's settings.
+
+This design separates the conversation, Agent preset, external Provider, and model-visible tools for the current turn into four independently evolving layers. The plugin remains removable, the connection remains revocable, and historical sessions do not break when preset composition changes. The official Codex Provider still treats each delegation as an independent one-shot task: dynamic projection solves capability discovery and session lifecycle, without pretending that the official Provider already supplies persistent Codex threads.
+
 ### Preset IM bot connections
 
 Packaged installations seed `dsh-im`, which lets users connect WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord, and WhatsApp from the client settings through QR codes, app manifests, or existing bot credentials. The channels share one IM management surface, with controls for switching Harness workspaces and rebinding existing sessions. Bot credentials are submitted only to the local Harness Host and managed by protected credential storage. This capability remains a removable plugin; after users remove it, the client does not silently restore it on a later launch.
-
-### Dependency diagnostics and plugin quarantine
-
-The client can detect shared-runtime conflicts in plugin dependency graphs, orphaned Loader entries, and failed root-plugin mounts. A read-only check first reports the problem and its dependency chain. During repair, the client tries to converge plugins on the shared Host dependencies supplied by the installation. A plugin that still cannot converge safely is removed from the active profile dependencies and startup order, with a durable quarantine record left behind so the rest of the application can continue to start. Users can later retry it or explicitly remove its quarantined residue from **Settings → Plugins → Diagnostics**.
-
-This must live in the client boot layer rather than in an ordinary plugin. Plugin code runs only after dependency resolution and runtime mounting have succeeded, while these failures can happen earlier and prevent a diagnostic plugin from loading at all. Only the boot layer owns the profile manifest, lockfile, bundle order, and installation-level shared runtime needed to inspect the graph before plugin execution, disable a faulty root consistently, and fail closed when repair is incomplete. Quarantine does not silently accept an unknown dependency error or allow the faulty plugin into the current runtime.
 
 ### Themes and backgrounds
 
