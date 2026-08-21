@@ -7,6 +7,10 @@ import {
   type PluginDiagnosticsSectionProps,
 } from '../src/client/PluginDiagnosticsSection.tsx'
 import { PluginDiscovery } from '../src/client/PluginDiscovery.tsx'
+import {
+  ExternalToolsSection,
+  type ExternalToolsSectionProps,
+} from '../src/client/ExternalToolsSection.tsx'
 import type {
   PluginInventorySettingsTabInjected,
   PluginInventorySettingsTabProps,
@@ -160,6 +164,58 @@ describe('PluginInventorySettingsTab', () => {
     const pendingFailure = render(<PluginInventorySettingsTab {...props(() => deferredFailure.promise)} />)
     pendingFailure.unmount()
     await act(async () => { deferredFailure.reject(new Error('late failure')) })
+  })
+})
+
+describe('ExternalToolsSection', () => {
+  const inventory = {
+    entries: [{
+      entryId: 'codex-entry',
+      moduleName: '@deepseek-ai/dsh-subagent-codex',
+      enabled: true,
+      fiberPhase: 'active',
+    }],
+    dependencyHealth: { lastRepair: null, quarantined: [] },
+  } as unknown as Snapshot
+
+  it('shows supported connections and honest placeholders for providers without an official bundle', async () => {
+    render(<ExternalToolsSection {...({
+      t,
+      list: async () => inventory,
+      externalTools: async () => ({ scope: 'complete-presets', codex: false, claudeCode: false }),
+      setExternalTool: vi.fn(),
+      startInstall: vi.fn(),
+      getInstall: vi.fn(),
+    } as ExternalToolsSectionProps)} />)
+
+    expect(await screen.findByRole('heading', { name: en['external.title'] })).toBeTruthy()
+    for (const name of ['Codex', 'Claude Code', 'Hermes', 'Trae']) {
+      expect(screen.getByRole('heading', { name })).toBeTruthy()
+    }
+    expect(screen.getAllByRole('button', { name: en['external.action.planned'] })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: en['external.action.connect'] })).toBeTruthy()
+    expect(screen.getByRole('button', { name: en['external.action.install'] })).toBeTruthy()
+  })
+
+  it('connects Codex for complete modes', async () => {
+    const setExternalTool = vi.fn(async () => ({
+      scope: 'complete-presets' as const,
+      codex: true,
+      claudeCode: false,
+    }))
+    render(<ExternalToolsSection {...({
+      t,
+      list: async () => inventory,
+      externalTools: async () => ({ scope: 'complete-presets', codex: false, claudeCode: false }),
+      setExternalTool,
+      startInstall: vi.fn(),
+      getInstall: vi.fn(),
+    } as ExternalToolsSectionProps)} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: en['external.action.connect'] }))
+    await waitFor(() => { expect(setExternalTool).toHaveBeenCalledWith('codex', true) })
+    expect(await screen.findByText(en['external.preset.ready'])).toBeTruthy()
+    expect(screen.getByRole('button', { name: en['external.action.disconnect'] })).toBeTruthy()
   })
 })
 

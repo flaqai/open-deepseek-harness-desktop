@@ -25,8 +25,7 @@ import { stat } from 'node:fs/promises'
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { bindScopeParent, createScope, scopeOf, type Scope, type ScopeKey, type ScopeParentBinding } from '@deepseek-ai/dsh-scope'
-// Type-only: resolves the `agent/created` lifecycle event this service watches.
-import type {} from '@deepseek-ai/dsh-agent'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import { settingsNamespace, type SettingsScope, type default as SettingsService } from '@deepseek-ai/dsh-settings'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { discoverPresets, USER_PRESET_DIR } from './discovery.ts'
@@ -35,6 +34,12 @@ import { mountPreset, serviceForAgent, standingMountFor } from './mount.ts'
 import { PresetExistsError } from './authoring.ts'
 import { PresetMountError, UnknownPresetError, type AgentPreset, type Config, type PresetRoot } from './preset.ts'
 import type {} from './types.ts'
+import {
+  acceptsExternalTools,
+  externalToolEnabled,
+  type ExternalToolSettings,
+  type ExternalToolId,
+} from './external-tools.ts'
 
 /** Settings namespace carrying the user's chosen default preset. */
 export const SETTINGS_NAMESPACE = 'agent-presets'
@@ -43,11 +48,17 @@ export const SETTINGS_NAMESPACE = 'agent-presets'
 export interface AgentPresetSettings {
   /** Preset mounted when a session names none. */
   default?: string
+  /** Host-connected products projected into complete Agent Presets at turn boundaries. */
+  externalTools?: ExternalToolSettings
 }
 
 /** Runtime schema for the user-writable slice. */
 export const AgentPresetSettingsSchema: z<AgentPresetSettings> = z.object({
   default: z.string(),
+  externalTools: z.object({
+    codex: z.boolean(),
+    claudeCode: z.boolean(),
+  }),
 })
 
 export { COMPOSITION_FILE, discoverPresets, scanRoot } from './discovery.ts'
@@ -65,6 +76,21 @@ export {
 export { resolveSessionPreset, type PresetBearingSession } from './session.ts'
 export { PresetMountError, UnknownPresetError } from './preset.ts'
 export type { AgentPreset, Config, PresetRoot, PresetTrust } from './preset.ts'
+export { acceptsExternalTools } from './external-tools.ts'
+export type { ExternalToolId, ExternalToolSettings } from './external-tools.ts'
+
+/** Effective Host connection state for complete Agent Presets. */
+export interface ExternalToolsPresetState {
+  readonly scope: 'complete-presets'
+  readonly codex: boolean
+  readonly claudeCode: boolean
+}
+
+/** Host-owned factory that projects one connected product into an Agent scope. */
+export type ExternalToolProjector = (
+  agent: Agent,
+  tool: ExternalToolId,
+) => () => Promise<void> | void
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -127,6 +153,12 @@ export class AgentPresets extends Service {
    */
   private readonly selfCtx: Context
 
+  /** Per-Agent external-tool plugin fibers, changed only at idle/turn boundaries. */
+  private readonly externalToolMounts = new WeakMap<Agent, Map<ExternalToolId, () => Promise<void> | void>>()
+
+  /** Optional product-specific projector supplied by the desktop Host. */
+  private externalToolProjector: ExternalToolProjector | undefined
+
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'agentPresets')
     this.selfCtx = ctx
@@ -165,12 +197,44 @@ export class AgentPresets extends Service {
     // through `composeFrom` before publication.
     ctx.on('agent/created', ({ agent }) => {
       if (this.resolvedRoots.length === 0) return
-      if (this.composedPreset(agent.ctx) !== undefined) return
+      if (this.composedPreset(agent.ctx) !== undefined) {
+        this.reconcileExternalTools(agent)
+        return
+      }
       ctx.logger.warn(
         `agent "${agent.id}" was published without joining an agent preset; `
         + 'its tools, prompt sections, and skill catalog resolve against the empty global layer '
         + '(join through AgentPresets.mount() or composeFrom() in the agent factory setup)',
       )
+    })
+
+    // `running` is emitted synchronously before the loop assembles its first
+    // request, so a resumed historical Session receives the latest Host
+    // connections without changing an already-running turn. `idle` is the
+    // safe removal boundary after tool calls and background-job creation have
+    // finished for the current driver interval.
+    ctx.on('agent/status', ({ agent, status }) => {
+      if (status === 'running' || status === 'idle') this.reconcileExternalTools(agent)
+    })
+
+    ctx.on('agent/disposed', ({ agent }) => {
+      this.externalToolMounts.delete(agent)
+    })
+
+    // Commit the exact dynamic capability projection at the model-request
+    // boundary. Retries of the same step reuse its record; a later empty
+    // projection is retained after any connected step so disconnects are
+    // reconstructable rather than inferred from mutable Host settings.
+    ctx.on('agent/request', ({ agent, turn, step }, next) => {
+      const previous = agent.session.events.findLast(event => event.type === 'external-tools/resolved')
+      if (previous?.data.turn !== turn || previous.data.step !== step) {
+        const mounted = this.externalToolMounts.get(agent)
+        const tools = (['codex', 'claude-code'] as const).filter(tool => mounted?.has(tool) === true)
+        if (tools.length > 0 || previous !== undefined) {
+          agent.session.append('external-tools/resolved', { turn, step, tools: [...tools] })
+        }
+      }
+      return next()
     })
 
     // The durable record is the commit point. Its public notification carries
@@ -190,6 +254,70 @@ export class AgentPresets extends Service {
    */
   get defaultId(): string {
     return this.settings?.get().default ?? this.config.default
+  }
+
+  /** Current connection settings, with absent user values resolved to off. */
+  private externalToolsSnapshot(): ExternalToolsPresetState {
+    const configured = this.settings?.get().externalTools
+    return {
+      scope: 'complete-presets',
+      codex: externalToolEnabled(configured, 'codex'),
+      claudeCode: externalToolEnabled(configured, 'claude-code'),
+    }
+  }
+
+  /**
+   * Bring one live Agent's local tool fibers to the current Host connection
+   * state. Callers invoke this only during publication, idle, or the
+   * synchronous idle-to-running transition before prompt assembly.
+   * @param agent - live Agent whose own scope receives the tool plugins.
+   */
+  private reconcileExternalTools(agent: Agent): void {
+    const presetId = this.composedPreset(agent.ctx)
+    const state = this.externalToolsSnapshot()
+    const accepted = acceptsExternalTools(presetId)
+    const projector = this.externalToolProjector
+    let mounts = this.externalToolMounts.get(agent)
+    for (const tool of ['codex', 'claude-code'] as const) {
+      const enabled = accepted && projector !== undefined
+        && (tool === 'codex' ? state.codex : state.claudeCode)
+      const mounted = mounts?.get(tool)
+      if (enabled && mounted === undefined && projector !== undefined) {
+        mounts ??= new Map()
+        mounts.set(tool, projector(agent, tool))
+        this.externalToolMounts.set(agent, mounts)
+      } else if (!enabled && mounted !== undefined) {
+        mounts?.delete(tool)
+        void Promise.resolve(mounted()).catch((error: unknown) => {
+          this.selfCtx.logger.warn(`agent-presets: failed to remove ${tool} from agent "${agent.id}": ${String(error)}`)
+        })
+      }
+    }
+    if (mounts?.size === 0) this.externalToolMounts.delete(agent)
+  }
+
+  /**
+   * Register the one Host implementation that turns product ids into scoped
+   * tool plugins. Product packages stay outside this generic preset package's
+   * dependency graph.
+   * @param projector - product-specific Agent-scope mount factory.
+   * @returns disposer that removes every projected tool at safe idle boundaries.
+   */
+  registerExternalToolProjector(projector: ExternalToolProjector): () => void {
+    if (this.externalToolProjector !== undefined) {
+      throw new Error('agent-presets: an external-tool projector is already registered')
+    }
+    this.externalToolProjector = projector
+    for (const agent of this.selfCtx.get('agents')?.list() ?? []) {
+      if (agent.status === 'idle') this.reconcileExternalTools(agent)
+    }
+    return () => {
+      if (this.externalToolProjector !== projector) return
+      this.externalToolProjector = undefined
+      for (const agent of this.selfCtx.get('agents')?.list() ?? []) {
+        if (agent.status === 'idle') this.reconcileExternalTools(agent)
+      }
+    }
   }
 
   /**
@@ -390,6 +518,40 @@ export class AgentPresets extends Service {
     // from disk outside `remove`); the new preset must not inherit it. Every
     // session already joined keeps the generation it runs on regardless.
     this.standing.delete(id)
+  }
+
+  /**
+   * Read effective Host connections projected into complete presets.
+   * @returns current Codex and Claude Code connection state.
+   */
+  async externalToolsState(): Promise<ExternalToolsPresetState> {
+    return this.externalToolsSnapshot()
+  }
+
+  /**
+   * Connect or disconnect one official product for complete Agent Presets.
+   * Idle Agents change immediately; running Agents retain their current
+   * composition until the driver returns to idle.
+   * @param tool - supported official product provider.
+   * @param enabled - whether later turns receive its delegation tool.
+   * @returns Updated effective connection state.
+   */
+  async setExternalTool(tool: ExternalToolId, enabled: boolean): Promise<ExternalToolsPresetState> {
+    if (this.settingsService === undefined) {
+      throw new Error('agent-presets: settings service is unavailable for external-tool connections')
+    }
+    const path = tool === 'codex'
+      ? ['externalTools', 'codex'] as const
+      : ['externalTools', 'claudeCode'] as const
+    await this.settingsService.mutate(
+      settingsNamespace(SETTINGS_NAMESPACE),
+      [{ op: 'set', path, value: enabled }],
+    )
+    const agents = this.selfCtx.get('agents')
+    for (const agent of agents?.list() ?? []) {
+      if (agent.status === 'idle') this.reconcileExternalTools(agent)
+    }
+    return this.externalToolsSnapshot()
   }
 
   /**

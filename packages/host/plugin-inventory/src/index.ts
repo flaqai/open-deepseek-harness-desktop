@@ -15,6 +15,8 @@ import {
   type QuarantinedProfilePlugin,
 } from '@deepseek-ai/dsh-app-boot'
 import type {} from '@deepseek-ai/dsh-subprocess'
+import type {} from '@deepseek-ai/dsh-agent-presets'
+import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 // Typert-generated ./typert and ./remote artifacts import Zod at runtime.
 import type {} from 'zod'
@@ -32,6 +34,9 @@ import type {
   PluginQuarantineRequest,
   PluginRepairNoticeRequest,
   PluginUninstallRequest,
+  ExternalToolsSnapshot,
+  ExternalToolId,
+  ExternalToolToggleRequest,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -107,6 +112,22 @@ const REGISTRY_PACKAGE_SPEC = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[
 const REGISTRY_PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/iu
 const QUARANTINE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 const REPAIR_REPORT_PREFIX = 'dsh: profile dependency health '
+
+/** Product-specific tool bindings kept out of the generic preset package. */
+const EXTERNAL_TOOL_CONFIGS = {
+  codex: {
+    provider: 'codex',
+    toolName: 'subagent_codex',
+    backgroundMode: 'one-shot',
+    maxDepth: 'provider-managed',
+  },
+  'claude-code': {
+    provider: 'claude-code',
+    toolName: 'subagent_claude_code',
+    backgroundMode: 'one-shot',
+    maxDepth: 'provider-managed',
+  },
+} as const satisfies Record<ExternalToolId, ToolSubagent.Config>
 
 /** Reject paths, URLs, flags, and shell text at the Host wire boundary. */
 function validateInstallRequest(request: PluginInstallRequest): void {
@@ -254,6 +275,13 @@ export class PluginInventoryGateway extends TypertRemoteService {
     this.terminationGraceMs = config.installTerminationGraceMs ?? DEFAULT_INSTALL_TERMINATION_GRACE_MS
     this.profile = config.profile ?? 'web'
     validateProfile(this.profile)
+    ctx.inject(['agentPresets'], (presetCtx) => {
+      const dispose = presetCtx.agentPresets.registerExternalToolProjector((agent, tool) => {
+        const fiber = agent.ctx.plugin(ToolSubagent, EXTERNAL_TOOL_CONFIGS[tool])
+        return () => fiber.dispose()
+      })
+      presetCtx.effect(() => dispose, 'pluginInventory.externalToolProjector()')
+    })
   }
 
   /**
@@ -290,6 +318,32 @@ export class PluginInventoryGateway extends TypertRemoteService {
           .map(projectQuarantine),
       },
     }
+  }
+
+  /**
+   * Read Host connections projected into complete Agent Presets.
+   * @returns fixed-provider enablement for later turns.
+   */
+  @Remote('externalTools')
+  async externalTools(): Promise<ExternalToolsSnapshot> {
+    const presets = this.ctx.get('agentPresets')
+    if (presets === undefined) return { scope: 'complete-presets', codex: false, claudeCode: false }
+    return await presets.externalToolsState()
+  }
+
+  /**
+   * Toggle one supported provider at the next safe Agent boundary.
+   * @param request - fixed product id and desired later-turn visibility.
+   * @returns updated managed-preset state.
+   */
+  @Remote('setExternalTool')
+  async setExternalTool(request: ExternalToolToggleRequest): Promise<ExternalToolsSnapshot> {
+    if (request.tool !== 'codex' && request.tool !== 'claude-code') {
+      throw new TypeError(`pluginInventory: unsupported external tool ${JSON.stringify(request.tool)}`)
+    }
+    const presets = this.ctx.get('agentPresets')
+    if (presets === undefined) throw new Error('pluginInventory: agent preset roster is unavailable')
+    return await presets.setExternalTool(request.tool, request.enabled)
   }
 
   /**

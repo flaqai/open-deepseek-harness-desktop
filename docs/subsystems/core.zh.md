@@ -397,6 +397,15 @@ Discovery is unmemoized: `list()` and `resolve()` re-read the roots on every cal
 
 ```ts cordis-catalog
 /**
+ * Register the one Host implementation that turns product ids into scoped
+ * tool plugins. Product packages stay outside this generic preset package's
+ * dependency graph.
+ * @param projector - product-specific Agent-scope mount factory.
+ * @returns disposer that removes every projected tool at safe idle boundaries.
+ */
+registerExternalToolProjector(projector: ExternalToolProjector): () => void
+
+/**
  * Every preset the configured roots currently supply.
  * @returns the presets, first-root-wins per id.
  */
@@ -494,6 +503,22 @@ async read(id: string): Promise<string>
 async copy(from: string, id: string, name?: string): Promise<void>
 
 /**
+ * Read effective Host connections projected into complete presets.
+ * @returns current Codex and Claude Code connection state.
+ */
+async externalToolsState(): Promise<ExternalToolsPresetState>
+
+/**
+ * Connect or disconnect one official product for complete Agent Presets.
+ * Idle Agents change immediately; running Agents retain their current
+ * composition until the driver returns to idle.
+ * @param tool - supported official product provider.
+ * @param enabled - whether later turns receive its delegation tool.
+ * @returns Updated effective connection state.
+ */
+async setExternalTool(tool: ExternalToolId, enabled: boolean): Promise<ExternalToolsPresetState>
+
+/**
  * Delete a locally authored preset.
  * @param id - the preset id.
  * @throws when the preset is unknown or ships with the deployment.
@@ -556,7 +581,7 @@ async standingKeyFor(id?: string): Promise<ScopeKey>
 
 Types: [ScopeKey](scope.md)
 
-Source: [`packages/preset/agent-presets/src/index.ts:82`](../../packages/preset/agent-presets/src/index.ts)
+Source: [`packages/preset/agent-presets/src/index.ts:108`](../../packages/preset/agent-presets/src/index.ts)
 
 <a id="ctxagents--agentregistry"></a>
 

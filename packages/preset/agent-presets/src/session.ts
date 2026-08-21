@@ -24,6 +24,16 @@ declare module '@deepseek-ai/dsh-session/types' {
      * the header's creation-time value.
      */
     'agent-preset/selected': { agentPreset: string }
+    /**
+     * Host-connected product tools projected into one model request. The
+     * complete array is logged once per step, including an empty array after
+     * a prior connected step, so request capabilities remain auditable.
+     */
+    'external-tools/resolved': {
+      turn: number
+      step: number
+      tools: Array<'codex' | 'claude-code'>
+    }
   }
 }
 

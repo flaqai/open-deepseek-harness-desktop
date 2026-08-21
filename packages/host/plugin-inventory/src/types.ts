@@ -148,3 +148,19 @@ export interface PluginInstallSnapshot {
   /** Bounded package-manager output for local troubleshooting after failure. */
   readonly diagnostic?: string
 }
+
+/** Official native coding products exposed by the external-tools surface. */
+export type ExternalToolId = 'codex' | 'claude-code'
+
+/** Host connection state projected beside Profile Bundle installation state. */
+export interface ExternalToolsSnapshot {
+  readonly scope: 'complete-presets'
+  readonly codex: boolean
+  readonly claudeCode: boolean
+}
+
+/** Fixed-provider toggle accepted by the guarded managed-preset operation. */
+export interface ExternalToolToggleRequest {
+  readonly tool: ExternalToolId
+  readonly enabled: boolean
+}

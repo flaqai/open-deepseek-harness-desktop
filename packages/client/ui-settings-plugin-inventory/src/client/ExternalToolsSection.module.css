@@ -1,0 +1,188 @@
+.section {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 4px 0 20px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  color: var(--dsw-alias-state-business-primary);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.intro h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 600;
+}
+
+.intro p:not(.eyebrow) {
+  max-width: 500px;
+  margin: 7px 0 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.presetBadge,
+.status {
+  flex: none;
+  border-radius: 999px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 20px;
+  padding: 2px 9px;
+}
+
+.presetBadge[data-ready='true'],
+.status[data-state='connected'] {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 11%, transparent);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  min-height: 210px;
+  flex-direction: column;
+  padding: 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-2);
+  box-sizing: border-box;
+}
+
+.card[data-connected='true'] {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 42%, var(--dsw-alias-border-l2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toolMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, var(--dsw-alias-bg-layer-2));
+  color: var(--dsw-alias-state-business-primary);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.toolMark[data-tool='claude-code'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.toolMark[data-tool='hermes'],
+.toolMark[data-tool='trae'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.status[data-state='planned'] {
+  opacity: 0.78;
+}
+
+.cardBody {
+  flex: 1;
+  padding: 15px 0 12px;
+}
+
+.cardBody h3 {
+  margin: 0 0 5px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.cardBody p,
+.footnote,
+.pageStatus,
+.failure,
+.error {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.cardAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.diagnostic {
+  margin-top: 10px;
+  color: var(--dsw-alias-state-danger-primary);
+  font-size: 12px;
+}
+
+.diagnostic pre {
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.footnote {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.failure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.error {
+  color: var(--dsw-alias-state-danger-primary);
+}
+
+@media (max-width: 680px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .intro {
+    flex-direction: column;
+  }
+}

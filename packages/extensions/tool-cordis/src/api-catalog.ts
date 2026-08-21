@@ -136,6 +136,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Registry over the deployment\'s agent presets.\n\nDiscovery is unmemoized: `list()` and `resolve()` re-read the roots on every call so a preset authored while the process runs is visible immediately, and a preset deleted underneath a picker disappears from the next read.',
     methods: [
       {
+        signature: 'registerExternalToolProjector(projector: ExternalToolProjector): () => void',
+        description: 'Register the one Host implementation that turns product ids into scoped tool plugins. Product packages stay outside this generic preset package\'s dependency graph.',
+        parameters: [{ name: 'projector', description: 'product-specific Agent-scope mount factory.' }],
+        returns: 'disposer that removes every projected tool at safe idle boundaries.',
+      },
+      {
         signature: 'async list(): Promise<AgentPreset[]>',
         description: 'Every preset the configured roots currently supply.',
         parameters: [],
@@ -180,6 +186,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Create a locally authored preset by copying an existing one whole.\n\nCopy is the only authoring write. Composition text never crosses this seam: the source is named by id and its directory is copied as it stands, so the copy is exactly as loadable as its source and authoring grants no capability the roster did not already carry. The copy is NOT mounted to validate — a source that mounts today yields a copy that mounts today.',
         parameters: [{ name: 'from', description: 'the preset the copy starts from; shipped presets are the primary source, so any trust is accepted.' }, { name: 'id', description: 'the new preset\'s id, which becomes its directory name.' }, { name: 'name', description: 'display name for the copy; absent falls back to the id.' }],
         throws: ['when the source is unknown, the id is unusable or already taken, or the deployment configures no writable root.'],
+      },
+      {
+        signature: 'async externalToolsState(): Promise<ExternalToolsPresetState>',
+        description: 'Read effective Host connections projected into complete presets.',
+        parameters: [],
+        returns: 'current Codex and Claude Code connection state.',
+      },
+      {
+        signature: 'async setExternalTool(tool: ExternalToolId, enabled: boolean): Promise<ExternalToolsPresetState>',
+        description: 'Connect or disconnect one official product for complete Agent Presets. Idle Agents change immediately; running Agents retain their current composition until the driver returns to idle.',
+        parameters: [{ name: 'tool', description: 'supported official product provider.' }, { name: 'enabled', description: 'whether later turns receive its delegation tool.' }],
+        returns: 'Updated effective connection state.',
       },
       {
         signature: 'async remove(id: string): Promise<void>',
@@ -3147,6 +3165,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EpochHeader',
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    system?: string;\n    tools?: ToolSchema[];\n}',
+  },
+  {
+    name: 'ExternalToolProjector',
+    declaration: 'export type ExternalToolProjector = (agent: Agent, tool: ExternalToolId) => () => Promise<void> | void;',
+  },
+  {
+    name: 'ExternalToolsPresetState',
+    declaration: 'export interface ExternalToolsPresetState {\n    readonly scope: \'complete-presets\';\n    readonly codex: boolean;\n    readonly claudeCode: boolean;\n}',
   },
   {
     name: 'FileDiff',

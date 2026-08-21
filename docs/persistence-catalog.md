@@ -393,6 +393,27 @@ Types: [ContentBlock](subsystems/core.md) · [TokenUsage](subsystems/llm-streami
 
 Source: [`packages/compaction/compaction/src/types.ts:33`](../packages/compaction/compaction/src/types.ts)
 
+### `external-tools/*`
+
+<a id="external-toolsresolved--log-only"></a>
+
+#### `external-tools/resolved` — log-only
+
+```ts persistence-catalog
+/**
+ * Host-connected product tools projected into one model request. The
+ * complete array is logged once per step, including an empty array after
+ * a prior connected step, so request capabilities remain auditable.
+ */
+'external-tools/resolved': {
+  turn: number
+  step: number
+  tools: Array<'codex' | 'claude-code'>
+}
+```
+
+Source: [`packages/preset/agent-presets/src/session.ts:32`](../packages/preset/agent-presets/src/session.ts)
+
 ### `feedback/*`
 
 <a id="feedbackrecord--log-only"></a>

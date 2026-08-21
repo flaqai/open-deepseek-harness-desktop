@@ -867,7 +867,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/plugin-inventory/src/index.ts:71`](../packages/host/plugin-inventory/src/index.ts)
+Source: [`packages/host/plugin-inventory/src/index.ts:76`](../packages/host/plugin-inventory/src/index.ts)
 
 <a id="deepseek-aidsh-host-webserver"></a>
 

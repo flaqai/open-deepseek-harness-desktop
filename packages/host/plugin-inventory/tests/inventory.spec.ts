@@ -97,6 +97,8 @@ describe('PluginInventoryGateway', () => {
     })
     expect(remoteMethods(inventory)).toEqual([
       { method: 'list', invocation: { kind: 'direct' } },
+      { method: 'externalTools', invocation: { kind: 'direct' } },
+      { method: 'setExternalTool', invocation: { kind: 'direct' } },
       { method: 'dismissDependencyHealth', invocation: { kind: 'direct' } },
       { method: 'uninstallQuarantine', invocation: { kind: 'direct' } },
       { method: 'startQuarantineRetry', invocation: { kind: 'direct' } },
@@ -106,6 +108,19 @@ describe('PluginInventoryGateway', () => {
       { method: 'getDependencyDoctor', invocation: { kind: 'direct' } },
       { method: 'getInstall', invocation: { kind: 'direct' } },
     ])
+  })
+
+  it('projects disconnected Host tools and rejects unsupported or unavailable toggles', async () => {
+    const { inventory } = await harness()
+    await expect(inventory.externalTools()).resolves.toEqual({
+      scope: 'complete-presets',
+      codex: false,
+      claudeCode: false,
+    })
+    await expect(inventory.setExternalTool({ tool: 'codex', enabled: true }))
+      .rejects.toThrow(/agent preset roster is unavailable/)
+    await expect(inventory.setExternalTool({ tool: 'hermes' as 'codex', enabled: true }))
+      .rejects.toThrow(/unsupported external tool/)
   })
 
   it('runs the core doctor in read-only and repair modes with structured phases', async () => {

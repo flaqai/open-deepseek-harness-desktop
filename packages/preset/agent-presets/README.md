@@ -23,6 +23,9 @@ Discovery is unmemoized: `list()` and `resolve()` re-read the roots on every cal
 - `ctx.agentPresets.read(id): Promise<string>` One preset's composition text, exactly as stored.
 - `ctx.agentPresets.copy(from, id, name?): Promise<void>` Create a locally authored preset by copying an existing one's whole directory — the only authoring write. No composition text crosses this seam, so a copy is exactly as loadable as its source; the copied metadata keeps the source's description but never its name or roster order, and `name` (or the id fallback) is what distinguishes the rows.
 - `ctx.agentPresets.remove(id): Promise<void>` Delete a locally authored preset; joined sessions keep their standing mount. Clears the user default when it named the preset just deleted: storing a default that does not exist yet is deliberate, but one this call removed will never be supplied again and would fail every session created without an explicit pick.
+- `ctx.agentPresets.externalToolsState(): Promise<ExternalToolsPresetState>` Read the Host Codex and Claude Code connections projected into complete Agent Presets.
+- `ctx.agentPresets.setExternalTool(tool, enabled): Promise<ExternalToolsPresetState>` Connect or disconnect one supported product. Idle complete-mode Agents update immediately; a running Agent keeps its current tools until it returns to idle, and `minimal` never receives the projection.
+- `ctx.agentPresets.registerExternalToolProjector(projector): () => void` Register the one Host implementation that mounts a connected product into an Agent's own scope. The generic roster owns settings and safe-boundary timing without depending on product tool packages.
 
 `AgentPreset` carries `id` (the directory name), `trust` (`system` or `user`, from the root it was found under), `path` (the absolute composition file), and — only when the preset cannot compose a session — `broken` (one human-readable reason, shown verbatim on roster surfaces).
 

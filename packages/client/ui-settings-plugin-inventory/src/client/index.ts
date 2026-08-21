@@ -8,11 +8,13 @@ import { PluginInventorySettingsTab, type PluginInventorySettingsTabInjected } f
 import { PluginDiagnosticsSection, type PluginDiagnosticsSectionInjected } from './PluginDiagnosticsSection.tsx'
 import { PluginDiscovery } from './PluginDiscovery.tsx'
 import type { PluginDiscoveryInjected } from './PluginDiscovery.tsx'
+import { ExternalToolsSection, type ExternalToolsSectionInjected } from './ExternalToolsSection.tsx'
 import { en, zh, type PluginInventoryLocaleKey } from './locales.ts'
 
 export type { PluginInventorySettingsTabInjected, PluginInventorySettingsTabProps } from './PluginInventorySettingsTab.tsx'
 export type { PluginDiagnosticsSectionInjected, PluginDiagnosticsSectionProps } from './PluginDiagnosticsSection.tsx'
 export type { PluginInventoryLocaleKey } from './locales.ts'
+export type { ExternalToolsSectionInjected, ExternalToolsSectionProps } from './ExternalToolsSection.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -94,6 +96,21 @@ export function apply(ctx: ClientContext): void {
     },
     getInstall,
   })
+  const externalToolsInjected = (): ExternalToolsSectionInjected => ({
+    list,
+    getInstall,
+    startInstall: discoveryInjected().startInstall,
+    externalTools: async () => {
+      const result = await ctx.remote.pluginInventory.externalTools()
+      if (!result.ok) throw new Error(`pluginInventory.externalTools failed: ${result.error.code}: ${result.error.message}`)
+      return result.value
+    },
+    setExternalTool: async (tool, enabled) => {
+      const result = await ctx.remote.pluginInventory.setExternalTool({ tool, enabled })
+      if (!result.ok) throw new Error(`pluginInventory.setExternalTool failed: ${result.error.code}: ${result.error.message}`)
+      return result.value
+    },
+  })
 
   ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
     name: 'settings.plugins.tab',
@@ -103,6 +120,14 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: injected,
   }, PluginInventorySettingsTab))
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'external-tools',
+    order: 18,
+    label: () => t('external.nav'),
+    locale: NS,
+    inject: externalToolsInjected,
+  }, ExternalToolsSection))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'diagnostics',

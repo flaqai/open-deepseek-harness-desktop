@@ -9,6 +9,7 @@ import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject, NS } from '../src/client/index.ts'
 import { PluginInventorySettingsTab } from '../src/client/PluginInventorySettingsTab.tsx'
 import { PluginDiagnosticsSection } from '../src/client/PluginDiagnosticsSection.tsx'
+import { ExternalToolsSection } from '../src/client/ExternalToolsSection.tsx'
 import { PluginDiscovery } from '../src/client/PluginDiscovery.tsx'
 import type { PluginInventorySettingsTabInjected } from '../src/client/PluginInventorySettingsTab.tsx'
 
@@ -41,6 +42,14 @@ async function bench() {
   const dismissDependencyHealth = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
   const startDependencyDoctor = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
   const getDependencyDoctor = vi.fn(async () => ({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } }))
+  const externalTools = vi.fn(async () => ({
+    ok: true as const,
+    value: { scope: 'complete-presets' as const, codex: false, claudeCode: false },
+  }))
+  const setExternalTool = vi.fn(async () => ({
+    ok: true as const,
+    value: { scope: 'complete-presets' as const, codex: true, claudeCode: false },
+  }))
   ctx.provide('remote.pluginInventory', {
     list,
     startInstall,
@@ -51,6 +60,8 @@ async function bench() {
     dismissDependencyHealth,
     startDependencyDoctor,
     getDependencyDoctor,
+    externalTools,
+    setExternalTool,
   })
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, list, startInstall, getInstall }
 }
@@ -81,7 +92,12 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     expect(entry.options).toMatchObject({ id: 'all', order: 10 })
     expect(entry.locale).toBe(NS)
     expect(resolveSlotLabel(entry.options.label)).toBe('插件列表')
-    const diagnostics = b.slots.entries('settings.section')[0]!
+    const sections = b.slots.entries('settings.section')
+    const external = sections.find(section => section.options.id === 'external-tools')!
+    expect(external.component).toBe(ExternalToolsSection)
+    expect(external.options).toMatchObject({ id: 'external-tools', order: 18 })
+    expect(resolveSlotLabel(external.options.label)).toBe('外部工具')
+    const diagnostics = sections.find(section => section.options.id === 'diagnostics')!
     expect(diagnostics.component).toBe(PluginDiagnosticsSection)
     expect(diagnostics.options).toMatchObject({ id: 'diagnostics', order: 25 })
     expect(resolveSlotLabel(diagnostics.options.label)).toBe('诊断')
@@ -108,7 +124,11 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     await vi.waitFor(() => { expect(b.slots.entries('settings.plugins.tab')).toHaveLength(1) })
     b.locale.setLocale('en')
     expect(resolveSlotLabel(b.slots.entries('settings.plugins.tab')[0]!.options.label)).toBe('Plugin list')
-    expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('Diagnostics')
+    const englishSections = b.slots.entries('settings.section')
+    expect(resolveSlotLabel(englishSections.find(section => section.options.id === 'external-tools')!.options.label))
+      .toBe('External tools')
+    expect(resolveSlotLabel(englishSections.find(section => section.options.id === 'diagnostics')!.options.label))
+      .toBe('Diagnostics')
 
     stop()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
@@ -117,7 +137,9 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     declare(b.slots)
     await vi.waitFor(() => {
       expect(b.slots.entries('settings.plugins.tab')[0]?.component).toBe(PluginInventorySettingsTab)
-      expect(b.slots.entries('settings.section')[0]?.component).toBe(PluginDiagnosticsSection)
+      const sections = b.slots.entries('settings.section')
+      expect(sections.find(section => section.options.id === 'external-tools')?.component).toBe(ExternalToolsSection)
+      expect(sections.find(section => section.options.id === 'diagnostics')?.component).toBe(PluginDiagnosticsSection)
       expect(b.slots.entries('conversation.hero.pluginDiscovery')[0]?.component).toBe(PluginDiscovery)
     })
 

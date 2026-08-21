@@ -12,6 +12,9 @@
       "path": "../../boot/app-boot"
     },
     {
+      "path": "../../preset/agent-presets"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {
@@ -31,6 +34,9 @@
     },
     {
       "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../subagent/tool-subagent"
     }
   ]
 }

@@ -4,7 +4,9 @@
 
 当清单包含 `dshmarket` 时，展开卡片会显示由核心 Host Remote 支持的风险确认卸载操作。打包应用会尊重成功移除，不会重新预装市场。
 
-Web 插件清单、诊断与发现界面。浏览器插件注册 id 为 `all` 的本地化 `settings.plugins.tab` 贡献，以及 id 为 `diagnostics` 的独立根 `settings.section` 贡献；“插件”分区继续只拥有清单标签栏。它还会向新会话主页贡献根作用域 `conversation.hero.pluginDiscovery` 入口。该入口打开一个社区项目精选指引，所列项目都明确记录了官方 `dsh plugin --profile ... add ...` 流程。每张卡片会标明第三方来源与许可证、显示带日期的 Star 档位、链接到源码仓库、复制项目记录的命令，并通过结构化 Host Remote 提供受保护安装。安装需要明确确认风险，展示后台进度与有界诊断，并说明重启后新 bundle 才会生效。界面不会转发任意 shell 文本，也不会在运行时请求 GitHub。底部链接进入完整 GitHub `dsh-plugin` 专题以继续发现；进入专题和 Star 数量都不代表安全审核或 DeepSeek 官方背书。
+Web 插件清单、诊断、外部工具连接与发现界面。浏览器插件注册 id 为 `all` 的本地化 `settings.plugins.tab` 贡献，以及 id 分别为 `external-tools` 与 `diagnostics` 的根 `settings.section` 贡献；“插件”分区继续只拥有清单标签栏。它还会向新会话主页贡献根作用域 `conversation.hero.pluginDiscovery` 入口。该入口打开一个社区项目精选指引，所列项目都明确记录了官方 `dsh plugin --profile ... add ...` 流程。每张卡片会标明第三方来源与许可证、显示带日期的 Star 档位、链接到源码仓库、复制项目记录的命令，并通过结构化 Host Remote 提供受保护安装。安装需要明确确认风险，展示后台进度与有界诊断，并说明重启后新 bundle 才会生效。界面不会转发任意 shell 文本，也不会在运行时请求 GitHub。底部链接进入完整 GitHub `dsh-plugin` 专题以继续发现；进入专题和 Star 数量都不代表安全审核或 DeepSeek 官方背书。
+
+“外部工具”分区为 Codex 与 Claude Code 提供一处易发现的连接流程：安装精确版本的官方 Provider bundle，重启使其挂载，再为完整模式连接或断开该产品。Host 独立于 Agent Preset 保存连接状态，并在 Agent 发布、idle 或从 idle 同步进入 running 的边界把启用工具投影到 Agent 自己的 scope。因此已有历史会话会从下一轮获得新连接；运行中的回合保持当前工具直到回到 idle，`minimal` 继续保持精简。当前 Harness 版本没有 Hermes 与 Trae 的官方 Provider bundle，因此两者仍显示为不可操作的占位项。
 
 插件清单标签页在插件激活期间不会读取 Remote；首次选择该标签页时才挂载组件，并通过 [`api-remotes`](../../api/remotes/README.md) 懒调用 `ctx.remote.pluginInventory.list()`。
 
@@ -26,3 +28,4 @@ Web 插件清单、诊断与发现界面。浏览器插件注册 id 为 `all` �
 - **只读 Loader 视图** —— 本地搜索不会额外引入来源、按来源分组、当前浏览器激活诊断或实时 Loader 修改控件。
 - **带日期的发现元数据** —— 精选卡片是 2026-08-16 采集并检查来源的指引，不是实时榜单。链接的 GitHub 专题用于查看更广、持续变化的目录。
 - **仅 registry 安装来源** —— 安装操作接受已审阅的 npm registry 软件包说明符。Git、URL、alias、tarball 与本地路径来源继续通过界面展示的 CLI 流程使用。
+- **仅官方 Provider** —— Codex 与 Claude Code 因本版本带有对应 Provider bundle 而可操作；Hermes 与 Trae 在正式 Provider 契约出现前只作信息展示。
