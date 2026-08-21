@@ -8,7 +8,7 @@
   <strong>Une édition de bureau de DeepSeek Harness prête à l'emploi et attentive à la sécurité des dépendances</strong>
 </p>
 
-[English](README.md) · [简体中文](README.zh.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · Français · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+Langues : [English](README.md) · [简体中文](README.zh.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · Français · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
 Open DeepSeek Harness Desktop est une distribution de bureau indépendante et maintenue par la communauté de [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), destinée à macOS, Windows et Linux. Electron ne crée pas un second runtime Agent : il démarre et supervise le Harness Host local de façon sécurisée, puis affiche le client Web existant.
 
