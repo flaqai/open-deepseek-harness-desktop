@@ -18,6 +18,8 @@ const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repositoryRoot = resolve(desktopRoot, '..', '..')
 const sourceDirectory = join(desktopRoot, 'bundled-plugins')
 const outputDirectory = join(repositoryRoot, '.artifacts', 'desktop-bundled-plugins')
+const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 
 function targetArgument() {
   const index = process.argv.indexOf('--target')
@@ -91,7 +93,7 @@ async function main() {
 
     const sourcePack = join(temp, 'source-pack')
     await mkdir(sourcePack)
-    await run('pnpm', [
+    await run(pnpmCommand, [
       '--config.verifyDepsBeforeRun=false', '--filter', PACKAGE_NAME,
       'pack', '--pack-destination', sourcePack,
     ], repositoryRoot)
@@ -103,7 +105,7 @@ async function main() {
       private: true,
       dependencies: { [PACKAGE_NAME]: `file:${sourceArchive}` },
     }, null, 2)}\n`)
-    await run('npm', [
+    await run(npmCommand, [
       'install', '--ignore-scripts', '--omit=dev', '--legacy-peer-deps', '--no-audit', '--no-fund',
     ], installRoot, {
       npm_config_cache: join(temp, 'npm-cache'),
@@ -131,7 +133,7 @@ async function main() {
 
     const packed = join(temp, 'packed')
     await mkdir(packed)
-    await run('npm', ['pack', '--pack-destination', packed], stage, {
+    await run(npmCommand, ['pack', '--pack-destination', packed], stage, {
       npm_config_cache: join(temp, 'npm-cache'),
     })
     const archive = `deepseek-ai-dsh-subagent-codex-${VERSION}-${target}.tgz`
