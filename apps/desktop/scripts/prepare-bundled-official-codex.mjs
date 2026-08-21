@@ -110,8 +110,12 @@ async function main() {
     ], installRoot, {
       npm_config_cache: join(temp, 'npm-cache'),
       npm_config_registry: process.env.npm_config_registry ?? 'https://registry.npmjs.org',
-      npm_config_platform: platform,
-      npm_config_arch: arch,
+      // npm's cross-platform selectors are named `os` and `cpu`. The
+      // `platform`/`arch` aliases are not honored by npm install, which made an
+      // Intel package prepared on Apple Silicon silently select the arm64
+      // optional payload and fail the closure check below.
+      npm_config_os: platform,
+      npm_config_cpu: arch,
     })
 
     const nodeModules = join(installRoot, 'node_modules')
