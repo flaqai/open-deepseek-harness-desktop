@@ -18,8 +18,17 @@ const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repositoryRoot = resolve(desktopRoot, '..', '..')
 const sourceDirectory = join(desktopRoot, 'bundled-plugins')
 const outputDirectory = join(repositoryRoot, '.artifacts', 'desktop-bundled-plugins')
-const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+
+function packageManagerInvocation(manager, args) {
+  if (process.platform !== 'win32') return { command: manager, args }
+  const entry = manager === 'pnpm'
+    ? process.env.npm_execpath
+    : join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  if (entry === undefined || entry.length === 0) {
+    throw new Error(`desktop: cannot resolve the Windows ${manager} JavaScript entry`)
+  }
+  return { command: process.execPath, args: [entry, ...args] }
+}
 
 function targetArgument() {
   const index = process.argv.indexOf('--target')
@@ -47,6 +56,11 @@ function run(command, args, cwd, env = {}) {
       reject(new Error(`${command} ${args.join(' ')} failed (${String(code)}, ${String(signal)}): ${Buffer.concat(stderr).toString('utf8').slice(-4000)}`))
     })
   })
+}
+
+function runPackageManager(manager, args, cwd, env = {}) {
+  const invocation = packageManagerInvocation(manager, args)
+  return run(invocation.command, invocation.args, cwd, env)
 }
 
 async function packageDirectory(nodeModules, name) {
@@ -93,7 +107,7 @@ async function main() {
 
     const sourcePack = join(temp, 'source-pack')
     await mkdir(sourcePack)
-    await run(pnpmCommand, [
+    await runPackageManager('pnpm', [
       '--config.verifyDepsBeforeRun=false', '--filter', PACKAGE_NAME,
       'pack', '--pack-destination', sourcePack,
     ], repositoryRoot)
@@ -105,7 +119,7 @@ async function main() {
       private: true,
       dependencies: { [PACKAGE_NAME]: `file:${sourceArchive}` },
     }, null, 2)}\n`)
-    await run(npmCommand, [
+    await runPackageManager('npm', [
       'install', '--ignore-scripts', '--omit=dev', '--legacy-peer-deps', '--no-audit', '--no-fund',
     ], installRoot, {
       npm_config_cache: join(temp, 'npm-cache'),
@@ -133,7 +147,7 @@ async function main() {
 
     const packed = join(temp, 'packed')
     await mkdir(packed)
-    await run(npmCommand, ['pack', '--pack-destination', packed], stage, {
+    await runPackageManager('npm', ['pack', '--pack-destination', packed], stage, {
       npm_config_cache: join(temp, 'npm-cache'),
     })
     const archive = `deepseek-ai-dsh-subagent-codex-${VERSION}-${target}.tgz`
