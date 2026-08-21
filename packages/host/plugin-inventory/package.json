@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-host-plugin-inventory",
   "description": "Remote Loader inventory and guarded profile-plugin installation",
-  "version": "0.1.0-rc.7",
+  "version": "0.1.0-rc.8",
   "publishConfig": {
     "access": "public"
   },

@@ -290,6 +290,18 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     })
   }
 
+  const activeCandidates = candidates ?? []
+  const allCandidatesPicked = activeCandidates.length > 0
+    && activeCandidates.every(candidate => picked.has(candidate.id))
+
+  const toggleAllCandidates = (): void => {
+    setPicked((current) => {
+      return activeCandidates.every(candidate => current.has(candidate.id))
+        ? new Set()
+        : new Set(activeCandidates.map(candidate => candidate.id))
+    })
+  }
+
   // A route the adapter already describes answers without an endpoint; only a
   // draft with neither has nothing to ask about.
   const askable = probe.provider !== undefined || (probe.baseURL !== undefined && probe.baseURL.length > 0)
@@ -445,6 +457,11 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           </>
         )}
       >
+        <div className={styles['candidateActions']}>
+          <Button variant="ghost" size="sm" onClick={toggleAllCandidates}>
+            {t(allCandidatesPicked ? 'fetchDeselectAll' : 'fetchSelectAll')}
+          </Button>
+        </div>
         <ul className={styles['candidateList']}>
           {(candidates ?? []).map(candidate => (
             <li key={candidate.id} className={styles['candidate']}>

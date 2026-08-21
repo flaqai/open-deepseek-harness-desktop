@@ -12,13 +12,14 @@ Search and fetch share no request schema and no business logic, but they are del
 
 ## Search request and result
 
-The model-facing tool argument is just a `query`; `maxResults` is a consumer-owned bound (`dsh-tool-web`'s `searchMaxResults` config, default `8`) passed through the seam and enforced on the way back — if a provider over-returns, the seam truncates `sources[]` and sets `truncated`.
+Each seam request carries exactly one `query`. The `dsh-tool-web` consumer accepts a required `queries` array and fans it out into separate seam requests; a one-item array performs one search. `maxResults` is a consumer-owned bound (`dsh-tool-web`'s `searchMaxResults` config, default `8`) passed through the seam and enforced on the way back — if a provider over-returns, the seam truncates `sources[]` and sets `truncated`.
 
 ```ts type-equiv
 /**
- * What one search-capable backend can return. The model-facing argument is just
- * a query; `maxResults` is a `dsh-tool-web`-layer bound passed through unchanged
- * and enforced on the way back by the seam (see {@link WebSearchResult}).
+ * What one search-capable backend is asked to search. Each request carries one
+ * query; a consumer may issue several requests. `maxResults` is a
+ * `dsh-tool-web`-layer bound passed through unchanged and enforced on the way
+ * back by the seam (see {@link WebSearchResult}).
  */
 interface WebSearchRequest {
   readonly query: string

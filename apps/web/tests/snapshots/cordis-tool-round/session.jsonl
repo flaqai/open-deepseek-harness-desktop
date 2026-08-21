@@ -47,11 +47,15 @@
 {"type":"step/end","seq":248,"time":1785157569554,"data":{"turn":1,"step":4}}
 {"type":"turn/end","seq":249,"time":1785157569554,"data":{"turn":1,"reason":{"kind":"completed"}}}
 {"type":"user/message","seq":250,"time":1785157569555,"data":{"content":[{"type":"text","text":"Use only Cordis tools. Call cordis_stop with pluginId \"snap-1\". After it succeeds, reply exactly CORDIS_UI_DONE and stop."}],"source":{"kind":"user","rpcId":"{{rpcId}}"}},"surfaceOp":"append"}
-{"type":"assistant/chunk","seq":251,"time":1785157569556,"data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
-{"type":"assistant/chunk","seq":252,"time":1785157569557,"data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"cordis-stop","name":"cordis_stop","arguments":"{\"pluginId\":\"snap-1\"}"}}}}
+{"type":"assistant/chunk","seq":251,"time":1785157569556,"data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","seq":252,"time":1785157569557,"data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"The Cordis Plugin is running."}}}}
 {"type":"assistant/chunk","seq":253,"time":1785157569558,"data":{"turn":2,"step":1,"chunk":{"type":"usage","usage":{"inputTokens":3,"outputTokens":3}}}}
-{"type":"assistant/chunk","seq":254,"time":1785157569559,"data":{"turn":2,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
-{"type":"assistant/chunk","seq":255,"time":1785157569560,"data":{"turn":2,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
-{"type":"assistant/chunk","seq":256,"time":1785157569561,"data":{"turn":2,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"CORDIS_UI_DONE"}}}}
-{"type":"assistant/chunk","seq":257,"time":1785157569562,"data":{"turn":2,"step":2,"chunk":{"type":"usage","usage":{"inputTokens":3,"outputTokens":3}}}}
-{"type":"assistant/chunk","seq":258,"time":1785157569563,"data":{"turn":2,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","seq":254,"time":1785157569559,"data":{"turn":2,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","seq":255,"time":1785157569560,"data":{"turn":3,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","seq":256,"time":1785157569561,"data":{"turn":3,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"cordis-stop","name":"cordis_stop","arguments":"{\"pluginId\":\"snap-1\"}"}}}}
+{"type":"assistant/chunk","seq":257,"time":1785157569562,"data":{"turn":3,"step":1,"chunk":{"type":"usage","usage":{"inputTokens":3,"outputTokens":3}}}}
+{"type":"assistant/chunk","seq":258,"time":1785157569563,"data":{"turn":3,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","seq":259,"time":1785157569564,"data":{"turn":3,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","seq":260,"time":1785157569565,"data":{"turn":3,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"CORDIS_UI_DONE"}}}}
+{"type":"assistant/chunk","seq":261,"time":1785157569566,"data":{"turn":3,"step":2,"chunk":{"type":"usage","usage":{"inputTokens":3,"outputTokens":3}}}}
+{"type":"assistant/chunk","seq":262,"time":1785157569567,"data":{"turn":3,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}

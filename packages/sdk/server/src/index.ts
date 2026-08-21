@@ -74,6 +74,12 @@ export function apply(ctx: Context, config: JsonRpcConfig): void {
   }
 
   transport.onRequest(async (method, params) => {
+    // `initialize` is the SDK's readiness boundary. This plugin can activate
+    // before async sibling Loader entries (for example an MCP client's initial
+    // tool discovery), so do not advertise a ready runtime until the complete
+    // current tree has settled. A hand-built context without Loader remains
+    // immediately usable.
+    if (method === 'initialize') await ctx.get('loader')?.await()
     const result = await server.handleRequest(method, params)
     if (method === 'shutdown') {
       // Run after the handler result is written; the task then flushes, disposes, and exits.

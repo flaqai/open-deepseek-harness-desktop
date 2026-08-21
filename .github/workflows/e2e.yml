@@ -76,15 +76,11 @@ jobs:
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile
 
-      # The with-key escalation e2e self-skips without a usable runner. Install
-      # bwrap so trusted CI exercises it; the userns knob is best-effort and the
-      # test's functional probe decides.
-      - name: Install bubblewrap (unrestrict userns)
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -yq bubblewrap
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 \
-            || echo "apparmor userns knob absent — the functional probe decides"
+      # The with-key escalation e2e self-skips without a usable runner. Prepare
+      # bwrap so trusted CI exercises it; the functional probe remains the
+      # authority on whether the runner can use the sandbox.
+      - name: Prepare bubblewrap (unrestrict userns)
+        run: bash scripts/prepare-ci-bubblewrap.sh
 
       # Guard against a false green: the e2e suites self-skip when the key is
       # absent, so a missing/misconfigured secret would otherwise pass as
@@ -108,7 +104,7 @@ jobs:
       # the built artifact under plain Node, resolving plugins through real package
       # exports — the shape a real consumer runs. That requires a prior build.
       - name: Build (lib for the e2e example bins)
-        run: pnpm run build
+        run: pnpm run build:official
 
       # Real-API end-to-end tests only. The keyless gates (lint/typecheck/
       # coverage/snapshot/etc.) already run in ci.yml on every push/PR.

@@ -4,14 +4,14 @@
 // ObservableSnapshot fake, no wire or Tool presentation plugin.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useEffect } from 'react'
 import type {
   AssistantMessageNode, CommandNode, CompactionSummaryNode, ConversationNode, ConversationSnapshot,
   ModelRetryNode, RunningToolCall, SessionId, SessionListState, ToolCallBlock, ToolResultNode, TurnErrorNode,
   TurnMaxTokensNode, UserMessageNode, WorkspaceListState,
 } from '@deepseek-ai/dsh-client-runtime/client'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   createSnapshotStore, EMPTY_CONVERSATION_VIEWS, PendingWait,
 } from '@deepseek-ai/dsh-client-runtime/client'
@@ -152,7 +152,7 @@ function emptyWorkspaces() {
 function makeHarness(init?: Partial<ConversationSnapshot>) {
   const { set, source } = makeSource(init)
   const openDetails = vi.fn<(t: SelectionTarget) => void>()
-  const openFile = vi.fn<(path: string) => void>()
+  const openFile = vi.fn<(path: string) => Promise<void>>().mockResolvedValue(undefined)
   const loadOlder = vi.fn()
   const inspectCall = vi.fn<(callId: string) => void>()
   // In-memory scroll memory matching the apply.ts per-session map contract.
@@ -348,7 +348,7 @@ describe('Chat node rendering', () => {
       resolve: (value) => {
         if (value !== 'report.html') return undefined
         return {
-          open: () => { h.openFile(`for-seq-${String(owner.seq)}/site/report.html`) },
+          open: () => { void h.openFile(`for-seq-${String(owner.seq)}/site/report.html`) },
           label: '打开 site/report.html',
           title: 'site/report.html',
         }
@@ -967,8 +967,111 @@ describe('ChatView', () => {
     })
     const owner = calls[0]?.owner as RoutedChatNodeOwner
     expect((owner.node.data as { readonly root: ToolCallBlock }).root).toBe(block)
-    expect(owner.openFile).toBe(h.openFile)
+    expect(owner.openFile).not.toBe(h.openFile)
+    owner.openFile('src/a.ts')
+    expect(h.openFile).toHaveBeenCalledWith('src/a.ts')
     expect(owner.inspectCall).toBe(h.inspectCall)
+  })
+
+  it('shows a Host open refusal with the reason and retries the same path', async () => {
+    const openFile = vi.fn<(path: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('xdg-open is not available'))
+      .mockResolvedValueOnce(undefined)
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    h.props.openFile = openFile
+    render(<h.ChatView {...h.props} />)
+    await act(async () => { h.toolOwners[0]!.openFile('src/a.ts') })
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: '无法打开文件' })).toBeTruthy()
+    })
+    expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('xdg-open is not available')
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重试' })) })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    expect(openFile).toHaveBeenCalledTimes(2)
+    expect(openFile).toHaveBeenNthCalledWith(1, 'src/a.ts')
+    expect(openFile).toHaveBeenNthCalledWith(2, 'src/a.ts')
+  })
+
+  it('keeps a non-Error Host refusal visible and dismisses it on cancel', async () => {
+    const openFile = vi.fn<(path: string) => Promise<void>>()
+      .mockRejectedValueOnce('permission denied')
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    h.props.openFile = openFile
+    render(<h.ChatView {...h.props} />)
+    await act(async () => { h.toolOwners[0]!.openFile('notes.md') })
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('permission denied')
+    })
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(openFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('substitutes the unknown-open copy when the Host refusal has no text', async () => {
+    const openFile = vi.fn<(path: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error(''))
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    h.props.openFile = openFile
+    render(<h.ChatView {...h.props} />)
+    await act(async () => { h.toolOwners[0]!.openFile('empty.ts') })
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('无法打开此文件')
+    })
+  })
+
+  it('names a workspace-folder Host refusal as a folder', async () => {
+    const openFile = vi.fn<(path: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error(''))
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    h.props.openFile = openFile
+    render(<h.ChatView {...h.props} />)
+    await act(async () => { h.toolOwners[0]!.openFile('.') })
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: '无法打开文件夹' }).textContent).toContain('无法打开此文件夹')
+    })
+  })
+
+  it('ignores a Host refusal that settles after the dialog is dismissed', async () => {
+    let rejectRetry!: (error: unknown) => void
+    const openFile = vi.fn<(path: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('first refusal'))
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+        rejectRetry = reject
+      }))
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    h.props.openFile = openFile
+    render(<h.ChatView {...h.props} />)
+    await act(async () => { h.toolOwners[0]!.openFile('src/a.ts') })
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('first refusal')
+    })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重试' })) })
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await act(async () => { rejectRetry(new Error('late refusal')) })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('ignores a Host open that succeeds after the dialog is dismissed', async () => {
+    let resolveRetry!: () => void
+    const openFile = vi.fn<(path: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('first refusal'))
+      .mockImplementationOnce(() => new Promise<void>((resolve) => {
+        resolveRetry = () => { resolve() }
+      }))
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    h.props.openFile = openFile
+    render(<h.ChatView {...h.props} />)
+    await act(async () => { h.toolOwners[0]!.openFile('src/a.ts') })
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('first refusal')
+    })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重试' })) })
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    await act(async () => { resolveRetry() })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('prepend preserves a semantic row; a trailing user node force-scrolls', () => {

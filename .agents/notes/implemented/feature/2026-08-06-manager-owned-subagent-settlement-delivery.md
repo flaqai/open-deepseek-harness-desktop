@@ -62,7 +62,7 @@ Three assembled ACP scenarios cover the notice: a child that never reports, a ch
 
 A keyless headless Loader snapshot covers the user-visible path end to end. Its replay parent omits `run_in_background` to exercise the continuable background default, never calls `list_agents`, `send_message`, or Task tools, consumes the manager-authored `subagent-settled` notice, and produces its final answer. The child never calls `report`, so the transcript cannot pass through the cooperative report path. A test-only Loader fence holds the parent's post-spawn request until the real manager notice enters its inbox, removing platform scheduling from the transcript without synthesizing the notice.
 
-`subagent-report` needed one more concession. With the shipped waking report default, that scenario has two independent parent wakes — the report and the settlement — and whether the second extends the first's turn or opens its own is a genuine coin flip that measured 50/50 across runs. No authored transcript can hold both orders. Its overlay therefore pins `reportDelivery: quiet`, leaving settlement as the only wake, and a snapshot-only pre-step fence holds the child until the parent's spawn turn ends so that wake opens one deterministic turn claiming both messages. The waking report default keeps its coverage in the report package's own tests.
+The `subagent-report` scenario uses the default next-step report delivery. A snapshot-only fence holds the child until the parent's spawn turn ends, then holds the parent in maintenance until settlement follows the report. The resumed parent claims the next-step report before the queued next-turn settlement. The [report/settlement ordering decision](../bug-fix/2026-08-17-subagent-report-settlement-ordering.md) owns this cross-state ordering.
 
 The refusal and interruption wordings are pinned verbatim in unit tests rather than in a replayed transcript: producing them needs a rejecting policy plugin or a cancellation fenced at a step boundary, which the keyless assemblies do not otherwise carry, and the assembled scenarios already pin the notice pathway itself end to end.
 
@@ -87,7 +87,7 @@ The refusal and interruption wordings are pinned verbatim in unit tests rather t
 - `Activation` carries `parentSession` and `announced`. The first exists because the child handle is disposed before delivery; the second is what keeps a rolled-back materialization silent.
 - `foldConsumedWork()` replaces `dsh-session`'s `findLastMessageTurnEnd()` and moves to `dsh-agent`, which owns the inbox marker it reads; the one-shot in-process path folds the same answer and does not classify a cut-short one-shot child as `completed`.
 - Unit coverage pins the unconditional contract, each terminal reason, idle and busy scheduling, the batch, the maintenance regression, the pre-release ordering, a parent that is gone, and a rejected send that must not fail teardown.
-- Three ACP scenarios use an explicit settlement fence, and `subagent-report` has a config overlay that pins quiet report delivery.
+- Three ACP scenarios use an explicit settlement fence, and `subagent-report` pins the default report-before-settlement next-step order.
 - A keyless headless Loader snapshot pins background start → manager-authored settlement notice → final parent answer with no polling or child `report` call.
 
 ### Accepted risks
@@ -100,4 +100,4 @@ Stop-reason attribution is a best effort over the log's existing splice vocabula
 
 Turn amplification is real for deep or wide trees, and it is not configurable by design. The step-boundary batch bounds it for simultaneous settlement but not for children that settle apart.
 
-Two independent waking sources cannot be ordered in an authored transcript. The assembled coverage pins each separately rather than their interleaving.
+Reports and their later settlement notices are ordered through the parent's next-step FIFO. Independent settlements from sibling children retain their actual delivery order rather than a synthetic sibling ordering.

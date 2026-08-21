@@ -52,8 +52,9 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
     const dialog = page.getByRole('dialog', { name: 'Select Workspace Directory' })
     await dialog.waitFor({ timeout: 10_000 })
     await dialog.getByRole('button', { name: 'Edit path' }).click()
-    await dialog.getByLabel('Edit path').fill(path)
-    await dialog.getByLabel('Edit path').press('Enter')
+    const pathInput = dialog.locator('input[aria-label="Edit path"]')
+    await pathInput.fill(path)
+    await pathInput.press('Enter')
     return dialog
   }
 

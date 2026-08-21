@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import LlmRuntime, { createUserMessage } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { StreamChunk } from '@deepseek-ai/dsh-llm'
 import FileSettingsProvider from '@deepseek-ai/dsh-settings-file'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
@@ -755,7 +755,7 @@ describe('modelOverrides', () => {
   })
 })
 
-describe('reasoning-dispatch compat switches', () => {
+describe('compat switches', () => {
   /** The materialized models of one route, keyed by id. */
   function modelsOf(providers: Record<string, LlmPiAi.PiAiProviderProfile>, route: string): Map<string, Model<Api>> {
     const models = resolveProfiles(providers).get(route)?.piProvider.getModels() ?? []
@@ -813,18 +813,244 @@ describe('reasoning-dispatch compat switches', () => {
     expect(models.get(responses.id)?.compat).toEqual(responses.compat)
   })
 
-  it('rejects a model-level switch on a protocol that has no such field', () => {
+  it('rejects a model-level switch on a protocol that has no such field, naming what it offers', () => {
     expect(() => resolveProfiles({
       anthropic: {
         models: [{ id: 'claude-sonnet-4-5', compat: { thinkingFormat: 'openai' } }],
       },
-    })).toThrow(/exist only on openai-completions/)
+    })).toThrow(/its api is "anthropic-messages", which does not take it.*exists on openai-completions/s)
   })
 
   it('rejects route switches no model on the route can take', () => {
     expect(() => resolveProfiles({
       anthropic: { compat: { thinkingFormat: 'openai' } },
-    })).toThrow(/no model on the route speaks openai-completions/)
+    })).toThrow(/no model on the route speaks a protocol that takes it/)
+  })
+
+  it('carries the developer-role switch onto a hand-declared reasoning model', () => {
+    // pi-ai reads this switch only for a reasoning model, and detects it from
+    // the endpoint URL — which for a private gateway answers as though it were
+    // OpenAI itself, so the route must be able to say otherwise.
+    const models = modelsOf({
+      'acme-gateway': {
+        api: 'openai-completions',
+        baseURL: 'https://acme.test',
+        compat: { supportsDeveloperRole: false, maxTokensField: 'max_tokens' },
+        models: [{ id: 'acme-think', reasoningEfforts: { off: null, high: 'high' } }],
+      },
+    }, 'acme-gateway')
+
+    expect(models.get('acme-think')?.compat).toEqual({
+      supportsDeveloperRole: false,
+      maxTokensField: 'max_tokens',
+    })
+  })
+
+  it('carries a switch both OpenAI protocols declare onto an openai-responses route', () => {
+    const models = modelsOf({
+      'acme-responses': {
+        api: 'openai-responses',
+        baseURL: 'https://acme.test',
+        compat: { supportsDeveloperRole: false },
+        models: [{ id: 'acme-r', reasoningEfforts: { off: null, high: 'high' } }],
+      },
+    }, 'acme-responses')
+
+    expect(models.get('acme-r')?.compat).toEqual({ supportsDeveloperRole: false })
+  })
+
+  it('carries an anthropic-only switch onto an anthropic-messages route', () => {
+    const models = modelsOf({
+      'acme-claude': {
+        api: 'anthropic-messages',
+        baseURL: 'https://acme.test',
+        compat: { supportsTemperature: false, supportsCacheControlOnTools: false },
+        models: [{ id: 'acme-opus' }],
+      },
+    }, 'acme-claude')
+
+    expect(models.get('acme-opus')?.compat).toEqual({
+      supportsTemperature: false,
+      supportsCacheControlOnTools: false,
+    })
+  })
+
+  it('lands each route switch only on the models whose protocol declares it', () => {
+    const catalog = getBuiltinModels('xai') as readonly Model<Api>[]
+    const completions = catalog.find(model => model.api === 'openai-completions')
+    const responses = catalog.find(model => model.api === 'openai-responses')
+    if (completions === undefined || responses === undefined) throw new Error('xai no longer ships a mixed catalog')
+
+    const models = modelsOf({
+      xai: {
+        // Both protocols take the first switch; only completions takes the second.
+        compat: { supportsDeveloperRole: false, thinkingFormat: 'openai' },
+        models: [{ id: completions.id }, { id: responses.id }],
+      },
+    }, 'xai')
+
+    const onCompletions = models.get(completions.id)?.compat as OpenAICompletionsCompat
+    expect(onCompletions.supportsDeveloperRole).toBe(false)
+    expect(onCompletions.thinkingFormat).toBe('openai')
+    const onResponses = models.get(responses.id)?.compat as { supportsDeveloperRole?: boolean; thinkingFormat?: string }
+    expect(onResponses.supportsDeveloperRole).toBe(false)
+    expect(onResponses.thinkingFormat).toBeUndefined()
+  })
+
+  it('carries chat-template kwargs beside the thinking format that dispatches through them', () => {
+    const models = modelsOf({
+      'acme-qwen': {
+        api: 'openai-completions',
+        baseURL: 'https://acme.test',
+        models: [{
+          id: 'qwen-local',
+          reasoningEfforts: { off: null, medium: 'medium' },
+          compat: {
+            thinkingFormat: 'qwen-chat-template',
+            chatTemplateKwargs: { enable_thinking: { $var: 'thinking.enabled' } },
+          },
+        }],
+      },
+    }, 'acme-qwen')
+
+    expect(models.get('qwen-local')?.compat).toEqual({
+      thinkingFormat: 'qwen-chat-template',
+      chatTemplateKwargs: { enable_thinking: { $var: 'thinking.enabled' } },
+    })
+  })
+
+  it('rejects a model switch on an unrecognized protocol as having no configurable compat', () => {
+    expect(() => resolveProfiles({
+      'acme-gateway': {
+        api: 'acme-chat',
+        baseURL: 'https://acme.test',
+        models: [{ id: 'acme-a', compat: { supportsStore: false } }],
+      },
+    })).toThrow(/its api is "acme-chat", which does not take it.*"acme-chat" offers no configurable compat/s)
+  })
+
+  it('refuses a valueless compat key written through the composed settings path', async () => {
+    // The write path an operator reaches: a section resolved by schemastery,
+    // judged by this adapter's section validator before it is stored.
+    // schemastery keeps the null, so nothing but that check stands between it
+    // and `Model.compat`.
+    const dir = await home()
+    const ctx = await bootWithSettings(dir, {})
+    await expect(ctx.settings.update(settingsNamespace('llm-pi-ai'), {
+      providers: {
+        'acme-gateway': {
+          api: 'openai-completions',
+          baseURL: 'https://acme.test/v1',
+          compat: { supportsDeveloperRole: null },
+          models: [{ id: 'acme-a' }],
+        },
+      },
+    })).rejects.toThrow(/compat "supportsDeveloperRole" with no value/)
+  })
+
+  it('carries a compat switch from a written settings section onto the wire', async () => {
+    // End to end for the reported gap: the switch enters as configuration and
+    // changes the request the provider receives, not merely the resolved model.
+    vi.stubEnv(KEY_ENV, 'test-key')
+    const server = await mockServer([{ events: textEvents }])
+    const dir = await home()
+    const ctx = await bootWithSettings(dir, {})
+    await ctx.settings.update(settingsNamespace('llm-pi-ai'), {
+      providers: {
+        'acme-gateway': {
+          apiKeyEnv: KEY_ENV,
+          api: 'openai-completions',
+          baseURL: `${server.url}/v1`,
+          compat: { supportsDeveloperRole: false },
+          models: [{ id: 'acme-think', reasoningEfforts: { off: null, high: 'high' } }],
+        },
+      },
+    })
+
+    await assemble(ctx, {
+      provider: 'acme-gateway',
+      model: 'acme-think',
+      reasoningEffort: ReasoningEffortId('high'),
+      system: 'you are a harness',
+      messages: [],
+    })
+
+    const request = server.requests[0] as { messages: { role: string }[] }
+    expect(request.messages.map(message => message.role)).toEqual(['system'])
+  })
+
+  it('refuses a valueless compat key rather than writing null over the catalog', () => {
+    // schemastery passes a YAML bare key through as null. Carried forward it
+    // would replace the installed entry's value, and pi-ai's `??` would then
+    // reach for its baseURL detection — the "written but not applied" outcome.
+    expect(() => resolveProfiles({
+      'acme-gateway': {
+        api: 'openai-completions',
+        baseURL: 'https://acme.test',
+        compat: { supportsDeveloperRole: null } as never,
+        models: [{ id: 'acme-a' }],
+      },
+    })).toThrow(/compat "supportsDeveloperRole" with no value/)
+  })
+
+  it('refuses a compat key whose value is undefined, as a cordis.yml entry can write', () => {
+    // `!!js undefined` reaches the same state as a YAML bare key, and
+    // schemastery keeps the key either way, so both are refused together.
+    expect(() => resolveProfiles({
+      'acme-gateway': {
+        api: 'openai-completions',
+        baseURL: 'https://acme.test',
+        compat: { supportsDeveloperRole: undefined } as never,
+        models: [{ id: 'acme-a' }],
+      },
+    })).toThrow(/compat "supportsDeveloperRole" with no value/)
+  })
+
+  it('refuses a valueless compat key on a model entry too', () => {
+    expect(() => resolveProfiles({
+      deepseek: {
+        modelOverrides: { 'deepseek-v4-flash': { compat: { requiresReasoningContentOnAssistantMessages: null } } as never },
+      },
+    })).toThrow(/model "deepseek-v4-flash" sets compat "requiresReasoningContentOnAssistantMessages" with no value/)
+  })
+
+  it('serves the Responses compat type on every protocol pi-ai gives it to', () => {
+    // pi-ai types azure-openai-responses and openai-codex-responses with the
+    // same OpenAIResponsesCompat, so a switch settable on one is settable on all.
+    for (const route of ['azure-openai-responses', 'openai-codex']) {
+      const models = modelsOf({ [route]: { compat: { supportsDeveloperRole: false } } }, route)
+      const [first] = [...models.values()]
+      expect((first?.compat as { supportsDeveloperRole?: boolean }).supportsDeveloperRole).toBe(false)
+    }
+  })
+
+  it('serves the Bedrock compat type on its own protocol', () => {
+    const models = modelsOf({ 'amazon-bedrock': { compat: { supportsStrictMode: false } } }, 'amazon-bedrock')
+    const [first] = [...models.values()]
+    expect((first?.compat as { supportsStrictMode?: boolean }).supportsStrictMode).toBe(false)
+  })
+
+  it('refuses a compat key no wire protocol declares instead of dropping it', () => {
+    // The silent drop is what let an unreadable switch look applied: schemastery
+    // passes unknown keys through, and resolution used to read only two fields.
+    expect(() => resolveProfiles({
+      'acme-gateway': {
+        api: 'openai-completions',
+        baseURL: 'https://acme.test',
+        compat: { supportsDevelperRole: false } as never,
+        models: [{ id: 'acme-a' }],
+      },
+    })).toThrow(/compat "supportsDevelperRole", which no wire protocol declares; the configurable switches are .*\bsupportsDeveloperRole\b/)
+  })
+
+  it('refuses a compat key pi-ai’s catalog owns, pointing at the catalog route', () => {
+    expect(() => resolveProfiles({
+      'acme-gateway': {
+        api: 'openai-completions',
+        baseURL: 'https://acme.test',
+        models: [{ id: 'acme-a', compat: { openRouterRouting: {} } as never }],
+      },
+    })).toThrow(/compat "openRouterRouting", which is not configurable here/)
   })
 })
 

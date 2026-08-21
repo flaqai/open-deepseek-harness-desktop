@@ -24,9 +24,6 @@
       "path": "../ui-primitives"
     },
     {
-      "path": "../ui-input-trigger"
-    },
-    {
       "path": "../ui-slots"
     },
     {

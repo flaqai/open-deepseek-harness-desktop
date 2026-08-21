@@ -42,8 +42,11 @@ env:
 
 jobs:
 
-  # TODO(hosted-serial-ci): Re-enable the three hosted serial reference jobs before release.
-  # The self-hosted standby remains active on every master push.
+  # TODO(hosted-serial-ci): Re-enable the one remaining disabled hosted serial
+  # reference job (serial-macos) before release. The self-hosted standby lane
+  # below remains active on every master push. Re-enabling serial-macos does not
+  # restore a Linux hosted-cache producer: decide whether to add a master seeder
+  # or remove the restore-only steps if cold starts become a concern.
 
   # Three enterprise jobs isolate coverage, static analysis, and the
   # build-backed consumer tail. The consumer job owns the only Linux build so
@@ -121,11 +124,10 @@ jobs:
           || 'dsh-ubuntu-24-04-16core' }}
     name: node 24 / coverage
     env:
-      # The hosted 16-core runner uses six coverage workers. The failover pool
-      # shares one 64-core VM across six always-on runner instances, so each
-      # instance may use eight while keeping the worst case at 8 × 6 = 48
-      # workers; process-bound suites remain isolated in forks.
-      DSH_COVERAGE_MAX_WORKERS: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '8' || '6' }}
+      # Partitioning replaces the instrumented share; this budget gives the
+      # exempt-heavy gate two workers on both hosted and failover runners.
+      DSH_COVERAGE_MAX_WORKERS: '6'
+      DSH_COVERAGE_PARTITIONS: '4'
       DSH_GATE_CONCURRENCY: '3'
     steps:
       - uses: actions/checkout@v6
@@ -188,6 +190,7 @@ jobs:
       DSH_NODE_COMPAT_SKIP_TYPECHECK: '1'
       DSH_OXLINT_THREADS: '8'
       DSH_PUBLINT_CONCURRENCY: '8'
+      DSH_WEB_SNAPSHOT_WORKERS: '6'
       # Failover halves snapshot concurrency for the shared 64-core VM.
       DSH_SNAPSHOT_MAX_CONCURRENCY: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '12' || '32' }}
     steps:
@@ -211,7 +214,11 @@ jobs:
           store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
           echo "path=$store_path" >> "$GITHUB_OUTPUT"
 
-      # Skipped under failover — see the coverage lane's identical rationale.
+      # Pull requests restore the pnpm store and Playwright caches without paying
+      # compression and upload on the required path. No master job saves these
+      # hosted cache keys, so each restore-keys fallback hits the matching archived
+      # entry until it evicts, after which the store is cold. Skipped under failover
+      # — the self-hosted VM's persistent store is already warm.
       - uses: actions/cache/restore@v4
         if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
         with:
@@ -220,8 +227,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
 
-      # Pull requests restore the cache normally produced by serial-linux on
-      # master; they do not pay compression and upload on the required path.
+      # Skipped under failover: the VM's persistent browser cache is already warm.
       - uses: actions/cache/restore@v4
         if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
         with:
@@ -293,6 +299,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run compatibility smokes
+        env:
+          DSH_BUILD_CLIENT_PROFILE: official
         run: pnpm run check:node-compat
 
   python-sdk:
@@ -389,7 +397,17 @@ jobs:
       - name: Install Wine
         run: |
           if compgen -G "$HOME/wine-debs/*.deb" > /dev/null; then
-            sudo apt-get install -y --no-install-recommends "$HOME"/wine-debs/*.deb
+            # The restored archive is the full --download-only closure of
+            # `wine` for this runner image, so installing the .debs directly
+            # with dpkg needs no repository access. apt-get would instead
+            # re-download the same 100+ MB closure from the mirror, which has
+            # stalled the job past its budget on a degraded runner network.
+            # If the archive cannot satisfy the closure, fall back to the apt
+            # network install.
+            if ! sudo DEBIAN_FRONTEND=noninteractive dpkg -i "$HOME"/wine-debs/*.deb; then
+              sudo DEBIAN_FRONTEND=noninteractive dpkg --configure -a || true
+              sudo apt-get install -y --no-install-recommends "$HOME"/wine-debs/*.deb
+            fi
           else
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends --download-only wine
@@ -454,11 +472,12 @@ jobs:
     name: windows node 24 / native complete
     timeout-minutes: 120
     env:
-      DSH_COVERAGE_MAX_WORKERS: '2'
+      DSH_COVERAGE_MAX_WORKERS: '6'
+      DSH_COVERAGE_PARTITIONS: '8'
       # Instrumented process and polling fixtures can exceed Vitest's defaults
       # under the complete lane's concurrent gate load.
       DSH_COVERAGE_TEST_TIMEOUT_MS: '30000'
-      DSH_GATE_CONCURRENCY: '2'
+      DSH_GATE_CONCURRENCY: '4'
       DSH_PUBLINT_CONCURRENCY: '8'
     steps:
       - uses: actions/checkout@v6
@@ -491,76 +510,6 @@ jobs:
         shell: pwsh
         run: pnpm run check:ci:windows-complete
 
-  # The hosted reference jobs below are temporarily disabled; the self-hosted
-  # standby remains active. Each enabled host executes the complete, unsharded
-  # primary Node aggregate with one gate worker, giving reviewers a simple
-  # cross-platform oracle for completeness and timing.
-  serial-linux:
-    if: false
-    name: serial / linux
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 2
-
-      - uses: pnpm/action-setup@v4
-        with:
-          dest: ${{ runner.temp }}/setup-pnpm
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.PRIMARY_NODE_VERSION }}
-
-      - name: Configure pnpm store path
-        id: pnpm-store
-        run: |
-          store_root="$HOME/.local/share/pnpm/store"
-          echo "PNPM_CONFIG_STORE_DIR=$store_root" >> "$GITHUB_ENV"
-          store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
-          echo "path=$store_path" >> "$GITHUB_OUTPUT"
-
-      # Master refreshes the pnpm store cache that pull requests restore without saving.
-      # The store cache stays a hand-rolled actions/cache step rather than
-      # setup-node's `cache: pnpm`: the enterprise pull-request jobs above
-      # restore exactly this key and path, and setup-node's built-in cache
-      # uses its own key format — converting this producer would silently
-      # starve their documented restore-only optimization.
-      - uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
-
-      # Master produces the hosted Chromium cache restored by pull requests.
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install (immutable)
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright Chromium and system dependencies
-        run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install --with-deps chromium
-
-      - name: Prepare bubblewrap (unrestrict userns)
-        run: bash scripts/prepare-ci-bubblewrap.sh
-
-      - name: Run complete unsharded primary Node CI serially
-        env:
-          DSH_ARCHIVE_BASE_REF: ${{ github.event.before }}
-          DSH_COVERAGE_MAX_WORKERS: '1'
-          DSH_E2E_MAX_WORKERS: '1'
-          DSH_GATE_CONCURRENCY: '1'
-          DSH_OXLINT_THREADS: '1'
-          DSH_PUBLINT_CONCURRENCY: '1'
-          DSH_SNAPSHOT_MAX_CONCURRENCY: '1'
-        run: pnpm run check:ci:linux-primary
-
   # Hot-standby drill for the in-house self-hosted pool: every master move
   # re-runs the complete unsharded aggregate on the persistent 64-core VM,
   # continuously proving that environment can take over a required lane if
@@ -579,8 +528,8 @@ jobs:
     name: serial / linux (self-hosted standby)
     runs-on: [self-hosted, linux, x64, vm-backup]
     steps:
-      # Full history + DSH_ARCHIVE_BASE_REF below: same frozen-archive
-      # comparison as serial-linux. Depth 2 would miss github.event.before
+      # DSH_ARCHIVE_BASE_REF below compares the frozen-archive gate against
+      # github.event.before, so full history is required: depth 2 would miss it
       # on multi-commit or force pushes; full fetch is cheap here because
       # checkout resolves against the VM's local mirror.
       - uses: actions/checkout@v6
@@ -620,6 +569,8 @@ jobs:
           DSH_SNAPSHOT_MAX_CONCURRENCY: '1'
         run: pnpm run check:ci:linux-primary
 
+  # The one remaining disabled hosted serial reference job; see
+  # TODO(hosted-serial-ci) above.
   serial-macos:
     if: false
     name: serial / macos

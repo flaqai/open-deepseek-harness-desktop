@@ -45,7 +45,7 @@ describe('view-ring type negatives (compile-time; body never runs)', () => {
         // @ts-expect-error openDetails takes a SelectionTarget, not a string
         props.openDetails('nope')
         // @ts-expect-error openFile takes a path string, not a SelectionTarget
-        props.openFile({ turnSeq: 1, callId: 'c' })
+        void props.openFile({ turnSeq: 1, callId: 'c' })
         return null
       }
       void chatProps

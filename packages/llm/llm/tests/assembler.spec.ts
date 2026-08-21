@@ -224,3 +224,41 @@ describe('BlockAssembler duplicate-close contract', () => {
     expect(assembler.blocks()).toEqual([{ type: 'reasoning', text: 'first' }])
   })
 })
+
+describe('BlockAssembler.interruptedBlocks', () => {
+  it('keeps closed and open text/reasoning blocks with streamed content, in order', () => {
+    const assembler = new BlockAssembler()
+    assembler.push({ type: 'block-start', index: 0, blockType: 'reasoning' })
+    assembler.push({ type: 'reasoning-delta', index: 0, text: 'planning' })
+    assembler.push({ type: 'block-end', index: 0, block: { type: 'reasoning', text: 'planning' } })
+    assembler.push({ type: 'block-start', index: 1, blockType: 'text' })
+    assembler.push({ type: 'text-delta', index: 1, text: 'half an ans' })
+    expect(assembler.interruptedBlocks()).toEqual([
+      { type: 'reasoning', text: 'planning' },
+      { type: 'text', text: 'half an ans' },
+    ])
+  })
+
+  it('drops tool calls whether open or closed — interruption precedes dispatch', () => {
+    const assembler = new BlockAssembler()
+    assembler.push({ type: 'block-start', index: 0, blockType: 'text' })
+    assembler.push({ type: 'text-delta', index: 0, text: 'calling' })
+    assembler.push({ type: 'block-end', index: 0, block: { type: 'text', text: 'calling' } })
+    assembler.push({ type: 'block-start', index: 1, blockType: 'tool-call' })
+    assembler.push({ type: 'tool-call-delta', index: 1, id: CallId('c1'), name: 'read', argumentsDelta: '{"a":1}' })
+    assembler.push({ type: 'block-end', index: 1, block: { type: 'tool-call', id: CallId('c1'), name: 'read', arguments: '{"a":1}' } })
+    assembler.push({ type: 'block-start', index: 2, blockType: 'tool-call' })
+    assembler.push({ type: 'tool-call-delta', index: 2, id: CallId('c2'), name: 'read', argumentsDelta: '{"pa' })
+    expect(assembler.interruptedBlocks()).toEqual([{ type: 'text', text: 'calling' }])
+  })
+
+  it('drops empty and whitespace-only text/reasoning blocks and unknown open block types', () => {
+    const assembler = new BlockAssembler()
+    assembler.push({ type: 'block-start', index: 0, blockType: 'text' })
+    assembler.push({ type: 'text-delta', index: 0, text: '  \n' })
+    // A merge-extended block kind this build does not know how to assemble.
+    assembler.push({ type: 'block-start', index: 1, blockType: 'mystery' } as unknown as StreamChunk)
+    assembler.push({ type: 'block-start', index: 2, blockType: 'reasoning' })
+    expect(assembler.interruptedBlocks()).toEqual([])
+  })
+})

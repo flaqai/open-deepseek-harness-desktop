@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-面向客户端功能测试的 jsdom slot 测试运行时：真实 Cordis `Context`、生产 `SlotRegistry` 与 web-react 渲染器，围绕带类型的 session/workspace 测试替身组装。功能套件无需逐套件手搭机器即可测遍声明、注册、scope、store、inject、渲染、更新与销毁——且不存在任何生产逻辑的第二份实现。
+面向客户端功能测试的 jsdom slot 测试运行时：真实 Cordis `Context`、生产 `SlotRegistry` 与 UI 渲染器，围绕带类型的 session/workspace 测试替身组装。功能套件无需逐套件手搭机器即可测遍声明、注册、scope、store、inject、渲染、更新与销毁——且不存在任何生产逻辑的第二份实现。
 
 替身实现的正是功能通过 ctx 获得的对外接口（`TestSessions implements ISessions`、`TestWorkspaces implements IWorkspaces`；每个 fixture session 是 `FixtureSession implements SessionFace`；`stubSettingsScope` 是发布由测试驱动、带写入 spy 的 `SettingsScope`），生产面一旦改形，测试台在编译期即断，而非静默漂移。provide bundle 材料化直接运行生产 `SessionProvideChannel`——与 `SessionRuntime` 共用同一份实现。fixture 灌入的是普通数据：列表行、会话快照（经 `updateSnapshot` 以 immer 补丁改写）、projection 值，以及按 `ISession` 取型的行为桩——spec 调用未打桩的动词时报错自明。带类型的 `provide()` 将已声明服务名的 fake 约束为该服务对外面的 `Partial` 子集。
 

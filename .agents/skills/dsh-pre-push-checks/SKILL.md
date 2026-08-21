@@ -112,4 +112,12 @@ gh pr checks
 
 Report pending checks as pending. Inspect failures before attributing them to the branch or the environment.
 
+When `gh pr checks` reports "no checks reported" and `/actions/runs?head_sha=<sha>` returns `total_count: 0`, read mergeability before suspecting the push or a dropped GitHub event:
+
+```sh
+gh pr view <number> --json mergeable,mergeStateStatus
+```
+
+GitHub creates no `pull_request` workflow runs while a PR is `CONFLICTING`/`DIRTY`, so the absent signal is the conflict, not infrastructure. Resolving the conflict is the only fix; empty commits, `--allow-empty` pushes, draft/ready toggles, and revert-and-restore bounces all leave `total_count` at zero and add junk history. Confirm the conflicting paths with `git merge-tree --write-tree HEAD origin/<base>` when the branch cannot be merged locally yet.
+
 For `gh stack sync`, use the post-sync validation sequence instead of pretending the ordinary order was possible.

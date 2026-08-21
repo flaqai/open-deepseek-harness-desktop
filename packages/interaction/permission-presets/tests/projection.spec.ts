@@ -90,7 +90,7 @@ describe('/permission command', () => {
   it('switches through permission.set and logs the lifecycle pair', async () => {
     const { ctx, session } = await harness()
     const { agent, inject } = await agentFor(ctx, session)
-    const execution = await ctx.commands.execute(agent, '/permission danger-full-access', new AbortController().signal)
+    const execution = await ctx.commands.execute(agent, '/permission danger-full-access', [], new AbortController().signal)
     expect(execution?.result).toEqual({ kind: 'success', text: 'preset danger-full-access' })
     expect(ctx.permissionPresets.current(session.events)).toBe('danger-full-access')
     expect(inject.mock.calls[0]?.[0]).toMatchObject({
@@ -106,7 +106,7 @@ describe('/permission command', () => {
   it('reports the current preset and the table on bare invocation', async () => {
     const { ctx, session } = await harness()
     const { agent } = await agentFor(ctx, session)
-    const execution = await ctx.commands.execute(agent, '/permission', new AbortController().signal)
+    const execution = await ctx.commands.execute(agent, '/permission', [], new AbortController().signal)
     expect(execution?.result).toEqual({
       kind: 'success',
       text: 'current preset workspace-write (available: workspace-write, danger-full-access)',
@@ -119,7 +119,7 @@ describe('/permission command', () => {
     const { agent } = await agentFor(ctx, session)
     const before = session.events.filter(event =>
       event.type !== 'command/run' && event.type !== 'command/done')
-    const execution = await ctx.commands.execute(agent, '/permission yolo', new AbortController().signal)
+    const execution = await ctx.commands.execute(agent, '/permission yolo', [], new AbortController().signal)
     // The error text carries the same no-self-labelling rule as the success
     // texts: `permission · unknown preset "yolo" (…)`, not `unknown permission
     // preset`, which the row's own title already says.

@@ -3,7 +3,8 @@
 # snapshot harness scopes per run, so the overlay itself carries no paths. The
 # app config is restated to re-pin `deepseek-v4-flash` (base ships pro; the
 # authored fixture and the pinned header class are flash), because a config
-# patch replaces the whole app config.
+# patch replaces the whole app config. Keyless replay supplies its own exact
+# image-capable catalog while the production endpoint remains unavailable.
 - id: base
   name: '@deepseek-ai/cordis-plugin-include'
   config:

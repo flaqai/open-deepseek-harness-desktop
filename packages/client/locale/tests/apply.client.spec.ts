@@ -2,9 +2,9 @@
  * Language row registration, snapshot projection into the row store, and
  * recovery after an HMR collapse of the declaring entry. */
 import { Context } from '@deepseek-ai/cordis'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
-import { SettingsScopeBinder } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   apply, inject, SETTINGS_NS,
@@ -47,7 +47,7 @@ async function bench() {
   ctx.provide('connection', { api: { settings: { describe, mutate } }, isLoopback: true } as never)
   // The settings transport and the forwarded-event port the plugin injects.
   new TestRemote(ctx)
-  await ctx.plugin(SettingsScopeBinder).await()
+  await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return {
     ctx, slots: ctx.get('slots') as SlotRegistry, describe, mutate,
     setHostPreference: (next: string | undefined) => { preference = next; revision += 1 },
@@ -73,15 +73,10 @@ function faceOf(slots: SlotRegistry) {
 }
 
 describe('locale apply', () => {
-  // A fresh service opens in the browser's language, so these wiring specs
-  // pin one to keep their zh baseline independent of the test environment.
-  beforeEach(() => {
-    vi.stubGlobal('navigator', { languages: ['zh-CN'], language: 'zh-CN' })
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
+  // These are wiring specs, not default-language specs. A fresh LocaleRuntime
+  // with no jsdom `window` skips browser detection and opens on FALLBACK_LOCALE
+  // (en); each test that reads localized copy stages its locale explicitly via
+  // setLocale/Host preference instead of leaning on a dead browser pin.
 
   it('declares the slot service', () => {
     expect(inject).toEqual(['slots', 'connection', 'remote', 'settingsScope'])
@@ -95,6 +90,9 @@ describe('locale apply', () => {
     // Base dictionaries are registered: the (ns, locale) seats are occupied.
     expect(() => locale.register('common', 'zh', {})).toThrow('already has locale')
     expect(() => locale.register('common', 'en', {})).toThrow('already has locale')
+    // The lane has no jsdom `window`, so detection never runs and a fresh
+    // service opens on FALLBACK_LOCALE (en); read the zh side explicitly.
+    locale.setLocale('zh')
     expect(locale.bind(SETTINGS_NS)('language.title')).toBe('语言')
     const entry = before.slots.entries(SLOT).find(e => e.component === LanguageRow)!
     expect(entry.options).toMatchObject({ id: 'language', order: 0 })
@@ -133,18 +131,26 @@ describe('locale apply', () => {
 
   it('loads and refreshes the explicit Host preference after nonblocking activation', async () => {
     const b = await bench()
-    b.setHostPreference('en')
+    // The shared mirror read once at bench time; a Host-side change reaches it
+    // through the document invalidation, exactly as production announces one.
+    // Preference must differ from the provisional locale (FALLBACK_LOCALE = en
+    // with no window), or clearing it below would be unobservable.
+    b.setHostPreference('zh')
+    b.ctx.remote.$dispatch('settings/document-updated', [LOCALE_SETTINGS_NAMESPACE, 0])
     declareItems(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const locale = b.ctx.get('locale') as LocaleRuntime
-    await vi.waitFor(() => { expect(locale.getLocale().active).toBe('en') })
+    await vi.waitFor(() => { expect(locale.getLocale().active).toBe('zh') })
+    // Cleared preference falls back to the provisional locale.
     b.setHostPreference(undefined)
     b.ctx.remote.$dispatch('settings/document-updated', [LOCALE_SETTINGS_NAMESPACE, 0])
-    await vi.waitFor(() => { expect(locale.getLocale().active).toBe('zh') })
-    b.setHostPreference('en')
-    b.ctx.remote.$dispatch('settings/document-updated', [LOCALE_SETTINGS_NAMESPACE, 0])
     await vi.waitFor(() => { expect(locale.getLocale().active).toBe('en') })
-    expect(b.describe).toHaveBeenCalledTimes(3)
+    // Re-selecting zh after the clear is an explicit pick of the provisional
+    // value and must persist as a written preference.
+    b.setHostPreference('zh')
+    b.ctx.remote.$dispatch('settings/document-updated', [LOCALE_SETTINGS_NAMESPACE, 0])
+    await vi.waitFor(() => { expect(locale.getLocale().active).toBe('zh') })
+    expect(b.describe).toHaveBeenCalledTimes(4)
   })
 
   it('recovers after an HMR collapse of the declaring entry (stale disposer must not block)', async () => {

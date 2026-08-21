@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-web",
-  "description": "Web shell kernel: bootWebShell (module system holding + seed table + two-stage boot + AppRoot gate + app-shell assembly entry), consumed by the apps/web vite entry",
-  "version": "0.1.0-rc.7",
+  "description": "Web boot kernel: static module table, Cordis loader, framework-free boot page, and UI-renderer handoff",
+  "version": "0.1.0-rc.8",
   "publishConfig": {
     "access": "public"
   },
@@ -26,35 +26,28 @@
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "dependencies": {
-    "@deepseek-ai/dsh-client-modules": "workspace:^",
-    "@deepseek-ai/dsh-client-schema-form": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-attachment": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-theme": "workspace:^",
-    "@deepseek-ai/dsh-client-web-react": "workspace:^",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
   "devDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
-    "@deepseek-ai/dsh-client-runtime": "workspace:^",
-    "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
+    "@deepseek-ai/dsh-client-modules": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-renderer": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "@deepseek-ai/cordis": "workspace:^",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "files": [
     "lib/index.js",
     "lib/invariant.js",
+    "lib/**/*.css",
     "lib/types/**/*.d.ts"
   ]
 }

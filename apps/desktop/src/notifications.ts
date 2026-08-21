@@ -1,7 +1,7 @@
 /** Native notification policy for Harness restarts and recovery. */
 
 /** User-facing notification content. */
-export interface DesktopNotificationCopy {
+interface DesktopNotificationCopy {
   title: string
   body: string
 }

@@ -21,6 +21,9 @@
       "path": "../../core/session"
     },
     {
+      "path": "../../llm/llm"
+    },
+    {
       "path": "../session-persistence"
     },
     {

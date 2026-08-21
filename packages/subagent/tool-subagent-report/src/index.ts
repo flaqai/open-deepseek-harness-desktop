@@ -26,15 +26,15 @@ const REPORT_SECTION_ORDER = 117
 /** Config: how accepted reports are scheduled on the parent. */
 export interface Config {
   /**
-   * Parent scheduling (default `wakeup`). `wakeup` creates one ordinary later
-   * parent turn; `quiet` adds context without waking, so a parked parent learns
-   * of the report only when something else wakes it.
+   * Parent scheduling (default `next-step`). `next-step` wakes the parent and
+   * enters at its nearest step boundary; `quiet` adds the same context without
+   * waking, so a parked parent waits for another waking input.
    */
   reportDelivery?: SubagentReportDelivery
 }
 
 export const Config: z<Config> = z.object({
-  reportDelivery: z.union(['quiet', 'wakeup'] as const).default('wakeup'),
+  reportDelivery: z.union(['quiet', 'next-step'] as const).default('next-step'),
 })
 
 /**

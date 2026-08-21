@@ -5,16 +5,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { TestRemote, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
-import { SettingsScopeBinder } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type {
   ConfigurablePluginsTabFace, PluginsSettingsSectionInjected,
 } from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 
-// The service reads its initial locale from the browser; these specs assert
-// the shipped Chinese copy, so they state the browser they assume.
-usePinnedBrowserLanguages('zh-CN')
+// These specs assert the shipped Chinese copy. The lane has no jsdom `window`,
+// so browser-language detection never runs and a fresh LocaleRuntime opens on
+// FALLBACK_LOCALE (en); bench stages zh explicitly on the locale instead.
 
 /**
  * @param served - namespaces the Host describes; omitted answers a failed read,
@@ -24,6 +24,7 @@ async function bench(served?: string[]) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   const locale = new LocaleRuntime(ctx)
+  locale.setLocale('zh')
   ctx.provide('locale', locale)
   const describeCredentials = vi.fn(() => Promise.resolve({ rpcId: 'c', result: { ok: false, error: {} } }))
   const describeSettings = vi.fn(() => Promise.resolve(served === undefined
@@ -52,7 +53,7 @@ async function bench(served?: string[]) {
       credentials: { describe: describeCredentials },
     },
   } as never)
-  await ctx.plugin(SettingsScopeBinder).await()
+  await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return { ctx, slots: ctx.get('slots') as SlotRegistry, describeCredentials, describeSettings }
 }
 

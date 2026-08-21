@@ -12,6 +12,12 @@ The desktop host resized the full 1024-pixel application icon and marked it as a
 
 macOS uses a dedicated black-and-alpha `tray-iconTemplate.png` derived from the application's rider-and-whale silhouette. The gradient tile is omitted, while the rider is reduced to a separated head and compact seated gesture that remains legible at menu-bar size. The artwork fills nearly all of its image bounds so the status-item allocation matches the visible mark. The source SVG keeps the optically centered small-size geometry maintainable, while 16-pixel and 32-pixel `@2x` PNGs follow Electron's template-image naming and density conventions. Windows and Linux continue to use the full-color application icon.
 
+## Alternatives considered
+
+**Continue resizing the full application icon.** Its opaque rounded-square tile becomes a solid template silhouette and cannot produce a recognizable menu-bar mark.
+
+**Use the unmodified detailed rider artwork.** Fine interior shapes collapse at 16 pixels and leave excessive transparent padding, so the status item looks smaller and optically misaligned.
+
 ## Verification
 
 The desktop asset build copies both template PNG densities without renaming them. The base asset is 16 by 16 RGBA with a 16-by-14 effective bound. The Retina asset is 32 by 32 RGBA with a centered 30-by-28 effective bound, and both retain transparent backgrounds. Desktop typechecking and the desktop build verify the consuming path.

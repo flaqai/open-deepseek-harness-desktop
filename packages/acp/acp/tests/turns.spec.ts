@@ -464,7 +464,9 @@ describe('ACP prompt lifecycle', () => {
 
     await expect(harness.client.prompt({ sessionId, prompt: [{ type: 'text', text: 'two' }] }))
       .resolves.toEqual({ stopReason: 'end_turn' })
-    await vi.waitFor(() => { expect(messageText(harness!)).toBe('next') })
+    // 'partial' is the cancelled turn's finalized prefix update; 'next' proves
+    // the second prompt settled independently of the aborted turn's late end.
+    await vi.waitFor(() => { expect(messageText(harness!)).toBe('partialnext') })
   })
 
   it('a retry turn adopts the prompt instead of rejecting at the failed turn end', async () => {

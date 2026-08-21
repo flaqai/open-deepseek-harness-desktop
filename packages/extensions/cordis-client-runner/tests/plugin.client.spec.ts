@@ -69,7 +69,7 @@ interface Bench {
   reportRefused: { current: boolean }
   /**
    * Report one entry crash the way the renderer's boundary does. Production calls
-   * this from web-react's boundary through the render host; a test has no React
+   * this from ui-renderer's boundary through the render host; a test has no React
    * tree, so it stands in for that caller on the same core seam.
    */
   crash: (slot: string, entry: unknown, abdicate: boolean, error: unknown) => void

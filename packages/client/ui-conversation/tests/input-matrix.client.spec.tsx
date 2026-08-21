@@ -7,14 +7,15 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   createSnapshotStore, EMPTY_CHAT_SNAPSHOT, EMPTY_CONVERSATION_VIEWS,
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ClientContext, ConversationSnapshot, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SubmitOutcome } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import type { SubmitImageAttachment, SubmitOutcome } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
+import type { DraftAttachmentId } from '../src/client/input/contract.ts'
 import { SessionInputShell } from '../src/client/input/facade.ts'
 import { InputBar } from '../src/client/skeleton/InputBar.tsx'
 import type { InputBarProps } from '../src/client/skeleton/InputBar.tsx'
@@ -52,7 +53,12 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
     keyboard: shell,
     addImages: () => null,
     removeImage: () => {},
-    draftImages: () => [],
+    // Every id resolves so the bar's registry prune never drops a test image.
+    draftImages: ids => ids.map(id => ({
+      kind: 'image' as const, id,
+      file: new File([Uint8Array.of(1)], `${id}.png`, { type: 'image/png' }),
+      previewUrl: `blob:${id}`,
+    })),
     resolveSubmitMode: () => 'queue',
     toggleCommandMenu: vi.fn(),
     useNotices: bindSnapshotSelector(shell.notices),
@@ -68,35 +74,45 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
   return render(<InputBar {...props} />)
 }
 
-function bench(over?: { running?: boolean; disabled?: boolean; submit?: (args: string) => Promise<SubmitOutcome> }) {
-  const sink = vi.fn()
-  const shell = new SessionInputShell({ actx: SCTX, defaultSink: sink })
+function bench(over?: {
+  running?: boolean
+  disabled?: boolean
+  submit?: (args: string) => Promise<SubmitOutcome>
+  serialize?: (ids: readonly DraftAttachmentId[]) => Promise<readonly SubmitImageAttachment[]>
+}) {
+  const sink = vi.fn(() => Promise.resolve<SubmitOutcome>({ kind: 'success' }))
+  const serialize = vi.fn(over?.serialize ?? (() => Promise.resolve<readonly SubmitImageAttachment[]>([])))
+  const release = vi.fn()
+  const shell = new SessionInputShell({ actx: SCTX, defaultSink: sink, commandImages: { serialize, release, unsupportedNotice: (token: string) => `${token.trim()} images-unsupported` } })
   const wiring = shell
   const view = mountBar(shell, over)
   const textarea = view.container.querySelector('textarea')!
-  const claim = (token = '/goal ', hint = '目标') => {
+  const claim = (token = '/goal ', hint = '目标', images?: true) => {
     act(() => {
       shell.setDraft(token)
       shell.beginCommand(
         {
           token, hint,
+          ...(images === true ? { images: true } : {}),
           submit: over?.submit ?? (() => Promise.resolve({ kind: 'success' as const, source: 'command', name: 'goal' })),
         },
         { start: 0, end: token.length, draftRev: shell.snapshot.draftRev },
       )
     })
   }
-  return { view, textarea, shell, wiring, sink, claim }
+  return { view, textarea, shell, wiring, sink, claim, serialize, release }
 }
 
 describe('matrix row: plain', () => {
-  it('enter falls to the default sink; no claim on the currency; edits free', () => {
+  it('enter falls to the default sink; no claim on the currency; edits free', async () => {
     const { textarea, shell, sink } = bench()
     fireEvent.change(textarea, { target: { value: '普通消息' } })
     expect(shell.snapshot.claim).toBeUndefined()
     fireEvent.keyDown(textarea, { key: 'Enter' })
-    expect(sink).toHaveBeenCalledWith('普通消息', [], 'queue')
-    expect(shell.snapshot.phase).toBe('plain')
+    expect(sink).toHaveBeenCalledWith('普通消息', [], 'queue', expect.any(AbortSignal))
+    expect(shell.snapshot.phase).toBe('submitting')
+    await vi.waitFor(() => { expect(shell.snapshot.phase).toBe('plain') })
+    expect(shell.snapshot.claim).toBeUndefined()
   })
 })
 
@@ -122,7 +138,7 @@ describe('matrix row: claimed', () => {
     fireEvent.change(textarea, { target: { value: '/goal 发布' } })
     fireEvent.keyDown(textarea, { key: 'Enter' })
     expect(sink).not.toHaveBeenCalled()
-    await vi.waitFor(() => { expect(submit).toHaveBeenCalledWith('发布', SCTX) })
+    await vi.waitFor(() => { expect(submit).toHaveBeenCalledWith('发布', SCTX, []) })
     // Commit: draft cleared, notice surfaced, back to plain.
     await vi.waitFor(() => { expect((textarea).value).toBe('') })
     expect(view.getByText('完成')).toBeTruthy()
@@ -135,6 +151,97 @@ describe('matrix row: claimed', () => {
     expect(shell.snapshot.phase).toBe('plain')
     expect(shell.snapshot.claim).toBeUndefined()
     expect(view.container.querySelector('[data-decoration="token"]')).toBeNull()
+  })
+})
+
+describe('matrix row: claimed with images', () => {
+  const img = 'img-1' as DraftAttachmentId
+
+  it('a claim without image acceptance blocks enter: one notice, draft/images/claim retained', async () => {
+    const submit = vi.fn(() => Promise.resolve({ kind: 'success' as const }))
+    const { view, textarea, shell, sink, claim } = bench({ submit })
+    claim()
+    act(() => { shell.addImages([img]) })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    await Promise.resolve()
+    expect(shell.snapshot.phase).toBe('claimed')
+    expect(submit).not.toHaveBeenCalled()
+    expect(sink).not.toHaveBeenCalled()
+    expect(view.getByText('/goal images-unsupported')).toBeTruthy()
+    expect(shell.snapshot.imageIds).toEqual([img])
+    expect((textarea).value).toBe('/goal ')
+  })
+
+  it('an accepting claim serializes and forwards the images; success consumes and clears', async () => {
+    const submit = vi.fn(() => Promise.resolve({ kind: 'success' as const }))
+    const png: SubmitImageAttachment = { mediaType: 'image/png', data: 'AA==' }
+    const { textarea, shell, claim, serialize, release } = bench({ submit, serialize: () => Promise.resolve([png]) })
+    claim('/goal ', '目标', true)
+    // The claim currency carries the acceptance flag the pre-gate reads.
+    expect(shell.snapshot.claim).toEqual({ token: '/goal ', hint: '目标', images: true })
+    act(() => { shell.addImages([img]) })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    await vi.waitFor(() => { expect(submit).toHaveBeenCalledWith('', SCTX, [png]) })
+    expect(serialize).toHaveBeenCalledWith([img])
+    await vi.waitFor(() => { expect((textarea).value).toBe('') })
+    expect(release).toHaveBeenCalledWith([img])
+    expect(shell.snapshot.imageIds).toEqual([])
+    expect(shell.snapshot.phase).toBe('plain')
+  })
+
+  it('a handler error outcome keeps the images unreleased beside the notice and the draft', async () => {
+    const submit = vi.fn(() => Promise.resolve({ kind: 'error' as const, text: '处理失败' }))
+    const { view, textarea, shell, claim, release } = bench({ submit })
+    claim('/goal ', '目标', true)
+    act(() => { shell.addImages([img]) })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    await vi.waitFor(() => { expect(view.getByText('处理失败')).toBeTruthy() })
+    expect(shell.snapshot.phase).toBe('claimed')
+    expect(shell.snapshot.imageIds).toEqual([img])
+    expect(release).not.toHaveBeenCalled()
+    expect((textarea).value).toBe('/goal ')
+  })
+
+  it('a serialize rejection blocks the transaction: notice, no submit call, images kept', async () => {
+    const submit = vi.fn(() => Promise.resolve({ kind: 'success' as const }))
+    const { view, textarea, shell, claim, release } = bench({ submit, serialize: () => Promise.reject(new Error('附件已失效')) })
+    claim('/goal ', '目标', true)
+    act(() => { shell.addImages([img]) })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    await vi.waitFor(() => { expect(view.getByText('附件已失效')).toBeTruthy() })
+    expect(submit).not.toHaveBeenCalled()
+    expect(shell.snapshot.imageIds).toEqual([img])
+    expect(release).not.toHaveBeenCalled()
+    expect(shell.snapshot.phase).toBe('claimed')
+  })
+
+  it('a disposed shell never lets a pending serialization reach claim.submit', async () => {
+    const submit = vi.fn(() => Promise.resolve({ kind: 'success' as const }))
+    let resolveSerialize!: (images: readonly SubmitImageAttachment[]) => void
+    const { shell, textarea, claim } = bench({
+      submit,
+      serialize: () => new Promise((resolve) => { resolveSerialize = resolve }),
+    })
+    claim('/goal ', '目标', true)
+    act(() => { shell.addImages([img]) })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    await vi.waitFor(() => { expect(resolveSerialize).toBeDefined() })
+    shell.dispose()
+    resolveSerialize([{ mediaType: 'image/png', data: 'AA==' }])
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(submit).not.toHaveBeenCalled()
+  })
+
+  it('image removal is refused while a command submit is in flight', async () => {
+    const submit = vi.fn(() => new Promise<SubmitOutcome>(() => {})) // never settles
+    const { shell, textarea, claim } = bench({ submit, serialize: () => Promise.resolve([]) })
+    claim('/goal ', '目标', true)
+    act(() => { shell.addImages([img]) })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(shell.snapshot.phase).toBe('submitting')
+    act(() => { shell.removeImage(img) })
+    expect(shell.snapshot.imageIds).toEqual([img])
   })
 })
 
@@ -194,7 +301,7 @@ describe('matrix row: locked (session disabled)', () => {
     expect((textarea).disabled).toBe(false)
     fireEvent.change(textarea, { target: { value: '排队' } })
     fireEvent.keyDown(textarea, { key: 'Enter' })
-    expect(sink).toHaveBeenCalledWith('排队', [], 'queue')
+    expect(sink).toHaveBeenCalledWith('排队', [], 'queue', expect.any(AbortSignal))
   })
 })
 

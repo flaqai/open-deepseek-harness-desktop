@@ -4,9 +4,9 @@
  * shell over it: {@link defineStore} bakes an init/persist/actions literal
  * into a {@link StoreHandle}, the registration-side store seat of slot
  * terminals. Lives in the React-free runtime (the data layer owns its
- * engine; web-react is shell-only React
+ * engine; ui-renderer is shell-only React
  * glue): engine products are bare observables — subscribe/getSnapshot/
- * update/set, NO selector hook. Hook synthesis is web-react's (the one
+ * update/set, NO selector hook. Hook synthesis is ui-renderer's (the one
  * uSES bridge, cached per source at the binding site).
  */
 import { createStore, type StoreApi } from 'zustand/vanilla'
@@ -26,7 +26,7 @@ export type {
 /** Minimal observable snapshot source: Session objects and snapshot stores both satisfy it. */
 export interface ObservableSnapshot<T> { getSnapshot(): T; subscribe(fn: () => void): () => void }
 
-/** Writable snapshot store (bare data face; React selector hooks are synthesized in web-react). */
+/** Writable snapshot store (bare data face; React selector hooks are synthesized in ui-renderer). */
 export interface SnapshotStore<T> extends ObservableSnapshot<T> {
   /**
    * Mutate the state through an immer draft.

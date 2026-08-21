@@ -19,6 +19,7 @@ import { MenuView } from '../src/client/MenuView.tsx'
 const hit: TriggerHit = {
   trigger: '/',
   query: 'g',
+  quoted: false,
   position: 'leading',
   span: { start: 0, end: 2, draftRev: 1 },
 }
@@ -87,6 +88,15 @@ describe('MenuView', () => {
     expect(screen.queryByText('正在加载…')).not.toBeNull()
   })
 
+  it('keeps an opted-out source title hidden while its candidates are pending', () => {
+    mount(openState({
+      groups: [{ source: 'reference', showGroupTitle: false, status: 'pending', items: [] }],
+      highlight: null,
+    }))
+    expect(screen.queryByText('reference')).toBeNull()
+    expect(screen.getByText('正在加载…')).toBeTruthy()
+  })
+
   it('titles each group with the localized source name, raw name for unknown sources, none for empty ready groups', () => {
     const { view } = mount(openState({
       groups: [
@@ -97,6 +107,32 @@ describe('MenuView', () => {
       ],
     }))
     expect(titles(view.container)).toEqual(['命令', 'mystery', '技能'])
+  })
+
+  it('renders contiguous candidate sections once without changing option indexes', () => {
+    const { onPick } = mount(openState({
+      groups: [{
+        source: 'reference',
+        status: 'ready',
+        items: [
+          { name: 'Folder · src/', section: '文件与文件夹' },
+          { name: 'File · README.md', section: '文件与文件夹' },
+          { name: 'Session · Research', section: 'Session 对话' },
+        ],
+      }],
+      highlight: { source: 'reference', index: 0 },
+    }))
+    expect(screen.queryByText('reference')).toBeNull()
+    expect(screen.getAllByText('文件与文件夹')).toHaveLength(1)
+    expect(screen.getAllByText('Session 对话')).toHaveLength(1)
+    const options = screen.getAllByRole('option')
+    expect(options.map(option => option.textContent)).toEqual([
+      'Folder · src/',
+      'File · README.md',
+      'Session · Research',
+    ])
+    fireEvent.mouseDown(options[2]!)
+    expect(onPick).toHaveBeenCalledWith('reference', 2)
   })
 
   it('exposes the highlight via aria-activedescendant and aria-selected', () => {

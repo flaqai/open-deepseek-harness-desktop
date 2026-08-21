@@ -46,10 +46,10 @@ function ensureReference(ref: ImageAttachmentRef): string {
 async function inspectMetadata(
   data: Uint8Array,
   declaredMediaType: ImageAttachmentRef['mediaType'],
-  maxPixels?: number,
+  limits: ImageAttachmentLimits,
 ): Promise<Omit<ImageAttachmentRef, 'attachmentId' | 'name'>> {
   if (data.byteLength === 0) throw new AttachmentError('Image is empty.', 'INVALID_IMAGE')
-  const detected = await detectImage(data, maxPixels)
+  const detected = await detectImage(data, { maxPixels: limits.maxImagePixels, maxDimension: limits.maxImageDimension })
   if (detected.mediaType !== declaredMediaType) throw new AttachmentError('Declared image type does not match its bytes.', 'IMAGE_TYPE_MISMATCH')
   return { ...detected, bytes: data.byteLength }
 }
@@ -64,7 +64,7 @@ export async function validateImageFile(input: SaveImageAttachment, limits: Imag
   if (input.data.byteLength > limits.maxImageBytes) {
     throw new AttachmentError('Image exceeds the configured byte limit.', 'IMAGE_TOO_LARGE')
   }
-  await inspectMetadata(input.data, input.mediaType, limits.maxImagePixels)
+  await inspectMetadata(input.data, input.mediaType, limits)
 }
 
 /**
@@ -135,7 +135,7 @@ async function ensureDurableHome(path: string): Promise<string> {
  */
 export async function saveImageFile(root: string, input: SaveImageAttachment, limits: ImageAttachmentLimits): Promise<ImageAttachmentRef> {
   if (input.data.byteLength > limits.maxImageBytes) throw new AttachmentError('Image exceeds the configured byte limit.', 'IMAGE_TOO_LARGE')
-  const metadata = await inspectMetadata(input.data, input.mediaType, limits.maxImagePixels)
+  const metadata = await inspectMetadata(input.data, input.mediaType, limits)
   const sha256 = digest(input.data)
   const bucket = join(root, 'objects', sha256.slice(0, 2))
   const staging = join(root, 'tmp')

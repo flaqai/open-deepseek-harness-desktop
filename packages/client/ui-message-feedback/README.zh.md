@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-单条消息反馈插件的浏览器侧：一对 Like/Dislike 按钮加一个可选备注，作为 `conversation.chat.assistant-actions` 条带的 `feedback` 条目（order 10）贡献。该条带由 `ui-conversation` 声明，渲染在已定稿助手消息的 IconActions 行内、复制与分支之间，因此控件沿用该行的样式与 hover 行为。只有已定稿的消息能到达这个 slot——被中断冻结的部分输出不带 `messageId`，因此也没有反馈控件。该操作栏每个 Turn 渲染一次，位于持有该 Turn IconActions 行的收尾助手消息上：多步骤 Turn 中较早的步骤产出的是工具行而非可评分正文，因此即使 Host 会接受它们作为目标，界面上也不出现控件。
+单条消息反馈插件的浏览器侧：一对 Like/Dislike 按钮加一个可选备注，作为 `conversation.chat.assistant-actions` 条带的 `feedback` 条目（order 10）贡献。该条带由 `ui-conversation` 声明，渲染在已定稿助手消息的 IconActions 行内、复制与分支之间，因此控件沿用该行的样式与 hover 行为。备注编辑器本身不在这一行里：它是一个 `role="dialog"` 的浮层，portal 到 `document.body` 并锚定在其触发按钮下方，因此无论编辑器是否打开该行都保持单行，面板也不会被会话列裁掉。评分或列表加载失败在行内展示；备注保存失败在浮层内展示，且面板保持打开以便修正草稿。只有已定稿的消息能到达这个 slot——被中断冻结的部分输出不带 `messageId`，因此也没有反馈控件。该操作栏每个 Turn 渲染一次，位于持有该 Turn IconActions 行的收尾助手消息上：多步骤 Turn 中较早的步骤产出的是工具行而非可评分正文，因此即使 Host 会接受它们作为目标，界面上也不出现控件。
 
 每个 Session 一个 `MessageFeedbackController`，支撑该 Session 内所有消息的控件，因此一次 `messageFeedback.list` 读取即可填充整段对话。该读取延迟到首次 hover 或 focus 才发起，而不是在挂载时触发，因为可见历史中每条已结束的消息都会挂载一次控件。
 

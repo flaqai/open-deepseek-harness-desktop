@@ -16,6 +16,18 @@ describe('Oxlint invocation', () => {
     })
   })
 
+  it('uses location-preserving diagnostics in CI', () => {
+    expect(resolveOxlintInvocation(['.'], { CI: 'true', DSH_OXLINT_THREADS: '4' })).toEqual({
+      args: ['.', '--format=unix', '--threads=4'],
+      env: { CI: 'true', DSH_OXLINT_THREADS: '4', GOMAXPROCS: '4' },
+    })
+  })
+
+  it('preserves an explicitly selected CI formatter', () => {
+    expect(resolveOxlintInvocation(['.', '--format', 'github'], { CI: 'true' }).args)
+      .toEqual(['.', '--format', 'github'])
+  })
+
   it.each(['0', '-1', '1.5', 'auto'])('rejects invalid worker bound %s', (value) => {
     expect(() => resolveOxlintInvocation(['.'], { DSH_OXLINT_THREADS: value }))
       .toThrow('DSH_OXLINT_THREADS must be a positive integer')

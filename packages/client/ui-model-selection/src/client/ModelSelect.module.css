@@ -11,7 +11,10 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
+  /* Legacy fallback, then a row-relative cap that grants long names more
+     room without letting this trailing control consume the composer. */
   max-width: 220px;
+  max-width: min(360px, 45cqw);
   height: 28px;
   padding: 0 4px 0 8px;
   border: none;
@@ -69,7 +72,11 @@
   z-index: 20;
   display: flex;
   flex-direction: column;
-  width: min(240px, calc(100vw - 32px));
+  /* Let the visible pane's rows set the card width, but keep pathological ids
+     and narrow screens inside a bounded card where ellipsis remains. */
+  width: max-content;
+  min-width: min(240px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - 32px));
   max-height: min(360px, calc(100vh - 96px));
   overflow: hidden;
   padding: 4px;
@@ -150,10 +157,12 @@
 }
 
 .option {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  width: auto;
+  min-width: 100%;
   min-height: 38px;
   padding: 6px 8px;
   border: none;
@@ -218,10 +227,12 @@
    padding, 8px gap, 10px radius; 14/22 label in primary, value in the
    #81858C tertiary tone, right chevron drilling into the sub-list. */
 .cell {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  width: auto;
+  min-width: 100%;
   height: 40px;
   padding: 0 10px;
   border: none;
@@ -239,19 +250,17 @@
 }
 
 .cellLabel {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.cellValue {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.cellValue {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: right;
   color: var(--dsw-alias-label-tertiary);
 }
 

@@ -3,7 +3,8 @@
  * readable from the repository rather than derived inside CI
  * ([rationale](../../.agents/notes/implemented/process/2026-08-10-npm-release-sequences.md)).
  *
- * The dsh family shares one version across its members and the workspace root:
+ * The dsh family shares one version across its publishable members, private
+ * package manifests, and the workspace root:
  * `major`, `minor`, `patch`, or an explicit `x.y.z` (including a prerelease such
  * as `0.0.1-rc.1`). The vendored family has one version line per package, but
  * every release advances and publishes the complete family so the next release
@@ -14,7 +15,7 @@
  * the tag after the commit merges. CI never writes to the repository.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { globSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, matchesGlob } from 'node:path'
 import { parseArgs } from 'node:util'
 import { releaseFamily, type ReleaseFamily, type ReleaseMember } from './families.ts'
@@ -47,8 +48,18 @@ interface PlannedVersion {
   readonly from: string
   /** The version to write. */
   readonly to: string
-  /** The tag this version publishes from, or undefined for the workspace root. */
+  /** The tag this version publishes from, or undefined for a non-published manifest. */
   readonly tag: string | undefined
+}
+
+/** One private dsh package whose version follows the publishable family. */
+interface PrivateDshVersion {
+  /** Repository-relative manifest path. */
+  readonly manifestPath: string
+  /** Package directory used in bump output. */
+  readonly label: string
+  /** Current manifest version. */
+  readonly version: string
 }
 
 /**
@@ -236,14 +247,43 @@ function rootVersion(root: string): string {
 }
 
 /**
- * Plan the dsh family's rewrite: one version for every member and the root.
+ * Discover private package manifests that share the dsh version without joining
+ * its publish set.
+ * @param root - repository root.
+ * @returns Private package manifests sorted by path.
+ */
+function privateDshVersions(root: string): PrivateDshVersion[] {
+  return globSync('packages/*/*/package.json', { cwd: root })
+    .map(path => path.replaceAll('\\', '/'))
+    .sort()
+    .flatMap((manifestPath) => {
+      const parsed: unknown = JSON.parse(readFileSync(join(root, manifestPath), 'utf8'))
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error(`${manifestPath} is not a JSON object`)
+      }
+      const manifest = parsed as Record<string, unknown>
+      if (manifest.private !== true) return []
+      if (typeof manifest.version !== 'string') {
+        throw new Error(`${manifestPath} must declare a string version`)
+      }
+      return [{
+        manifestPath,
+        label: manifestPath.slice(0, -'/package.json'.length),
+        version: manifest.version,
+      }]
+    })
+}
+
+/**
+ * Plan the dsh family's rewrite: one version for every publishable member,
+ * private package, and the root.
  * @param family - the dsh family.
  * @param root - repository root.
  * @param members - the family's members.
  * @param request - `major`, `minor`, `patch`, or an explicit version.
  * @returns The manifests to rewrite and the shared target version.
  */
-function planShared(
+export function planShared(
   family: ReleaseFamily,
   root: string,
   members: readonly ReleaseMember[],
@@ -259,11 +299,22 @@ function planShared(
   ]
   for (const member of members) {
     planned.push({
-      manifestPath: join(member.directory, 'package.json'),
+      manifestPath: `${member.directory}/package.json`,
       label: member.directory,
       from: member.version,
       to: version,
       tag: family.tagFor({ ...member, version }),
+    })
+  }
+  const publishableManifests = new Set(members.map(member => `${member.directory}/package.json`))
+  for (const entry of privateDshVersions(root)) {
+    if (publishableManifests.has(entry.manifestPath)) continue
+    planned.push({
+      manifestPath: entry.manifestPath,
+      label: entry.label,
+      from: entry.version,
+      to: version,
+      tag: undefined,
     })
   }
   return { planned, version }
@@ -287,7 +338,7 @@ function planPerPackage(
     const tagged = lastTaggedVersion(family, member)
     const to = nextVendorVersion(member.version, tagged, prerelease)
     planned.push({
-      manifestPath: join(member.directory, 'package.json'),
+      manifestPath: `${member.directory}/package.json`,
       label: member.directory,
       from: member.version,
       to,

@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import type { Browser, Page, Response } from 'playwright'
 import { chromium } from 'playwright'
 import { strFromU8, unzipSync } from 'fflate'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, onTestFailed } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, onTestFailed, vi } from 'vitest'
 import { parseSessionLog } from '@deepseek-ai/dsh-llm-replay'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import {
@@ -442,8 +442,17 @@ describe('web e2e: navigation & panes over a rich seeded session', () => {
     // Read summaries are host-open file links; they also must not open details.
     const fileLink = page.locator('[data-variant="read"] button').first()
     await fileLink.waitFor({ timeout: 10_000 })
-    await fileLink.click()
-    await expect.poll(() => frame.getAttribute('data-details-collapsed'), { timeout: 5_000 }).toBe('true')
+    const openPath = vi.spyOn(scaffold.ctx.apiProxy.host, 'openPath')
+      .mockImplementation(async (request, _signal) => ({
+        rpcId: request.rpcId,
+        result: { ok: true, value: { opened: true as const } },
+      }))
+    try {
+      await fileLink.click()
+      await expect.poll(() => frame.getAttribute('data-details-collapsed'), { timeout: 5_000 }).toBe('true')
+    } finally {
+      openPath.mockRestore()
+    }
   }, 60_000)
 
   it.skipIf(MODE === 'record')('renders the bash row as a terminal card in the real browser', async () => {

@@ -20,7 +20,8 @@ The package root exposes the Cordis plugin contract and `DeepSeekAdapter`; wire 
     reasoningEffort: high    # optional; off | low | high | max — omitted ⇒ high
     maxTokens: 256000        # optional positive per-request output cap; this is the default
     streamIdleTimeoutMs: 300000 # optional; positive finite Node timer delay; five-minute default
-    retryPolicy:             # optional; omission uses bounded normal defaults
+    maxRequestImageBytes: 20971520 # optional positive integer; 20 MiB base64-payload default
+    retryPolicy:             # optional; omission uses normal mode with five retries
       mode: always           # normal | always
       backoff:
         initialDelayMs: 500
@@ -30,12 +31,19 @@ The package root exposes the Cordis plugin contract and `DeepSeekAdapter`; wire 
     models:                  # optional; defaults to V4 Flash and V4 Pro
       - id: deepseek-v4-flash
         name: DeepSeek-V4-Flash
+      - id: private-vision
+        name: Private Vision
+        inputModalities: [text, image]
       - id: private-reasoner
         description: Company-hosted reasoning model
         contextWindow: 512000
 ```
 
-The plugin registers the single provider route `deepseek-official` together with its resolved `retryPolicy`. A request selects it with `provider: deepseek-official`; its `model` is passed through as the wire `model` string, so changing DeepSeek models does not require lifecycle-time registration. Omitting `models` advertises `deepseek-v4-flash` as `DeepSeek-V4-Flash` and `deepseek-v4-pro` as `DeepSeek-V4-Pro`, each with a 1,000,000-token context window; an explicit list replaces those defaults, while `models: []` advertises none. Catalog entries are exposed through `ctx.llm.listModels('deepseek-official')` for clients such as ACP editors and the Web selector, but remain advisory: unlisted model ids still pass through unchanged. An omitted entry name defaults to its id.
+The plugin registers the single provider route `deepseek-official` together with its resolved `retryPolicy`; omission resolves to normal mode with five retries. A request selects it with `provider: deepseek-official`; its `model` is passed through as the wire `model` string, so changing DeepSeek models does not require lifecycle-time registration. Omitting `models` advertises `deepseek-v4-flash` and `deepseek-v4-pro`, each with a 1,000,000-token context window; an explicit list replaces those defaults, while `models: []` advertises none. Vision models are not advertised by default until their endpoint rollout is complete, but a deployment can add one with `inputModalities: [text, image]`. Catalog entries are exposed through `ctx.llm.listModels('deepseek-official')` for clients such as ACP editors and the Web selector, but remain advisory: unlisted model ids still pass through unchanged. An omitted entry name defaults to its id, and omitted `inputModalities` means `text` only.
+
+An image-capable catalog entry may declare `inputModalities: [text, image]`. The adapter resolves user and tool-result `ImageBlock` references through `ctx.attachments`, verifies the stored bytes, and sends transient `data:<media-type>;base64,...` `image_url` parts without changing the durable session message. Text-only and unlisted models reject image input before credential, attachment, or network I/O. System and assistant history remain image-free; tool-result images follow their string-only `tool` messages in a separate `user` message.
+
+`maxRequestImageBytes` bounds accumulated base64 image payload and defaults to 20 MiB, leaving headroom below the official 30 MiB request-body limit for text, tools, and JSON framing. When history exceeds the bound, the oldest images become the fixed model-visible placeholder `[image omitted to keep the request within its image limit; older images are omitted first. If this image is still needed, read its file again when a path is available; otherwise ask the user to attach it again.]` until the request fits; omitted attachments are not read. Attachment admission continues to own per-image and per-message raw-byte, media, dimension, and pixel limits.
 
 `contextWindow` is optional per configured model and is not exposed through the advisory catalog. `ctx.llm.resolveModelInfo('deepseek-official', model).context` returns an exact model value first, then `defaultContextWindow` for an entry without capacity or an unlisted pass-through id. The adapter default is 1,000,000; pressure-sensitive plugins therefore get deployment-owned capacity without treating the model selector as authoritative. Registering another adapter for `deepseek-official` throws `LlmError('DUPLICATE_ADAPTER')`.
 
@@ -49,10 +57,11 @@ The same exact-model result exposes ordered `off`, `low`, `high`, and `max` effo
 
 ## Dynamic configuration (settings + credentials)
 
-Connection facts are not frozen at load. `resolveAdapterOptions` is the one explicit resolve step from raw config to validated facts, and the adapter re-reads them through a thunk **once per operation**: base URL, catalog, request defaults, and idle budget all take effect on the next request, while an in-flight stream keeps the facts it started with. Two optional seams feed that thunk:
+Connection facts are not frozen at load. `resolveAdapterOptions` is the one explicit resolve step from raw config to validated facts, and the adapter re-reads them through a thunk **once per operation**: base URL, catalog, request defaults, image bound, and idle budget all take effect on the next request, while an in-flight stream keeps the facts it started with. Three optional seams feed that thunk:
 
 - **`ctx.settings`** — the plugin registers the `llm-deepseek` namespace with this same `Config` schema and its `cordis.yml` entry as the composition `base`, so a `llm-deepseek:` section in the user settings document overrides any field without a restart. Without a mounted settings service the entry config alone drives the adapter, unchanged. A live settings snapshot that passes the schema but fails a beyond-schema bound (a duplicate catalog id, a broken thinking/effort pair) keeps the last good facts and logs the failure; the entry config itself still fails plugin load.
 - **`ctx.credentials`** — the API key resolves per stream call, from the *same* resolved snapshot that supplies the endpoint. Configuration carries only `apiKeyEnv`, never a literal key: the reference resolves through the credential seam, and without a mounted seam through the trusted environment layers. Because credential facts travel with the connection facts, a settings snapshot the resolver rejects contributes neither its endpoint nor its key: the whole previous generation keeps serving. Every resolved key is format-checked before use, so a value no HTTP header can carry is refused with `LlmError('INVALID_CREDENTIAL')` naming the failing entry point — never any part of the key — instead of surfacing as an opaque `fetch` `TypeError`. A request with no key anywhere fails with `MISSING_CREDENTIAL` naming every configuration entry point, while the route stays registered and the catalog stays browsable — first-run onboarding is "browse models, store the key, prompt again", with no restart between.
+- **`ctx.attachments`** — image requests resolve this service at request time, so Cordis load order does not freeze optional image availability. Absence rejects image input with `UNSUPPORTED_CONTENT`; text-only calls do not require the service.
 
 The one registration-captured fact is the retry policy: when its resolved value changes, the plugin re-registers the route in place (same adapter instance, one synchronous section), so `ctx.llm.providerRetryPolicy('deepseek-official')` always reports the current policy.
 
@@ -69,12 +78,13 @@ DeepSeek request identity is separate from app attribution. After credential res
 - Streaming only (`stream_options.include_usage` always on). `usage` may arrive attached to the finish chunk or as a trailing usage-only chunk — the translator defers both to `[DONE]`, so `usage` always precedes `finish` and nothing follows `finish`.
 - The adapter-owned `off` effort maps to `thinking: {type: 'disabled'}` and never crosses the wire as `reasoning_effort: 'off'`.
 - The first thinking-mode chunk carries `reasoning_content: ""` — handled (no spurious reasoning block).
-- **Reasoning passback rule**: on assistant turns that carried tool calls, `reasoning_content` is serialized back in history (required by the API in thinking mode); on tool-call-free turns it is dropped (ignored anyway — saves tokens).
+- **Reasoning passback rule**: every assistant turn that carried reasoning serializes `reasoning_content` back in history. Thinking mode requires it on tool-call turns; DeepSeek ignores it elsewhere, while a gateway re-encoding the conversation for another vendor recovers that turn's upstream thinking signature by hashing the replayed text.
+- Image-capable user messages preserve text/image order. Tool-role content remains a string; consecutive tool-result images are grouped into the following user message with `Attached image(s) from tool result:`.
 - Cache accounting: `cacheReadTokens` ← `prompt_cache_hit_tokens` / `prompt_tokens_details.cached_tokens`; DeepSeek reports no cache-write metric.
 
 ## Errors
 
-Non-2xx responses throw `LlmError` with stable codes: `AUTH` (401/403), `QUOTA` (a response whose provider details identify exhausted quota, balance, or credits), `RATE_LIMIT` (other 429s), `CONTEXT_WINDOW_EXCEEDED` (a 400 whose provider code, type, or message identifies context overflow), `INVALID_REQUEST` (other 400s), `SERVER` (5xx), `HTTP_<status>` otherwise. Its serializable `failure` retains the HTTP status plus a valid positive `Retry-After` seconds/date delay and `x-request-id` / `x-deepseek-request-id` when present. A pre-response transport failure (DNS, refused connection, TLS, proxy) throws `TRANSPORT` naming the configured endpoint and chaining the original rejection as `cause`; caller aborts throw `ABORTED`, and the loop's cancellation signal remains authoritative. Protocol violations throw `STREAM_CLOSED` (no `[DONE]`) or `MALFORMED_RESPONSE` (bad JSON payload). Unknown wire `finish_reason`s (e.g. `content_filter`, `insufficient_system_resource`) become `finish {kind: 'error', failure}` chunks, and a completed stream whose `stop` (or absent) finish opened no content blocks becomes a `finish {kind: 'error'}` with code `EMPTY_RESPONSE` (retried by default policy).
+Non-2xx responses throw `LlmError` with stable codes: `AUTH` (401/403), `QUOTA` (a response whose provider details identify exhausted quota, balance, or credits), `RATE_LIMIT` (other 429s), `CONTEXT_WINDOW_EXCEEDED` (a 400 whose provider code, type, or message identifies context overflow), `INVALID_REQUEST` (other 400s and 413), `SERVER` (5xx), `HTTP_<status>` otherwise. Its serializable `failure` retains the HTTP status plus a valid positive `Retry-After` seconds/date delay and `x-request-id` / `x-deepseek-request-id` when present. Attachment reads retain their stable attachment failure code rather than becoming transport failures. A pre-response transport failure (DNS, refused connection, TLS, proxy) throws `TRANSPORT` naming the configured endpoint and chaining the original rejection as `cause`; caller aborts throw `ABORTED`, and the loop's cancellation signal remains authoritative. Protocol violations throw `STREAM_CLOSED` (no `[DONE]`) or `MALFORMED_RESPONSE` (bad JSON payload). Unknown wire `finish_reason`s (e.g. `content_filter`, `insufficient_system_resource`) become `finish {kind: 'error', failure}` chunks, and a completed stream whose `stop` (or absent) finish opened no content blocks becomes a `finish {kind: 'error'}` with code `EMPTY_RESPONSE` (retried by default policy).
 
 ## Model Experience
 
@@ -82,15 +92,15 @@ Non-2xx responses throw `LlmError` with stable codes: `AUTH` (401/403), `QUOTA` 
 
 #### What the model sees
 
-The selected DeepSeek model receives the harness system prompt, message history, tool schemas, stop sequences, and call config without adapter-authored prompt prose. On a prior assistant turn with tool calls, its reasoning content is passed back as required; reasoning from tool-call-free turns is omitted.
+The selected DeepSeek model receives the harness system prompt, message history, tool schemas, stop sequences, and call config without adapter-authored prompt prose. The vision model also receives retained user and tool-result images as base64 data URLs; an over-budget older image is represented by the documented placeholder. Reasoning content from a prior assistant turn is passed back verbatim, whether or not that turn called a tool.
 
 #### Token effect
 
-Provider tokenization governs exact input. Conditional reasoning passback increases tool-round-trip context, while dropping other reasoning avoids paying those tokens again; cache-read usage is reported when available.
+Provider tokenization governs exact text and image-token input. Reasoning passback carries every reasoned turn's chain of thought into later requests, while dropping over-budget images avoids paying those tokens again; cache-read usage is reported when available.
 
 #### KV Cache effect
 
-An unchanged assembled prefix is eligible for DeepSeek cache reuse, which this adapter reports in usage. A model-route change or any upstream prompt, schema, prefix, or history change may prevent reuse from the first changed token; reasoning passback appends during tool round trips.
+An unchanged assembled prefix, including deterministically encoded retained images and placeholders, is eligible for DeepSeek cache reuse, which this adapter reports in usage. A model-route change or any upstream prompt, schema, prefix, history, or image-budget change may prevent reuse from the first changed token; reasoning passback appends on every reasoned turn.
 
 ### DeepSeek response
 
@@ -111,4 +121,5 @@ Loop-retained response blocks append to the next request and preserve its earlie
 - **A settings `models` list replaces the composition list wholesale** — settings-layer merging is per-field, and arrays are one field; per-entry catalog merging would need a keyed shape.
 - **`tool_choice` is not mapped** — not part of the core vocabulary (MVP cut, shared with the pi-ai twin).
 - **Requests use raw `fetch`, not `@cordisjs/plugin-http`** — no shared proxy/interception configuration; adoption is deferred until a second adapter wants it (`TODO(http)`).
-- **Serialization flattens user and tool-result content to text blocks** — plugin-added block types are skipped, and empty tool output crosses the wire as the literal `(no output)`.
+- **Plugin-added content block types are skipped** — core text and supported image blocks are serialized, and empty tool output crosses the wire as the literal `(no output)`.
+- **Images are input-only durable attachments** — direct external URLs, the Files API, and assistant image output are not supported.

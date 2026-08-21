@@ -1,10 +1,14 @@
-/** Welcome-notice state, durable when the browser may use Host settings. */
+/**
+ * Welcome-notice state derived from the welcome settings scope. The scope is
+ * the transport: a loopback browser follows the durable Host section, while a
+ * remote browser's memory-mode scope never answers and the acknowledgement
+ * stays process-local here.
+ */
 
-import type { IApiClient, SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope, SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import {
-  WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_SETTINGS_NAMESPACE, WELCOME_NOTICE_VERSION,
+  WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_VERSION,
 } from '../onboarding-copy.ts'
 
 /** State rendered by the welcome step. */
@@ -14,113 +18,123 @@ export interface WelcomeNoticeState {
   error: string | null
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+/** The welcome section as the notice reads it. */
+export type WelcomeSection = Record<string, unknown>
+
+/**
+ * Accept any object section verbatim; a malformed durable value reads as an
+ * empty section, so the notice treats it as unacknowledged instead of leaving
+ * the scope stuck on its previous value.
+ * @param section - the wire section value.
+ * @returns the section object, or an empty one for non-object values.
+ */
+export function decodeWelcomeSection(section: unknown): WelcomeSection {
+  return typeof section === 'object' && section !== null && !Array.isArray(section)
+    ? section as WelcomeSection
+    : {}
 }
 
-function acknowledgementOf(view: SettingsNamespaceView): string | undefined {
-  if (typeof view.value !== 'object' || view.value === null) return undefined
-  const value = (view.value as Record<string, unknown>)[WELCOME_NOTICE_ACK_FIELD]
-  return typeof value === 'string' ? value : undefined
+/* v8 ignore next 3 -- closed-union default only defends future source widening */
+function assertNever(_value: never): never {
+  throw new Error('unexpected welcome settings status')
 }
 
 /** Coordinates durable Host acknowledgement or a process-local remote fallback. */
 export class WelcomeNoticeStore {
   /** uSES-safe state source shared by the registered welcome step. */
-  readonly store: SnapshotStore<WelcomeNoticeState> = createSnapshotStore({
+  readonly store: SnapshotStore<WelcomeNoticeState> = createSnapshotStore<WelcomeNoticeState>({
     status: 'idle', acknowledged: false, error: null,
   })
 
-  private generation = 0
+  private localAcknowledged = false
+  private saving = false
+  private following: (() => void) | undefined
 
   /**
-   * @param api - settings wire face used for durable reads and writes.
-   * @param persistence - remote browsers use memory because settings is loopback-only.
+   * @param scope - the welcome settings namespace scope; its memory mode is
+   * what keeps a remote browser process-local.
    */
-  constructor(
-    private readonly api: Pick<IApiClient, 'settings'>,
-    private readonly persistence: 'host' | 'memory' = 'host',
-  ) {}
+  constructor(private readonly scope: SettingsScope<WelcomeSection>) {}
 
-  /** Load the acknowledgement from Host settings or initialize process-local state. */
-  async load(): Promise<void> {
-    const generation = ++this.generation
-    if (this.persistence === 'memory') {
-      this.store.update((state) => { state.status = 'ready'; state.error = null })
-      return
-    }
-    this.store.update((state) => { state.status = 'loading'; state.error = null })
-    try {
-      const response = await this.api.settings.describe({})
-      if (!response.result.ok) throw new Error(response.result.error.message)
-      const view = response.result.value.namespaces.find(
-        candidate => candidate.ns === WELCOME_NOTICE_SETTINGS_NAMESPACE,
-      )
-      if (view === undefined) throw new Error('welcome acknowledgement settings are unavailable')
-      if (generation !== this.generation) return
-      this.store.update((state) => {
-        state.status = 'ready'
-        state.acknowledged = acknowledgementOf(view) === WELCOME_NOTICE_VERSION
-        state.error = null
-      })
-    } catch (error) {
-      if (generation !== this.generation) return
-      this.store.update((state) => {
-        state.status = 'error'
-        state.acknowledged = false
-        state.error = messageOf(error)
-      })
-    }
+  /**
+   * Begin following the bound scope (idempotent) and publish its current answer.
+   * @returns settlement after the current answer is published.
+   */
+  load(): Promise<void> {
+    this.following ??= this.scope.subscribe(() => { this.derive() })
+    this.derive()
+    return Promise.resolve()
   }
 
   /**
-   * Persist this copy version, or advance only this process for a remote browser.
-   * @returns true when the selected persistence mode accepted the acknowledgement.
+   * Persist this copy version, or advance only this process for a remote
+   * browser. Success is judged against the state the write left behind, so a
+   * refused or failed write reports false after its recovery read settles.
+   * @returns true when the selected persistence mode holds the acknowledgement.
    */
   async acknowledge(): Promise<boolean> {
-    const generation = ++this.generation
-    if (this.persistence === 'memory') {
-      this.store.update((state) => {
-        state.status = 'ready'
-        state.acknowledged = true
-        state.error = null
-      })
+    if (this.scope.getSnapshot().mode === 'memory') {
+      this.localAcknowledged = true
+      this.derive()
       return true
     }
+    this.saving = true
     this.store.update((state) => { state.status = 'saving'; state.error = null })
     try {
-      const response = await this.api.settings.mutate({
-        ns: WELCOME_NOTICE_SETTINGS_NAMESPACE,
-        ops: [{ op: 'set', path: [WELCOME_NOTICE_ACK_FIELD], value: WELCOME_NOTICE_VERSION }],
+      await this.scope.set(WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_VERSION)
+    } finally {
+      this.saving = false
+    }
+    this.derive()
+    const { acknowledged } = this.store.getSnapshot()
+    if (!acknowledged) {
+      this.store.update((state) => {
+        state.status = 'error'
+        state.error = 'the acknowledgement did not persist'
       })
-      if (!response.result.ok) throw new Error(response.result.error.message)
-      if (generation === this.generation) {
-        this.store.update((state) => {
-          state.status = 'ready'
-          state.acknowledged = true
-          state.error = null
-        })
-      }
-      return true
-    } catch (error) {
-      if (generation === this.generation) {
+    }
+    return acknowledged
+  }
+
+  /** Stop following the scope. */
+  dispose(): void {
+    this.following?.()
+    this.following = undefined
+  }
+
+  private derive(): void {
+    if (this.saving) return
+    const scope = this.scope.getSnapshot()
+    if (scope.mode === 'memory') {
+      this.store.update((state) => {
+        state.status = 'ready'
+        state.acknowledged = this.localAcknowledged
+        state.error = null
+      })
+      return
+    }
+    switch (scope.status) {
+      case 'loading':
+        this.store.update((state) => { state.status = 'loading'; state.error = null })
+        return
+      case 'unavailable':
         this.store.update((state) => {
           state.status = 'error'
           state.acknowledged = false
-          state.error = messageOf(error)
+          state.error = 'welcome acknowledgement settings are unavailable'
         })
+        return
+      case 'ready': {
+        const acknowledged = scope.value?.[WELCOME_NOTICE_ACK_FIELD] === WELCOME_NOTICE_VERSION
+        this.store.update((state) => {
+          state.status = 'ready'
+          state.acknowledged = acknowledged
+          state.error = null
+        })
+        return
       }
-      return false
+      /* v8 ignore next -- every current settings scope status is handled above */
+      default: return assertNever(scope.status)
     }
   }
-}
-
-/**
- * Refresh only after welcome state has left idle. A memory-mode load retains
- * acknowledgement so reconnect does not reopen a process-local notice.
- * @param controller - welcome state owner whose current status decides whether to load.
- */
-export function refreshWelcomeIfLoaded(controller: WelcomeNoticeStore): void {
-  if (controller.store.getSnapshot().status === 'idle') return
-  void controller.load()
 }

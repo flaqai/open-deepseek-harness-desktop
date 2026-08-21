@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-**面向模型的文件系统发现工具**（`glob`、`grep`）由 **打包的 ripgrep 二进制**（`@vscode/ripgrep`）支持，而不是由 `ctx.fs` 提供方方法或系统 `rg` 安装支持。注册是无条件的：二进制随 NPM 依赖一起交付，因此没有加载期可用性探针。每次调用都通过 `ctx.subprocess` seam 以固定 argv 向量 spawn 该二进制（前缀 `--no-config`，使宿主的 `RIPGREP_CONFIG_PATH` 无法向不受约束的 spawn 注入 `--pre` 预处理器；模型控制的值是普通 argv 元素——不存在 shell 层，因此不涉及 shell 引号处理），解析原始 `rg` 输出，并返回相对于工作目录的规范值。本包注入 `tools`、`systemPrompt` 和 `subprocess`，有意**不**注入 `fs`；格式化结果 spill 为可选功能，因此机会性读取 `ctx.spillStore`，调用方式为 `ctx.get()`。
+**面向模型的文件系统发现工具**（`glob`、`grep`）由打包的 ripgrep 二进制支持，而不是由 `ctx.fs` 提供方方法或系统 `rg` 安装支持。普通 Node 部署从 `@vscode/ripgrep` 解析平台二进制；pkg 单文件运行时解析与可执行程序共置的 `-rg` 伴随文件，伴随文件缺失时回退到依赖中的二进制。两种载体均打包 ripgrep，因此注册是无条件的，没有加载期可用性探针。每次调用都通过 `ctx.subprocess` seam 以固定 argv 向量 spawn 解析出的二进制（前缀 `--no-config`，使宿主的 `RIPGREP_CONFIG_PATH` 无法向不受约束的 spawn 注入 `--pre` 预处理器；模型控制的值是普通 argv 元素——不存在 shell 层，因此不涉及 shell 引号处理），解析原始 `rg` 输出，并返回相对于工作目录的规范值。本包注入 `tools`、`systemPrompt` 和 `subprocess`，有意**不**注入 `fs`；格式化结果 spill 为可选功能，因此机会性读取 `ctx.spillStore`，调用方式为 `ctx.get()`。
 
 ```ts ignore-check
 // A deployment chooses how over-cap glob pages are selected.
@@ -16,7 +16,7 @@ await ctx.plugin(LocalSpillStore)                           // @deepseek-ai/dsh-
 
 ## 部署要求：无需宿主 rg，但工作目录与文件系统需共置
 
-二进制随包交付，覆盖所有受支持平台（macOS/Linux/Windows，x64/arm64），因此无需宿主 `rg` 安装，工具在每个部署上都注册。返回路径会相对于解析后的工作目录显示（调用方 agent（智能体）有会话 cwd 时使用该 cwd，否则使用 `process.cwd()`）；只有该工作目录与文件系统根目录是同一工作区时，才能用 `read` 继续读取。这项共置要求不附带运行时跨服务校验；远程或虚拟文件系统搜索需等待共享工作区约定或特定提供方的搜索后端。
+Node 部署在受支持的 macOS、Linux 与 Windows x64/arm64 目标上获得 `@vscode/ripgrep` 平台包。Python SDK 的 Linux 与 macOS wheel 将目标原生二进制复制到单文件运行时旁，命名为 `<runtime>-rg`；`deepseek_harness_runtime.bundled_runtime_path()` 会在启动前拒绝不完整的 wheel。两种载体均不要求宿主安装 `rg`。返回路径会相对于解析后的工作目录显示（调用方 agent（智能体）有会话 cwd 时使用该 cwd，否则使用 `process.cwd()`）；只有该工作目录与文件系统根目录是同一工作区时，才能用 `read` 继续读取。这项共置要求不附带运行时跨服务校验；远程或虚拟文件系统搜索需等待共享工作区约定或特定提供方的搜索后端。
 
 ## 配置
 
@@ -129,6 +129,6 @@ glob 描述声明了配置的超过上限排序方式。生成的 [`glob` 和 `g
 ## 已知限制与暂缓事项
 
 - **搜索与文件访问没有共享工作区证明**——只有当工作目录与文件系统根目录指向同一工作区时，返回路径才可继续读取；本包不执行运行时跨服务校验。
-- **打包二进制固定在依赖版本上**——`@vscode/ripgrep` 覆盖其随附的平台（macOS/Linux/Windows，x64/arm64）；不支持的平台或损坏的安装会以 `SEARCH_FAILED` 使调用失败。远程或虚拟文件系统需要共置的工作区或另一个搜索消费方。
+- **打包二进制固定在依赖版本上**——Node 部署使用 `@vscode/ripgrep` 选择的版本；Python 单文件运行时将对应目标的原生版本复制为必需的 `-rg` 伴随文件。不支持的平台或损坏的安装会以 `SEARCH_FAILED` 使调用失败，Python 运行时包则会在启动前拒绝缺少伴随文件的安装。远程或虚拟文件系统需要共置的工作区或另一个搜索消费方。
 - **schema 只暴露一个有界页面**——偏移分页、大小写开关、替代输出模式与提供方支撑的发现仍不在本包范围内；达到上限的完整输出需要 spill 后端。
 - **启用采样时仅按搜索根正下方的第一段路径分组**——超过上限的 `glob` 页面在这些顶层条目之间平衡，因此集中在更深处的结果（一棵均匀树里某个繁忙目录）在该层级之下仍会呈现不均；递归平衡被延期。

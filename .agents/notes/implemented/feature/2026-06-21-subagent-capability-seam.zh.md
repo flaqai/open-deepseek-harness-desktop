@@ -54,11 +54,11 @@ bash seam（[能力 seam](../architecture/2026-06-13-capability-seams.md)）在�
 
 ### 子 agent 隔离与父日志
 
-每个进程内 subagent 运行在**自己的 `Session`** 中（独立 id、`parentSession` 谱系），独立持久化。远端 ACP 和一次性产品提供方则会生成一个父级作用域的生命周期 id，且不暴露本地 `Agent` 或子 `Session`；其内部状态留在远端进程中。两种形式下，父日志都仅记录 spawn `tool/call` 及其 `tool/result`（子 agent 的最终输出），而子 agent 的步骤和工具调用均留在父日志之外。
+每个进程内 subagent 运行在**自己的 `Session`** 中（独立 id、`parentSession` 谱系），独立持久化。远端 ACP 和一次性产品提供方则会生成一个父级作用域的生命周期 id，且不暴露本地 `Agent` 或子 `Session`；其内部状态留在远端进程中。两种形式下，父日志都仅记录 spawn `tool/call` 及其 `tool/result`（子 agent 的最终输出，或带可选提供方诊断的失败结果），而子 agent 的步骤和工具调用均留在父日志之外。
 
 ### 同步收集（首版）
 
-`dsh-tool-subagent` 将其执行信号传给 `start()`，等待子 agent 结果，并在报告前 dispose 该 run。非完成态的结果变为错误结果，而非成功的部分输出；结果与 dispose 的拒绝相互独立，且两项诊断信息都会保留。
+`dsh-tool-subagent` 将其执行信号传给 `start()`，等待子 agent 结果，并在报告前 dispose 该 run。非完成态的结果变为错误结果，而非成功的部分输出；它会把由[非交互权限决策](2026-08-15-product-subagent-noninteractive-permissions.md)负责的可选安全诊断与部分 assistant 文本分开呈现。结果与 dispose 的拒绝仍可彼此独立地观察。
 
 ### 提供方选择是配置，不面向模型
 

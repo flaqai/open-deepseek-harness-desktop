@@ -131,7 +131,7 @@ A successful `read_image` returns `<path><displayPath></path>`, `<type>image</ty
 
 #### Token effect
 
-The image is billed on every later request until compaction. Each call is independently bounded by the attachment store's `maxImageBytes`/`maxImagePixels`; repeated successful calls accumulate history, and content addressing deduplicates only the stored bytes, not the per-request token cost.
+The image is billed on every later request until compaction. Each call is independently bounded by the attachment store's `maxImageBytes`/`maxImagePixels`/`maxImageDimension`; repeated successful calls accumulate history, and content addressing deduplicates only the stored bytes, not the per-request token cost.
 
 #### KV Cache effect
 

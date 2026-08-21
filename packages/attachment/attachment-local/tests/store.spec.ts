@@ -43,6 +43,7 @@ const LIMITS: ImageAttachmentLimits = {
   maxImagesPerMessage: 2,
   maxMessageImageBytes: 2048,
   maxImagePixels: 16,
+  maxImageDimension: 2000,
   mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
 }
 
@@ -176,6 +177,9 @@ describe('local attachment store', () => {
     await expect(saveImageFile(storageRoot, {
       data: wide, mediaType: 'image/png',
     }, LIMITS)).rejects.toMatchObject({ code: 'IMAGE_TOO_MANY_PIXELS' })
+    await expect(saveImageFile(storageRoot, {
+      data: wide, mediaType: 'image/png',
+    }, { ...LIMITS, maxImagePixels: 25, maxImageDimension: 4 })).rejects.toMatchObject({ code: 'IMAGE_DIMENSION_TOO_LARGE' })
     const unnamed = await saveImageFile(storageRoot, {
       data: PNG, mediaType: 'image/png', name: '\u0000',
     }, LIMITS)

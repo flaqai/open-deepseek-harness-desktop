@@ -42,6 +42,8 @@ interface ImageAttachmentLimits {
   maxImagesPerMessage: number
   maxMessageImageBytes: number
   maxImagePixels: number
+  /** Maximum intrinsic width and maximum intrinsic height in pixels for one image. */
+  maxImageDimension: number
   mediaTypes: readonly ImageMediaType[]
 }
 ```
@@ -49,6 +51,18 @@ interface ImageAttachmentLimits {
 引用记录固有尺寸和编码长度，使客户端无需先解码即可排布历史记录；每次权威读取仍会根据对象重新校验摘要、媒体签名、尺寸和元数据。
 
 ## 提交与经校验读取的数据
+
+```ts type-equiv
+/** Base64-encoded image upload accompanying one wire request. */
+interface EncodedImageAttachment {
+  /** Declared media type, verified against the decoded bytes during admission. */
+  mediaType: ImageMediaType
+  /** Canonical base64 encoding of the image bytes. */
+  data: string
+  /** Optional display name; it is never interpreted as a path. */
+  name?: string
+}
+```
 
 ```ts type-equiv
 /** Request to validate and durably commit one image. */
@@ -69,7 +83,7 @@ interface StoredImageAttachment {
 }
 ```
 
-`saveImage()` 校验字节并以原子方式提交一个对象，之后才返回其引用。`validateImage()` 执行相同的准入检查，但不持久化任何内容；批量调用方会在保存任何成员前通过它校验所有成员，因此校验拒绝不会留下部分对象。`readImage()` 接受来自已授权会话路径的引用，只在完整性校验通过后返回字节。该服务刻意不规定保留策略：恢复和 fork 后的会话可能共享对象，因此基于引用的垃圾回收会延期实现，而不是与任何一个会话的删除绑定。
+`saveImage()` 校验字节并以原子方式提交一个对象，之后才返回其引用。`validateImage()` 执行相同的准入检查，但不持久化任何内容；批量调用方会在保存任何成员前通过它校验所有成员，因此校验拒绝不会留下部分对象。`admitEncodedImages()` 是面向 base64 上传的 wire 入口：强制执行规范 base64，随后把批量准入委托给 `saveImages()`，由后者负责张数与聚合字节上限以及先全量校验再保存的顺序。`readImage()` 接受来自已授权会话路径的引用，只在完整性校验通过后返回字节。该服务刻意不规定保留策略：恢复和 fork 后的会话可能共享对象，因此基于引用的垃圾回收会延期实现，而不是与任何一个会话的删除绑定。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -121,5 +135,5 @@ abstract saveImage(input: SaveImageAttachment): Promise<ImageAttachmentRef>
 abstract readImage(ref: ImageAttachmentRef, signal?: AbortSignal): Promise<StoredImageAttachment>
 ```
 
-Source: [`packages/attachment/attachment/src/index.ts:31`](../../packages/attachment/attachment/src/index.ts)
+Source: [`packages/attachment/attachment/src/index.ts:33`](../../packages/attachment/attachment/src/index.ts)
 <!-- END GENERATED cordis-surface -->

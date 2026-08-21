@@ -85,7 +85,7 @@ Session 实例与 scope 同生命周期，存活资格 = host listed（一个判
 
 ### 逐会话供数：`sessions.provide` 标准件通道
 
-会话 slot 组件「自己拿会话数据」的唯一供数路径。插件以静态描述符 `sessions.provide({hooks, props, resolve})` 声明固定键表（重名 key 注册时 throw），`resolve(binding)` 在确定会话下物化值并随 scope 拆；web-react `standardKit` 统一循环把 hooks 格绑成 `use<Name>` 选择器钩子（`observableHook`→uSES，防 tearing）、props 格原样透传。
+会话 slot 组件「自己拿会话数据」的唯一供数路径。插件以静态描述符 `sessions.provide({hooks, props, resolve})` 声明固定键表（重名 key 注册时 throw），`resolve(binding)` 在确定会话下物化值并随 scope 拆；ui-renderer `standardKit` 统一循环把 hooks 格绑成 `use<Name>` 选择器钩子（`observableHook`→uSES，防 tearing）、props 格原样透传。
 
 slot scope 是闭集 `root | session-maybe | session`：
 

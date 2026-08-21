@@ -149,6 +149,38 @@ describe('Trajectory conversation Definitions', () => {
     }])
   })
 
+  it('classifies a cancellation-finalized prefix as an interrupted request result', () => {
+    const current = snapshot(assembler([
+      at(1, 'turn/start', { turn: 1 }),
+      at(2, 'step/start', { turn: 1, step: 1 }),
+      at(3, 'assistant/message', {
+        turn: 1,
+        step: 1,
+        message: assistantMessage('interrupted-message', 'cut short'),
+        interrupted: true,
+      }),
+      at(4, 'step/end', { turn: 1, step: 1 }),
+      at(5, 'turn/end', {
+        turn: 1,
+        reason: { kind: 'aborted', reason: { kind: 'user' } },
+      }),
+    ]))
+
+    expect(current.eventNodes).toMatchObject([{
+      kind: 'assistant',
+      seq: 3,
+      messageId: 'interrupted-message',
+      interrupted: true,
+      blocks: [{ kind: 'text', text: 'cut short' }],
+    }])
+    expect(current.requests).toMatchObject([{
+      purpose: 'assistant',
+      resultSeq: 3,
+      status: 'error',
+      provenance: { provider: 'test', model: 'test' },
+    }])
+  })
+
   it('keeps parallel interrupted roots and nests Code Dispatch results', () => {
     const current = snapshot(assembler([
       at(1, 'turn/start', { turn: 1 }),

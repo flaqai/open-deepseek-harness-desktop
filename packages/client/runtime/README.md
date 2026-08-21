@@ -6,7 +6,7 @@ Client cordis boot and React-free object services: SlotRegistry wraps SlotCore a
 
 For each prompt that can reach a local root or continuable child Agent, the runtime samples the browser's current `Intl.DateTimeFormat().resolvedOptions().timeZone` and attaches it to that one Session or subagent prompt RPC. It is neither cached nor included in Session creation or fork state, so travel and concurrent tabs keep message-local provenance. A browser that cannot provide a non-empty zone fails the prompt locally instead of silently substituting deployment state.
 
-`bindSettingsScope` is the browser mirror of the Host-side settings owner seam for one domain-owned namespace. It subscribes before starting a nonblocking initial read, publishes a uSES snapshot (status, section value, the composition `base` and raw `user` layers, revision, writability, host/memory mode), serializes `set` and `unset` writes with the latest known namespace revision, suppresses stale publications, recovers a rejected latest write from Host state, and reaches quiescence on plugin disposal. The default decoder validates each section against the namespace's own serialized wire schema (rehydrated through dsh-client-schema-form), so a domain adds a decoder only to narrow beyond that schema. Loopback pages use the Host settings API; remote pages stay in memory mode. A field is overridden when it is PRESENT in `user` — an override equal to the composition default is still an override, which comparing values could not see — and `unset` is how a form clears one back to `base`. Domain packages own the namespace schema, default, and live service rather than putting product policy in runtime.
+Settings owners share the React-free `SettingsScopeSpec`, `SettingsScope`, and snapshot types defined here. ui-settings owns `ctx.settingsScope.bind(spec)`, its Host transport, schema validation, and lifecycle; see [its package contract](../ui-settings/README.md).
 
 ## Slot declaration injection
 
@@ -24,7 +24,9 @@ Workspace and Session lists have independent monotone `pending` → `ready` base
 
 `WorkspaceListState.archivedSessionIds` mirrors the Host's registry-global archive set (a `readonly SessionId[]` in Host order, replaced only when membership changes; consumers needing O(1) lookups build a transient Set). It is full-snapshot state: the `workspace.list` baseline, the `archiveSession` unary echo, and the `host/archived-sessions-changed` frame each install the complete set. `WorkspaceRuntime.archiveSession(sessionId)` archives over the wire; the projection sweep clears the current selection into the New Session view state whenever it lands in the archive set — one rule covering the local echo, another tab's frame, and a reconnect baseline restoring a selection archived while this client was away. A set installed while a `workspace.list` request is in flight also supersedes that stale baseline's set. Grouping surfaces hide members everywhere while the session rows stay in the list store.
 
-SlotRegistry gives the renderer separate bare observables for `useSessions` and `useWorkspaces`; web-react creates the hooks. Workspace business state does not enter `SessionListState` or an entry store.
+SlotRegistry gives the renderer separate bare observables for `useSessions` and `useWorkspaces`; ui-renderer creates the hooks. Workspace business state does not enter `SessionListState` or an entry store.
+
+`abbreviateHomePath` is the display-only POSIX home abbreviation used by Web Workspace hover cards and Tool summaries; a Windows drive or UNC path stays verbatim, and a missing, empty, or filesystem-root home leaves the path unchanged.
 
 `indexSubagentDescendants()` derives per-parent total and running descendant counts from the retained list mirror. It follows only uninterrupted `origin: 'subagent'` ancestry, so an ordinary fork starts a separate ownership subtree; cycles stop without throwing, and a missing parent remains a harmless key until its summary arrives.
 
@@ -54,7 +56,7 @@ The Chat builder keeps one mutable keyed store per Session. Content updates noti
 
 ## Trajectory request data
 
-Trajectory Definitions assemble one chronological, purpose-discriminated provider-request stream. Assistant requests always carry their numeric `turn` and `step`; compaction requests carry `step: 0` and a `turn` owner that may be `null`. That null owner means a manual compaction ran standalone between turns, not that it belongs to either adjacent turn. A `session/end-seed` boundary closes an unmatched compaction request as an error at the boundary time with `Compaction was interrupted before completion.`; a later start projects as an independent request instead of overwriting the orphan.
+Trajectory Definitions assemble one chronological, purpose-discriminated provider-request stream. Assistant requests always carry their numeric `turn` and `step`; compaction requests carry `step: 0` and a `turn` owner that may be `null`. That null owner means a manual compaction ran standalone between turns, not that it belongs to either adjacent turn. A cancellation-finalized `assistant/message` retains its durable result seq and provider provenance but does not complete the request; `step/end` classifies that request as an error. A `session/end-seed` boundary closes an unmatched compaction request as an error at the boundary time with `Compaction was interrupted before completion.`; a later start projects as an independent request instead of overwriting the orphan.
 
 ## Code Mode child-call tree
 

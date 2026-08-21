@@ -98,7 +98,7 @@ Every `SessionEvent` carries three optional top-level fields (structural metadat
 
 #### What the model sees
 
-The model receives the complete messages from `user/message`, `assistant/message`, and `tool/result` surface entries verbatim. Their identities, roles, sources, and content blocks are the same values established at creation; projections do not mint identities. A prompt envelope changes only human presentation; its prefix context and request delimiter are already present in the event content. Tool calls live inside assistant messages. Chunks, boundaries, usage, hook records, todo records, and other log-only events add no message.
+The model receives the complete messages from `user/message`, `assistant/message`, and `tool/result` surface entries verbatim. Their identities, roles, sources, and content blocks are the same values established at creation; projections do not mint identities. Direct prompts and injected context remain separate `user/message` events whose sources preserve their provenance. A prompt envelope changes only human presentation; its prefix context and request delimiter are already present in the event content. Tool calls live inside assistant messages. Chunks, boundaries, usage, hook records, todo records, and other log-only events add no message.
 
 #### Token effect
 

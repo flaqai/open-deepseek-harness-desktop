@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The Tool presentation package's acceptance chain on the REAL machinery stack:
-// SlotTestRuntime (cordis Context + SlotRegistry ledger + the web-react
+// SlotTestRuntime (cordis Context + SlotRegistry ledger + the ui-renderer
 // renderer) + ui-conversation and ui-tool apply — no outlet twins. Proves the
 // keyed 'tool.call.toolview' hole end to end: registered rows dispatch by
 // entryKey (the bash sample lands through its plugin), unregistered tools
@@ -64,7 +64,11 @@ const LAYOUT_CHILDREN = {
  */
 async function bench(nodes: ToolResultNode[]) {
   const runtime = await SlotTestRuntime.create()
-  runtime.provide('connection', { api: { settings: {} }, isLoopback: false })
+  runtime.provide('connection', {
+    api: { settings: {} },
+    isLoopback: false,
+    hostDescription: { getSnapshot: () => undefined, subscribe: () => () => {} },
+  })
   // ui-theme's Appearance row binds a durable scope through these two.
   runtime.provide('remote', { $on: () => () => {} })
   runtime.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
@@ -203,7 +207,11 @@ describe('keyed toolview hole through the real machinery', () => {
 describe('registrant declaration injection', () => {
   it('runs a registrant before ui-tool and waits on the actual toolview declaration', async () => {
     const runtime = await SlotTestRuntime.create()
-    runtime.provide('connection', { api: { settings: {} }, isLoopback: false })
+    runtime.provide('connection', {
+      api: { settings: {} },
+      isLoopback: false,
+      hostDescription: { getSnapshot: () => undefined, subscribe: () => () => {} },
+    })
     // ui-theme's Appearance row binds a durable scope through these two.
     runtime.provide('remote', { $on: () => () => {} })
     runtime.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)

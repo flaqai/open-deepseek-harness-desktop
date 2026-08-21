@@ -98,7 +98,7 @@ declare module '@deepseek-ai/dsh-llm' {
 }
 
 /** Deployment scheduling policy for accepted child reports. */
-export type SubagentReportDelivery = 'quiet' | 'wakeup'
+export type SubagentReportDelivery = 'quiet' | 'next-step'
 
 /** Options for one continuable child's report to its direct parent. */
 export interface SubagentReportOptions {
@@ -114,6 +114,12 @@ export interface ContinuableStartSpec {
   readonly provider: string
   /** The initial delegation's short `description`, persisted as the child's creation label. */
   readonly label: string
+  /**
+   * Optional caller-reserved child identity. Omission preserves the manager's
+   * UUID allocation; supplying one lets a durable parent record provisioning
+   * before child materialization without a second identity handshake.
+   */
+  readonly childId?: SessionId
   /**
    * The delegation request. The manager reserves the stable child id, resolves
    * the durable descriptor, and composes the child itself.
@@ -404,9 +410,10 @@ export class SubagentContinuationManager {
     const request = spec.request
     const parent = request.parent
     this.assertAdmitting(parent)
-    this.requirePersistence()
+    const persistence = this.requirePersistence()
     assertSubagentMaxDepth(request.maxDepth)
-    const childId = SessionId(randomUUID())
+    const childId = spec.childId ?? SessionId(randomUUID())
+    this.assertChildIdAvailable(childId)
     const childDepth = resolveChildDepth(parent, request.maxDepth)
     // Snapshot before any await: invalid descriptor JSON rejects the call
     // before a child exists, and the detached value is what reaches the log.
@@ -436,6 +443,18 @@ export class SubagentContinuationManager {
     const lineageSeedLength = prepared.seed?.length ?? 0
     const seed = seedDescriptorTurn(childId, prepared.seed, descriptor)
     const messageId = await this.locks.run(childId, async () => {
+      spec.signal.throwIfAborted()
+      this.assertAdmitting(parent)
+      this.assertChildIdAvailable(childId)
+      if (spec.childId !== undefined) {
+        const persisted = await persistence.listSnapshots(spec.signal)
+        spec.signal.throwIfAborted()
+        this.assertAdmitting(parent)
+        this.assertChildIdAvailable(childId)
+        if (persisted.some(snapshot => snapshot.header.id === childId)) {
+          throw new SubagentError(`subagent "${childId}" already exists`, 'DUPLICATE_CHILD')
+        }
+      }
       const activation = await this.materialize({
         childId,
         provider: spec.provider,
@@ -454,6 +473,13 @@ export class SubagentContinuationManager {
       )
     })
     return { childId, messageId }
+  }
+
+  /** Reject one child identity already owned by a live Agent or Session. */
+  private assertChildIdAvailable(childId: SessionId): void {
+    if (this.ctx.agents.get(childId) !== undefined || this.ctx.get('sessions')?.get(childId) !== undefined) {
+      throw new SubagentError(`subagent "${childId}" already exists`, 'DUPLICATE_CHILD')
+    }
   }
 
   /**
@@ -644,7 +670,7 @@ export class SubagentContinuationManager {
         senderSessionId: activation.childId,
       },
     })
-    if (delivery === 'wakeup') {
+    if (delivery === 'next-step') {
       this.sendWaking(parent, message, () => { this.sendReport(parent, message, delivery) })
     } else {
       this.sendReport(parent, message, delivery)
@@ -656,7 +682,7 @@ export class SubagentContinuationManager {
    * Perform one waking send to a parent, accounted against that parent's own
    * Activation when it has one. Registering the id before the send is what
    * keeps a continuation-managed parent from being judged quiescent in the
-   * window between `followup()` and the microtask that admits it.
+   * window between a waking send and the microtask that admits it.
    * @param parent - the exact live parent receiving the waking message.
    * @param message - the message whose id is accounted.
    * @param send - the synchronous waking send to perform.
@@ -681,7 +707,7 @@ export class SubagentContinuationManager {
     delivery: SubagentReportDelivery,
   ): void {
     try {
-      if (delivery === 'wakeup') parent.followup(message)
+      if (delivery === 'next-step') parent.steer(message)
       else parent.inject(message)
     } catch (error: unknown) {
       throw new SubagentError(
@@ -779,10 +805,46 @@ export class SubagentContinuationManager {
     await this.disposeRoots(targetRoots, 'scoped activation(s)')
   }
 
+  /**
+   * Release selected resident direct children of one exact live parent without
+   * closing admission for the parent's other continuable children. Owned
+   * descendants are released recursively through the same lifecycle.
+   * @param parent - exact live direct parent authorizing the selected release.
+   * @param childIds - durable direct-child ids to release when resident.
+   * @returns once every selected Activation released its handle.
+   * @throws {SubagentError} `UNAUTHORIZED` when a resident target is not the
+   *   parent's direct continuable child or the parent identity is stale.
+   */
+  async drainChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void> {
+    if (this.ctx.agents.get(parent.id) !== parent) {
+      throw new SubagentError('selected child teardown requires the exact live parent agent', 'UNAUTHORIZED')
+    }
+    const targets: Activation[] = []
+    for (const childId of new Set(childIds)) {
+      const activation = this.activations.get(childId)
+      if (activation === undefined) continue
+      if (activation.parentSession !== parent.id || !activation.ancestry.has(parent)) {
+        throw new SubagentError(
+          `subagent "${childId}" is not a direct child of agent "${parent.id}"`,
+          'UNAUTHORIZED',
+        )
+      }
+      targets.push(activation)
+    }
+
+    // Open every transaction before the first await so cancellation propagates
+    // across the selected roots in one synchronous span.
+    for (const activation of targets) {
+      const disposal = this.dispose(activation)
+      void disposal.catch(() => undefined)
+    }
+    await this.disposeRoots(targets, 'selected activation(s)')
+  }
+
   /** Dispose independent roots and report every branch failure after all settle. */
   private async disposeRoots(
     roots: readonly Activation[],
-    failureSubject: 'activation(s)' | 'scoped activation(s)',
+    failureSubject: 'activation(s)' | 'scoped activation(s)' | 'selected activation(s)',
   ): Promise<void> {
     const failures = await Promise.all(roots.map(async (activation) => {
       try {
@@ -1158,7 +1220,7 @@ export class SubagentContinuationManager {
     messageId: MessageId,
     send: () => void,
   ): MessageId {
-    // `Agent.followup()` publishes inbox events synchronously, so observers must
+    // Waking Agent sends publish inbox events synchronously, so observers must
     // see this Activation as busy before the call begins.
     activation.accepted.add(messageId)
     try {

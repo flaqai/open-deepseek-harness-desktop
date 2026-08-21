@@ -72,11 +72,20 @@ describe('SessionTitleService', () => {
     expect(session.surface.nodes).toEqual([message.seq])
   })
 
-  it('derives a fallback title from the direct prompt instead of baked prefix context', async () => {
+  it('derives a fallback title from the direct prompt instead of injected context', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
     await ctx.plugin(SessionTitleService, CONFIG)
     const session = ctx.sessions.create(SessionId('prefixed-title'))
+    session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'Referenced session snapshot' }],
+      source: {
+        kind: 'session-reference',
+        form: 'recall',
+        version: 1,
+        references: [],
+      },
+    }), { surfaceOp: 'append' })
     session.append('turn/start', {
       turn: 1,
     })

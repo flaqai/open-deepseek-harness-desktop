@@ -1,20 +1,21 @@
 #!/usr/bin/env node
-/** Inspect both public product-provider compositions without invoking them. */
+/** Inspect the public Claude Code Bundle composition without invoking the product. */
 
-import { boot, resolveConfigPath } from '@deepseek-ai/dsh-app-boot'
+import { boot, loadOverlayPatches, resolveConfigPath } from '@deepseek-ai/dsh-app-boot'
 import type {} from '@deepseek-ai/dsh-subagent'
 import type {} from '@deepseek-ai/dsh-tools'
 
 const configPath = process.argv[2]
-if (configPath === undefined) {
-  throw new Error('product-provider Loader composition driver requires a config path')
+const bundlePatchPath = process.argv[3]
+if (configPath === undefined || bundlePatchPath === undefined) {
+  throw new Error('Claude Code Loader composition driver requires config and Bundle patch paths')
 }
 
 let starts = 0
 const ctx = await boot(
-  'product-provider-loader-composition',
+  'subagent-claude-code-loader-composition',
   resolveConfigPath(configPath, undefined),
-  undefined,
+  loadOverlayPatches('subagent-claude-code-loader-composition', bundlePatchPath),
   (hostCtx) => {
     hostCtx.on('subagent/start', () => {
       starts += 1
@@ -23,8 +24,18 @@ const ctx = await boot(
 )
 
 try {
-  const providerNames = ['codex', 'claude-code'] as const
-  const toolNames = ['subagent_codex', 'subagent_claude_code'] as const
+  const providerNames = [
+    'codex',
+    'claude-code',
+    'claude-primary',
+    'claude-secondary',
+  ] as const
+  const toolNames = [
+    'subagent_codex',
+    'subagent_claude_code',
+    'subagent_claude_primary',
+    'subagent_claude_secondary',
+  ] as const
   const providers = providerNames.map((providerName) => {
     const provider = ctx.subagents.getProvider(providerName)
     if (provider === undefined) {

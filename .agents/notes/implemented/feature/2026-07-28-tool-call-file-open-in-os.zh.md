@@ -23,9 +23,9 @@ Status: implemented
 
 ## 后果
 
-点击工具行中的文件路径会在宿主上打开该路径。非文件工具行只是不可交互的摘要（行内已有的展开开关仍保留）。远程或非回环客户端无法调用 `host.openPath`。
+点击工具行中的文件路径会在宿主上打开该路径。非文件工具行只是不可交互的摘要（行内已有的展开开关仍保留）。远程或非回环客户端无法调用 `host.openPath`。Host 或操作系统拒绝由聊天视图拥有：它展示抛出的原因，并对同一路径提供重试（[打开失败](../bug-fix/2026-08-18-tool-row-file-open-failure.md)）。
 
 ## 风险
 
-- 没有 `xdg-open` 的桌面 Linux 宿主，以及 Windows 互操作（`wslpath` 加 `powershell.exe`）不可用的 WSL 宿主，会使 RPC 失败；聊天行保持静默，宿主返回内部错误。
+- 没有 `xdg-open` 的桌面 Linux 宿主，以及 Windows 互操作（`wslpath` 加 `powershell.exe`）不可用的 WSL 宿主，会使 RPC 失败；聊天视图展示该 Host 错误并提供重试。
 - 没有会话 cwd 时相对路径会原样转发，可能在宿主侧失败。

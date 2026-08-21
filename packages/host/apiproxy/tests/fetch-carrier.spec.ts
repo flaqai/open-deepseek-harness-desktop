@@ -143,7 +143,7 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
           rpcId: request.rpcId,
           result: {
             ok: true,
-            value: { version: 'v', cwd: '/w', attachedSessions: 0, canOpenPath: true },
+            value: { version: 'v', cwd: '/w', attachedSessions: 0, home: '/h', canOpenPath: true },
           },
         }
       },

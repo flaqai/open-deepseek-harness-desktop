@@ -68,10 +68,15 @@ jobs:
           print(f"version={release['pep440_version'](repository_version)}")
           PY
 
-      - name: Install and run the published entry path
+      - name: Install local release wheels and run the public entry path
+        env:
+          VERSION: ${{ steps.compatibility-version.outputs.version }}
         run: |
-          python -m pip install --find-links dist "deepseek-harness-sdk==${{ steps.compatibility-version.outputs.version }}"
+          python -m pip install \
+            "dist/deepseek_harness_sdk-$VERSION-py3-none-any.whl" \
+            "dist/deepseek_harness_runtime_bin-$VERSION-py3-none-manylinux_2_28_x86_64.whl"
           python scripts/smoke-python-runtime.py --scenario sdk-default
+          python scripts/smoke-python-runtime.py --scenario sdk-mcp
 
   validate:
     name: Validate release candidate

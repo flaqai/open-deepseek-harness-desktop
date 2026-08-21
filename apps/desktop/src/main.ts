@@ -25,6 +25,7 @@ import { usesCustomWindowFrame } from './window-frame.ts'
 const APP_NAME = 'DeepSeek Harness'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
 const WINDOW_ICON = fileURLToPath(new URL('./icon.png', import.meta.url))
+const DEVELOPMENT_DOCK_ICON = fileURLToPath(new URL('./dev-dock-icon.png', import.meta.url))
 const MACOS_TRAY_ICON = fileURLToPath(new URL('./tray-iconTemplate.png', import.meta.url))
 const PRELOAD = fileURLToPath(new URL('./preload.cjs', import.meta.url))
 const DEFAULT_SOURCE_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
@@ -157,6 +158,18 @@ function createTray(): void {
   tray.on('right-click', refreshTrayMenu)
 }
 
+/** Replace Electron's generic Dock icon while running the unpackaged macOS host. */
+function applyDevelopmentDockIcon(): void {
+  if (process.platform !== 'darwin' || app.isPackaged) return
+  const image = nativeImage.createFromPath(DEVELOPMENT_DOCK_ICON)
+  if (image.isEmpty()) {
+    throw new Error(`desktop: development Dock icon is unavailable at ${DEVELOPMENT_DOCK_ICON}`)
+  }
+  const dock = app.dock
+  if (dock === undefined) throw new Error('desktop: macOS Dock integration is unavailable')
+  dock.setIcon(image)
+}
+
 async function runHarnessInvocation(launch: HarnessLaunch, logPath: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(launch.command, launch.args, {
@@ -268,6 +281,7 @@ async function startApplication(): Promise<void> {
   app.setName(APP_NAME)
   if (process.platform === 'win32') app.setAppUserModelId('ai.flaq.deepseek-harness')
   await app.whenReady()
+  applyDevelopmentDockIcon()
   harnessLogPath = join(app.getPath('logs'), 'harness.log')
   preferencesStore = createDesktopPreferencesStore(
     join(app.getPath('userData'), 'desktop-preferences.json'),

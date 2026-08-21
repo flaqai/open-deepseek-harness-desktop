@@ -42,7 +42,7 @@ The reintroduction condition is recorded as a `TODO(fork-continuable-prefix-reus
 - A forked child's request prefix stays byte-identical to its parent's unless the deployment configures `persona` or `toolFilter` on the fork delegation tool, so the token cost of seeding buys provider-side reuse again.
 - The fork provider's continuable path has no production caller and no assembled-composition coverage. It keeps its package-level tests, and the seam still accepts it, so a bundle or `--patch` overlay can reintroduce it with no code change and no warning.
 - `subagent_fork`'s model-visible schema changes: the continuable background wording is replaced by the one-shot task wording in the base bundle, and disappears entirely from the two examples. The affected keyless snapshot tool-schema sidecars are re-recorded in the same change.
-- The report obligation's reach narrows to spawned children in shipped deployments. Its default `wakeup` scheduling, authority model, and coverage are unchanged.
+- The report obligation's reach narrows to spawned children in shipped deployments. Its default `next-step` scheduling, authority model, and coverage remain independent of fork composition.
 
 ### Accepted risks
 

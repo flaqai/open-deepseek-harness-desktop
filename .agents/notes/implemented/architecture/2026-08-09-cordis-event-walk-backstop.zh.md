@@ -20,7 +20,7 @@ Status: implemented
 
 分区判定从 `computeOutputs` 中提取为纯函数 `walkPartitionProblems(input, maps)`，使每条验收路径都能以单元测试证明而无需运行 Typert 投影；`computeOutputs` 向它馈送渲染模型加独立扫描结果，页面拼接错误的聚合方式保持不变。
 
-促成本决定的审计发现 host face 本已完备：48 个渲染服务 + 10 条 walk 豁免覆盖全部 58 个 host 可见 Context key，49 个 host 事件全部渲染，且每个渲染签名中的每个类型名都已被既有的 fail-closed `LINK_MAP`/`FOUNDATION_TYPE_NAMES`/`TYPE_LINK_EXEMPTIONS` 检查分类。25 条发现（12 事件、13 key）全部在 client face；现在每条都带指向其所属 README 的具名豁免，与既有的 `appShell`/`connection` 先例一致。
+促成本决定的审计发现 host face 本已完备：48 个渲染服务 + 10 条 walk 豁免覆盖全部 58 个 host 可见 Context key，49 个 host 事件全部渲染，且每个渲染签名中的每个类型名都已被既有的 fail-closed `LINK_MAP`/`FOUNDATION_TYPE_NAMES`/`TYPE_LINK_EXEMPTIONS` 检查分类。25 条发现（12 事件、13 key）全部在 client face；现在每条都带指向其所属 README 的具名豁免，与既有的 `uiRenderer`/`connection` 先例一致。
 
 ## 验证
 

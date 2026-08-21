@@ -304,6 +304,62 @@ describe('workspace browser rows', () => {
     }
   })
 
+  it('workspace hover card shows a POSIX home descendant as ~ and still copies the full path', async () => {
+    vi.useFakeTimers()
+    const writeText = vi.fn(async () => {})
+    const restoreClipboard = installClipboard(writeText)
+    try {
+      const group: GroupNode = {
+        key: 'project', workspaceId: wid('project'), cwd: '/home/u/Documents/project', createdAt: 0, label: 'Project',
+        sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
+      }
+      render(<ProjectRowItem group={group} home="/home/u" onToggle={vi.fn()} onCreate={vi.fn()} t={t} />)
+      fireEvent.pointerEnter(screen.getByRole('treeitem').parentElement as HTMLElement)
+      act(() => { vi.advanceTimersByTime(500) })
+      expect(screen.getByText('~/Documents/project')).toBeTruthy()
+      expect(screen.queryByText('/home/u/Documents/project')).toBeNull()
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: '复制: /home/u/Documents/project' })) })
+      expect(writeText).toHaveBeenCalledWith('/home/u/Documents/project')
+    } finally {
+      restoreClipboard()
+      vi.useRealTimers()
+    }
+  })
+
+  it('workspace hover card without a directory omits the path and copy action', async () => {
+    vi.useFakeTimers()
+    try {
+      const group: GroupNode = {
+        key: 'project', workspaceId: wid('project'), cwd: undefined, createdAt: 0, label: 'Project',
+        sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
+      }
+      render(<ProjectRowItem group={group} home="/home/u" onToggle={vi.fn()} onCreate={vi.fn()} t={t} />)
+      fireEvent.pointerEnter(screen.getByRole('treeitem').parentElement as HTMLElement)
+      act(() => { vi.advanceTimersByTime(500) })
+      expect(screen.getAllByText('Project')).toHaveLength(2)
+      expect(screen.getByText(/^创建于 \d+年\d+月\d+日 /)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /^复制:/ })).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('workspace hover card leaves a Windows path verbatim', async () => {
+    vi.useFakeTimers()
+    try {
+      const group: GroupNode = {
+        key: 'project', workspaceId: wid('project'), cwd: 'C:\\Users\\u\\project', createdAt: 0, label: 'Project',
+        sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
+      }
+      render(<ProjectRowItem group={group} home="C:\\Users\\u" onToggle={vi.fn()} onCreate={vi.fn()} t={t} />)
+      fireEvent.pointerEnter(screen.getByRole('treeitem').parentElement as HTMLElement)
+      act(() => { vi.advanceTimersByTime(500) })
+      expect(screen.getByText('C:\\Users\\u\\project')).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('ungrouped bucket renders no workspace menu', () => {
     const group: GroupNode = {
       key: '', workspaceId: undefined, cwd: undefined, createdAt: undefined, label: 'Ungrouped',

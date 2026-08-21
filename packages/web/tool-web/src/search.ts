@@ -19,16 +19,36 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
  */
 export const WEB_SEARCH_MAX_RESULTS = 8
 
+/** Default upper bound on concurrent searches in one tool call. */
+export const WEB_SEARCH_MAX_QUERIES = 4
+
+/** Model-facing `web_search` arguments. */
+interface WebSearchArgs {
+  queries: string[]
+}
+
 /**
- * Validate value constraints the schema DSL can't express: a non-blank
- * `query`. Throws a plain `Error` otherwise.
+ * Validate value constraints the schema DSL can't express: `queries` is
+ * non-empty, contains only non-blank strings, and fits the deployment's
+ * query-count bound. Exact duplicate strings are collapsed after the bound
+ * check. Throws a plain `Error` otherwise.
  *
  * @param args - the schema-validated `web_search` arguments.
- * @returns the accepted arguments, passed through unchanged.
+ * @param maxQueries - the deployment's upper bound on queries in one call.
+ * @returns the accepted queries in their first-occurrence order.
  */
-export function parseSearchArgs(args: { query: string }): { query: string } {
-  if (args.query.trim().length === 0) throw new Error('query must be a non-empty string')
-  return { query: args.query }
+export function parseSearchArgs(
+  args: WebSearchArgs,
+  maxQueries: number,
+): string[] {
+  const queries = args.queries
+  if (queries.length === 0) throw new Error('queries must contain at least one query')
+  if (queries.length > maxQueries) {
+    const noun = maxQueries === 1 ? 'query' : 'queries'
+    throw new Error(`queries must contain at most ${maxQueries} ${noun}`)
+  }
+  if (queries.some(query => query.trim().length === 0)) throw new Error('each query must be a non-empty string')
+  return [...new Set(queries)]
 }
 
 /** Display label for a source: its title, else its hostname. */
@@ -75,13 +95,14 @@ export function formatSearchOutput(result: WebSearchResult): string {
 }
 
 /**
- * Pending-call presentation: a search card titled by the query.
+ * Pending-call presentation: a search card titled by the query list.
  *
- * @param args - the raw tool arguments; only `query` feeds the view.
+ * @param args - the raw tool arguments; only the query text feeds the view.
  * @returns the generic card view (`kind: 'search'`) shown while the call runs.
  */
-export function presentSearchCall(args: { query: string }): GenericCallView {
-  return { card: 'generic', title: args.query, kind: 'search', rawInput: args.query }
+export function presentSearchCall(args: WebSearchArgs): GenericCallView {
+  const title = args.queries.join(', ')
+  return { card: 'generic', title, kind: 'search', rawInput: title }
 }
 
 /**
@@ -95,7 +116,7 @@ export function presentSearchCall(args: { query: string }): GenericCallView {
 export interface WebSearchMeta {
   /** The faithful structured sources, in result order. */
   sources: WebSource[]
-  /** True when the seam cut the source list to honor the result cap. */
+  /** True when the seam or multi-query merge cut the source list to honor the result cap. */
   truncated: boolean
   /** The provider-generated answer text, when any. */
   answer?: string
@@ -175,23 +196,100 @@ export function searchMetaFromResult(meta: unknown): WebSearchMeta | undefined {
  * `web` capability falls back to the raw `tool/result` content, which is the
  * same text (see the web-result-card Agent Note).
  *
- * @param args - the raw tool arguments; `query` becomes the result-state title so
- *   a window-truncated replay that dropped the call head still has one.
+ * @param args - the raw tool arguments; the queries become the result-state
+ *   title so a window-truncated replay that dropped the call head still has one.
  * @param result - the final model-facing tool result; `meta` carries the sources.
  * @returns the search result view, or `undefined` (generic card) on failure or
  *   malformed meta.
  */
-export function presentSearchResult(args: { query: string }, result: ToolResult): WebSearchResultView | undefined {
+export function presentSearchResult(args: WebSearchArgs, result: ToolResult): WebSearchResultView | undefined {
   if (result.isError) return undefined
   const meta = searchMetaFromResult(result.meta)
   if (meta === undefined) return undefined
   return {
     card: 'web',
     kind: 'search',
-    title: args.query,
+    title: args.queries.join(', '),
     sources: meta.sources,
     truncated: meta.truncated,
     ...meta.answer !== undefined ? { answer: meta.answer } : {},
+  }
+}
+
+/**
+ * Run one or more searches through the web seam. A single query keeps the
+ * provider's exact result; multiple queries run concurrently and are merged
+ * into one normalized result capped at `maxResults`. A failed search aborts
+ * its siblings, and this function waits for every search to settle before
+ * rethrowing the first failure.
+ *
+ * @param ctx - context whose `web` service performs the searches.
+ * @param queries - validated non-empty queries.
+ * @param maxResults - the deployment's source cap for the combined result.
+ * @param signal - cancellation signal forwarded to every search.
+ * @returns the combined search result.
+ */
+async function runSearchQueries(
+  ctx: Context,
+  queries: string[],
+  maxResults: number,
+  signal: AbortSignal,
+): Promise<WebSearchResult> {
+  if (queries.length === 1) {
+    return ctx.web.search({ query: queries[0] as string, maxResults }, signal)
+  }
+  const controller = new AbortController()
+  const batchSignal = AbortSignal.any([signal, controller.signal])
+  let firstFailure: { error: unknown } | undefined
+  const results: WebSearchResult[] = []
+  const searches = queries.map(async (query, index) => {
+    try {
+      results[index] = await ctx.web.search({ query, maxResults }, batchSignal)
+    } catch (error) {
+      if (firstFailure === undefined) firstFailure = { error }
+      controller.abort(error)
+      throw error
+    }
+  })
+  await Promise.allSettled(searches)
+  if (firstFailure !== undefined) throw firstFailure.error
+  return mergeSearchResults(queries, results, maxResults)
+}
+
+/** Merge per-query results into one deduplicated, round-robin, capped result. */
+function mergeSearchResults(
+  queries: string[],
+  results: WebSearchResult[],
+  maxResults: number,
+): WebSearchResult {
+  const seen = new Set<string>()
+  const sources: WebSearchSource[] = []
+  let sourceRanks = 0
+  for (const result of results) {
+    sourceRanks = Math.max(sourceRanks, result.sources.length)
+  }
+  let droppedSource = false
+  merge: for (let rank = 0; rank < sourceRanks; rank++) {
+    for (const result of results) {
+      const source = result.sources[rank]
+      if (source !== undefined && !seen.has(source.url)) {
+        seen.add(source.url)
+        if (sources.length === maxResults) {
+          droppedSource = true
+          break merge
+        }
+        sources.push(source)
+      }
+    }
+  }
+  const contents = results.flatMap((result, index) => {
+    if (result.content === undefined || result.content.length === 0) return []
+    return [`### ${queries[index]}\n\n${result.content}`]
+  })
+  return {
+    ...contents.length > 0 ? { content: contents.join('\n\n') } : {},
+    sources,
+    truncated: results.some(result => result.truncated) || droppedSource,
   }
 }
 
@@ -202,6 +300,7 @@ export function presentSearchResult(args: { query: string }, result: ToolResult)
  *   registrations; both are effect-scoped and unregister on plugin dispose.
  * @param maxResults - the deployment's source cap, sent as every seam
  *   request's `maxResults`.
+ * @param maxQueries - the deployment's query cap enforced before provider calls.
  * @param timeoutMs - the cooperative tool-call budget (ms) attached as the tool's
  *   `ToolDefinition.timeoutMs` for `@deepseek-ai/dsh-tool-call-timeout-policy` to enforce.
  * @param fetchEnabled - whether the same composition exposes `web_fetch`, which
@@ -210,6 +309,7 @@ export function presentSearchResult(args: { query: string }, result: ToolResult)
 export function applyWebSearchTool(
   ctx: Context,
   maxResults: number,
+  maxQueries: number,
   timeoutMs: number,
   fetchEnabled: boolean,
 ): void {
@@ -217,15 +317,20 @@ export function applyWebSearchTool(
     name: 'tool:web_search',
     order: 110,
     text: fetchEnabled
-      ? 'Use the web_search tool to discover current information on the web. It returns an optional answer plus a list of source URLs. Follow up with web_fetch when you need the full content of a specific result, and cite the relevant URLs as markdown links.'
-      : 'Use the web_search tool to discover current information on the web. It returns an optional answer plus a list of source URLs. Use the returned source snippets when available, and cite the relevant URLs as markdown links.',
+      ? `Use the web_search tool to discover current information on the web. The required queries array accepts 1–${maxQueries} non-empty search queries; use a one-item array for a single search. It returns an optional answer plus a list of source URLs. Follow up with web_fetch when you need the full content of a specific result, and cite the relevant URLs as markdown links.`
+      : `Use the web_search tool to discover current information on the web. The required queries array accepts 1–${maxQueries} non-empty search queries; use a one-item array for a single search. It returns an optional answer plus a list of source URLs. Use the returned source snippets when available, and cite the relevant URLs as markdown links.`,
   })
 
   ctx.tools.register(defineTool({
     name: 'web_search',
-    description: 'Search the web for current information. Returns an optional summary answer and a list of source URLs.',
+    description: `Search the web for current information. Provide 1–${maxQueries} queries in the required queries array. Returns an optional summary answer and a list of source URLs.`,
     parameters: {
-      query: { type: 'string', required: true, description: 'The search query.' },
+      queries: {
+        type: 'array',
+        required: true,
+        items: { type: 'string' },
+        description: `Required search queries; accepts 1–${maxQueries} items and merges their results.`,
+      },
     },
     output: {
       schema: {
@@ -257,11 +362,8 @@ export function applyWebSearchTool(
     // Provider reads do not mutate parent-agent state.
     isConcurrencySafe: () => true,
     async execute(args, exec) {
-      const input = parseSearchArgs(args)
-      const result = await ctx.web.search(
-        { query: input.query, maxResults },
-        exec.signal,
-      )
+      const queries = parseSearchArgs(args, maxQueries)
+      const result = await runSearchQueries(ctx, queries, maxResults, exec.signal)
       return {
         ...result.content !== undefined ? { content: result.content } : {},
         sources: result.sources.map(projectSource),

@@ -110,7 +110,7 @@ async function run(
   suffix = '',
   controller = new AbortController(),
 ): Promise<NonNullable<Awaited<ReturnType<CommandRuntime['execute']>>>> {
-  const execution = await test.ctx.commands.execute(test.agent, `/compact${suffix}`, controller.signal)
+  const execution = await test.ctx.commands.execute(test.agent, `/compact${suffix}`, [], controller.signal)
   if (execution === undefined) throw new Error('compact command was not registered')
   return execution
 }

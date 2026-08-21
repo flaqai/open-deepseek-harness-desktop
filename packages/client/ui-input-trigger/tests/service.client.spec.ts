@@ -249,6 +249,16 @@ describe('track', () => {
     expect(state.highlight).toEqual({ source: 'command', index: 0 })
   })
 
+  it('carries source-title visibility from the roster through candidate settlement', async () => {
+    const reference = deferredSource('@', 'reference', { showGroupTitle: false })
+    const { controller } = controllerBench([reference.source])
+    controller.track('@r', 2, { tier: 'plain' }, 1)
+    expect(controller.menu.getSnapshot().groups[0]).toMatchObject({ showGroupTitle: false, status: 'pending' })
+    reference.pending[0]!.resolve([{ name: 'README.md', section: '文件与文件夹' }])
+    await tick()
+    expect(controller.menu.getSnapshot().groups[0]).toMatchObject({ showGroupTitle: false, status: 'ready' })
+  })
+
   it('stamps the caller draftRev into the hit span', () => {
     const cmd = deferredSource('/', 'command')
     const { controller } = controllerBench([cmd.source])
@@ -359,6 +369,7 @@ describe('programmatic source launcher', () => {
     const hit = {
       trigger: '/' as const,
       query: '',
+      quoted: false,
       position: 'leading' as const,
       span: { start: 2, end: 5, draftRev: 7 },
     }
@@ -385,6 +396,7 @@ describe('programmatic source launcher', () => {
     const hit = {
       trigger: '/' as const,
       query: '',
+      quoted: false,
       position: 'leading' as const,
       span: { start: 0, end: 0, draftRev: 1 },
     }
@@ -494,6 +506,18 @@ describe('pick / scoped input events', () => {
     controller.pick('command', 0)
     expect(texts).toEqual([{ text: '/goal ', span: { start: 0, end: 2, draftRev: 3 } }])
     expect(controller.menu.getSnapshot().open).toBe(false)
+  })
+
+  it('forwards a continuing text outcome so a directory pick keeps completion open', async () => {
+    const { controller, actx } = pickBench(() => ({ text: '@src/', continue: true }))
+    const texts: Array<{ text: string; continue?: boolean }> = []
+    actx.on('slash/input-insert-text', (req) => {
+      texts.push(req)
+      return true
+    })
+    await tick()
+    controller.pick('command', 0)
+    expect(texts).toEqual([{ text: '@src/', continue: true, span: { start: 0, end: 2, draftRev: 3 } }])
   })
 
   it('a text outcome the input declines answers false on the space path', async () => {
@@ -796,7 +820,7 @@ describe('adjudicate', () => {
         return Promise.resolve('handled')
       }),
     ])
-    const result = await controller.adjudicate('/goal make it fast', new AbortController().signal)
+    const result = await controller.adjudicate('/goal make it fast', new AbortController().signal, { images: 0 })
     expect(result).toEqual({ claim })
     expect(calls).toEqual(['first:/goal make it fast', 'second:/goal make it fast'])
   })
@@ -807,8 +831,26 @@ describe('adjudicate', () => {
       enterSource('@', 'subagent', atHook),
       enterSource('/', 'command', () => Promise.resolve(undefined)),
     ])
-    await expect(controller.adjudicate('/xyz', new AbortController().signal)).resolves.toBeUndefined()
+    await expect(controller.adjudicate('/xyz', new AbortController().signal, { images: 0 })).resolves.toBeUndefined()
     expect(atHook).not.toHaveBeenCalled()
+  })
+
+  it('forwards the caller envelope to every polled matchEnter unchanged', async () => {
+    const envelopes: unknown[] = []
+    const { controller } = controllerBench([
+      enterSource('/', 'first', (_session, _line, _signal, envelope) => {
+        envelopes.push(envelope)
+        return Promise.resolve(undefined)
+      }),
+      enterSource('/', 'second', (_session, _line, _signal, envelope) => {
+        envelopes.push(envelope)
+        return Promise.resolve('handled')
+      }),
+    ])
+    const envelope = { images: 2 }
+    await controller.adjudicate('/goal', new AbortController().signal, envelope)
+    expect(envelopes).toEqual([envelope, envelope])
+    expect(envelopes[0]).toBe(envelope)
   })
 
   it('a rejecting source rejects the whole adjudication', async () => {
@@ -816,7 +858,7 @@ describe('adjudicate', () => {
       enterSource('/', 'command', () => Promise.reject(new Error('warmup failed'))),
       enterSource('/', 'late', () => Promise.resolve('handled')),
     ])
-    await expect(controller.adjudicate('/goal x', new AbortController().signal))
+    await expect(controller.adjudicate('/goal x', new AbortController().signal, { images: 0 }))
       .rejects.toThrow('warmup failed')
   })
 
@@ -825,7 +867,7 @@ describe('adjudicate', () => {
     const { controller } = controllerBench([enterSource('/', 'command', hook)])
     const abort = new AbortController()
     abort.abort(new Error('attempt released'))
-    await expect(controller.adjudicate('/goal', abort.signal)).rejects.toThrow('attempt released')
+    await expect(controller.adjudicate('/goal', abort.signal, { images: 0 })).rejects.toThrow('attempt released')
     expect(hook).not.toHaveBeenCalled()
   })
 })

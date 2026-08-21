@@ -122,7 +122,7 @@ describe('shipped agent presets gate both shell tools by platform', () => {
     }
   })
 
-  it('minimal mounts no shell tool row at all (its shell is the PTY stack)', () => {
+  it('minimal mounts no shell tool row and gates its persistent shell stack by platform', () => {
     const entries: unknown = yaml.load(
       readFileSync(join(presetRoot, 'minimal', 'agent.cordis.yml'), 'utf8'),
       { schema: entryListSchema },
@@ -133,5 +133,26 @@ describe('shipped agent presets gate both shell tools by platform', () => {
         typeof entry === 'object' && entry !== null && (entry as Record<string, unknown>).id === id
       )), `${id} must be absent from minimal`).toBe(false)
     }
+    const group = entries.find((entry): entry is Record<string, unknown> => (
+      typeof entry === 'object' && entry !== null && (entry as Record<string, unknown>).id === 'persistent-shell'
+    ))
+    if (group === undefined) throw new TypeError('minimal preset must mount persistent-shell')
+    const rows = group.config as unknown[]
+    if (!Array.isArray(rows)) throw new TypeError('persistent-shell must carry a row list')
+    const byId = new Map(rows
+      .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
+      .map(entry => [entry.id, entry]))
+    // The bash stack (terminal-bash + persistent-bash) mounts on POSIX only; the
+    // pwsh twin (terminal-bash with shellDialect pwsh + persistent-pwsh) mounts on
+    // win32 only — exactly one persistent shell per host.
+    for (const id of ['terminal-bash', 'persistent-bash']) {
+      expect(disabledOn(byId.get(id)!, 'win32'), `${id} on win32`).toBe(true)
+      expect(disabledOn(byId.get(id)!, 'linux'), `${id} on linux`).toBe(false)
+    }
+    for (const id of ['terminal-pwsh', 'persistent-pwsh']) {
+      expect(disabledOn(byId.get(id)!, 'win32'), `${id} on win32`).toBe(false)
+      expect(disabledOn(byId.get(id)!, 'linux'), `${id} on linux`).toBe(true)
+    }
+    expect(byId.get('terminal-pwsh')?.config).toMatchObject({ shellDialect: 'pwsh' })
   })
 })

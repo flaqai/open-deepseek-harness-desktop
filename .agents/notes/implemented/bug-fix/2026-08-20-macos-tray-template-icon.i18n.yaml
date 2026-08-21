@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-20-macos-tray-template-icon.md
-2026-08-20-macos-tray-template-icon.md: 2f5e5afeede9e0e02bf38b89eac32ba2e9532e40
-2026-08-20-macos-tray-template-icon.zh.md: 3667f7d5d902c10caa8d0b10582478cb7ea6da1b
+2026-08-20-macos-tray-template-icon.md: 767a60cd9fa2995a25b6b15522ff8ae2a6797333
+2026-08-20-macos-tray-template-icon.zh.md: 2549ef66d671a0ef52a5fc71a38b93c3d0faa2be

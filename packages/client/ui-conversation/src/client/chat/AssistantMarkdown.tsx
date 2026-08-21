@@ -9,14 +9,12 @@
 // their branch action is enabled only when the node is also the completed
 // turn's transcript tail. Think / tool-head-only nodes stay chrome-free.
 
-import { memo, useMemo } from 'react'
+import { Fragment, memo, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import type { AssistantBlock } from '@deepseek-ai/dsh-client-runtime/client'
 import { JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives'
-import { ImageGallery, type ImageLoader } from '@deepseek-ai/dsh-client-ui-attachment'
-import type { ChatViewSlotProps } from '../contract/slots.ts'
-import { messageImageLabels } from '../image-labels.ts'
+import type { ChatNodeOwnerProps, ChatViewSlotProps } from '../contract/slots.ts'
 import { ReasoningRow } from './ReasoningRow.tsx'
 import css from './AssistantMarkdown.module.css'
 
@@ -25,8 +23,8 @@ export interface AssistantMarkdownProps {
   streaming: boolean
   /** Frozen partial of an aborted turn: rendered with a stopped marker. */
   interrupted?: boolean | undefined
-  /** Session-authorized durable image loader. */
-  loadImage?: ImageLoader
+  /** Render consecutive image blocks through the attachment slot. */
+  renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   /** Resolved prose file mentions for this Assistant's closing turn. */
   mentions?: MarkdownFileMentions | undefined
   /** The owning view's locale seat, passed down as a plain prop. */
@@ -35,9 +33,8 @@ export interface AssistantMarkdownProps {
 
 /** Reasoning block as the Think variant summary row (figma 39:28304). */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
-  blocks, streaming, interrupted, loadImage, mentions, t,
+  blocks, streaming, interrupted, renderMessageImages, mentions, t,
 }: AssistantMarkdownProps) {
-  const imageLoader = loadImage ?? (() => Promise.reject(new Error(t('image.serviceUnavailable'))))
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
   const codeLabels = useMemo(() => ({ copyLabel: t('copy'), copiedLabel: t('copied') }), [t])
@@ -82,7 +79,14 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
           group.push(next)
           i += 1
         }
-        rendered.push(<ImageGallery key={start} images={group} load={imageLoader} align="start" labels={messageImageLabels(t)} />)
+        rendered.push(
+          <Fragment key={start}>
+            {renderMessageImages({
+              images: group.map(({ attachment }) => ({ attachment })),
+              align: 'start',
+            })}
+          </Fragment>,
+        )
         break
       }
       // Grouped into tool rows by ChatView; hasVisible above skips an empty shell.

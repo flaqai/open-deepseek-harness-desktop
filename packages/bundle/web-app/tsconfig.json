@@ -30,10 +30,16 @@
       "path": "../../host/webserver"
     },
     {
+      "path": "../../util/launch-environment"
+    },
+    {
       "path": "../../core/system-prompt"
     },
     {
       "path": "../../shell/shell-env"
+    },
+    {
+      "path": "../../subprocess/subprocess"
     },
     {
       "path": "../../runtime-diagnostics/invariants"

@@ -2,6 +2,7 @@
 /** ToolCallTree-owned root/subcall markers and selection projection. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
+import type { HostDescription } from '@deepseek-ai/dsh-client-connection/client'
 import type { ConversationSnapshot, ToolResultNode } from '@deepseek-ai/dsh-client-runtime/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
@@ -21,6 +22,7 @@ const root = (callId: string, call: ToolResultNode['call']): ToolResultNode => (
 function props(
   block: ToolResultNode,
   selectedCallId?: string,
+  description?: HostDescription,
 ): ToolTreeProps {
   const snapshot = {} as ConversationSnapshot
   const useSession = ((selector: (value: ConversationSnapshot) => unknown) => selector(snapshot)) as ToolTreeProps['useSession']
@@ -44,6 +46,7 @@ function props(
     inspectCall: vi.fn(),
     forkAt: vi.fn(),
     fileMentions: vi.fn(),
+    useHostDescription: (selector => selector(description)) as ToolTreeProps['useHostDescription'],
     t,
   } as unknown as ToolTreeProps
 }
@@ -77,5 +80,13 @@ describe('ToolCallTree', () => {
     expect(view.container.querySelector('[data-chat-call-id="parent:code:1"]')?.hasAttribute('data-selected')).toBe(false)
     expect(view.container.querySelector('[data-chat-call-id="parent:code:1:code:1"]')?.getAttribute('data-selected')).toBe('true')
     expect(nests).toHaveLength(2)
+  })
+
+  it('abbreviates a POSIX home path in the generic tool summary', () => {
+    const block = root('w1', { name: 'read', argsRaw: '{"path":"/h/docs/a.ts"}' })
+    const view = render(<ToolCallTree {...props(block, 'w1', {
+      version: '0', cwd: '/tmp', attachedSessions: 0, home: '/h', canOpenPath: false,
+    })} />)
+    expect(view.getByText('~/docs/a.ts')).toBeTruthy()
   })
 })

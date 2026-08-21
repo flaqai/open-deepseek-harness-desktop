@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-web-app",
   "description": "The dsh browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin (frontend dist serving, web-surface prompt, bash runtime variables, URL line)",
-  "version": "0.1.0-rc.7",
+  "version": "0.1.0-rc.8",
   "publishConfig": {
     "access": "public"
   },
@@ -51,8 +51,12 @@
     "@deepseek-ai/dsh-client-hmr": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-modules": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-renderer": "workspace:^",
     "@deepseek-ai/dsh-client-runtime": "workspace:^",
     "@deepseek-ai/dsh-client-ui-agent-preset": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-attachment": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-brand-official": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-brand-community-desktop": "workspace:^",
     "@deepseek-ai/dsh-client-ui-commands": "workspace:^",
     "@deepseek-ai/dsh-client-ui-conversation": "workspace:^",
     "@deepseek-ai/dsh-client-ui-cordis": "workspace:^",
@@ -75,6 +79,7 @@
     "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
     "@deepseek-ai/dsh-client-ui-skill": "workspace:^",
     "@deepseek-ai/dsh-client-ui-input-trigger": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-reference": "workspace:^",
     "@deepseek-ai/dsh-client-ui-subagent": "workspace:^",
     "@deepseek-ai/dsh-client-ui-jobs": "workspace:^",
     "@deepseek-ai/dsh-client-ui-theme": "workspace:^",
@@ -94,16 +99,22 @@
     "@deepseek-ai/dsh-host-directory-picker-native": "workspace:^",
     "@deepseek-ai/dsh-host-plugin-inventory": "workspace:^",
     "@deepseek-ai/dsh-host-webserver": "workspace:^",
+    "@deepseek-ai/dsh-file-reference": "workspace:^",
+    "@deepseek-ai/dsh-file-reference-local": "workspace:^",
+    "@deepseek-ai/dsh-launch-environment": "workspace:^",
     "@deepseek-ai/dsh-message-feedback": "workspace:^",
     "@deepseek-ai/dsh-session-projection-cache": "workspace:^",
+    "@deepseek-ai/dsh-session-reference": "workspace:^",
     "@deepseek-ai/dsh-session-log-export": "workspace:^",
     "@deepseek-ai/dsh-session-stats": "workspace:^",
     "@deepseek-ai/dsh-storage": "workspace:^",
     "@deepseek-ai/dsh-storage-domain": "workspace:^",
     "@deepseek-ai/dsh-storage-json": "workspace:^",
+    "@deepseek-ai/dsh-subprocess": "workspace:^",
     "@deepseek-ai/dsh-workspace": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "open": "^11.0.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",

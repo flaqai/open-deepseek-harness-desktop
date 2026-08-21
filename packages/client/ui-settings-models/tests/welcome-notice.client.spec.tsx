@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
+import { Context } from '@deepseek-ai/cordis'
+import { SettingsSchemaService } from '@deepseek-ai/dsh-client-ui-settings/src/client/schema.ts'
+import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
+import { SettingsScopeController } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-scope.ts'
+
+/** Stateless schema service for scope construction in this jsdom fixture. */
+const schemaService = new SettingsSchemaService(new Context())
 import { WelcomeNotice } from '../src/client/WelcomeNotice.tsx'
 import type { WelcomeNoticeProps } from '../src/client/WelcomeNotice.tsx'
-import { WelcomeNoticeStore } from '../src/client/welcome-store.ts'
+import { decodeWelcomeSection, WelcomeNoticeStore } from '../src/client/welcome-store.ts'
+import type { WelcomeSection } from '../src/client/welcome-store.ts'
 import { en, zh } from '../src/client/locales.ts'
 import {
   WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_COPY, WELCOME_NOTICE_SETTINGS_NAMESPACE,
@@ -20,7 +28,24 @@ function response<T>(value: T) {
   return { rpcId: 'welcome-rpc' as never, result: { ok: true as const, value } }
 }
 
-function mount(version?: string, mutateImpl: () => Promise<unknown> = () => Promise.resolve(response({}))) {
+function welcomeView(value: unknown, revision = 0) {
+  return {
+    ns: WELCOME_NOTICE_SETTINGS_NAMESPACE,
+    schema: {},
+    value,
+    base: {},
+    user: {},
+    applies: 'live' as const,
+    secrets: [],
+    revision,
+  }
+}
+
+function mount(
+  version?: string,
+  mutateImpl: () => Promise<unknown> = () =>
+    Promise.resolve(response(welcomeView({ [WELCOME_NOTICE_ACK_FIELD]: WELCOME_NOTICE_VERSION }, 1))),
+) {
   const appRoot = document.createElement('div')
   appRoot.id = 'root'
   document.body.append(appRoot)
@@ -30,21 +55,21 @@ function mount(version?: string, mutateImpl: () => Promise<unknown> = () => Prom
       describe: () => Promise.resolve(response({
         writable: true,
         hasDocument: false,
-        namespaces: [{
-          ns: WELCOME_NOTICE_SETTINGS_NAMESPACE,
-          schema: {},
-          value: version === undefined ? {} : { [WELCOME_NOTICE_ACK_FIELD]: version },
-          base: {},
-          user: {},
-          applies: 'live' as const,
-          secrets: [],
-          revision: 0,
-        }],
+        namespaces: [welcomeView(version === undefined ? {} : { [WELCOME_NOTICE_ACK_FIELD]: version })],
       })),
       mutate,
     },
   }
-  const controller = new WelcomeNoticeStore(api as never)
+  const mirror = new SettingsDescribeMirror(api as never)
+  const scope = new SettingsScopeController<WelcomeSection>(
+    api as never,
+    { namespace: WELCOME_NOTICE_SETTINGS_NAMESPACE, decode: decodeWelcomeSection },
+    mirror,
+    'host',
+    schemaService,
+  )
+  const controller = new WelcomeNoticeStore(scope)
+  void mirror.load()
   const complete = vi.fn()
   const unusedHook = (() => { throw new Error('unused standard hook') }) as never
   const props: WelcomeNoticeProps = {
@@ -57,7 +82,7 @@ function mount(version?: string, mutateImpl: () => Promise<unknown> = () => Prom
     useWelcome: bindSnapshotSelector(controller.store),
     t: key => zh[key],
   }
-  return { ...render(<WelcomeNotice {...props} />), complete, controller, mutate, appRoot }
+  return { ...render(<WelcomeNotice {...props} />), complete, controller, mirror, mutate, appRoot }
 }
 
 describe('WelcomeNotice', () => {
@@ -100,7 +125,10 @@ describe('WelcomeNotice', () => {
 
   it('skips itself when this exact version was already acknowledged', async () => {
     const h = mount(WELCOME_NOTICE_VERSION)
-    await act(async () => { await h.controller.load() })
+    await act(async () => {
+      await h.mirror.load()
+      await h.controller.load()
+    })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(h.complete).toHaveBeenCalledOnce()
   })

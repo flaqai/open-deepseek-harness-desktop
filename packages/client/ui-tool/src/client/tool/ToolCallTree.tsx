@@ -12,12 +12,13 @@ function callName(node: ToolCallBlock): string {
 
 /** One atomic call dispatched through the Tool-owned keyed slot. */
 const ToolCall = memo(function ToolCall({
-  renderSlot, callId, toolName, block, openFile, selected, cwd, inspectCall, t, children,
+  renderSlot, callId, toolName, block, openFile, selected, cwd, home, inspectCall, t, children,
 }: Pick<ToolTreeProps, 'renderSlot' | 'openFile' | 'cwd' | 'inspectCall' | 't'> & {
   callId: string
   toolName: string
   block: ToolCallBlock
   selected: boolean
+  home?: string | undefined
   children?: ReactNode
 }) {
   const owner: ToolCallOwnerProps = useMemo(() => ({
@@ -26,8 +27,9 @@ const ToolCall = memo(function ToolCall({
     block,
     openFile,
     cwd,
+    home,
     inspect: () => { inspectCall(callId) },
-  }), [callId, toolName, block, openFile, cwd, inspectCall])
+  }), [callId, toolName, block, openFile, cwd, home, inspectCall])
   return (
     <div
       className={css.callRow}
@@ -45,9 +47,10 @@ const ToolCall = memo(function ToolCall({
 })
 
 const ToolCallBranch = memo(function ToolCallBranch({
-  renderSlot, block, selectedCallId, cwd, openFile, inspectCall, t,
+  renderSlot, block, selectedCallId, cwd, home, openFile, inspectCall, t,
 }: Pick<ToolTreeProps, 'renderSlot' | 'selectedCallId' | 'cwd' | 'openFile' | 'inspectCall' | 't'> & {
   block: ToolCallBlock
+  home?: string | undefined
 }) {
   return (
     <ToolCall
@@ -58,6 +61,7 @@ const ToolCallBranch = memo(function ToolCallBranch({
       openFile={openFile}
       selected={block.callId === selectedCallId}
       cwd={cwd}
+      home={home}
       inspectCall={inspectCall}
       t={t}
     >
@@ -70,6 +74,7 @@ const ToolCallBranch = memo(function ToolCallBranch({
               block={child}
               selectedCallId={selectedCallId}
               cwd={cwd}
+              home={home}
               openFile={openFile}
               inspectCall={inspectCall}
               t={t}
@@ -88,8 +93,9 @@ const ToolCallBranch = memo(function ToolCallBranch({
  * @returns the Tool call tree.
  */
 export function ToolCallTree({
-  renderSlot, node, selectedCallId, cwd, openFile, inspectCall, t,
+  renderSlot, node, selectedCallId, cwd, openFile, inspectCall, useHostDescription, t,
 }: ToolTreeProps) {
+  const home = useHostDescription(description => description?.home)
   const block = node.data.root
   return (
     <ToolCallBranch
@@ -97,6 +103,7 @@ export function ToolCallTree({
       block={block}
       selectedCallId={selectedCallId}
       cwd={cwd}
+      home={home}
       openFile={openFile}
       inspectCall={inspectCall}
       t={t}

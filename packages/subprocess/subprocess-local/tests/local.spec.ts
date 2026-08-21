@@ -7,8 +7,16 @@ import type { SubprocessSpawnSpec, SubprocessTerminalHandle, SubprocessTerminalS
 import { childEnv } from '../src/spawn.ts'
 
 function spec(command: string, overrides: Partial<SubprocessSpawnSpec> = {}): SubprocessSpawnSpec {
+  // Windows has no bash; the suite's simple commands translate to node one-liners.
+  const argv = process.platform === 'win32'
+    ? [process.execPath, '-e', {
+      'echo managed': 'console.log("managed")',
+      'sleep 60': 'setTimeout(() => {}, 60000)',
+      'true': '',
+    }[command] ?? command]
+    : ['bash', '-c', command]
   return {
-    argv: ['bash', '-c', command],
+    argv,
     cwd: process.cwd(),
     stdio: {
       stdin: 'ignore',
@@ -148,9 +156,9 @@ describe('LocalSubprocessRuntime', () => {
       const explicit = childEnv({ Path: '/bin', PathExt: '.EXE;.CMD' })
       expect(Object.keys(explicit).filter(key => key.toUpperCase() === 'PATH')).toEqual(['Path'])
       expect(Object.keys(explicit).filter(key => key.toUpperCase() === 'PATHEXT')).toEqual(['PathExt'])
-      expect(candidates('tool', explicit)).toEqual(['/bin/tool.EXE', '/bin/tool.CMD'])
+      expect(candidates('tool', explicit)).toEqual([resolve('/bin', 'tool.EXE'), resolve('/bin', 'tool.CMD')])
       expect(candidates('tool', { Path: '/ambient', PATH: '/explicit', PATHEXT: '.EXE' }))
-        .toEqual(['/explicit/tool.EXE'])
+        .toEqual([resolve('/explicit', 'tool.EXE')])
       expect(candidates('tool.exe', {})).toEqual([resolve(process.cwd(), 'tool.exe')])
       expect(candidates('tool', { PATH: '/bin' })).toHaveLength(4)
       await expect(ctx.subprocess.resolveExecutable(String.raw`bin\server.exe`))
@@ -398,7 +406,8 @@ describe('LocalSubprocessRuntime', () => {
     const handle = ctx.subprocess.spawn(spec('sleep 60'))
     await fiber.dispose()
     const outcome = await handle.done
-    expect(outcome.signal).toBe('SIGTERM')
+    // Windows teardown terminates through taskkill, which reports no signal.
+    expect(outcome.signal).toBe(process.platform === 'win32' ? null : 'SIGTERM')
   })
 
   it('a settled process leaves the live set (disposal does not re-kill it)', async () => {

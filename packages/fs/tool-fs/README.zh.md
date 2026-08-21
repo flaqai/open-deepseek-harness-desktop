@@ -131,7 +131,7 @@ Use the edit tool for targeted changes to existing UTF-8 text files. It replaces
 
 #### Token 影响
 
-图像在之后每次请求中都会计费，直到压缩。每次调用都独立受附件存储的 `maxImageBytes`/`maxImagePixels` 约束；重复成功调用会在历史中累积，内容寻址只去重存储的字节，不去重每次请求的 token 成本。
+图像在之后每次请求中都会计费，直到压缩。每次调用都独立受附件存储的 `maxImageBytes`/`maxImagePixels`/`maxImageDimension` 约束；重复成功调用会在历史中累积，内容寻址只去重存储的字节，不去重每次请求的 token 成本。
 
 #### KV Cache 影响
 

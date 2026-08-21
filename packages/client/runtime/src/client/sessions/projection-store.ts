@@ -6,7 +6,7 @@
  * page's projections block and updated by `session/projection` push frames,
  * under the single rule **higher seq wins**. No client-side domain folding
  * exists: a domain ships projection support with zero client code. Per-key
- * bare observable faces feed `useProjection` (web-react binds them).
+ * bare observable faces feed `useProjection` (ui-renderer binds them).
  */
 import type { SessionProjectionMap } from '@deepseek-ai/dsh-session-projection/types'
 import type { ObservableSnapshot } from '../contract/store.ts'

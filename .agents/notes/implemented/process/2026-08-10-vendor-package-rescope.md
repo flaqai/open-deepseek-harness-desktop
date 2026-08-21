@@ -40,6 +40,8 @@ Markdown splits along what a reader does with it. Every fence follows the rename
 
 `scripts/rescope-vendor.ts` owns the rename: the mapping, the delimited-token rule, the per-file exemptions where a name is a directory instead of a package, the exact edits above, and a `--check` mode asserting no residue, every exact edit landed, and idempotency, which the `hygiene` gate runs on every CI pass. A rebase replays it instead of resolving a 1300-file conflict, and an upstream change to one of the pinned sites fails the run loudly instead of being silently skipped.
 
+The same exemption applies when an already-scoped package path is assembled from separate path segments: its bare leaf is a directory component, not an npm specifier to rescope again.
+
 ## Alternatives considered
 
 **Keep the upstream names and exclude `vendor/` from publication.** Rejected because every harness package declares `cordis` as a peer dependency, so an installed `@deepseek-ai/dsh-*` would have no resolvable framework.

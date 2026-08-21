@@ -60,6 +60,20 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+.sectionTitle {
+  flex: none;
+  min-height: 26px;
+  padding: 6px 10px 2px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.sectionTitle:not(:first-child) {
+  margin-top: 4px;
+}
+
 .itemIcon {
   display: inline-flex;
   flex: none;

@@ -122,11 +122,11 @@ const BOOTSTRAP_NAMES = new Set([
   'PERL5OPT', 'PERL5LIB', 'PYTHONSTARTUP', 'PYTHONPATH', 'RUBYOPT', 'RUBYLIB',
   'JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS',
   'PYTHONHOME',
-  // Version-control command hooks and config redirects.
+  // Version-control hooks, config redirects, and ambient command selectors.
   'GIT_SSH', 'GIT_SSH_COMMAND', 'GIT_EXTERNAL_DIFF', 'GIT_PAGER', 'GIT_EDITOR',
   'GIT_ASKPASS', 'SSH_ASKPASS',
   'GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM', 'GIT_CONFIG_COUNT',
-  'EDITOR', 'VISUAL', 'PAGER',
+  'EDITOR', 'VISUAL', 'PAGER', 'BROWSER',
   // Network reach and trust.
   'DEEPSEEK_BASE_URL', 'DEEPSEEK_SEARCH_BASE_URL',
   'SSL_CERT_FILE', 'SSL_CERT_DIR',

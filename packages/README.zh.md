@@ -31,6 +31,7 @@ npm scope 为 `@deepseek-ai/dsh-*`；Cordis `Service` 子类和函数插件通�
 | [`context/`](context/README.md) | 模型可见请求上下文，包括 workspace 指令和时间上下文 | 产品：稳定 API |
 | [`subagent/`](subagent/README.md) | subagent 能力系列：提供方注册表约定和面向模型的委托工具 | 产品：稳定 API |
 | [`jobs/`](jobs/README.md) | 通用后台任务运行时和面向模型的 `job_*` 控制工具 | 产品：稳定 API |
+| [`experimental/`](experimental/README.md) | 私有原型与内部专用插件 | 不发布 |
 | [`workflow/`](workflow/README.md) | 工作流 seam、worker 线程引擎和面向模型的 `workflow`/`ralph` 工具 | 产品：稳定 API |
 | [`web/`](web/README.md) | Web 能力系列：seam、搜索／获取提供方实现和面向模型的 Web 工具 | 产品：稳定 API |
 | [`attachment/`](attachment/README.md) | 持久附件标识、校验、本地内容寻址存储 | 产品：稳定 API |

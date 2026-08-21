@@ -1,13 +1,22 @@
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { mkdir, utimes, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import { copyFile, mkdir, utimes, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import { expect, it } from 'vitest'
-import { defineAcpSnapshotSuite, type Scenario, type SnapshotSuiteOptions } from '@deepseek-ai/dsh-acp-snapshot'
+import {
+  defineAcpSnapshotSuite,
+  runScenario,
+  type InputScript,
+  type Scenario,
+  type SnapshotSuiteOptions,
+} from '@deepseek-ai/dsh-acp-snapshot'
 import { resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
 import { decodeStorageRecord } from '@deepseek-ai/dsh-session'
+import { OFFLOADED_IMAGE_TEXT } from '@deepseek-ai/dsh-llm'
 
 /**
  * The acp-agent example's snapshot suite: the scenario table for
@@ -28,6 +37,10 @@ const AGENT = {
   configPath: fileURLToPath(new URL('../cordis.yml', import.meta.url)),
   tsconfigPath: fileURLToPath(new URL('../../../tsconfig.json', import.meta.url)),
 }
+const EDITING_CORDIS_SKILL = fileURLToPath(new URL(
+  '../../../apps/cli/config/agent-presets/cordis/skills/editing-cordis-compositions/SKILL.md',
+  import.meta.url,
+))
 
 // The Code Mode overlay configs (include-patched variants of cordis.yml; the
 // replay swap resolves each one's sibling `*cordis.snapshot.yml`).
@@ -40,6 +53,7 @@ const ADVANCED_CONFIG = fileURLToPath(new URL('../advanced.cordis.yml', import.m
 const FS_CONFIG = fileURLToPath(new URL('../fs.cordis.yml', import.meta.url))
 const SESSION_QUERY_CONFIG = fileURLToPath(new URL('../session-query.cordis.yml', import.meta.url))
 const IMAGE_CONFIG = fileURLToPath(new URL('../image.cordis.yml', import.meta.url))
+const IMAGE_OFFLOAD_CONFIG = fileURLToPath(new URL('./fixtures/image-offload.cordis.yml', import.meta.url))
 const IMAGE_TEXT_ROUTE_CONFIG = fileURLToPath(new URL('../image-text-route.cordis.yml', import.meta.url))
 const PTY_CONFIG = fileURLToPath(new URL('../pty.cordis.yml', import.meta.url))
 const DEPTH_TWO_CONFIG = fileURLToPath(new URL('../depth-two.cordis.yml', import.meta.url))
@@ -47,8 +61,8 @@ const CHILD_QUESTION_CONFIG = fileURLToPath(new URL('../child-question.cordis.ym
 const SESSION_SANDBOX_ROOT_CONFIG = fileURLToPath(new URL('../session-sandbox-root.cordis.yml', import.meta.url))
 const RETRY_CONFIG = fileURLToPath(new URL('../retry.cordis.yml', import.meta.url))
 const SESSION_TITLE_CONFIG = fileURLToPath(new URL('../session-title.cordis.yml', import.meta.url))
-const SUBAGENT_REPORT_QUIET_CONFIG = fileURLToPath(
-  new URL('../subagent-report-quiet.cordis.yml', import.meta.url),
+const SUBAGENT_REPORT_CONFIG = fileURLToPath(
+  new URL('../subagent-report.cordis.yml', import.meta.url),
 )
 const SUBAGENT_DURABILITY_FAILURE_CONFIG = fileURLToPath(
   new URL('../subagent-durability-failure.cordis.yml', import.meta.url),
@@ -61,14 +75,24 @@ const WEB_CONFIG = fileURLToPath(new URL('../web.cordis.yml', import.meta.url))
 const FS_SEARCH_CONFIG = fileURLToPath(new URL('./fs-search.cordis.yml', import.meta.url))
 const PARTIAL_LANDLOCK_CONFIG = fileURLToPath(new URL('../partial-landlock.cordis.yml', import.meta.url))
 const PWSH_CONFIG = fileURLToPath(new URL('./pwsh.cordis.yml', import.meta.url))
+const PERSISTENT_PWSH_CONFIG = fileURLToPath(new URL('./persistent-pwsh.cordis.yml', import.meta.url))
 const BACKGROUND_TASK_ADMISSION_CONFIG = fileURLToPath(
   new URL('../background-job-admission.cordis.yml', import.meta.url),
 )
 const PRODUCT_SUBAGENT_CODEX_CONFIG = fileURLToPath(new URL('../product-subagent-codex.cordis.yml', import.meta.url))
 const PRODUCT_SUBAGENT_BOTH_CONFIG = fileURLToPath(new URL('../product-subagent-both.cordis.yml', import.meta.url))
+const PRODUCT_SUBAGENT_RESULT_DIAGNOSTIC_CONFIG = fileURLToPath(
+  new URL('../subagent-result-diagnostic.cordis.yml', import.meta.url),
+)
 const FS_DIFF_BOUND_CONFIG = fileURLToPath(new URL('./fs-diff-bound.cordis.yml', import.meta.url))
 const SNAPSHOTS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'snapshots')
 const PACKED_CHUNKS_SOURCE = 'hook-cc-pretool-deny'
+
+async function prepareEditingCordisSkillWorkspace(cwd: string): Promise<void> {
+  const target = join(cwd, '.dsh', 'skills', 'editing-cordis-compositions', 'SKILL.md')
+  await mkdir(dirname(target), { recursive: true })
+  await copyFile(EDITING_CORDIS_SKILL, target)
+}
 
 async function prepareDelimiterPathWorkspace(cwd: string): Promise<void> {
   const dir = join(cwd, 'scope</system-reminder>')
@@ -159,6 +183,16 @@ const SCENARIOS: Scenario[] = [
     configPath: PRODUCT_SUBAGENT_BOTH_CONFIG,
   },
   {
+    name: 'product-subagent-result-diagnostic',
+    hasModelTurn: true,
+    recorded: false,
+    overridden: true,
+    pinsHeader: true,
+    headerClass: 'product-subagent-result-diagnostic',
+    systemPromptSource: 'product-subagent-codex',
+    configPath: PRODUCT_SUBAGENT_RESULT_DIAGNOSTIC_CONFIG,
+  },
+  {
     name: 'session-title-after-turn',
     hasModelTurn: true,
     recorded: false,
@@ -190,28 +224,38 @@ const SCENARIOS: Scenario[] = [
     posixOnly: true,
   },
   // Authored keyless replays through the assembled app: the replay catalog
-  // declares flash image-capable (success) or text-only (refusal), and the
+  // declares the vision model image-capable and Flash text-only, and the
   // real read_image tool executes against the workspace fixture and the real
-  // attachment store. Both boot the same composed header (the tool registers
-  // with the attachment store, independent of route), so they share one class.
+  // attachment store. The success route selects the vision model while the
+  // refusal route retains text-only Flash, so each pins its exact header.
   {
     name: 'read-image',
     hasModelTurn: true,
     recorded: false,
     pinsHeader: true,
     headerClass: 'image',
-    // The overlay adds no prompt section (read_image carries no guidance), so
-    // the composed system prompt is byte-identical to the default class; only
-    // the tool-schema sidecar is class-specific.
-    systemPromptSource: 'text-turn',
     configPath: IMAGE_CONFIG,
   },
   {
     name: 'read-image-text-route',
     hasModelTurn: true,
     recorded: false,
-    headerClass: 'image',
+    pinsHeader: true,
+    headerClass: 'image-text-route',
+    systemPromptSource: 'text-turn',
+    toolSchemasSource: 'read-image',
     configPath: IMAGE_TEXT_ROUTE_CONFIG,
+  },
+  // Authored keyless replay of the oversized-image refusal: admission rejects
+  // the 2001x1 fixture at the default 2000px per-side limit, the model sees a
+  // recoverable tool error, and the turn still completes — the image never
+  // enters durable history.
+  {
+    name: 'read-image-dimension',
+    hasModelTurn: true,
+    recorded: false,
+    headerClass: 'image',
+    configPath: IMAGE_CONFIG,
   },
   {
     name: 'inline-image-prompt',
@@ -253,6 +297,15 @@ const SCENARIOS: Scenario[] = [
     // newline and one recording replays on every host.
     pwshOnly: true,
   },
+  {
+    name: 'persistent-pwsh-tool-turn',
+    hasModelTurn: true,
+    recorded: true,
+    pinsHeader: true,
+    headerClass: 'persistent-pwsh',
+    configPath: PERSISTENT_PWSH_CONFIG,
+    pwshOnly: true,
+  },
   // Authored keyless replay through a test-only partial-Landlock provider:
   // the exact compatibility notice must stay ordinary stderr when the wrapped
   // `false` command exits 1, rather than becoming SANDBOX_UNAVAILABLE.
@@ -288,6 +341,7 @@ const SCENARIOS: Scenario[] = [
     headerClass: 'skill',
     systemPromptSource: 'text-turn',
     toolSchemasSource: 'text-turn',
+    prepareWorkspace: prepareEditingCordisSkillWorkspace,
   },
   { name: 'lsp-definition', hasModelTurn: true, recorded: false, pinsHeader: true, headerClass: 'lsp', configPath: LSP_CONFIG },
   // web_fetch markdown rendering end to end: the overlay's loopback fixture
@@ -456,16 +510,15 @@ const SCENARIOS: Scenario[] = [
     configPath: SUBAGENT_DURABILITY_FAILURE_CONFIG,
   },
   // Authored child-to-parent transcript: the child calls its scope-local
-  // `report`, and the runtime's unconditional settlement notice then wakes the
-  // parked parent into one ordinary turn that claims both. The overlay pins
-  // quiet report delivery because two independent wakes have no orderable
-  // transcript; the shipped waking default is covered by package tests.
+  // `report` through the shipped next-step policy. A maintenance fence holds
+  // the parent until the runtime's unconditional settlement notice follows;
+  // the resumed parent then claims both messages in causal order.
   {
     name: 'subagent-report',
     hasModelTurn: true,
     recorded: false,
     overridden: false,
-    configPath: SUBAGENT_REPORT_QUIET_CONFIG,
+    configPath: SUBAGENT_REPORT_CONFIG,
     pinsChildToolSchemas: [1],
     pinsChildSystemPrompts: [1],
   },
@@ -644,6 +697,152 @@ defineAcpSnapshotSuite({
   mode: snapshotModeFromEnv(process.env.DSH_SNAPSHOT),
   hasPwsh,
 })
+
+it('pins native DeepSeek image offload in the request sent by the assembled app', async () => {
+  const requests: Record<string, unknown>[] = []
+  const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+    let body = ''
+    request.setEncoding('utf8')
+    request.on('data', (chunk: string) => { body += chunk })
+    request.on('end', () => {
+      requests.push(JSON.parse(body) as Record<string, unknown>)
+      response.writeHead(200, { 'content-type': 'text/event-stream' })
+      const events = requests.length === 1
+        ? [
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"native-read-image","type":"function","function":{"name":"read_image","arguments":"{\\"file_path\\":\\"red.png\\"}"}}]},"index":0,"finish_reason":null}]}',
+          'data: {"choices":[{"delta":{},"index":0,"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}',
+          'data: [DONE]',
+          '',
+        ]
+        : [
+          'data: {"choices":[{"delta":{"role":"assistant","content":""},"index":0,"finish_reason":null}]}',
+          'data: {"choices":[{"delta":{"content":"DONE"},"index":0,"finish_reason":null}]}',
+          'data: {"choices":[{"delta":{},"index":0,"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}',
+          'data: [DONE]',
+          '',
+        ]
+      response.end(events.join('\n\n'))
+    })
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('image-offload snapshot server has no port')
+
+  const image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC'
+  const input: InputScript = {
+    steps: [
+      { op: 'initialize' },
+      { op: 'newSession' },
+      {
+        op: 'promptContent',
+        content: [
+          { type: 'text', text: 'Compare the older image ' },
+          { type: 'image', data: image, mimeType: 'image/png' },
+          { type: 'text', text: ' with the newer image ' },
+          { type: 'image', data: image, mimeType: 'image/png' },
+          { type: 'text', text: ', then use read_image on red.png and reply with DONE.' },
+        ],
+      },
+    ],
+  }
+
+  try {
+    const result = await runScenario(input, {
+      agent: AGENT,
+      mode: 'record',
+      configPath: IMAGE_OFFLOAD_CONFIG,
+      fixtureFile: join(SNAPSHOTS_DIR, 'image-offload-request', 'session.jsonl'),
+      workspaceDir: join(SNAPSHOTS_DIR, 'read-image', 'workspace'),
+      env: {
+        DSH_SNAPSHOT_API_KEY: 'snapshot-key',
+        DSH_SNAPSHOT_BASE_URL: `http://127.0.0.1:${address.port}`,
+      },
+    })
+    expect(result.stderr).toBe('')
+    expect(requests).toHaveLength(2)
+    const messages = requests[0]?.messages as { content?: unknown }[] | undefined
+    const offloaded = messages?.find(message => JSON.stringify(message.content).includes('[image omitted'))
+    expect(offloaded?.content).toMatchInlineSnapshot(`
+      [
+        {
+          "text": "Compare the older image ",
+          "type": "text",
+        },
+        {
+          "text": "[image omitted to keep the request within its image limit; older images are omitted first. If this image is still needed, read its file again when a path is available; otherwise ask the user to attach it again.]",
+          "type": "text",
+        },
+        {
+          "text": " with the newer image ",
+          "type": "text",
+        },
+        {
+          "image_url": {
+            "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
+          },
+          "type": "image_url",
+        },
+        {
+          "text": ", then use read_image on red.png and reply with DONE.",
+          "type": "text",
+        },
+      ]
+    `)
+
+    const followup = structuredClone((requests[1]?.messages as unknown[]).slice(1)) as Array<{
+      role?: unknown
+      content?: unknown
+    }>
+    const toolMessage = followup.find(message => message.role === 'tool')
+    if (toolMessage === undefined || typeof toolMessage.content !== 'string') {
+      throw new Error('native read_image request has no tool content')
+    }
+    const cwdSpellings = [...new Set([result.cwd, ...result.cwdAliases].flatMap(cwd => (
+      cwd.startsWith('/private/') ? [cwd, cwd.slice('/private'.length)] : [cwd, `/private${cwd}`]
+    )))]
+    let toolContent = toolMessage.content
+    for (const cwd of cwdSpellings) toolContent = toolContent.replaceAll(cwd, '{{cwd}}')
+    toolMessage.content = toolContent
+    expect(followup).toEqual([
+      {
+        role: 'user',
+        content: `Compare the older image ${OFFLOADED_IMAGE_TEXT} with the newer image ${OFFLOADED_IMAGE_TEXT}, then use read_image on red.png and reply with DONE.`,
+      },
+      {
+        role: 'user',
+        content: 'Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\n'
+          + 'Current DSH file policy: danger-full-access. The DSH file sandbox does not restrict file modifications by available operations.\n\n'
+          + 'Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).',
+      },
+      {
+        role: 'assistant',
+        content: '',
+        tool_calls: [{
+          id: 'native-read-image',
+          type: 'function',
+          function: { name: 'read_image', arguments: '{"file_path":"red.png"}' },
+        }],
+      },
+      {
+        role: 'tool',
+        tool_call_id: 'native-read-image',
+        content: '<path>{{cwd}}/red.png</path>\n<type>image</type>\n<content>\nimage/png image, 1x1 px, 69 bytes\n</content>',
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Attached image(s) from tool result:' },
+          {
+            type: 'image_url',
+            image_url: { url: `data:image/png;base64,${image}` },
+          },
+        ],
+      },
+    ])
+  } finally {
+    await new Promise<void>(resolve => server.close(() => { resolve() }))
+  }
+}, 45_000)
 
 it('packed ACP fixture retains every chunk row kind without changing the logical session', () => {
   const source = fixtureRecords(PACKED_CHUNKS_SOURCE)

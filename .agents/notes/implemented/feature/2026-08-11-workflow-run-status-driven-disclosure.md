@@ -6,38 +6,40 @@ English | [中文](2026-08-11-workflow-run-status-driven-disclosure.zh.md)
 
 ## Problem
 
-A durable workflow Chat node updates in place from its running prefix to a terminal record. A disclosure choice initialized only at mount can hide a newly running phase, leave completed work occupying the conversation, or bury a failed, cancelled, or interrupted member behind two collapsed levels. Making openness a pure function of completion avoids those failures but also prevents users from reopening clean history for review.
+A durable workflow Chat node updates in place from its running prefix to a terminal record. The renderer must draw attention to new work, abnormal outcomes, and normal completion without repeatedly overriding a user's decision to reclaim conversation space.
 
-The renderer already receives every required lifecycle fact from the workflow Conversation Node. Visibility therefore needs a component-local lifecycle that gives current execution and attention states priority without adding another durable fact or taking ownership of workflow outcomes.
+The renderer already receives every durable lifecycle fact from the workflow Conversation Node. Disclosure choice therefore belongs to the mounted presentation, but its lifecycle must also preserve nested phase choices when the outer run is hidden and avoid removing content that still contains keyboard focus.
 
 ## Decision
 
-Each phase derives one visibility requirement from its current members. A running, failed, cancelled, or interrupted member forces that phase open; a phase whose members are all completed is clean. The workflow forces itself open when its own status requires attention or any phase is forced open, so an abnormal member remains visible even when the workflow outcome is recorded as completed. A completed sibling phase remains independently collapsible.
+`WorkflowRunPanel` owns one local disclosure state for the run and a map keyed by the existing phase key. A phase is clean when every member completed, abnormal when any member failed, was cancelled, or was interrupted, and running otherwise. The run is abnormal when its own status or any phase is abnormal, running when its own status or any phase is running, and clean only when the run and every phase completed normally. A mount opens running and abnormal levels and closes clean levels.
 
-A forced-open level renders as an expanded static row. It exposes no button role, focus target, keyboard toggle, or `aria-expanded` value because collapsing cannot change the result. This keeps the visual hierarchy and status summaries while making the interaction promise match the available action.
+Each level records its current mode, append-only member count, open choice, and any pending clean close. Ordinary updates within a running or abnormal interval preserve the user's choice. A phase transition from clean to activity opens that phase and the outer run once, the first transition into abnormal opens once, and a transition into clean closes once. A member-count change while a phase remains clean represents a complete activity cycle delivered in one render: it closes an open phase review and, while the run remains active, opens the outer run once without adding an activity epoch or durable field. After an automatic action, mouse, Enter, and Space control the level until another defined edge occurs.
 
-A clean level mounts an ordinary controlled disclosure in the closed state. Its local choice survives rerenders for the same continuous clean interval. New running or abnormal data replaces that manual interval with forced expansion; the next transition back to clean mounts a fresh closed disclosure, which produces one automatic fold per activity cycle. Closing the workflow naturally unmounts its phase controls, and a Session remount reconstructs every level from the current durable status rather than restoring an earlier choice.
+Phase state remains in `WorkflowRunPanel` while the outer disclosure hides its children, so closing and reopening the run restores each phase choice. Removing a phase deletes its entry; a renderer remount reconstructs every level from current durable facts rather than restoring an earlier choice.
 
-For example, a running workflow exposes its active phase and member without clicks. When that phase completes, only the phase folds while the workflow remains open; when the workflow and every phase complete, the workflow also folds. The user can then reopen both levels for review. If another member starts under the same phase key, both affected levels immediately return to forced expansion and fold again only after the new activity completes.
+Normal completion checks whether focus is inside the content before closing. Focused content remains mounted with current completed status and closes after focus leaves. When a navigable member becomes terminal while its button holds focus, `MemberRow` keeps the same button mounted as `aria-disabled` until blur; later terminal review renders the ordinary non-interactive row. This preserves the active DOM target without allowing terminal navigation or adding a focus manager.
 
-The renderer owns only this visibility lifecycle. It does not add Session events, stores, settings, acknowledgement state, timers, focus movement, automatic scrolling, or cross-remount persistence. It does not change workflow status derivation, phase grouping, member order, navigation eligibility, copy, or the shared `DisclosureRow` API. Shared `data-expandable` styling owns pointer cursors, so forced-open static rows do not advertise an unavailable action. An interrupted durable prefix remains an attention state and therefore stays visible until the underlying facts change.
+The renderer adds no Session events, store, setting, acknowledgement, timer, automatic scrolling, persistent activity identity, or `DisclosureRow` API. It does not change workflow status derivation, phase grouping, member order, navigation eligibility, copy, or visual tokens.
 
 ## Verification
 
-Component tests drive the same keyed workflow and phase through running, clean completion, manual review, renewed activity, repeated clean completion, zero-member completion, and each abnormal status. They also verify abnormal-member propagation, clean-sibling independence, mouse and keyboard review, continuous-clean choice retention, and the absence of false button and ARIA semantics while expansion is mandatory.
+Component tests drive one keyed run and its phases through initial running controls, mouse and keyboard choices, ordinary running updates, outer hide and restore, phase completion, run completion, clean review, same-key renewed activity, a fully batched clean cycle, every abnormal status, first-abnormal escalation, later abnormal updates, zero-member completion, focused-member completion, sibling independence, and renderer remount. They also verify terminal navigation remains absent after the deferred focus path settles.
 
-The shipped Web replay observes the real workflow, worker, Session log, browser plugin graph, and child navigation. It requires the live workflow and active phase to be visible without disclosure controls, the normally settled workflow and phase to fold, manual review to retain the terminal member without navigation, and a reload to reconstruct the folded history from durable facts.
+The shipped Web replay exercises the real workflow, worker, Session log, browser plugin graph, and child navigation. It collapses and reopens live run and phase controls, records the live collapsed status summary and ARIA state, verifies normal settlement folds both levels, confirms terminal review cannot navigate the member, and records the folded history reconstructed after reload.
 
 ## Alternatives considered
 
-**Keep one manual state initialized from the first render.** Rejected because later lifecycle updates cannot reopen newly active or abnormal content and cannot fold normally settled work.
+**Force every running or abnormal level open as a static row.** Rejected because it makes the attention state impossible to dismiss and removes truthful mouse, keyboard, and ARIA disclosure semantics.
 
-**Derive `open` directly from whether a level is clean.** Rejected because completed history would remain permanently closed and could not be reopened for review.
+**Keep one manual state initialized from the first render.** Rejected because later activity, abnormal escalation, and normal completion cannot perform their one-time automatic actions.
 
-**Persist expansion, acknowledgement, or read state.** Rejected because current lifecycle facts already determine mandatory visibility, while review choice belongs only to the mounted presentation. Persistence would add a second state owner and require semantics for stale choices, abnormal acknowledgement, replay, and synchronization that the user result does not need.
+**Let each phase own state inside its disclosure content.** Rejected because hiding the outer run unmounts that content and discards independent phase choices during the same mounted workflow record.
+
+**Persist expansion, acknowledgement, or an activity epoch.** Rejected because current workflow facts and the append-only member count provide every required edge. Persistence adds a second durable owner and synchronization semantics that this presentation choice does not need.
 
 ## Consequences
 
-Workflow records expose current work and abnormal outcomes without preparatory clicks, then reclaim conversation space after normal completion without sacrificing review. Interaction semantics remain truthful during automatic control, and the same durable record produces the same initial state during live rendering, refresh, and history reconstruction.
+Workflow records call attention to lifecycle changes while remaining dismissible in every status. Normal completion reclaims space, current focus remains safe, nested phase choices survive outer hiding, and the same durable record reconstructs a deterministic initial state on refresh or history replay.
 
-The trade-off is deliberate local reset behavior. A phase choice disappears when its parent workflow closes or the component unmounts, and abnormal records cannot be manually hidden because the product has no acknowledgement state. Supporting either behavior later requires a separate ownership and persistence decision rather than extending this local lifecycle implicitly.
+The local lifecycle deliberately resets on renderer remount and cannot remember a choice across refresh, devices, or users. Adding that behavior requires a separate persistence and stale-choice decision rather than extending this presentation state implicitly.

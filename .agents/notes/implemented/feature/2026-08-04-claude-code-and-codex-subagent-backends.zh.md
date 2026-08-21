@@ -12,12 +12,12 @@ Status: implemented
 
 ## 决策
 
-harness 交付两个同级的一次性提供方包：`codex` 与 `claude-code`。本说明负责它们的产品协议、结果映射和进程生命周期；[生产安装排除决策](../simplification/2026-08-12-production-dsh-excludes-product-subagent-providers.md)负责显式 Profile 安装与 host plane（宿主平面）放置，[产品一次性后台任务决策](2026-08-12-product-subagent-one-shot-background-tasks.md)负责模型可见的调度选择。加载任一提供方都不会启动产品进程，而且每个工具只接受独立文本任务；产品选择仍属于部署配置。
+harness 交付两个同级的一次性提供方包，其默认注册名称分别为 `codex` 与 `claude-code`。本说明负责它们的产品协议、结果映射和进程生命周期；[命名实例决策](2026-08-18-product-subagent-named-instances.md)负责 Profile 选择的提供方身份与静态工具绑定，[生产安装排除决策](../simplification/2026-08-12-production-dsh-excludes-product-subagent-providers.md)负责各自独立的可选 Bundle 与 host plane（宿主平面）放置，[产品一次性后台任务决策](2026-08-12-product-subagent-one-shot-background-tasks.md)负责模型可见的调度选择，[非交互权限决策](2026-08-15-product-subagent-noninteractive-permissions.md)负责各产品提供方的 Profile 模式选择与安全权限决定，[结构化失败事实决策](2026-08-18-product-subagent-failure-facts.md)则负责通过同一诊断公开锁定产品版本的类别、生命周期阶段与进程结果。两个包都接受多个命名实例。加载任一提供方都不会启动产品进程，而且每个工具只接受独立文本任务；产品与实例选择仍属于部署配置。
 
 这两个提供方都报告 `inheritsParentContext: false`，不声明任何可选的启动能力，并传递父会话 cwd，但不会复制父级对话。文档所示的工具使用 `backgroundMode: 'one-shot'` 与 `maxDepth: 'provider-managed'`：消费方默认在前台收集结果，也可把同一次运行放入通用 Job 运行时，而递归策略仍由进程外产品负责。每次调用都会创建一个全新的产品进程和一次不可续接的产品对话。`ctx.subagents` 负责具名请求解析与成对生命周期事件；`dsh-tool-subagent` 负责模型可见的调度以及前台与 Job 适配；`ctx.jobs` 和 `dsh-tool-jobs` 负责 Job id、状态、输出、控制、通知与父级 owner 取消；各产品提供方负责原生结果映射，`dsh-subprocess` 则负责凭证清洗、进程树终止以及整棵进程树的退出观测。
 
 ```text
-fixed tool -> dsh-tool-subagent -> ctx.subagents -> product provider -> product process
+configured tool -> dsh-tool-subagent -> ctx.subagents -> product provider -> product process
   foreground <- final product outcome
   background -> ctx.jobs / dsh-tool-jobs -> Job id / state / notice / controls
   both -> provider disposal -> dsh-subprocess -> whole-tree exit
@@ -34,39 +34,39 @@ fixed tool -> dsh-tool-subagent -> ctx.subagents -> product provider -> product 
 
 ## Codex 提供方
 
-`@deepseek-ai/dsh-subagent-codex` 注册固定的 `codex` 提供方，并启动 `codex app-server --stdio`，该命令从 `PATH` 解析。其公开配置仅包含显式的 `env` 覆盖项和须为正有限值的 `disposeGraceMs`，且后者不得大于仓库共享的 `MAX_TIMER_DELAY_MS`。安装、登录、`CODEX_HOME`、模型选择、基础 URL、沙箱、审批策略和产品会话设置仍由 Codex 原生机制或部署环境负责。
+`@deepseek-ai/dsh-subagent-codex` 注册由 Profile 选择、默认值为 `codex` 的提供方名称，解析锁定的 `@openai/codex@0.147.0` 包所声明的 `codex` bin，并使用当前 Node 可执行文件加 `app-server --stdio` 启动该 wrapper。Wrapper 会选择私有原生平台载荷；提供方既不解析也不回退宿主 `codex`。其公开配置包含非空的 `providerName`、显式的 `env` 覆盖项、须为正有限值且不得大于仓库共享 `MAX_TIMER_DELAY_MS` 的 `disposeGraceMs`，以及默认使用 `never` 的三值原生 `permissionMode`。每个命名实例会为自己的运行保留这些已解析值。安装、登录、`CODEX_HOME`、模型选择、基础 URL 和产品会话设置仍由 Codex 原生机制或部署环境负责；所选模式只拥有非交互权限决策中描述的线程 approval／reviewer／sandbox 字段。
 
-发布前，提供方会验证非空的纯文本任务，在父级工作区中启动受管的 app-server，完成 `initialize` → `initialized` 握手，并创建一个 `ephemeral: true` 线程。已发布的运行只拥有一次 `turn/start`；其线程 ID 与轮次 ID 保持私有，绝不会持久化到父会话。
+发布前，提供方会验证非空的纯文本任务，在父级工作区中启动受管的 app-server，完成 `initialize` → `initialized` 握手，把已解析模式映射为官方 `thread/start` 字段，并创建一个 `ephemeral: true` 线程。固定 app-server argv 不包含模式或任务文本。已发布的运行只拥有一次 `turn/start`；其线程 ID 与轮次 ID 保持私有，绝不会持久化到父会话。
 
-`turn/completed` 是权威的远端终止事实。以最后一条带有 `phase: "final_answer"` 的 `agentMessage` 为准，且选中的消息必须包含非空白文本。若产品没有发出明确的最终阶段，则以最后一条 `phase: null` 的消息作为兼容性回退，该消息也必须包含非空白文本；过程说明绝不会取代上述任一答案。带有 `error.codexErrorInfo: "contextWindowExceeded"` 的失败轮次会成为 `max-tokens`。轮次完成却没有答案、其他任何远端失败或中断轮次、已识别的 app-server 帧中必需字段格式错误、协议关闭、进程提前退出或未知的服务器请求，都会产生 `error`；本版本没有原生的拒绝终止状态，因此不会产生 `refusal`。本地取消在竞态中胜出并保持为 `aborted`。
+`turn/completed` 是权威的远端终止事实。以最后一条带有 `phase: "final_answer"` 的 `agentMessage` 为准，且选中的消息必须包含非空白文本。若产品没有发出明确的最终阶段，则以最后一条 `phase: null` 的消息作为兼容性回退，该消息也必须包含非空白文本；过程说明绝不会取代上述任一答案。[结构化失败事实决策](2026-08-18-product-subagent-failure-facts.md)负责 Codex error-info 类别、HTTP status、生命周期阶段、进程结果与终止原因保持。本地取消仍是 `aborted` 且不附带失败诊断。
 
-对于命令与文件审批，无人值守的协议连接会从请求给出的决策选项中选择一项不予批准的决策，并优先选择 `cancel`；稳定的 0.147.0 请求形态没有决策选项列表，因此回退到 `decline`。它不授予该轮次请求的任何权限，不向用户输入请求提供任何答案，并拒绝 MCP elicitation。若请求在无人值守模式下没有合法响应，或是未知服务器请求，此次运行就会失败，而不会等待本提供方没有提供的用户界面。
+对于命令与文件审批，无人值守的协议连接会从请求给出的决策选项中选择一项不予批准的决策，并优先选择 `cancel`；稳定的 0.147.0 请求形态没有决策选项列表，因此回退到 `decline`。它不授予该轮次请求的任何权限，不向用户输入请求提供任何答案，并拒绝 MCP elicitation。它会记录这些请求、被拒绝的命令／文件 item 与 `sandboxError` 的安全类别。Codex 的部分早期 `never` 拒绝和 sandbox violation 只写入结构化 stderr，因此提供方会 pipe 并原样转发 stderr，同时在每次运行的有界尾部中匹配两个固定签名；原始 stderr 绝不会进入诊断。若请求在无人值守模式下没有合法响应，或是未知服务器请求，此次运行就会失败，而不会等待本提供方没有提供的用户界面。
 
-若启动在发布前失败，提供方会关闭协议连接、终止已获取的进程树并等待其退出，然后拒绝 `start()`。对已发布的运行执行资源释放时，提供方会尽力中断已知轮次、关闭协议连接、结束标准输入、调用共享的逐级终止机制，并等待整棵进程树退出。结果失败与清理失败仍可彼此独立地观察。
+若启动在发布前失败，提供方会关闭协议连接、终止已获取的进程树、等待其退出、移除 stderr observer，然后用固定操作阶段拒绝 `start()`。对已发布的运行执行资源释放时，提供方会尽力中断已知轮次、关闭协议连接、结束标准输入、调用共享的逐级终止机制，等待整棵进程树退出，并移除 observer。独立清理失败会报告 `teardown`；启动与回滚同时失败时，聚合的顶层消息会保留两条安全阶段说明，而底层 cause 仍只在内部可见。
 
 Codex 0.147.0 使用 Responses 协议，而 DeepSeek 的公开 OpenAI 兼容端点使用 Chat Completions。因此，带密钥 Codex e2e 会采用一个仅限回环、仅供测试内部使用的桥接层来处理一次不使用工具的随机数请求：真实 Codex 将 Responses 发送到桥接层，桥接层把收到的 Bearer 凭据与提取出的任务转发到固定的 DeepSeek 官方端点，再将真实文本包装进最小化的 Responses SSE（Server-Sent Events）生命周期。该桥接层既不是生产代理，也不能作为 Codex 原生连接 DeepSeek Chat Completions 的证据。
 
 ## Claude Code 提供方
 
-`@deepseek-ai/dsh-subagent-claude-code` 注册固定的 `claude-code` 提供方，并调用 `@anthropic-ai/claude-agent-sdk@0.3.220`。每次运行前，提供方经宿主 subprocess 执行世界解析固定名称 `claude`，并把准确路径作为 `pathToClaudeCodeExecutable` 交给 SDK；SDK 因此使用启动 DSH 的原生产品，而不是选择自身的 platform `optionalDependency`。Windows `.cmd` 或 `.bat` 路径会作为带引号、仅供本次 spawn 使用的环境展开值穿过 `cmd.exe /v:off`，因此路径中的百分号、与号和感叹号仍只是数据，且无需改变共享子进程约定。提供方使用官方 `query()` 入口点，并将 SDK 的 `spawnClaudeCodeProcess` 参数、cwd、环境和转发的信号交给 `dsh-subprocess`；其私有 `SpawnedProcess` 适配器只公开 SDK 所需的流、事件、终止和退出事实。
+`@deepseek-ai/dsh-subagent-claude-code` 注册由 Profile 选择、默认值为 `claude-code` 的提供方名称，并调用 `@anthropic-ai/claude-agent-sdk@0.3.220`。提供方会省略 `pathToClaudeCodeExecutable`，因此 SDK 会从自己的 optional dependency 闭包中，按操作系统、CPU 与 Linux libc 选择携带 Claude Code 2.1.220 的匹配平台包。提供方既不会解析也不会回退宿主 `claude`；省略 optional dependency、不受支持的平台，以及缺失或损坏的平台载荷，都会在第一次委派的 SDK 启动边界失败。提供方使用官方 `query()` 入口点，并把 SDK 的 `spawnClaudeCodeProcess` 给出的原生 `claude` 或 `claude.exe` 命令、参数、cwd、环境和转发的信号交给 `dsh-subprocess`；其私有 `SpawnedProcess` 适配器只公开 SDK 所需的流、事件、终止和退出事实。
 
-公开配置包含与 Codex 兄弟提供方相同、由部署方负责的两个值：显式的 `env` 覆盖项，以及须为正有限值且不得大于仓库共享 `MAX_TIMER_DELAY_MS` 的 `disposeGraceMs`。每次运行都会创建自己的 `AbortController`，设置 `persistSession: false` 并禁用 `AskUserQuestion`。提供方故意省略 `settingSources`，因此 SDK 会相对于父会话 cwd 读取宿主机常规的用户、项目和本地 Claude 设置。它既不复制也不过滤这些设置，也不会创建或修改登录状态。提供方不设置 `canUseTool`、elicitation 或对话回调，因此无人值守交互会经 SDK 失败，而不会等待本提供方不负责的用户界面。
+公开配置包含非空的 `providerName`、显式的 `env` 覆盖项、须为正有限值且不得大于仓库共享 `MAX_TIMER_DELAY_MS` 的 `disposeGraceMs`，以及默认使用 `dontAsk` 的五值原生 `permissionMode`。每个命名实例会为自己的运行保留这些已解析值。每次运行都会创建自己的 `AbortController`，设置 `persistSession: false`、禁用 `AskUserQuestion`，并把已解析模式传给 SDK；只有 `bypassPermissions` 会取得 SDK 的显式危险确认。提供方故意省略 `settingSources`，因此 SDK 会相对于父会话 cwd 读取宿主机常规的用户、项目和本地 Claude 设置。它既不复制也不过滤这些设置，也不会创建或修改登录状态。其余权限提示会被拒绝，MCP elicitation 会被拒绝，阻塞对话会快速失败，而不会等待本提供方不负责的用户界面。
 
-只有在 SDK `Query` 与受管的活动 CLI 句柄都已存在后，提供方才会发布运行。它会消费完整的 SDK 流；只有 `result` 消息具有 `subtype: "success"`、`is_error: false` 和非空白 `result`，且迭代器随后正常结束时，运行才会完成。所有 SDK 错误子类型、标记为错误的成功消息、结果缺失、迭代器失败、协议失败或进程失败都会成为 `error`。SDK 的轮次、预算和结构化输出限制不表示 token 窗口耗尽，而且 SDK 没有原生的拒绝终止状态，因此本提供方不会产生 `max-tokens` 或 `refusal`。本地取消会胜出并成为 `aborted`。
+只有在 SDK `Query` 与受管的活动 CLI 句柄都已存在后，提供方才会发布运行。它会消费完整的 SDK 流；只有 `result` 消息具有 `subtype: "success"`、`is_error: false` 和非空白 `result`，且迭代器随后正常结束时，运行才会完成。[结构化失败事实决策](2026-08-18-product-subagent-failure-facts.md)负责所有非成功类别、阶段、进程结果，以及它们与参与失败的权限决定之间的顺序。本地取消会胜出并成为 `aborted`，且不附带这两类诊断事实。
 
-启动回滚和已发布运行的资源释放都会关闭 SDK query、中止该次运行的控制器、调用共享的进程树终止机制，并等待整棵进程树退出。`Query.close()` 表达优雅的协议关闭意图，但不能取代子进程责任方的退出证明。Query 关闭失败、进程失败和清理失败仍可彼此独立地观察。
+启动回滚和已发布运行的资源释放都会关闭 SDK query、中止该次运行的控制器、调用共享的进程树终止机制，并等待整棵进程树退出。`Query.close()` 表达优雅的协议关闭意图，但不能取代子进程责任方的退出证明。未发布失败只公开固定的 `query-start` 事实；已发布进程失败可以分别公开退出码与信号；独立清理拒绝则公开 `teardown`。原始 SDK、Host 与清理错误只保留在内部 cause 链和日志中，不进入诊断。
 
 带密钥 Claude Code e2e 直接使用官方 DeepSeek Claude Code 约定：仅在运行时提供的 DeepSeek 密钥会映射为 `ANTHROPIC_AUTH_TOKEN`，固定的官方基础 URL 会追加 `/anthropic`，主模型与 subagent 模型变量会选择文档所示的 DeepSeek 模型。该测试会启动生产提供方与真实 SDK 和 CLI，要求一个随机数作为完整答案，不会把任何凭据持久化到设置中，并等待所有受管句柄退出。
 
 ## 分发与证据
 
-每个产品都负责覆盖所有分支的包测试、一项必跑的无密钥真实产品测试、一项 Loader 组合 e2e 和一项带密钥 DeepSeek e2e。无密钥产品层级使用被测的确切官方发行版、非空的伪产品密钥、隔离的临时工作区与产品主目录，以及能返回固定答案的回环模型。产品请求缺失、身份验证错误、任务文本被改动、答案不完全一致、真实产品被跳过或受管句柄仍存活，都会使这项必跑测试失败。Loader 层级会启动 README 所示的显式 Profile 配置，在同一个上下文中验证两个固定一次性工具会与通用 Job 控制工具一起公开可选后台调度，而且不会启动任何产品进程。带密钥层级会使用仅在运行时提供的密钥启动同一生产提供方与真实产品，要求从固定的 DeepSeek 官方服务取得唯一随机数，并再次证明完全停稳；仅当本地操作者未提供密钥时才会自行跳过，而受信任的 CI 会预检该 secret。
+每个产品都负责覆盖所有分支的包测试、一项必跑的无密钥真实产品测试、一项 Loader 组合 e2e 和一项带密钥 DeepSeek e2e。无密钥产品层级使用被测的确切官方发行版、非空的伪产品密钥、隔离的临时工作区与产品主目录，以及能返回固定答案的回环模型。产品请求缺失、身份验证错误、任务文本被改动、答案不完全一致、真实产品被跳过或受管句柄仍存活，都会使这项必跑测试失败。Codex Loader fixture 会公开两个命名 Codex 实例与工具；Claude Code Loader fixture 会公开默认 Codex 工具以及两个命名 Claude Code 实例与工具。两个 fixture 都包含通用 Job 控制工具，而且不会启动任何产品进程。带密钥层级会使用仅在运行时提供的密钥启动同一生产提供方与真实产品，要求从固定的 DeepSeek 官方服务取得唯一随机数，并再次证明完全停稳；仅当本地操作者未提供密钥时才会自行跳过，而受信任的 CI 会预检该 secret。
 
-Codex 证据锁定 `@openai/codex@0.147.0` 与 `codex-cli 0.147.0`。其真实产品测试会观测确切的 Bearer 密钥、原始任务、逐字节完全一致的最终回答、不会产生文件副作用的无人值守命令拒绝、本地取消以及整棵进程树退出。生产环境仍提供 `codex`，并通过 `PATH` 解析。
+Codex 证据会锁定 `@openai/codex@0.147.0`、`codex-cli 0.147.0` 与六个平台 alias。其真实产品测试会观测包内 wrapper argv、确切的 Bearer 密钥、原始任务、逐字节完全一致的最终回答、原生权限模式、测试拥有临时存储中的显式危险绕过写入，以及 wrapper／原生整棵进程树退出。独立 wrapper fixture 会证明载荷缺失时不回退宿主命令，两个命名实例会保留彼此独立的环境与模式，生产环境也不会从 `PATH` 解析宿主 `codex`。[结构化失败事实决策](2026-08-18-product-subagent-failure-facts.md)负责 schema、失败、进程结果与最终呈现证据。
 
 带密钥 Codex e2e 会注册生产提供方，启动同样的真实 app-server，并通过上述测试专用桥接层请求一个随机数。该测试固定外部端点与模型，不存储任何凭据或请求载荷，要求上游恰好完成一次响应，将去除首尾空白后的产品答案与该随机数逐字节比较，并等待所有受管句柄退出。
 
-Claude Code 证据锁定 Agent SDK 0.3.220，并使用 SDK 按平台分发的 Claude Code 2.1.220 CLI 作为确定性兼容性 fixture（测试前置数据），且该 fixture 经生产环境所用的同一原生可执行文件解析路径运行。其真实产品测试会观测确切的 `x-api-key`、原始任务、逐字节完全一致的最终回答、继承的临时宿主设置标记、进程失败、本地取消、整棵进程树退出，以及位于同时含百分号、与号和感叹号路径中的真实 Windows batch shim。这项证据证明官方 SDK/CLI 集成路径，而不证明它与每个独立安装的产品版本兼容。Loader 与随附 profile 证据会按名称解析两个产品包且不启动产品，provider 测试则证明 SDK 收到由宿主 `PATH` 解析出的可执行文件。
+Claude Code 证据会锁定 Agent SDK 0.3.220、Claude Code 2.1.220 与八个 SDK 平台包。真实产品测试会让 SDK 选择已安装载荷，断言共享子进程 argv 以该包的原生 CLI 开头，并观测确切的 `x-api-key`、原始任务、逐字节完全一致的最终回答、原生权限模式、测试拥有范围内的拒绝写入与 bypass 写入，以及整棵进程树退出。包测试还会证明生产运行从不解析宿主 `PATH`、省略可执行文件覆盖，并直接转发 SDK 所选的 Windows `claude.exe` 而不经过 batch shim。这项证据证明锁定的官方 SDK/CLI 集成，而不证明与独立安装的 Claude 版本兼容；[结构化失败事实决策](2026-08-18-product-subagent-failure-facts.md)负责失败与进程结果证据。Loader 覆盖会通过各自的可选 Bundle patch 解析两个产品，且不会启动任一产品。
 
 带密钥 Claude Code e2e 仅在提供方的内存环境中映射密钥与固定的官方端点，把模型变量设为文档所示的 `deepseek-v4-pro[1m]` 与 `deepseek-v4-flash`，并实际经过生产提供方、官方 SDK 与真实 CLI。它将去除首尾空白后的结果与一个随机数比较，并证明整棵进程树退出，且测试不会直接调用 Messages API。
 
@@ -78,18 +78,18 @@ Claude Code 证据锁定 Agent SDK 0.3.220，并使用 SDK 按平台分发的 Cl
 
 **共享产品进程辅助包。** 现有 subagent 与子进程 seam 已负责围绕任务、结果、环境和进程树的全部共享职责。新辅助包无法删除任一私有产品适配器，只会造成责任重复，因此每个适配器都会直接调用现有 seam。
 
-**面向模型的产品选择器。** 产品可用性和身份验证属于部署事实。两个固定工具使各自的 schema 与提供方绑定保持明确，也避免在通用服务中添加动态选择状态。
+**面向模型的产品选择器。** 产品可用性、实例配置和身份验证属于部署事实。由 Profile 绑定的工具使各自的 schema 与提供方绑定保持明确，也避免在通用服务中添加动态选择状态。
 
 **以产品替身作为强制证据。** 替身可以穷尽覆盖私有协议分支，但无法证明包导出、官方发行版、身份验证或真实进程行为。强制证据会驱动每个官方产品连接回环模型 fixture。
 
-**由插件管理登录、产品主目录、模型、设置或权限。** 这些选择会在每个产品的原生配置之外建立另一套权威来源，并将一次性提供方扩张为账户管理功能。提供方只公开显式环境覆盖项和清理宽限期；无人值守交互会以默认拒绝方式失败。
+**由插件管理登录、产品主目录、模型、设置、沙箱规则或细粒度权限策略。** 这些选择会在每个产品的原生配置之外建立另一套权威来源，并将一次性提供方扩张为账户管理功能。两个产品除环境和清理配置外都只公开一个原生非交互模式选择；任一提供方都不会镜像产品规则或增加人工交互通道。
 
 **续接、进度、产品原生后台状态和共享父级上下文。** 提供方载荷仍是一项自包含任务的一个最终回答。通用 Job 层可以额外提供 id、状态、通知、收集与取消结果，但产品会话、恢复、后续交互、中间消息、父级 transcript（文本记录）传递、结构化输出和提供方专属后台状态都需要独立的用户约定，当前实现不会预先构建这些功能。
 
 ## 后果
 
-用户通过官方产品集成支持的两个稳定一次性工具进行委派。显式 Profile 安装与 host plane 提供方放置由[生产安装排除决策](../simplification/2026-08-12-production-dsh-excludes-product-subagent-providers.md)负责；按 Preset 暴露工具以及默认前台且可选通用 Job 的调度方式由[产品一次性后台任务决策](2026-08-12-product-subagent-one-shot-background-tasks.md)负责。本说明规定的提供方生命周期会保留原生设置与行为，而共享服务继续独占作业结算与进程树完全停稳的责任。
+用户通过由 Profile 配置、并由官方产品集成支持的一次性工具进行委派。显式 Profile 安装与 host plane 提供方放置由[生产安装排除决策](../simplification/2026-08-12-production-dsh-excludes-product-subagent-providers.md)负责；命名实例身份与工具绑定由[命名实例决策](2026-08-18-product-subagent-named-instances.md)负责；按 Preset 暴露工具以及默认前台且可选通用 Job 的调度方式由[产品一次性后台任务决策](2026-08-12-product-subagent-one-shot-background-tasks.md)负责。本说明规定的提供方生命周期会保留原生设置与行为，而共享服务继续独占作业结算与进程树完全停稳的责任。
 
-每次委派都要承担新建产品进程和独立模型上下文的开销。到达父级的产品载荷仍只有最终文本；后台调度还会额外公开通用 Job id、状态、完成通知以及收集或取消结果。产品原生配置使行为取决于部署环境中安装的产品、账户状态和工作区设置。带密钥 e2e 运行还会消耗外部 API 配额，并依赖 DeepSeek 官方端点；对协议、失败、取消与审批的确定性覆盖仍由无密钥层级承担。提供方不会恢复会话、以流式方式传送进度、接受新的人工交互、回滚工具或文件副作用，也不会施加按实际经过时间触发的超时。
+每次委派都要承担新建产品进程和独立模型上下文的开销。成功的产品载荷仍只有最终 assistant 文本；失败的产品运行可以另行公开共享安全诊断，其中包含由提供方拥有的权限事实，或锁定版本产品提供的结构化失败事实。后台调度还会额外公开通用 Job id、状态、完成通知以及收集或取消结果。两个产品都使用 Bundle 锁定的平台 CLI，并保留原生账户与工作区设置以及所选提供方权限模式。带密钥 e2e 运行还会消耗外部 API 配额，并依赖 DeepSeek 官方端点；对协议、失败、取消与审批的确定性覆盖仍由无密钥层级承担。提供方不会恢复会话、以流式方式传送进度、接受新的人工交互、回滚工具或文件副作用，也不会施加按实际经过时间触发的超时。
 
 兼容性由包级单元测试覆盖率、无密钥真实产品回环测试、带密钥 DeepSeek 随机数测试、公开 Loader 组合、已构建包与 NodeNext 消费方检查、生成的文档与声明以及仓库 CI 矩阵共同锁定。更改受支持的产品基线或 DeepSeek 端点／模型基线时必须刷新这些事实；生产环境不会另行执行运行时版本探测。

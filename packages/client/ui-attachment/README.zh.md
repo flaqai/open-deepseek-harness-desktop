@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-纯 React 附件原子组件（零 cordis）：输入框草稿图片栏（`AttachmentRail`）、聊天历史图片画廊（`MessageImage`/`ImageGallery`）、原图灯箱（`ImageLightbox`）与整页拖放遮罩（`DropOverlay`）。所有文案都由持有方插件在自己的语言命名空间中解析后经 label props 传入，此包不读取任何应用状态；当前消费者是 `@deepseek-ai/dsh-client-ui-conversation`，经其 `image-labels` 模块桥接 `conversation` 词典。
+对话 UI 的动态附件呈现插件。它通过 `ctx.slots.inject` 等待 conversation 包声明 `conversation.input.attachments` 与 `conversation.message.images`，随后注册输入框草稿图片栏、文档拖放目标、聊天历史图片画廊和原图灯箱。conversation slot 持有方提供附件数据、图片加载、回调及其命名空间翻译器；呈现组件保持纯 props，且不从包入口导出。
 
 ## 附件栏
 
@@ -18,7 +18,7 @@
 
 ## 模型体验
 
-无。该包（package）在浏览器中渲染纯 React 原子组件；这里没有任何内容进入模型请求。
+无，因为该插件只渲染由对话 UI 提供的附件状态，不贡献模型可见输入。
 
 #### KV Cache 影响
 
@@ -28,4 +28,4 @@
 
 - **仅支持图片** — 非图片文件尚无附件栏卡片与历史渲染；DeepSeek Chat 风格的文件卡片和上传进度状态等输入框接受非图片附件后再做。
 - **灯箱无缩放与下载** — 预览仅以适配视口的尺寸渲染原图。
-- **灯箱不锁定焦点** — 它设置 `aria-modal` 并在关闭时归还焦点，但 Tab 仍可移动到背后的页面（沿袭入包前组件的行为）。
+- **灯箱不锁定焦点** — 它设置 `aria-modal` 并在关闭时归还焦点，但 Tab 仍可移动到背后的页面。

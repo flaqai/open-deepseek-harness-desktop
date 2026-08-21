@@ -7,7 +7,7 @@ import {
   rmSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { Context } from '@deepseek-ai/cordis'
@@ -87,7 +87,6 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)(
       ]) mkdirSync(directory)
 
       const env = {
-        PATH: `${dirname(claudeBin)}${delimiter}${process.env.PATH ?? ''}`,
         ANTHROPIC_AUTH_TOKEN: apiKey,
         ANTHROPIC_BASE_URL: `${deepSeekBaseUrl()}/anthropic`,
         ANTHROPIC_MODEL: 'deepseek-v4-pro[1m]',

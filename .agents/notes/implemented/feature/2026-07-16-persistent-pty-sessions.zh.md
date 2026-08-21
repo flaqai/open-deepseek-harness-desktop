@@ -134,7 +134,7 @@ plugins:
 - 声明式 per-agent 启动需要 agent-setup 组合点；仍然禁止插件加载期全局会话。
 - harness 进程丢失后的会话恢复需要进程外 owner 和版本化协议。
 - 网络出口策略与外部副作用回滚超出 PTY 范围，继续作为独立安全工作。
-- Windows/ConPTY 支持需要具备 Windows 原生进程所有权与信号语义的后端。
+- Windows/ConPTY 会话经由 subprocess-local 的 Windows inspector（Toolhelp32 身份、伪前台进程组、taskkill 拆卸）与 `pty-local` 的 pwsh 方言运行；见 [pwsh 持久工具 note](../architecture/2026-08-11-pwsh-persistent-pty.md)。
 
 ## 备选方案
 

@@ -5,6 +5,7 @@ import {
   parseProcStat,
 } from '@deepseek-ai/dsh-subprocess-local/src/process-inspector.ts'
 import type { ProcessInspectorInternals } from '@deepseek-ai/dsh-subprocess-local/src/process-inspector.ts'
+import { WindowsProcessInspector } from '@deepseek-ai/dsh-subprocess-local/src/windows-inspector.ts'
 
 function stat(pid: number, pgrp: number, session: number, tpgid: number, started: string, parentPid = 1, state = 'S'): string {
   const rest = [state, String(parentPid), String(pgrp), String(session), '99', String(tpgid)]
@@ -237,12 +238,13 @@ describe('macOS process inspector', () => {
     ])
   })
 
-  it('returns undefined for missing or invalid foreground groups and rejects unsupported platforms', () => {
+  it('returns undefined for missing or invalid foreground groups and dispatches platform inspectors', () => {
     const fake = fakeInternals()
     fake.setTpgid('-1')
     expect(createProcessInspector('darwin', 'arm64', fake.internals).foregroundPgid(1)).toBeUndefined()
     fake.internals.exec = () => { throw new Error('gone') }
     expect(createProcessInspector('darwin', 'arm64', fake.internals).foregroundPgid(1)).toBeUndefined()
-    expect(() => createProcessInspector('win32', 'x64', fake.internals)).toThrow('unsupported on platform win32')
+    expect(createProcessInspector('win32', 'x64', fake.internals)).toBeInstanceOf(WindowsProcessInspector)
+    expect(() => createProcessInspector('freebsd', 'x64', fake.internals)).toThrow('unsupported on platform freebsd')
   })
 })

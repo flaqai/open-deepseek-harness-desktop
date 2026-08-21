@@ -11,7 +11,7 @@ import z from '@deepseek-ai/schemastery'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { EMPTY_RESPONSE_CODE } from './error.ts'
 
-const DEFAULT_MAX_RETRIES = 2
+const DEFAULT_MAX_RETRIES = 5
 const DEFAULT_INITIAL_DELAY_MS = 500
 const DEFAULT_MAX_DELAY_MS = 10_000
 const DEFAULT_JITTER_RATIO = 0.1
@@ -37,7 +37,7 @@ export interface BackoffConfig {
 export interface NormalRetryPolicyConfig {
   /** Retry only configured transient failure codes. */
   mode: 'normal'
-  /** Maximum eligible retries after the first request (default 2). */
+  /** Maximum eligible retries after the first request (default 5). */
   maxRetries?: number
   /** Stable failure codes eligible for this policy. */
   retryableCodes?: string[]
@@ -105,7 +105,11 @@ export const RetryPolicySchema: z<RetryPolicyConfig> = z.union([
 const NORMAL_POLICY_KEYS: ReadonlySet<string> = new Set([
   'mode', 'maxRetries', 'retryableCodes', 'backoff',
 ])
-const ALWAYS_POLICY_KEYS: ReadonlySet<string> = new Set(['mode', 'backoff'])
+// Layered configuration can retain normal-only fields after switching modes;
+// always mode ignores those inactive values while still rejecting unknown keys.
+const ALWAYS_POLICY_KEYS: ReadonlySet<string> = new Set([
+  'mode', 'maxRetries', 'retryableCodes', 'backoff',
+])
 const BACKOFF_KEYS: ReadonlySet<string> = new Set(['initialDelayMs', 'maxDelayMs', 'jitterRatio'])
 
 function validateKeys(value: object, allowed: ReadonlySet<string>, path: string): void {

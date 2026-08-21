@@ -83,5 +83,5 @@ set(agent: Agent, active: boolean): 'committed' | 'queued' | 'cancelled' | 'noop
 
 Types: [Agent](core.md)
 
-Source: [`packages/plan/plan-mode/src/index.ts:184`](../../packages/plan/plan-mode/src/index.ts)
+Source: [`packages/plan/plan-mode/src/index.ts:188`](../../packages/plan/plan-mode/src/index.ts)
 <!-- END GENERATED cordis-surface -->

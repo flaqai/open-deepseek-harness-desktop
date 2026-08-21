@@ -7,13 +7,14 @@ import { exactMatch, MENU_CLOSED, menuReduce, seedGroups } from '../src/core/men
 const hit = (query = ''): TriggerHit => ({
   trigger: '/',
   query,
+  quoted: false,
   position: 'leading',
   span: { start: 0, end: 1 + query.length, draftRev: 1 },
 })
 
 /** Seed sources onto the closed state and open a first generation. */
 function open(sources: readonly string[], h: TriggerHit = hit()): MenuState {
-  return menuReduce(seedGroups(MENU_CLOSED, sources), { type: 'hit', hit: h })
+  return menuReduce(seedGroups(MENU_CLOSED, sources.map(name => ({ name }))), { type: 'hit', hit: h })
 }
 
 const item = (name: string) => ({ name })
@@ -37,6 +38,14 @@ describe('menuReduce hit', () => {
     expect(s.generation).toBe(2)
     expect(s.groups).toEqual([{ source: 'command', status: 'pending', items: [] }])
     expect(s.highlight).toBeNull()
+  })
+
+  it('preserves a hidden group title through re-hit and settlement', () => {
+    let s = menuReduce(seedGroups(MENU_CLOSED, [{ name: 'reference', showGroupTitle: false }]), { type: 'hit', hit: hit() })
+    expect(s.groups[0]).toMatchObject({ source: 'reference', showGroupTitle: false, status: 'pending' })
+    s = menuReduce(s, { type: 'hit', hit: hit('r') })
+    s = menuReduce(s, { type: 'source-settled', generation: 2, source: 'reference', items: [item('README.md')] })
+    expect(s.groups[0]).toMatchObject({ source: 'reference', showGroupTitle: false, status: 'ready' })
   })
 
   it('null hit closes; closing an already-closed state is a no-op reference', () => {

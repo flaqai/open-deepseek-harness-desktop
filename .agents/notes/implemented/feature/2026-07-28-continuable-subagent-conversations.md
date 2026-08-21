@@ -157,7 +157,7 @@ It adds no host-user continuation, subagent steering operation, durable mailbox,
 
 **Let the provider create, resume, or deliver through an Agent handle.** Initial providers own only `prepareContinuable()` and its detached creation-spec distinction: whether a child begins fresh or with a parent prefix. The manager must call `ctx.agents.create()` through its private activation-owner scope so that scope is a structural owner of every handle. A persisted in-process Session already contains the initial prefix and generic reconstruction descriptor, while delivery belongs to the Agent inbox. Giving providers any later handle, `SubagentRun`, or message ownership would retain provider ownership with no shipped behavior to justify it.
 
-**Make report delivery part of the base lifecycle.** Repeatable child-to-parent reporting is compatible with this lifecycle, but quiet versus waking delivery, acknowledgement, durability, and retry behavior are independent product choices. The later report package remains optional and consumes an explicit child-setup hook, so continuable residency does not silently grant a return channel.
+**Make report delivery part of the base lifecycle.** Repeatable child-to-parent reporting is compatible with this lifecycle, but quiet versus next-step delivery, acknowledgement, durability, and retry behavior are independent product choices. The later report package remains optional and consumes an explicit child-setup hook, so continuable residency does not silently grant a return channel.
 
 **Treat `SessionHeader.parentSession` as live ownership.** Durable lineage does not prove that the recorded parent currently owns the child. Membership in the live parent's `ownedChildren` records the process-local relationship without changing the durable parent id.
 
@@ -209,7 +209,7 @@ Retaining an Activation while descendants run consumes Agent resources proportio
 
 The process-local inbox and ownership graph do not coordinate two harness processes. Deployments allowing concurrent access to one persistence store still require a durable lease and mailbox protocol.
 
-Without the optional report package, completing a child turn neither sends its content to nor wakes the historical parent. With the package, only an explicit `report` call sends selected content; quiet delivery does not wake the parent, while waking delivery enqueues one later turn. In every case the detailed child output remains in its durable Session.
+Without the optional report package, completing a child turn neither sends its content to nor wakes the historical parent. With the package, only an explicit `report` call sends selected content; quiet delivery does not wake the parent, while next-step delivery wakes it and joins its nearest step boundary. In every case the detailed child output remains in its durable Session.
 
 Queueing every continuation message means a parent cannot correct an in-progress child turn immediately; the correction runs as the next turn. A later UI steering action may reduce that latency without changing follow-up ordering.
 

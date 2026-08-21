@@ -2,9 +2,23 @@
 
 English | [中文](session-reference.zh.md)
 
-Structured cross-session reference requests and prepared message contexts. The [package contract](../../packages/context/session-reference) defines canonical URIs, current-surface projection, tag-safe JSON and byte retention, stable errors, and the untrusted model prompt. Host adapters use these types instead of passing their UI mention syntax into the agent core.
+Host-backed file discovery plus structured cross-session reference requests and prepared message contexts. The [file-reference contract](../../packages/context/file-reference) owns path-only completion records and grammar; the [session-reference contract](../../packages/context/session-reference) defines canonical URIs, current-surface projection, tag-safe JSON and byte retention, stable errors, and the untrusted model prompt. Host adapters use these types instead of passing their UI mention syntax into the agent core.
 
-Source: [`packages/context/session-reference/src/types.ts`](../../packages/context/session-reference/src/types.ts)
+Sources: [`packages/context/file-reference/src/types.ts`](../../packages/context/file-reference/src/types.ts) · [`packages/context/session-reference/src/types.ts`](../../packages/context/session-reference/src/types.ts)
+
+## File candidates
+
+`FileReferenceCandidate` is the path-only discovery result. The addressed agent supplies the working-directory scope; providers decide ranking and namespace access without reading file contents.
+
+```ts type-equiv
+/** One path-only completion candidate inside the target session cwd. */
+interface FileReferenceCandidate {
+  /** User-facing path accepted by normal prompts and filesystem tools. */
+  path: string
+  /** Directories keep completion open; files finish the mention. */
+  kind: 'file' | 'directory'
+}
+```
 
 ## Inputs and candidates
 
@@ -33,6 +47,16 @@ interface SessionReferenceCandidate {
   cwd?: string
   /** Source session creation time in Unix epoch milliseconds. */
   createdAt: number
+}
+```
+
+The `sessionReferenceResolver/candidates` Remote method serves the same discovery to browser consumers and attaches each candidate's canonical prompt mention.
+
+```ts type-equiv
+/** One discovery candidate carrying its canonical prompt mention. */
+interface SessionReferenceMentionCandidate extends SessionReferenceCandidate {
+  /** Canonical `@[label](dsh-session:…)` mention serialized into the prompt draft. */
+  mention: string
 }
 ```
 
@@ -74,6 +98,37 @@ type SessionReferenceErrorCode =
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — this section is byte-identical in both language sides of the page. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxfilereferences--filereferenceservice-abstract-seam"></a>
+
+### `ctx.fileReferences` — `FileReferenceService` (abstract seam)
+
+Host capability for cancellable file-reference discovery.
+
+```ts cordis-catalog
+/**
+ * List file and directory candidates for one agent's working directory.
+ * @param agent - target agent whose session cwd bounds discovery.
+ * @param query - path text following `@` or `@"`.
+ * @param signal - caller cancellation.
+ * @returns deterministic path-only candidates.
+ */
+abstract list( agent: Agent, query: string, signal: AbortSignal, ): Promise<FileReferenceCandidate[]>
+
+/**
+ * Remote face of {@link list}; the decorator cannot mark the abstract
+ * member, so this concrete adapter carries the identical contract.
+ * @param agent - target agent whose session cwd bounds discovery.
+ * @param query - path text following `@` or `@"`.
+ * @param signal - caller cancellation.
+ * @returns deterministic path-only candidates.
+ */
+@Remote('list') remoteExportList( agent: Agent, query: string, signal: AbortSignal, ): Promise<FileReferenceCandidate[]>
+```
+
+Types: [Agent](core.md)
+
+Source: [`packages/context/file-reference/src/index.ts:27`](../../packages/context/file-reference/src/index.ts)
+
 <a id="ctxsessionreferenceresolver--sessionreferenceresolver"></a>
 
 ### `ctx.sessionReferenceResolver` — `SessionReferenceResolver`
@@ -92,11 +147,22 @@ Exact-read consumer that prepares immutable cross-session message context.
 async listCandidates( agent: Agent, query: string = '', limit: number = this.config.candidateLimit, signal?: AbortSignal, ): Promise<SessionReferenceCandidate[]>
 
 /**
- * Snapshot all references before enqueue and return one aggregated durable context.
+ * Remote face of {@link listCandidates}: the configured candidate limit
+ * applies, and every candidate carries the canonical mention a host inserts
+ * into the prompt draft.
+ * @param agent - target agent; self is excluded and its cwd drives ranking.
+ * @param query - optional case-insensitive session-id/cwd/title substring.
+ * @param signal - caller cancellation.
+ * @returns mention-carrying candidates in rank order.
+ */
+@Remote('candidates') async remoteExportCandidates( agent: Agent, query: string, signal: AbortSignal, ): Promise<SessionReferenceMentionCandidate[]>
+
+/**
+ * Snapshot all references for one accepted direct message and return one aggregated durable context.
  * @param agent - target agent; references to it are rejected.
  * @param content - already host-normalized readable message content.
  * @param references - structured source sessions in mention order.
- * @param signal - optional cancellation boundary for host request teardown.
+ * @param signal - optional cancellation boundary for the active turn.
  * @returns detached content and optional referenced-session context.
  */
 async prepare( agent: Agent, content: ContentBlock[], references: SessionReferenceInput[], signal?: AbortSignal, ): Promise<PreparedReferencedMessage>
@@ -104,5 +170,5 @@ async prepare( agent: Agent, content: ContentBlock[], references: SessionReferen
 
 Types: [Agent](core.md) · [ContentBlock](llm-streaming.md)
 
-Source: [`packages/context/session-reference/src/index.ts:70`](../../packages/context/session-reference/src/index.ts)
+Source: [`packages/context/session-reference/src/index.ts:75`](../../packages/context/session-reference/src/index.ts)
 <!-- END GENERATED cordis-surface -->

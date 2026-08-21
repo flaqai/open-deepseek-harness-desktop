@@ -3,8 +3,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
+import type { MessageImagesProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { ImageGallery, MessageImage } from '../src/MessageImage.tsx'
 import type { MessageImageLabels } from '../src/MessageImage.tsx'
+import { MessageImages } from '../src/client/MessageImages.tsx'
 
 afterEach(cleanup)
 
@@ -153,5 +155,59 @@ describe('ImageGallery', () => {
       <ImageGallery images={[{ attachment }, { attachment }, { attachment }]} load={load} align="end" labels={labels} />,
     )
     expect(several.container.querySelectorAll('[data-variant="tile"]')).toHaveLength(3)
+  })
+
+  it('renders the conversation slot entry with translated labels', async () => {
+    const t = ((key: string, params?: Readonly<Record<string, unknown>>) => {
+      const translated: Record<string, string> = {
+        'image.label': '图片',
+        'image.openOriginal': '查看原图',
+        'image.loading': '图片加载中…',
+        'image.loadFailed': '图片加载失败，点击重试',
+        'image.preview': '原图预览',
+        'image.closePreview': '关闭原图预览',
+      }
+      if (key === 'image.openOriginalLabel') {
+        const label = params?.label
+        return `${typeof label === 'string' ? label : ''}，点击查看原图`
+      }
+      return translated[key] ?? key
+    }) as MessageImagesProps['t']
+    const loadImage = vi.fn().mockResolvedValue('blob:slot-image')
+    const useSession: MessageImagesProps['useSession'] = () => {
+      throw new Error('MessageImages does not read the session snapshot')
+    }
+    const useInput: MessageImagesProps['useInput'] = () => {
+      throw new Error('MessageImages does not read the input snapshot')
+    }
+    const useSessions: MessageImagesProps['useSessions'] = () => {
+      throw new Error('MessageImages does not read the session list snapshot')
+    }
+    const useWorkspaces: MessageImagesProps['useWorkspaces'] = () => {
+      throw new Error('MessageImages does not read the workspace list snapshot')
+    }
+    const props: MessageImagesProps = {
+      sessionId: 'message-images-test' as MessageImagesProps['sessionId'],
+      useSession,
+      useSessions,
+      useWorkspaces,
+      useProjection: () => undefined,
+      useInput,
+      inputActions: {
+        setDraft: vi.fn(),
+        addImages: vi.fn(() => true),
+        removeImage: vi.fn(),
+        pruneImages: vi.fn(),
+        submit: vi.fn(),
+      },
+      images: [{ attachment }],
+      loadImage,
+      align: 'end',
+      t,
+    }
+    const view = render(<MessageImages {...props} />)
+    await waitFor(() => { expect(view.getByAltText('history.png')).toBeTruthy() })
+    expect(view.getByRole('button', { name: 'history.png，点击查看原图' })).toBeTruthy()
+    expect(view.container.querySelector('[data-align="end"]')).not.toBeNull()
   })
 })

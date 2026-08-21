@@ -17,6 +17,8 @@ Human-facing `/goal` control over [`ctx.goals`](../goal/README.md). The plugin r
 
 Control words are case-insensitive only when they occupy the complete input. Every other non-empty suffix is an objective, so `/goal pause after verification` creates that literal objective. The goal domain trims and validates objectives. Because the generic command plane has no modal editor or confirmation primitive, `edit` takes its replacement inline and an unfinished replacement returns a direct error instructing the user to edit or clear.
 
+The command declares `input.images`, so composer image attachments may accompany an invocation. Attachments only accompany an objective: on a successful create or edit the producer submits one user followup carrying the admitted image blocks plus the fixed text `Reference images for the goal objective.`, so later goal rounds read them from ordinary session history without the goal domain storing attachment state. Every other sub-command, and any refused create or edit, returns a direct error and submits nothing, so the dispatching composer keeps the images.
+
 Expected domain rejections become stable direct command errors without exposing branded ids or revisions. Unexpected implementation failures still reject dispatch so adapters can report them as command failures. Generic command text and output remain live UI state; `dsh-goal` persists every accepted mutation through its own durable `goal/change` event.
 
 ## Composition
@@ -40,11 +42,11 @@ The shipped `dsh` base enables the persisted-goal stack and this command; the We
 
 #### What the model sees
 
-The slash input, mutation, and direct status/error output are absent from model requests. The goal domain records the mutation as `goal/change`; an enabled same-session driver may expose the resulting state in a later continuation prompt. Presentation text is never logged.
+The slash input, mutation, and direct status/error output are absent from model requests. The goal domain records the mutation as `goal/change`; an enabled same-session driver may expose the resulting state in a later continuation prompt. Presentation text is never logged. When a create or edit carries image attachments, the model sees one ordinary user message: the image blocks followed by the text `Reference images for the goal objective.`; it precedes the next goal round in session history.
 
 #### Token effect
 
-Reading status, mutating a goal, or receiving a direct command error adds no model tokens. An enabled same-session driver may add later goal-round prompts.
+Reading status, mutating a goal, or receiving a direct command error adds no model tokens. An enabled same-session driver may add later goal-round prompts. An objective's image attachments add one user message billed like any image prompt.
 
 #### KV Cache effect
 

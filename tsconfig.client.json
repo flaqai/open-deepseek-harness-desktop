@@ -26,6 +26,8 @@
     // Client package outside packages/client with a local CSS module face.
     "packages/extensions/ui-cordis/src/css-modules.d.ts",
     "packages/client/tsdown.client.ts",
+    "scripts/client-build-environment.ts",
+    "scripts/*.client.spec.ts",
     "scripts/client-bundle-css.spec.ts",
     "scripts/client-bundle-purity.spec.ts"
   ],
@@ -48,10 +50,8 @@
     // rootDir rules make both paths depend on this runtime project reference.
     { "path": "./packages/compaction/compaction" },
     { "path": "./packages/client/ui-slots" },
-    { "path": "./packages/client/schema-form" },
     { "path": "./packages/client/ui-attachment" },
     { "path": "./packages/client/ui-primitives" },
-    { "path": "./packages/client/web-react" },
     { "path": "./packages/client/modules" },
     { "path": "./packages/client/hmr" },
     { "path": "./packages/client/connection/tsconfig.client.json" },
@@ -64,6 +64,8 @@
     { "path": "./packages/test-support/client-runtime" },
     { "path": "./packages/client/ui-layout" },
     { "path": "./packages/client/ui-sidebar" },
+    { "path": "./packages/client/ui-brand-official" },
+    { "path": "./packages/client/ui-brand-community-desktop" },
     { "path": "./packages/client/ui-conversation" },
     { "path": "./packages/client/ui-tool" },
     { "path": "./packages/client/ui-deliverables" },
@@ -72,6 +74,7 @@
     { "path": "./packages/client/ui-input-trigger" },
     { "path": "./packages/client/ui-commands" },
     { "path": "./packages/client/ui-skill" },
+    { "path": "./packages/client/ui-reference" },
     { "path": "./packages/client/ui-subagent" },
     { "path": "./packages/client/ui-jobs" },
     { "path": "./packages/client/ui-directory-picker-browse" },
@@ -93,6 +96,7 @@
     { "path": "./packages/client/ui-settings-models" },
     { "path": "./packages/client/ui-settings-plugin-inventory" },
     { "path": "./packages/client/locale" },
+    { "path": "./packages/client/ui-renderer" },
     { "path": "./packages/client/web" },
     { "path": "./apps/web" }
   ]

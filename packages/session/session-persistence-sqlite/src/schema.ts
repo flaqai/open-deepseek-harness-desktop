@@ -1,87 +1,86 @@
 /**
- * Schema + load-time helpers for the SQLite session-persistence backend: the
- * DDL (a store-identity row, `sessions` metadata, and a 1:1 `events` row per
- * `SessionEvent`), the database open/configure step, and the last-`turn/end`
- * cut that gives the SQLite backend the SAME crash-tail-on-load semantics as
- * the JSONL backend.
- *
- * @module dsh-session-persistence-sqlite/schema
+ * SQLite schema ownership and durable-row validation.
+ * @module @deepseek-ai/dsh-session-persistence-sqlite/schema
  */
 
 import { randomUUID } from 'node:crypto'
-import { DatabaseSync } from 'node:sqlite'
-import type { SessionEvent, SessionId, SessionHeader, SurfaceOp } from '@deepseek-ai/dsh-session'
+import { isAbsolute } from 'node:path'
+import { performance } from 'node:perf_hooks'
+import type { DatabaseSync } from 'node:sqlite'
+import { setTimeout as delay } from 'node:timers/promises'
+import {
+  SessionId,
+  type SessionHeader,
+} from '@deepseek-ai/dsh-session'
+import { sql } from './sql.ts'
 
-/**
- * The on-disk schema version. Bumped only on a breaking change to the table
- * layout; orthogonal to a session's own `version` (which versions the EVENT
- * vocabulary, stored per session in the `sessions` row).
- */
-export const SCHEMA_VERSION = 15
-
-/** SQLite application id protecting unrelated databases from persistence writes. */
+/** Current physical-record schema with packed and compressed event rows. */
+export const SCHEMA_VERSION = 17
+/** Application id reserved for DeepSeek Harness SQLite session databases. */
 export const SESSION_PERSISTENCE_SQLITE_APPLICATION_ID = 0x44534850
 
-/**
- * A row of the `sessions` table — the out-of-log metadata ({@link SessionHeader}).
- * The row's EXISTENCE is the materialization signal: it is written only by the
- * first `append` (lazy materialization), so a created-but-never-appended
- * session has no row and is absent from `list`, mirroring the JSONL
- * backend's "no file until first append".
- */
+/** A materialized session's metadata and monotonic revision. */
 export interface SessionRow {
-  id: string
-  version: number
-  created_at: number
-  cwd: string | null
-  parent_session: string | null
-  seed_length: number | null
-  origin: 'subagent' | null
-  /** Stable identity assigned when this log is materialized. */
-  incarnation: string
-  /** Monotonic log-change token incremented in each mutating transaction. */
-  revision: number
-  delegation_depth: number | null
-  agent_preset: string | null
+  readonly id: string
+  readonly version: number
+  readonly created_at: number
+  readonly cwd: string | null
+  readonly parent_session: string | null
+  readonly seed_length: number | null
+  readonly origin: 'subagent' | null
+  readonly incarnation: string
+  readonly revision: number
+  readonly delegation_depth: number | null
+  readonly agent_preset: string | null
 }
 
-/** An `events` table row: one `SessionEvent` mapped 1:1 (`data` is JSON text). */
+/** One physical event row; packed rows may represent multiple logical events. */
 export interface EventRow {
-  seq: number
-  type: string
-  time: number
-  data: string
-  /** JSON-encoded `number[]` — the event's sourceEventSeqs, or null. */
-  source_event_seqs: string | null
-  /** JSON-encoded `SurfaceOp` — how the event entered the surface, or null. */
-  surface_op: string | null
-  /** `1` iff the event carries the envelope's `ignorable: true` marker, else null. */
-  ignorable: number | null
+  readonly seq: number
+  readonly type: string
+  readonly time: number
+  readonly data: string | Uint8Array
+  readonly source_event_seqs: Uint8Array | null
+  readonly surface_op: string | null
+  readonly ignorable: number | null
 }
 
-/**
- * Journal modes the backend will run under. `wal` is the default and the
- * durability model the persistence ADR records; the rollback-journal modes
- * (`delete`/`truncate`/`persist`) exist for filesystems where WAL's
- * shared-memory files do not work (network mounts). `memory`/`off` are
- * excluded: dropping journal durability silently contradicts what this
- * backend promises.
- */
+/** Durable journal modes accepted by the backend. */
 export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
+interface SchemaObjectRow {
+  readonly type: string
+  readonly name: string
+  readonly tbl_name: string
+  readonly sql: string
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+const JOURNAL_BUSY_RETRY_INTERVAL_MS = 10
+type DatabaseSyncConstructor = typeof import('node:sqlite')['DatabaseSync']
+
 /**
- * Open the database and apply its schema and pragmas. An empty database with a
- * zero `user_version` is initialized at {@link SCHEMA_VERSION}; a nonempty
- * unversioned database and every other non-current version reject rather than
- * being migrated in place.
- * @param path - the SQLite database file to open (created when absent).
+ * Open and validate a SQLite session database.
+ * @param Database - lazily imported Node SQLite constructor.
+ * @param path - SQLite path, including `:memory:`.
  * @param journalMode - validated journal pragma.
- * @returns the open handle with pragmas applied and all three tables ensured.
+ * @param busyTimeoutMs - validated maximum wait for a competing SQLite lock.
+ * @returns the configured database handle.
+ * @throws when connection settings, schema ownership, or SQLite setup cannot be validated.
  */
-export function openDatabase(path: string, journalMode: JournalMode): DatabaseSync {
-  const db = new DatabaseSync(path)
+export async function openDatabase(
+  Database: DatabaseSyncConstructor,
+  path: string,
+  journalMode: JournalMode,
+  busyTimeoutMs: number,
+): Promise<DatabaseSync> {
+  const deadline = performance.now() + busyTimeoutMs
+  const db = new Database(path, { timeout: busyTimeoutMs })
   try {
-    configureDatabase(db, path, journalMode)
+    configureConnectionSecurity(db, path)
+    configureDatabase(Database, db, path)
+    await selectJournalMode(db, path, journalMode, deadline)
+    configureDurability(db, path)
     return db
   } catch (error: unknown) {
     db.close()
@@ -89,182 +88,337 @@ export function openDatabase(path: string, journalMode: JournalMode): DatabaseSy
   }
 }
 
-function configureDatabase(db: DatabaseSync, path: string, journalMode: JournalMode): void {
-  db.exec('PRAGMA foreign_keys = ON')
+function configureConnectionSecurity(db: DatabaseSync, path: string): void {
+  db.exec(sql('trusted-schema-off'))
+  const trustedSchema = integerField(db.prepare(sql('select-trusted-schema')).get(), 'trusted_schema')
+  /* v8 ignore next 3 -- supported SQLite versions return the fixed setting. */
+  if (trustedSchema !== 0) {
+    throw new Error(`session database at "${path}" retained trusted_schema=${trustedSchema}, expected 0`)
+  }
+  db.exec(sql('mmap-off'))
+  if (path === ':memory:') return
+  const mmapSize = integerField(db.prepare(sql('select-mmap-size')).get(), 'mmap_size')
+  /* v8 ignore next 3 -- supported file-backed SQLite connections return the fixed setting. */
+  if (mmapSize !== 0) {
+    throw new Error(`session database at "${path}" retained mmap_size=${mmapSize}, expected 0`)
+  }
+}
+
+function configureDatabase(
+  Database: DatabaseSyncConstructor,
+  db: DatabaseSync,
+  path: string,
+): void {
+  db.exec(sql('foreign-keys-on'))
   let began = false
   try {
-    db.exec('BEGIN IMMEDIATE')
+    db.exec(sql('begin-immediate'))
     began = true
-    // Validate while holding the write lock so no other connection can change
-    // schema ownership between inspection and initialization.
-    const { user_version: onDisk } = db.prepare('PRAGMA user_version').get() as { user_version: number }
-    const { application_id: applicationId } = db.prepare('PRAGMA application_id').get() as { application_id: number }
-    const { count: userObjectCount } = db.prepare(
-      "SELECT COUNT(*) AS count FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*'",
-    ).get() as { count: number }
+    const onDisk = integerField(db.prepare(sql('select-user-version')).get(), 'user_version')
+    const applicationId = integerField(db.prepare(sql('select-application-id')).get(), 'application_id')
+    const userObjectCount = integerField(db.prepare(sql('select-user-object-count')).get(), 'count')
     if (onDisk === 0 && (applicationId !== 0 || userObjectCount > 0)) {
       throw new Error(`session database at "${path}" has an unversioned schema or application identity`)
     }
     if (onDisk !== 0 && onDisk !== SCHEMA_VERSION) {
-      throw new Error(`session database at "${path}" has schema version ${onDisk}, incompatible with this build (${SCHEMA_VERSION})`)
+      throw new Error(
+        `session database at "${path}" has schema version ${onDisk}, incompatible with this build (${SCHEMA_VERSION})`,
+      )
     }
-    if (onDisk === SCHEMA_VERSION && applicationId !== SESSION_PERSISTENCE_SQLITE_APPLICATION_ID) {
+    if (onDisk !== 0 && applicationId !== SESSION_PERSISTENCE_SQLITE_APPLICATION_ID) {
       throw new Error(
         `session database at "${path}" has application id ${applicationId}, expected ${SESSION_PERSISTENCE_SQLITE_APPLICATION_ID}`,
       )
     }
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS persistence_state (
-        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-        store_id  TEXT NOT NULL
-      ) STRICT;
-
-      CREATE TABLE IF NOT EXISTS sessions (
-        id               TEXT PRIMARY KEY,
-        version          INTEGER NOT NULL,
-        created_at       INTEGER NOT NULL,
-        cwd              TEXT,
-        parent_session   TEXT,
-        seed_length      INTEGER,
-        origin           TEXT,
-        delegation_depth INTEGER,
-        agent_preset    TEXT,
-        incarnation      TEXT NOT NULL,
-        revision         INTEGER NOT NULL
-      ) STRICT;
-
-      CREATE TABLE IF NOT EXISTS events (
-        session_id        TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        seq               INTEGER NOT NULL,
-        type              TEXT NOT NULL,
-        time              INTEGER NOT NULL,
-        data              TEXT NOT NULL,
-        source_event_seqs TEXT,
-        surface_op        TEXT,
-        ignorable         INTEGER,
-        PRIMARY KEY (session_id, seq)
-      ) STRICT
-    `)
-    db.prepare(
-      'INSERT OR IGNORE INTO persistence_state (singleton, store_id) VALUES (1, ?)',
-    ).run(randomUUID())
-    if (onDisk === 0) {
-      db.exec(`PRAGMA application_id = ${SESSION_PERSISTENCE_SQLITE_APPLICATION_ID}`)
-      db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
-    }
-    db.exec('COMMIT')
+    if (onDisk === 0) initializeDatabase(db)
+    validateRequiredSchema(Database, db, path)
+    db.exec(sql('commit'))
     began = false
   } catch (error: unknown) {
-    /* v8 ignore next -- a BEGIN failure leaves no transaction to roll back. */
+    /* v8 ignore else -- a failed begin leaves no transaction to roll back. */
     if (began) {
-      /* v8 ignore next 5 -- preserve the original schema failure if SQLite also refuses rollback. */
+      /* v8 ignore next 5 -- retain the original ownership failure if rollback fails too. */
       try {
-        db.exec('ROLLBACK')
+        db.exec(sql('rollback'))
       } catch {
-        // The original SQLite failure remains the actionable cause.
+        // The original database-ownership failure remains actionable.
       }
     }
     throw error
   }
-  // The validated union is safe to interpolate into a non-bindable PRAGMA.
-  // Apply it only after ownership validation and initialization commit.
-  db.exec(`PRAGMA journal_mode = ${journalMode.toUpperCase()}`)
 }
 
-/**
- * Reconstruct the {@link SessionHeader} from a `sessions` row.
- * @param row - the `sessions` table row.
- * @returns the header, `NULL` columns mapped to omitted optional fields.
- */
-export function rowToMeta(row: SessionRow): SessionHeader {
-  if (!Number.isSafeInteger(row.created_at) || row.created_at < 0) {
-    throw new Error('stored session createdAt must be a non-negative safe integer')
-  }
-  return {
-    version: row.version,
-    id: row.id as SessionId,
-    createdAt: row.created_at,
-    ...row.cwd !== null ? { cwd: row.cwd } : {},
-    ...row.parent_session !== null ? { parentSession: row.parent_session as SessionId } : {},
-    ...row.seed_length !== null ? { seedLength: row.seed_length } : {},
-    ...row.origin !== null ? { origin: row.origin } : {},
-    ...row.delegation_depth !== null ? { delegationDepth: row.delegation_depth } : {},
-    ...row.agent_preset !== null ? { agentPreset: row.agent_preset } : {},
-  }
-}
-
-/**
- * Reconstruct a {@link SessionEvent} from an `events` row (parses `data`).
- * @param row - the `events` table row; `data` and the surface columns hold JSON text.
- * @returns the reconstructed event; throws when a JSON column fails to parse
- *   ({@link scanRows} treats that as a hole, not corruption, in the tail).
- */
-export function rowToEvent(row: EventRow): SessionEvent {
-  // Surface-metadata fields are conditional on the event type in the type
-  // system; spread them so each variant gets only the fields it declares.
-  const surfaceFields = {
-    ...row.source_event_seqs !== null ? { sourceEventSeqs: JSON.parse(row.source_event_seqs) as number[] } : {},
-    ...row.surface_op !== null ? { surfaceOp: JSON.parse(row.surface_op) as SurfaceOp } : {},
-  }
-  const ignorableField = row.ignorable === 1 ? { ignorable: true as const } : {}
-  return {
-    type: row.type as SessionEvent['type'],
-    seq: row.seq,
-    time: row.time,
-    data: JSON.parse(row.data) as SessionEvent['data'],
-    ...surfaceFields,
-    ...ignorableField,
-  } as SessionEvent
-}
-
-/**
- * Find the preserved prefix of ordered event rows. Fully written rows in an
- * interrupted final turn remain in the prefix. The first unparsable row or seq
- * gap after the last `turn/end` marks a tolerated torn tail; the same hole in
- * the committed region rejects.
- *
- * @param rows - one session's event rows, ordered by seq ascending.
- * @param base - the seq the first row is expected to carry; `0` for a whole
- *   log, the requested `fromSeq` for a suffix read (`loadStoredFrom`).
- * @returns the preserved event prefix, plus `tornFrom` — the seq the physical
- *   delete starts at — when a torn tail exists.
- */
-export function scanRows(rows: readonly EventRow[], base = 0): { preserved: SessionEvent[]; tornFrom?: number } {
-  // Pass 1: parse each row's data; a row whose data is not valid JSON is a hole.
-  // (The seq/type COLUMNS are always present even when `data` is corrupt.)
-  interface Parsed { ok: boolean; event?: SessionEvent }
-  const parsed: Parsed[] = rows.map((row) => {
+async function selectJournalMode(
+  db: DatabaseSync,
+  path: string,
+  journalMode: JournalMode,
+  deadline: number,
+): Promise<void> {
+  let result: unknown
+  while (true) {
     try {
-      return { ok: true, event: rowToEvent(row) }
-    } catch {
-      return { ok: false }
+      result = db.prepare(sql(journalResource(journalMode))).get()
+      break
+    } catch (error: unknown) {
+      const remainingMs = Math.max(0, Math.ceil(deadline - performance.now()))
+      if (!isSqliteBusy(error) || remainingMs === 0) throw error
+      await delay(Math.min(JOURNAL_BUSY_RETRY_INTERVAL_MS, remainingMs))
+      if (performance.now() >= deadline) throw error
+    }
+  }
+  const selected = stringField(result, 'journal_mode').toLowerCase()
+  const expected = path === ':memory:' ? 'memory' : journalMode
+  /* v8 ignore next 3 -- SQLite returns the selected mode from these fixed, valid pragmas. */
+  if (selected !== expected) {
+    throw new Error(`session database at "${path}" selected journal mode ${selected}, expected ${expected}`)
+  }
+}
+
+function configureDurability(db: DatabaseSync, path: string): void {
+  db.exec(sql('synchronous-full'))
+  const synchronous = integerField(db.prepare(sql('select-synchronous')).get(), 'synchronous')
+  /* v8 ignore next 3 -- supported SQLite versions return the fixed setting. */
+  if (synchronous !== 2) {
+    throw new Error(`session database at "${path}" retained synchronous=${synchronous}, expected FULL (2)`)
+  }
+}
+
+function isSqliteBusy(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && Reflect.get(error, 'errcode') === 5
+}
+
+function journalResource(mode: JournalMode):
+  | 'journal-mode-wal'
+  | 'journal-mode-delete'
+  | 'journal-mode-truncate'
+  | 'journal-mode-persist' {
+  switch (mode) {
+    case 'wal': return 'journal-mode-wal'
+    case 'delete': return 'journal-mode-delete'
+    case 'truncate': return 'journal-mode-truncate'
+    case 'persist': return 'journal-mode-persist'
+  }
+}
+
+function initializeDatabase(db: DatabaseSync): void {
+  db.exec(sql('schema'))
+  db.prepare(sql('insert-persistence-state')).run(randomUUID())
+  db.exec(sql('set-application-id'))
+  db.exec(sql('set-user-version-17'))
+}
+
+let canonicalSchema: readonly SchemaObjectRow[] | undefined
+
+function expectedSchema(Database: DatabaseSyncConstructor): readonly SchemaObjectRow[] {
+  if (canonicalSchema !== undefined) return canonicalSchema
+  const reference = new Database(':memory:')
+  try {
+    reference.exec(sql('foreign-keys-on'))
+    reference.exec(sql('schema'))
+    canonicalSchema = schemaObjects(reference)
+    return canonicalSchema
+  } finally {
+    reference.close()
+  }
+}
+
+function schemaObjects(db: DatabaseSync): SchemaObjectRow[] {
+  return db.prepare(sql('select-schema-objects')).all().map((value) => {
+    const row = record(value, 'schema object')
+    return {
+      type: stringField(row, 'type'),
+      name: stringField(row, 'name'),
+      tbl_name: stringField(row, 'tbl_name'),
+      sql: normalizeSql(stringField(row, 'sql')),
     }
   })
+}
 
-  // The last index that is a valid `turn/end` — holes through a closed turn
-  // are always committed corruption.
-  let lastTurnEnd = -1
-  for (let i = parsed.length - 1; i >= 0; i--) {
-    if (parsed[i]?.ok && rows[i]?.type === 'turn/end') { lastTurnEnd = i; break }
+function normalizeSql(value: string): string {
+  return value.replaceAll(/\s+/gu, ' ').trim()
+}
+
+function validateRequiredSchema(
+  Database: DatabaseSyncConstructor,
+  db: DatabaseSync,
+  path: string,
+): void {
+  if (JSON.stringify(schemaObjects(db)) !== JSON.stringify(expectedSchema(Database))) {
+    throw new Error(`session database at "${path}" does not contain the required schema objects`)
   }
+}
 
-  // Preserve the contiguous prefix, including a complete interrupted turn;
-  // holes through the last committed boundary throw, while later holes stop.
-  const preserved: SessionEvent[] = []
-  for (let i = 0; i < rows.length; i++) {
-    const p = parsed[i]
-    if (!p?.ok || p.event === undefined) {
-      if (i <= lastTurnEnd) throw new Error(`corrupt session log: unparsable committed event at seq ${rows[i]?.seq}`)
-      break // torn tail fragment after the last turn/end — stop, tolerate
-    }
-    if (p.event.seq !== base + i) {
-      if (i <= lastTurnEnd) throw new Error(`corrupt session log: seq gap in committed region (expected ${base + i}, got ${p.event.seq})`)
-      break // gap after the last turn/end — torn tail, stop
-    }
-    preserved.push(p.event)
+/**
+ * Recheck schema ownership inside the caller's mutation transaction.
+ * @param Database - constructor used to validate the canonical schema.
+ * @param db - open owned database with an active immediate transaction.
+ * @param path - database location used in ownership diagnostics.
+ * @throws when another writer changed the application identity, schema, or version.
+ */
+export function validateSchemaForMutation(
+  Database: DatabaseSyncConstructor,
+  db: DatabaseSync,
+  path: string,
+): void {
+  const version = integerField(db.prepare(sql('select-user-version')).get(), 'user_version')
+  const applicationId = integerField(db.prepare(sql('select-application-id')).get(), 'application_id')
+  if (applicationId !== SESSION_PERSISTENCE_SQLITE_APPLICATION_ID) {
+    throw new Error(
+      `session database application id changed before mutation (expected ${SESSION_PERSISTENCE_SQLITE_APPLICATION_ID}, got ${applicationId})`,
+    )
   }
+  validateRequiredSchema(Database, db, path)
+  if (version !== SCHEMA_VERSION) {
+    throw new Error(`session database schema changed before mutation (expected ${SCHEMA_VERSION}, got ${version})`)
+  }
+}
 
-  // Any rows past the preserved prefix are a never-committed torn tail; their
-  // first seq is the deletion point for load's physical repair.
-  return preserved.length < rows.length ? { preserved, tornFrom: base + preserved.length } : { preserved }
+/**
+ * Decode and validate one durable session row.
+ * @param value - value returned by SQLite.
+ * @returns a validated session row.
+ */
+export function decodeSessionRow(value: unknown): SessionRow {
+  const row = record(value, 'stored session metadata')
+  const id = nonemptyStringField(row, 'id')
+  const version = safeIntegerField(row, 'version')
+  const cwd = nullableStringField(row, 'cwd')
+  if (cwd !== null && !isAbsolute(cwd)) throw new Error('stored session cwd must be absolute')
+  const parent = nullableStringField(row, 'parent_session')
+  const origin = nullableStringField(row, 'origin')
+  if (origin !== null && origin !== 'subagent') throw new Error('stored session origin must be subagent or null')
+  const incarnation = nonemptyStringField(row, 'incarnation')
+  if (!UUID.test(incarnation)) throw new Error('stored session incarnation must be a UUID')
+  return {
+    id,
+    version,
+    created_at: nonnegativeSafeIntegerField(row, 'created_at'),
+    cwd,
+    parent_session: parent,
+    seed_length: nullableNonnegativeSafeIntegerField(row, 'seed_length'),
+    origin,
+    delegation_depth: nullableNonnegativeSafeIntegerField(row, 'delegation_depth'),
+    agent_preset: nullableStringField(row, 'agent_preset'),
+    incarnation,
+    revision: nonnegativeSafeIntegerField(row, 'revision'),
+  }
+}
+
+/**
+ * Decode and validate one durable event row before JSON interpretation.
+ * @param value - value returned by SQLite.
+ * @returns a validated physical event row.
+ */
+export function decodeEventRow(value: unknown): EventRow {
+  const row = record(value, 'stored event')
+  const ignorable = nullableSafeIntegerField(row, 'ignorable')
+  if (ignorable !== null && ignorable !== 0 && ignorable !== 1) {
+    throw new Error('stored event ignorable must be 0, 1, or null')
+  }
+  return {
+    seq: nonnegativeSafeIntegerField(row, 'seq'),
+    type: nonemptyStringField(row, 'type'),
+    time: safeIntegerField(row, 'time'),
+    data: stringOrBlobField(row, 'data'),
+    source_event_seqs: nullableBlobField(row, 'source_event_seqs'),
+    surface_op: nullableStringField(row, 'surface_op'),
+    ignorable,
+  }
+}
+
+/**
+ * Validate the singleton identity read from durable storage.
+ * @param value - value returned by SQLite.
+ * @returns the UUID store identity.
+ */
+export function decodeStoreIdentity(value: unknown): string {
+  const identity = nonemptyStringField(value, 'store_id')
+  if (!UUID.test(identity)) throw new Error('stored store_id must be a UUID')
+  return identity
+}
+
+/**
+ * Reconstruct an immutable session header from a validated metadata row.
+ * @param row - validated stored metadata row.
+ * @returns the session header.
+ */
+export function rowToMeta(row: SessionRow): SessionHeader {
+  return {
+    version: row.version,
+    id: SessionId(row.id),
+    createdAt: row.created_at,
+    ...row.cwd === null ? {} : { cwd: row.cwd },
+    ...row.parent_session === null ? {} : { parentSession: SessionId(row.parent_session) },
+    ...row.seed_length === null ? {} : { seedLength: row.seed_length },
+    ...row.origin === null ? {} : { origin: row.origin },
+    ...row.delegation_depth === null ? {} : { delegationDepth: row.delegation_depth },
+    ...row.agent_preset === null ? {} : { agentPreset: row.agent_preset },
+  }
+}
+
+function record(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) throw new Error(`${label} must be an object`)
+  return value as Record<string, unknown>
+}
+
+function stringField(value: unknown, key: string): string {
+  const field = record(value, 'SQLite row')[key]
+  if (typeof field !== 'string') throw new Error(`stored ${key} must be a string`)
+  return field
+}
+
+function nonemptyStringField(value: unknown, key: string): string {
+  const field = stringField(value, key)
+  if (field.length === 0) throw new Error(`stored ${key} must not be empty`)
+  return field
+}
+
+function nullableStringField(value: unknown, key: string): string | null {
+  const field = record(value, 'SQLite row')[key]
+  if (field === null) return null
+  if (typeof field !== 'string') throw new Error(`stored ${key} must be a string or null`)
+  return field
+}
+
+function stringOrBlobField(value: unknown, key: string): string | Uint8Array {
+  const field = record(value, 'SQLite row')[key]
+  if (typeof field === 'string' || field instanceof Uint8Array) return field
+  throw new Error(`stored ${key} must be a string or blob`)
+}
+
+function nullableBlobField(value: unknown, key: string): Uint8Array | null {
+  const field = record(value, 'SQLite row')[key]
+  if (field === null || field instanceof Uint8Array) return field
+  throw new Error(`stored ${key} must be a blob or null`)
+}
+
+function integerField(value: unknown, key: string): number {
+  const field = record(value, 'SQLite row')[key]
+  if (!Number.isSafeInteger(field)) throw new Error(`stored ${key} must be a safe integer`)
+  return field as number
+}
+
+function safeIntegerField(value: unknown, key: string): number {
+  return integerField(value, key)
+}
+
+function nonnegativeSafeIntegerField(value: unknown, key: string): number {
+  const field = integerField(value, key)
+  if (field < 0) throw new Error(`stored ${key} must be non-negative`)
+  return field
+}
+
+function nullableSafeIntegerField(value: unknown, key: string): number | null {
+  const field = record(value, 'SQLite row')[key]
+  if (field === null) return null
+  if (!Number.isSafeInteger(field)) throw new Error(`stored ${key} must be a safe integer or null`)
+  return field as number
+}
+
+function nullableNonnegativeSafeIntegerField(value: unknown, key: string): number | null {
+  const field = nullableSafeIntegerField(value, key)
+  if (field !== null && field < 0) throw new Error(`stored ${key} must be non-negative or null`)
+  return field
 }

@@ -13,7 +13,7 @@
 | [`session-persistence/`](session-persistence/README.md) | 定义持久化服务和共享写入协调机制 | `ctx.sessionPersistence` |
 | [`session-checkpoint-policy/`](session-checkpoint-policy/README.md) | 应用语义持久性检查点 | 包装 `ctx.llm` 和 `ctx.tools` |
 | [`session-persistence-jsonl/`](session-persistence-jsonl/README.md) | 将会话持久化到 JSONL 文件 | 注册到 `ctx.sessionPersistence` |
-| [`session-persistence-sqlite/`](session-persistence-sqlite/README.md) | 将会话持久化到 SQLite | 注册到 `ctx.sessionPersistence` |
+| [`session-persistence-sqlite/`](session-persistence-sqlite/README.md) | 使用物理分片打包行的可选 SQLite 后端 | 注册到 `ctx.sessionPersistence` |
 
 [会话持久化决策](../../.agents/notes/implemented/architecture/2026-06-14-session-persistence.md)记录了持久化设计。
 

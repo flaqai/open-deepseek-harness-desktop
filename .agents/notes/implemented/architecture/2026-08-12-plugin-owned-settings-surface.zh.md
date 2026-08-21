@@ -22,7 +22,7 @@ Status: implemented
 
 **`settings.plugin.item` 以 settings 命名空间为键。** 该 slot 从 `list` 改为 `keyed`，键就是卡片所编辑的命名空间，沿用 `tool.call.toolview` 的先例——每个工具插件把自己的渲染器注册在工具名这个键上。卡片声明 `key`，不再声明 `id`/`order`。该 slot 由「插件」分区的 `configurable` 标签页声明，卡片列表归它所有。
 
-**标签页以被服务的命名空间驱动派发。** 它读取一次 `settings.describe`，订阅 settings 文档失效通知与连接重置，并为每个被服务的命名空间派发一个键。渲染出来的是两份账本的交集——存活 Host 插件注册的命名空间，以及注册在这些键上的卡片——由标签页的 controller 从 slot 账本（`ctx.slots.entries`、`ctx.slots.subscribe`）与协议答复算出。
+**标签页以被服务的命名空间驱动派发。** 它从 `ctx.settingsScope.describe()` 派生当前被服务的集合并跟随该共享 settings 镜像，自身的监听器只跟随卡片 slot 账本；随后为每个被服务的命名空间派发一个键。渲染出来的是两份账本的交集——存活 Host 插件注册的命名空间，以及注册在这些键上的卡片——由标签页的 controller 从 slot 账本（`ctx.slots.entries`、`ctx.slots.subscribe`）与镜像应答算出。后续的 [settings describe 镜像决策](2026-08-17-settings-describe-mirror.md)持有浏览器全局的读取与失效生命周期。
 
 以命名空间为键，让「缺席」本身成为信号，而这正是它消掉旧形态所需簿记的原因。归别的界面所有的命名空间（`ui-theme`、`permission`、`llm-*`、`agent-presets`）在其键上没有卡片，于是什么都不渲染，且无需在任何地方声明任何东西。命名空间未被本部署服务的卡片根本不会被派发，这同时修掉了旧的空态缺陷：标签页数的是已注册卡片，其中包含那些什么都不渲染的，因此一个都不暴露的部署看到的是空列表，而不是它那行空态文案。
 
@@ -56,6 +56,6 @@ Status: implemented
 
 以下延后，且都大于本次改动：脱敏器对只能经由 union、intersection 或 transform 抵达的 `role('secret')` 原样返回（其自身的 `TODO(settings-wire-redaction)`），而 `schema.toJSON()` 会携带 secret 的默认值。该缺口早于本次改动，但服务每一个已注册命名空间，把它的影响面从本仓库内经审计的 schema 扩大到任意第三方 schema，因此协议应当拒绝服务它无法证明可安全脱敏的命名空间。同样延后的还有：对本次头号能力的组装态测试——用 overlay 挂载一个 fixture 插件（Host 半注册命名空间、`dsh.client` 半注册卡片）并在端到端断言。当前覆盖分别证明了两个半侧；已发卡片输出未变这一点，证明不了新路径。
 
-分区新增的协议读取是一次 `settings.describe`，与卡片各自已有的 per-scope 读取并列。它的失效通知在一个方向上不精确：协议通告的是文档提交与连接重置，而非注册行为，因此在分区读取之后才被注册的命名空间，要等下一次提交或重连才会加入。
+分区与其中的卡片都不再新增 `settings.describe` 读取：两者都从浏览器全局的镜像派生。它的失效通知在一个方向上不精确：协议通告的是文档提交与连接重置，而非注册行为，因此在镜像当前应答之后才被注册的命名空间，要等下一次提交或重连才会加入。
 
 对仓库之外的作者仍留有两处摩擦，均记在该分区的 README 里。浏览器半侧必须是按客户端模块系统的 lazy-CJS factory 格式构建的 `dsh.client` 包，而产出它的 `clientBundle` 预设位于 `packages/client/tsdown.client.ts`，并非已发布的包。bundle 纯净度门禁禁止以值的形式导入本包的卡片外观与暂存表单模型，因此这样的卡片要重新实现暂存与 revision 设栅。要共享它们，要么发布该预设，要么在卡片内部声明一层子 slot 让分区提供外观；两者都尚未构建。

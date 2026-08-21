@@ -22,7 +22,7 @@
 // llm seam post-boot with installLlmReplay on the settled root ctx
 // (the plugin-row path discards the ReplayHandle; the direct install keeps
 // assertConsumed for the teardown fixture-consumption check).
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -179,7 +179,11 @@ export interface WebScaffold {
   harnessHome: string
   /** Await a settled turn end: in-process turn/end, then the agent's idle flip (which follows the persistence flush). */
   whenTurnSettled(timeoutMs?: number): Promise<SessionId>
-  /** Tear everything down; asserts the replay fixture was fully consumed first (replay/refresh). */
+  /**
+   * Tear everything down; asserts the replay fixture was fully consumed first
+   * (replay/refresh), unless booted with replayProvidersOnly (whose fixture
+   * is validated call-free at boot).
+   */
   close(): Promise<void>
 }
 
@@ -196,9 +200,20 @@ export interface LaunchOptions {
    * in replay/refresh modes; ignored in record mode (the real adapter
    * answers). Omit for scenarios issuing no model calls — a stray stream then
    * fails loud with NO_ADAPTER (llm-deepseek is disabled and no replay row
-   * mounts).
+   * mounts). With {@link replayProvidersOnly}, the fixture must record no
+   * model calls (its header alone mounts the catalog).
    */
   replayFixture?: string
+  /**
+   * Mount the replay provider catalog (the model directory the UI shows)
+   * without consuming any recorded script: for scenarios that never call a
+   * model but need the real provider/model labels rendered. Requires
+   * {@link replayFixture} whose log records no model calls, and rejects
+   * {@link replayOverride} and {@link replayChildFixtures}; the teardown
+   * consumption check is skipped for this mode. `replayFixture` without this
+   * flag keeps the consumption check.
+   */
+  replayProvidersOnly?: boolean
   /**
    * Recorded child logs assigned in child creation order. Each child owns its
    * own positional replay cursor across initial and continuation turns.
@@ -443,10 +458,11 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
       config: { host: '127.0.0.1', port: 0 },
     },
     // The bundle's web-runtime row resolves the same built dist under test
-    // (apps/web IS @deepseek-ai/dsh-web-frontend); only the URL line is silenced.
+    // (apps/web IS @deepseek-ai/dsh-web-frontend); native browser opening and the
+    // URL line are disabled because this scaffold owns its Playwright browser.
     // Preserve the composed surface-context choice because a patch replaces
     // the row's complete config.
-    { id: 'web-runtime', config: { printUrl: false, surfaceContext } },
+    { id: 'web-runtime', config: { openBrowser: false, printUrl: false, surfaceContext } },
     ...options.remoteAuthority === undefined
       ? []
       : [{ id: 'connection', config: { trustedHosts: [options.remoteAuthority] } }],
@@ -547,6 +563,36 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // disable llm-deepseek; the first-run lane keeps it mounted but has no
     // replay fixture and never streams. The direct install, unlike the plugin
     // row, returns the ReplayHandle for the teardown consumption check.
+    if (options.replayProvidersOnly) {
+      if (options.replayFixture === undefined) {
+        throw new Error('replayProvidersOnly requires replayFixture (its file supplies the header)')
+      }
+      const fixtureText = readFileSync(options.replayFixture, 'utf8')
+      // The consumption check is skipped for this mode, so no script source
+      // may carry callable entries: reject override/child sources outright
+      // and any call-bearing fixture.
+      if (options.replayOverride !== undefined || options.replayChildFixtures !== undefined) {
+        throw new Error('replayProvidersOnly cannot combine with replayOverride or replayChildFixtures')
+      }
+      // A fixture without a session header row must not mount the catalog
+      // silently: the consumption-skip assumes the header-only shape.
+      let headerType: unknown
+      try {
+        headerType = (JSON.parse(fixtureText.trimStart().split('\n', 1)[0] ?? '') as { type?: unknown }).type
+      } catch {
+        headerType = undefined
+      }
+      if (headerType !== 'session') {
+        throw new Error('replayProvidersOnly fixture must open with a session header row')
+      }
+      const recorded = parseSessionLog(fixtureText)
+      const hasModelCall = recorded.some(event => (
+        event.type === 'assistant/chunk' || event.type === 'request/header' || event.type === 'tool/call'
+      ))
+      if (hasModelCall) {
+        throw new Error('replayProvidersOnly fixture must record no model calls')
+      }
+    }
     if (mode !== 'record' && options.replayFixture !== undefined) {
       replayHandle = installLlmReplay(ctx, {
         file: options.replayFixture,
@@ -608,11 +654,14 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
       const failures: unknown[] = []
       // Fixture-consumption check first, while the run's binding state is
       // still authoritative — a scenario that drove fewer model calls than
-      // recorded fails here instead of drifting green.
-      try {
-        replayHandle?.assertConsumed()
-      } catch (error) {
-        failures.push(error)
+      // recorded fails here instead of drifting green. Skipped for
+      // replayProvidersOnly, whose fixture is validated call-free at boot.
+      if (!options.replayProvidersOnly) {
+        try {
+          replayHandle?.assertConsumed()
+        } catch (error) {
+          failures.push(error)
+        }
       }
       try {
         failures.push(...await cleanupScaffoldWorld(ctx, workspaceCwd, persistenceRoot))
@@ -808,8 +857,9 @@ function normalizeAria(snapshot: string, workspaceCwd: string): string {
     // Seeded compaction prices realized file paths, whose length differs
     // between local worktrees and CI scratch directories.
     .replace(/(Compacted \d+ history items \(~)\d+( tokens\))/g, '$1{{tokens}}$2')
-    // Message IconActions clocks widen by calendar day/year; collapse every
-    // format so goldens stay stable across midnight and year changes.
+    // Session summaries and Message IconActions clocks cross calendar
+    // boundaries; collapse every shape so goldens stay stable across them.
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, '{{timestamp}}')
     .replace(/\d{4}年\d{1,2}月\d{1,2}日 \d{2}:\d{2}/g, '{{clock}}')
     .replace(/\d{1,2}月\d{1,2}日 \d{2}:\d{2}/g, '{{clock}}')
     .replace(/(?<!\d)\d{1,2}:\d{2}:\d{2}(?:\.\d+)?(?:\s*[AP]M)?(?!\d)/gi, '{{clock}}')

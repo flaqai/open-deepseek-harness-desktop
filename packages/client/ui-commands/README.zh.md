@@ -8,6 +8,8 @@
 
 `CommandDirectory`（`src/client/directory.ts`）是唯一的 wire 派生缓存，以会话为 key。普通会话通过 `command.list({sessionId})` 拉取，source 的 scope 出生 `warm` 钩子会预热该会话的缓存项。由目录寻址的可继续子代理会在客户端解析为空命令目录：`command.list` 绑定 Agent，若预热它，就会仅因查看持久化历史而激活子代理。缓存项由转发的 owner 事件 `commands/change` 软失效（重拉在途期间旧快照继续服务），也由转发的 `agent-preset/selected` 对该会话单独软失效（重组 agent 不产生任何注册，注册表级信号不会为它触发），由 `connection/reset` 硬失效，并以 epoch 把关，被取代的旧拉取永远无法覆盖更新的结果。`matchSpace` 只凭该缓存同步应答；`matchEnter` 在 SubmitAttempt 信号上强等缓存，预热失败即拒绝——`/` 开头的一行绝不会被静默降级为普通提示词。
 
+`matchEnter` 还强制执行提交信封：composer 携带图片附件提交时，只有声明了 `input.images` 的宿主命令继续（其 claim 携带 `images: true`，其 submit 把序列化载荷转交 `command.execute`）；其余每条命令路径——contribution 弹窗、decoration 弹窗、未声明的 claim、bare 分离执行——都会抛出本地化的 `notice.imagesUnsupported` 拒绝，输入状态机发布一条错误通知，composer 以瞬态 Toast 横幅呈现它，草稿与图片原样保留。带图提交若宿主处理器返回错误结果，则映射为错误 outcome，composer 保留图片；不带图的提交维持原有的一律成功映射，因为结果呈现由持久化 flow 节点负责。
+
 `command.execute` 返回已匹配的命令结果后，当前浏览器会发布本地 `command/executed(sessionId, name, result)`。其他客户端只会通过 Host 事件流收到持久命令节点，不会收到这条确认，因此浏览器专属副作用可以筛选由实际提交命令的客户端收到的成功结果，而不会把 Session 回放当成操作请求。监听器失败会逐项记录并隔离，不会改变已经准入的命令结果，也不会阻止后续监听器运行。
 
 菜单查询会按顺序且不区分大小写地模糊匹配命令名的子序列。前缀排名最高；其余匹配项按分隔符边界优先、相邻字符优先、间隔越短越优先的规则排序，若仍同分，则以目录顺序和贡献项顺序打破平局。此行为只影响命令发现：space 和 Enter 仍要求命令名精确匹配。原理：[Web 斜杠命令模糊发现](../../../.agents/notes/implemented/feature/2026-08-04-web-slash-command-fuzzy-discovery.md)。

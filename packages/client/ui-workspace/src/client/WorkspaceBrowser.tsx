@@ -218,6 +218,8 @@ type SessionTreeProps = Pick<
   'useSessions' | 'startSession' | 'open' | 'forkSession'
   | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
 > & {
+  /** Host account home for POSIX hover-path abbreviation. */
+  home?: string | undefined
   workspaces: readonly WorkspaceView[]
   /** Explicit persisted zero-or-five-session state by Workspace group. */
   groupExpansion: Readonly<Record<string, boolean>>
@@ -251,7 +253,7 @@ function SessionTree({
   onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
-  sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
+  sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, home, t,
 }: SessionTreeProps) {
   const list = useSessions(s => s)
   const current = list.current
@@ -450,6 +452,7 @@ function SessionTree({
             >
               <ProjectRowItem
                 group={group}
+                home={home}
                 t={t}
                 onToggle={() => {
                   if (group.expanded) {
@@ -758,9 +761,11 @@ export function WorkspaceBrowser({
   searchSessions,
   searchResultLimit,
   useDirectoryFlow,
+  useHostDescription,
   renderSlot,
   t,
 }: WorkspaceBrowserProps) {
+  const home = useHostDescription(description => description?.home)
   const workspaces = useWorkspaces(state => state.items)
   const workspacePhase = useWorkspaces(state => state.phase)
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
@@ -817,8 +822,13 @@ export function WorkspaceBrowser({
     searchInput.current?.focus({ preventScroll: true })
   }, [wide, searchExpanded, searchOnExpand])
 
+  // Outside-click dismissal stays off while the rail gesture is in flight
+  // (searchOnExpand): the rail click flips the shell wide and mounts this
+  // listener during its own dispatch, then keeps bubbling to document with
+  // the now-unmounted rail button as its target — outside searchRoot, so the
+  // listener would dismiss the search that click just opened.
   useEffect(() => {
-    if (!wide || !searchExpanded) return
+    if (!wide || !searchExpanded || searchOnExpand) return
     const onClick = (event: MouseEvent): void => {
       if (!(event.target instanceof Node) || searchRoot.current?.contains(event.target) === true) return
       searchInput.current?.blur()
@@ -827,7 +837,7 @@ export function WorkspaceBrowser({
     }
     document.addEventListener('click', onClick)
     return () => { document.removeEventListener('click', onClick) }
-  }, [normalizedQuery, wide, searchExpanded])
+  }, [normalizedQuery, wide, searchExpanded, searchOnExpand])
 
   useEffect(() => {
     if (normalizedQuery === '') {
@@ -1152,6 +1162,7 @@ export function WorkspaceBrowser({
                 insertWorkspaceBefore={insertWorkspaceBefore}
                 insertSessionBefore={insertSessionBefore}
                 orderBy={orderBy}
+                home={home}
                 t={t}
                 onRenameRequest={(workspaceId, currentTitle) => {
                   setRenameTarget({ workspaceId, currentTitle })

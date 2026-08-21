@@ -99,7 +99,7 @@ A domain's input event set is its own choice — that is the general rule this e
 
 ### React: `useProjection`, the fifth framework hook seat
 
-The existing four seats cannot host this state (store discipline bans business objects; inject bans hooks; `ConversationSnapshot` is being evacuated). `useProjection` becomes a framework seat, minted in web-react (the one hook constructor), delivered through the same standard-kit channel as `useSession` (`provideInfo` → SessionProvider → props):
+The existing four seats cannot host this state (store discipline bans business objects; inject bans hooks; `ConversationSnapshot` is being evacuated). `useProjection` becomes a framework seat, minted in ui-renderer (the one hook constructor), delivered through the same standard-kit channel as `useSession` (`provideInfo` → SessionProvider → props):
 
 ```ts ignore-check
 type UseProjection = {

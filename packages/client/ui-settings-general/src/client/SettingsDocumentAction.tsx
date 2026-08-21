@@ -3,22 +3,23 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-web-react'
-import type { SettingsDocumentState, SettingsDocumentStore } from './settings-document-store.ts'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SettingsDocumentStore } from './settings-document-store.ts'
 import css from './SettingsDocumentAction.module.css'
 
 /** Registrant-owned dependencies of {@link SettingsDocumentAction}. */
 export interface SettingsDocumentActionInjected {
   /** Provider metadata and action state owner. */
   controller: SettingsDocumentStore
-  /** Bound selector hook for the controller snapshot. */
-  useSnapshot: SnapshotSelectorHook<SettingsDocumentState>
+  hooks: {
+    /** Controller snapshot bound by the UI renderer as useSnapshot. */
+    snapshot: SettingsDocumentStore['store']
+  }
 }
 
 /** Header-action owner share, localized copy, and the registrant's state face. */
 export type SettingsDocumentActionProps =
-  PropsRuntime<'settings.action'> & PropsLocale<'settings'> & SettingsDocumentActionInjected
+  PropsRuntime<'settings.action'> & PropsLocale<'settings'> & InjectFace<SettingsDocumentActionInjected>
 
 /**
  * Render the open-document action only after Host metadata confirms document availability.

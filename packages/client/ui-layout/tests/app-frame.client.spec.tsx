@@ -4,7 +4,7 @@
  * store instance (createLayoutStore().create() — the test-sanctioned engine
  * path), a recording renderSlot stub, and a render-prop SessionProvider stub
  * (the real one is framework-wired to the renderer host; its own behavior is
- * web-react's spec territory). Drag sequences (pointer capture + rAF flush),
+ * ui-renderer's spec territory). Drag sequences (pointer capture + rAF flush),
  * concession response to viewport change, and details staying mounted at
  * zero width are the preserved behavior assertions. jsdom has no layout
  * engine, so the frame width comes from a mocked getBoundingClientRect and

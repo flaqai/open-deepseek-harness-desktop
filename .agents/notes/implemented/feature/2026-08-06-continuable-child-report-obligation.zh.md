@@ -17,7 +17,7 @@ Status: implemented
 - `report` 工具，其描述现在说明 child 要在结束前调用一次并给出自足的最终结果，并在部分进展会改变 parent 下一步动作时提前调用；
 - 一个 order 为 117 的 `tool:report` 系统提示词 section，用 child 自己的语气承载同一条义务，使从不细读工具描述的 child 仍能收到它。
 
-`reportDelivery` 的默认值现在是 `wakeup`。一条被接受的报告恰好创建一个普通的后续 parent 轮次并唤醒停驻的 parent 驱动；它仍然绝不 steering（中途引导）已开始的轮次。对于宁可让报告无人阅读也要避免轮次放大的部署，`quiet` 依旧可用。
+`reportDelivery` 的默认值为 `next-step`。一条被接受的报告会唤醒停驻的 parent driver，或加入运行中 parent 最近的 step 边界，与发现会改变 parent 下一步动作时上报的指令一致。对于宁可让报告无人阅读也要避免模型工作量放大的部署，`quiet` 依旧可用。[报告与结算顺序决策](../bug-fix/2026-08-17-subagent-report-settlement-ordering.md)负责调度理由。
 
 ### 为什么 section 与描述同时存在
 
@@ -33,7 +33,7 @@ Status: implemented
 
 ### 快照覆盖
 
-整体组装的 ACP `subagent-report` 场景现在演练随附的默认行为：child 上报，停驻的 parent 就该报告执行一个普通轮次，随后的提示词仍能从持久化日志中把报告读回来。由于该 child 的作用域现在组合出类别 pin 无法描述的提示词，快照 harness 新增了 `pinsChildSystemPrompts`，它与既有 `pinsChildToolSchemas` 完全对称：把一个 child fixture 的提示词移入 `system-prompt.<n>.expected.md`，其余请求 header 字段仍归类别 pin 所有，要求 sidecar 恰好在声明时存在，并拒绝与该类别 pin 完全相同的 sidecar，使冗余副本无法悄悄漂移。
+整体组装的 ACP `subagent-report` 场景演练随附的默认行为：child 在 parent 处于 maintenance 时上报，稍后的结算通知排在其后，而恢复的 parent 会先领取 next-step 报告、再领取 next-turn 结算。由于该 child 的作用域组合出类别 pin 无法描述的提示词，快照 harness 提供 `pinsChildSystemPrompts`，它与 `pinsChildToolSchemas` 完全对称：把一个 child fixture 的提示词移入 `system-prompt.<n>.expected.md`，其余请求 header 字段仍归类别 pin 所有，要求 sidecar 恰好在声明时存在，并拒绝与该类别 pin 完全相同的 sidecar，使冗余副本无法悄悄漂移。
 
 ## 备选方案
 
@@ -48,13 +48,13 @@ Status: implemented
 ## 后果
 
 - 加载本包后，每个可继续进程内 child 的每次请求都会多出一个提示词 section 和一段更长的 `report` 描述；其他任何 Agent 的请求都不变。
-- 默认部署会为每条被接受的报告唤醒 parent 一次。频繁上报的嵌套树会消耗额外的 parent 轮次；`quiet` 是有文档记载的退路。
+- 默认部署会为每条被接受的报告唤醒 parent 一次。频繁上报的嵌套树会消耗额外的 parent 请求，而一起等待的报告会共享一个 step；`quiet` 是有文档记载的退路。
 - `installReportTool` 需要 child 作用域中的 `ctx.systemPrompt`，因此本包在 `inject` 中声明 `systemPrompt`，从而在加载时失败，而不是等到下一次 child 物化时。
 - 单元覆盖固定了新默认值、两处关键指令措辞、该 section 相对 parent 与同级均仅限 child 的作用域，以及两项注册在安装回滚或撤销时的清理。
 - 三个带可继续 child 的整体组装 ACP 场景通过新的 sidecar 逐字固定完整的 child 提示词；今后任何对 child 作用域 section 的改动都会让这些场景失败，而不是悄悄通过。
 
 ### 已接受的风险
 
-默认唤醒会在深层树中放大模型工作量。部署通过 `reportDelivery` 掌握该取舍，且放大幅度以每条被接受报告一个轮次为界。
+默认 next-step 投递会在深层树中放大模型工作量。部署通过 `reportDelivery` 掌握该取舍；一起等待的报告会共享一个 step，且每条被接受的报告至多产生一次唤醒。
 
 child 仍可能不上报就结束，本次改动无法检测这一点。只有运行时自己的[结算记账](2026-08-06-manager-owned-subagent-settlement-delivery.md)才能补上这一情形。

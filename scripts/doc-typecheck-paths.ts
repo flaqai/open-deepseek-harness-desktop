@@ -12,7 +12,7 @@ export function builtDeclarationPath(candidate: string): string {
   if (sourceFile?.[1] && sourceFile[2]) {
     return `${sourceFile[1]}/lib/types/${sourceFile[2]}.d.ts`
   }
-  // Directory subpath entries (web-react's /store, runtime's /client): the
+  // Directory subpath entries (for example, runtime's /client): the
   // source dir maps to the same dir under lib/types (index resolution applies).
   const sourceDir = /^(.*)\/src\/(.+)$/.exec(candidate)
   if (sourceDir?.[1] && sourceDir[2]) {

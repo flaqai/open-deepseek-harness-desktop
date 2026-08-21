@@ -9,6 +9,7 @@ const IMAGE_ADMISSION_ERROR_CODES = [
   'IMAGE_TYPE_MISMATCH',
   'IMAGE_TOO_LARGE',
   'IMAGE_TOO_MANY_PIXELS',
+  'IMAGE_DIMENSION_TOO_LARGE',
 ] as const
 
 /** Caller-correctable attachment failure codes raised while admitting image input. */

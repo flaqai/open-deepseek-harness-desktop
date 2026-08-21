@@ -6,9 +6,9 @@
 
 ## 服务约定
 
-`ctx.commands.register(definition)` 注册一个小写命令名称、描述、可选的非结构化输入提示、可选的 `recordInput` 策略，以及可中止的处理器。`recordInput` 默认为 true；若载荷由命令的权威领域事件持有，该命令会将 `recordInput` 设为 false，让 `command/run` 省略 `args`，避免重复记录输入。每个已注册命令都可供所有已组合的命令适配器使用；与某项部署不兼容的插件不会在此注册。普通上下文中的注册全局生效。在 `agent.ctx` 下挂载的命令生产插件会声明自身的 `commands` 注入，并创建精确限定到该 agent（智能体）的定义；该定义会遮蔽同名的全局定义。这种子级注入形态保留了 agent 作用域，同时不会让核心 agent loop（智能体循环）依赖 UI 服务。同一层中的名称重复会在注册时失败。每个 disposer 都是 Cordis effect 返回的确切 disposer；注册或移除命令时，系统会通知每个 `commands/change` 观察者，使运行中的适配器能够刷新发现结果。观察者失败会写入日志，既不能否决注册表变更，也不能阻止后续观察者运行。
+`ctx.commands.register(definition)` 注册一个小写命令名称、描述、可选的非结构化输入描述符（`hint`，以及声明调用是否可携带 composer 图片附件的 `images` 标志）、可选的 `recordInput` 策略，以及可中止的处理器。`recordInput` 默认为 true；若载荷由命令的权威领域事件持有，该命令会将 `recordInput` 设为 false，让 `command/run` 省略 `args`，避免重复记录输入。每个已注册命令都可供所有已组合的命令适配器使用；与某项部署不兼容的插件不会在此注册。普通上下文中的注册全局生效。在 `agent.ctx` 下挂载的命令生产插件会声明自身的 `commands` 注入，并创建精确限定到该 agent（智能体）的定义；该定义会遮蔽同名的全局定义。这种子级注入形态保留了 agent 作用域，同时不会让核心 agent loop（智能体循环）依赖 UI 服务。同一层中的名称重复会在注册时失败。每个 disposer 都是 Cordis effect 返回的确切 disposer；注册或移除命令时，系统会通知每个 `commands/change` 观察者，使运行中的适配器能够刷新发现结果。观察者失败会写入日志，既不能否决注册表变更，也不能阻止后续观察者运行。
 
-`list(agent)` 在应用作用域遮蔽后，返回按名称排序的不可变描述符。`find(agent, name)` 返回相应定义。`execute(agent, line, signal)` 使用 `parseCommand()`，且只运行已知命令，返回已结算的 `CommandExecution`（规范化结果加生命周期配对 `commandId`）；语法无效或名称未知时返回 `undefined`。已解析命令的生命周期会以 log-only 事件对的形式记录在接收 agent 的会话日志中：`command/run`（进入处理器前记录，携带新生成的 `commandId`、解析器的结构化名称、发起方 `CommandSource`，以及 `args`（`recordInput` 为 false 时省略））与 `command/done`（结算时记录，携带结果类型与原样文本；成功结果还可通过 `sourceEventSeq` 指向更早的一条非命令权威领域事件；处理器抛出或被中止时以 `kind: 'error'` 结算）。未通过准入的输入不记录任何事件。两者都直接独立追加到接收 agent 的会话中：没有轮次包裹它们，持久化机制会在常规检查点和销毁期间排空这些事件。
+`list(agent)` 在应用作用域遮蔽后，返回按名称排序的不可变描述符（描述符携带 `input.images`，使 composer 能在分发前就拒绝把图片提交给未声明的命令）。`find(agent, name)` 返回相应定义。`execute(agent, line, images, signal)` 使用 `parseCommand()`，且只运行已知命令，返回已结算的 `CommandExecution`（规范化结果加生命周期配对 `commandId`）；语法无效或名称未知时返回 `undefined`。`images` 携带本次提交的 base64 编码 composer 图片（来自 `@deepseek-ai/dsh-attachment/types` 的 `EncodedImageAttachment`）；执行器负责声明的强制执行：把图片发给未声明的命令、`attachments` 存储缺失、或批量超出限制，都会在处理器运行前以错误结果结算，被拒绝的批量不会发布任何持久化对象。通过准入的批量经 `admitEncodedImages` 提交，并以冻结的有序 `ImageBlock` 数组挂在 `invocation.attachments` 上交给处理器；处理器负责它们的模型可见用途，当其语法无法使用这些图片时返回错误，使分发方 composer 保留原件。已解析命令的生命周期会以 log-only 事件对的形式记录在接收 agent 的会话日志中：`command/run`（进入处理器前记录，携带新生成的 `commandId`、解析器的结构化名称、发起方 `CommandSource`，以及 `args`（`recordInput` 为 false 时省略））与 `command/done`（结算时记录，携带结果类型与原样文本；成功结果还可通过 `sourceEventSeq` 指向更早的一条非命令权威领域事件；处理器抛出或被中止时以 `kind: 'error'` 结算）。未通过准入的输入不记录任何事件。两者都直接独立追加到接收 agent 的会话中：没有轮次包裹它们，持久化机制会在常规检查点和销毁期间排空这些事件。
 
 `parseCommand()` 识别位于第 0 字节的斜杠、由小写字母、数字、`_` 或 `-` 构成的名称，以及名称后紧接输入末尾或空白的形式。它将名称后的每个字节作为 `rawInput` 返回，其中包括分隔空白；消费方负责各命令专用的语法，只能执行该语法允许的规范化。
 
@@ -24,7 +24,7 @@
 
 #### 模型看到的内容
 
-注册表自身不会提交任何内容。已知斜杠命令在 UI 命令平面执行，其 `CommandResult` 文本不会作为用户消息提交。已交付的适配器会拒绝未知斜杠命令输入，而不是将其变成模型提示词。命令生产方可以显式使用接收命令的 `Agent`；例如，[`dsh-plan-mode`](../../plan/plan-mode/README.md#model-and-human-interactions)在选择 plan mode 后，会提交 `/plan [message]` 中的可选消息。
+注册表自身不会提交任何内容。已知斜杠命令在 UI 命令平面执行，其 `CommandResult` 文本不会作为用户消息提交。已交付的适配器会拒绝未知斜杠命令输入，而不是将其变成模型提示词。命令生产方可以显式使用接收命令的 `Agent`；例如，[`dsh-plan-mode`](../../plan/plan-mode/README.md#model-and-human-interactions)在选择 plan mode 后，会提交 `/plan [message]` 中的可选消息。图片附件遵循同一规则：执行器只负责把它们准入为持久化附件对象，是否以及如何成为模型可见的消息内容由声明接受的生产方决定。
 
 #### Token 影响
 

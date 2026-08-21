@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  childEnv,
   killGroup,
   OutputCollector,
   spawnSubprocess,
@@ -10,6 +11,49 @@ import {
 } from '../src/spawn.ts'
 import type { SubprocessHandle, SubprocessOutputReader } from '@deepseek-ai/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
+
+/**
+ * Translate the suite's POSIX command strings into node one-liners on Windows,
+ * where no bash exists; the translated commands keep the same observable
+ * stdout/stderr/exit-code contract the bash originals pin on POSIX.
+ * @param command - the bash `-c` command string used by the test.
+ * @returns the argv to spawn.
+ */
+function shellArgv(command: string): string[] {
+  if (process.platform !== 'win32') return ['bash', '-c', command]
+  const node = (script: string): string[] => [process.execPath, '-e', script]
+  switch (command) {
+    case 'true': return node('')
+    case 'echo hello': return node('console.log("hello")')
+    case 'echo hi': return node('console.log("hi")')
+    case 'echo oops >&2': return node('console.error("oops")')
+    case 'echo err >&2': return node('console.error("err")')
+    case 'echo out; echo err >&2': return node('console.log("out"); console.error("err")')
+    case 'echo out; echo to-parent >&2': return node('console.log("out"); console.error("to-parent")')
+    case 'echo to-parent; echo err >&2': return node('console.log("to-parent"); console.error("err")')
+    case 'exit 42': return node('process.exit(42)')
+    case 'exit 7': return node('process.exit(7)')
+    case 'pwd': return node('console.log(process.cwd())')
+    case 'sleep 60': return node('setTimeout(() => {}, 60000)')
+    case 'cat': return node('process.stdin.pipe(process.stdout)')
+    case 'unused': return node('')
+    case 'echo "${TERM:-unset}"': return node('console.log(process.env.TERM ?? "unset")')
+    case 'echo "$EXTRA_ONE/$EXTRA_TWO"': return node('console.log(process.env.EXTRA_ONE + "/" + process.env.EXTRA_TWO)')
+    case 'echo "$EXPLICIT_OVERRIDE_PASSWORD"': return node('console.log(process.env.EXPLICIT_OVERRIDE_PASSWORD)')
+    case 'echo "${SUBPROCESS_TOMBSTONE_PROBE:-absent}"': return node('console.log(process.env.SUBPROCESS_TOMBSTONE_PROBE ?? "absent")')
+    case 'echo "[${DSH_STALE:-absent}|$DSH_SHELL|$DSH_SESSION_ID]"':
+      return node('console.log("[" + [process.env.DSH_STALE ?? "absent", process.env.DSH_SHELL, process.env.DSH_SESSION_ID].join("|") + "]")')
+    case 'echo "[${DSH_TEST_API_KEY:-absent}|${DSH_TEST_TOKEN:-absent}|${SUBPROCESS_TEST_PASSWORD:-absent}|${DSH_TEST_PLAIN:-absent}]"':
+      return node('console.log("[" + [process.env.DSH_TEST_API_KEY ?? "absent", process.env.DSH_TEST_TOKEN ?? "absent", process.env.SUBPROCESS_TEST_PASSWORD ?? "absent", process.env.DSH_TEST_PLAIN ?? "absent"].join("|") + "]")')
+    case 'printf "%.0sx" $(seq 1 500)': return node('process.stdout.write("x".repeat(500))')
+    case 'printf "%.0sx" $(seq 1 500); printf "%.0se" $(seq 1 500) >&2':
+      return node('process.stdout.write("x".repeat(500)); process.stderr.write("e".repeat(500))')
+    case 'for i in $(seq 1 200); do printf "line-%04d\\n" $i; done':
+      return node('for (let i = 1; i <= 200; i++) console.log("line-" + String(i).padStart(4, "0"))')
+    default:
+      throw new Error(`spawn.spec: no win32 node translation for ${JSON.stringify(command)}`)
+  }
+}
 
 const { failNextClose, failNextUnlink } = vi.hoisted(() => ({
   failNextClose: { value: false },
@@ -48,7 +92,7 @@ type SpecOverrides = Partial<Parameters<typeof spawnSubprocess>[0]> & {
 function spec(command: string, overrides: SpecOverrides = {}) {
   const { stdoutMaxBytes = 64_000, stderrMaxBytes = 64_000, maxSpillBytes = 64 * 1024 * 1024, stdin, ...rest } = overrides
   return {
-    argv: ['bash', '-c', command],
+    argv: shellArgv(command),
     cwd: process.cwd(),
     stdio: {
       stdin: stdin !== undefined ? { data: stdin } : 'ignore' as const,
@@ -161,7 +205,7 @@ describe('spawnSubprocess', () => {
     expect(result.stdout.text).toBe('callers-choice\n')
   })
 
-  it('runs in the requested cwd', async () => {
+  it.skipIf(process.platform === 'win32')('runs in the requested cwd', async () => {
     const result = await finish(spawnSubprocess(spec('pwd', { cwd: '/tmp' })))
     expect(result.stdout.text.trim()).toMatch(/\/tmp$/)
   })
@@ -176,11 +220,12 @@ describe('spawnSubprocess', () => {
     setTimeout(() => { controller.abort('deadline') }, 100)
     const result = await running.done
     expect(Date.now() - start).toBeLessThan(5_000)
-    expect(result.signal).toBe('SIGTERM')
-    expect(result.exitCode).toBeNull()
+    // Windows teardown terminates through taskkill, which reports no signal.
+    expect(result.signal).toBe(process.platform === 'win32' ? null : 'SIGTERM')
+    expect(result.exitCode).toBe(process.platform === 'win32' ? 1 : null)
   })
 
-  it('terminate() escalates to SIGKILL when SIGTERM is trapped', async () => {
+  it.skipIf(process.platform === 'win32')('terminate() escalates to SIGKILL when SIGTERM is trapped', async () => {
     const running = spawnSubprocess(spec('trap \'\' TERM; echo ready; while :; do sleep 60 & wait $!; done', { graceMs: 200 }))
     await waitForStdout(running, 'ready\n')
     running.terminate()
@@ -231,12 +276,16 @@ describe('spawnSubprocess', () => {
       expect(forceSignals).toBe(0)
     } finally {
       killSpy.mockRestore()
-      process.kill(helper, 'SIGKILL')
+      try {
+        process.kill(helper, 'SIGKILL')
+      } catch {
+        // taskkill already took the helper down on Windows.
+      }
       await waitGone(helper)
     }
   })
 
-  it('terminates the whole process group (grandchildren die too)', async () => {
+  it.skipIf(process.platform === 'win32')('terminates the whole process group (grandchildren die too)', async () => {
     // The subshell writes the sleep's pid then waits on it; terminating the
     // group must take the sleep down with bash.
     const pidFile = join(spillDir, `grandchild-${Date.now()}.pid`)
@@ -255,7 +304,7 @@ describe('spawnSubprocess', () => {
     const running = spawnSubprocess(spec('sleep 60', { signal: controller.signal }))
     setTimeout(() => { controller.abort('user cancelled') }, 50)
     const result = await running.done
-    expect(result.signal).toBe('SIGTERM')
+    expect(result.signal).toBe(process.platform === 'win32' ? null : 'SIGTERM')
   })
 
   it('throws when the signal is already aborted before spawn', () => {
@@ -275,10 +324,10 @@ describe('spawnSubprocess', () => {
     running.terminate()
     running.terminate()
     const result = await running.done
-    expect(result.signal).toBe('SIGTERM')
+    expect(result.signal).toBe(process.platform === 'win32' ? null : 'SIGTERM')
   })
 
-  it('does not wait for a Linux group that has only zombie members', async () => {
+  it.skipIf(process.platform === 'win32')('does not wait for a Linux group that has only zombie members', async () => {
     const pidFile = join(spillDir, `zombie-group-${Date.now()}.pid`)
     const running = spawnSubprocess(spec(`sleep 60 & echo $! > ${pidFile}; echo leader-done`, { graceMs: 100 }), {
       platform: 'linux',
@@ -296,7 +345,7 @@ describe('spawnSubprocess', () => {
     }
   })
 
-  it('bounds inherited-pipe draining after the shell exits', async () => {
+  it.skipIf(process.platform === 'win32')('bounds inherited-pipe draining after the shell exits', async () => {
     const pidFile = join(spillDir, `pipe-holder-${Date.now()}.pid`)
     const started = Date.now()
     const running = spawnSubprocess(spec(`sleep 60 & echo $! > ${pidFile}; echo shell-done`, { graceMs: 100 }))
@@ -328,7 +377,7 @@ describe('stdin and extra env (set by in-process plugins)', () => {
     expect(result.stdout.text).toBe('')
   })
 
-  it('gives fd 0 the exact pre-seam type: /dev/null when no stdin, a pipe when supplied', async () => {
+  it.skipIf(process.platform === 'win32')('gives fd 0 the exact pre-seam type: /dev/null when no stdin, a pipe when supplied', async () => {
     // With no bytes, fd 0 remains the pre-spawn `ignore` default (/dev/null, a character device).
     // Supplied bytes use Node's spawn pipe, which is an AF_UNIX socket rather than a FIFO.
     const none = await finish(spawnSubprocess(spec('test -c /dev/stdin && echo char || echo other')))
@@ -619,7 +668,7 @@ describe('windows tree semantics (injected platform)', () => {
     running.terminate()
     const outcome = await running.done
     expect(killed).toContain(running.pid)
-    expect(outcome.signal).toBe('SIGKILL')
+    expect(outcome.signal).toBe(process.platform === 'win32' ? null : 'SIGKILL')
   })
 
   it('waitForExit falls back to direct-child liveness where groups do not exist', async () => {
@@ -630,7 +679,7 @@ describe('windows tree semantics (injected platform)', () => {
 })
 
 describe('waitForExit', () => {
-  it('waits for the whole detached tree, not just the shell', async () => {
+  it.skipIf(process.platform === 'win32')('waits for the whole detached tree, not just the shell', async () => {
     const pidFile = join(spillDir, `tree-wait-${Date.now()}.pid`)
     const running = spawnSubprocess(spec(`sleep 60 & echo $! > ${pidFile}; wait`))
     const grandchild = await waitForPidFile(pidFile)
@@ -650,7 +699,7 @@ describe('waitForExit', () => {
   })
 })
 
-describe('synchronous host-exit termination', () => {
+describe.skipIf(process.platform === 'win32')('synchronous host-exit termination', () => {
   it('force-kills the current process tree without waiting for the normal grace', async () => {
     const running = spawnSubprocess(spec('trap "" TERM; sleep 60', { graceMs: 60_000 }))
     running.terminateForHostExit()
@@ -667,7 +716,7 @@ describe('synchronous host-exit termination', () => {
   })
 })
 
-describe('tree-survivor escalation (terminate and bounded waits reach helpers the leader left behind)', () => {
+describe.skipIf(process.platform === 'win32')('tree-survivor escalation (terminate and bounded waits reach helpers the leader left behind)', () => {
   it('terminate() SIGKILLs a TERM-trapping descendant after the direct child settles', async () => {
     // The leader spawns a TERM-trapping helper with all stdio detached from
     // the collected pipes, then exits: the helper holds the GROUP alive while
@@ -731,6 +780,97 @@ describe('coverage seams', () => {
     // result and the function stays silent — the same containment Windows
     // relies on for an already-absent tree.
     expect(() => { taskkillProcessTree(2 ** 30) }).not.toThrow()
+  })
+
+  it('covers the injected POSIX group paths on any host', async () => {
+    // Windows has no POSIX groups, so the tree-liveness probe, group
+    // signalling, and the SIGKILL escalation timer only run here through the
+    // injected platform; the mock keeps the group alive through TERM and
+    // terminates the direct child when the escalation tier delivers SIGKILL.
+    const running = spawnSubprocess(spec('sleep 60', { graceMs: 100 }), {
+      platform: 'linux',
+      linuxProcessGroupHasLiveMembers: () => false,
+    })
+    const realKill = process.kill.bind(process)
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation((target, signal) => {
+      if (typeof target === 'number' && target < 0) {
+        if (signal === 0) return true
+        if (signal === 'SIGKILL') realKill(running.pid, 'SIGKILL')
+        return true
+      }
+      return realKill(target, signal)
+    })
+    try {
+      running.terminate()
+      await running.done
+      await expect(running.waitForExit()).resolves.toBe(true)
+    } finally {
+      killSpy.mockRestore()
+    }
+  })
+
+  it('treats a vanished group probe as quiescent without signalling', async () => {
+    const running = spawnSubprocess(spec('sleep 60'), { platform: 'linux' })
+    const realKill = process.kill.bind(process)
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation((target, signal) => {
+      if (typeof target === 'number' && target < 0) {
+        throw Object.assign(new Error('simulated absent group'), { code: 'ESRCH' })
+      }
+      return realKill(target, signal)
+    })
+    try {
+      running.terminate()
+      await new Promise(resolve => setTimeout(resolve, 20))
+      realKill(running.pid, 'SIGKILL')
+      await running.done
+      await expect(running.waitForExit()).resolves.toBe(true)
+    } finally {
+      killSpy.mockRestore()
+    }
+  })
+
+  it('childEnv keeps the POSIX spread on non-Windows hosts', () => {
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
+    try {
+      expect(childEnv({ DSH_X: '1' }).DSH_X).toBe('1')
+    } finally {
+      platform.mockRestore()
+    }
+  })
+
+  it('settles through the pipe-drain timer when a descendant holds a collected pipe', async () => {
+    // The leader spawns a detached grandchild inheriting the collected stdout
+    // pipe, then exits: `close` cannot settle while the grandchild holds the
+    // pipe, so the bounded pipe-drain timer must settle the outcome.
+    const pidFile = join(spillDir, `pipe-drain-${Date.now()}.pid`)
+    const childScript = `
+      const { spawn } = require('node:child_process')
+      const { writeFileSync } = require('node:fs')
+      const helper = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+        detached: true,
+        stdio: ['ignore', 1, 2],
+      })
+      writeFileSync(${JSON.stringify(pidFile)}, String(helper.pid))
+      helper.unref()
+    `
+    const running = spawnSubprocess({
+      ...spec('unused', { graceMs: 100 }),
+      argv: [process.execPath, '-e', childScript],
+    })
+    // The drain timer starts when the child's stdio closes, which can precede
+    // the pid file becoming visible; measure from before that wait so the
+    // lower bound cannot be eroded by the pid-file handoff.
+    const started = Date.now()
+    const helper = await waitForPidFile(pidFile)
+    const outcome = await running.done
+    expect(outcome.exitCode).toBe(0)
+    expect(Date.now() - started).toBeGreaterThanOrEqual(90)
+    try {
+      process.kill(helper, 'SIGKILL')
+    } catch {
+      // Already gone; the drain bound is the point under test.
+    }
+    await waitGone(helper)
   })
 
   it('a spawn-failed handle rejects done while waitForExit reports gone', async () => {
@@ -869,7 +1009,7 @@ describe('argv validation', () => {
     expect(() => spawnSubprocess({ ...spec('true'), argv: [''] })).toThrow(/non-empty program name/)
   })
 
-  it('spawns argv verbatim without shell interpretation', async () => {
+  it.skipIf(process.platform === 'win32')('spawns argv verbatim without shell interpretation', async () => {
     const result = await finish(spawnSubprocess({ ...spec('unused'), argv: ['printf', '%s', '$HOME'] }))
     expect(result.stdout.text).toBe('$HOME')
   })
@@ -889,7 +1029,7 @@ describe('abort edge cases', () => {
       .toThrow(/aborted before spawn: aborted/)
   })
 
-  it('reports the terminating signal of an externally self-killed command', async () => {
+  it.skipIf(process.platform === 'win32')('reports the terminating signal of an externally self-killed command', async () => {
     // spawnSubprocess reports the raw signal; whether it counts as timeout/cancel is the
     // executor's classification (a self-kill is neither) — see executor.spec.ts.
     const result = await finish(spawnSubprocess(spec('kill -TERM $$')))
@@ -930,7 +1070,7 @@ describe('environment and spill-file hardening', () => {
     }
   })
 
-  it('creates spill files with owner-only permissions and random names', async () => {
+  it.skipIf(process.platform === 'win32')('creates spill files with owner-only permissions and random names', async () => {
     const result = await finish(spawnSubprocess(
       spec('for i in $(seq 1 200); do printf "line-%04d\\n" $i; done', { stdoutMaxBytes: 500, stderrMaxBytes: 500 }),
       { spillDir },
@@ -941,7 +1081,7 @@ describe('environment and spill-file hardening', () => {
     expect(mode).toBe(0o600)
   })
 
-  it('defaults spills into a private per-process directory', async () => {
+  it.skipIf(process.platform === 'win32')('defaults spills into a private per-process directory', async () => {
     const result = await finish(spawnSubprocess(
       spec('for i in $(seq 1 200); do printf "line-%04d\\n" $i; done', { stdoutMaxBytes: 500, stderrMaxBytes: 500 }),
     ))
@@ -967,6 +1107,6 @@ describe('environment and spill-file hardening', () => {
     const running = spawnSubprocess(spec('sleep 60', { signal: controller.signal }))
     setTimeout(() => { controller.abort() }, 50)
     const result = await running.done
-    expect(result.signal).toBe('SIGTERM')
+    expect(result.signal).toBe(process.platform === 'win32' ? null : 'SIGTERM')
   })
 })

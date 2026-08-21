@@ -60,7 +60,7 @@ describe('session-log-download real Loader composition', () => {
     expect(context.commands.list(agent)).toContainEqual({
       name: 'export', description: 'Download this Session log as a ZIP archive',
     })
-    const execution = await context.commands.execute(agent, '/export', new AbortController().signal)
+    const execution = await context.commands.execute(agent, '/export', [], new AbortController().signal)
     expect(execution?.result).toEqual({ kind: 'success', text: 'Session log download requested.' })
     expect(session.events.map(event => event.type)).toEqual(['command/run', 'command/done'])
     expect(session.deriveMessages()).toEqual([])

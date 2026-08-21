@@ -6,6 +6,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
-    "types": []
+    "typeRoots": ["./scripts/types", "./node_modules/@types"],
+    "types": ["client-build-environment"]
   }
 }

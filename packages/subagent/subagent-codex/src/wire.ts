@@ -11,8 +11,63 @@ import type { Readable, Writable } from 'node:stream'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { SubagentResult } from '@deepseek-ai/dsh-subagent'
 import { JsonRpcLineTransport } from '@deepseek-ai/dsh-sdk-protocol'
+import type { CodexPermissionMode } from './run.ts'
 
 type JsonObject = Record<string, unknown>
+
+/** Product facts owned by the Codex wire after publication. */
+export interface CodexWireFailureFacts {
+  readonly stage: 'turn-start' | 'turn'
+  readonly category: string
+  readonly httpStatus?: number | undefined
+}
+
+const THREAD_PERMISSION_PARAMS: Readonly<Record<CodexPermissionMode, JsonObject>> = {
+  never: { approvalPolicy: 'never' },
+  'approve-for-me': {
+    approvalPolicy: 'on-request',
+    approvalsReviewer: 'auto_review',
+    sandbox: 'workspace-write',
+  },
+  'dangerously-bypass-approvals-and-sandbox': {
+    approvalPolicy: 'never',
+    sandbox: 'danger-full-access',
+  },
+}
+
+const STDERR_PERMISSION_SIGNATURES = [
+  {
+    text: 'approval policy is Never; reject command',
+    request: 'command execution',
+    decision: 'denied',
+    reason: 'Codex rejected an escalation because the selected policy never asks for approval',
+  },
+  {
+    text: 'recorded sandbox violation:',
+    request: 'sandbox execution',
+    decision: 'failed',
+    reason: 'Codex reported a sandbox violation',
+  },
+] as const
+
+const STDERR_SIGNATURE_TAIL_CHARS = Math.max(
+  ...STDERR_PERMISSION_SIGNATURES.map(signature => signature.text.length),
+) - 1
+
+function stderrSignatureTail(value: string): string {
+  for (
+    let length = Math.min(STDERR_SIGNATURE_TAIL_CHARS, value.length)
+    ; length > 0
+    ; length -= 1
+  ) {
+    const tail = value.slice(-length)
+    if (STDERR_PERMISSION_SIGNATURES.some(signature =>
+      tail.length < signature.text.length && signature.text.startsWith(tail))) {
+      return tail
+    }
+  }
+  return ''
+}
 
 function object(value: unknown, label: string): JsonObject {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -38,13 +93,87 @@ function unattendedDecision(params: JsonObject): 'cancel' | 'decline' {
   throw new Error('subagent-codex: app-server offered no unattended approval decision')
 }
 
-function isContextWindowExceeded(turn: JsonObject): boolean {
-  if (turn.status !== 'failed') return false
+function numericHttpStatus(value: unknown): number | undefined {
+  return typeof value === 'number'
+    && Number.isInteger(value)
+    && value >= 0
+    && value <= 65_535
+    ? value
+    : undefined
+}
+
+function objectFailureInfo(value: JsonObject): {
+  readonly category: string
+  readonly httpStatus?: number | undefined
+} {
+  const keys = Object.keys(value)
+  const category = keys[0]
+  if (keys.length !== 1 || category === undefined) {
+    return { category: 'unknown' }
+  }
+  const detail = value[category]
+  if (detail === null || typeof detail !== 'object' || Array.isArray(detail)) {
+    return { category: 'unknown' }
+  }
+  const fields = detail as JsonObject
+  switch (category) {
+    case 'httpConnectionFailed':
+    case 'responseStreamConnectionFailed':
+    case 'responseStreamDisconnected':
+    case 'responseTooManyFailedAttempts':
+    {
+      const httpStatus = numericHttpStatus(fields.httpStatusCode)
+      return httpStatus === undefined
+        ? { category }
+        : { category, httpStatus }
+    }
+    case 'activeTurnNotSteerable':
+      return { category }
+    default:
+      return { category: 'unknown' }
+  }
+}
+
+function failureInfo(turn: JsonObject): {
+  readonly category: string
+  readonly httpStatus?: number | undefined
+} {
+  if (turn.status !== 'failed') return { category: 'unknown' }
   const error = turn.error
-  return error !== null
-    && typeof error === 'object'
-    && !Array.isArray(error)
-    && (error as JsonObject).codexErrorInfo === 'contextWindowExceeded'
+  if (error === null || typeof error !== 'object' || Array.isArray(error)) {
+    return { category: 'unknown' }
+  }
+  const info = (error as JsonObject).codexErrorInfo
+  if (typeof info === 'string') {
+    switch (info) {
+      case 'contextWindowExceeded':
+      case 'sessionBudgetExceeded':
+      case 'usageLimitExceeded':
+      case 'serverOverloaded':
+      case 'cyberPolicy':
+      case 'internalServerError':
+      case 'unauthorized':
+      case 'badRequest':
+      case 'threadRollbackFailed':
+      case 'sandboxError':
+      case 'other':
+        return { category: info }
+      default:
+        return { category: 'unknown' }
+    }
+  }
+  return info !== null && typeof info === 'object' && !Array.isArray(info)
+    ? objectFailureInfo(info as JsonObject)
+    : { category: 'unknown' }
+}
+
+function unattendedDiagnostic(
+  mode: CodexPermissionMode,
+  request: 'command approval' | 'file approval' | 'permission grant' | 'user input' | 'MCP elicitation' | 'command execution' | 'file change' | 'sandbox execution',
+  decision: 'cancelled' | 'declined' | 'denied' | 'empty response' | 'failed',
+  reason: string,
+): string {
+  return `Codex unattended decision (mode: ${mode}; request: ${request}; decision: ${decision}): ${reason}`
 }
 
 function thrown(value: unknown): Error {
@@ -86,18 +215,36 @@ export class CodexAppServerWire {
   private threadId: string | undefined
   private turnId: string | undefined
   private pendingTurnId: string | undefined
-  private turnCompleted: PromiseWithResolvers<JsonObject> | undefined
+  private turnCompleted: PromiseWithResolvers<{
+    readonly params: JsonObject
+    readonly order: number
+  }> | undefined
   private readonly earlyTurnNotifications: Array<{
     readonly method: string
     readonly params: JsonObject
+    readonly order: number
   }> = []
   private lastFinalAnswer: string | undefined
   private lastUnphasedAnswer: string | undefined
+  private diagnostic: string | undefined
+  private failure: CodexWireFailureFacts | undefined
+  private diagnosticOrder = 0
+  private observationOrder = 0
+  private pendingDiagnostic: {
+    readonly order: number
+    readonly request: Parameters<typeof unattendedDiagnostic>[1]
+    readonly decision: Parameters<typeof unattendedDiagnostic>[2]
+    readonly reason: string
+  } | undefined
+  private stderrTail = ''
+  private inputEnded = false
+  private terminalObserved = false
   private closed = false
 
   constructor(
     private readonly input: Readable,
     output: Writable,
+    private readonly permissionMode: CodexPermissionMode,
   ) {
     this.transport = new JsonRpcLineTransport(input, output)
     // Fatal protocol state can arrive after the current guarded operation has
@@ -123,6 +270,14 @@ export class CodexAppServerWire {
   /** Start reading app-server frames. */
   start(): void {
     this.transport.start()
+  }
+
+  /**
+   * Whether protocol output ended before a terminal turn notification.
+   * @returns `true` only for an early protocol close without a terminal turn.
+   */
+  endedBeforeTerminal(): boolean {
+    return this.inputEnded && !this.terminalObserved
   }
 
   /**
@@ -154,6 +309,7 @@ export class CodexAppServerWire {
     const response = object(await this.guarded(this.transport.request('thread/start', {
       cwd,
       ephemeral: true,
+      ...THREAD_PERMISSION_PARAMS[this.permissionMode],
     }, signal), signal), 'thread/start response')
     const thread = object(response.thread, 'thread/start thread')
     const id = string(thread.id, 'thread/start thread id')
@@ -174,30 +330,63 @@ export class CodexAppServerWire {
     texts: readonly string[],
     signal: AbortSignal,
   ): Promise<SubagentResult> {
-    const completion = Promise.withResolvers<JsonObject>()
+    const completion = Promise.withResolvers<{
+      readonly params: JsonObject
+      readonly order: number
+    }>()
     this.turnCompleted = completion
     const threadId = this.threadId as string
-    const response = object(await this.guarded(this.transport.request('turn/start', {
-      threadId,
-      input: texts.map(text => ({ type: 'text', text, text_elements: [] })),
-    }, signal), signal), 'turn/start response')
-    const turn = object(response.turn, 'turn/start turn')
-    this.commitTurnId(string(turn.id, 'turn/start turn id'))
-
-    const completed = await this.guarded(completion.promise, signal)
-    const terminal = object(completed.turn, 'turn/completed turn')
-    const status = terminal.status
-    if (isContextWindowExceeded(terminal)) {
-      return { output: this.collectOutput(), stopReason: 'max-tokens' }
+    try {
+      const response = object(await this.guarded(this.transport.request('turn/start', {
+        threadId,
+        input: texts.map(text => ({ type: 'text', text, text_elements: [] })),
+      }, signal), signal), 'turn/start response')
+      const turn = object(response.turn, 'turn/start turn')
+      this.commitTurnId(string(turn.id, 'turn/start turn id'))
+    } catch (error: unknown) {
+      this.recordFailure({ stage: 'turn-start', category: 'unknown' })
+      throw error
     }
+
+    let completed: {
+      readonly params: JsonObject
+      readonly order: number
+    }
+    let terminal: JsonObject
+    try {
+      completed = await this.guarded(completion.promise, signal)
+      terminal = object(completed.params.turn, 'turn/completed turn')
+    } catch (error: unknown) {
+      this.recordFailure({ stage: 'turn', category: 'unknown' })
+      throw error
+    }
+    const status = terminal.status
     if (status !== 'completed') {
-      const detail = status === 'failed'
-        ? `: ${JSON.stringify(terminal.error)}`
-        : ''
+      const parsed = failureInfo(terminal)
+      this.recordFailure(parsed.httpStatus === undefined
+        ? { stage: 'turn', category: parsed.category }
+        : {
+          stage: 'turn',
+          category: parsed.category,
+          httpStatus: parsed.httpStatus,
+        })
+      if (parsed.category === 'sandboxError') {
+        this.recordDiagnostic(
+          'sandbox execution',
+          'failed',
+          'Codex reported a sandbox failure',
+          completed.order,
+        )
+      }
+      if (parsed.category === 'contextWindowExceeded') {
+        return { output: this.collectOutput(), stopReason: 'max-tokens' }
+      }
+      const detail = status === 'failed' ? `: ${parsed.category}` : ''
       throw new Error(`subagent-codex: Codex turn ended with status ${String(status)}${detail}`)
     }
     const output = this.collectOutput()
     if (output.length === 0) {
+      this.recordFailure({ stage: 'turn', category: 'unknown' })
       throw new Error('subagent-codex: Codex completed without a final answer')
     }
     return { output, stopReason: 'completed' }
@@ -226,6 +415,45 @@ export class CodexAppServerWire {
       : []
   }
 
+  /**
+   * The latest safe unattended permission fact observed for this run.
+   * @returns provider-authored diagnostic text, when one was observed.
+   */
+  collectDiagnostic(): string | undefined {
+    return this.diagnostic
+  }
+
+  /**
+   * The structured failure fact observed for this published turn.
+   * Call only after a non-completed return or rejection from {@link runTurn}.
+   * @returns the fixed stage/category pair and optional HTTP status.
+   */
+  collectFailure(): CodexWireFailureFacts {
+    return this.failure as CodexWireFailureFacts
+  }
+
+  /**
+   * Observe product stderr while retaining only enough tail to recognize fixed
+   * permission signatures. The raw text is never copied into the diagnostic.
+   * @param chunk - one decoded stderr chunk already forwarded to the host.
+   */
+  observeStderr(chunk: string): void {
+    const observed = `${this.stderrTail}${chunk}`
+    let latestIndex = -1
+    let latest: (typeof STDERR_PERMISSION_SIGNATURES)[number] | undefined
+    for (const signature of STDERR_PERMISSION_SIGNATURES) {
+      const index = observed.lastIndexOf(signature.text)
+      if (index > latestIndex) {
+        latestIndex = index
+        latest = signature
+      }
+    }
+    if (latest !== undefined) {
+      this.recordDiagnostic(latest.request, latest.decision, latest.reason)
+    }
+    this.stderrTail = stderrSignatureTail(observed)
+  }
+
   /** Detach JSON-RPC listeners and reject outstanding requests. Idempotent. */
   close(): void {
     if (this.closed) return
@@ -252,6 +480,7 @@ export class CodexAppServerWire {
   }
 
   private readonly onInputEnd = (): void => {
+    this.inputEnded = true
     this.fail(new Error('subagent-codex: app-server protocol stream closed'))
   }
 
@@ -270,42 +499,166 @@ export class CodexAppServerWire {
       throw new Error('subagent-codex: turn/start response did not match the active turn')
     }
     this.turnId = id
+    const pendingDiagnostic = this.pendingDiagnostic
+    this.pendingDiagnostic = undefined
+    if (pendingDiagnostic !== undefined) {
+      this.recordDiagnostic(
+        pendingDiagnostic.request,
+        pendingDiagnostic.decision,
+        pendingDiagnostic.reason,
+        pendingDiagnostic.order,
+      )
+    }
     const notifications = this.earlyTurnNotifications.splice(0)
     for (const notification of notifications) {
-      this.handleNotification(notification.method, notification.params)
+      this.handleNotification(
+        notification.method,
+        notification.params,
+        notification.order,
+      )
     }
   }
 
-  private validateRunIds(params: JsonObject, nullableTurn = false): void {
+  /**
+   * Validate the request's thread and turn association.
+   * @returns `true` when the matching turn is still provisional, so the caller
+   * defers its diagnostic until `commitTurnId()`.
+   */
+  private validateRunIds(
+    params: JsonObject,
+    nullableTurn = false,
+  ): boolean {
     if (params.threadId !== this.threadId) {
       throw new Error('subagent-codex: app-server request referenced another thread')
     }
-    if (nullableTurn && params.turnId === null) return
+    if (nullableTurn && params.turnId === null) return false
     const id = string(params.turnId, 'server request turn id')
     if (this.turnId === undefined) {
       this.observePendingTurnId(id)
-      return
+      return true
     }
     if (id !== this.turnId) {
       throw new Error('subagent-codex: app-server request referenced another turn')
     }
+    return false
+  }
+
+  private recordRequestDiagnostic(
+    provisional: boolean,
+    request: Parameters<typeof unattendedDiagnostic>[1],
+    decision: Parameters<typeof unattendedDiagnostic>[2],
+    reason: string,
+  ): void {
+    const order = this.nextObservationOrder()
+    if (provisional) {
+      this.pendingDiagnostic = {
+        order,
+        request,
+        decision,
+        reason,
+      }
+      return
+    }
+    this.recordDiagnostic(request, decision, reason, order)
+  }
+
+  private recordDiagnostic(
+    request: Parameters<typeof unattendedDiagnostic>[1],
+    decision: Parameters<typeof unattendedDiagnostic>[2],
+    reason: string,
+    order = this.nextObservationOrder(),
+  ): void {
+    if (order < this.diagnosticOrder) return
+    this.diagnosticOrder = order
+    this.diagnostic = unattendedDiagnostic(
+      this.permissionMode,
+      request,
+      decision,
+      reason,
+    )
+  }
+
+  private recordFailure(facts: CodexWireFailureFacts): void {
+    this.failure = facts
+  }
+
+  private nextObservationOrder(): number {
+    this.observationOrder += 1
+    return this.observationOrder
+  }
+
+  private recordDeclinedItem(item: JsonObject, order?: number): boolean {
+    if (item.type === 'commandExecution' && item.status === 'declined') {
+      this.recordDiagnostic(
+        'command execution',
+        'declined',
+        'Codex declined the command under the selected permission mode',
+        order,
+      )
+      return true
+    }
+    if (item.type === 'fileChange' && item.status === 'declined') {
+      this.recordDiagnostic(
+        'file change',
+        'declined',
+        'Codex declined the file change under the selected permission mode',
+        order,
+      )
+      return true
+    }
+    return false
   }
 
   private handleServerRequest(method: string, params: JsonObject): Promise<unknown> {
     try {
       switch (method) {
         case 'item/commandExecution/requestApproval':
+        {
+          const provisional = this.validateRunIds(params)
+          const decision = unattendedDecision(params)
+          this.recordRequestDiagnostic(
+            provisional,
+            'command approval',
+            decision === 'cancel' ? 'cancelled' : 'declined',
+            'the provider does not grant interactive approval',
+          )
+          return Promise.resolve({ decision })
+        }
         case 'item/fileChange/requestApproval':
-          this.validateRunIds(params)
-          return Promise.resolve({ decision: unattendedDecision(params) })
+        {
+          const provisional = this.validateRunIds(params)
+          const decision = unattendedDecision(params)
+          this.recordRequestDiagnostic(
+            provisional,
+            'file approval',
+            decision === 'cancel' ? 'cancelled' : 'declined',
+            'the provider does not grant interactive approval',
+          )
+          return Promise.resolve({ decision })
+        }
         case 'item/permissions/requestApproval':
-          this.validateRunIds(params)
+          this.recordRequestDiagnostic(
+            this.validateRunIds(params),
+            'permission grant',
+            'denied',
+            'the provider grants no additional turn permissions',
+          )
           return Promise.resolve({ permissions: {}, scope: 'turn' })
         case 'item/tool/requestUserInput':
-          this.validateRunIds(params)
+          this.recordRequestDiagnostic(
+            this.validateRunIds(params),
+            'user input',
+            'empty response',
+            'the provider does not collect interactive answers',
+          )
           return Promise.resolve({ answers: {} })
         case 'mcpServer/elicitation/request':
-          this.validateRunIds(params, true)
+          this.recordRequestDiagnostic(
+            this.validateRunIds(params, true),
+            'MCP elicitation',
+            'declined',
+            'the provider does not collect interactive MCP input',
+          )
           return Promise.resolve({ action: 'decline', content: null, _meta: null })
         default:
           throw new Error(`subagent-codex: unsupported app-server request ${JSON.stringify(method)}`)
@@ -317,7 +670,11 @@ export class CodexAppServerWire {
     }
   }
 
-  private handleNotification(method: string, params: JsonObject): void {
+  private handleNotification(
+    method: string,
+    params: JsonObject,
+    order?: number,
+  ): void {
     if (method === 'turn/started') {
       const threadId = string(params.threadId, 'turn/started thread id')
       if (threadId !== this.threadId) return
@@ -334,12 +691,17 @@ export class CodexAppServerWire {
       if (this.turnId === undefined) {
         if (this.turnCompleted !== undefined) {
           this.observePendingTurnId(id)
-          this.earlyTurnNotifications.push({ method, params })
+          this.earlyTurnNotifications.push({
+            method,
+            params,
+            order: this.nextObservationOrder(),
+          })
         }
         return
       }
       if (id !== this.turnId) return
       const item = object(params.item, 'item/completed item')
+      if (this.recordDeclinedItem(item, order)) return
       if (item.type !== 'agentMessage') return
       const text = typeof item.text === 'string'
         ? item.text
@@ -362,13 +724,21 @@ export class CodexAppServerWire {
     if (turnCompleted === undefined) return
     if (this.turnId === undefined) {
       this.observePendingTurnId(id)
-      this.earlyTurnNotifications.push({ method, params })
+      this.earlyTurnNotifications.push({
+        method,
+        params,
+        order: this.nextObservationOrder(),
+      })
       return
     }
     if (id !== this.turnId) return
+    this.terminalObserved = true
     if (!['completed', 'interrupted', 'failed'].includes(String(turn.status))) {
       throw new Error(`subagent-codex: app-server returned invalid terminal turn status ${String(turn.status)}`)
     }
-    turnCompleted.resolve(params)
+    turnCompleted.resolve({
+      params,
+      order: order ?? this.nextObservationOrder(),
+    })
   }
 }

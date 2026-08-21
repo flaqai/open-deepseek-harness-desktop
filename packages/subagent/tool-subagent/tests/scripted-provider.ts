@@ -27,6 +27,8 @@ export interface Config {
   reply?: string
   /** Terminal result reason. */
   stopReason?: SubagentStopReason
+  /** Safe non-assistant detail for a non-completed result. */
+  diagnostic?: string
   /** Start-time features advertised by the provider. */
   capabilities?: Partial<SubagentCapabilities>
   /** Whether tool descriptions say the child inherits completed turns. */
@@ -65,11 +67,17 @@ class ScriptedSubagentProvider implements SubagentProvider {
       throw new Error('scripted subagent start aborted before publication')
     }
 
-    const resultFor = (): SubagentResult => ({
-      output,
-      ...wantsStructured ? { structured: this.config.structured ?? { reply } } : {},
-      stopReason: state.cancelled ? 'aborted' : stopReason,
-    })
+    const resultFor = (): SubagentResult => {
+      const terminal = state.cancelled ? 'aborted' : stopReason
+      return {
+        output,
+        ...wantsStructured ? { structured: this.config.structured ?? { reply } } : {},
+        ...this.config.diagnostic !== undefined && terminal !== 'completed'
+          ? { diagnostic: this.config.diagnostic }
+          : {},
+        stopReason: terminal,
+      }
+    }
     const gate = Promise.resolve(this.config.onStart?.(request))
     const result = gate.then(() => new Promise<SubagentResult>((resolve) => {
       setTimeout(() => { resolve(resultFor()) }, 0)

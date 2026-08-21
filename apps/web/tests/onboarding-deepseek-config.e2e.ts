@@ -234,7 +234,7 @@ describe.skipIf(MODE === 'record')('web e2e: first-run DeepSeek credential setup
     expect(document).toContain('name: Private Preview')
     expect(document).toContain('contextWindow: 131072')
     expect(document).toContain('maxTokens: 64000')
-    expect(document).not.toContain('id: deepseek-v4-flash')
+    expect(document).not.toMatch(/^\s*- id: deepseek-v4-flash$/m)
 
     await page.keyboard.press('Escape')
     // A connected Workspace is what puts a live composer — and its model

@@ -14,7 +14,8 @@ const SHIPPED_CONFIG_GLOBS = [
   'apps/*/config/*.yml',
   'examples/*/*.cordis.yml',
   'examples/*/cordis.yml',
-  'packages/bundle/*/cordis.patch.yml',
+  // Bundle identity comes from the package manifest, not the domain directory.
+  'packages/*/*/cordis.patch.yml',
   // The Python runtime ships its own default composition inside the wheel.
   'python/*/src/**/cordis.yml',
 ]

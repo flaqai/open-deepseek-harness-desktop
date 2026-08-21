@@ -8,7 +8,7 @@ English | [中文](2026-07-08-background-subagent-tasks.zh.md)
 
 The [subagent seam](2026-06-21-subagent-capability-seam.md) returns a `SubagentRun`, but the model-facing tool originally collected every run synchronously. Independent, slow delegations therefore held the parent call open or ran serially.
 
-Subagents need the same start, collect, list, stop, ownership, notification, and cleanup behavior as other long-running tools without adopting process-stream semantics. The child session remains the detailed trace; the parent needs the final answer and job status. A background child also outlives its starting tool call, so its cancellation and owner-disposal contracts must be explicit.
+Subagents need the same start, collect, list, stop, ownership, notification, and cleanup behavior as other long-running tools without adopting process-stream semantics. The child session remains the detailed trace; the parent needs the final answer or safe failure detail plus job status. A background child also outlives its starting tool call, so its cancellation and owner-disposal contracts must be explicit.
 
 ## Decision
 
@@ -16,7 +16,7 @@ Each `dsh-tool-subagent` instance may expose `run_in_background`, controlled by 
 
 Background subagents use the [generic background job runtime](../architecture/2026-06-20-generic-long-running-tool-runtime.md). Collection, listing, cancellation, completion notices, and prompt guidance come from `job_output`, `job_list`, and `job_kill`; there are no subagent-specific companion tools.
 
-Foreground calls retain their synchronous contract: await provider startup and `run.result`, return final text only for `completed`, map other terminal reasons to an errored tool result, and always dispose the run before returning.
+Foreground calls retain their synchronous contract: await provider startup and `run.result`, return final text only for `completed`, map other terminal reasons to an errored tool result with the optional safe diagnostic described by the [non-interactive permissions decision](2026-08-15-product-subagent-noninteractive-permissions.md), and always dispose the run before returning.
 
 For a background call, the tool validates the parent and refuses an already-aborted execution signal before calling `ctx.jobs.start()`. The job runtime preflights the control API and owner cleanup before invoking the producer starter. That starter creates an independent `AbortController` and begins `ctx.subagents.start()`; after the id is returned, the tool-call signal no longer owns the child.
 
@@ -24,7 +24,7 @@ The task registration maps the subagent seam as follows:
 
 - `kind` is `subagent`, `label` is the model-supplied description, and `owner` is the parent agent.
 - `cancel(reason?)` aborts the task-owned controller. The same signal covers pending provider startup and the published run's remaining work.
-- `done` awaits provider startup, the child result, and `run.dispose()`. Completed runs return final text, aborted runs become `killed`, and other stop reasons become `failed`. Startup, result, and disposal failures become failed outcomes rather than rejected task promises.
+- `done` awaits provider startup, the child result, and `run.dispose()`. Completed runs return final text, aborted runs become `killed`, and other stop reasons become `failed` with the Provider diagnostic when present. Startup, result, and disposal failures become failed outcomes rather than rejected task promises.
 - `readOutput` is absent. While live, `job_output` returns status only; after settlement, it returns final output idempotently. Intermediate child activity remains in the child session.
 
 ## Lifecycle

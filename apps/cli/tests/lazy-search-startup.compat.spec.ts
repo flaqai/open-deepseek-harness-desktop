@@ -57,6 +57,7 @@ function runBuiltWeb(cwd: string): Promise<{ stdout: string; stderr: string; cod
     const child = spawn(process.execPath, [
       builtBin,
       'web',
+      '--no-open',
       '--host',
       '127.0.0.1',
       '--port',

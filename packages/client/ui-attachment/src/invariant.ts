@@ -15,9 +15,8 @@ export const name = 'client-ui-attachment-invariant'
 export const inject = ['invariants']
 
 /**
- * No runtime invariant: pure props-in React atoms with no Cordis API —
- * no events, no services, no mutable cross-plugin state; rendering contracts
- * are asserted directly by this package's component specs.
+ * No runtime invariant: the package contributes only effect-owned slot entries;
+ * the slot registry owns their lifecycle and validates their declarations.
  */
 const install: InvariantInstaller = () => {}
 

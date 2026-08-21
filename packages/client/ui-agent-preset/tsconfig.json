@@ -33,9 +33,6 @@
       "path": "../ui-slots"
     },
     {
-      "path": "../web-react"
-    },
-    {
       "path": "../../runtime-diagnostics/invariants"
     },
     {

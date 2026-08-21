@@ -40,7 +40,11 @@ export function resolveHarnessLaunch(
   environment: DesktopLaunchEnvironment,
   options: DesktopLaunchOptions = {},
 ): HarnessLaunch {
-  return resolveHarnessInvocation(environment, ['web', '--host', '127.0.0.1', '--port', '0'], options)
+  return resolveHarnessInvocation(
+    environment,
+    ['web', '--host', '127.0.0.1', '--port', '0', '--no-open'],
+    options,
+  )
 }
 
 /** Resolve an arbitrary structured Harness CLI invocation with desktop runtime defaults. */

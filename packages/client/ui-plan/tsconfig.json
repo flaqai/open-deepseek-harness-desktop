@@ -30,9 +30,6 @@
       "path": "../ui-slots"
     },
     {
-      "path": "../web-react"
-    },
-    {
       "path": "../../plan/plan-mode"
     },
     {

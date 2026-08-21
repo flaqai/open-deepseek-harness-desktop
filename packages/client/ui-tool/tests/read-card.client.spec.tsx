@@ -9,7 +9,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { Context } from '@deepseek-ai/cordis'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   createSnapshotStore, EMPTY_CONVERSATION_VIEWS,
 } from '@deepseek-ai/dsh-client-runtime/client'
@@ -103,6 +103,15 @@ describe('readCardModel', () => {
     // With no session cwd there is nothing to relativize against.
     expect(readCardModel(settled({ resultView: resultRead({ path: '/w/app/src/a.ts' }) }))?.label)
       .toBe('/w/app/src/a.ts')
+  })
+
+  it('abbreviates a leftover POSIX home path label', () => {
+    expect(readCardModel(settled({ resultView: resultRead({ path: '/Users/u/notes.md' }) }), '/tmp/ws', '/Users/u')?.label)
+      .toBe('~/notes.md')
+    expect(readCardModel(settled({ resultView: resultRead({ path: '/Users/u/app/src/a.ts' }) }), '/Users/u/app', '/Users/u')?.label)
+      .toBe('src/a.ts')
+    expect(readCardModel(settled({ resultView: resultRead({ path: 'C:\\Users\\u\\a.ts' }) }), '/tmp/ws', '/Users/u')?.label)
+      .toBe('C:\\Users\\u\\a.ts')
   })
 
   it('carries an omitted language through as undefined', () => {
@@ -252,7 +261,12 @@ describe('ReadRow keyed toolview', () => {
 })
 
 describe('DetailsPanel Output section (read)', () => {
-  function mount(snapshot: ConversationSnapshot, selection: SelectionTarget | null, cwd?: string) {
+  function mount(
+    snapshot: ConversationSnapshot,
+    selection: SelectionTarget | null,
+    cwd?: string,
+    description?: Parameters<typeof renderToolDetails>[1],
+  ) {
     localStorage.clear()
     const chat = createChatStore().create()
     if (selection !== null) chat.actions.select(selection)
@@ -273,7 +287,7 @@ describe('DetailsPanel Output section (read)', () => {
     return render(
       <DetailsPanel
         SessionProvider={SessionProviderStub}
-        renderSlot={renderToolDetails(t)}
+        renderSlot={renderToolDetails(t, description)}
         sessionId={SID}
         t={t}
         useSession={bindSnapshotSelector({ getSnapshot: () => snapshot, subscribe: () => () => {} })}
@@ -331,6 +345,15 @@ describe('DetailsPanel Output section (read)', () => {
     }), target)
     expect(view.container.querySelector('[data-read]')).toBeNull()
     expect(view.getByText('输出').closest('section')?.querySelector('pre')?.textContent).toBe('plain result')
+  })
+
+  it('abbreviates a leftover POSIX home path on the read card label', () => {
+    const view = mount(snapshot({
+      nodes: [settled({ resultView: resultRead({ path: '/Users/u/notes.md' }) })],
+    }), target, '/tmp/ws', {
+      version: '0', cwd: '/tmp', attachedSessions: 0, home: '/Users/u', canOpenPath: false,
+    })
+    expect(view.getByText('~/notes.md')).toBeTruthy()
   })
 
   it('a running read keeps the 运行中… placeholder (no result view)', () => {

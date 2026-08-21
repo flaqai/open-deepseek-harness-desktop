@@ -110,6 +110,15 @@ describe('AttachmentRail', () => {
     expect(view.getByLabelText('向右滚动图片')).toBeTruthy()
   })
 
+  it('keeps scrolling available when ResizeObserver is unavailable', () => {
+    vi.stubGlobal('ResizeObserver', undefined)
+    const view = render(
+      <AttachmentRail items={[item('a')]} labels={labels} onOpen={vi.fn()} onRemove={vi.fn()} />,
+    )
+    expect(view.getByRole('group', { name: '待发送图片' })).toBeTruthy()
+    view.unmount()
+  })
+
   it('pans horizontally on a vertical wheel, consuming the event, with clamped normalized travel', () => {
     const view = render(
       <AttachmentRail items={[item('a'), item('b')]} labels={labels} onOpen={vi.fn()} onRemove={vi.fn()} />,

@@ -173,6 +173,7 @@ describe('createFixtureApi', () => {
           maxImagesPerMessage: 20,
           maxMessageImageBytes: 100 * 1024 * 1024,
           maxImagePixels: 40_000_000,
+          maxImageDimension: 2000,
           mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
         },
       } },
@@ -522,7 +523,9 @@ describe('createFixtureApi', () => {
   it('describe answers the fixture identity', async () => {
     const api = createFixtureApi()
     const response = await api.host.describe(req({}))
-    expect(response.result).toMatchObject({ ok: true, value: { version: '0.0.0-fixture', attachedSessions: 1 } })
+    expect(response.result).toMatchObject({
+      ok: true, value: { version: '0.0.0-fixture', attachedSessions: 1, home: '/home/fixture' },
+    })
     const empty = await createFixtureApi({ empty: true }).host.describe(req({}))
     expect(empty.result).toMatchObject({ ok: true, value: { attachedSessions: 0 } })
   })
@@ -547,10 +550,16 @@ describe('createFixtureApi', () => {
     const api = createFixtureApi()
     const listed = await api.workspace.list(req({}))
     if (!listed.result.ok) throw new Error('list failed')
-    expect(listed.result.value.items).toEqual([expect.objectContaining({
-      workspaceId: 'fx-ws-fixture', path: '/tmp/fixture', title: 'fixture',
-      sessionIds: ['fx-alpha', 'fx-beta', 'fx-gamma'],
-    })])
+    expect(listed.result.value.items).toEqual([
+      expect.objectContaining({
+        workspaceId: 'fx-ws-fixture', path: '/tmp/fixture', title: 'fixture',
+        sessionIds: ['fx-alpha', 'fx-beta', 'fx-gamma'],
+      }),
+      expect.objectContaining({
+        workspaceId: 'fx-ws-home', path: '/home/fixture/Documents/project', title: 'project',
+        sessionIds: [],
+      }),
+    ])
     // path collision → the existing entity comes back, created:false, no frame.
     const reused = await api.workspace.create(req({ path: '/tmp/fixture' }))
     if (!reused.result.ok) throw new Error('reuse failed')
@@ -866,6 +875,15 @@ describe('createFixtureApi', () => {
       content: [{ type: 'text' as const, text: 'keep me' }],
     }))
     expect(prompt.result).toMatchObject({ ok: false, error: { code: 'agent-busy' } })
+    const imagePrompt = await rejecting.sessions.prompt(req({
+      sessionId: real.result.value.sessionId,
+      mode: 'queue' as const,
+      content: [{ type: 'image' as const, mediaType: 'image/png' as const, data: 'iVBORw0KGgo=' }],
+    }))
+    expect(imagePrompt.result).toMatchObject({
+      ok: false,
+      error: { code: 'attachment-error', details: { reason: 'IMAGE_DIMENSION_TOO_LARGE' } },
+    })
   })
 
   it('timing hooks: history delay + one-shot failure, silent append, and breakStreams end open generators', async () => {

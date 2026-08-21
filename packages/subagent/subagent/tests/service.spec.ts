@@ -127,11 +127,12 @@ describe('SubagentRuntime', () => {
     expect('resume' in provider).toBe(false)
   })
 
-  it('does not expose manager teardown and treats a scoped drain as a no-op when no manager was bound', async () => {
+  it('does not expose manager teardown and treats public drains as no-ops when no manager was bound', async () => {
     const { subagents } = await service()
     // Without `ctx.agents` no manager exists, so nothing was ever materialized.
     expect('drainContinuable' in subagents).toBe(false)
     await expect(subagents.drainContinuableDescendants([])).resolves.toBeUndefined()
+    await expect(subagents.drainContinuableChildren(fakeParent(), [SessionId('child')])).resolves.toBeUndefined()
   })
 
   it('treats interrupt as an accepted no-op when no manager was bound', async () => {

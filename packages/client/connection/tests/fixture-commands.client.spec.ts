@@ -28,13 +28,15 @@ const req = <P>(payload: P): RpcRequest<P> => ({ rpcId: RpcId(`t-${reqCount++}`)
 describe('createFixtureApi commands/skills', () => {
   it('serves the addressed session catalog', async () => {
     const { rpc } = createFixtureFaces()
-    const commands = await callRemote<{ name: string; input?: { hint: string } }[]>(
+    const commands = await callRemote<{ name: string; input?: { hint: string; images?: boolean } }[]>(
       rpc, 'commands/list', { agentId: sid('fx-alpha') })
     expect(commands.map(c => c.name)).toEqual(['compact', 'echo', 'goal', 'permission', 'plan'])
     // input hint rides only the commands declaring it.
     const echo = commands.find(c => c.name === 'echo')
     expect(echo?.input?.hint).toBeTruthy()
     expect(commands.find(c => c.name === 'compact')?.input).toBeUndefined()
+    // Image acceptance is declared per descriptor; only goal and plan carry it.
+    expect(commands.filter(c => c.input?.images === true).map(c => c.name)).toEqual(['goal', 'plan'])
   })
 
   it('rejects a catalog request for an unknown session', async () => {
@@ -78,6 +80,70 @@ describe('createFixtureApi commands/skills', () => {
       args: { agentId: sid('fx-nope'), line: '/goal ship' },
     })
     expect(missing).toMatchObject({ ok: false, error: { code: 'session-not-found' } })
+  })
+
+  it('refuses an image-carrying execute for a non-declaring command with a logged error pair', async () => {
+    const { api, rpc } = createFixtureFaces()
+    const frames: unknown[] = []
+    const abort = new AbortController()
+    const stream = api.events.mux(req({}), abort.signal)
+    const pump = (async () => {
+      for await (const frame of stream) {
+        frames.push(frame.payload)
+        if (frames.filter(f => (f as { type: string }).type === 'session/event').length >= 2) abort.abort()
+      }
+    })()
+    const png = { mediaType: 'image/png', data: 'AA==' }
+    const refused = await callRemote<{ commandId: string; result: { kind: string; text?: string } } | undefined>(
+      rpc, 'commands/execute', { agentId: sid('fx-alpha'), line: '/echo hi', images: [png] })
+    expect(refused?.commandId).toBeTruthy()
+    expect(refused?.result).toEqual({ kind: 'error', text: '/echo does not accept image attachments' })
+    await pump
+    const events = frames
+      .filter((f): f is { type: string; event: { type: string; data: Record<string, unknown> } } => (f as { type: string }).type === 'session/event')
+      .map(f => f.event)
+    expect(events).toMatchObject([
+      { type: 'command/run', data: { name: 'echo', args: ' hi', source: { kind: 'user' } } },
+      { type: 'command/done', data: { kind: 'error', text: '/echo does not accept image attachments' } },
+    ])
+  })
+
+  it('a declaring command accepts an image-carrying execute', async () => {
+    const { rpc } = createFixtureFaces()
+    const png = { mediaType: 'image/png', data: 'AA==' }
+    const accepted = await callRemote<{ result: { kind: string } } | undefined>(
+      rpc, 'commands/execute', { agentId: sid('fx-alpha'), line: '/goal ship it', images: [png] })
+    expect(accepted?.result.kind).toBe('success')
+    const planMessage = await callRemote<{ result: { kind: string } } | undefined>(
+      rpc, 'commands/execute', { agentId: sid('fx-alpha'), line: '/plan sketch the layout', images: [png] })
+    expect(planMessage?.result.kind).toBe('success')
+    const imageOnlyPlan = await callRemote<{ result: { kind: string } } | undefined>(
+      rpc, 'commands/execute', { agentId: sid('fx-alpha'), line: '/plan', images: [png] })
+    expect(imageOnlyPlan?.result.kind).toBe('success')
+  })
+
+  it('mirrors the producer grammar rejections for control-only declaring lines', async () => {
+    const { rpc } = createFixtureFaces()
+    const png = { mediaType: 'image/png', data: 'AA==' }
+    const bareGoal = await callRemote<{ result: { kind: string; text?: string } } | undefined>(
+      rpc, 'commands/execute', { agentId: sid('fx-alpha'), line: '/goal', images: [png] })
+    expect(bareGoal?.result).toEqual({
+      kind: 'error',
+      text: 'Image attachments only accompany a goal objective: /goal <objective> or /goal edit <objective>.',
+    })
+    const refused = await callRemote<{ result: { kind: string; text?: string } } | undefined>(
+      rpc, 'commands/execute', { agentId: sid('fx-alpha'), line: '/plan off', images: [png] })
+    expect(refused?.result).toEqual({
+      kind: 'error',
+      text: 'Image attachments cannot accompany /plan off.',
+    })
+  })
+
+  it('answers no execution for an unknown name even when images accompany it', async () => {
+    const { rpc } = createFixtureFaces()
+    const png = { mediaType: 'image/png', data: 'AA==' }
+    expect(await callRemote(rpc, 'commands/execute', { agentId: sid('fx-alpha'), line: '/nope', images: [png] }))
+      .toBeUndefined()
   })
 
   it('answers no execution for unknown names and non-command lines', async () => {

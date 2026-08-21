@@ -157,7 +157,7 @@ activation-owner 作用域之所以存在，是因为普通 Cordis owner effect 
 
 **让提供方通过 Agent handle 创建、恢复 child 或投递消息。** 初始提供方只持有 `prepareContinuable()` 及其分离式创建规格这一项差异：child 是全新启动，还是带有 parent 前缀。管理器必须通过私有 activation-owner 作用域自行调用 `ctx.agents.create()`，使该作用域成为每个 handle 的结构化所有者。持久化的进程内会话已经包含初始前缀及通用重建描述符，消息投递则属于 Agent inbox。让提供方持有任何后续 handle、`SubagentRun` 或消息所有权，会让提供方保留所有权，却没有已发布行为需要它。
 
-**将报告投递纳入基础生命周期。** 可重复的 child 到 parent 报告与该生命周期兼容，但静默投递还是唤醒投递、确认、持久性和重试行为都是独立的产品决策。后续的 report 包保持可选，并消费一个显式的 child 设置钩子，因此可继续驻留不会默认授予返回通道。
+**将报告投递纳入基础生命周期。** 可重复的 child 到 parent 报告与该生命周期兼容，但静默投递还是 next-step 投递、确认、持久性和重试行为都是独立的产品决策。后续的 report 包保持可选，并消费一个显式的 child 设置钩子，因此可继续驻留不会默认授予返回通道。
 
 **将 `SessionHeader.parentSession` 视为在线所有权。** 持久化谱系不能证明已记录的 parent 当前持有 child。在线 parent 的 `ownedChildren` 成员关系会记录进程内关系，而不改变持久化 parent id。
 
@@ -209,7 +209,7 @@ activation-owner 作用域之所以存在，是因为普通 Cordis owner effect 
 
 进程内 inbox 和所有权图无法协调两个 harness 进程。允许多个进程并发访问同一持久化存储的部署，仍需要持久化 lease 和邮箱协议。
 
-未安装可选 report 包时，完成 child 轮次既不会把内容发送给历史 parent，也不会唤醒它。安装后，只有显式调用 `report` 才会发送选中内容；静默投递不唤醒 parent，唤醒投递则会排入一个后续轮次。无论如何，child 的详细输出都会保留在其持久化会话中。
+未安装可选 report 包时，完成 child 轮次既不会把内容发送给历史 parent，也不会唤醒它。安装后，只有显式调用 `report` 才会发送选中内容；静默投递不唤醒 parent，next-step 投递则会唤醒它并加入最近的 step 边界。无论如何，child 的详细输出都会保留在其持久化会话中。
 
 将每条继续执行消息排队，意味着 parent 无法立即纠正正在进行的 child 轮次；纠正操作会在下一个轮次执行。后续 UI steering 操作可以缩短该延迟，而不改变 follow-up 排序。
 

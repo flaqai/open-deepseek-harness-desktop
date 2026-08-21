@@ -86,8 +86,16 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Fallback locale consulted after the active locale misses (also the last-resort initial locale). */
-export const FALLBACK_LOCALE: LocaleId = 'zh'
+/**
+ * English is both the locale the UI opens in when the browser names no shipped
+ * language (and for non-browser runs), and the dictionary consulted after the
+ * active locale misses a key. One constant serves both because the shipped
+ * `zh`/`en` dictionaries carry identical key sets, so neither direction can
+ * leave a key unresolved; the residual case points at English rather than
+ * zh because a browser naming neither shipped language is the reader least
+ * likely to read Chinese.
+ */
+export const FALLBACK_LOCALE: LocaleId = 'en'
 
 /** Shared namespace for shell-level texts. */
 export const COMMON_NS = 'common'
@@ -102,9 +110,31 @@ const LOCALES: readonly LocaleDefinition[] = Object.freeze([
 ])
 
 /**
+ * `<html lang>` tag per shipped locale. The locale id is the app's own
+ * vocabulary (primary subtag); the document attribute wants a BCP 47 tag,
+ * which assistive technology and browser features (pronunciation rules,
+ * translation offers, font fallback, spell check) read to pick their own
+ * behavior. `zh` alone leaves the script ambiguous, so the shipped Chinese
+ * copy names the variant it actually is.
+ */
+const DOCUMENT_LANGUAGE: Record<LocaleId, string> = { zh: 'zh-CN', en: 'en' }
+
+/**
+ * Point `<html lang>` at the active locale. Called on every locale change,
+ * so the attribute tracks the UI instead of standing at whatever the served
+ * markup happened to declare.
+ * @param active - the active locale id.
+ */
+function syncDocumentLanguage(active: LocaleId): void {
+  // Non-browser runs (node boots of the client tree) have no document.
+  if (typeof document === 'undefined') return
+  document.documentElement.lang = DOCUMENT_LANGUAGE[active]
+}
+
+/**
  * Dictionary registry plus locale preference. Lookup chain per key: the
- * entry's namespace in the active locale -> that namespace's zh fallback ->
- * the shared common namespace (active, then zh) -> the key itself (missing
+ * entry's namespace in the active locale -> that namespace's en fallback ->
+ * the shared common namespace (active, then en) -> the key itself (missing
  * text stays visible, fail loud in the UI rather than blank). Reads go
  * through {@link getLocale}; writes only through {@link setLocale};
  * continuous sync through the `locale/change` event, or through the
@@ -169,13 +199,20 @@ export class LocaleRuntime {
 
   /**
    * Switch the active locale — the only user preference write entry.
+   *
+   * The durable write happens even when the id already matches the active
+   * locale, because the active value may be a provisional browser-derived or
+   * fallback resolution that nothing has stored yet. Picking the language
+   * already on screen is still an explicit choice, and it must survive a
+   * different browser sharing the same DSH home. Only the render notification
+   * is conditional: republishing an unchanged locale would churn every
+   * subscriber for nothing.
    * @param id - a registered locale id; unknown ids throw.
    */
   setLocale(id: string): void {
     const match = this.snapshot.locales.find(l => l.id === id)
     if (match === undefined) throw new Error(`locale "${id}" is not registered`)
-    if (this.snapshot.active === match.id) return
-    this.publish(match.id, true)
+    if (this.snapshot.active !== match.id) this.publish(match.id, true)
     void this.host?.set(LOCALE_PREFERENCE_FIELD, match.id)
   }
 
@@ -365,6 +402,7 @@ export function apply(ctx: ClientContext): void {
   const store = createLanguageRowStore()
   let bound: BoundActions<typeof store> | undefined
   const sync = (snapshot: LocaleSnapshot): void => {
+    syncDocumentLanguage(snapshot.active)
     bound?.sync(
       snapshot.active,
       snapshot.locales.map(l => ({ id: l.id, label: l.label })),
@@ -372,6 +410,10 @@ export function apply(ctx: ClientContext): void {
     )
   }
   ctx.on('locale/change', sync)
+  // The served markup declares one language; the resolved locale may differ
+  // (browser detection, or a stored preference adopted after activation), so
+  // state it once at activation rather than waiting for the first change.
+  syncDocumentLanguage(locale.getLocale().active)
   const injected = (actions: BoundActions<typeof store>): LanguageRowInjected => {
     bound = actions
     // Re-sync from the getter so no event is lost between registration and

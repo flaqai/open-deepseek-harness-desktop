@@ -5,17 +5,17 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { TestRemote, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
-import { SettingsScopeBinder } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { apply, inject, SETTINGS_NS } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceRowInjected, ThemeRuntime } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { THEME_SETTINGS_NAMESPACE, ThemeSettingsSchema } from '../src/theme-settings.ts'
 import { AppearanceRow } from '../src/client/AppearanceRow.tsx'
 import type { createAppearanceRowStore } from '../src/client/settings-store.ts'
 
-// The service reads its initial locale from the browser; these specs assert
-// the shipped Chinese copy, so they state the browser they assume.
-usePinnedBrowserLanguages('zh-CN')
+// These specs assert the shipped Chinese copy. The lane has no jsdom `window`,
+// so browser-language detection never runs and a fresh LocaleRuntime opens on
+// FALLBACK_LOCALE (en); bench stages zh explicitly on the locale instead.
 
 const SLOT = 'settings.general.item'
 
@@ -29,6 +29,7 @@ async function bench(isLoopback = true) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   const locale = new LocaleRuntime(ctx)
+  locale.setLocale('zh')
   ctx.provide('locale', locale)
   let preference = 'system'
   const namespace = () => ({
@@ -56,7 +57,7 @@ async function bench(isLoopback = true) {
   ctx.provide('connection', { api: { settings: { describe, mutate } }, isLoopback } as never)
   // The settings transport and the forwarded-event port the plugin injects.
   new TestRemote(ctx)
-  await ctx.plugin(SettingsScopeBinder).await()
+  await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return {
     ctx, slots: ctx.get('slots') as SlotRegistry, locale, describe, mutate,
     setHostPreference: (next: string) => { preference = next },
@@ -127,13 +128,19 @@ describe('ui-theme apply', () => {
 
   it('loads Host settings at boot, refreshes its namespace, and keeps remote browsers process-local', async () => {
     const b = await bench()
+    // The shared mirror read once at bench time; a Host-side change reaches it
+    // through the document invalidation, exactly as production announces one.
     b.setHostPreference('dark')
+    b.ctx.remote.$dispatch('settings/document-updated', [THEME_SETTINGS_NAMESPACE, 0])
     declareItems(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const theme = b.ctx.get('theme') as ThemeRuntime
     await vi.waitFor(() => { expect(theme.getTheme().preference).toBe('dark') })
+    // The mirror refreshes on every document commit (ns-agnostic); the scope's
+    // derived value only moves when its own namespace changed.
     b.ctx.remote.$dispatch('settings/document-updated', ['unrelated', 0])
-    expect(b.describe).toHaveBeenCalledOnce()
+    await vi.waitFor(() => { expect(b.describe).toHaveBeenCalledTimes(3) })
+    expect(theme.getTheme().preference).toBe('dark')
     b.setHostPreference('light')
     b.ctx.remote.$dispatch('settings/document-updated', [THEME_SETTINGS_NAMESPACE, 0])
     await vi.waitFor(() => { expect(theme.getTheme().preference).toBe('light') })
@@ -151,12 +158,15 @@ describe('ui-theme apply', () => {
     expect(remote.mutate).not.toHaveBeenCalled()
   })
 
-  it('activates before a slow initial settings read and converges when it settles', async () => {
+  it('activates before a slow settings refresh and converges when it settles', async () => {
     const b = await bench()
     b.setHostPreference('dark')
     const describe = b.describe.getMockImplementation()!
     const pending = deferred<Awaited<ReturnType<typeof describe>>>()
     b.describe.mockImplementationOnce(() => pending.promise)
+    // The refresh hangs on the wire; the mirror keeps serving the last good
+    // answer, so activation never blocks on the settings transport.
+    b.ctx.remote.$dispatch('settings/document-updated', [THEME_SETTINGS_NAMESPACE, 0])
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     const theme = b.ctx.get('theme') as ThemeRuntime
@@ -169,9 +179,10 @@ describe('ui-theme apply', () => {
   it('ignores an invalid preference crossing the settings wire', async () => {
     const b = await bench()
     b.setHostPreference('sepia')
+    b.ctx.remote.$dispatch('settings/document-updated', [THEME_SETTINGS_NAMESPACE, 0])
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const theme = b.ctx.get('theme') as ThemeRuntime
-    await vi.waitFor(() => { expect(b.describe).toHaveBeenCalledOnce() })
+    await vi.waitFor(() => { expect(b.describe).toHaveBeenCalledTimes(2) })
     expect(theme.getTheme().preference).toBe('system')
   })
 

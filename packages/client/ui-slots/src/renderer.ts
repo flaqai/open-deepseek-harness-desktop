@@ -185,7 +185,7 @@ export interface SlotRendererHost {
   locale?: LocaleFace | undefined
 }
 
-/** The installation contract: runtime owns install()/renderSlot(); web-react implements rendering. */
+/** The installation contract: runtime owns install()/renderSlot(); ui-renderer implements rendering. */
 export interface SlotRenderer {
   /**
    * Render the root slot tree over the host API (the only ctx-level entry).

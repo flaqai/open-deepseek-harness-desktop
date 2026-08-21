@@ -67,6 +67,8 @@ export class RepositoryCleaner {
     const unsafeOrphans: string[] = []
     const canonicalRoot = await realpath(this.root)
 
+    await this.addIfPresent(targets, join(this.root, '.dsh-build'), canonicalRoot)
+
     // These checks cover legacy root-level incremental state emitted by older configs.
     await this.addIfPresent(targets, join(this.root, '.typecheck'), canonicalRoot)
     for (const entry of await readdir(this.root, { withFileTypes: true })) {

@@ -46,7 +46,7 @@ jobs:
 
       # The Loader smoke runs package exports under plain Node in lib mode.
       - name: Build (lib for the E2B Loader smoke)
-        run: pnpm run build
+        run: pnpm run build:official
 
       - name: E2B tests (live sandbox)
         env:

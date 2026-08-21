@@ -12,7 +12,7 @@ The visible symptom that surfaced the gap was elsewhere. The workspace browser's
 
 ## Decision
 
-`packages/client/ui-theme/src/styles/scrollbar.css` is the sole consumer of the four tokens, and the fifth ui-theme sheet in the shell's import chain (`packages/client/web/src/base.css`). It follows `design-platform.css` there because it reads that sheet's tokens.
+`packages/client/ui-theme/src/styles/scrollbar.css` is the sole consumer of the four tokens and the third global sheet imported by ui-theme's dynamic client entry. It follows `design-platform.css` there because it reads that sheet's tokens; both compile into ui-theme's plugin-owned client bundle.
 
 The rules sit on `body`, not `html`. `design-platform.css` declares the `--dsw-alias-*` tokens on `body`, with the dark overrides on `body[data-ds-dark-theme]`, and custom properties inherit only downward; an `html` rule resolves them to the guaranteed-invalid value, at which point `scrollbar-color` computes to `auto` and no theming happens at all.
 

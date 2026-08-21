@@ -12,11 +12,11 @@ The page is composed at runtime from independently loaded plugins, so the UI nee
 
 ## Decision
 
-One sentence: **the shell renders only `'root'`; a plugin composes UI through a single `register` call that simultaneously occupies a slot, declares+authorizes its child slots, declares its store, and injects its business face; components are pure functions whose props arrive in four shares, each auto-derived from its single source of truth.**
+One sentence: **the ui-renderer renders only `'root'`; a plugin composes UI through a single `register` call that simultaneously occupies a slot, declares+authorizes its child slots, declares its store, and injects its business face; components are pure functions whose props arrive in four shares, each auto-derived from its single source of truth.**
 
 ### 'root' is the only a-priori slot
 
-`SlotRegistry` (client runtime) declares `'root'` at construction — single/root, `owner: {}` — and its `SlotMap` merge lives in the runtime package. The shell's entire assembly is `ctx.slots.renderSlot('root', {})`: the only ctx-level render entry; any other key, a missing renderer, or an unregistered root fails loud (no fallback).
+`SlotRegistry` (client runtime) declares `'root'` at construction — single/root, `owner: {}` — and its `SlotMap` merge lives in the runtime package. The ui-renderer's entire assembly is `ctx.slots.renderSlot('root', {})`: the only ctx-level render entry; any other key, a missing renderer, or an unregistered root fails loud (no fallback).
 
 ### register is the single API; children = declaration + authorization + runtime spec
 
@@ -61,7 +61,7 @@ In the type chain, a chain entry's SlotMap shape is `{ kind: 'chain'; scope; own
 
 ### The store seat: framework engine, registrant schema
 
-The framework owns exactly one subscription machine: the snapshot store engine (zustand vanilla + immer + optional localStorage persistence) lives in the **runtime package** (`./client` main entry — no subpath), producing bare observable sources; web-react binds them into hooks at the outlet (per-source cached uSES binding). What a store *contains* is the registrant's declaration, written as a factory so no module-level handle exists (a module-scoped handle would be a de-facto singleton surviving plugin reloads):
+The framework owns exactly one subscription machine: the snapshot store engine (zustand vanilla + immer + optional localStorage persistence) lives in the **runtime package** (`./client` main entry — no subpath), producing bare observable sources; ui-renderer binds them into hooks at the outlet (per-source cached uSES binding). What a store *contains* is the registrant's declaration, written as a factory so no module-level handle exists (a module-scoped handle would be a de-facto singleton surviving plugin reloads):
 
 ```ts ignore-check
 export function createChatStore() {
@@ -92,7 +92,7 @@ Hooks are framework-made only: `useSession`, `useSessions`, `useWorkspaces`, `us
 
 `SessionProvider` is a framework component **delivered as a standard-kit seat**: an entry whose `children` declare a session-scope slot receives it as a prop (type in ui-slots, value injected by the renderer) — components never value-import it. It is self-wired (it reads the runtime's current-session state internally; the assembler passes nothing), render-prop shaped — `children(sessionId)` with an `empty` branch, remounting under `key={sessionId}`. `BindingContext` is machinery-internal; business components see zero React contexts. Inject factories execute inside the outlet on purpose (per-entry error boundaries catch them; a crashing registrant blacks out only its own entry while assembly errors rethrow); the outlet reads tree context as a machinery-only implicit parameter — the "identity from the register closure, situation from the tree position" split.
 
-Rendering lives behind an installation contract so the runtime stays React-free: `SlotRenderer` (interface in ui-slots, implementation `createSlotRenderer()` in web-react) is installed once at shell boot via `ctx.slots.install(...)`; double install and render-before-install throw. Ownership bookkeeping is a single `Map<key, entry>` in the service — ledger, slots, contributions, render bindings, and store instances all live and die on the one entry axis, which closes the stale-authority window across plugin reloads by construction (a disposed entry's captured `renderSlot` throws a stale-authorization error on entry).
+Rendering lives behind an installation contract so the runtime stays React-free: `SlotRenderer` (interface in ui-slots, implementation `createSlotRenderer()` in ui-renderer) is installed once at shell boot via `ctx.slots.install(...)`; double install and render-before-install throw. Ownership bookkeeping is a single `Map<key, entry>` in the service — ledger, slots, contributions, render bindings, and store instances all live and die on the one entry axis, which closes the stale-authority window across plugin reloads by construction (a disposed entry's captured `renderSlot` throws a stale-authorization error on entry).
 
 ### Type-chain implementation rulings
 

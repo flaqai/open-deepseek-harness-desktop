@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import LocalAttachmentStore, {
   DEFAULT_MAX_IMAGE_BYTES,
+  DEFAULT_MAX_IMAGE_DIMENSION,
   DEFAULT_MAX_IMAGE_PIXELS,
   DEFAULT_MAX_IMAGES_PER_MESSAGE,
   DEFAULT_MAX_MESSAGE_IMAGE_BYTES,
@@ -14,12 +15,13 @@ import LocalAttachmentStore, {
 describe('local attachment service', () => {
   it('resolves every omitted admission limit explicitly', () => {
     const service = new LocalAttachmentStore(new Context(), {})
-    expect(DEFAULT_MAX_IMAGE_BYTES).toBe(5 * 1024 * 1024)
+    expect(DEFAULT_MAX_IMAGE_BYTES).toBe(3.5 * 1024 * 1024)
     expect(service.imageLimits).toEqual({
       maxImageBytes: DEFAULT_MAX_IMAGE_BYTES,
       maxImagesPerMessage: DEFAULT_MAX_IMAGES_PER_MESSAGE,
       maxMessageImageBytes: DEFAULT_MAX_MESSAGE_IMAGE_BYTES,
       maxImagePixels: DEFAULT_MAX_IMAGE_PIXELS,
+      maxImageDimension: DEFAULT_MAX_IMAGE_DIMENSION,
       mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
     })
   })

@@ -5,8 +5,8 @@ Two runtime carriers coexist under ``runtime/``, both injected by the repo's
 
 - **exe (production)**: single-file Node executables named
   ``dsh-jsonrpc-agent-pkg-<platform>-<arch>`` (platform in {linux, macos}, arch in
-  {x64, arm64}); macOS also uses a sibling ``-spawn-helper``. The target machine
-  needs no Node installation.
+  {x64, arm64}) with a sibling ``-rg`` executable; macOS also uses a sibling
+  ``-spawn-helper``. The target machine needs no Node installation.
 - **node (dev-only)**: the full deploy closure under ``runtime/node/``
   (``package.json`` + ``node_modules/``), executed as ``node
   runtime/node/node_modules/@deepseek-ai/dsh-sdk-jsonrpc-demo/lib/packaged-bin.js`` on a
@@ -71,16 +71,23 @@ def bundled_runtime_path() -> Path:
     """Absolute path of the bundled single-file runtime executable for the current platform.
 
     Raises FileNotFoundError when the platform is unsupported, the executable
-    has not been placed into this package, or the required macOS spawn helper is
-    missing; the message names the acquisition routes (acquisition strategy is
-    deliberately separate from this lookup interface, so an on-demand download
-    can replace it without touching callers).
+    has not been placed into this package, the required ripgrep sidecar is
+    missing, or the required macOS spawn helper is missing; the message names
+    the acquisition routes (acquisition strategy is deliberately separate from
+    this lookup interface, so an on-demand download can replace it without
+    touching callers).
     """
     tag = _current_platform_tag()
     path = bundled_package_dir() / "runtime" / f"dsh-jsonrpc-agent-pkg-{tag}"
     if not path.is_file():
         raise FileNotFoundError(
             f"deepseek-harness-runtime-bin is missing the runtime executable at {path}. "
+            + _EXE_ACQUISITION_HINT
+        )
+    ripgrep = Path(f"{path}-rg")
+    if not ripgrep.is_file():
+        raise FileNotFoundError(
+            f"deepseek-harness-runtime-bin is missing the ripgrep sidecar at {ripgrep}. "
             + _EXE_ACQUISITION_HINT
         )
     if tag.startswith("macos-"):

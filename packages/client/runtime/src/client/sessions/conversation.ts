@@ -92,14 +92,14 @@ export interface AssistantTiming {
   completedTime: number
 }
 
-/** A finalized (or interruption-frozen) assistant message. */
+/** A finalized assistant message or an interruption-frozen streaming prefix. */
 export interface AssistantMessageNode {
   kind: 'assistant'
   seq: number
   /**
-   * Stable identity of the finalized model output, carried from the
-   * `assistant/message` event. Absent on interruption-frozen partials: those
-   * were never finalized, so they address no durable message.
+   * Stable identity carried from the `assistant/message` event. Absent only on
+   * synthetic interruption fallbacks assembled from chunks without a durable
+   * assistant message.
    */
   messageId?: MessageId
   /** Unix epoch ms from the source session event (or turn/end when frozen from a partial). */
@@ -112,8 +112,9 @@ export interface AssistantMessageNode {
   requestConfig?: AssistantRequestConfig
   /** Timing derived from the recorded step/chunk/message event sequence. */
   timing?: AssistantTiming
-  /** Frozen partial of an aborted turn (no finalize ever arrives): rendered with a 已停止 marker.
-   *  Synthetic seq (fractional, derived from the turn/end seq) keeps it ordered inside the flow. */
+  /** Prefix of an aborted turn, rendered with a 已停止 marker. A durable
+   *  finalized prefix uses its event seq; a chunk-only fallback uses a fractional
+   *  seq derived from the closing boundary to keep it ordered inside the flow. */
   interrupted?: true
 }
 

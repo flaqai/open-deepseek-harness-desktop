@@ -7,10 +7,11 @@ import {
   statSync,
 } from 'node:fs'
 import { availableParallelism } from 'node:os'
-import { dirname, relative, resolve, sep } from 'node:path'
+import { dirname, posix, relative, resolve, sep } from 'node:path'
 import { parseArgs } from 'node:util'
 import { publint, type Message, type PackFile } from 'publint'
 import { formatMessage } from 'publint/utils'
+import ts from 'typescript'
 
 const CONCURRENCY_ENV = 'DSH_PUBLINT_CONCURRENCY'
 const repositoryRoot = resolve(import.meta.dirname, '..')
@@ -32,8 +33,21 @@ interface PackageManifest {
 }
 
 type PublintResult =
-  | { path: string; status: 'passed'; messages: Message[]; manifest: Record<string, unknown> }
-  | { path: string; status: 'failed'; messages: Message[]; manifest: Record<string, unknown>; failure?: string }
+  | {
+    path: string
+    status: 'passed'
+    messages: Message[]
+    closureViolations: string[]
+    manifest: Record<string, unknown>
+  }
+  | {
+    path: string
+    status: 'failed'
+    messages: Message[]
+    closureViolations: string[]
+    manifest: Record<string, unknown>
+    failure?: string
+  }
 
 function workspacePackages(): PackageTarget[] {
   return globSync('packages/*/*/package.json', { cwd: packagesRoot })
@@ -103,21 +117,84 @@ function addPath(path: string, paths: Set<string>): void {
   }
 }
 
+interface RelativeImport {
+  specifier: string
+  line: number
+}
+
+/** Return relative imports whose targets are absent from the publication view. */
+function publicationClosureViolations(target: PackageTarget, files: readonly PackFile[]): string[] {
+  const published = new Set(files.map(file => file.name))
+  const violations: string[] = []
+  for (const file of files) {
+    if (!/\.(?:js|mjs|cjs)$/.test(file.name)) continue
+    const bytes = file.data instanceof ArrayBuffer ? new Uint8Array(file.data) : file.data
+    const source = typeof bytes === 'string' ? bytes : Buffer.from(bytes).toString('utf8')
+    for (const imported of relativeImports(file.name, source)) {
+      const resolved = posix.normalize(posix.join(posix.dirname(file.name), imported.specifier))
+      if (resolutionCandidates(resolved).some(candidate => published.has(candidate))) continue
+      violations.push(
+        `${target.path}/${file.name.slice('package/'.length)}:${String(imported.line)}`
+        + ` imports ${JSON.stringify(imported.specifier)}, but ${target.manifest.name ?? target.path}`
+        + ` does not publish ${JSON.stringify(resolved.slice('package/'.length))}`,
+      )
+    }
+  }
+  return violations
+}
+
+/** Paths a relative JavaScript module request can resolve to in a published package. */
+function resolutionCandidates(target: string): string[] {
+  const base = target.replace(/\/+$/, '')
+  return [
+    target,
+    ...['.js', '.mjs', '.cjs', '/index.js', '/index.mjs', '/index.cjs'].map(suffix => base + suffix),
+  ]
+}
+
+/** Extract relative static imports, re-exports, dynamic imports, and requires. */
+function relativeImports(file: string, sourceText: string): RelativeImport[] {
+  const source = ts.createSourceFile(file, sourceText, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS)
+  const imports: RelativeImport[] = []
+  const record = (node: ts.Node, literal: ts.Expression | undefined): void => {
+    if (literal === undefined || !ts.isStringLiteralLike(literal) || !literal.text.startsWith('.')) return
+    imports.push({
+      specifier: literal.text,
+      line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+    })
+  }
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      record(node, node.moduleSpecifier)
+    } else if (ts.isCallExpression(node)
+      && (node.expression.kind === ts.SyntaxKind.ImportKeyword
+        || ts.isIdentifier(node.expression) && node.expression.text === 'require')) {
+      record(node, node.arguments[0])
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return imports
+}
+
 async function runPublint(target: PackageTarget): Promise<PublintResult> {
   try {
+    const files = publicationFiles(target)
+    const closureViolations = publicationClosureViolations(target, files)
     const result = await publint({
       pkgDir: 'package',
-      pack: { files: publicationFiles(target) },
+      pack: { files },
     })
     const manifest = result.pkg as Record<string, unknown>
-    return result.messages.some(message => message.type === 'error')
-      ? { path: target.path, status: 'failed', messages: result.messages, manifest }
-      : { path: target.path, status: 'passed', messages: result.messages, manifest }
+    return result.messages.some(message => message.type === 'error') || closureViolations.length > 0
+      ? { path: target.path, status: 'failed', messages: result.messages, closureViolations, manifest }
+      : { path: target.path, status: 'passed', messages: result.messages, closureViolations, manifest }
   } catch (error: unknown) {
     return {
       path: target.path,
       status: 'failed',
       messages: [],
+      closureViolations: [],
       manifest: target.manifest as Record<string, unknown>,
       failure: error instanceof Error ? error.message : String(error),
     }
@@ -150,7 +227,10 @@ function printResult(result: PublintResult): void {
   for (const message of result.messages) {
     console.log(formatMessage(message, result.manifest, { color: false }) ?? message.code)
   }
-  if (result.status === 'passed' && result.messages.length === 0) console.log('All good!')
+  for (const violation of result.closureViolations) console.error(violation)
+  if (result.status === 'passed' && result.messages.length === 0 && result.closureViolations.length === 0) {
+    console.log('All good!')
+  }
 }
 
 const packages = workspacePackages()

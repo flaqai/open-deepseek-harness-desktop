@@ -20,7 +20,7 @@ A new curated `EVENT_WALK_EXEMPTIONS` map names every declared event the project
 
 The partition judgment moved out of `computeOutputs` into the pure `walkPartitionProblems(input, maps)` so every acceptance path is provable by unit test without running the Typert projection; `computeOutputs` feeds it the rendered model plus the independent scan and keeps aggregating page-splice errors as before.
 
-The audit that motivated this found the host face already complete: 48 rendered services + 10 walk exemptions covered all 58 host-visible Context keys, all 49 host events rendered, and every type name in every rendered signature is classified by the existing fail-closed `LINK_MAP`/`FOUNDATION_TYPE_NAMES`/`TYPE_LINK_EXEMPTIONS` check. The 25 findings (12 events, 13 keys) were all client-face; each now carries a named exemption pointing at its owning README, consistent with the existing `appShell`/`connection` precedent.
+The audit that motivated this found the host face already complete: 48 rendered services + 10 walk exemptions covered all 58 host-visible Context keys, all 49 host events rendered, and every type name in every rendered signature is classified by the existing fail-closed `LINK_MAP`/`FOUNDATION_TYPE_NAMES`/`TYPE_LINK_EXEMPTIONS` check. The 25 findings (12 events, 13 keys) were all client-face; each now carries a named exemption pointing at its owning README, consistent with the existing `uiRenderer`/`connection` precedent.
 
 ## Verification
 

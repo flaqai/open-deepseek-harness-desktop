@@ -99,7 +99,7 @@ plan mode 完整演示了这套模式——触发路径、运行面、回放面�
 
 ### React：`useProjection`，第五个框架钩子席位
 
-既有四个席位都装不下这份状态（store 纪律禁止业务对象；inject 禁止钩子；`ConversationSnapshot` 正在被清退）。`useProjection` 成为一个框架席位，在 web-react（唯一的钩子铸造点）铸造，经与 `useSession` 相同的标准套件通道（`provideInfo` → SessionProvider → props）送达：
+既有四个席位都装不下这份状态（store 纪律禁止业务对象；inject 禁止钩子；`ConversationSnapshot` 正在被清退）。`useProjection` 成为一个框架席位，在 ui-renderer（唯一的钩子铸造点）铸造，经与 `useSession` 相同的标准套件通道（`provideInfo` → SessionProvider → props）送达：
 
 ```ts ignore-check
 type UseProjection = {

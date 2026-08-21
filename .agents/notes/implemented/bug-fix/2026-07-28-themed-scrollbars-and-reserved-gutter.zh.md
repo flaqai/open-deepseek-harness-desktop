@@ -12,7 +12,7 @@ Status: implemented
 
 ## 决策
 
-`packages/client/ui-theme/src/styles/scrollbar.css` 是这四个 token 的唯一消费方，也是壳的导入链（`packages/client/web/src/base.css`）中第五张 ui-theme 样式表。它排在 `design-platform.css` 之后，因为它读取那张样式表的 token。
+`packages/client/ui-theme/src/styles/scrollbar.css` 是这四个 token 的唯一消费方，也是 ui-theme 动态客户端 entry 导入的第三张全局样式表。它排在 `design-platform.css` 之后，因为它读取那张样式表的 token；两者都会编译进 ui-theme 持有的客户端 bundle。
 
 规则挂在 `body` 上，而非 `html`。`design-platform.css` 在 `body` 上声明 `--dsw-alias-*` token，暗色覆盖挂在 `body[data-ds-dark-theme]` 上，而自定义属性只向下继承；挂在 `html` 上的规则会把它们解析为 guaranteed-invalid 值，此时 `scrollbar-color` 计算为 `auto`，主题完全不起作用。
 

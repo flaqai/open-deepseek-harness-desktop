@@ -8,7 +8,7 @@
  * holes (sidebar.workspaces / sidebar.settings) have no registrant here, so
  * the snapshots pin the shell chrome itself.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, waitFor } from '@testing-library/react'
 import { SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
@@ -18,7 +18,12 @@ import { apply, inject } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 // the shipped Chinese copy, so they state the browser they assume.
 usePinnedBrowserLanguages('zh-CN')
 
-afterEach(cleanup)
+beforeEach(() => { vi.stubEnv('DSH_CLIENT_COMMIT_HASH', 'abc1234') })
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllEnvs()
+})
 
 /**
  * Boot the package over the slot test runtime. The default bench stays on

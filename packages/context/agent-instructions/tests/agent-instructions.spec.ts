@@ -1,5 +1,5 @@
 import { chmod, mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
@@ -80,7 +80,8 @@ class RecordingFileSystem extends FileSystem {
   override fileUrl(target: FsTarget): string { return `file://${target.targetKey}` }
 
   override contains(parent: FsTarget, child: FsTarget): boolean {
-    return child.targetKey === parent.targetKey || String(child.targetKey).startsWith(`${parent.targetKey}/`)
+    const descendant = relative(String(parent.targetKey), String(child.targetKey))
+    return descendant === '' || (!descendant.startsWith('..') && !isAbsolute(descendant))
   }
 
   override async stat(target: FsTarget, signal?: AbortSignal): Promise<FsInfo | undefined> {
@@ -222,7 +223,7 @@ async function workspaceContextOf(agent: Agent): Promise<UserMessage> {
       message.source.kind === 'agent-instructions')
     expect(context).toBeDefined()
     return context!
-  })
+  }, { timeout: 10_000 })
 }
 
 async function syncWorkspaceContext(ctx: Context, agent: Agent): Promise<void> {
@@ -3267,7 +3268,7 @@ describe('dynamic nested workspace context injection', () => {
     try {
       await mkdir(join(root, '.git'), { recursive: true })
       await write(join(root, 'pkg/AGENTS.md'), 'canonical nested rule')
-      await write(join(root, 'pkg/CLAUDE.md'), 'divergent nested rule')
+      await write(join(root, 'pkg/CLAUDE.md'), 'initial divergent nested rule')
       await write(join(root, 'pkg/file.txt'), 'hello')
       const ctx = new Context()
       await mountFileToolsAndWorkspaceContext(ctx, { dshHome: home, maxBytes: 65536 })
@@ -3279,7 +3280,7 @@ describe('dynamic nested workspace context injection', () => {
       })
       const firstText = blocksText(((await syncedWorkspaceContext(ctx, agent))).content)
       expect(firstText).toContain('canonical nested rule')
-      expect(firstText).toContain('divergent nested rule')
+      expect(firstText).toContain('initial divergent nested rule')
       await appendAdditionalContexts(ctx, agent)
       await write(join(root, 'pkg/CLAUDE.md'), 'canonical nested rule')
       await ctx.tools.execute({

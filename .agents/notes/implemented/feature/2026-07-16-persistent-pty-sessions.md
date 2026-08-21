@@ -134,7 +134,7 @@ The package ships concise tool guidance explaining persistent state, owner isola
 - Declarative per-agent startup requires an agent-setup composition point; plugin-load global sessions remain prohibited.
 - Session restoration across harness-process loss requires an out-of-process owner and a versioned protocol.
 - Network-egress policy and rollback of external side effects are broader than PTY and remain separate security work.
-- Windows/ConPTY support requires a backend with Windows-native process ownership and signaling semantics.
+- Windows/ConPTY sessions run through the subprocess-local Windows inspector (Toolhelp32 identities, pseudo foreground groups, taskkill teardown) and the `pty-local` pwsh dialect; see the [pwsh persistent tool note](../architecture/2026-08-11-pwsh-persistent-pty.md).
 
 ## Alternatives considered
 

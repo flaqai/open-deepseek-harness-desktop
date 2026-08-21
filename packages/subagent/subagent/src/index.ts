@@ -309,6 +309,22 @@ export class SubagentRuntime extends Service {
   }
 
   /**
+   * Release selected resident continuable direct children of one exact live
+   * parent. Other children of the same parent remain admitted and resident.
+   * Absent targets and a manager-less composition are accepted no-ops.
+   * @param parent - exact live direct parent authorizing the selected release.
+   * @param childIds - durable direct-child ids to release when resident.
+   * @returns once every selected Activation released its `AgentHandle`.
+   * @throws {SubagentError} `UNAUTHORIZED` when a resident target belongs to a
+   *   different parent or the supplied parent identity is stale.
+   */
+  async drainContinuableChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void> {
+    const manager = this.continuations
+    if (manager === undefined) return
+    await manager.drainChildren(parent, childIds)
+  }
+
+  /**
    * Enumerate the parent's direct session-backed subagents without loading or
    * resuming an Agent and without any query service: the listing merges the live
    * session store with optional session persistence (live-preferred) and

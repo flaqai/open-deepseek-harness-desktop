@@ -39,6 +39,10 @@ async function bench(): Promise<{ ctx: Context; fiber: ReturnType<Context['plugi
   ctx.provide('remote', { $on: () => () => {} } as never)
   ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
+  // These specs assert the shipped Chinese copy. There is no jsdom `window` in
+  // this lane, so browser-language detection never runs and the locale comes
+  // from FALLBACK_LOCALE (en): state the asserted locale explicitly.
+  ctx.locale.setLocale('zh')
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   return { ctx, fiber }

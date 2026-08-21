@@ -10,6 +10,14 @@ function isFixInvocation(args: readonly string[]): boolean {
   return args.some(arg => FIX_FLAGS.has(arg))
 }
 
+function hasOutputFormat(args: readonly string[]): boolean {
+  return args.some(arg =>
+    arg === '-f'
+    || arg.startsWith('-f=')
+    || arg === '--format'
+    || arg.startsWith('--format='))
+}
+
 /** Complete Oxlint child-process arguments and environment. */
 export interface OxlintInvocation {
   readonly args: readonly string[]
@@ -23,8 +31,10 @@ export interface OxlintInvocation {
  * @returns the complete CLI arguments and child environment.
  */
 export function resolveOxlintInvocation(args: readonly string[], env: NodeJS.ProcessEnv): OxlintInvocation {
+  const resolvedArgs = [...args]
+  if (env.CI === 'true' && !hasOutputFormat(args)) resolvedArgs.push('--format=unix')
   const raw = env.DSH_OXLINT_THREADS
-  if (raw === undefined || raw === '') return { args: [...args], env: { ...env } }
+  if (raw === undefined || raw === '') return { args: resolvedArgs, env: { ...env } }
   const parsed = Number.parseInt(raw, 10)
   if (!Number.isSafeInteger(parsed) || parsed < 1 || String(parsed) !== raw) {
     throw new Error(`run-oxlint: DSH_OXLINT_THREADS must be a positive integer, got ${JSON.stringify(raw)}.`)
@@ -33,7 +43,7 @@ export function resolveOxlintInvocation(args: readonly string[], env: NodeJS.Pro
     throw new Error('run-oxlint: use DSH_OXLINT_THREADS instead of passing --threads directly.')
   }
   return {
-    args: [...args, `--threads=${raw}`],
+    args: [...resolvedArgs, `--threads=${raw}`],
     env: { ...env, GOMAXPROCS: raw },
   }
 }

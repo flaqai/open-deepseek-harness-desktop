@@ -5,6 +5,7 @@ import type {
   ConversationViewBuilder, ConversationViewDefinition, LegacyConversationSlice,
   PartialAssistant, RunningToolCall,
 } from '@deepseek-ai/dsh-client-runtime/client'
+import { sessionRecallLabels } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ChatNode } from '../contract/chat-nodes.ts'
 import { isRunningTool } from '../contract/chat-nodes.ts'
 
@@ -136,6 +137,99 @@ function orderedVisible(nodes: readonly ChatConversationViewNode[]): ChatConvers
   return nodes
     .filter(node => node.visibility === 'visible')
     .sort((left, right) => left.anchorSeq - right.anchorSeq || left.key.localeCompare(right.key))
+}
+
+function referenceMessageSeq(node: ChatConversationViewNode): number | undefined {
+  const candidate = node as ChatNode
+  return candidate.kind === 'user' || candidate.kind === 'steering'
+    ? candidate.data.seq
+    : undefined
+}
+
+function followingRecall(node: ChatConversationViewNode): {
+  readonly messageSeq: number
+  readonly labels: readonly string[]
+} | undefined {
+  const candidate = node as ChatNode
+  if (candidate.kind !== 'context') return undefined
+  return {
+    messageSeq: candidate.data.seq - 1,
+    labels: sessionRecallLabels(candidate.data.source),
+  }
+}
+
+function withReferenceLabels(
+  node: ChatConversationViewNode,
+  labels: readonly string[],
+): ChatConversationViewNode {
+  const candidate = node as ChatNode
+  if (candidate.kind !== 'user' && candidate.kind !== 'steering') return node
+  const current = candidate.data.referenceLabels ?? EMPTY_KEYS
+  const hasLabels = Object.hasOwn(candidate.data, 'referenceLabels')
+  if (sameReferences(current, labels) && hasLabels === (labels.length > 0)) return node
+  const data: Record<string, unknown> = { ...candidate.data }
+  if (labels.length === 0) delete data.referenceLabels
+  else data.referenceLabels = labels
+  return { ...candidate, data }
+}
+
+/** Associates a direct message with the sourced recall event that immediately follows it. */
+class ReferenceLabelProjector {
+  private readonly messagesBySeq = new Map<number, string>()
+  private readonly labelsByMessageSeq = new Map<number, readonly string[]>()
+
+  replace(nodes: readonly ChatConversationViewNode[]): readonly ChatConversationViewNode[] {
+    this.messagesBySeq.clear()
+    this.labelsByMessageSeq.clear()
+    for (const node of nodes) {
+      const messageSeq = referenceMessageSeq(node)
+      if (messageSeq !== undefined) this.messagesBySeq.set(messageSeq, node.key)
+      const recall = followingRecall(node)
+      if (recall !== undefined && recall.labels.length > 0) {
+        this.labelsByMessageSeq.set(recall.messageSeq, recall.labels)
+      }
+    }
+    return nodes.map((node) => {
+      const messageSeq = referenceMessageSeq(node)
+      return messageSeq === undefined
+        ? node
+        : withReferenceLabels(node, this.labelsByMessageSeq.get(messageSeq) ?? EMPTY_KEYS)
+    })
+  }
+
+  apply(
+    upserts: readonly ChatConversationViewNode[],
+    store: ChatNodeStore,
+  ): readonly ChatConversationViewNode[] {
+    const byKey = new Map(upserts.map(node => [node.key, node]))
+    const affected = new Set<number>()
+    for (const node of upserts) {
+      const messageSeq = referenceMessageSeq(node)
+      if (messageSeq !== undefined) {
+        this.messagesBySeq.set(messageSeq, node.key)
+        affected.add(messageSeq)
+      }
+      const recall = followingRecall(node)
+      if (recall === undefined) continue
+      const current = this.labelsByMessageSeq.get(recall.messageSeq)
+      if (recall.labels.length === 0) this.labelsByMessageSeq.delete(recall.messageSeq)
+      else {
+        this.labelsByMessageSeq.set(
+          recall.messageSeq,
+          current !== undefined && sameReferences(current, recall.labels) ? current : recall.labels,
+        )
+      }
+      affected.add(recall.messageSeq)
+    }
+    for (const messageSeq of affected) {
+      const key = this.messagesBySeq.get(messageSeq)
+      if (key === undefined) continue
+      const node = byKey.get(key) ?? store.get(key)
+      if (node === undefined) continue
+      byKey.set(key, withReferenceLabels(node, this.labelsByMessageSeq.get(messageSeq) ?? EMPTY_KEYS))
+    }
+    return [...byKey.values()]
+  }
 }
 
 interface LegacyContribution {
@@ -384,6 +478,7 @@ export class ChatSnapshotBuilder implements ConversationViewBuilder<ChatConversa
   private readonly store = new MutableChatNodeStore()
   private readonly locations = new MutableChatLocationIndex()
   private readonly legacy = new LegacySliceBuilder()
+  private readonly referenceLabels = new ReferenceLabelProjector()
   private order: readonly string[] = EMPTY_KEYS
   readonly empty: ChatSnapshot
 
@@ -395,19 +490,21 @@ export class ChatSnapshotBuilder implements ConversationViewBuilder<ChatConversa
     readonly nodes: readonly ChatConversationViewNode[]
     readonly timeline: ConversationTimelineSnapshot
   }): ChatSnapshot {
-    this.store.replace(input.nodes)
-    this.order = orderedVisible(input.nodes).map(node => node.key)
+    const nodes = this.referenceLabels.replace(input.nodes)
+    this.store.replace(nodes)
+    this.order = orderedVisible(nodes).map(node => node.key)
     this.locations.rebuild(this.order, this.store)
-    return this.snapshot(input.timeline, this.legacy.replace(input.nodes, input.timeline))
+    return this.snapshot(input.timeline, this.legacy.replace(nodes, input.timeline))
   }
 
   apply(input: {
     readonly upserts: readonly ChatConversationViewNode[]
     readonly timeline: ConversationTimelineSnapshot
   }): ChatSnapshot {
+    const upserts = this.referenceLabels.apply(input.upserts, this.store)
     let structural = false
     const contentOnly: ChatConversationViewNode[] = []
-    for (const node of input.upserts) {
+    for (const node of upserts) {
       const previous = this.store.get(node.key)
       const nodeStructural = previous === undefined
         || previous.anchorSeq !== node.anchorSeq
@@ -416,14 +513,14 @@ export class ChatSnapshotBuilder implements ConversationViewBuilder<ChatConversa
       structural ||= nodeStructural
       if (!nodeStructural) contentOnly.push(node)
     }
-    this.store.upsert(input.upserts)
+    this.store.upsert(upserts)
     if (structural) {
       const next = orderedVisible(this.store.values()).map(node => node.key)
       this.order = sameReferences(this.order, next) ? this.order : next
       this.locations.rebuild(this.order, this.store)
     }
     this.locations.touch(contentOnly)
-    return this.snapshot(input.timeline, this.legacy.apply(input.upserts, input.timeline))
+    return this.snapshot(input.timeline, this.legacy.apply(upserts, input.timeline))
   }
 
   private snapshot(

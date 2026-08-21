@@ -68,7 +68,7 @@ describe('ui-plan browser apply', () => {
     const injected = (entry.inject as unknown as (id: SessionId) => PlanChipInjected)(SID)
 
     await expect(injected.exitPlanMode()).resolves.toBeNull()
-    expect(b.execute).toHaveBeenLastCalledWith(SID, '/plan off')
+    expect(b.execute).toHaveBeenLastCalledWith(SID, '/plan off', [])
 
     // Business failure folds to the composer-visible line: the generated method
     // reports the RPC failure in its error branch.

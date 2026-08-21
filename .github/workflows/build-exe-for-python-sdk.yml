@@ -219,6 +219,8 @@ jobs:
           }
 
       - name: Build single-exe
+        env:
+          DSH_BUILD_CLIENT_PROFILE: official
         run: pnpm exec tsx scripts/build-exe-for-python-sdk.ts --targets=${{ matrix.target }}
 
       - name: Resolve platform outputs
@@ -261,17 +263,20 @@ jobs:
           name: deepseek_harness_sdk-${{ needs.plan.outputs.version }}-py3-none-any.whl
           path: dist-python
 
-      - name: Install only the SDK into a clean venv and run zero-config
+      - name: Install local SDK and runtime wheels into a clean venv
         env:
-          VERSION: ${{ needs.plan.outputs.version }}
+          RUNTIME_WHEEL: ${{ steps.runtime.outputs.wheel }}
+          SDK_WHEEL: deepseek_harness_sdk-${{ needs.plan.outputs.version }}-py3-none-any.whl
         run: |
           set -euo pipefail
           python -m venv "$RUNNER_TEMP/dsh-sdk-smoke"
           "$RUNNER_TEMP/dsh-sdk-smoke/bin/python" -m pip install \
-            --find-links dist-python \
-            deepseek-harness-sdk=="$VERSION"
+            "dist-python/$SDK_WHEEL" \
+            "dist-python/$RUNTIME_WHEEL"
           "$RUNNER_TEMP/dsh-sdk-smoke/bin/python" scripts/smoke-python-runtime.py \
             --scenario sdk-default
+          "$RUNNER_TEMP/dsh-sdk-smoke/bin/python" scripts/smoke-python-runtime.py \
+            --scenario sdk-mcp
 
       - name: Check Linux GLIBC requirements
         if: runner.os == 'Linux'
@@ -297,7 +302,8 @@ jobs:
         if: runner.os == 'Linux'
         env:
           RUNNER_ARCH: ${{ runner.arch }}
-          VERSION: ${{ needs.plan.outputs.version }}
+          RUNTIME_WHEEL: ${{ steps.runtime.outputs.wheel }}
+          SDK_WHEEL: deepseek_harness_sdk-${{ needs.plan.outputs.version }}-py3-none-any.whl
         run: |
           set -euo pipefail
           case "$RUNNER_ARCH" in
@@ -305,10 +311,11 @@ jobs:
             ARM64) image=quay.io/pypa/manylinux_2_28_aarch64 ;;
             *) echo "::error::Unsupported Linux runner architecture $RUNNER_ARCH"; exit 1 ;;
           esac
-          docker run --rm -e VERSION -e DSH_TELEMETRY_DISABLED -v "$PWD:/work" -w /work "$image" bash -euxo pipefail -c '
+          docker run --rm -e RUNTIME_WHEEL -e SDK_WHEEL -e DSH_TELEMETRY_DISABLED -v "$PWD:/work" -w /work "$image" bash -euxo pipefail -c '
             /opt/python/cp310-cp310/bin/python -m venv /tmp/dsh-sdk
-            /tmp/dsh-sdk/bin/python -m pip install --find-links /work/dist-python deepseek-harness-sdk=="$VERSION"
+            /tmp/dsh-sdk/bin/python -m pip install "/work/dist-python/$SDK_WHEEL" "/work/dist-python/$RUNTIME_WHEEL"
             /tmp/dsh-sdk/bin/python /work/scripts/smoke-python-runtime.py --scenario sdk-default
+            /tmp/dsh-sdk/bin/python /work/scripts/smoke-python-runtime.py --scenario sdk-mcp
           '
 
       - uses: actions/upload-artifact@v7

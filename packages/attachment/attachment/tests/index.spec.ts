@@ -15,6 +15,7 @@ const LIMITS = {
   maxImagesPerMessage: 2,
   maxMessageImageBytes: 5,
   maxImagePixels: 4,
+  maxImageDimension: 2000,
   mediaTypes: ['image/png'] as const,
 }
 

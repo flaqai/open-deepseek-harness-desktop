@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import type { TsdownBundle } from 'tsdown'
-import { discoverPluginDirs, watchClientPlugins } from './dev-web.ts'
+import { discoverLibraryDirs, discoverPluginDirs, watchClientPlugins } from './dev-web.ts'
 
 it('discovers dsh.client packages with sibling roles', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-dev-web-discovery-'))
@@ -19,6 +19,31 @@ it('discovers dsh.client packages with sibling roles', async () => {
     }))
 
     expect(discoverPluginDirs(root)).toEqual(['packages/client/current'])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('discovers client-preset packages the shell links, excluding loader-delivered and test infrastructure', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-dev-web-library-'))
+  try {
+    const write = async (dir: string, manifest: unknown, config: string): Promise<void> => {
+      await mkdir(join(root, dir), { recursive: true })
+      await writeFile(join(root, dir, 'package.json'), JSON.stringify(manifest))
+      await writeFile(join(root, dir, 'tsdown.config.ts'), config)
+    }
+    const clientPreset = "import { clientLibrary } from '../tsdown.client.ts'\nexport default clientLibrary('x', [])\n"
+
+    // Linked by the compile shell: client preset, no loader-delivered half.
+    await write('packages/client/linked', {}, clientPreset)
+    // Loader-delivered: discoverPluginDirs owns it, so it must not appear twice.
+    await write('packages/client/delivered', { dsh: { client: { platform: 'web' } } }, clientPreset)
+    // Test infrastructure builds through the preset but never enters the shell graph.
+    await write('packages/test-support/harness', {}, clientPreset)
+    // Host package with its own config: not a client-face build at all.
+    await write('packages/host/server', {}, "import { defineConfig } from 'tsdown'\nexport default defineConfig({})\n")
+
+    expect(discoverLibraryDirs(root)).toEqual(['packages/client/linked'])
   } finally {
     await rm(root, { recursive: true, force: true })
   }

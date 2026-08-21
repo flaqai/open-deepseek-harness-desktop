@@ -12,20 +12,19 @@
 
 import { globSync, readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
-import * as yaml from 'js-yaml'
+import { Script } from 'node:vm'
 import ts from 'typescript'
 import { cordisConfigFiles } from './cordis-config-files.ts'
+import { isCordisGroupEntry, isJsExpr, loadCordisYaml } from './cordis-yaml.ts'
 
-interface JsExpr {
-  __jsExpr: string
-}
-
-interface PackageManifest {
+export interface PackageManifest {
   name?: string
   dependencies?: Record<string, string>
+  optionalDependencies?: Record<string, string>
+  dsh?: { bundle?: { patch?: string } }
 }
 
-interface PluginReference {
+export interface PluginReference {
   file: string
   name: string
 }
@@ -56,16 +55,6 @@ const CHOOSER_BACKEND_PACKAGES = [
   '@deepseek-ai/dsh-client-ui-directory-picker-browse',
   '@deepseek-ai/dsh-client-ui-directory-picker-native',
 ]
-const jsExprType = new yaml.Type('tag:yaml.org,2002:js', {
-  kind: 'scalar',
-  resolve: data => typeof data === 'string',
-  construct: (data: unknown): JsExpr => {
-    if (typeof data !== 'string') throw new TypeError('!!js requires a scalar string')
-    return { __jsExpr: data }
-  },
-})
-const schema = yaml.JSON_SCHEMA.extend(jsExprType)
-
 const errors: string[] = []
 const pluginReferences: PluginReference[] = []
 
@@ -73,7 +62,7 @@ if (import.meta.main) {
   const files = cordisConfigFiles(root)
 
   for (const file of files) {
-    const document: unknown = yaml.load(readFileSync(resolve(root, file), 'utf8'), { schema })
+    const document = loadCordisYaml(readFileSync(resolve(root, file), 'utf8'))
     if (!isUnknownArray(document)) {
       errors.push(`${file}: root must be a Loader entry array`)
       continue
@@ -172,7 +161,7 @@ function validatePresetPlaneSeparation(): string[] {
 
 /** Every entry of one config file, or an empty list when it is not an entry array. */
 function loadEntries(file: string): unknown[] {
-  const document: unknown = yaml.load(readFileSync(resolve(root, file), 'utf8'), { schema })
+  const document = loadCordisYaml(readFileSync(resolve(root, file), 'utf8'))
   return isUnknownArray(document) ? document : []
 }
 
@@ -204,7 +193,7 @@ function validateEntry(value: unknown, file: string, path: string): void {
   }
   recordPlugin(value, file)
   validateMetadata(value, file, path)
-  if ((value.group === true || value.name === '@deepseek-ai/cordis-plugin-group') && isUnknownArray(value.config)) {
+  if (isCordisGroupEntry(value)) {
     for (let index = 0; index < value.config.length; index++) {
       validateEntry(value.config[index], file, `${path}.config[${index}]`)
     }
@@ -260,11 +249,14 @@ function validateExampleResolution(): string[] {
 
 function validateAppResolution(): string[] {
   const violations: string[] = []
+  const bundleManifests = bundleManifestPaths()
   // App overlays (and any config left under apps/cli/config) resolve from the
   // dsh app's own dependency surface — the profile module fallback mirrors it.
   const appDependencies = {
     ...readManifest('apps/cli/package.json').dependencies,
-    // The fallback also links every bundle's own dependencies (healProfilesModuleFallback).
+    // The fallback also links every in-box bundle's own dependencies
+    // (healProfilesModuleFallback). Optional Profile bundles stay outside the
+    // app installation until that Profile installs them.
     ...Object.fromEntries(globSync('packages/bundle/*/package.json', { cwd: root })
       .flatMap(file => Object.entries(readManifest(file).dependencies ?? {}))),
   }
@@ -274,18 +266,48 @@ function validateAppResolution(): string[] {
   violations.push(...missingPluginDependencies(appReferences, appDependencies, 'apps/cli/package.json or a bundle manifest'))
   // Each bundle's patch rows must resolve from that bundle's own dependencies:
   // per-layer resolution anchors on the bundle package directory.
-  for (const manifestPath of globSync('packages/bundle/*/package.json', { cwd: root })) {
+  for (const manifestPath of bundleManifests) {
     const bundleDir = manifestPath.replace(/\/package\.json$/, '')
     const manifest = readManifest(manifestPath)
-    const references = pluginReferences.filter(reference => reference.file.startsWith(`${bundleDir}/`))
-    violations.push(...missingPluginDependencies(
-      // A bundle may mount its own package (the web-app runtime row).
-      references.filter(reference => packageNameFromSpecifier(reference.name) !== manifest.name),
-      manifest.dependencies ?? {},
-      manifestPath,
-    ))
+    const patch = manifest.dsh?.bundle?.patch
+    if (typeof patch !== 'string') continue
+    const patchFile = relative(root, resolve(root, bundleDir, patch)).replaceAll('\\', '/')
+    const references = pluginReferences.filter(reference => reference.file === patchFile)
+    violations.push(...bundlePluginDependencyErrors(manifestPath, manifest, references))
   }
   return violations
+}
+
+/**
+ * Discover workspace Bundle packages from their manifest declaration.
+ * @param repoRoot Repository root to scan.
+ * @returns Sorted slash-normalized repository-relative package manifest paths.
+ */
+export function bundleManifestPaths(repoRoot: string = root): string[] {
+  return globSync('packages/*/*/package.json', { cwd: repoRoot })
+    .filter(path => typeof readManifest(path, repoRoot).dsh?.bundle?.patch === 'string')
+    .map(path => path.replaceAll('\\', '/'))
+    .sort()
+}
+
+/**
+ * Validate plugin packages referenced by one Bundle patch.
+ * @param manifestPath Repository-relative Bundle manifest path.
+ * @param manifest Parsed Bundle manifest.
+ * @param references Plugin rows read from the Bundle package directory.
+ * @returns Missing production dependency diagnostics.
+ */
+export function bundlePluginDependencyErrors(
+  manifestPath: string,
+  manifest: PackageManifest,
+  references: readonly PluginReference[],
+): string[] {
+  return missingPluginDependencies(
+    // A Bundle may mount its own package (for example, its provider or runtime row).
+    references.filter(reference => packageNameFromSpecifier(reference.name) !== manifest.name),
+    manifest.dependencies ?? {},
+    manifestPath,
+  )
 }
 
 /**
@@ -363,8 +385,8 @@ function missingPluginDependencies(
     : `${[...locations].join(', ')}: ${packageName} must be declared in ${manifestPath} dependencies`)
 }
 
-function readManifest(path: string): PackageManifest {
-  return JSON.parse(readFileSync(resolve(root, path), 'utf8')) as PackageManifest
+function readManifest(path: string, repoRoot: string = root): PackageManifest {
+  return JSON.parse(readFileSync(resolve(repoRoot, path), 'utf8')) as PackageManifest
 }
 
 function localPackageDirectories(): Map<string, string> {
@@ -461,9 +483,8 @@ export function metadataExpressionErrors(entry: Record<string, unknown>, path: s
  */
 function disabledExpressionProblem(expression: string): string | undefined {
   try {
-    // Compilation only — the constructor never executes the body.
-    // oxlint-disable-next-line typescript/no-implied-eval
-    new Function(`return (${expression})`)
+    // Compilation only — constructing a Script does not execute its source.
+    new Script(`(${expression})`)
     return undefined
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
@@ -482,10 +503,6 @@ function collectExpressionPaths(value: unknown, path: string, output: string[]):
   }
   if (!isRecord(value)) return
   for (const [key, child] of Object.entries(value)) collectExpressionPaths(child, `${path}.${key}`, output)
-}
-
-function isJsExpr(value: unknown): value is JsExpr {
-  return isRecord(value) && typeof value.__jsExpr === 'string'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

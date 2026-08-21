@@ -142,10 +142,11 @@ it('accepts pasted images into the composer rail in order and removes them', asy
       getData: () => '',
     },
   })
-  const toast = await screen.findByRole('alert')
-  expect(toast.textContent).toContain('Only PNG, JPG, WebP, and GIF images are supported')
+  const unsupportedMessage = 'Only PNG, JPG, WebP, and GIF images are supported'
+  const toast = await screen.findByText(unsupportedMessage)
+  expect(toast.closest('[role="alert"]')).not.toBeNull()
   await waitFor(() => {
-    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText(unsupportedMessage)).toBeNull()
   }, { timeout: 6_000 })
 })
 
@@ -190,8 +191,41 @@ it('accepts a whole-page drop under the limits-labeled overlay and refuses an ov
       getData: () => '',
     },
   })
-  const banner = await screen.findByRole('alert')
-  expect(banner.textContent).toContain('A message can include up to 20 images')
+  const limitMessage = 'A message can include up to 20 images'
+  const banner = await screen.findByText(limitMessage)
+  expect(banner.closest('[role="alert"]')).not.toBeNull()
   const rail = document.querySelector('[role="group"][aria-label="Pending images"]')
   expect([...(rail?.querySelectorAll('img') ?? [])]).toHaveLength(1)
+})
+
+it('renders a host dimension rejection with the projected 2000px limit', async () => {
+  mountAssembledApp('?fixture&fixturePrompt=reject')
+
+  const tree = await screen.findByRole('tree', { name: 'Sessions' }, { timeout: 10_000 })
+  const start = tree.querySelector<HTMLButtonElement>('button[aria-label="New session in fixture"]')
+  if (start === null) throw new Error('fixture Workspace new-session action missing')
+  fireEvent.click(start)
+
+  const textarea = await screen.findByPlaceholderText('Describe what you want to build', {}, { timeout: 10_000 })
+  const image = new File([new Uint8Array([137, 80, 78, 71])], 'too-wide.png', { type: 'image/png' })
+  fireEvent.paste(textarea, {
+    clipboardData: {
+      items: [{ kind: 'file', type: 'image/png', getAsFile: () => image }],
+      getData: () => '',
+    },
+  })
+  await waitFor(() => {
+    expect(document.querySelector('[role="group"][aria-label="Pending images"]')).not.toBeNull()
+  })
+  fireEvent.keyDown(textarea, { key: 'Enter' })
+
+  const message = 'Image sides must be at most 2000px; downscale it and try again'
+  const toast = await screen.findByText(message)
+  expect({ role: toast.closest('[role="alert"]')?.getAttribute('role'), text: toast.textContent }).toMatchInlineSnapshot(`
+    {
+      "role": "alert",
+      "text": "Image sides must be at most 2000px; downscale it and try again",
+    }
+  `)
+  expect(document.querySelector('[role="group"][aria-label="Pending images"]')).not.toBeNull()
 })

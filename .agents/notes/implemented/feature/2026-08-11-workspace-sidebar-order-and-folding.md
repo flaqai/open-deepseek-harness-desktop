@@ -28,7 +28,7 @@ The combined view menu offers **Manual** and **Last updated** in grouped and fla
 
 Workspace hit testing uses the complete rendered group section, including visible Session rows. One insertion boundary is shared by the preceding group's lower half and the following group's upper half, and the indicator is an absolutely positioned line with a joined right-facing chevron that does not affect layout. A tree-body overlay draws the first boundary at the same negative offset outside the scrolling clip, so the leading chevron remains visible without moving the list. During a Workspace or Session drag, document-level `dragover` and `drop` handlers accept the native operation; if release occurs outside the Workspace list, `dragend` commits the last valid marker.
 
-Search is a header action while collapsed and expands across the title and trailing actions. An outside click collapses a query that is empty after trimming but retains a non-empty query. Compact Workspace and Session rows, a 24px bottom fade, and the absence of per-Workspace Session counts preserve vertical space without removing navigation affordances.
+Search is a header action while collapsed and expands across the title and trailing actions. An outside click collapses a query that is empty after trimming but retains a non-empty query; while the rail search gesture is still in flight the outside-click listener stays unmounted ([rail-search self-dismissal](../bug-fix/2026-08-18-rail-search-outside-click-self-dismissal.md)). Compact Workspace and Session rows, a 24px bottom fade, and the absence of per-Workspace Session counts preserve vertical space without removing navigation affordances.
 
 ## Alternatives considered
 

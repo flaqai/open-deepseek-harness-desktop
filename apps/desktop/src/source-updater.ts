@@ -5,9 +5,9 @@ import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 
 /** Official source used by the desktop source updater. */
-export const OFFICIAL_HARNESS_REPOSITORY = 'https://github.com/deepseek-ai/deepseek-harness.git'
+const OFFICIAL_HARNESS_REPOSITORY = 'https://github.com/deepseek-ai/deepseek-harness.git'
 /** Official branch treated as stable until the upstream publishes a release channel. */
-export const OFFICIAL_HARNESS_BRANCH = 'master'
+const OFFICIAL_HARNESS_BRANCH = 'master'
 
 const GIT_TIMEOUT_MS = 90_000
 const PREPARE_TIMEOUT_MS = 15 * 60_000
@@ -76,7 +76,7 @@ function appendBounded(current: string, chunk: Buffer): string {
  * @param timeoutMs - maximum child lifetime.
  * @returns exit code and bounded output.
  */
-export const runSourceUpdateCommand: SourceUpdateRunner = async (command, args, cwd, timeoutMs) =>
+const runSourceUpdateCommand: SourceUpdateRunner = async (command, args, cwd, timeoutMs) =>
   new Promise((resolve) => {
     const child = spawn(command, [...args], {
       cwd,

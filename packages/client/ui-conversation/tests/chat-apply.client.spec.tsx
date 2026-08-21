@@ -88,8 +88,10 @@ describe('apply wiring', () => {
     expect(conversationHeader?.store).toBe(conversationSession?.store)
     expect(details?.store).toBe(conversationSession?.store)
     expect(chatView?.store).toBe(conversationSession?.store)
-    // The hero holes ride the conversation entry's children declaration. They
-    // are root-scoped because the new-session screen precedes a Session.
+    // The hero holes ride the conversation entry's children declaration (the
+    // empty-state occupant is gone). Both are root-scoped: the new-session
+    // screen precedes the session either would belong to.
+    expect(b.slots.spec('conversation.hero.brand.mark')).toEqual({ kind: 'single', scope: 'root' })
     expect(b.slots.spec('conversation.hero.workspace')).toEqual({ kind: 'single', scope: 'root' })
     expect(b.slots.spec('conversation.hero.agentPreset')).toEqual({ kind: 'single', scope: 'root' })
     expect(b.slots.spec('conversation.hero.pluginDiscovery')).toEqual({ kind: 'single', scope: 'root' })

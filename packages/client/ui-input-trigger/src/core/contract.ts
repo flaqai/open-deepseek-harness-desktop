@@ -11,6 +11,8 @@ export interface TriggerHit {
   readonly trigger: TriggerChar
   /** Text between the trigger char and the caret, live-filtered. */
   readonly query: string
+  /** True only for an open quoted `@file` token. */
+  readonly quoted: boolean
   /** leading = draft trimmed (whitespace incl. newlines) starts with the token. */
   readonly position: TriggerPosition
   /** Token span; draftRev injected by the caller. */
@@ -19,8 +21,9 @@ export interface TriggerHit {
 
 /**
  * Detect a trigger token at the caret under the given guard tier.
- * Word-boundary rule: the char before the trigger is start-of-line,
- * whitespace, or punctuation; `user@host` and URL '/' do not trigger.
+ * `@` uses the shared file-reference start/whitespace grammar; `/` accepts
+ * punctuation boundaries with URL carve-outs. `user@host` and URL `/` do not
+ * trigger.
  * Returns null when no trigger is live at the caret.
  */
 export type DetectTrigger = (draft: string, caret: number, guard: TriggerGuard) => TriggerHit | null
@@ -33,6 +36,8 @@ export interface MenuState {
   readonly generation: number
   readonly groups: readonly {
     readonly source: string
+    /** False when candidate section rows own all visible group labeling. */
+    readonly showGroupTitle?: boolean
     readonly status: 'pending' | 'ready'
     readonly items: readonly InputTriggerCandidate[]
   }[]

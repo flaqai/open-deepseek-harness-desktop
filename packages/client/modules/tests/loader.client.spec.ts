@@ -7,15 +7,19 @@
  * default transport hook, and the loud failure modes (duplicate
  * registration, cycles, table misses, double boot).
  */
+import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  ClientModuleSystem,
-  type BootModuleRow, type ClientModuleLoader, type ClientPluginHandoff, type DshWindow,
+  apply, createClientModuleSystem, parseBootManifest,
+  type BootModuleRow, type ClientBundleRegistration, type ClientModuleCreateOptions,
+  type ClientModuleLoader, type ClientModuleLoaderTarget, type DshWindow,
 } from '../src/client/index.ts'
 
+const MODULES_ID = '@deepseek-ai/dsh-client-modules'
 const win = globalThis as DshWindow
+const bootstrapExports = { apply, createClientModuleSystem }
 
-type Factory = ClientPluginHandoff['factory']
+type Factory = ClientBundleRegistration['factory']
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -23,12 +27,29 @@ afterEach(() => {
   for (const el of document.querySelectorAll('style, script')) el.remove()
 })
 
-const row = (id: string): BootModuleRow => ({ id, url: `/plugins/${id}/client.js?rev=0`, rev: '0' })
+const row = (id: string, fields: Partial<BootModuleRow> = {}): BootModuleRow =>
+  ({ id, url: `/plugins/${id}/client.js?rev=0`, rev: '0', external: [], ...fields })
 
 interface Bench {
   loader: ClientModuleLoader
+  target: ClientModuleLoaderTarget
   fetched: string[]
   gates: Map<string, () => void>
+}
+
+/** Build the page-global facade shape consumed by the module system. */
+function registrationTarget(pending: ClientBundleRegistration[] = []): ClientModuleLoaderTarget {
+  const pendingQueue = [...pending]
+  const target: ClientModuleLoaderTarget = {
+    mode: 'queue',
+    pendingQueue,
+    load: (registration) => { pendingQueue.push(registration) },
+    create: options => createClientModuleSystem(target, {
+      id: MODULES_ID,
+      exports: bootstrapExports,
+    }, options),
+  }
+  return target
 }
 
 /**
@@ -39,35 +60,61 @@ interface Bench {
 function bench(
   entries: BootModuleRow[],
   bundles: Record<string, Factory | null> = {},
-  opts: { seed?: Record<string, unknown>; gated?: string[] } = {},
+  opts: {
+    seed?: Record<string, unknown>
+    gated?: string[]
+    pending?: ClientBundleRegistration[]
+    defaultTransport?: boolean
+  } = {},
 ): Bench {
   const fetched: string[] = []
   const gates = new Map<string, () => void>()
-  const loader = new ClientModuleSystem({
-    modules: entries,
+  const target = registrationTarget(opts.pending)
+  win.__ModuleLoader__ = target
+  const loadBundle = async (url: string): Promise<void> => {
+    fetched.push(url)
+    if (opts.gated?.includes(url) === true) {
+      await new Promise<void>((resolve) => { gates.set(url, resolve) })
+    }
+    const id = /\/plugins\/(.+)\/client\.js/.exec(url)?.[1]
+    const factory = id === undefined ? undefined : bundles[id]
+    if (factory == null || id === undefined) return
+    win.__ModuleLoader__?.load({ id, factory })
+  }
+  const loader = target.create({
+    boot: { rev: 'graph', entries },
     staticModules: opts.seed ?? {},
-    loadBundle: async (url) => {
-      fetched.push(url)
-      if (opts.gated?.includes(url) === true) {
-        await new Promise<void>((resolve) => { gates.set(url, resolve) })
-      }
-      const id = /\/plugins\/(.+)\/client\.js/.exec(url)?.[1]
-      const factory = id === undefined ? undefined : bundles[id]
-      if (factory == null || id === undefined) return
-      win.__ModuleLoader__?.load({ id, factory })
-    },
+    ...(opts.defaultTransport === true ? {} : { loadBundle }),
   })
-  return { loader, fetched, gates }
+  return { loader, target, fetched, gates }
 }
 
+describe('Cordis plugin face', () => {
+  it('rejects activation before the HTML facade creates the module system', () => {
+    expect(() => { apply(new Context()) }).toThrow('createClientModuleSystem must run before plugin boot')
+  })
+})
+
 describe('lazy CJS arrival', () => {
+  it('drains registrations queued by parser-blocking preload scripts into the same live facade', async () => {
+    const b = bench([row('runtime')], {}, {
+      pending: [{ id: 'runtime', factory: () => ({ marker: 'preloaded' }) }],
+    })
+    const exports = await b.loader.import('runtime', '', {})
+    expect((exports as { marker: string }).marker).toBe('preloaded')
+    expect(b.target.pendingQueue).toEqual([])
+    expect(b.fetched).toEqual([])
+    expect(win.__ModuleLoader__).toBe(b.target)
+    expect(b.target.mode).toBe('live')
+  })
+
   it('prefetch loads and registers but does not run the factory', async () => {
     const ran: string[] = []
     const b = bench([row('a')], { a: () => { ran.push('a'); return {} } })
     await b.loader.prefetch('a')
     expect(b.fetched).toEqual(['/plugins/a/client.js?rev=0'])
     expect(ran).toEqual([])
-    expect(b.loader.loadCache.size).toBe(0)
+    expect(b.loader.loadCache.has('a')).toBe(false)
   })
 
   it('import materializes once and memoizes the exports', async () => {
@@ -86,6 +133,26 @@ describe('lazy CJS arrival', () => {
     const exports = await b.loader.import('a', '', {})
     expect((exports as { marker: string }).marker).toBe('direct')
     expect(b.fetched).toHaveLength(1)
+  })
+
+  it('registers declared dynamic requests before materializing their consumer', async () => {
+    const b = bench([
+      row('consumer', { external: ['provider/client', 'react'] }),
+      row('provider'),
+    ], {
+      consumer: req => ({ provider: req('provider/client'), react: req('react') }),
+      provider: () => ({ marker: 'provider' }),
+    }, { seed: { react: { marker: 'react' } } })
+    const exports = await b.loader.import('consumer', '', {}) as {
+      provider: { marker: string }
+      react: { marker: string }
+    }
+    expect(b.fetched).toEqual([
+      '/plugins/provider/client.js?rev=0',
+      '/plugins/consumer/client.js?rev=0',
+    ])
+    expect(exports.provider.marker).toBe('provider')
+    expect(exports.react.marker).toBe('react')
   })
 
   it('concurrent callers share one in-flight arrival and materialize once', async () => {
@@ -168,24 +235,32 @@ describe('require resolution', () => {
   })
 })
 
-describe('static registry', () => {
-  it('serves shell-own modules to import and require without any fetch', async () => {
-    const shell = { marker: 'app-shell' }
-    const b = bench([row('a')], {
-      a: req => ({ dep: req('app-shell') }),
+describe('bootstrap module', () => {
+  it('caches the materialized modules exports under the package id and /client alias', async () => {
+    const b = bench([
+      row('consumer', { external: [`${MODULES_ID}/client`] }),
+      row(MODULES_ID),
+    ], {
+      consumer: req => ({ dep: req(`${MODULES_ID}/client`) }),
     })
-    b.loader.registerStatic('app-shell', shell)
-    await b.loader.prefetch('app-shell')
-    expect(await b.loader.import('app-shell', '', {})).toBe(shell)
-    expect(b.loader.loadCache.get('app-shell')?.styles).toEqual([])
-    expect((await b.loader.import('a', '', {}) as { dep: unknown }).dep).toBe(shell)
-    expect(b.fetched).toEqual(['/plugins/a/client.js?rev=0'])
+    await b.loader.prefetch(MODULES_ID)
+    const exports = await b.loader.import('consumer', '', {}) as { dep: unknown }
+    expect(exports.dep).toBe(bootstrapExports)
+    expect(await b.loader.import(`${MODULES_ID}/client`, '', {})).toBe(bootstrapExports)
+    expect(b.fetched).toEqual(['/plugins/consumer/client.js?rev=0'])
   })
 
-  it('duplicate static registration is loud', () => {
+  it('publishes the same closed-over system when the modules Cordis plugin activates', () => {
     const b = bench([])
-    b.loader.registerStatic('app-shell', {})
-    expect(() => { b.loader.registerStatic('app-shell', {}) }).toThrow('registered twice')
+    const ctx = new Context()
+    apply(ctx)
+    expect(ctx.modules).toBe(b.loader)
+  })
+
+  it('rejects a second queued registration for the bootstrap id', () => {
+    expect(() => bench([], {}, {
+      pending: [{ id: `${MODULES_ID}/client`, factory: () => ({}) }],
+    })).toThrow(`duplicate factory registration for "${MODULES_ID}/client"`)
   })
 })
 
@@ -216,10 +291,44 @@ describe('failure modes', () => {
     expect(() => bench([row('a'), row('a')])).toThrow('duplicate graph entry "a"')
   })
 
+  it('a module arrival cycle is loud even if a malformed host graph reaches the browser', async () => {
+    const b = bench([
+      row('a', { external: ['b'] }),
+      row('b', { external: ['a'] }),
+    ])
+    await expect(b.loader.prefetch('a')).rejects.toThrow('module arrival cycle a -> b -> a')
+  })
+
   it('double boot is loud', () => {
-    bench([])
-    expect(() => new ClientModuleSystem({ modules: [], staticModules: {} }))
-      .toThrow('already installed (double boot?)')
+    const b = bench([])
+    const options: ClientModuleCreateOptions = {
+      boot: { rev: 'graph', entries: [] },
+      staticModules: {},
+    }
+    expect(() => b.target.create(options)).toThrow('create called after module-system boot')
+  })
+})
+
+describe('boot manifest wire', () => {
+  it('normalizes absent shared-module fields and carries the declared ones', () => {
+    const manifest = parseBootManifest({
+      rev: 'graph',
+      entries: [
+        { id: 'a', url: '/plugins/a/client.js', rev: '1' },
+        { id: 'b', url: '/plugins/b/client.js', rev: '2', external: ['react'] },
+      ],
+    })
+    expect(manifest.modules).toEqual([
+      { id: 'a', url: '/plugins/a/client.js', rev: '1', external: [] },
+      { id: 'b', url: '/plugins/b/client.js', rev: '2', external: ['react'] },
+    ])
+  })
+
+  it('rejects a non-array external', () => {
+    expect(() => parseBootManifest({
+      rev: 'graph',
+      entries: [{ id: 'a', url: '/a', rev: '1', external: 'react' }],
+    })).toThrow('client-modules: boot manifest entry "a" external must be a string array')
   })
 })
 
@@ -283,8 +392,8 @@ describe('default transport seam', () => {
         script.dispatchEvent(new Event('load'))
       })
     })
-    const loader: ClientModuleLoader = new ClientModuleSystem({ modules: [row('dee')], staticModules: {} })
-    const exports = await loader.import('dee', '', {})
+    const b = bench([row('dee')], {}, { defaultTransport: true })
+    const exports = await b.loader.import('dee', '', {})
     expect((exports as { marker: string }).marker).toBe('via-script')
     expect(append).toHaveBeenCalledOnce()
     expect([...document.querySelectorAll('script')]).toEqual([])
@@ -296,8 +405,8 @@ describe('default transport seam', () => {
       if (!(script instanceof HTMLScriptElement)) throw new Error('expected script node')
       queueMicrotask(() => { script.dispatchEvent(new Event('error')) })
     })
-    const loader = new ClientModuleSystem({ modules: [row('dee')], staticModules: {} })
-    await expect(loader.prefetch('dee')).rejects.toThrow(
+    const b = bench([row('dee')], {}, { defaultTransport: true })
+    await expect(b.loader.prefetch('dee')).rejects.toThrow(
       'bundle script /plugins/dee/client.js?rev=0 failed to load',
     )
     expect([...document.querySelectorAll('script')]).toEqual([])

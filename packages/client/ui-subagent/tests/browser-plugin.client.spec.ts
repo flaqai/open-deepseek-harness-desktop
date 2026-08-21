@@ -1,16 +1,4 @@
-/**
- * ui-subagent browser half: source registration (duplicate-name proof) +
- * fiber-teardown removal (HMR safety) against the real InputTriggerService, then
- * the source behavior contract driven directly on the captured source with
- * real ClientSessionContext projections — zero-RPC candidates from the root
- * session list (running children of the projected session, label-contains
- * filtering, childless session → empty), the synchronous lexicon roster,
- * pick → plain-text outcome (the plain-text-reference decision:
- * .agents/notes/implemented/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md),
- * and the reference codec's two
- * projections. Direct driving is deliberate: this spec owns only the
- * source's own contract.
- */
+/** ui-subagent browser half: catalog actions and read-only composer routing. */
 import { Context } from '@deepseek-ai/cordis'
 import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
 import { describe, expect, it } from 'vitest'
@@ -19,8 +7,6 @@ import {
   type SessionSummary, type SubagentAddress,
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ComposerChainProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { InputTriggerService } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import type { ClientSessionContext, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
 import {
   SubagentCatalogAction, type SubagentCatalogInjected,
@@ -41,20 +27,17 @@ function summary(partial: Partial<SessionSummary> & { id: SessionId }): SessionS
 
 const sid = (id: string) => id as SessionId
 
-/** Fake root sessions face: the list snapshot the source closes over. */
+/** Fake root sessions face for catalog actions. */
 function sessionsWith(sessions: SessionSummary[]) {
   const byId: Record<string, SessionSummary> = {}
   for (const s of sessions) byId[s.id] = s
   const snapshot = { ids: sessions.map(s => s.id), byId, current: undefined } as unknown as SessionListState
-  const subs = new Set<() => void>()
   const actionCalls: { method: string; args: unknown[] }[] = []
   return {
     list: {
       getSnapshot: () => snapshot,
-      subscribe: (fn: () => void) => { subs.add(fn); return () => { subs.delete(fn) } },
+      subscribe: () => () => {},
     },
-    notify: () => { for (const fn of [...subs]) fn() },
-    listenerCount: () => subs.size,
     actionCalls,
     openSubagent: (address: SubagentAddress) => {
       actionCalls.push({ method: 'openSubagent', args: [address] })
@@ -80,26 +63,18 @@ async function provideSlotFaces(ctx: Context): Promise<void> {
   } as never, () => null)
 }
 
-/** Boot the plugin over fake slash/sessions faces; returns the captured source and the list face. */
+/** Boot the plugin over fake sessions and slot faces. */
 async function fullBench(sessions: SessionSummary[]) {
   const ctx = new Context()
-  let captured: InputTriggerSource | undefined
   const face = sessionsWith(sessions)
-  ctx.provide('inputTriggers', { registerSource: (src: InputTriggerSource) => { captured = src; return () => {} } })
   ctx.provide('sessions', face)
   ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
-  // ui-theme's Appearance row binds a durable scope through these two.
   ctx.provide('remote', { $on: () => () => {} } as never)
   ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   await provideSlotFaces(ctx)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
   await ctx.plugin({ inject: [...inject], apply }).await()
-  return { source: captured!, face, ctx }
-}
-
-/** Source-only bench for the behavior-contract suites. */
-async function bench(sessions: SessionSummary[]): Promise<InputTriggerSource> {
-  return (await fullBench(sessions)).source
+  return { face, ctx }
 }
 
 const FAMILY: SessionSummary[] = [
@@ -112,40 +87,9 @@ const FAMILY: SessionSummary[] = [
   summary({ id: sid('c5'), parentId: sid('parent'), displayTitle: 'scout', running: true }),
 ]
 
-const proj = (id: string): ClientSessionContext => ({ sessionId: sid(id) })
-
-const req = (query: string) =>
-  ({ query, position: 'inline' as const, signal: new AbortController().signal })
-
 describe('apply', () => {
   it('declares the services it binds', () => {
-    expect(inject).toEqual(['inputTriggers', 'sessions', 'slots', 'locale'])
-  })
-
-  it('registers the "@" subagent source; disposal frees the name (HMR safety)', async () => {
-    const ctx = new Context()
-    await ctx.plugin(InputTriggerService).await()
-    ctx.provide('sessions', sessionsWith(FAMILY))
-    ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
-    // ui-theme's Appearance row binds a durable scope through these two.
-    ctx.provide('remote', { $on: () => () => {} } as never)
-    ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
-    await provideSlotFaces(ctx)
-    await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
-    const fiber = ctx.plugin({ inject: [...inject], apply })
-    await fiber.await()
-    const inputTriggers = ctx.get('inputTriggers') as InputTriggerService
-    const rival = {
-      trigger: '@' as const,
-      name: 'subagent',
-      candidates: () => Promise.resolve([]),
-      onPick: () => undefined,
-    }
-    // Live registration holds the (trigger, name) seat…
-    expect(() => inputTriggers.registerSource(rival)).toThrow(/already registered/)
-    // …and fiber teardown releases it.
-    await fiber.dispose()
-    expect(() => inputTriggers.registerSource(rival)).not.toThrow()
+    expect(inject).toEqual(['sessions', 'slots', 'locale'])
   })
 
   it('registers catalog actions and selects read-only subagent composers from session facts', async () => {
@@ -192,76 +136,5 @@ describe('apply', () => {
     // A RUNNING parent-offline continuable yields the default composer, whose
     // disabled input still carries the primary Stop; stopped, it takes back over.
     expect(select(owner({ address, parentAvailable: false }, true))).toBeNull()
-  })
-})
-
-describe('candidates', () => {
-  it('returns running children of the projected session, filtered by label containment', async () => {
-    const source = await bench(FAMILY)
-    await expect(source.candidates(proj('parent'), req('worker'))).resolves.toEqual([
-      { name: 'worker-1' }, { name: 'worker-2' },
-    ])
-  })
-
-  it('matches every running child on an empty query (containment, not prefix)', async () => {
-    const source = await bench(FAMILY)
-    await expect(source.candidates(proj('parent'), req(''))).resolves.toEqual([
-      { name: 'worker-1' }, { name: 'worker-2' }, { name: 'scout' },
-    ])
-  })
-
-  it('is candidate-less for a session with no children', async () => {
-    const source = await bench(FAMILY)
-    await expect(source.candidates(proj('childless'), req(''))).resolves.toEqual([])
-  })
-})
-
-describe('lexicon', () => {
-  it('synchronously serves the projected session\'s full running-children roster', async () => {
-    const source = await bench(FAMILY)
-    expect(source.lexicon!(proj('parent'))).toEqual(['worker-1', 'worker-2', 'scout'])
-    expect(source.lexicon!(proj('childless'))).toEqual([])
-  })
-
-  it('subscribeLexicon forwards the session-list change feed and unsubscribes cleanly', async () => {
-    const { source, face } = await fullBench(FAMILY)
-    let notified = 0
-    const off = source.subscribeLexicon!(proj('parent'), () => { notified += 1 })
-    expect(face.listenerCount()).toBe(1)
-    face.notify()
-    expect(notified).toBe(1)
-    off()
-    expect(face.listenerCount()).toBe(0)
-    face.notify()
-    expect(notified).toBe(1)
-  })
-})
-
-describe('pick and codec', () => {
-  it('onPick returns the literal @label text with a closing space', async () => {
-    const source = await bench(FAMILY)
-    const outcome = source.onPick({
-      candidate: { name: 'worker-1' },
-      session: proj('parent'),
-      position: 'inline',
-      via: 'menu',
-      span: { start: 4, end: 8, draftRev: 3 },
-    })
-    expect(outcome).toEqual({ text: '@worker-1 ' })
-  })
-
-  it('codec projects clipboard `@label` and serializes the same raw label this phase', async () => {
-    const source = await bench(FAMILY)
-    expect(source.codec!.clipboardText('worker-1')).toBe('@worker-1')
-    await expect(source.codec!.serialize('worker-1', new AbortController().signal))
-      .resolves.toBe('@worker-1')
-  })
-})
-
-describe('adjudication', () => {
-  it('never participates: no matchSpace/matchEnter hooks on the subagent source', async () => {
-    const source = await bench(FAMILY)
-    expect('matchSpace' in source && source.matchSpace !== undefined).toBe(false)
-    expect('matchEnter' in source && source.matchEnter !== undefined).toBe(false)
   })
 })

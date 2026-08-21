@@ -22,32 +22,32 @@ const SNAPSHOT_DIR = fileURLToPath(new URL('./snapshots/web-search-round', impor
 const FIXTURE = fileURLToPath(new URL('./snapshots/web-search-round/session.jsonl', import.meta.url))
 const UI_EXPECTED = fileURLToPath(new URL('./snapshots/web-search-round/ui.expected.md', import.meta.url))
 const MODE = webSnapshotMode()
-const QUERY = 'DeepSeek Harness snapshot search'
-const PROMPT = `Use web_search to search exactly "${QUERY}". Then reply exactly SEARCH_DONE and stop.`
+const QUERIES = ['DeepSeek Harness snapshot search', 'DeepSeek Harness multi-query search'] as const
+const PROMPT = `Use web_search once with queries ${JSON.stringify(QUERIES)}. Then reply exactly SEARCH_DONE and stop.`
 const SEARCH_CREDENTIAL_REF = credentialRef('DSH_WEB_SEARCH_E2E_KEY')
 const SEARCH_CREDENTIAL = 'snapshot-search-key'
 
 /**
- * Provider results the double returns, exceeding the shipped `searchMaxResults`
- * so the seam's cap and the card's scroll container are both exercised. Each row
- * carries a title, a snippet, and a date, so 8 kept rows exceed the `.sources`
- * 320px max-height.
+ * Provider results the double returns per query. The combined result exceeds
+ * the shipped `searchMaxResults`, so the tool's round-robin cap and the card's
+ * scroll container are both exercised. Each row carries a title, a snippet,
+ * and a date, so 8 kept rows exceed the `.sources` 320px max-height.
  */
-const PROVIDER_RESULT_COUNT = 12
+const PROVIDER_RESULT_COUNT = 6
 
 /** One provider result's URL, by 1-based provider order. */
-function resultUrl(ordinal: number): string {
-  return `https://docs.example.test/search/${ordinal}`
+function resultUrl(queryIndex: number, ordinal: number): string {
+  return `https://docs.example.test/search/${queryIndex + 1}/${ordinal}`
 }
 
 /** One provider result's title, by 1-based provider order. */
-function resultTitle(ordinal: number): string {
-  return `Snapshot Search Result ${ordinal}`
+function resultTitle(queryIndex: number, ordinal: number): string {
+  return `Snapshot Search ${queryIndex + 1} Result ${ordinal}`
 }
 
 /** One provider result's citation excerpt, by 1-based provider order. */
-function resultSnippet(ordinal: number): string {
-  return `Snapshot search excerpt ${ordinal}: the harness replays this source list from a local endpoint.`
+function resultSnippet(queryIndex: number, ordinal: number): string {
+  return `Snapshot search ${queryIndex + 1} excerpt ${ordinal}: the harness replays this source list from a local endpoint.`
 }
 
 /** One provider result's `page_age`, by 1-based provider order (July 2026 days 01..12). */
@@ -57,6 +57,19 @@ function resultPageAge(ordinal: number): string {
 
 /** The 1-based provider ordinals, in provider order. */
 const RESULT_ORDINALS = Array.from({ length: PROVIDER_RESULT_COUNT }, (_value, index) => index + 1)
+
+/** Sources kept after round-robin merging reaches the shipped combined cap. */
+const KEPT_SOURCES = RESULT_ORDINALS.flatMap(ordinal => QUERIES.map((_query, queryIndex) => ({
+  url: resultUrl(queryIndex, ordinal),
+  title: resultTitle(queryIndex, ordinal),
+  snippet: resultSnippet(queryIndex, ordinal),
+  publishedAt: resultPageAge(ordinal),
+}))).slice(0, WEB_SEARCH_MAX_RESULTS)
+
+/** URLs omitted after the combined source cap is reached. */
+const DROPPED_SOURCE_URLS = RESULT_ORDINALS.flatMap(ordinal => QUERIES.map(
+  (_query, queryIndex) => resultUrl(queryIndex, ordinal),
+)).slice(WEB_SEARCH_MAX_RESULTS)
 
 interface CapturedSearchRequest {
   path: string
@@ -71,11 +84,19 @@ async function startSearchServer(captured: CapturedSearchRequest[]): Promise<{ s
     request.setEncoding('utf8')
     request.on('data', (chunk: string) => { body += chunk })
     request.on('end', () => {
+      const parsedBody = JSON.parse(body) as unknown
       captured.push({
         path: request.url ?? '',
         apiKey: typeof request.headers['x-api-key'] === 'string' ? request.headers['x-api-key'] : undefined,
-        body: JSON.parse(body) as unknown,
+        body: parsedBody,
       })
+      const serializedBody = JSON.stringify(parsedBody)
+      const queryIndex = QUERIES.findIndex(query => serializedBody.includes(`Perform a web search for the query: ${query}`))
+      if (queryIndex < 0) {
+        response.writeHead(400, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({ error: 'unknown fixture query' }))
+        return
+      }
       response.writeHead(200, { 'content-type': 'application/json' })
       response.end(JSON.stringify({
         content: [
@@ -84,16 +105,16 @@ async function startSearchServer(captured: CapturedSearchRequest[]): Promise<{ s
             text: `Found ${PROVIDER_RESULT_COUNT} sources.`,
             citations: RESULT_ORDINALS.map(ordinal => ({
               type: 'web_search_result_location',
-              url: resultUrl(ordinal),
-              cited_text: resultSnippet(ordinal),
+              url: resultUrl(queryIndex, ordinal),
+              cited_text: resultSnippet(queryIndex, ordinal),
             })),
           },
           {
             type: 'web_search_tool_result',
             content: RESULT_ORDINALS.map(ordinal => ({
               type: 'web_search_result',
-              url: resultUrl(ordinal),
-              title: resultTitle(ordinal),
+              url: resultUrl(queryIndex, ordinal),
+              title: resultTitle(queryIndex, ordinal),
               page_age: resultPageAge(ordinal),
             })),
           },
@@ -173,28 +194,39 @@ describe('web e2e: shipped default web search', () => {
   }, 200_000)
 
   it.skipIf(MODE === 'record')('uses the real provider and persists the capped structured result', () => {
-    expect(searchRequests).toHaveLength(1)
-    expect(searchRequests[0]).toMatchObject({
-      path: '/messages',
-      apiKey: SEARCH_CREDENTIAL,
-      body: {
+    expect(searchRequests).toHaveLength(QUERIES.length)
+    for (const query of QUERIES) {
+      const request = searchRequests.find(candidate => JSON.stringify(candidate.body).includes(query))
+      if (request === undefined) throw new Error(`missing provider request for query: ${query}`)
+      expect(request).toMatchObject({ path: '/messages', apiKey: SEARCH_CREDENTIAL })
+      expect(request.body).toMatchObject({
         messages: [{
           role: 'user',
-          content: [{ type: 'text', text: `Perform a web search for the query: ${QUERY}` }],
+          content: [{ type: 'text', text: `Perform a web search for the query: ${query}` }],
         }],
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      },
-    })
+      })
+      const tools = (request.body as { tools?: unknown }).tools
+      expect(tools).toHaveLength(1)
+      expect((tools as unknown[])[0]).toMatchObject({ type: 'web_search_20250305', name: 'web_search' })
+    }
 
-    const auxiliaryRequest = sessionEvents.find(
+    const auxiliaryRequests = sessionEvents.filter(
       (event): event is Extract<SessionEvent, { type: 'web/deepseek-search-llm-request' }> =>
         event.type === 'web/deepseek-search-llm-request',
     )
-    expect(auxiliaryRequest?.data).toEqual({
-      endpoint: `${searchBaseURL}/messages`,
-      apiVersion: '2023-06-01',
-      body: searchRequests[0]?.body,
-    })
+    expect(auxiliaryRequests).toHaveLength(QUERIES.length)
+    for (const query of QUERIES) {
+      const request = searchRequests.find(candidate => JSON.stringify(candidate.body).includes(query))
+      const auxiliaryRequest = auxiliaryRequests.find(event => JSON.stringify(event.data.body).includes(query))
+      if (request === undefined || auxiliaryRequest === undefined) {
+        throw new Error(`missing paired provider request for query: ${query}`)
+      }
+      expect(auxiliaryRequest.data).toEqual({
+        endpoint: `${searchBaseURL}/messages`,
+        apiVersion: '2023-06-01',
+        body: request.body,
+      })
+    }
 
     const searchCall = sessionEvents.find(
       (event): event is Extract<SessionEvent, { type: 'tool/call' }> =>
@@ -209,25 +241,19 @@ describe('web e2e: shipped default web search', () => {
     const content = searchResult.data.message.content[0]
     expect(content.isError).toBe(false)
     const rendered = content.content.filter(block => block.type === 'text').map(block => block.text).join('')
-    // The seam caps the provider's list at the shipped searchMaxResults before
-    // the tool renders it, so the kept prefix is model-visible and the dropped
-    // suffix is not.
-    for (const ordinal of RESULT_ORDINALS.slice(0, WEB_SEARCH_MAX_RESULTS)) {
-      expect(rendered).toContain(`[${resultTitle(ordinal)}](${resultUrl(ordinal)})`)
+    // The tool interleaves sources from both seam results before applying the
+    // combined cap, so each query remains represented in model-visible output.
+    for (const source of KEPT_SOURCES) {
+      expect(rendered).toContain(`[${source.title}](${source.url})`)
     }
-    for (const ordinal of RESULT_ORDINALS.slice(WEB_SEARCH_MAX_RESULTS)) {
-      expect(rendered).not.toContain(resultUrl(ordinal))
+    for (const url of DROPPED_SOURCE_URLS) {
+      expect(rendered).not.toContain(url)
     }
     expect(rendered).toContain(
       `(Showing the first ${WEB_SEARCH_MAX_RESULTS} sources. Refine the query for more.)`,
     )
     expect(searchResult.data.meta).toMatchObject({
-      sources: RESULT_ORDINALS.slice(0, WEB_SEARCH_MAX_RESULTS).map(ordinal => ({
-        url: resultUrl(ordinal),
-        title: resultTitle(ordinal),
-        snippet: resultSnippet(ordinal),
-        publishedAt: resultPageAge(ordinal),
-      })),
+      sources: KEPT_SOURCES,
       truncated: true,
     })
   })
@@ -250,8 +276,7 @@ describe('web e2e: shipped default web search', () => {
     const card = page.locator('[data-web="search"]')
     const sources = card.locator('ol')
     await sources.waitFor({ timeout: 10_000 })
-    // The card draws exactly the sources the model saw: the seam's cap, not the
-    // provider's list length.
+    // The card draws exactly the sources the model saw after the combined cap.
     expect(await sources.locator('li').count()).toBe(WEB_SEARCH_MAX_RESULTS)
     // The list is complete in the DOM, so the card carries no expand control.
     expect(await card.locator('button').count()).toBe(0)

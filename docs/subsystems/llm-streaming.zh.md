@@ -242,7 +242,7 @@ interface LlmFailure {
 
 ## `ResolvedRetryPolicy`
 
-提供方配置会在路由注册前解析为不可变的可辨识联合。normal mode 携带 `mode: 'normal'`、有限的 `maxRetries`、`retryableCodes`，以及必填的 `initialDelayMs`、`maxDelayMs` 与 `jitterRatio`；always mode 携带 `mode: 'always'` 和相同的必填退避字段，但没有有限上限。`LlmRuntime.providerRetryPolicy(provider)` 返回当前注册的值，并在适配器省略策略时提供 normal 默认值；调用选定该注册后，`llmRetryPolicyOf(stream)` 返回为该调用服务的注册所捕获的值，因此之后释放或替换路由都无法改变进行中失败的恢复策略。可选配置输入字段由[生成的配置目录](../config-catalog.md)列出。
+重试配置会在路由注册前解析为不可变的可辨识联合。normal mode 携带 `mode: 'normal'`、有限的 `maxRetries`、`retryableCodes`，以及必填的 `initialDelayMs`、`maxDelayMs` 与 `jitterRatio`；always mode 携带 `mode: 'always'` 和相同的必填退避字段，但没有有限上限。省略提供方策略时使用重试五次的 normal 默认值。分层 settings 在切换到 always 模式后可能保留仅属于 normal 的 `maxRetries` 或 `retryableCodes`；解析器会忽略这些未启用字段，并捕获纯 always 策略。`LlmRuntime.providerRetryPolicy(provider)` 返回注册值；调用选定实际提供服务的注册后，`llmRetryPolicyOf(stream)` 返回从中捕获的值，因此之后释放或替换路由都无法改变进行中失败的恢复策略。可选配置输入字段由[生成的配置目录](../config-catalog.md)列出。
 
 ## `AppIdentity`：应用归属
 
@@ -304,7 +304,8 @@ interface TokenUsage {
  * {@link ContentBlock}s and a final assistant {@link Message}.
  *
  * The agent loop feeds it while logging raw chunks for replay fidelity, then
- * reads `blocks()` / `message()` / `usage` / `finish` once the stream ends.
+ * reads `blocks()` / `message()` / `usage` / `finish` once the stream ends,
+ * or `interruptedBlocks()` when cancellation cut the stream short.
  *
  * Tolerant of delta-only protocols (no block-start/end); deltas arriving for
  * an index already closed by `block-end` are ignored (malformed stream) so a
@@ -323,6 +324,14 @@ declare class BlockAssembler {
    *   its accumulated deltas (an unknown block type never closed by `block-end` throws).
    */
   blocks(): ContentBlock[];
+  /**
+   * Assemble the prefix an interrupted stream can safely finalize: closed and
+   * open text/reasoning blocks with non-whitespace content, in stream order.
+   * Tool calls are omitted because interruption precedes dispatch; retaining
+   * one would require a fabricated result. Open unknown blocks are also omitted.
+   * @returns the kept blocks; empty when nothing streamed before the interruption.
+   */
+  interruptedBlocks(): ContentBlock[];
   /** Usage from the `usage` chunk; undefined until one arrives. */
   get usage(): TokenUsage | undefined;
   /** Finish reason from the `finish` chunk; `{kind: 'stop'}` when the stream ended without one. */

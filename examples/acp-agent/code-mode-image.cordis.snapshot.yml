@@ -13,7 +13,7 @@
         name: '@deepseek-ai/dsh-acp-demo'
         config:
           provider: deepseek-official
-          model: deepseek-v4-flash
+          model: deepseek-v4-flash-vision-exp
           persistenceRoot: !!js process.env.DSH_SNAPSHOT_SESSIONS_ROOT ?? './.sessions'
           persistenceCompression: none
           workspaceContext:
@@ -37,6 +37,8 @@
                   name: DeepSeek
                   models:
                     - id: deepseek-v4-flash
-                      inputModalities: [text, image]
+                      inputModalities: [text]
                     - id: deepseek-v4-pro
                       inputModalities: [text]
+                    - id: deepseek-v4-flash-vision-exp
+                      inputModalities: [text, image]

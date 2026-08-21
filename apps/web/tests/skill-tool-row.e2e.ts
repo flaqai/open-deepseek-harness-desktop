@@ -17,7 +17,7 @@ const SNAPSHOT_DIR = fileURLToPath(new URL('./snapshots/skill-tool-row', import.
 const UI_EXPECTED = fileURLToPath(new URL('./snapshots/skill-tool-row/ui.expected.md', import.meta.url))
 const MODE = webSnapshotMode()
 const SEED_ID = 'skill-tool-row-web-e2e'
-const PROMPT = 'Load the snapshot-skill skill with the skill tool, then reply DONE.'
+const PROMPT = 'Load the editing-cordis-compositions skill with the skill tool, then reply DONE.'
 
 describe.skipIf(MODE === 'record')('web e2e: dedicated Skill tool row', () => {
   let scaffold: WebScaffold
@@ -53,17 +53,17 @@ describe.skipIf(MODE === 'record')('web e2e: dedicated Skill tool row', () => {
   it('expands the loaded skill to its exact recorded instructions', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-skill-tool-row'))
     const call = page.locator('[data-tool="skill"]')
-    const row = call.getByRole('button', { name: 'Skill snapshot-skill' })
+    const row = call.getByRole('button', { name: 'Skill editing-cordis-compositions' })
     await expect.poll(() => row.getAttribute('aria-expanded')).toBe('false')
-    expect(await call.getByText('snapshot-skill', { exact: true }).count()).toBe(1)
+    expect(await call.getByText('editing-cordis-compositions', { exact: true }).count()).toBe(1)
 
     await row.click()
     await expect.poll(() => row.getAttribute('aria-expanded')).toBe('true')
     await call.getByText('Instructions', { exact: true }).waitFor()
     const output = call.locator('pre')
     await output.waitFor()
-    expect(await output.textContent()).toContain('<skill_content name="snapshot-skill">')
-    expect(await output.textContent()).toContain('Follow these snapshot-only instructions.')
+    expect(await output.textContent()).toContain('<skill_content name="editing-cordis-compositions">')
+    expect(await output.textContent()).toContain('Each Bundle registers its dormant default provider and exclusively uses its pinned package-local platform CLI')
     expect(await output.evaluate(element => getComputedStyle(element.parentElement!).maxHeight)).toBe('260px')
 
     const snapshot = (await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd))

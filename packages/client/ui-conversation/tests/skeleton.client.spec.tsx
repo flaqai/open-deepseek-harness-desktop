@@ -4,7 +4,7 @@
 // owned draft, and the hero workspace picker (switching = retargetWorkspace).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   createSnapshotStore, EMPTY_CHAT_SNAPSHOT, EMPTY_CONVERSATION_VIEWS,
 } from '@deepseek-ai/dsh-client-runtime/client'
@@ -22,6 +22,7 @@ import { en, zh } from '../src/client/locales.ts'
 import { ConversationRoot } from '../src/client/skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from '../src/client/skeleton/ConversationSession.tsx'
 import { HeroShell } from '../src/client/skeleton/EmptyHero.tsx'
+import type { HeroShellProps } from '../src/client/skeleton/EmptyHero.tsx'
 import { InputBar } from '../src/client/skeleton/InputBar.tsx'
 import type { InputBarProps } from '../src/client/skeleton/InputBar.tsx'
 import type {
@@ -31,8 +32,8 @@ import type { ViewTab } from '../src/client/contract/views.ts'
 
 /** Machine-backed wiring over a sink spy. */
 function fakeWiring() {
-  const sink = vi.fn()
-  const shell = new SessionInputShell({ actx: {} as ClientContext, defaultSink: sink })
+  const sink = vi.fn(() => Promise.resolve({ kind: 'success' as const }))
+  const shell = new SessionInputShell({ actx: {} as ClientContext, defaultSink: sink, commandImages: { serialize: () => Promise.resolve([]), release: () => {}, unsupportedNotice: (token: string) => `${token.trim()} images-unsupported` } })
   return { wiring: shell, sink, shell }
 }
 
@@ -258,12 +259,22 @@ function mount(
 }
 
 describe('Hero chrome', () => {
-  it('switches the headline and preview badge through the hero locale seat', () => {
-    const view = render(<HeroShell t={makeTranslate(en, commonEn)} />)
+  it('switches the headline and preview badge while exposing the brand slot', () => {
+    const renderSlot = vi.fn<HeroShellProps['renderSlot']>(() => null)
+    const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot} />)
     expect(view.getByText('Build what’s next')).toBeTruthy()
     expect(view.getByText('Preview')).toBeTruthy()
+    expect(renderSlot).toHaveBeenCalledOnce()
+    expect(renderSlot.mock.calls[0]?.[0]).toBe('conversation.hero.brand.mark')
+    const brandMarkOwner = renderSlot.mock.calls[0]?.[1]
+    if (brandMarkOwner === undefined || !('size' in brandMarkOwner) || !('className' in brandMarkOwner)) {
+      throw new Error('hero brand-mark owner must provide size and className')
+    }
+    expect(brandMarkOwner.size).toBe(34)
+    expect(brandMarkOwner.className).toBeTypeOf('string')
+    expect(renderSlot.mock.calls[0]?.[2]?.fallback).toBeTruthy()
 
-    view.rerender(<HeroShell t={makeTranslate(zh, commonZh)} />)
+    view.rerender(<HeroShell t={makeTranslate(zh, commonZh)} renderSlot={renderSlot} />)
     expect(view.queryByText('Build what’s next')).toBeNull()
     expect(view.getByText('构建你的下一个想法')).toBeTruthy()
     expect(view.getByText('预览版')).toBeTruthy()
@@ -314,7 +325,7 @@ describe('ConversationRoot resident composer', () => {
     fireEvent.change(box, { target: { value: 'ordinary revised' } })
     expect(b.chat.store.getSnapshot().draft).toBe('ordinary revised')
     fireEvent.keyDown(box, { key: 'Enter' })
-    expect(b.sink).toHaveBeenCalledWith('ordinary revised', [], 'queue')
+    expect(b.sink).toHaveBeenCalledWith('ordinary revised', [], 'queue', expect.any(AbortSignal))
     expect((b.view.getByRole('button', { name: 'Child' }) as HTMLButtonElement).disabled).toBe(true)
     expect(b.view.queryByText('Root')).toBeNull()
   })

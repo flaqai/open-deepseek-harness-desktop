@@ -1,8 +1,28 @@
-import { lstat, mkdir, mkdtemp, readFile, readdir, stat, symlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withFileLock, writeFileAtomic } from '../src/index.ts'
+
+const state = vi.hoisted(() => ({ failLockCreateWithEPERM: false }))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    writeFile: (async (path: unknown, ...rest: never[]) => {
+      if (state.failLockCreateWithEPERM && String(path).endsWith('.lock')) {
+        state.failLockCreateWithEPERM = false
+        throw Object.assign(new Error('EPERM: injected exclusive-create failure'), { code: 'EPERM' })
+      }
+      return (actual.writeFile as (path: unknown, ...args: never[]) => Promise<void>)(path, ...rest)
+    }) as typeof actual.writeFile,
+  }
+})
+
+afterEach(() => {
+  state.failLockCreateWithEPERM = false
+})
 
 async function scratch(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'dsh-atomic-write-'))
@@ -48,6 +68,32 @@ describe('writeFileAtomic', () => {
 })
 
 describe('withFileLock', () => {
+  it('retries EPERM only when the lock path currently exists', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    await writeFile(lockPath, 'holder\n')
+    const release = setTimeout(() => { void rm(lockPath, { force: true }) }, 50)
+    state.failLockCreateWithEPERM = true
+    let called = false
+
+    try {
+      await withFileLock(target, async () => { called = true })
+    } finally {
+      clearTimeout(release)
+    }
+    expect(called).toBe(true)
+  })
+
+  it('preserves EPERM when no lock path exists', async () => {
+    const dir = await scratch()
+    const operation = vi.fn(async () => {})
+    state.failLockCreateWithEPERM = true
+
+    await expect(withFileLock(join(dir, 'document'), operation)).rejects.toMatchObject({ code: 'EPERM' })
+    expect(operation).not.toHaveBeenCalled()
+  })
+
   it('rejects an invalid parent hierarchy before running the operation', async () => {
     const dir = await scratch()
     const parent = join(dir, 'not-a-directory')

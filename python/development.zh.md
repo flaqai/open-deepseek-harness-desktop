@@ -61,10 +61,18 @@ with DeepSeekHarness() as harness:
 纯 SDK wheel 包只需构建一次；每个原生平台分别构建一个运行时 wheel 包：
 
 ```sh
-version="$(node -p "require('./package.json').version")"
+version="$(python - <<'PY'
+import runpy
+
+release = runpy.run_path("scripts/build-python-release.py")
+print(release["pep440_version"](release["repository_version"]()))
+PY
+)"
 python scripts/build-python-release.py --package sdk --output-dir dist-python
 python scripts/build-python-release.py --package runtime --platform macos-arm64 --runtime-exe dist-exe/dsh-jsonrpc-agent-pkg-macos-arm64 --output-dir dist-python
-pip install --find-links dist-python deepseek-harness-sdk=="$version"
+pip install \
+  "dist-python/deepseek_harness_sdk-$version-py3-none-any.whl" \
+  "dist-python/deepseek_harness_runtime_bin-$version-py3-none-macosx_14_0_arm64.whl"
 ```
 
 运行时分发包仅提供 wheel 包。发布流水线会连同纯 SDK wheel 包一起发布三个平台 wheel 包：Linux x64、Linux arm64 和 macOS 14 或更高版本的 arm64。只有与仓库版本匹配时，才接受 `python-v<repository-version>` 标签；`0.0.1-rc.1` 之类的仓库预发布版本在 wheel 包文件名和元数据中使用规范化的 PEP 440 写法，例如 `0.0.1rc1`。

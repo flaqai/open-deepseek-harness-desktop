@@ -475,7 +475,17 @@ describe('readTextForDiff', () => {
     const reached = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
     let statCalls = 0
-    const allocate = vi.spyOn(Buffer, 'allocUnsafe')
+    const allocUnsafe = Buffer.allocUnsafe.bind(Buffer)
+    // Buffer.allocUnsafe is also called by vitest's fork IPC
+    // (node:internal/child_process serialization), so a process-wide call count
+    // is timing-racy under CI load. Attribute allocations to the fsio read path
+    // instead: the abort must prevent the diff-basis buffer allocation.
+    const fsioAllocations: string[] = []
+    const allocate = vi.spyOn(Buffer, 'allocUnsafe').mockImplementation((size: number) => {
+      const stack = new Error().stack ?? ''
+      if (stack.includes('readTextForDiff')) fsioAllocations.push(stack)
+      return allocUnsafe(size)
+    })
     vi.resetModules()
     vi.doMock('node:fs/promises', async (importOriginal) => {
       const actual = await importOriginal<typeof import('node:fs/promises')>()
@@ -509,12 +519,11 @@ describe('readTextForDiff', () => {
       const controller = new AbortController()
       const pending = isolatedReadTextForDiff(file, 8, controller.signal)
       await reached.promise
-      const allocationCalls = allocate.mock.calls.length
       controller.abort()
       release.resolve(undefined)
       await expect(pending).rejects.toMatchObject({ code: 'FS_ABORTED' })
       expect(statCalls).toBe(stage === 'open' ? 0 : 1)
-      expect(allocate).toHaveBeenCalledTimes(allocationCalls)
+      expect(fsioAllocations).toEqual([])
     } finally {
       release.resolve(undefined)
       allocate.mockRestore()

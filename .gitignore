@@ -33,6 +33,7 @@ python/**/.pytest_cache/
 apps/web/dist/
 apps/desktop/lib/
 .artifacts/
+.dsh-build/
 .playwright-mcp/
 .orig
 .worktrees/

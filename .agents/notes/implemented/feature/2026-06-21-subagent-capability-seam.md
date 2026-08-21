@@ -54,11 +54,11 @@ Fresh and forked children are separate providers, not a request flag. `dsh-subag
 
 ### Child isolation and the parent log
 
-Each in-process subagent runs in its **own `Session`** (own id, `parentSession` lineage), persisted independently. Remote ACP and one-shot product providers instead mint a parent-scoped lifecycle id and expose no local `Agent` or child `Session`; their internal state remains in the remote process. Across both forms, the parent's log records only the spawn `tool/call` and its `tool/result` (the child's final output), while child steps and tool calls remain outside the parent log.
+Each in-process subagent runs in its **own `Session`** (own id, `parentSession` lineage), persisted independently. Remote ACP and one-shot product providers instead mint a parent-scoped lifecycle id and expose no local `Agent` or child `Session`; their internal state remains in the remote process. Across both forms, the parent's log records only the spawn `tool/call` and its `tool/result` (the child's final output, or a failed result with optional provider diagnostic), while child steps and tool calls remain outside the parent log.
 
 ### Synchronous collect (first cut)
 
-`dsh-tool-subagent` passes its execution signal to `start()`, awaits the child result, and disposes the run before reporting. Non-completed outcomes become error results rather than successful partial output, and independent result and disposal rejections retain both diagnostics.
+`dsh-tool-subagent` passes its execution signal to `start()`, awaits the child result, and disposes the run before reporting. Non-completed outcomes become error results rather than successful partial output; they present the optional safe diagnostic owned by the [non-interactive permissions decision](2026-08-15-product-subagent-noninteractive-permissions.md) separately from partial assistant text. Independent result and disposal rejections remain independently observable.
 
 ### Provider selection is config, not model-facing
 

@@ -117,7 +117,7 @@ jobs:
       # together so registry state cannot mask source/package drift.
       - name: Build packages for the pack rehearsal
         if: matrix.runner == 'landlock'
-        run: pnpm run build
+        run: pnpm run build:official
 
       - name: Packed-distribution e2e (pack → install → confine)
         if: matrix.runner == 'landlock'

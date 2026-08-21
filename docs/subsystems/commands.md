@@ -8,13 +8,21 @@ Source: [`packages/interaction/commands/src/index.ts`](../../packages/interactio
 
 ## Input metadata
 
-The service exposes one optional unstructured-input hint. Command availability follows plugin composition: every adapter consuming the registry sees every effective definition.
+The service exposes one optional unstructured-input descriptor: a hint plus an image-acceptance flag. Command availability follows plugin composition: every adapter consuming the registry sees every effective definition.
 
 ```ts type-equiv
 /** Immutable metadata for a command's optional unstructured input. */
 interface CommandInputDescriptor {
   /** Placeholder shown before the user supplies free-form input. */
   readonly hint: string
+  /**
+   * Whether composer image attachments may accompany an invocation. Absent or
+   * false = the executor rejects an invocation carrying images and capable
+   * composers refuse the submission before dispatch. A declaring command's
+   * handler receives the admitted durable blocks and owns every further
+   * grammar decision, including rejecting sub-commands that cannot use them.
+   */
+  readonly images?: boolean
 }
 ```
 
@@ -55,6 +63,14 @@ interface CommandInvocation {
   readonly agent: Agent
   /** Exact text following the registered command name, including separator whitespace. */
   readonly rawInput: string
+  /**
+   * Durably admitted image blocks accompanying this invocation, in submission
+   * order; empty unless the definition declares `input.images`. The handler
+   * owns their model-visible use — the registry never schedules them itself —
+   * and a handler whose grammar cannot use them in this invocation returns an
+   * error so the dispatching composer retains the originals.
+   */
+  readonly attachments: readonly ImageBlock[]
   /** Cancellation signal owned by the dispatching UI request. */
   readonly signal: AbortSignal
 }
@@ -150,18 +166,25 @@ find(agent: Agent, name: string): CommandDefinition | undefined
  * handler-failure path is contained so the handler's own error stays the
  * reported failure.
  *
+ * Image admission is enforced here, not in the composer: images sent to a
+ * command that does not declare `input.images`, an absent attachment store,
+ * and an exceeded attachment limit each settle as an error result before
+ * the handler runs, and a rejected batch publishes no durable object.
+ *
  * @param agent - exact receiving agent.
  * @param line - complete slash-command line.
+ * @param images - base64-encoded composer images accompanying the line, in
+ *   submission order; empty for a plain invocation.
  * @param signal - cancellation signal owned by the UI request.
  * @returns the settled execution (result + lifecycle pairing id), or
  *   `undefined` when syntax or name does not resolve.
  */
-@Remote async execute( agent: Agent, line: string, signal: AbortSignal, ): Promise<CommandExecution | undefined>
+@Remote async execute( agent: Agent, line: string, images: readonly EncodedImageAttachment[], signal: AbortSignal, ): Promise<CommandExecution | undefined>
 ```
 
-Types: [Agent](core.md)
+Types: [Agent](core.md) · [EncodedImageAttachment](attachment.md)
 
-Source: [`packages/interaction/commands/src/index.ts:225`](../../packages/interaction/commands/src/index.ts)
+Source: [`packages/interaction/commands/src/index.ts:250`](../../packages/interaction/commands/src/index.ts)
 
 <a id="commands-events"></a>
 
@@ -183,5 +206,5 @@ A command was registered or unregistered. This is an unfiltered registry notific
 'commands/change'(): void
 ```
 
-Source: [`packages/interaction/commands/src/types.ts:72`](../../packages/interaction/commands/src/types.ts)
+Source: [`packages/interaction/commands/src/types.ts:80`](../../packages/interaction/commands/src/types.ts)
 <!-- END GENERATED cordis-surface -->

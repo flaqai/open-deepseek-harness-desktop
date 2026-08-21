@@ -20,7 +20,7 @@ import type { Config as ToolConfig } from '@deepseek-ai/dsh-tools'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import * as FsPolicy from '@deepseek-ai/dsh-fs-observation-policy'
 import LocalAttachmentStore from '@deepseek-ai/dsh-attachment-local'
-import { AttachmentId, AttachmentStore } from '@deepseek-ai/dsh-attachment'
+import { AttachmentError, AttachmentId, AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
 import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
 import {
@@ -93,7 +93,7 @@ interface SetupOptions {
   resolvedModels?: LlmModelInfo[]
   attachments?: boolean
   llm?: boolean
-  storeConfig?: { maxImageBytes?: number; maxImagePixels?: number; maxMessageImageBytes?: number }
+  storeConfig?: { maxImageBytes?: number; maxImagePixels?: number; maxImageDimension?: number; maxMessageImageBytes?: number }
   toolMode?: ToolConfig['mode']
 }
 
@@ -336,6 +336,7 @@ describe('argument and service preconditions', () => {
         maxImagesPerMessage: 1,
         maxMessageImageBytes: 1024,
         maxImagePixels: 100,
+        maxImageDimension: 2000,
         mediaTypes: Object.freeze(['image/jpeg'] as const),
       })
 
@@ -390,6 +391,57 @@ describe('image admission failures', () => {
     const ctx = await setup({ storeConfig: { maxImagePixels: 4 } })
     const result = await readImage(ctx, { file_path: 'big.png' }, agentOn('vision-model'))
     expect(result.isError).toBe(true)
+    expect(text(result)).toContain('exceeds the 4-pixel decoded-size limit')
+    expect(text(result)).toContain('downscale the image and read the smaller copy')
+  })
+
+  it('surfaces the per-side limit from attachment admission', async () => {
+    await writeFile(join(dir, 'wide.png'), PNG_3X3)
+    const ctx = await setup({ storeConfig: { maxImageDimension: 2 } })
+    const result = await readImage(ctx, { file_path: 'wide.png' }, agentOn('vision-model'))
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('at least one image side exceeds the 2px limit')
+    expect(text(result)).toContain('downscale the image and read the smaller copy')
+  })
+
+  it('passes storage faults and non-attachment failures through unchanged', async () => {
+    /** Store whose commit fails with a configurable error; admission itself passes. */
+    class FailingStore extends AttachmentStore {
+      static failure: unknown
+      readonly imageLimits: ImageAttachmentLimits = Object.freeze({
+        maxImageBytes: 1024,
+        maxImagesPerMessage: 1,
+        maxMessageImageBytes: 1024,
+        maxImagePixels: 100,
+        maxImageDimension: 2000,
+        mediaTypes: Object.freeze(['image/png'] as const),
+      })
+
+      validateImage(_input: SaveImageAttachment): Promise<void> {
+        return Promise.resolve()
+      }
+
+      async saveImage(_input: SaveImageAttachment): Promise<ImageAttachmentRef> {
+        throw FailingStore.failure
+      }
+
+      readImage(_ref: ImageAttachmentRef): Promise<StoredImageAttachment> {
+        throw new Error('unreachable in this test')
+      }
+    }
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = await setup({ attachments: false })
+    await ctx.plugin(FailingStore)
+
+    FailingStore.failure = new AttachmentError('Unable to persist image attachment.', 'ATTACHMENT_WRITE_FAILED')
+    const storageFault = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    expect(storageFault.isError).toBe(true)
+    expect(text(storageFault)).toContain('Unable to persist image attachment.')
+
+    FailingStore.failure = new Error('unrelated infrastructure failure')
+    const unrelated = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    expect(unrelated.isError).toBe(true)
+    expect(text(unrelated)).toContain('unrelated infrastructure failure')
   })
 
   it('reports a missing image file and a directory target through the fs vocabulary', async () => {
@@ -415,6 +467,7 @@ describe('image admission failures', () => {
         maxImagesPerMessage: 1,
         maxMessageImageBytes: 1024,
         maxImagePixels: 100,
+        maxImageDimension: 2000,
         mediaTypes: Object.freeze(['image/png'] as const),
       })
 

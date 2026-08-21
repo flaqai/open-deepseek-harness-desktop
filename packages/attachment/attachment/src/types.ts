@@ -29,7 +29,19 @@ export interface ImageAttachmentLimits {
   maxImagesPerMessage: number
   maxMessageImageBytes: number
   maxImagePixels: number
+  /** Maximum intrinsic width and maximum intrinsic height in pixels for one image. */
+  maxImageDimension: number
   mediaTypes: readonly ImageMediaType[]
+}
+
+/** Base64-encoded image upload accompanying one wire request. */
+export interface EncodedImageAttachment {
+  /** Declared media type, verified against the decoded bytes during admission. */
+  mediaType: ImageMediaType
+  /** Canonical base64 encoding of the image bytes. */
+  data: string
+  /** Optional display name; it is never interpreted as a path. */
+  name?: string
 }
 
 /** Request to validate and durably commit one image. */

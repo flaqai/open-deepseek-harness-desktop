@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-desktop",
   "description": "Cross-platform Electron host for the DeepSeek Harness Web GUI",
-  "version": "0.1.0-rc.6",
+  "version": "0.1.0-rc.8",
   "private": true,
   "homepage": "https://github.com/flaqai/open-deepseek-harness-desktop",
   "author": {

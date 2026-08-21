@@ -77,7 +77,7 @@ function toolTimeoutResult(timeoutMs: number): ToolExecutionResult {
 
 ### 现有工具适配
 
-`web_fetch` 和 `web_search` 已迁移。`dsh-tool-web` 保留对其面向模型 schema 的所有权，这些 schema 不暴露超时旋钮：`web_fetch` 移除了 `timeout_ms` 参数以匹配参考 agent（智能体）的形状，`web_search` 保持仅查询。工具体不导入 `@deepseek-ai/dsh-timeout`；它们将 `exec.signal` 转发给 `ctx.web`。
+`web_fetch` 和 `web_search` 已迁移。`dsh-tool-web` 保留对其面向模型 schema 的所有权，这些 schema 不暴露超时旋钮：`web_fetch` 没有 `timeout_ms` 参数，`web_search` 接受必填的 `queries` 数组，但不接受超时参数。工具体不导入 `@deepseek-ai/dsh-timeout`；它们将 `exec.signal` 转发给 `ctx.web`。
 
 `dsh-web-fetch-http` 保留一个在提供方层面配置的 `timeoutMs`，作为较大的资源兜底值，服务于直接调用 `ctx.web.fetch()` 的调用方和配置错误的部署；它不拥有面向模型的超时。当 `TOOL_TIMEOUT` 信号先到达 fetch 提供方时，提供方作用域的分类将其视为上游 `WEB_ABORTED`，而外层 `tools/execute` 包装器将最终工具结果替换为 `TOOL_TIMEOUT`。一个已发布的 web 工具部署将提供方兜底配置为高于 `timeout-policy` 预算，使工具调用策略在模型调用中通常胜出。
 

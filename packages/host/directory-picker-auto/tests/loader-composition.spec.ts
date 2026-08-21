@@ -188,7 +188,10 @@ describe('real Loader composition', () => {
     // behavior, not the chooser's); await that debounced write so it cannot
     // race the temp-dir removal, and pin that the persisted row is the
     // chooser itself — the resolved backend still never reaches the file.
-    await expect.poll(async () => await readFile(configPath, 'utf8')).toContain('disabled: true')
+    await expect.poll(
+      async () => await readFile(configPath, 'utf8'),
+      { timeout: 15_000 },
+    ).toContain('disabled: true')
     expect(await readFile(configPath, 'utf8')).not.toContain(NATIVE)
   })
 

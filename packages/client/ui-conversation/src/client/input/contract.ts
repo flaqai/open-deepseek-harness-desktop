@@ -35,7 +35,7 @@ export interface SessionInput extends InputTarget {
   setDraft(text: string): void
   /** Append ordered browser-owned image ids; busy admission phases refuse. */
   addImages(ids: readonly DraftAttachmentId[]): boolean
-  /** Remove one browser-owned image id. */
+  /** Remove one browser-owned image id; busy admission phases refuse. */
   removeImage(id: DraftAttachmentId): void
   /** Drop ids whose browser-owned objects no longer exist. */
   pruneImages(ids: readonly DraftAttachmentId[]): void
@@ -75,7 +75,7 @@ export interface InputActions {
   setDraft(text: string): void
   /** Append ordered browser-owned image ids; busy admission phases refuse. */
   addImages(ids: readonly DraftAttachmentId[]): boolean
-  /** Remove one browser-owned image id. */
+  /** Remove one browser-owned image id; busy admission phases refuse. */
   removeImage(id: DraftAttachmentId): void
   /** Drop ids whose browser-owned objects no longer exist. */
   pruneImages(ids: readonly DraftAttachmentId[]): void
@@ -149,9 +149,9 @@ export interface EditRange extends EditSelection {
 }
 
 /**
- * One reference chip occurrence, backing exactly one U+FFFC placeholder in
- * the draft. Identity is occurrenceId — same-named
- * references stay independently addressable. label/clipboardText are the
+ * One reference occurrence backed by its complete inline display text in the
+ * draft. Identity is occurrenceId — same-named
+ * references stay independently addressable. label/appearance/clipboardText are the
  * owner's insert-time projections, cached so the chip survives owner loss
  * (invalid flips instead of dropping the occurrence).
  */
@@ -162,10 +162,14 @@ export interface Occurrence {
   readonly source: string
   /** Owner-scoped reference id. */
   readonly ref: string
-  /** Placeholder offset in the draft; the occurrence occupies exactly [offset, offset+1). */
+  /** Display-text offset in the draft. */
   readonly offset: number
-  /** Chip display label (insert-time cache). */
+  /** Display-text length; the occurrence occupies exactly [offset, offset+length). */
+  readonly length: number
+  /** Inline display label (insert-time cache). */
   readonly label: string
+  /** Optional domain glyph (insert-time cache). */
+  readonly appearance?: ReferenceInsert['appearance']
   /** Clipboard / persistence projection, e.g. `/name` (insert-time cache, never the model form). */
   readonly clipboardText: string
   /** Owner-resolution failure flag: chip renders invalid; serialization must fail. */
@@ -214,8 +218,8 @@ export interface InputState {
   readonly draftRev: number
   readonly phase: 'plain' | 'adjudicating' | 'claimed' | 'submitting'
   /** Present exactly while claimed/submitting (claim snapshot during flight; submit closure withheld). */
-  readonly claim?: { readonly token: string; readonly hint?: string }
-  /** Chip occurrence table, sorted by offset (one U+FFFC per entry). */
+  readonly claim?: { readonly token: string; readonly hint?: string; readonly images?: boolean }
+  /** Reference occurrence table, sorted by offset. */
   readonly occurrences: readonly Occurrence[]
   /** Live paste-match attempt (absent when no paste is matchable). */
   readonly paste?: PasteAttemptState
@@ -232,7 +236,7 @@ export interface InputState {
 export interface SubmitAttempt {
   readonly seq: number
   readonly signal: AbortSignal
-  /** Draft at enter time; rollback restores it only while the live draft still equals it. */
+  /** Draft at enter time; settlement clears it only after acceptance. */
   readonly draftSnapshot: string
   /** Default-message delivery intent retained while slash adjudication is pending. */
   readonly mode: InputSubmitMode
@@ -248,7 +252,7 @@ export type InputEvent =
   /** Full next draft from the textarea; editRange narrows the occurrence math (absent → diff scan). */
   | { readonly type: 'draft-changed'; readonly draft: string; readonly editRange?: EditRange }
   | { readonly type: 'begin-command'; readonly claim: CommandClaim; readonly span: TokenSpan }
-  /** Place one U+FFFC at the span and mint the occurrence (scoped insert-reference event payload). */
+  /** Place one inline reference at the span and mint the occurrence (scoped insert-reference event payload). */
   | { readonly type: 'insert-ref'; readonly reference: ReferenceInsert; readonly span: TokenSpan }
   /** Delete a settled command token; success is observable as a draftRev advance. */
   | { readonly type: 'consume-token'; readonly guard: ConsumeTokenGuard }
@@ -271,10 +275,7 @@ export type InputEvent =
   | { readonly type: 'adjudicated'; readonly attempt: SubmitAttempt; readonly outcome: PickOutcome }
   | { readonly type: 'adjudication-failed'; readonly attempt: SubmitAttempt; readonly message: string }
   | { readonly type: 'submit-settled'; readonly attempt: SubmitAttempt; readonly ok: boolean; readonly outcome?: SubmitOutcome; readonly message?: string }
-  /**
-   * An ordinary (default-sink) send was accepted: clear the draft as a COMMIT —
-   * undo must not resurrect sent content (mirrors submit-settled's success arm).
-   */
+  /** Commit an image-only send whose empty draft did not need an attempt. */
   | { readonly type: 'send-committed' }
   | { readonly type: 'release' }
 
@@ -286,5 +287,5 @@ export type InputEvent =
 export type InputEffect =
   | { readonly type: 'adjudicate'; readonly attempt: SubmitAttempt; readonly draft: string }
   | { readonly type: 'begin-submit'; readonly attempt: SubmitAttempt; readonly claim: CommandClaim; readonly args: string }
-  | { readonly type: 'default-sink'; readonly draft: string; readonly mode: InputSubmitMode }
+  | { readonly type: 'default-sink'; readonly attempt: SubmitAttempt; readonly draft: string; readonly mode: InputSubmitMode }
   | { readonly type: 'notice'; readonly level: 'info' | 'error'; readonly text: string }

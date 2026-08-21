@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-jsdom slot test runtime for client feature specs: a real Cordis `Context`, the production `SlotRegistry` and web-react renderer, assembled around typed session/workspace doubles. Feature suites exercise declaration, registration, scope, store, inject, rendering, updates, and disposal without hand-building the machinery per suite — and without a second implementation of any production logic.
+jsdom slot test runtime for client feature specs: a real Cordis `Context`, the production `SlotRegistry` and UI renderer, assembled around typed session/workspace doubles. Feature suites exercise declaration, registration, scope, store, inject, rendering, updates, and disposal without hand-building the machinery per suite — and without a second implementation of any production logic.
 
 The doubles implement the same outward faces features receive through ctx (`TestSessions implements ISessions`, `TestWorkspaces implements IWorkspaces`; each fixture session is a `FixtureSession implements SessionFace`; `stubSettingsScope` is a `SettingsScope` with test-driven publications and a write spy), so a production face change breaks the bench at compile time instead of silently drifting. Provide-bundle materialization runs the production `SessionProvideChannel` — the one implementation shared with `SessionRuntime`. Fixtures feed plain data: list rows, conversation snapshots (immer-patched via `updateSnapshot`), projection values, and `ISession`-typed behavior stubs that fail loud when a spec calls an unstubbed verb. The typed `provide()` constrains fakes for declared service names to `Partial` of that service's outward face.
 

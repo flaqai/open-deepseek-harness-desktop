@@ -223,6 +223,7 @@ function finalNode(
         firstTokenTime: state.firstTokenTime ?? null,
         completedTime: event.time,
       },
+      ...(event.data.interrupted === true ? { interrupted: true } : {}),
     }
   }
   const boundary = closedBoundary(context)
@@ -264,7 +265,7 @@ function assistantRequest(
         ...(state.retry.maxRetries === undefined ? {} : { maxRetries: state.retry.maxRetries }),
         retryDelayMs: state.retry.delayMs,
       }),
-    ...(node === undefined || node.interrupted === true
+    ...(node?.messageId === undefined
       ? {}
       : {
         resultSeq: node.seq,

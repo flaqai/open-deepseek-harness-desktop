@@ -56,7 +56,7 @@ $on<Event extends TypertRemoteEvent>(event: Event, listener: Events[Event]): () 
 
 `Events` resolves per program: the full Host vocabulary in the Host program, whatever the Client face can see in the Client program. The same predicate therefore holds on both sides without dragging Host declarations into the Client.
 
-**The surface separates the consumer verb from the carrier handoff**: consumers subscribe with `$on`, and whoever owns the Host frame sink hands each decoded frame over with `$dispatch`. It cannot be a module-level function reaching across Client plugins — the client bundle purity gate (`packages/client/tsdown.client.ts`) admits value imports only from `CLIENT_EXTERNALS`, the `INLINE_SAFE` wire layer, and generated `/remote` contributions, and inlining around it would copy `ClientRemoteService` into the runtime bundle, making `instanceof` permanently false. A cordis service method is the collaboration shape that gate prescribes:
+**The surface separates the consumer verb from the carrier handoff**: consumers subscribe with `$on`, and whoever owns the Host frame sink hands each decoded frame over with `$dispatch`. It cannot be a module-level function reaching across Client plugins — the client bundle purity gate (`packages/client/tsdown.client.ts`) admits value imports only from the implicit `PLATFORM_MODULES` plus `PRELOADED_CLIENT_EXTERNALS` baseline, the package's `dsh.client.external` requests, the `INLINE_SAFE` wire layer, and generated `/remote` contributions. Inlining around it would copy `ClientRemoteService` into the runtime bundle, making `instanceof` permanently false. A cordis service method is the collaboration shape that gate prescribes:
 
 ```ts ignore-check
 $dispatch(event: string, args: readonly unknown[]): void

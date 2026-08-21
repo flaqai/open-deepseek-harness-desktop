@@ -85,7 +85,7 @@ The shipped Web composition mounts SQLite session query beside JSONL persistence
 
 **Put the adapter in the webserver.** Rejected because catalog and continuation are channel-independent client capabilities; the webserver only carries validated messages.
 
-**Create a new UI package.** Rejected because `ui-subagent` already owns Web subagent references and is the coherent owner for catalog and addressed-child presentation.
+**Put Host-backed file and session references in this package.** Rejected because catalog and addressed-child presentation depend on subagent lineage, while combined reference discovery is a separate Host capability consumed by [`ui-reference`](../../../../packages/client/ui-reference/README.md).
 
 **Auto-resume an absent parent.** Rejected because continuation requires the exact live direct parent. Child navigation must not mutate the parent lifecycle.
 

@@ -52,6 +52,11 @@ const LINK_MAP: Record<string, string> = {
   SessionTitleModelProvenance: 'session-title.md',
   SessionTitleProviderId: 'session-title.md',
   SessionTitleSource: 'session-title.md',
+  TeamId: 'agent-team.md',
+  TeamMemberSnapshot: 'agent-team.md',
+  TeamMessageId: 'agent-team.md',
+  TeamMessageSnapshot: 'agent-team.md',
+  TeamTaskSnapshot: 'agent-team.md',
 }
 
 /** One log event, extracted from a `SessionEventMap` declaration. */

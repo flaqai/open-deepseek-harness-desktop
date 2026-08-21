@@ -190,3 +190,8 @@
 .toBottom:hover {
   background: var(--dsw-alias-button-floating-hover);
 }
+
+/* Host open-path refusal: same dialog family as the workspace folder error. */
+.modalAction {
+  min-width: 72px;
+}

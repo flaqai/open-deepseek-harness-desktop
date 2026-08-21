@@ -13,6 +13,14 @@ import type { CommandId } from './brand.ts'
 export interface CommandInputDescriptor {
   /** Placeholder shown before the user supplies free-form input. */
   readonly hint: string
+  /**
+   * Whether composer image attachments may accompany an invocation. Absent or
+   * false = the executor rejects an invocation carrying images and capable
+   * composers refuse the submission before dispatch. A declaring command's
+   * handler receives the admitted durable blocks and owns every further
+   * grammar decision, including rejecting sub-commands that cannot use them.
+   */
+  readonly images?: boolean
 }
 
 /** Expected command outcome rendered directly by the dispatching UI. */

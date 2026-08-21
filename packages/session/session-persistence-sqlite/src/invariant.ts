@@ -15,8 +15,8 @@ export const name = 'session-persistence-sqlite-invariant'
 export const inject = ['invariants']
 
 /**
- * No runtime invariant: persistence correctness requires backend round-trip and crash-tail tests;
- * this package exposes no continuously observable in-process relation.
+ * No runtime invariant: physical packing is observable only by database
+ * round-trip and row-count checks, not a continuous in-process relation.
  */
 const install: InvariantInstaller = () => {}
 

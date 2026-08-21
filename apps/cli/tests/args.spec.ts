@@ -36,8 +36,8 @@ describe('parseDshArgs', () => {
       .toEqual({ mode: 'profile', profile: 'tui', patches: [], args: ['--resume', 'abc'] })
     expect(parse(['--profile', 'web', '-h']))
       .toEqual({ mode: 'profile', profile: 'web', patches: [], args: ['-h'] })
-    expect(parse(['web', '--host', '127.0.0.1', '--port', '8080', '--dev']))
-      .toEqual({ mode: 'profile', profile: 'web', patches: [], args: ['--host', '127.0.0.1', '--port', '8080', '--dev'] })
+    expect(parse(['web', '--host', '127.0.0.1', '--port', '8080', '--no-open', '--future-web-flag']))
+      .toEqual({ mode: 'profile', profile: 'web', patches: [], args: ['--host', '127.0.0.1', '--port', '8080', '--no-open', '--future-web-flag'] })
     expect(parse(['--profile', 'headless', 'run', 'the', 'tests']))
       .toEqual({ mode: 'profile', profile: 'headless', patches: [], args: ['run', 'the', 'tests'] })
     // Launcher flags placed after that boundary belong to the app too.

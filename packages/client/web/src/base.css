@@ -1,12 +1,5 @@
-/* Shell-owned global base: full-height mount plus the theme token sheets.
- * The five ui-theme sheets are the sole token source (--dsw-*); the shell
- * links them here so tokens exist before any plugin CSS lands. scrollbar.css
- * follows design-platform.css because it reads that sheet's tokens. */
-@import '@deepseek-ai/dsh-client-ui-theme/styles/base.css';
-@import '@deepseek-ai/dsh-client-ui-theme/styles/design-platform.css';
-@import '@deepseek-ai/dsh-client-ui-theme/styles/scrollbar.css';
-@import '@deepseek-ai/dsh-client-ui-theme/styles/gradient-shadow-text.css';
-@import '@deepseek-ai/dsh-client-ui-theme/styles/shiki.css';
+/* Shell-owned mount defaults. Theme tokens arrive with the ui-theme client
+ * plugin before the loader roster activates. */
 
 html,
 body,
@@ -16,13 +9,25 @@ body,
 }
 
 body {
-  font-family: var(--dsw-font-family);
+  font-family: var(
+    --dsw-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   /* Grayscale antialiasing over subpixel rendering: WebKit/Blink and the
      Firefox macOS equivalent; other engines ignore both lines. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary, #0f1115);
+  background: var(--dsw-alias-bg-base, #fff);
 }
 
 /* Form controls don't inherit the body font (UA sheets pin their families —

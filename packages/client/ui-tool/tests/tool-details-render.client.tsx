@@ -1,4 +1,5 @@
 /** Test adapter for the production conversation.details.tool registration. */
+import type { HostDescription } from '@deepseek-ai/dsh-client-connection/client'
 import type {
   ChatConversationViewNode, ChatSnapshot, ConversationNode, RunningToolCall, SessionId,
 } from '@deepseek-ai/dsh-client-runtime/client'
@@ -51,13 +52,22 @@ export function toolChatSnapshot(
 /**
  * Bind ui-tool's details renderer to the conversation slot callback shape.
  * @param t - conversation locale seat used by Tool cards.
+ * @param description - optional Host description so the details card can abbreviate home paths.
  * @returns a direct-test renderSlot implementation.
  */
-export function renderToolDetails(t: TranslateNS<'conversation'>): DetailsSlotProps['renderSlot'] {
+export function renderToolDetails(
+  t: TranslateNS<'conversation'>,
+  description?: HostDescription,
+): DetailsSlotProps['renderSlot'] {
   return (_key, owner) => {
     // PropsRenderSlots keeps its key generic even for this one-key share;
     // recover the concrete owner selected by the adapter's fixed slot.
     const details = owner as unknown as DetailsToolOwnerProps
-    return <ToolDetails block={details.block} cwd={details.cwd} t={t} />
+    return <ToolDetails
+      block={details.block}
+      cwd={details.cwd}
+      useHostDescription={selector => selector(description)}
+      t={t}
+    />
   }
 }

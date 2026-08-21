@@ -2,11 +2,11 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   createSnapshotStore, EMPTY_CHAT_SNAPSHOT, EMPTY_CONVERSATION_VIEWS,
 } from '@deepseek-ai/dsh-client-runtime/client'
-import type { UseSession } from '@deepseek-ai/dsh-client-web-react'
+import type { UseSession } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ConversationSnapshot, SessionId, SessionListState, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SessionProviderComponent } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DetailsSlotProps, DetailsToolOwnerProps, SelectionTarget } from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -21,6 +21,7 @@ import { chatSnapshotFixture } from './chat-snapshot-fixture.client.ts'
 
 // Mirrors the real lookup chain (conversation namespace, then common).
 const t: AssistantMarkdownProps['t'] = makeTranslate(zh, commonZh)
+const renderMessageImages: AssistantMarkdownProps['renderMessageImages'] = () => null
 
 /** jsdom has no ResizeObserver; StatsLine watches its row for ellipsis truncation through one. */
 class ResizeObserverStub {
@@ -64,6 +65,7 @@ describe('render branch tails', () => {
         t={t}
         blocks={[{ kind: 'reasoning', text: 'done thinking' }, { kind: 'text', text: 'answer' }]}
         streaming
+        renderMessageImages={renderMessageImages}
       />,
     )
     // reasoning at index 0 with a later block: running is false → ok state.
@@ -100,7 +102,12 @@ describe('render branch tails', () => {
 
   it('AssistantMarkdown reasoning as the streaming tail renders the running ring', () => {
     const view = render(
-      <AssistantMarkdown t={t} blocks={[{ kind: 'reasoning', text: 'still thinking' }]} streaming />,
+      <AssistantMarkdown
+        t={t}
+        blocks={[{ kind: 'reasoning', text: 'still thinking' }]}
+        streaming
+        renderMessageImages={renderMessageImages}
+      />,
     )
     expect(view.container.querySelector('[data-state="running"]')).not.toBeNull()
   })

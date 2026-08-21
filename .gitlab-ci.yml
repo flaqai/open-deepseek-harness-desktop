@@ -45,6 +45,7 @@ sdk-wheel:
     - python -m venv .wheel-smoke
     - .wheel-smoke/bin/python -m pip install --find-links "release/$PLATFORM" --find-links release/sdk deepseek-harness-sdk=="$DSH_WHEEL_VERSION"
     - .wheel-smoke/bin/python scripts/smoke-python-runtime.py --scenario sdk-default
+    - .wheel-smoke/bin/python scripts/smoke-python-runtime.py --scenario sdk-mcp
     - |
       if [ "${PLATFORM#linux-}" != "$PLATFORM" ]; then
         readelf --version-info "$EXE" > glibc-versions.txt
@@ -56,7 +57,7 @@ sdk-wheel:
           linux-arm64) image=quay.io/pypa/manylinux_2_28_aarch64 ;;
           *) echo "Unsupported Linux platform $PLATFORM"; exit 1 ;;
         esac
-        docker run --rm -v "$PWD:/work" -w /work "$image" bash -euxo pipefail -c "/opt/python/cp310-cp310/bin/python -m venv /tmp/dsh-sdk && /tmp/dsh-sdk/bin/python -m pip install --find-links /work/release/$PLATFORM --find-links /work/release/sdk deepseek-harness-sdk==$DSH_WHEEL_VERSION && /tmp/dsh-sdk/bin/python /work/scripts/smoke-python-runtime.py --scenario sdk-default"
+        docker run --rm -v "$PWD:/work" -w /work "$image" bash -euxo pipefail -c "/opt/python/cp310-cp310/bin/python -m venv /tmp/dsh-sdk && /tmp/dsh-sdk/bin/python -m pip install --find-links /work/release/$PLATFORM --find-links /work/release/sdk deepseek-harness-sdk==$DSH_WHEEL_VERSION && /tmp/dsh-sdk/bin/python /work/scripts/smoke-python-runtime.py --scenario sdk-default && /tmp/dsh-sdk/bin/python /work/scripts/smoke-python-runtime.py --scenario sdk-mcp"
       fi
     - |
       if [ "$PLATFORM" = macos-arm64 ]; then

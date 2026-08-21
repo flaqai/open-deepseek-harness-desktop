@@ -1,6 +1,8 @@
 /** Page-store join: directory × namespaces × credentials, with last-good rows on failure. */
 import { describe, expect, it } from 'vitest'
 import type { RpcResponse } from '@deepseek-ai/dsh-api-remotes/client'
+import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
+import { settingsSchema } from './settings-schema.client.ts'
 import { messageOf, ModelsSettingsStore } from '../src/client/store.ts'
 
 let nextRpc = 0
@@ -66,13 +68,14 @@ function api(overrides: {
       unset: () => Promise.resolve(ok({})),
     },
   }
-  return { face: face as never, seenRefs }
+  const wire = face as never
+  return { face: wire, mirror: new SettingsDescribeMirror(wire), seenRefs }
 }
 
 describe('ModelsSettingsStore', () => {
   it('joins rows with configured, removable, and credential state', async () => {
-    const { face, seenRefs } = api()
-    const store = new ModelsSettingsStore(face)
+    const { face, mirror, seenRefs } = api()
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await store.load()
     const state = store.store.getSnapshot()
     expect(state.status).toBe('ready')
@@ -99,8 +102,8 @@ describe('ModelsSettingsStore', () => {
   })
 
   it('degrades the credential badge, not the page, when the credential domain fails', async () => {
-    const { face } = api({ describeCredentials: () => Promise.resolve(fail('no provider')) })
-    const store = new ModelsSettingsStore(face)
+    const { face, mirror } = api({ describeCredentials: () => Promise.resolve(fail('no provider')) })
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await store.load()
     const state = store.store.getSnapshot()
     expect(state.status).toBe('ready')
@@ -109,10 +112,10 @@ describe('ModelsSettingsStore', () => {
   })
 
   it('settles a credential transport rejection without leaving the store loading', async () => {
-    const { face } = api({
+    const { face, mirror } = api({
       describeCredentials: () => Promise.reject(new Error('credential transport down')),
     })
-    const store = new ModelsSettingsStore(face)
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await expect(store.load()).resolves.toBeUndefined()
     expect(store.store.getSnapshot()).toMatchObject({
       status: 'ready',
@@ -121,22 +124,21 @@ describe('ModelsSettingsStore', () => {
   })
 
   it('stringifies a non-Error credential transport rejection', async () => {
-    const { face } = api({
-      // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the non-Error rejection is the scenario
-      describeCredentials: () => Promise.reject('credential transport refusal'),
+    const { face, mirror } = api({
+      describeCredentials: async () => { throw 'credential transport refusal' },
     })
-    const store = new ModelsSettingsStore(face)
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await expect(store.load()).resolves.toBeUndefined()
     expect(store.store.getSnapshot().credentialError).toBe('credential transport refusal')
   })
 
   it('surfaces a directory failure and keeps the last good rows', async () => {
-    const { face } = api()
-    const store = new ModelsSettingsStore(face)
+    const { face, mirror } = api()
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await store.load()
     expect(store.store.getSnapshot().rows).toHaveLength(4)
     const broken = api({ providers: () => Promise.resolve(fail('directory down')) })
-    const failing = new ModelsSettingsStore(broken.face)
+    const failing = new ModelsSettingsStore(broken.face, settingsSchema, broken.mirror)
     await failing.load()
     expect(failing.store.getSnapshot()).toMatchObject({ status: 'error', error: 'directory down' })
     // The first store's snapshot is untouched by the second's failure.
@@ -147,7 +149,7 @@ describe('ModelsSettingsStore', () => {
     let release: (() => void) | undefined
     const gate = new Promise<void>((resolve) => { release = resolve })
     let call = 0
-    const { face } = api({
+    const { face, mirror } = api({
       providers: async () => {
         call += 1
         if (call === 1) {
@@ -157,7 +159,7 @@ describe('ModelsSettingsStore', () => {
         return ok({ providers: DIRECTORY })
       },
     })
-    const store = new ModelsSettingsStore(face)
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     const first = store.load()
     const second = store.load()
     release?.()
@@ -168,7 +170,7 @@ describe('ModelsSettingsStore', () => {
 
 describe('edge joins', () => {
   it('treats a non-object profile as having no credential reference', async () => {
-    const { face } = api({
+    const { face, mirror } = api({
       describeSettings: () => Promise.resolve(ok({
         writable: true,
         hasDocument: false,
@@ -187,7 +189,7 @@ describe('edge joins', () => {
         ] as never,
       })),
     })
-    const store = new ModelsSettingsStore(face)
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await store.load()
     const state = store.store.getSnapshot()
     expect(state.rows[0]).toMatchObject({ configured: true, removable: false })
@@ -195,7 +197,7 @@ describe('edge joins', () => {
   })
 
   it('skips the credential describe entirely when no row names a reference', async () => {
-    const { face, seenRefs } = api({
+    const { face, mirror, seenRefs } = api({
       describeSettings: () => Promise.resolve(ok({
         writable: true,
         hasDocument: false,
@@ -207,24 +209,56 @@ describe('edge joins', () => {
         ] as never,
       })),
     })
-    const store = new ModelsSettingsStore(face)
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await store.load()
     expect(seenRefs).toEqual([])
     expect(store.store.getSnapshot().status).toBe('ready')
   })
 
   it('surfaces a settings describe failure', async () => {
-    const { face } = api({ describeSettings: () => Promise.resolve(fail('settings down')) })
-    const store = new ModelsSettingsStore(face)
+    const { face, mirror } = api({ describeSettings: () => Promise.resolve(fail('settings down')) })
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await store.load()
     expect(store.store.getSnapshot()).toMatchObject({ status: 'error', error: 'settings down' })
   })
 
+  it('reports a terminally unavailable settings mirror precisely', async () => {
+    const { face } = api()
+    const store = new ModelsSettingsStore(
+      face,
+      settingsSchema,
+      new SettingsDescribeMirror(face, 'memory'),
+    )
+    await store.load()
+    expect(store.store.getSnapshot()).toMatchObject({
+      status: 'error',
+      error: 'settings are unavailable in this browser',
+    })
+  })
+
+  it('reuses a held settings view after its refresh fails', async () => {
+    let settingsCall = 0
+    const { face, mirror } = api({
+      describeSettings: () => {
+        settingsCall += 1
+        return Promise.resolve(settingsCall === 1
+          ? ok({ writable: true, hasDocument: false, namespaces: NAMESPACES })
+          : fail('settings refresh down'))
+      },
+    })
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
+    await store.load()
+    await mirror.load()
+    expect(mirror.getSnapshot().error).toBe('settings refresh down')
+    await store.load()
+    expect(store.store.getSnapshot()).toMatchObject({ status: 'ready', error: null })
+    expect(store.store.getSnapshot().rows).toHaveLength(4)
+  })
+
   it('stringifies a non-Error load failure', async () => {
     // The wire can surface non-Error throwables; the store must stringify them.
-    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the non-Error rejection is the scenario
-    const { face } = api({ providers: () => Promise.reject('plain refusal') })
-    const store = new ModelsSettingsStore(face)
+    const { face, mirror } = api({ providers: async () => { throw 'plain refusal' } })
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     await store.load()
     expect(store.store.getSnapshot()).toMatchObject({ status: 'error', error: 'plain refusal' })
   })
@@ -233,7 +267,7 @@ describe('edge joins', () => {
     let release: (() => void) | undefined
     const gate = new Promise<void>((resolve) => { release = resolve })
     let call = 0
-    const { face } = api({
+    const { face, mirror } = api({
       providers: async () => {
         call += 1
         if (call === 1) {
@@ -243,7 +277,7 @@ describe('edge joins', () => {
         return ok({ providers: DIRECTORY })
       },
     })
-    const store = new ModelsSettingsStore(face)
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
     const first = store.load()
     const second = store.load()
     await second

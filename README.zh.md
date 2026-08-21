@@ -137,6 +137,8 @@ pnpm dsh web
 
 环境变量覆盖、进程监管、更新行为和现有限制见[桌面应用参考](apps/desktop/README.md)。浏览器端工作流见 [Web UI 指南](docs/user/guide/index.md)。
 
+`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。Web 命令默认在 `http://127.0.0.1:3080` 启动，并在本机启动时打开默认浏览器。传入 `--no-open` 可只运行服务器；Electron 宿主始终使用该模式。
+
 ## 平台状态
 
 | 平台 | 当前状态 | 后续发布工作 |

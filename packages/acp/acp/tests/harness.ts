@@ -82,6 +82,7 @@ const IMAGE_LIMITS: ImageAttachmentLimits = {
   maxImagesPerMessage: 4,
   maxMessageImageBytes: 2048,
   maxImagePixels: 1024,
+  maxImageDimension: 2000,
   mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
 }
 

@@ -24,7 +24,7 @@ const DEFAULT_REGISTRY = 'https://registry.npm.harnessment.com'
 const DEFAULT_OUTPUT_DIRECTORY = '.artifacts/npm-baseline'
 const PACKAGE_PATTERNS = [
   'vendor/*/package.json',
-  'packages/*/*/package.json',
+  'packages/!(experimental)/*/package.json',
   'apps/*/package.json',
 ] as const
 const DEPENDENCY_SECTIONS = [
@@ -42,7 +42,7 @@ node, bin_path, cwd, timeout_seconds = sys.argv[1:]
 pid, fd = pty.fork()
 if pid == 0:
     os.chdir(cwd)
-    os.execvpe(node, [node, bin_path, "web", "--host", "127.0.0.1", "--port", "0"], os.environ.copy())
+    os.execvpe(node, [node, bin_path, "web", "--no-open", "--host", "127.0.0.1", "--port", "0"], os.environ.copy())
 
 output = bytearray()
 ready_seen = False

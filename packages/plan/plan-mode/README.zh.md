@@ -16,13 +16,13 @@
 
 评审问题声明 `plan-review` 呈现意图，并指名 `Approve` 为表示批准的标签，因此有能力的 UI 会把计划呈现为一次决定而非通用问题；两种情况下该工具读到的回答完全相同。放弃审阅——用户关闭请求，转而发言——会如实报告给模型，要求它留在 plan mode 中等待那条消息；其余每一种评审失败都保留 seam 自身的消息。
 
-组合 `ctx.commands` 时，该包会注册 `/plan [message]`，并将参数恰好为 `off` 的情况保留给直接退出。不带参数的 `/plan` 会启用 plan mode；任何其他非空参数都会先启用 plan mode，再通过 `agent.steer()` 提交，因此它会在 plan 引导下成为下一步骤的常规已记录用户消息。`/plan off` 会选择停用状态，不发送模型输入；它还可以在启用 plan mode 的待处理选择由轮内 pre-step 追加之前将其取消。
+组合 `ctx.commands` 时，该包会注册 `/plan [message]`，并将参数恰好为 `off` 的情况保留给直接退出。不带参数的 `/plan` 会启用 plan mode；任何其他非空参数都会先启用 plan mode，再通过 `agent.steer()` 提交，因此它会在 plan 引导下成为下一步骤的常规已记录用户消息。`/plan off` 会选择停用状态，不发送模型输入；它还可以在启用 plan mode 的待处理选择由轮内 pre-step 追加之前将其取消。该命令声明了 `input.images`：composer 图片附件会随被 steer 的消息一起提交，位于文本块之前。不带参数的 `/plan` 若附有图片，会 steer 一条只含图片的用户消息；`/plan off` 若附有图片，会在任何模式变更前直接返回错误，composer 保留图片。
 
 Web 客户端使用该插件提供的 `/plan` 命令；其他入口可以直接驱动同一服务，无需定义第二套 mode 词汇。
 
 ## 会话投影
 
-当组合挂载 `ctx.sessionProjections`（[`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.md)）时，本包会在一个注入的子插件中注册 `plan` 投影单元。该单元折叠两类事件：名为 `plan` 且携带已记录 `args` 的 `command/run` 记录会设置目标状态（`off` → 未激活，其余 → 激活），`plan/mode` 会提交已记录状态并清除该目标；其他任何事件都返回同一个状态引用。`view` 推导 `{ active, pending }`，其中 `pending` 仅在尚未落实的选择与已记录状态不同时为 true。该值完全由日志回放得出，因此 host 重启、其他标签页和冷读都能仅凭日志恢复它。`/plan` 处理器会在任何可能失败的路径之前调用 `set()`，因此处理器失败时不会留下缺少对应 plan 选择的已记录命令。key 由 `src/types.ts` 通过声明合并加入 `SessionProjectionMap`：host 消费方经 `./types` 获取，client 聚合经 `./client` 获取。框架负责驱动该单元，载体通过历史尾页和 `session/projection` 推送帧提供其值。未挂载注册表的组合不受影响。
+当组合挂载 `ctx.sessionProjections`（[`@deepseek-ai/dsh-session-projection`](../../session/session-projection/README.md)）时，本包会在一个注入的子插件中注册 `plan` 投影单元。名为 `plan` 且携带已记录 `args` 的 `command/run` 记录会开始一个候选目标（`off` → 未激活，其余 → 激活）；与它配对的 `command/done` 保留成功选择并丢弃错误选择；`plan/mode` 提交已记录状态并清除已保留的选择。其他任何事件都返回同一个状态引用。`view` 推导 `{ active, pending }`，其中 `pending` 仅在未结算或已成功的选择与已记录状态不同时为 true。该值仍完全由日志回放得出，因此 host 重启、其他标签页和冷读都能仅凭日志恢复它，被拒绝的带图 `/plan off` 也不会留下待退出状态。key 由 `src/types.ts` 通过声明合并加入 `SessionProjectionMap`：host 消费方经 `./types` 获取，client 聚合经 `./client` 获取。框架负责驱动该单元，载体通过历史尾页和 `session/projection` 推送帧提供其值。未挂载注册表的组合不受影响。
 
 ## 配置
 
@@ -65,11 +65,11 @@ You are in plan mode. Explore and design before presenting the complete plan thr
 
 #### 模型所见内容
 
-`/plan`、`/plan off` 及其终端结果留在模型历史之外。除恰好为 `off` 以外的非空后缀会在选择 plan mode 后，通过 `agent.steer()` 成为一个已去除首尾空白的用户文本块。plan mode 已激活时，选择 `/plan off` 只会在最后一个请求头描述了 plan mode 的情况下追加标准的已记录用户切换通知；取消待生效进入不会贡献通知，因为没有请求观测到它。
+`/plan`、`/plan off` 及其终端结果留在模型历史之外。除恰好为 `off` 以外的非空后缀会在选择 plan mode 后，通过 `agent.steer()` 成为一条用户消息：任何已准入的图片附件作为前置图片块，之后是已去除首尾空白的文本块。不带参数的 `/plan` 若带有已准入图片，会 steer 一条只含这些图片块的用户消息。plan mode 已激活时，选择 `/plan off` 只会在最后一个请求头描述了 plan mode 的情况下追加标准的已记录用户切换通知；取消待生效进入不会贡献通知，因为没有请求观测到它。
 
 #### Token 影响
 
-可选消息的历史 token 成本与单独提交该文本相同；不带参数的 `/plan` 和 `/plan off` 不增加 token。一次带有切换通知的已激活状态退出会追加一条简短且会保留的通知。
+可选消息的历史 token 成本与单独提交该内容相同。不带图片和参数的 `/plan` 与 `/plan off` 不增加 token；不带参数但带图的 `/plan` 产生常规图片提示词成本。一次带有切换通知的已激活状态退出会追加一条简短且会保留的通知。
 
 #### KV Cache 影响
 

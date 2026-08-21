@@ -22,23 +22,23 @@ Status: implemented
 │  ├ GET /plugins/<id>/client.js │   │  │   ui-theme/i18n（fetch bundle，boot 预拉）       │
 │  └ GET / 注入 __DSH_BOOT__ 图  │   │  ├ lazy entries: layout/sidebar/                   │
 │                                │   │  │   conversation/trajectory（fetch bundle，按需） │
-└────────────────────────────────┘   │  ├ app-shell 伪行（壳内静态注册，同一治理）        │
+└────────────────────────────────┘   │  ├ ui-renderer（fetch bundle，React 根）       │
                                      │  └ session scope ×N（观看驱动，惰性建）            │
-                                     │ React: loading 页 → settled → 整 UI 一次成型       │
+                                     │ DOM loading 页 → settled → React UI 一次成型       │
                                      └────────────────────────────────────────────────────┘
 ```
 
 ## client cordis 树与装载链
 
-装载链——两类包（普通包 vs dsh.client 插件）、模块系统/插件治理器之分、host 独家撰写的带修订号 entry 图之上的双阶段 boot、热重载——归 [client 插件装载笔记](2026-07-23-client-plugin-loading-model.md) 所有。本篇赖以立足的事实：浏览器启动与 host 相同的 vendored `@cordisjs/plugin-loader`，由 client 模块系统（`ctx.modules`，`packages/client/modules`）填上其 `internal` 约定；凡带产品行为的单元都是 host 独家撰写的 `__DSH_BOOT__` 图里的 entry——每个生产插件包（含基础设施）都携带 `dsh.client` 声明、以 fetch 到达的 `./client` tsdown 闭包 bundle 供给，`immediately` 行的差别仅在 boot 第一阶段预取，而普通包（react 家族、cordis、尚未升格的库）保持打进壳、已播种、对图不可见；bundle 执行 `window.__ModuleLoader__.load({ id, factory })`，其 `require` 由 lazy CJS 模块表应答（种子词条 + 已登记工厂，首次 require 时物化并记忆化——跨插件值 import 是构建错误，协作走 cordis 服务）；插件 CSS 内联在 bundle 里、物化时注入为 `<style data-plugin="<id>">`（CSS Modules 哈希 + 归属标记 = 隔离，重载时移除）；热重载已在 dev 图落地——webserver 对自己供给的 bundle 做 stat 轮询并广播 `rebuilt` SSE 帧，`client-hmr` 插件每帧换掉一个 fiber。settled 翻转（`loader.await()` + 一次全 ACTIVE 扫描）依旧让壳从 loading 页一次切换到真 UI——settled 意味着每个 entry 已创建、每个 fiber 都到达 ACTIVE，FAILED/PENDING 的 fiber 被大声列出；不存在部分可用模式（渐进渲染为后置工作）。
+装载链——两类包（普通包 vs dsh.client 插件）、模块系统/插件治理器之分、host 独家撰写的带修订号 entry 图之上的双阶段 boot、热重载——归 [client 插件装载笔记](2026-07-23-client-plugin-loading-model.md) 所有。本篇赖以立足的事实：浏览器启动与 host 相同的 vendored `@cordisjs/plugin-loader`，由 client 模块系统（`ctx.modules`，`packages/client/modules`）填上其 `internal` 约定；凡带产品行为的单元都是 host 独家撰写的 `__DSH_BOOT__` 图里的 entry——每个生产插件包（含基础设施）都携带 `dsh.client` 声明、以 fetch 到达的 `./client` tsdown 闭包 bundle 供给，`immediately` 行的差别仅在 boot 第一阶段预取，而普通包（react 家族、cordis、尚未升格的库）保持打进壳、已播种、对图不可见；bundle 执行 `window.__ModuleLoader__.load({ id, factory })`，其 `require` 由 lazy CJS 模块表应答（种子词条 + 已登记工厂，首次 require 时物化并记忆化——跨插件值 import 是构建错误，协作走 cordis 服务）；全局样式与 CSS Modules 都内联在其持有插件的 bundle 中，物化时注入为 `<style data-plugin="<id>">`（CSS Modules 还会取得哈希类名；归属标签使重载时移除成为可能）；热重载已在 dev 图落地——webserver 对自己供给的 bundle 做 stat 轮询并广播 `rebuilt` SSE 帧，`client-hmr` 插件每帧换掉一个 fiber。`loader.await()` 与全 ACTIVE 扫描完成后，不依赖框架的内核会调用动态 UI 渲染器的 `ctx.uiRenderer.mount(container)` 一次——此时每个 entry 已创建、每个 fiber 都到达 ACTIVE，FAILED/PENDING 的 fiber 被大声列出；不存在部分可用模式（渐进渲染为后置工作）。
 
 类型宇宙在聚合层拆分——`tsconfig.host.json` 是 host program、`tsconfig.client.json` 是 client program，二者由 solution 根 `tsconfig.json` 引用，因为两侧都在相同键（`sessions`、`loader`）上对 cordis `Context` 做声明合并且服务不同；client 包经纯类型子路径（`@deepseek-ai/dsh-session/types` 等）消费协议词汇，host 侧的声明合并不会搭车进入 client program。
 
 ## slot 体系：页面怎么拼
 
-slot 体系有自己的笔记——[slot 体系标准](2026-07-22-slot-type-chain-implementation.md)——本文整体移交给它。此处只留一段定位摘要：壳只渲染 `'root'`；插件用单独一次 `register` 调用组合 UI——占用 slot、声明并授权子 slot（`children` spec 对象）、声明 store、注入业务面；组件 props 分四份额自动推导到达（`PropsRuntime<K>` / `PropsRenderSlots<S>` / `PropsStore<H>` / inject），各有唯一真源。`SlotMap` 声明合并仍是类型权威，entry 只携带 owner 份额（「谁注入的，类型归谁」）；每个被渲染的注册项都在 per-entry 错误边界之内。
+slot 体系有自己的笔记——[slot 体系标准](2026-07-22-slot-type-chain-implementation.md)——本文整体移交给它。此处只留一段定位摘要：ui-renderer 只渲染 `'root'`；插件用单独一次 `register` 调用组合 UI——占用 slot、声明并授权子 slot（`children` spec 对象）、声明 store、注入业务面；组件 props 分四份额自动推导到达（`PropsRuntime<K>` / `PropsRenderSlots<S>` / `PropsStore<H>` / inject），各有唯一真源。`SlotMap` 声明合并仍是类型权威，entry 只携带 owner 份额（「谁注入的，类型归谁」）；每个被渲染的注册项都在 per-entry 错误边界之内。
 
-实现的家：注册表核心与 props 份额类型在 `packages/client/ui-slots`，出口组件/渲染器/uSES 桥在 `packages/client/web-react`。
+实现的家：注册表核心与 props 份额类型在 `packages/client/ui-slots`；outlet 渲染器、uSES 桥、应用级安装与根挂载在 `packages/client/ui-renderer`。
 
 ## 服务与 scope 寻址
 
@@ -75,18 +75,17 @@ Notifier 微任务合批 ──► ConversationSnapshot 缓存 ──uSES──�
 - **ConversationNodeAssembler**（`runtime/src/client/conversation/`）：Session 拥有的增量引擎在原始事件上运行各自独立注册的 Definition。`match(event)` 无须扫描 Context 即可选出 `(kind, id)`；start/update 构造 Definition state；引擎计算的 Location 携带 Turn/Step 关闭信息；向前查询 Context 时记录依赖，并由后续 prepend 修复；`buildViewNode(target)` 只物化 dirty Context。Chat builder 保留结构顺序和 per-key value identity，`useSession` selector 负责消费隔离，Assistant token 发布则合并到每个 animation frame 一次。[Conversation Node 决策](2026-08-09-client-conversation-node-assembly.md)拥有组装边界，[Tool 展示所有权](2026-08-08-client-tool-presentation-ownership.md)拥有 Tool 递归渲染。
 - **ConnectionController**（在 `packages/client/connection`）：开 mux/host 双流、for-await 泵入，代际围栏之内指数退避重连（500ms 翻倍至 10s 封顶、抖动、无限重试）；sinks 单向注入（Controller 不认识 Session）。重连 = 重建：`onConnected` → 列表刷新 + 各已打开会话 resync。对象层只面向 `IApiClient`；Web 承载以 HTTP POST 载两个 client→server 象限、以[每逻辑流一条 WebSocket](2026-08-04-websocket-downlink-carrier.md)载两个 server→client 象限，客户端类族归分层笔记属地。
 
-## React 面（`packages/client/web-react`）
+## React 面（`packages/client/ui-renderer`）
 
-胶水包就是整条 ctx↔React 边界；组件保持零框架依赖。
+动态 ui-renderer 插件持有 ctx↔React 适配器、应用级安装、根挂载与标题投影。业务组件通过 slot props 接收绑定后的钩子，不对渲染器做值 import。
 
-- 快照 store 引擎**住 runtime 包**（zustand vanilla + 草稿式更新，缺省 `flush: 'sync'`，可选 `'raf'` 合批，可选整值 localStorage 持久化，dev 深冻结——全部从 `runtime` 的 `./client` 主出口导出，无子路径）：store 产物是裸的可观察源，不带任何钩子成员。插件只经 [slot 体系标准](2026-07-22-slot-type-chain-implementation.md) 的 `defineStore` 声明触及引擎。web-react 在绑定处（`bindSnapshotSelector`，按源缓存）从 React 消费的唯一数据约定合成每个钩子：`ObservableSnapshot<T>`（`getSnapshot`/`subscribe`）——Session 对象与快照 store 同构满足它。业务插件包只依赖 runtime 与 ui-slots；web-react 是仅壳可用的胶水。
+- 快照 store 引擎**住 runtime 包**（zustand vanilla + 草稿式更新，缺省 `flush: 'sync'`，可选 `'raf'` 合批，可选整值 localStorage 持久化，dev 深冻结——全部从 `runtime` 的 `./client` 主出口导出，无子路径）：store 产物是裸的可观察源，不带任何钩子成员。插件只经 [slot 体系标准](2026-07-22-slot-type-chain-implementation.md) 的 `defineStore` 声明触及引擎。ui-renderer 在绑定处（`bindSnapshotSelector`，按源缓存）从 React 消费的唯一数据约定合成每个钩子：`ObservableSnapshot<T>`（`getSnapshot`/`subscribe`）——Session 对象与快照 store 同构满足它。
 - `bindSnapshotSelector(source)`：把一个源绑定为经 uSES-with-selector 的带类型 selector 钩子。uSES 约定四条按构造成立：getSnapshot 恒返缓存引用；subscribe 是绑定期闭包（引用永稳）；纯 CSR 不传 server snapshot；相等性缺省 `Object.is`，按调用可选 `shallowEqual`。
-- `useInvoke(fn)`：把异步动作包成引用恒定的触发器加 pending 标志；pending 走每个钩子的外部 store 经 uSES 读出（渲染路径零 setState），并发调用计数，invoke 引用永不变。
 - 相等性协议，全链一致：生产端结构共享；消费方以 `Object.is` 或 `shallowEqual` 短路；`React.memo` 浅比较。深比较全链禁止。
 
 ## 目录形态
 
-Client 包位于 `packages/client/*`，`apps/web` 是壳 boot 导出之上的薄 Vite 应用。插件包的浏览器半边在 `src/client/` 下；**一切构建产物落 `lib/`**——node 半边为 `lib/index.js`/`lib/invariant.js`，浏览器 bundle 为 `lib/client.js`（共享 tsdown client 预设两者皆出；无 `dist/` 目录，`exports["./client"]` 指向 `./lib/client.js`）。`ui-slots`、web-react 与 runtime 构成基础设施方向；功能插件通过服务与 slot 协作，不导入展示实现。
+Client 包位于 `packages/client/*`，`apps/web` 是壳 boot 导出之上的薄 Vite 应用。插件包的浏览器半边在 `src/client/` 下；**一切构建产物落 `lib/`**——node 半边为 `lib/index.js`/`lib/invariant.js`，浏览器 bundle 为 `lib/client.js`（共享 tsdown client 预设两者皆出；无 `dist/` 目录，`exports["./client"]` 指向 `./lib/client.js`）。`ui-slots`、runtime 与 ui-renderer 构成基础设施方向；功能插件通过服务与 slot 协作，不导入展示实现。
 
 多域插件包的 client 半边还按未来包边界再拆——ui-conversation 即样板：
 

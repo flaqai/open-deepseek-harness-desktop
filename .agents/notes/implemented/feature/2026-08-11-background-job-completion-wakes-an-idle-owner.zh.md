@@ -32,7 +32,7 @@ Status: implemented
 
 设界是因为这条链会自激，而 subagent 结算不会。结算受限于模型派生了多少子 agent；被唤醒的一轮却可能启动某个后台任务，而它的完成又会唤醒同一个所有者，且无人旁观。`dsh run` 不需要单独策略：它唯一的用户消息在第一轮就被领取且不会重复，因此预算单调消耗，进程必然终止。
 
-`completionDelivery: quiet` 为空闲所有者恢复旧通道。它的存在是为了确定性 transcript，并在名称、取值与默认值上都对齐 `tool-subagent-report` 的 `reportDelivery` 开关。
+`completionDelivery: quiet` 为空闲所有者恢复旧通道。它的存在是为了确定性 transcript；后台任务完成会独立保留 `quiet | wakeup`，因为其有界的所有者轮次策略不同于 next-step subagent 报告。
 
 ### 销毁自行认领报告
 

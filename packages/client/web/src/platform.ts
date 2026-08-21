@@ -8,10 +8,12 @@
 export const PLATFORM_MODULES = [
   'react', 'react/jsx-runtime', 'react-dom', 'react-dom/client', '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-client-ui-slots',
-  '@deepseek-ai/dsh-client-web-react',
   '@deepseek-ai/dsh-client-ui-primitives',
-  '@deepseek-ai/dsh-client-ui-attachment',
-  '@deepseek-ai/dsh-client-schema-form',
+] as const
+
+/** Client-bundle specifiers whose factories the parser preloads before the shell starts. */
+export const PRELOADED_CLIENT_EXTERNALS = [
+  '@deepseek-ai/dsh-client-runtime/client',
 ] as const
 
 /** One platform module specifier (a seed-table key). */

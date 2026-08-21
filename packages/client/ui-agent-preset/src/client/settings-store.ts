@@ -9,6 +9,7 @@
 
 import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
 
 /** The agent-preset settings namespace on the host wire. */
 export const AGENT_PRESET_SETTINGS_NS = 'agent-presets'
@@ -191,7 +192,14 @@ export class AgentPresetSettingsController {
   /** Row snapshot the renderer subscribes to. */
   readonly store: SnapshotStore<AgentPresetSettingsState> = createSnapshotStore(INITIAL)
 
-  constructor(private readonly api: IApiClient) {}
+  /**
+   * @param api - the agent-preset and settings wire faces (roster and default write).
+   * @param describeFace - the shared mirror's describe face (writability source).
+   */
+  constructor(
+    private readonly api: IApiClient,
+    private readonly describeFace: SettingsDescribeFace,
+  ) {}
 
   private set(patch: Partial<AgentPresetSettingsState>): void {
     this.store.set({ ...this.store.getSnapshot(), ...patch })
@@ -212,24 +220,20 @@ export class AgentPresetSettingsController {
       this.set({ status: 'unavailable', options: [], currentValue: '' })
       return
     }
-    try {
-      // The roster says what may be chosen; `settings.describe` says whether
-      // this browser may write the choice down. A non-loopback browser reaches
-      // neither method, so a refused describe leaves the row read-only rather
-      // than offering a control whose write the Host would refuse.
-      const described = await this.api.settings.describe({})
-      this.set({
-        status: 'ready',
-        error: null,
-        writable: described.result.ok && described.result.value.writable,
-        options: presetOptions(presets),
-        // A roster can mark nothing default: settings can name a preset that
-        // was since deleted, and the picker still has to show something.
-        currentValue: presets.find(preset => preset.isDefault)?.id ?? first.id,
-      })
-    } catch (error) {
-      this.set({ status: 'error', error: messageOf(error) })
-    }
+    // The roster says what may be chosen; the shared mirror says whether this
+    // browser may write the choice down. A non-loopback browser's mirror never
+    // answers, so the row stays read-only rather than offering a control
+    // whose write the Host would refuse.
+    await this.describeFace.ensure()
+    this.set({
+      status: 'ready',
+      error: null,
+      writable: this.describeFace.getSnapshot().view?.writable ?? false,
+      options: presetOptions(presets),
+      // A roster can mark nothing default: settings can name a preset that
+      // was since deleted, and the picker still has to show something.
+      currentValue: presets.find(preset => preset.isDefault)?.id ?? first.id,
+    })
   }
 
   /**

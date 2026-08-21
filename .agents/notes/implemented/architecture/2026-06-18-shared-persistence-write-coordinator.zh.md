@@ -16,6 +16,10 @@ Status: implemented
 
 协调器为每个存活的 `Session` 实例持有一个生命周期条目：初始化，加上一个包私有写入控制器，后者负责待处理事件、固定批处理截止时间、活跃写入、失败保留和共享 flush 屏障。每个 `session/event` 都进入这条有界写入路径，`session/flush` 则绕过等待以观察完全停稳。控制器归并由 [flush 控制器简化](../simplification/2026-07-23-collapse-persistence-flush-state.md)定义；调度节奏由[有界批处理决策](2026-08-08-bounded-session-persistence-write-batching.md)定义。
 
+创建流程将 `Session.events` 的原始快照借作持久化种子。`Session` 已经分离、验证并深度冻结每个事件，后续追加会替换缓存视图，因此该快照数组保持稳定。协调器及其后端钩子只读取这个有类型的进程内值；再次克隆完整日志会重复 [agent scope 运行时决策](2026-07-12-agent-scope-runtime-design.md#session-append-materialize-validate-commit-notify)规定的所有权工作。持久化服务的公开 `append()` 仍在 API 边界为调用方拥有的输入创建快照。
+
+已准备 Session 的后缀，以及进入 write-behind 队列的事件，仍保留现有复制。这些路径会逐个后缀或事件建立异步队列所有权，且没有已测得的完整日志克隆成本；移除这些复制属于单独的所有权审计，不属于创建种子的借用决策。
+
 协调器通过 `session/disposed` 退役会话：它等待控制器完成初始化和当前 flush，串行执行最后一次排空，且仅在成功后才移除控制器与其拥有的每 id 状态。失败时保持控制器可被找到，以供后端 teardown（拆除）重试。每个 id 的已结算链尾仅在其仍是当前链尾时才移除自身，因此旧操作完成后不会抹除同一 id 的新操作。后端 teardown 会注销写入路径监听器、flush 每个剩余的控制器、等待所有按 id 串行化的操作，最后关闭后端。
 
 ### 钩子接口（`PersistenceBackend<TornMarker>`）

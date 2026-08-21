@@ -15,7 +15,7 @@
       "path": "../../client/ui-slots"
     },
     {
-      "path": "../../client/web-react"
+      "path": "../../client/ui-renderer"
     },
     {
       "path": "../../client/runtime"

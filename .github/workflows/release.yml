@@ -75,7 +75,7 @@ jobs:
         run: pnpm run release:verify --family dsh
 
       - name: Build
-        run: pnpm run build
+        run: pnpm run build:official
 
       - name: Pack release tarballs
         run: pnpm run release:pack --family dsh --out dist/npm

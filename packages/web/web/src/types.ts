@@ -8,9 +8,10 @@
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 
 /**
- * What one search-capable backend can return. The model-facing argument is just
- * a query; `maxResults` is a `dsh-tool-web`-layer bound passed through unchanged
- * and enforced on the way back by the seam (see {@link WebSearchResult}).
+ * What one search-capable backend is asked to search. Each request carries one
+ * query; a consumer may issue several requests. `maxResults` is a
+ * `dsh-tool-web`-layer bound passed through unchanged and enforced on the way
+ * back by the seam (see {@link WebSearchResult}).
  */
 export interface WebSearchRequest {
   readonly query: string

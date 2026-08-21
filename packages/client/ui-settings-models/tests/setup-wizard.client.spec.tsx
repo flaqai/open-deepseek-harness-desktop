@@ -3,7 +3,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { SetupWizard } from '../src/client/SetupWizard.tsx'
 import type { SetupWizardProps } from '../src/client/SetupWizard.tsx'
 import { ModelsSettingsStore } from '../src/client/store.ts'
@@ -22,7 +22,7 @@ function mount({ modelReady = false, acknowledge = true }: {
   const appRoot = document.createElement('div')
   appRoot.id = 'root'
   document.body.append(appRoot)
-  const modelsController = new ModelsSettingsStore({} as never)
+  const modelsController = new ModelsSettingsStore({} as never, {} as never, {} as never)
   modelsController.store.update((state) => {
     state.status = 'ready'
     state.writable = true
@@ -37,7 +37,15 @@ function mount({ modelReady = false, acknowledge = true }: {
       credential: undefined,
     }] : []
   })
-  const welcomeController = new WelcomeNoticeStore({} as never, 'memory')
+  const welcomeController = new WelcomeNoticeStore({
+    getSnapshot: () => ({
+      status: 'unavailable', value: undefined, base: undefined, user: undefined,
+      revision: undefined, writable: false, mode: 'memory',
+    }),
+    subscribe: () => () => {},
+    set: async () => {},
+    unset: async () => {},
+  } as never)
   welcomeController.store.update((state) => { state.status = 'ready' })
   const acknowledgeSpy = vi.spyOn(welcomeController, 'acknowledge')
     .mockImplementation(async () => acknowledge)

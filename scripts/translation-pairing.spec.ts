@@ -201,6 +201,9 @@ describe('translation scope discovery', () => {
     'CONTRIBUTING.md',
     'CONTRIBUTING.zh.md',
     'CONTRIBUTING.i18n.yaml',
+    'BRAND_GUIDELINES.md',
+    'BRAND_GUIDELINES.zh.md',
+    'BRAND_GUIDELINES.i18n.yaml',
     'apps/cli/README.md',
     'future/subtree/readme.md',
     'packages/example/README.zh.md',
@@ -215,6 +218,7 @@ describe('translation scope discovery', () => {
   it.each([
     'packages/example/guide.md',
     'packages/example/CONTRIBUTING.md',
+    'packages/example/BRAND_GUIDELINES.md',
     'examples/tutorial.md',
     'website/reference.md',
     'packages/example/README.txt',

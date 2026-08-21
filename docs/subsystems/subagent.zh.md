@@ -191,7 +191,7 @@ interface ContinuableStart {
 
 可选的可继续 child 设置贡献可以在 child 基础组合完成后、Activation 发布前安装限定在作用域内的能力。该注册表按顺序执行且具有事务性：设置失败或被撤销时会回滚未发布的 Activation；child 作用域 dispose 时会释放所有安装；新注册项在下一个 Activation 生效；移除注册项时则会立即撤销每个驻留中的安装。
 
-`SubagentRuntime.reportFrom()` 通过该扩展点实现报告，无需新增第二条队列或承载结果的 child 包装层。调用由确切的在线 child Agent 授权，调用方不能指定接收方。管理器从 child 的持久化 `parentSession` 中推导唯一接收方，要求该 parent Agent 必须在线，将选中内容封装为一条 `subagent-report` 用户消息，并返回该消息的稳定 `MessageId`。静默投递使用 `Agent.inject()`，不产生 inbox 条目实例或 parent 轮次；唤醒投递使用 `Agent.followup()`，会产生一个普通的后续 parent 轮次。两种模式都不会结束 child 轮次，最终回答也不会隐式报告。
+`SubagentRuntime.reportFrom()` 通过该扩展点实现报告，无需新增第二条队列或承载结果的 child 包装层。调用由确切的在线 child Agent 授权，调用方不能指定接收方。管理器从 child 的持久化 `parentSession` 中推导唯一接收方，要求该 parent Agent 必须在线，将选中内容封装为一条 `subagent-report` 用户消息，并返回该消息的稳定 `MessageId`。静默投递使用 `Agent.inject()`，不会唤醒 parent；next-step 投递使用 `Agent.steer()`，会唤醒空闲 parent，或加入运行中 parent 最近的 step 边界。两种模式都不会结束 child 轮次，最终回答也不会隐式报告。
 
 ```ts type-equiv
 /** Durable attribution for a continuable child's explicit parent report. */
@@ -206,7 +206,7 @@ interface SubagentReportMessageSource {
 
 ```ts type-equiv
 /** Deployment scheduling policy for accepted child reports. */
-type SubagentReportDelivery = 'quiet' | 'wakeup'
+type SubagentReportDelivery = 'quiet' | 'next-step'
 ```
 
 上报是 child 自己的选择，因此管理器还保有一份属于自己的记账：当驻留 Activation 结算时，它会向该 child 持久化的直接 parent 投递一条通知，说明该 epoch 如何结束，并携带其最终 assistant 内容。对每个调用方拿到过 id 的 child，这条投递都是无条件的；它发生在会让 parent 被判定为已结算的所有权释放之前，并通过与上报相同的唤醒准入记账到达驻留 parent。若 parent 自身所在的谱系已在拆卸中，这条通知会以不唤醒的方式送达，因为唤醒一个静息 Agent 是开启一个轮次，而不是排队等待工作。其来源信息使用一个独立的 kind，因此 transcript（文本记录）绝不会把运行时的记账呈现为 child 自己写下的内容。
@@ -307,7 +307,7 @@ type SubagentDescendantListEntry = SubagentListEntry & {
 
 ## 终态结果：`SubagentResult`
 
-单次 run 的最终产出，由 `SubagentRun.result` resolve。`structured` 仅在请求了 `outputSchema` 且成功满足时才存在；请求 schema 不保证一定能得到它，当子 agent 失败或结束时未产出有效 capture 时，提供方可能返回 `stopReason: 'error'`。非 `completed` 的 `stopReason` 意味着 `output` 可能不完整——消费方将其映射为 `isError` 的工具结果，而非将部分输出报告为成功。
+单次 run 的最终产出，由 `SubagentRun.result` resolve。`structured` 仅在请求了 `outputSchema` 且成功满足时才存在；请求 schema 不保证一定能得到它，当子 agent 失败或结束时未产出有效 capture 时，提供方可能返回 `stopReason: 'error'`。提供方可以为非 `completed` 结果附带安全且不属于 assistant 内容的 `diagnostic`；在消费方将它与 `output` 分开呈现前，提供方会排除工具输入、文件内容、环境值、凭证与原始协议载荷，并把完整值限制在 4096 个 UTF-8 字节以内。非 `completed` 的 `stopReason` 意味着 `output` 可能不完整——消费方将其映射为 `isError` 的工具结果，而非将部分输出报告为成功。
 
 ```ts type-equiv
 /**
@@ -330,6 +330,13 @@ interface SubagentResult {
    * schema-agnostic.
    */
   readonly structured?: unknown
+  /**
+   * Provider-authored, non-assistant failure detail for a non-`completed`
+   * result. Providers keep this text free of tool inputs, file contents,
+   * environment values, credentials, and raw protocol payloads, and limit it
+   * to 4096 UTF-8 bytes. Consumers present it separately from {@link output}.
+   */
+  readonly diagnostic?: string
   /** Why the run ended. A non-`completed` reason means `output` may be partial. */
   readonly stopReason: SubagentStopReason
 }
@@ -563,6 +570,18 @@ registerContinuableSetup(contribution: ContinuableSetupContribution): () => void
  * @throws an aggregate error after all branches settle when any failed.
  */
 async drainContinuableDescendants(parents: readonly Agent[]): Promise<void>
+
+/**
+ * Release selected resident continuable direct children of one exact live
+ * parent. Other children of the same parent remain admitted and resident.
+ * Absent targets and a manager-less composition are accepted no-ops.
+ * @param parent - exact live direct parent authorizing the selected release.
+ * @param childIds - durable direct-child ids to release when resident.
+ * @returns once every selected Activation released its `AgentHandle`.
+ * @throws {SubagentError} `UNAUTHORIZED` when a resident target belongs to a
+ *   different parent or the supplied parent identity is stale.
+ */
+async drainContinuableChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>
 
 /**
  * Enumerate the parent's direct session-backed subagents without loading or

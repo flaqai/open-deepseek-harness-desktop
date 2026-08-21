@@ -42,7 +42,7 @@ one-shot child——前台与后台皆然——经由 `SubagentRuntime.start()` 
 - 除非部署在 fork 委派工具上配置了 `persona` 或 `toolFilter`，fork child 的请求前缀与其 parent 逐字节相同，因此初始内容的 token 成本重新换来了提供方侧的复用。
 - fork 提供方的可继续路径没有生产调用方，也没有整体组装层面的覆盖。它保留自己的包内测试，seam 也仍然接受它，因此某个组合包或 `--patch` 覆盖层可以无需改动代码、也不会有任何警告地把它重新引入。
 - `subagent_fork` 面向模型的 schema 发生变化：base 组合包中可继续的后台措辞被 one-shot 的 task 措辞取代，在两个示例中则完全消失。受影响的无密钥快照工具 schema 伴随文件在同一次改动中重新记录。
-- 在随附部署中，report 义务的覆盖范围收窄到 spawn 出的 child。它的 `wakeup` 默认调度、权限模型与覆盖均保持不变。
+- 在随附部署中，report 义务的覆盖范围收窄到 spawn 出的 child。它的 `next-step` 默认调度、权限模型与覆盖仍独立于 fork 组合。
 
 ### 已接受的风险
 

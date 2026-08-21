@@ -85,7 +85,7 @@ one-shot 行始终会用文案替代输入框，说明执行记录为只读。�
 
 **将适配器放入 webserver。** 不予采纳，因为目录与继续执行是通道无关的客户端能力；webserver 只承载已校验的消息。
 
-**新建 UI 包。** 不予采纳，因为 `ui-subagent` 已经负责 Web subagent 引用，也是目录与已寻址 child 呈现的统一 owner。
+**把由 Host 支撑的文件与会话引用放进本包。** 不予采纳，因为目录与已寻址 child 呈现依赖 subagent 谱系，而组合引用发现是独立的 Host 功能，由 [`ui-reference`](../../../../packages/client/ui-reference/README.md) 消费。
 
 **自动恢复缺失的 parent。** 不予采纳，因为继续执行要求确切的存活直接 parent。child 导航不得改变 parent 生命周期。
 

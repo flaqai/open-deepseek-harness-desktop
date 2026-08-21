@@ -55,7 +55,7 @@ export function apply(ctx: ClientContext): void {
     inject: (sessionId: SessionId): PlanChipInjected => ({
       // Failure strings stay English (error-surface policy: not localized).
       exitPlanMode: async () => {
-        const result = await ctx.remote.commands.execute(sessionId, '/plan off')
+        const result = await ctx.remote.commands.execute(sessionId, '/plan off', [])
         if (!result.ok) return `${result.error.message} (${result.error.code})`
         if (result.value === undefined) return 'unknown command: /plan off'
         return null

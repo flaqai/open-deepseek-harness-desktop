@@ -5,6 +5,7 @@ import { resolvePwshPath } from './packages/shell/pwsh-local/src/resolve.ts'
 import { defineConfig } from 'vitest/config'
 import { standardDecoratorPlugin, vitestExecArgv } from './vitest.shared.ts'
 import { COVERAGE_EXEMPT_ENV, coverageExemptHeavySuites } from './scripts/coverage-exempt.ts'
+import { COVERAGE_PARTITION_MODE_ENV } from './scripts/coverage-partitions.ts'
 
 // Prints exact `path:line:col` records for every uncovered statement, branch
 // path, and function when a file misses the per-file 100% gate — the built-in
@@ -56,6 +57,10 @@ const windowsUnsupportedCoveragePackages = process.platform === 'win32'
 const windowsOnlyCoverageExclusions = process.platform !== 'win32'
   ? [
       'packages/sandbox/sandbox-windows-acl/src/**/*.ts',
+      // The koffi-backed Win32 table (Toolhelp32/GetProcessTimes/taskkill)
+      // executes only on win32; its decision logic is unit-pinned on every
+      // host through the injected-internals suites.
+      'packages/subprocess/subprocess-local/src/windows-inspector.ts',
     ]
   : []
 
@@ -99,6 +104,12 @@ if (coverageExemptRaw !== undefined && coverageExemptRaw !== '' && coverageExemp
 const coverageExemptExcludes = coverageExemptRaw === '1'
   ? coverageExemptHeavySuites.map(suite => suite.exclude)
   : []
+
+const coveragePartitionRaw = process.env[COVERAGE_PARTITION_MODE_ENV]
+if (coveragePartitionRaw !== undefined && coveragePartitionRaw !== '' && coveragePartitionRaw !== '1') {
+  throw new Error(`vitest config: ${COVERAGE_PARTITION_MODE_ENV} must be '1' or unset, got ${JSON.stringify(coveragePartitionRaw)}.`)
+}
+const coveragePartitionMode = coveragePartitionRaw === '1'
 
 // These suites exercise process-global state, process APIs, or timing-sensitive process I/O
 // that worker threads cannot isolate reliably under aggregate gate contention.
@@ -186,7 +197,7 @@ export default defineConfig({
         'packages/client/ui-primitives/src/RiskConfirmation.tsx',
         'packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx',
         'packages/client/ui-workspace/src/client/WorkspacePicker.tsx',
-        'packages/client/web-react/src/*',
+        'packages/client/ui-renderer/src/client/*',
         // This isolated settings-scope lifecycle has complete unit coverage;
         // keep it out of the broader client-runtime GUI debt exemption.
         'packages/client/runtime/src/**/!(settings-scope).ts',
@@ -270,16 +281,20 @@ export default defineConfig({
       // Per-file so a well-covered big file can't subsidize a bare one.
       // Every v8 ignore comment must carry a reason — see the quality-gates Agent Note
       // (.agents/notes/implemented/process/2026-06-11-quality-gates.md).
-      thresholds: {
-        perFile: true,
-        statements: 100,
-        branches: 100,
-        functions: 100,
-        lines: 100,
-      },
-      reporter: process.env.CI
-        ? ['text', uncoveredLocationsReporter]
-        : ['text', 'html', uncoveredLocationsReporter],
+      thresholds: coveragePartitionMode
+        ? undefined
+        : {
+            perFile: true,
+            statements: 100,
+            branches: 100,
+            functions: 100,
+            lines: 100,
+          },
+      reporter: coveragePartitionMode
+        ? []
+        : process.env.CI
+          ? ['text', uncoveredLocationsReporter]
+          : ['text', 'html', uncoveredLocationsReporter],
     },
   },
 })

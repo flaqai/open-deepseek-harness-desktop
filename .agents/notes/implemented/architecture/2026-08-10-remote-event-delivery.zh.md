@@ -56,7 +56,7 @@ $on<Event extends TypertRemoteEvent>(event: Event, listener: Events[Event]): () 
 
 `Events` 按程序解析：host 程序里是 host 事件全集，client 程序里是 client 编译面看得见的那些——同一个谓词在两侧各自成立，不需要把 host 声明拖进 client。
 
-**契约把消费动词与载体交接分开**：消费方用 `$on` 订阅，持有 host 帧 sink 的一方用 `$dispatch` 把解码后的帧交进来。它**不能**是一个跨插件的模块级函数：client bundle 纯度门禁（`packages/client/tsdown.client.ts`）只放行 `CLIENT_EXTERNALS`、`INLINE_SAFE` 那层 wire 契约与 `/remote` 生成物三类值导入，而靠 inline 绕过会把 `ClientRemoteService` 复制一份进 runtime bundle、令 `instanceof` 恒假。cordis 服务方法正是该门禁指定的协作形态：
+**契约把消费动词与载体交接分开**：消费方用 `$on` 订阅，持有 host 帧 sink 的一方用 `$dispatch` 把解码后的帧交进来。它**不能**是一个跨插件的模块级函数：client bundle 纯度门禁（`packages/client/tsdown.client.ts`）只放行隐式的 `PLATFORM_MODULES` 加 `PRELOADED_CLIENT_EXTERNALS` 基座、包自身的 `dsh.client.external` 请求、`INLINE_SAFE` wire 层与 `/remote` 生成物值导入。靠 inline 绕过会把 `ClientRemoteService` 复制一份进 runtime bundle、令 `instanceof` 恒假。cordis 服务方法正是该门禁指定的协作形态：
 
 ```ts ignore-check
 $dispatch(event: string, args: readonly unknown[]): void

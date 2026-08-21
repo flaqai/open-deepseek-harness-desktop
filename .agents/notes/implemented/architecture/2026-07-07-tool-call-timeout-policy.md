@@ -77,7 +77,7 @@ No new session event is needed for reconstructability: `TOOL_TIMEOUT` is the fin
 
 ### Existing tool adaptation
 
-`web_fetch` and `web_search` are migrated. `dsh-tool-web` keeps ownership of their model-facing schemas, and those schemas expose no timeout knob: `web_fetch` dropped its `timeout_ms` parameter to match the reference-agent shape, and `web_search` stays query-only. The tool bodies do not import `@deepseek-ai/dsh-timeout`; they forward `exec.signal` to `ctx.web`.
+`web_fetch` and `web_search` are migrated. `dsh-tool-web` keeps ownership of their model-facing schemas, and those schemas expose no timeout knob: `web_fetch` has no `timeout_ms` parameter, while `web_search` accepts a required `queries` array without a timeout argument. The tool bodies do not import `@deepseek-ai/dsh-timeout`; they forward `exec.signal` to `ctx.web`.
 
 `dsh-web-fetch-http` keeps one configured provider-level `timeoutMs` as a large resource backstop for direct `ctx.web.fetch()` callers and misconfigured deployments; it owns no model-facing timeout. When a `TOOL_TIMEOUT` signal reaches the fetch provider first, provider-scoped classification treats it as upstream `WEB_ABORTED`, and the outer `tools/execute` wrapper replaces the final tool result with `TOOL_TIMEOUT`. A shipped web-tool deployment configures the provider backstop above the `timeout-policy` budget so the tool-call policy normally wins for model calls.
 

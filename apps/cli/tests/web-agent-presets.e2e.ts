@@ -1,15 +1,15 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import { boot, healProfilesModuleFallback, loadOverlayPatches } from '@deepseek-ai/dsh-app-boot'
+import { boot, healProfilesModuleFallback, loadOverlayPatches, loadProfile } from '@deepseek-ai/dsh-app-boot'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { resolveSessionPreset, SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-agent-presets'
 import { applyChildComposition, childSessionMeta } from '@deepseek-ai/dsh-subagent'
@@ -26,9 +26,10 @@ const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 /** The shipped Web surface: the dsh-base and dsh-web-app bundle patches over an empty preset root. */
 const BASE_PATCH = join(REPO_ROOT, 'packages/bundle/base/cordis.patch.yml')
 const WEB_PATCH = join(REPO_ROOT, 'packages/bundle/web-app/cordis.patch.yml')
+const CODEX_PACKAGE_DIR = join(REPO_ROOT, 'packages/subagent/subagent-codex')
+const CLAUDE_CODE_PACKAGE_DIR = join(REPO_ROOT, 'packages/subagent/subagent-claude-code')
 /** The installation anchor whose dependency surface the preset module fallback mirrors. */
 const INSTALL_ANCHOR = join(REPO_ROOT, 'apps/cli/package.json')
-const EXAMPLES_INSTALL_ANCHOR = join(REPO_ROOT, 'examples/package.json')
 const MINIMAL_PROMPT = 'You are a helpful software engineer assistant.'
 const MINIMAL_BASH_DESCRIPTION = `Run commands in a bash shell
 * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
@@ -47,12 +48,11 @@ const MINIMAL_BASH_DESCRIPTION = `Run commands in a bash shell
 async function bootWeb(
   settingsFile: string,
   extra: PatchOptions[] = [],
-  extraInstallAnchor?: string,
+  profilePackages: readonly string[] = [],
+  profileBundles?: readonly string[],
 ): Promise<Context> {
   const storageRoot = join(dirname(settingsFile), 'storages')
-  const patches: PatchOptions[] = [
-    ...loadOverlayPatches('dsh-test', BASE_PATCH),
-    ...loadOverlayPatches('dsh-test', WEB_PATCH),
+  const overrides: PatchOptions[] = [
     // The settings row defaults to `$DSH_HOME/settings.yaml`. Left alone it
     // reads the developer's own document — and since the default preset is a
     // setting, a stored `agent-presets.default` would decide this file's
@@ -115,12 +115,34 @@ async function bootWeb(
   // them resolvable — the same mechanism, not a test-only shim.
   const home = dirname(settingsFile)
   healProfilesModuleFallback(INSTALL_ANCHOR, home)
-  if (extraInstallAnchor !== undefined) healProfilesModuleFallback(extraInstallAnchor, home)
   const profileDir = join(home, 'profiles', 'spec')
   await mkdir(profileDir, { recursive: true })
+  // Product Bundles are installed into the Profile, not the dsh app. Model
+  // pnpm's package link for only the selected products; their own production
+  // dependencies resolve from the linked workspace packages, while shared
+  // peers still resolve through the installation fallback above.
+  for (const packageDir of profilePackages) {
+    const manifest = JSON.parse(await readFile(join(packageDir, 'package.json'), 'utf8')) as { name: string }
+    const link = join(profileDir, 'node_modules', manifest.name)
+    await mkdir(dirname(link), { recursive: true })
+    await symlink(packageDir, link, 'junction')
+  }
+  let bundlePatches: PatchOptions[] = [
+    ...loadOverlayPatches('dsh-test', BASE_PATCH),
+    ...loadOverlayPatches('dsh-test', WEB_PATCH),
+  ]
+  if (profileBundles !== undefined) {
+    await writeFile(join(profileDir, 'package.json'), JSON.stringify({
+      private: true,
+      dependencies: Object.fromEntries(profileBundles.map(name => [name, 'workspace:*'])),
+      dsh: { profile: { bundles: profileBundles } },
+    }, null, 2) + '\n')
+    const profile = loadProfile('dsh-test', 'spec', INSTALL_ANCHOR, home, { userLayer: false })
+    bundlePatches = profile.layers.flatMap(layer => layer.patches)
+  }
   const rootConfig = join(profileDir, 'cordis.yml')
   await writeFile(rootConfig, '[]\n')
-  return await boot('dsh-test', rootConfig, patches, (bootCtx) => {
+  return await boot('dsh-test', rootConfig, [...bundlePatches, ...overrides], (bootCtx) => {
     provideCmdline(bootCtx, { args: [], exit: () => {} })
   })
 }
@@ -434,17 +456,18 @@ describe('the shipped Web composition', () => {
   })
 })
 
-describe('product subagent rows in user presets', () => {
-  let productCtx: Context
-  const ids = ['products-none', 'products-codex', 'products-claude', 'products-both'] as const
+describe('product Bundle and user-preset intersection', () => {
+  const presetIds = ['products-none', 'products-codex', 'products-claude', 'products-both'] as const
+  type Product = 'codex' | 'claude-code'
+  type PresetId = typeof presetIds[number]
 
-  beforeAll(async () => {
+  async function bootProducts(installed: readonly Product[]): Promise<Context> {
     const root = await mkdtemp(join(tmpdir(), 'dsh-product-presets-'))
     const userRoot = join(root, 'presets')
     const settingsFile = join(root, 'settings.yaml')
     const standard = await readFile(join(CONFIG_DIR, 'agent-presets', 'standard', 'agent.cordis.yml'), 'utf8')
     await writeFile(settingsFile, '{}\n')
-    for (const id of ids) {
+    for (const id of presetIds) {
       let composition = standard
       if (id === 'products-codex' || id === 'products-both') {
         composition = enablePresetTool(composition, 'tool-subagent-codex')
@@ -456,11 +479,15 @@ describe('product subagent rows in user presets', () => {
       await mkdir(directory, { recursive: true })
       await writeFile(join(directory, 'agent.cordis.yml'), composition)
     }
-    productCtx = await bootWeb(settingsFile, [
-      { insert: [
-        { id: 'subagent-codex', name: '@deepseek-ai/dsh-subagent-codex' },
-        { id: 'subagent-claude-code', name: '@deepseek-ai/dsh-subagent-claude-code' },
-      ] },
+    const packageDir = (product: Product): string => (
+      product === 'codex' ? CODEX_PACKAGE_DIR : CLAUDE_CODE_PACKAGE_DIR
+    )
+    const packageName = (product: Product): string => (
+      product === 'codex'
+        ? '@deepseek-ai/dsh-subagent-codex'
+        : '@deepseek-ai/dsh-subagent-claude-code'
+    )
+    return await bootWeb(settingsFile, [
       {
         id: 'agent-presets',
         config: {
@@ -472,46 +499,68 @@ describe('product subagent rows in user presets', () => {
           includeUserRoot: false,
         },
       },
-    ], EXAMPLES_INSTALL_ANCHOR)
-  }, 120_000)
-
-  afterAll(async () => {
-    await productCtx.fiber.dispose()
-  })
-
-  it('composes none, either product, or both without changing the shared host registry', async () => {
-    const expected = new Map<string, string[]>([
-      ['products-none', []],
-      ['products-codex', ['subagent_codex']],
-      ['products-claude', ['subagent_claude_code']],
-      ['products-both', ['subagent_claude_code', 'subagent_codex']],
+    ], installed.map(packageDir), [
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      ...installed.map(packageName),
     ])
-    expect(productCtx.subagents.list()).toEqual(expect.arrayContaining([
-      'spawn', 'fork', 'codex', 'claude-code',
-    ]))
+  }
 
-    for (const [id, productTools] of expected) {
-      const handle = await productCtx.agents.create({
-        sessionId: SessionId(`preset-${id}`),
-        setup: agentCtx => productCtx.agentPresets.mount(agentCtx, id).then(() => undefined),
-      })
+  it('composes the intersection of installed Bundles and enabled preset rows', async () => {
+    const enabledByPreset: Record<PresetId, Product[]> = {
+      'products-none': [],
+      'products-codex': ['codex'],
+      'products-claude': ['claude-code'],
+      'products-both': ['codex', 'claude-code'],
+    }
+    const scenarios: Array<{ installed: Product[]; presets: readonly PresetId[] }> = [
+      { installed: [], presets: ['products-both'] },
+      { installed: ['codex'], presets: ['products-both'] },
+      { installed: ['claude-code'], presets: ['products-both'] },
+      { installed: ['codex', 'claude-code'], presets: presetIds },
+    ]
+
+    for (const { installed, presets } of scenarios) {
+      const productCtx = await bootProducts(installed)
+      const spawn = vi.spyOn(productCtx.subprocess, 'spawn')
       try {
-        const tools = toolNames(productCtx, handle.agent)
-        expect(tools.filter(name => name === 'subagent_codex' || name === 'subagent_claude_code'))
-          .toEqual(productTools)
-        expect(tools).toEqual(expect.arrayContaining(['job_kill', 'job_list', 'job_output']))
-        for (const productTool of productTools) {
-          expect(toolParameterNames(productCtx, handle.agent, productTool)).toEqual([
-            'description', 'prompt', 'run_in_background',
-          ])
+        expect(productCtx.subagents.list()
+          .filter(name => name === 'codex' || name === 'claude-code')
+          .sort())
+          .toEqual([...installed].sort())
+        for (const id of presets) {
+          const handle = await productCtx.agents.create({
+            sessionId: SessionId(`preset-${id}-${installed.join('-') || 'none'}-${randomUUID()}`),
+            setup: agentCtx => productCtx.agentPresets.mount(agentCtx, id).then(() => undefined),
+          })
+          try {
+            const productTools = enabledByPreset[id]
+              .filter(product => installed.includes(product))
+              .map(product => product === 'codex' ? 'subagent_codex' : 'subagent_claude_code')
+              .sort()
+            const tools = toolNames(productCtx, handle.agent)
+            expect(tools.filter(name => name === 'subagent_codex' || name === 'subagent_claude_code'))
+              .toEqual(productTools)
+            expect(tools).toEqual(expect.arrayContaining(['job_kill', 'job_list', 'job_output']))
+            for (const productTool of productTools) {
+              expect(toolParameterNames(productCtx, handle.agent, productTool)).toEqual([
+                'description', 'prompt', 'run_in_background',
+              ])
+            }
+          } finally {
+            await handle.dispose()
+          }
         }
+        expect(spawn).not.toHaveBeenCalled()
       } finally {
-        await handle.dispose()
+        spawn.mockRestore()
+        await productCtx.fiber.dispose()
       }
     }
-  })
+  }, 120_000)
 
   it('applies a product-row edit only to later sessions on the preset', async () => {
+    const productCtx = await bootProducts(['codex'])
     const preset = await productCtx.agentPresets.resolve('products-none')
     const original = await readFile(preset.path, 'utf8')
     const existing = await productCtx.agents.create({
@@ -535,8 +584,9 @@ describe('product subagent rows in user presets', () => {
     } finally {
       await existing.dispose()
       await writeFile(preset.path, original)
+      await productCtx.fiber.dispose()
     }
-  })
+  }, 120_000)
 })
 
 describe('a switch survives the session', () => {

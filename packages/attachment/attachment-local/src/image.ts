@@ -44,18 +44,29 @@ export async function probeImage(data: Uint8Array): Promise<DetectedImage> {
   }
 }
 
+/** Admission limits applied to a decoded raster's intrinsic dimensions. */
+export interface DecodedImageLimits {
+  /** Decoded-pixel (width times height) admission limit. */
+  maxPixels?: number
+  /** Per-side admission limit applied to width and height independently. */
+  maxDimension?: number
+}
+
 /**
  * Fully decode a supported raster and return its intrinsic metadata.
  * @param data - complete encoded image bytes.
- * @param maxPixels - decoded-pixel admission limit.
+ * @param limits - intrinsic-dimension admission limits.
  * @returns verified format and dimensions.
  */
-export async function detectImage(data: Uint8Array, maxPixels?: number): Promise<DetectedImage> {
+export async function detectImage(data: Uint8Array, limits?: DecodedImageLimits): Promise<DetectedImage> {
   try {
     const image = sharp(data, { failOn: 'error', limitInputPixels: false })
     const detected = await imageMetadata(image)
-    if (maxPixels !== undefined && detected.width * detected.height > maxPixels) {
+    if (limits?.maxPixels !== undefined && detected.width * detected.height > limits.maxPixels) {
       throw new AttachmentError('Image exceeds the configured decoded-pixel limit.', 'IMAGE_TOO_MANY_PIXELS')
+    }
+    if (limits?.maxDimension !== undefined && Math.max(detected.width, detected.height) > limits.maxDimension) {
+      throw new AttachmentError('Image exceeds the configured per-side pixel limit.', 'IMAGE_DIMENSION_TOO_LARGE')
     }
     await image.raw().toBuffer()
     return detected

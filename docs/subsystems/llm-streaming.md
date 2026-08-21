@@ -240,7 +240,7 @@ Every adapter MUST obey these, and every consumer may rely on them:
 
 ## `ResolvedRetryPolicy`
 
-Provider configuration resolves before route registration into an immutable discriminated union. Normal mode carries `mode: 'normal'`, finite `maxRetries`, `retryableCodes`, and required `initialDelayMs`, `maxDelayMs`, and `jitterRatio`; always mode carries `mode: 'always'` and the same required backoff fields without a finite maximum. `LlmRuntime.providerRetryPolicy(provider)` returns the currently registered value and supplies normal defaults when the adapter omits one; `llmRetryPolicyOf(stream)` returns the value captured from the serving registration after the call selects that registration, so later route disposal or replacement cannot change an in-flight failure's recovery policy. The [generated config catalog](../config-catalog.md) lists the optional input fields.
+Retry configuration resolves before route registration into an immutable discriminated union. Normal mode carries `mode: 'normal'`, finite `maxRetries`, `retryableCodes`, and required `initialDelayMs`, `maxDelayMs`, and `jitterRatio`; always mode carries `mode: 'always'` and the same required backoff fields without a finite maximum. Omitting a provider policy uses the normal default of five retries. Layered settings may retain normal-only `maxRetries` or `retryableCodes` after switching to always mode; the resolver ignores those inactive fields and captures the pure always policy. `LlmRuntime.providerRetryPolicy(provider)` returns the registered value, and `llmRetryPolicyOf(stream)` returns the value captured from the serving registration after the call selects it, so later route disposal or replacement cannot change an in-flight failure's recovery policy. The [generated config catalog](../config-catalog.md) lists the optional input fields.
 
 ## `AppIdentity` — app attribution
 
@@ -298,7 +298,8 @@ One keep/drop decision covers content and metadata together: a `max-tokens` fini
  * {@link ContentBlock}s and a final assistant {@link Message}.
  *
  * The agent loop feeds it while logging raw chunks for replay fidelity, then
- * reads `blocks()` / `message()` / `usage` / `finish` once the stream ends.
+ * reads `blocks()` / `message()` / `usage` / `finish` once the stream ends,
+ * or `interruptedBlocks()` when cancellation cut the stream short.
  *
  * Tolerant of delta-only protocols (no block-start/end); deltas arriving for
  * an index already closed by `block-end` are ignored (malformed stream) so a
@@ -317,6 +318,14 @@ declare class BlockAssembler {
    *   its accumulated deltas (an unknown block type never closed by `block-end` throws).
    */
   blocks(): ContentBlock[];
+  /**
+   * Assemble the prefix an interrupted stream can safely finalize: closed and
+   * open text/reasoning blocks with non-whitespace content, in stream order.
+   * Tool calls are omitted because interruption precedes dispatch; retaining
+   * one would require a fabricated result. Open unknown blocks are also omitted.
+   * @returns the kept blocks; empty when nothing streamed before the interruption.
+   */
+  interruptedBlocks(): ContentBlock[];
   /** Usage from the `usage` chunk; undefined until one arrives. */
   get usage(): TokenUsage | undefined;
   /** Finish reason from the `finish` chunk; `{kind: 'stop'}` when the stream ended without one. */

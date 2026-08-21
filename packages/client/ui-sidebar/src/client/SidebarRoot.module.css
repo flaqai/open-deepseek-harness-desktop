@@ -124,6 +124,41 @@
   cursor: pointer;
 }
 
+/* Mark and name are independent slots; the shell owns their shared baseline,
+   spacing, and height so either occupant can vary in width. */
+.brandIdentity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  min-width: 0;
+}
+
+.brandMark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brandName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 24px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: 0.04em;
+}
+
+.fallbackBrandName {
+  font-size: 17px;
+  letter-spacing: 0px;
+  white-space: nowrap;
+}
+
 .iconButton {
   flex: none;
   display: inline-flex;
@@ -159,14 +194,34 @@
   display: inline;
 }
 
-.collapsed .toggle:hover .railFish {
+.collapsed .toggle:hover .railMark {
   display: none;
+}
+
+.railMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Rail icons ride the primary ink (figma rail spec); expanded keeps the
    secondary icon-button ink. */
 .collapsed .iconButton {
   color: var(--dsw-alias-label-primary);
+}
+
+.buildRevision {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--dsw-alias-label-primary-inverted);
+  background: var(--dsw-alias-label-primary);
+  font-family: var(--ds-font-family-code);
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
 /* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off

@@ -1,9 +1,9 @@
 # Keyless replay for the read-image success scenario. Include patches cannot
 # target entries behind a nested include, so this restates the replay overlay
 # directly over the base cordis.yml (the fs.cordis.snapshot.yml pattern) and
-# re-pins the recorded flash model. The replay catalog declares image input on
-# flash, so the strict read_image gate accepts the route and the tool result
-# carries the durable image block; the live DeepSeek route cannot record this.
+# re-pins the recorded vision model. The replay catalog declares image input,
+# so the strict read_image gate accepts the route and the tool result carries
+# the durable image block.
 - id: base
   name: '@deepseek-ai/cordis-plugin-include'
   config:
@@ -16,7 +16,7 @@
         name: '@deepseek-ai/dsh-acp-demo'
         config:
           provider: deepseek-official
-          model: deepseek-v4-flash
+          model: deepseek-v4-flash-vision-exp
           persistenceRoot: !!js process.env.DSH_SNAPSHOT_SESSIONS_ROOT ?? './.sessions'
           persistenceCompression: none
           workspaceContext:
@@ -36,6 +36,8 @@
                   name: DeepSeek
                   models:
                     - id: deepseek-v4-flash
-                      inputModalities: [text, image]
+                      inputModalities: [text]
                     - id: deepseek-v4-pro
                       inputModalities: [text]
+                    - id: deepseek-v4-flash-vision-exp
+                      inputModalities: [text, image]

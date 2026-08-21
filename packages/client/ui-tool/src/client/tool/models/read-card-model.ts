@@ -13,6 +13,7 @@
  * until the result arrives.
  * @module
  */
+import { abbreviateHomePath } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ReadBlockLine, ReadBlockProps } from '@deepseek-ai/dsh-client-ui-primitives'
 import { relativizeToCwd, type ToolCallBlock } from './tool-call-model.ts'
 
@@ -52,14 +53,15 @@ export type ReadCardModel = Pick<ReadBlockProps, 'label' | 'lines' | 'totalLines
  *
  * The label is the read view's `title` when the tool supplied one (the
  * presentation contract's replacement-title rule), otherwise the file path
- * relativized to the session workspace so a workspace-rooted absolute path
- * displays the same short form the row summary shows.
+ * shortened the same way the row summary is: workspace-relative first, then
+ * POSIX `~` for a leftover host-home path.
  * @param block - RunningToolCall or ToolResultNode off the snapshot caches.
  * @param sessionCwd - the session workspace root; a workspace-rooted absolute
  *   path label displays relative to it. Absent leaves the path as authored.
+ * @param home - host account home; a leftover POSIX home path displays as `~`.
  * @returns the read-card props, or null for the generic path.
  */
-export function readCardModel(block: ToolCallBlock, sessionCwd?: string): ReadCardModel | null {
+export function readCardModel(block: ToolCallBlock, sessionCwd?: string, home?: string): ReadCardModel | null {
   // Running has no result view; a read carries no content until execute returns.
   if (!('kind' in block)) return null
   const result = block.resultView?.card === 'read' ? block.resultView : null
@@ -68,7 +70,7 @@ export function readCardModel(block: ToolCallBlock, sessionCwd?: string): ReadCa
   // shape so the card never holds a reference into the runtime's cache.
   const lines: ReadBlockLine[] = result.lines.map(line => ({ number: line.number, text: line.text }))
   return {
-    label: result.title ?? relativizeToCwd(result.path, sessionCwd),
+    label: result.title ?? abbreviateHomePath(relativizeToCwd(result.path, sessionCwd), home),
     lines,
     totalLines: result.totalLines,
     lang: result.lang,

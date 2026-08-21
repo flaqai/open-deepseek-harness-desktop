@@ -26,7 +26,7 @@ Directories layer as follows:
 - `packages/host/*`: packages provide host-side capability only (representing the Node.js engineering core built on the existing harness plugin system), and additionally
     - the unified backend protocol (fetch, HTTP, streaming interfaces…) — definitions and support, see the "Message protocol" sections below
 - `packages/client/*`: packages provide client-side capability only; every package stays single-sided. Three kinds live here (the axes are owned by the [client plugin loading note](2026-07-23-client-plugin-loading-model.md)):
-    - **Pure libraries** (`ui-slots`, `web-react`, `ui-primitives`, plus the `loader` kernel package): ordinary root-index packages, statically bundled into the shell; the first three are seeded into the module table.
+    - **Pure libraries** (`ui-slots`, `ui-primitives`, plus the `loader` kernel package): ordinary root-index packages, statically bundled into the shell; the two client libraries are seeded into the module table.
     - **Static-arrival entry packages** (`connection`, `runtime`, `ui-theme`, `i18n`, `hmr`): no `dsh.client` key and no browser bundle — the shell bundles their `src/client/` half and registers it with `ctx.modules`; they are governed as entries of the host-authored graph like everything else.
     - **Fetch-arrival plugin packages** (`ui-layout`, `ui-sidebar`, `ui-conversation`, `ui-trajectory`): dual-entry — the root index is the node half (an empty `apply`, existing so the host Loader governs lifecycle and the web plugin registry discovers the package.json `dsh.client` declaration); the implementation lives under `src/client/`, shipped as the `./client` subpath (a tsdown closure-factory bundle). Cross-plugin consumption of `/client` is type-only; value cooperation goes through cordis services.
 - `apps/` holds the externally exported applications, assembled from Client / Host mixtures.
@@ -39,7 +39,7 @@ apps/*  (applications: apps/web = vite app, apps/cli = bin dispatch)
   │ consume
   ▼
 packages/host/*                      packages/client/*
-  apiproxy   front layer: protocol     pure libs: ui-slots / web-react / ui-primitives
+  apiproxy   front layer: protocol     pure libs: ui-slots / ui-primitives
   runtime    assembly / host entity    dsh.client plugins ×8 (node half = empty apply,
   webserver  Web HTTP carriage                              client half = src/client/)
   │ ctx.plugin(...)                      ▲ import only apiproxy's /api /client subpaths
@@ -65,8 +65,8 @@ On the protocol side: TS interfaces (`packages/host/apiproxy/src/api/`, zero Nod
 | Front layer | `dsh-host-apiproxy` | TS/zod definitions (api/) + the fetch abstraction (fetch/: handler + client base class) | Keep it simple — every consumer needs it; importable from Node and browser alike; protocol content in the "Message protocol" sections below; clients must not bypass api through ctx |
 | Assembly layer | `dsh-host-runtime` | Plugin composition + ApiProxy integration + the web UI plugin mount (in-memory Loader tree over the eight dsh.client packages); home of host-level configuration (defaults/persistenceRoot, future user profile) | Which plugins mount and with what defaults is decided only here; shells must not alter the assembly |
 | Carrier layer | `dsh-host-webserver` | Web HTTP and upgrade: static serving + `/api/*`→handler forwarding + WebSocket upgrade route + close semantics; plugin bundle endpoint + `__DSH_BOOT__` manifest injection (fed by the web plugin registry) | Web (browser access) only; zero workspace dependencies (the registry arrives by structural injection); Electron does not reuse it |
-| Client libraries | `dsh-client-ui-slots` / `dsh-client-web-react` / `dsh-client-ui-primitives` | Slot registry core / ctx↔React glue / pure React atoms | Zero cordis runtime dependency in components; seeded into the loader module table by the shell |
-| Client plugins | `dsh-client-connection` / `dsh-client-runtime` / `dsh-client-ui-theme` / `dsh-client-i18n` / `dsh-client-ui-layout` / `dsh-client-ui-sidebar` / `dsh-client-ui-conversation` / `dsh-client-ui-trajectory` | Browser-side cordis plugin tree (wire consumer, core services, theme, i18n, layout, sidebar, conversation, trajectory) — see the web client architecture note | Dual entry (node half = empty apply; implementation in `src/client/`); the consumption face goes exclusively through ApiProxy |
+| Client libraries | `dsh-client-ui-slots` / `dsh-client-ui-primitives` | Slot contracts / pure React atoms | Seeded into the loader module table by the shell |
+| Client plugins | `dsh-client-connection` / `dsh-client-runtime` / `dsh-client-ui-theme` / `dsh-client-ui-renderer` / feature UI packages | Browser-side Cordis plugin tree: wire consumer, core services, theme, React rendering, and feature composition — see the web client architecture note | Dual entry (node half = empty apply; implementation in `src/client/`); cross-plugin value cooperation uses services and slots |
 | Application | `@deepseek-ai/dsh` (apps/cli) + `dsh-web-frontend` (apps/web, the vite application) | Coarse bin dispatch + one assembly module per application (web.ts / headless.ts); the vite app is a thin main over the `dsh-client-web` shell surface | Applications use dynamic imports so they never load each other; workspace knowledge like dist location stays in the app |
 
 #### Naming rule

@@ -21,8 +21,8 @@ export type { MenuKey } from './locales.ts'
 export type {
   ArbitrateKey, ArbitrateOutcome, BeginCommandRequest, CandidateRequest, ClientSessionContext,
   CommandClaim, ConsumeTokenRequest, InsertReferenceRequest, PickOutcome, PickVia, ReferenceCodec,
-  ReferenceInsert, InputTriggerCandidate, InputTriggerPick, InputTriggerSource, SubmitOutcome, TokenSpan,
-  TriggerChar, TriggerGuard, TriggerPosition,
+  ReferenceInsert, InputTriggerCandidate, InputTriggerPick, InputTriggerSource, SubmitEnvelope,
+  SubmitImageAttachment, SubmitOutcome, TokenSpan, TriggerChar, TriggerGuard, TriggerPosition,
 } from '../types.ts'
 export type { DetectTrigger, ExactMatch, MenuEvent, MenuReduce, MenuState, TriggerHit } from '../core/contract.ts'
 export type { InputTriggerServiceContract } from './contract.ts'

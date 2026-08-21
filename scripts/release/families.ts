@@ -11,6 +11,10 @@
 
 import { globSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  officialClientBuildEnvironment,
+  readClientBuildRecord,
+} from '../client-build-environment.ts'
 import { validateTarballPayload } from '../publication-payload.ts'
 
 /**
@@ -31,6 +35,12 @@ const PEER_SECTIONS = ['peerDependencies'] as const
 
 /** The workspace root manifest, which is never a release member. */
 const WORKSPACE_ROOT_PACKAGE = '@deepseek-ai/dsh-root'
+/** Community desktop packages are built by installers, never published in the official npm family. */
+const COMMUNITY_PRIVATE_PACKAGE_DIRECTORIES = new Set([
+  'apps/desktop',
+  'packages/client/ui-brand-community-desktop',
+  'packages/client/ui-desktop-shell',
+])
 
 /** One peer declaration the publish order leaves unordered. */
 interface DroppedPeerEdge {
@@ -112,6 +122,13 @@ export abstract class ReleaseFamily {
   abstract readonly tagPrefix: string
 
   /**
+   * Assert that built artifacts match this release family's required profile.
+   * Families without environment-selected artifacts accept every build tree.
+   * @param _root - repository root containing generated artifacts.
+   */
+  verifyBuildArtifacts(_root: string): void {}
+
+  /**
    * Discover this family's members.
    * @param root - repository root.
    * @returns Members sorted by directory, with names validated and deduplicated.
@@ -124,6 +141,8 @@ export abstract class ReleaseFamily {
     const seen = new Set<string>()
     for (const manifestPath of manifestPaths) {
       const normalized = manifestPath.replaceAll('\\', '/')
+      const directory = normalized.slice(0, normalized.length - '/package.json'.length)
+      if (COMMUNITY_PRIVATE_PACKAGE_DIRECTORIES.has(directory)) continue
       const manifest = readManifest(resolve(root, manifestPath))
       const name = requireString(manifest, 'name', normalized)
       const version = requireString(manifest, 'version', normalized)
@@ -132,7 +151,7 @@ export abstract class ReleaseFamily {
       if (seen.has(name)) throw new Error(`${name} appears twice in release family ${this.id}`)
       seen.add(name)
       members.push({
-        directory: normalized.slice(0, normalized.length - '/package.json'.length),
+        directory,
         name,
         version,
         manifest,
@@ -305,11 +324,16 @@ export abstract class ReleaseFamily {
   abstract readonly installedEntry: InstalledEntry | undefined
 }
 
-/** `packages/*` and `apps/*`: one shared version across the whole family. */
+/** Release packages and apps: one shared version across the whole family. */
 class DshFamily extends ReleaseFamily {
   readonly id = 'dsh'
-  readonly patterns = ['packages/*/*/package.json', 'apps/*/package.json'] as const
+  readonly patterns = ['packages/!(experimental)/*/package.json', 'apps/*/package.json'] as const
   readonly tagPrefix = 'dsh-v'
+
+  /** Require current artifacts from a complete official client build. */
+  override verifyBuildArtifacts(root: string): void {
+    readClientBuildRecord(root, officialClientBuildEnvironment(root))
+  }
 
   /**
    * Require one version across the family, the way a single tag can name it.

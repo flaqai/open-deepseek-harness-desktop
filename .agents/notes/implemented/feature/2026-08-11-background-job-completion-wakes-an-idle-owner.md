@@ -32,7 +32,7 @@ Injection is correct there. A cancelled turn is a user pressing stop, and reopen
 
 The bound exists because this chain is self-exciting in a way subagent settlement is not. Settlement is bounded by how many children the model spawned; a woken turn can start the background job whose completion wakes it again, with nobody watching. `dsh run` needs no separate policy: its one user message is claimed in the first turn and never repeats, so the budget is spent monotonically and the process terminates.
 
-`completionDelivery: quiet` restores the old lane for idle owners. It exists for deterministic transcripts, and mirrors the `reportDelivery` switch on `tool-subagent-report` in name, values, and default.
+`completionDelivery: quiet` restores the old lane for idle owners. It exists for deterministic transcripts; job completion independently retains `quiet | wakeup` because its bounded owner-turn policy differs from next-step subagent reports.
 
 ### Teardown claims the report
 

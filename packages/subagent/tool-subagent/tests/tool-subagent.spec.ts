@@ -185,6 +185,22 @@ describe('dsh-tool-subagent', () => {
     expect(text(result)).toContain('scripted subagent reply')
   })
 
+  it('renders provider diagnostics before preserved partial assistant output', async () => {
+    const ctx = await setup({ provider: 'mock' }, {
+      reply: 'partial assistant text',
+      diagnostic: 'Claude Code denied a tool request',
+      stopReason: 'error',
+    })
+
+    const result = await callSubagent(ctx, { description: 'd', prompt: 'p' })
+    expect(result.isError).toBe(true)
+    expect(text(result)).toBe(
+      'Error: subagent run failed\n'
+      + 'Diagnostic: Claude Code denied a tool request\n'
+      + 'Partial output before the run ended:\npartial assistant text',
+    )
+  })
+
   it('registers under a configurable toolName so multiple providers can coexist', async () => {
     // The defining multi-provider use case: two loads, two distinct tool names,
     // each bound to a different provider — the tool registry rejects duplicate
@@ -850,6 +866,36 @@ describe('dsh-tool-subagent background mode', () => {
       agent: parent,
     })
     expect(text(again)).toBe('background answer\n[status: completed]')
+  })
+
+  it('preserves provider diagnostics in one-shot background failure detail', async () => {
+    const ctx = await backgroundSetup({ provider: 'mock' }, {
+      reply: 'not background output',
+      diagnostic: 'Claude Code cancelled an unattended dialog',
+      stopReason: 'error',
+    })
+    const parent = ownerAgent(ctx, 'sess-parent')
+
+    const started = await ctx.tools.execute({
+      signal: testToolSignal,
+      callId: CallId('diagnostic-background-start'),
+      name: 'subagent',
+      arguments: { description: 'd', prompt: 'p', run_in_background: true },
+      agent: parent,
+    })
+    expect(text(started)).toBe('started background subagent job subagent-1')
+
+    const output = await ctx.tools.execute({
+      signal: testToolSignal,
+      callId: CallId('diagnostic-background-output'),
+      name: 'job_output',
+      arguments: { job_id: 'subagent-1', wait: true },
+      agent: parent,
+    })
+    expect(text(output)).toBe(
+      '(no new output)\n'
+      + '[status: failed, error; diagnostic: Claude Code cancelled an unattended dialog]',
+    )
   })
 
   it('fails loud when the tasks runtime is not loaded', async () => {

@@ -21,7 +21,7 @@ After the typed locale standard seat landed (`locale:` on register → framework
 - **Error/failure strings stay English**: client-authored fallbacks (`command failed`, plan-toggle failures), RpcError messages, and wire `error.message (code)` pass-throughs render verbatim.
 - **Design literals stay out of the dictionaries**: tool-row variant titles (Think/Bash/…), SYSTEM/USER-style kind badges, the Plan chip wordmark, the whole StatsLine — identical in both languages.
 - **ui-trajectory is deferred wholesale** (a developer inspection surface, terminology-dense, ruled separately).
-- **Boot copy stays hardcoded** (AppRoot renders before the locale service exists).
+- **Boot copy stays hardcoded** (the framework-free boot page runs before the locale service exists).
 
 **Derivation layers stay pure; localization happens at render.** ui-workspace's `relativeTime` returns structured `{unit, n}` composed with dictionary templates by the renderer; blank sessions and the Ungrouped bucket keep their stored titles, with the renderer substituting localized copy off the `blank` flag / absent `workspaceId`; **blank rows are excluded from search entirely** (a bilingual display title cannot match a single-language query stably). Dates use no Intl: format templates live in the dictionaries (message clock `clock.md`/`clock.ymd`, workspace hover `date.ymd`) and the formatters take `t` as a parameter, staying pure.
 
@@ -42,4 +42,4 @@ The "apply layer subscribes to `locale/change` and re-registers for fresh labels
 - A language switch refreshes the whole UI instantly with zero re-registration; adopting a new package is three steps (dictionary + declare-merge + `locale: NS`), no hand-written glue.
 - Cost: list-label consumers must know `resolveSlotLabel` (a raw `options.label` read can now hold a function); the `SlotLabel` type catches most misuse statically.
 - ui-primitives' Chinese defaults still render Chinese under the English locale **until a consumer passes labels** — the unmigrated JsonTree consumer (ui-trajectory) showing its English defaults happens to match that package's all-English status quo.
-- Pinning e2e to English means the zh default is covered mainly by package-level component specs and the settings language-switch scenario; browser e2e no longer asserts zh copy.
+- Pinning e2e to English means the zh copy surface is covered mainly by package-level component specs and the settings language-switch scenario; browser e2e no longer asserts zh copy. The opening/fallback locale (a browser naming no shipped language, or a non-browser run) is `en`, not zh — see [browser-derived initial locale](../feature/2026-07-31-browser-derived-initial-locale.md).

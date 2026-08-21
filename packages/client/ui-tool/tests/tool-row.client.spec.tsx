@@ -5,7 +5,6 @@ import { cleanup, fireEvent, render } from '@testing-library/react'
 import type { RunningToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-runtime/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import { resolveWorkspacePath } from '@deepseek-ai/dsh-client-runtime/client'
 import { classifyTool, resultText, toolRowModel } from '../src/client/tool/models/tool-call-model.ts'
 import { ToolRow } from '../src/client/tool/components/ToolRow.tsx'
 import { GenericToolCard, type GenericToolCardProps } from '../src/client/tool/toolviews/GenericToolCard.tsx'
@@ -111,6 +110,13 @@ describe('tool-call-model', () => {
     expect(toolRowModel('', running({ argsRaw: '' })).summary).toBe('c1')
   })
 
+  it('joins multi-query web search arguments in the summary', () => {
+    expect(toolRowModel('web_search', running({
+      name: 'web_search',
+      argsRaw: '{"queries":["first query","second\\nquery"]}',
+    })).summary).toBe('first query, second')
+  })
+
   it('exposes filePath for path/file_path args and skips URL-only reads', () => {
     expect(toolRowModel('read', running({ name: 'read', argsRaw: '{"path":"src/a.ts"}' })).filePath).toBe('src/a.ts')
     expect(toolRowModel('write', running({ name: 'write', argsRaw: '{"file_path":"src/a.ts"}' })).filePath).toBe('src/a.ts')
@@ -118,13 +124,6 @@ describe('tool-call-model', () => {
     expect(toolRowModel('web_fetch', running({ name: 'web_fetch', argsRaw: '{"url":"https://example.com"}' })).filePath)
       .toBeUndefined()
     expect(toolRowModel('bash', running()).filePath).toBeUndefined()
-  })
-
-  it('resolveWorkspacePath joins relative paths under cwd and passes absolute through', () => {
-    expect(resolveWorkspacePath('/w', 'src/a.ts')).toBe('/w/src/a.ts')
-    expect(resolveWorkspacePath('/w/', '/abs/a.ts')).toBe('/abs/a.ts')
-    expect(resolveWorkspacePath(undefined, 'src/a.ts')).toBe('src/a.ts')
-    expect(resolveWorkspacePath('/w', 'C:\\x\\a.ts')).toBe('C:\\x\\a.ts')
   })
 
   it('displays workspace-rooted paths relative to the session cwd', () => {
@@ -135,6 +134,32 @@ describe('tool-call-model', () => {
     expect(toolRowModel('read', running({ name: 'read', argsRaw: '{"path":"/etc/hosts"}' }), cwd).summary).toBe('/etc/hosts')
     expect(toolRowModel('bash', running({ argsRaw: '{"command":"pwd"}' }), cwd).summary).toBe('pwd')
     expect(toolRowModel('read', running({ name: 'read', argsRaw: '{"path":"/Users/u/ws/a.md"}' }), '').summary).toBe('/Users/u/ws/a.md')
+  })
+
+  it('abbreviates leftover POSIX home paths after cwd relativization', () => {
+    const home = '/Users/u'
+    const cwd = '/tmp/ws'
+    expect(toolRowModel('read', running({ name: 'read', argsRaw: '{"path":"/Users/u"}' }), cwd, home).summary).toBe('~')
+    expect(toolRowModel('read', running({ name: 'read', argsRaw: '{"path":"/Users/u/notes.md"}' }), cwd, home).summary)
+      .toBe('~/notes.md')
+    // Workspace-relative wins: a home-and-cwd descendant stays short, not `~/…`.
+    expect(toolRowModel(
+      'read',
+      running({ name: 'read', argsRaw: '{"path":"/Users/u/proj/src/a.ts"}' }),
+      '/Users/u/proj',
+      home,
+    ).summary).toBe('src/a.ts')
+    // Prefix boundary: `/Users/u2` is not under `/Users/u`.
+    expect(toolRowModel('read', running({ name: 'read', argsRaw: '{"path":"/Users/u2/a.ts"}' }), cwd, home).summary)
+      .toBe('/Users/u2/a.ts')
+    expect(toolRowModel(
+      'read',
+      running({ name: 'read', argsRaw: '{"path":"C:\\\\Users\\\\u\\\\a.ts"}' }),
+      cwd,
+      home,
+    ).summary).toBe('C:\\Users\\u\\a.ts')
+    expect(toolRowModel('read', running({ name: 'read', argsRaw: '{"path":"/Users/u/a.ts"}' }), cwd).summary)
+      .toBe('/Users/u/a.ts')
   })
 
   it('body pretty-prints JSON args, keeps raw non-JSON, null when empty', () => {

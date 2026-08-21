@@ -378,7 +378,7 @@ class SingleExeBuild {
   /**
    * Package one target; SEA mode accepts one target per invocation.
    * @param target - the pkg target triple to build.
-   * @returns the executable path and, on macOS, its helper path.
+   * @returns the executable and ripgrep sidecar paths, plus the macOS spawn helper path when required.
    */
   async pack(target: Target): Promise<string[]> {
     const product = join(this.outDir, `${OUTPUT_BASENAME}-${target.platform}-${target.arch}`)
@@ -397,7 +397,8 @@ class SingleExeBuild {
     if (!this.cli.dryRun && !existsSync(product)) {
       throw new Error(`build-exe-for-python-sdk: product ${product} is missing after the pkg run; inspect ${this.outDir}.`)
     }
-    if (target.platform !== 'macos') return [product]
+    const ripgrep = await this.copyRipgrepSidecar(target, product)
+    if (target.platform !== 'macos') return [product, ripgrep]
     const spawnHelper = `${product}-spawn-helper`
     const source = join(this.staging, 'node_modules', 'node-pty', 'prebuilds', `darwin-${target.arch}`, 'spawn-helper')
     if (this.cli.dryRun) {
@@ -406,7 +407,31 @@ class SingleExeBuild {
       await copyFile(source, spawnHelper)
       await chmod(spawnHelper, 0o755)
     }
-    return [product, spawnHelper]
+    return [product, ripgrep, spawnHelper]
+  }
+
+  /** Copy the target ripgrep binary beside the executable so Node can spawn it outside pkg's virtual filesystem. */
+  private async copyRipgrepSidecar(target: Target, product: string): Promise<string> {
+    const platform = target.platform === 'macos' ? 'darwin' : target.platform
+    const source = join(
+      this.staging,
+      'node_modules',
+      '@vscode',
+      `ripgrep-${platform}-${target.arch}`,
+      'bin',
+      'rg',
+    )
+    const destination = `${product}-rg`
+    if (this.cli.dryRun) {
+      console.log(`build-exe-for-python-sdk: [dry-run] cp ${source} ${destination}`)
+      return destination
+    }
+    if (!existsSync(source)) {
+      throw new Error(`build-exe-for-python-sdk: target ripgrep binary is missing at ${source}.`)
+    }
+    await copyFile(source, destination)
+    await chmod(destination, 0o755)
+    return destination
   }
 
   /**

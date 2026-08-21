@@ -24,9 +24,6 @@
       "path": "../ui-primitives"
     },
     {
-      "path": "../web-react"
-    },
-    {
       "path": "../runtime"
     },
     {

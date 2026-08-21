@@ -42,6 +42,8 @@ interface ImageAttachmentLimits {
   maxImagesPerMessage: number
   maxMessageImageBytes: number
   maxImagePixels: number
+  /** Maximum intrinsic width and maximum intrinsic height in pixels for one image. */
+  maxImageDimension: number
   mediaTypes: readonly ImageMediaType[]
 }
 ```
@@ -49,6 +51,18 @@ interface ImageAttachmentLimits {
 The reference records intrinsic dimensions and encoded length so clients can lay out history without decoding first, while every authoritative read still re-checks digest, media signature, dimensions, and metadata against the object.
 
 ## Commit and verified-read payloads
+
+```ts type-equiv
+/** Base64-encoded image upload accompanying one wire request. */
+interface EncodedImageAttachment {
+  /** Declared media type, verified against the decoded bytes during admission. */
+  mediaType: ImageMediaType
+  /** Canonical base64 encoding of the image bytes. */
+  data: string
+  /** Optional display name; it is never interpreted as a path. */
+  name?: string
+}
+```
 
 ```ts type-equiv
 /** Request to validate and durably commit one image. */
@@ -69,7 +83,7 @@ interface StoredImageAttachment {
 }
 ```
 
-`saveImage()` validates bytes and atomically commits one object before returning its reference. `validateImage()` runs the same admission checks without persisting anything; batch callers validate every member through it before saving any member, so validation rejection leaves no partial objects behind. `readImage()` accepts a reference from an authorized session path and returns bytes only after integrity verification. The service is deliberately retention-neutral: resumed and forked sessions may share objects, so reference-aware garbage collection is deferred rather than tied to any one session's deletion.
+`saveImage()` validates bytes and atomically commits one object before returning its reference. `validateImage()` runs the same admission checks without persisting anything; batch callers validate every member through it before saving any member, so validation rejection leaves no partial objects behind. `admitEncodedImages()` is the wire entry for base64 uploads: it enforces canonical base64, then delegates batch admission to `saveImages()`, which owns the count and aggregate-byte limits and the validate-all-before-save order. `readImage()` accepts a reference from an authorized session path and returns bytes only after integrity verification. The service is deliberately retention-neutral: resumed and forked sessions may share objects, so reference-aware garbage collection is deferred rather than tied to any one session's deletion.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -121,5 +135,5 @@ abstract saveImage(input: SaveImageAttachment): Promise<ImageAttachmentRef>
 abstract readImage(ref: ImageAttachmentRef, signal?: AbortSignal): Promise<StoredImageAttachment>
 ```
 
-Source: [`packages/attachment/attachment/src/index.ts:31`](../../packages/attachment/attachment/src/index.ts)
+Source: [`packages/attachment/attachment/src/index.ts:33`](../../packages/attachment/attachment/src/index.ts)
 <!-- END GENERATED cordis-surface -->

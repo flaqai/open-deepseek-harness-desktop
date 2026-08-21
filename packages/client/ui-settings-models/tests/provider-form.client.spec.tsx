@@ -3,14 +3,16 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Schema from '@deepseek-ai/schemastery'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RpcResponse, SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import { ModelsSection, providerCopy } from '../src/client/ModelsSection.tsx'
-import type { ModelsSectionInjected } from '../src/client/ModelsSection.tsx'
+import type { ModelsSectionInjected, ModelsSectionProps } from '../src/client/ModelsSection.tsx'
 import { CustomProviderCard } from '../src/client/CustomProviderCard.tsx'
 import { formatCapacity, parseCapacity } from '../src/client/DeepSeekModelsEditor.tsx'
+import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { ModelsSettingsStore, deriveKeyRef, protocolChoices } from '../src/client/store.ts'
 import { en } from '../src/client/locales.ts'
+import { settingsSchema } from './settings-schema.client.ts'
 
 afterEach(cleanup)
 
@@ -139,12 +141,14 @@ function firstMutate(mutate: ReturnType<typeof vi.fn>): MutateCall {
 
 async function mountSection(options: Parameters<typeof scriptedFace>[0] = {}) {
   const scripted = scriptedFace(options)
-  const controller = new ModelsSettingsStore(scripted.face as unknown as WireFace)
+  const controller = new ModelsSettingsStore(
+    scripted.face as unknown as WireFace, settingsSchema, new SettingsDescribeMirror(scripted.face as never))
   await controller.load()
-  const injected: ModelsSectionInjected = {
+  const injected: ModelsSectionProps = {
     controller,
     useSnapshot: bindSnapshotSelector(controller.store),
     api: scripted.face as never,
+    schema: settingsSchema,
     t,
   }
   render(<ModelsSection {...injected} />)
@@ -183,10 +187,10 @@ function within_(scope: HTMLElement, label: string): HTMLElement {
 describe('protocolChoices', () => {
   it('reads the protocols out of the namespace schema and nothing else', async () => {
     const { namespace } = scriptedFace()
-    expect(protocolChoices(namespace)).toEqual(PROTOCOLS)
-    expect(protocolChoices(undefined)).toEqual([])
+    expect(protocolChoices(namespace, settingsSchema)).toEqual(PROTOCOLS)
+    expect(protocolChoices(undefined, settingsSchema)).toEqual([])
     const plain = { ...namespace, schema: JSON.parse(JSON.stringify(Schema.object({}).toJSON())) as unknown }
-    expect(protocolChoices(plain)).toEqual([])
+    expect(protocolChoices(plain, settingsSchema)).toEqual([])
     await Promise.resolve()
   })
 })
@@ -603,6 +607,27 @@ describe('endpoint interrogation', () => {
     // A disclosed output cap rides along with the candidate that has one.
     expect(firstMutate(mutate).ops[0]?.value).toEqual([{ id: 'a' }, { id: 'b', maxTokens: 2048 }])
   })
+
+  it('selects and clears every discovered candidate in one action', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok({
+      models: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+    })))
+    await mountSection({ discover })
+    openEditor('openai')
+
+    fireEvent.click(screen.getByText(en.fetchModels))
+    const dialog = await screen.findByRole('dialog')
+    const boxes = [...dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
+    expect(boxes.map(box => box.checked)).toEqual([true, true, true])
+
+    fireEvent.click(within_(dialog, en.fetchDeselectAll))
+    expect(boxes.map(box => box.checked)).toEqual([false, false, false])
+    expect(within_(dialog, en.fetchSelectAll)).toBeTruthy()
+
+    fireEvent.click(within_(dialog, en.fetchSelectAll))
+    expect(boxes.map(box => box.checked)).toEqual([true, true, true])
+    expect(within_(dialog, en.fetchDeselectAll)).toBeTruthy()
+  })
 })
 
 describe('provider rows', () => {
@@ -637,12 +662,14 @@ describe('provider rows', () => {
         active: true,
       }],
     }))) as never
-    const controller = new ModelsSettingsStore(scripted.face as unknown as WireFace)
+    const controller = new ModelsSettingsStore(
+      scripted.face as unknown as WireFace, settingsSchema, new SettingsDescribeMirror(scripted.face as never))
     await controller.load()
     render(<ModelsSection
       controller={controller}
       useSnapshot={bindSnapshotSelector(controller.store)}
       api={scripted.face as never}
+      schema={settingsSchema}
       t={t}
     />)
 
