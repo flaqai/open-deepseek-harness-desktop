@@ -276,7 +276,7 @@ async function smokeHarness() {
 async function smokeBundledPlugins() {
   const entry = join(harnessRoot, 'lib', 'bin.js')
   const smokeHome = join(outputRoot, 'plugin-smoke-home')
-  const bundledDirectory = join(desktopRoot, 'bundled-plugins')
+  const bundledDirectory = join(repositoryRoot, '.artifacts', 'desktop-bundled-plugins')
   const manifest = JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8'))
   try {
     for (const plugin of manifest.plugins) {

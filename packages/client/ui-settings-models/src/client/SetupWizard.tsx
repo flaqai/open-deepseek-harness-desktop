@@ -6,7 +6,7 @@ import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   IconCheckOutline16, IconChevronDownOutline14, IconCloseOutline16,
-  IconDataOutline16, IconPersonalizationOutline16, Menu, Modal,
+  IconCodeOutline16, IconDataOutline16, IconPersonalizationOutline16, Menu, Modal,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ModelsSettingsState, ModelsSettingsStore } from './store.ts'
 import { onboardingReadiness } from './store.ts'
@@ -14,7 +14,7 @@ import type { WelcomeNoticeState, WelcomeNoticeStore } from './welcome-store.ts'
 import type { en } from './locales.ts'
 import css from './SetupWizard.module.css'
 
-type TaskId = 'models' | 'im'
+type TaskId = 'models' | 'im' | 'codex'
 type TaskResult = 'complete' | 'skipped'
 
 interface SetupLocaleState {
@@ -77,10 +77,19 @@ export function SetupWizard(props: SetupWizardProps): ReactNode {
   const modelReady = readiness.kind === 'provider-ready'
   const modelResult = modelReady ? 'complete' : results.models
   const imResult = results.im
-  const finishedCount = Number(modelResult !== undefined) + Number(imResult !== undefined)
-  const allFinished = finishedCount === 2
-  const allComplete = modelResult === 'complete' && imResult === 'complete'
-  const activeStep = modelResult === undefined ? 1 : imResult === undefined ? 2 : 3
+  const codexResult = results.codex
+  const finishedCount = Number(modelResult !== undefined)
+    + Number(imResult !== undefined)
+    + Number(codexResult !== undefined)
+  const allFinished = finishedCount === 3
+  const allComplete = modelResult === 'complete'
+    && imResult === 'complete'
+    && codexResult === 'complete'
+  const activeStep = modelResult === undefined
+    ? 1
+    : imResult === undefined
+      ? 2
+      : codexResult === undefined ? 3 : 4
 
   const mark = useCallback((id: TaskId, result: TaskResult) => {
     setResults(previous => ({ ...previous, [id]: result }))
@@ -91,13 +100,17 @@ export function SetupWizard(props: SetupWizardProps): ReactNode {
   }
 
   const rail = [
-    t('setup.step.models'), t('setup.step.messages'), t('setup.step.ready'),
+    t('setup.step.models'), t('setup.step.messages'), t('setup.step.codex'), t('setup.step.ready'),
   ]
 
   if (welcome.status === 'idle' || welcome.status === 'loading' || welcome.acknowledged) return null
 
   return (
-    <Modal open title={t('setup.title')} onClose={() => { mark('models', 'skipped'); mark('im', 'skipped') }} headless className={css.dialog as string}>
+    <Modal open title={t('setup.title')} onClose={() => {
+      mark('models', 'skipped')
+      mark('im', 'skipped')
+      mark('codex', 'skipped')
+    }} headless className={css.dialog as string}>
       <div className={css.layout}>
         <aside className={css.rail}>
           <h2 className={css.railTitle}>{t('setup.start')}</h2>
@@ -126,6 +139,7 @@ export function SetupWizard(props: SetupWizardProps): ReactNode {
             <button type="button" className={css.close} aria-label={t('setup.close')} onClick={() => {
               mark('models', 'skipped')
               mark('im', 'skipped')
+              mark('codex', 'skipped')
             }}>
               <IconCloseOutline16 size={16} />
             </button>
@@ -184,11 +198,30 @@ export function SetupWizard(props: SetupWizardProps): ReactNode {
                   }}
                   onSkip={() => { mark('im', 'skipped') }}
                 />
+                <TaskRow
+                  icon={<IconCodeOutline16 size={20} />}
+                  title={t('setup.codex.title')}
+                  description={t('setup.codex.description')}
+                  status={codexResult}
+                  statusLabel={codexResult === 'complete'
+                    ? t('setup.completed')
+                    : codexResult === 'skipped' ? t('setup.skipped') : t('setup.optional')}
+                  configureLabel={codexResult === undefined ? t('setup.connect') : t('setup.reconfigure')}
+                  skipLabel={t('setup.skip')}
+                  onConfigure={() => {
+                    openSection({
+                      sectionId: 'external-tools', step: 3,
+                      complete: () => { mark('codex', 'complete') },
+                    })
+                  }}
+                  onSkip={() => { mark('codex', 'skipped') }}
+                />
               </div>
               <footer className={css.footer}>
                 <button type="button" className={css.skipAll} onClick={() => {
                   mark('models', 'skipped')
                   mark('im', 'skipped')
+                  mark('codex', 'skipped')
                 }}>
                   {t('setup.skipAll')}
                 </button>

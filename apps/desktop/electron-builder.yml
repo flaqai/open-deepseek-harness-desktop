@@ -9,7 +9,7 @@ files:
   - lib/**/*
   - package.json
 extraResources:
-  - from: bundled-plugins
+  - from: ../../.artifacts/desktop-bundled-plugins
     to: bundled-plugins
     filter:
       - "**/*"

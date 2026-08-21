@@ -5,7 +5,7 @@
 <h1 align="center">Open DeepSeek Harness Desktop</h1>
 
 <p align="center">
-  <strong>An open, extensible desktop workspace for DeepSeek Harness</strong>
+  <strong>A ready-to-use, dependency-safe desktop edition of DeepSeek Harness</strong>
 </p>
 
 English | [中文](README.zh.md)
@@ -26,6 +26,12 @@ This repository is not an official DeepSeek product. It is released under the [M
 
 This distribution preserves the upstream DeepSeek Harness Web client while adding desktop-specific integration and ready-to-use features.
 
+### A complete desktop host
+
+Electron is more than a wrapper around a Web page. The desktop host supervises the Harness child process, closes to the tray by default, waits for orderly cleanup on every true quit path, delivers system notifications, supports launch at login on macOS, exposes the log, and checks this client's releases. If Harness takes unusually long to start, the startup page offers the log while continuing to wait. Three consecutive early exits instead produce an explicit failure state with retry and log actions rather than an endless “starting” screen.
+
+The tray can reopen the window, reveal the log, toggle notifications and launch at login, and quit safely. Abnormal exits, repeated startup failures, and recovery produce throttled native notifications. Every bridge is capability-scoped: Web content may manage these desktop preferences, reveal the fixed `harness.log`, or query this project's Releases, but it receives no generic shell, filesystem, or arbitrary-URL capability.
+
 ### Copy from the desktop client
 
 The Electron host grants sanitized clipboard-write permission to the supervised Harness page, so message, code, and conversation copy controls work in the desktop client just as they do in the upstream Web client. Clipboard reads and unrelated browser permissions remain denied.
@@ -34,15 +40,53 @@ The Electron host grants sanitized clipboard-write permission to the supervised 
 
 Packaged installations include the Plugin Marketplace and seed it on first launch, so plugin discovery, installation, and management are available without a separate setup step. The marketplace remains an ordinary Harness plugin: users can uninstall it from the client, and the desktop app respects that choice instead of installing it again.
 
+### Dependency safety before plugin execution
+
+Third-party plugins share the Host's Node.js runtime. One incompatible transitive dependency, orphaned Loader entry, or failed root-plugin mount can otherwise take down the whole Harness before its Settings page is available. This client adds an independent dependency-safety layer before plugin code executes: it reads the profile manifest, lockfile, Bundle order, and installation-level shared runtime, constructs the complete dependency relationship first, and only then decides which plugins may enter the current process.
+
+- **Earlier than plugin execution:** Inspection happens before the faulty plugin is imported and mounted. Even when that plugin cannot start at all, the client can still produce a diagnosis and protect the remaining features.
+- **Dependency-graph evidence, not error-string guessing:** Diagnostics expose the conflicting dependency, declared range, actual Host version, and complete reference chain, distinguishing version conflicts, orphaned Bundles, and runtime mount failures.
+- **Converge first, quarantine second:** Repair first attempts to make plugins share the Host dependencies supplied by the installation. If safe convergence remains impossible, only the faulty root plugin is removed from the active profile dependencies and startup order instead of failing the whole client.
+- **Fail closed and remain recoverable:** Unknown conflicts are not silently accepted, and a faulty plugin is not allowed into the live runtime. The quarantine reason and disposition remain durable, while users can retry repair or explicitly uninstall it from Diagnostics.
+
+This capability must belong to the desktop client's boot layer rather than another ordinary diagnostic plugin. A plugin can run only after dependency resolution and Loader mounting have already succeeded, while this feature must handle failures before that point. Governing extension dependencies before extension code executes is the boundary that lets an open plugin ecosystem coexist with the stability expected by ordinary desktop users.
+
+### Official Codex connection included
+
+Each platform installer carries the official DeepSeek Harness [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) plugin, a pinned [`@openai/codex`](https://github.com/openai/codex) wrapper, and only the native payload matching that operating system and CPU. Onboarding and **Settings → External tools** expose the Codex connection; installation, startup, and delegation do not depend on a system Node, pnpm, or Codex CLI. The plugin remains removable, and a durable seed marker remembers that choice so upgrades and restarts do not silently restore it.
+
+The official connector currently treats every delegation as an independent, ephemeral Codex task. Codex uses the parent session's working directory and the login, model, MCP, and Skill configuration already present under the local `CODEX_HOME`, but it does not inherit the Harness conversation transcript or persist its temporary Codex thread into the Harness session. The parent receives only the final answer or a sanitized failure diagnostic; intermediate reasoning, tool traffic, raw stderr, and the complete workspace diff are not copied back.
+
+<p align="center">
+  <img src="./assets/readme/codex-task-in-session-zh.jpg" width="900" alt="Using Codex from a full-mode DeepSeek Harness session">
+  <br>
+  <sub>Using the connected Codex capability from a full-mode session</sub>
+</p>
+
+### External coding tools connection center
+
+**Settings → External tools** brings Codex, Claude Code, and placeholders for future Hermes and Trae Providers into one discoverable surface. After a supported Provider is connected, existing and new full-mode sessions receive its tool at the next safe turn boundary; an already running turn is never rewritten, and minimal mode stays intentionally lean. Disconnecting withdraws the tool without deleting Harness sessions or data owned by the external product.
+
+<p align="center">
+  <img src="./assets/readme/codex-connection-center-zh.png" width="760" alt="Codex connection state in the external coding tools center">
+  <br>
+  <sub>External tools center: Codex is connected and the other Provider states remain visible</sub>
+</p>
+
+### Dynamic tool projection: connection becomes capability
+
+Conventional Agent compositions pin tools to a particular preset: users must choose the right specialized preset in advance, while existing sessions often cannot receive a product connected later. This client treats an external-product connection as independent, durable Host capability state, then dynamically projects `subagent_codex` into each eligible Agent scope at a safe model-request boundary. Users therefore do not need to recreate a conversation or switch to a dedicated “external tools” preset: new and historical sessions both receive the currently connected capability from their next turn.
+
+- **Turn safety:** A connection change never mutates the tool schema in the middle of a request. Connections take effect on the next turn; disconnections wait until the Agent is idle before removing the tool safely.
+- **Mode isolation:** Projection is limited to full modes such as `standard`, `code`, and `cordis`; `minimal` remains lean to prevent capability inflation and accidental delegation.
+- **Model discovery:** The tool and its product-specific usage guidance appear together. When a user explicitly asks to use Codex, the model is directed to call `subagent_codex` instead of guessing at or searching for a similarly named CLI through Shell.
+- **Auditable state:** The external tools actually available to every model request are recorded as an `external-tools/resolved` event. Session recovery and inspection can reconstruct the capability boundary that existed then instead of guessing history from today's settings.
+
+This design separates the conversation, Agent preset, external Provider, and model-visible tools for the current turn into four independently evolving layers. The plugin remains removable, the connection remains revocable, and historical sessions do not break when preset composition changes. The official Codex Provider still treats each delegation as an independent one-shot task: dynamic projection solves capability discovery and session lifecycle, without pretending that the official Provider already supplies persistent Codex threads.
+
 ### Preset IM bot connections
 
 Packaged installations seed `dsh-im`, which lets users connect WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord, and WhatsApp from the client settings through QR codes, app manifests, or existing bot credentials. The channels share one IM management surface, with controls for switching Harness workspaces and rebinding existing sessions. Bot credentials are submitted only to the local Harness Host and managed by protected credential storage. This capability remains a removable plugin; after users remove it, the client does not silently restore it on a later launch.
-
-### Dependency diagnostics and plugin quarantine
-
-The client can detect shared-runtime conflicts in plugin dependency graphs, orphaned Loader entries, and failed root-plugin mounts. A read-only check first reports the problem and its dependency chain. During repair, the client tries to converge plugins on the shared Host dependencies supplied by the installation. A plugin that still cannot converge safely is removed from the active profile dependencies and startup order, with a durable quarantine record left behind so the rest of the application can continue to start. Users can later retry it or explicitly remove its quarantined residue from **Settings → Plugins → Diagnostics**.
-
-This must live in the client boot layer rather than in an ordinary plugin. Plugin code runs only after dependency resolution and runtime mounting have succeeded, while these failures can happen earlier and prevent a diagnostic plugin from loading at all. Only the boot layer owns the profile manifest, lockfile, bundle order, and installation-level shared runtime needed to inspect the graph before plugin execution, disable a faulty root consistently, and fail closed when repair is incomplete. Quarantine does not silently accept an unknown dependency error or allow the faulty plugin into the current runtime.
 
 ### Themes and backgrounds
 
@@ -59,6 +103,10 @@ Switch between system, light, dark, and eight product themes; pair them with eig
   </tr>
 </table>
 
+### Tracking DeepSeek Harness rc.8
+
+The current desktop baseline fully incorporates upstream `dsh-v0.1.0-rc.8`. Highlights include `@file`, `@directory`, and `@Session` references; image attachments for commands with image-size and request-body limits; concurrent multi-query `web_search`; correct multi-turn `reasoning_content` passback; a persistent PowerShell PTY on Windows; and more capable Codex and Claude Code product subagents. The desktop client also adopts model batch selection, dynamic client packages, build Profiles, and branding slots. Electron always passes `--no-open` to `dsh web`, so launching the desktop app does not also open a system browser.
+
 ## Release status
 
 The project is in developer preview and may introduce breaking changes. We are preparing the same five desktop release variants listed below. macOS Apple Silicon is the first locally packaged and validated target; the other rows describe the committed release matrix and will become downloadable as their native build and validation work is completed.
@@ -69,6 +117,7 @@ The project is in developer preview and may introduce breaking changes. We are p
 - Open local workspaces, create persistent sessions, stream agent responses, copy messages, remove sessions, and clear conversation history.
 - Review model-visible execution records and concise key-step summaries so important tool activity is easier to confirm.
 - Invoke Skills and extend the product through Cordis plugins.
+- Connect Codex or Claude Code from one surface so full-mode sessions can delegate independent coding tasks to official product subagents.
 - Check the fixed official upstream for stable Harness changes and perform a guarded clean fast-forward update from desktop source runs.
 
 ## Installation
@@ -144,9 +193,9 @@ See the [desktop application reference](apps/desktop/README.md) for environment 
 | Platform | Current status | Next release work |
 | --- | --- | --- |
 | macOS Apple Silicon | Ad-hoc DMG/ZIP packaging exercised locally | Publish and validate the arm64 release assets |
-| macOS Intel | Shared Electron/Node implementation present | Build and validate the x64 DMG on an Intel-compatible runner |
-| Windows x64 | Shared Electron/Node implementation present | Build the EXE installer and validate process, PTY, filesystem, and sandbox behavior |
-| Linux x64 | Shared Electron/Node implementation present | Build and validate Debian and RPM packages |
+| macOS Intel | Dedicated x64 Node runtime, DMG/ZIP targets, and platform Codex payload configured | Complete native installation validation on an Intel-compatible runner |
+| Windows x64 | Official Node runtime, NSIS target, and final-install smoke test configured | Continue validating real Windows 10/11, PTY, sandboxing, and paths with spaces or Chinese characters |
+| Linux x64 | Dedicated x64 Node runtime, DEB/RPM targets, and platform Codex payload configured | Complete native installation validation on target distributions |
 | Web | Available from source through `pnpm dsh web` | Continue sharing the same Harness services and configuration |
 
 ## Architecture
@@ -180,7 +229,8 @@ API keys remain owned by the Harness credentials service. Do not commit credenti
 
 - Produce reproducible macOS arm64/x64 DMG, Windows x64 EXE, and Linux x64 DEB/RPM releases with checksums and generated third-party notices.
 - Improve plugin and Skill discovery, compatibility metadata, lifecycle management, and update visibility.
-- Add native approvals, notifications, tray status, deep links, and an authenticated local control endpoint.
+- Build on the existing tray, notifications, and startup diagnostics with native approvals, richer task status, deep links, and an authenticated local control endpoint.
+- Improve interactive approval, progress, change summaries, and resumable sessions for external coding tools while keeping the Harness and product context boundaries explicit.
 - Continue strengthening identity mapping, authorization, audit events, rate limits, and revocation for the preset IM bot connections.
 
 These items describe direction, not completed support. See the [desktop release matrix](apps/desktop/README.md#cross-platform-release-matrix) for the current implementation boundary.
@@ -193,6 +243,8 @@ These items describe direction, not completed support. See the [desktop release 
 - See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing and [AGENTS.md](AGENTS.md) when working with coding agents in this repository.
 
 ## Acknowledgements
+
+Thank you to the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) maintainers for the official Codex Provider, and to [OpenAI Codex](https://github.com/openai/codex) for its pinned wrapper and native platform runtimes. This project packages those official components for each target and integrates them with the desktop connection center.
 
 Thank you to the authors and maintainers of these community plugins. They ship as removable first-launch presets with the desktop installer so commonly used extensions are ready to use:
 

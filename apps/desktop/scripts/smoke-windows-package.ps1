@@ -100,7 +100,7 @@ $profileManifest = Get-Content $profileManifestPath -Raw | ConvertFrom-Json
 $bundledManifestPath = Join-Path $installRoot 'resources/bundled-plugins/manifest.json'
 $bundledManifest = Get-Content $bundledManifestPath -Raw | ConvertFrom-Json
 $bundledPlugins = @($bundledManifest.plugins)
-foreach ($packageName in @('dshmarket', '@xmanrui/dsh-im', 'dsh-skill-picker')) {
+foreach ($packageName in @('dshmarket', '@xmanrui/dsh-im', 'dsh-skill-picker', '@deepseek-ai/dsh-subagent-codex')) {
   if ($bundledPlugins.PackageName -notcontains $packageName) {
     throw "Bundled plugin manifest is missing required preset $packageName"
   }
@@ -118,6 +118,16 @@ foreach ($plugin in $bundledPlugins) {
   if ($marker.packageName -ne $plugin.PackageName -or $marker.version -ne $plugin.Version) {
     throw "Bundled plugin seed marker has unexpected package metadata: $markerPath"
   }
+}
+$codexDependencyRoot = Join-Path $profileDirectory 'node_modules/@deepseek-ai/dsh-subagent-codex/node_modules/@openai'
+$codexPackagePath = Join-Path $codexDependencyRoot 'codex/package.json'
+$codexPayloadPath = Join-Path $codexDependencyRoot 'codex-win32-x64/package.json'
+if (-not (Test-Path $codexPackagePath)) { throw "Bundled Codex connector is missing @openai/codex" }
+if (-not (Test-Path $codexPayloadPath)) { throw "Bundled Codex connector is missing the win32-x64 payload" }
+$codexPackage = Get-Content $codexPackagePath -Raw | ConvertFrom-Json
+$codexPayload = Get-Content $codexPayloadPath -Raw | ConvertFrom-Json
+if ($codexPackage.version -ne '0.147.0' -or $codexPayload.version -ne '0.147.0-win32-x64') {
+  throw "Bundled Codex versions are unexpected: $($codexPackage.version), $($codexPayload.version)"
 }
 $bundledFailure = Get-ChildItem -Path $appData -Filter harness.log -File -Recurse -ErrorAction SilentlyContinue |
   Where-Object { (Get-Content $_.FullName -Raw) -match '(?m)^\[bundled-plugin\]' } |

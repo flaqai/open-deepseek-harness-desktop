@@ -18,7 +18,7 @@ The desktop `dev` command watches the shell sources, rebuilds after a short debo
 
 The app opens the same onboarding and settings surfaces as `dsh web`. Users can configure DeepSeek or another compatible API provider, choose models, inspect installed plugins, edit supported plugin settings, invoke Skills, select workspaces, and manage sessions without a second configuration store.
 
-Packaged releases include pinned archives for `dshmarket@1.12.1`, `@xmanrui/dsh-im@0.11.0`, and `dsh-skill-picker@0.2.0` as offline, removable first-run seeds for the Web profile. Each durable seed marker survives a later uninstall, so subsequent launches do not silently restore a plugin the user removed.
+Packaged releases include pinned archives for `dshmarket@1.12.1`, `@xmanrui/dsh-im@0.11.0`, and `dsh-skill-picker@0.2.0`, plus the workspace's official `@deepseek-ai/dsh-subagent-codex@0.1.0-rc.8` connector with `@openai/codex@0.147.0` and only the target platform payload. These are offline, removable first-run seeds for the Web profile. Each durable seed marker survives a later uninstall, so subsequent launches do not silently restore a plugin the user removed. Packaging copies the three checked-in archives and generates the Codex archive from pinned source and versions; it never reads the developer machine's installed Web profile.
 
 ## Desktop packages
 
@@ -84,7 +84,7 @@ The source host uses only Electron and Node process APIs that are shared by macO
 | Windows x64 | `windows-2025` | NSIS EXE |
 | Linux x64 | `ubuntu-24.04` | DEB and RPM |
 
-The Windows job silently installs its final NSIS artifact into a path containing spaces and Chinese characters, verifies the installed runtime, launches the installed application with isolated app data, and requires Harness readiness, all three preset dependencies and bundle entries, the profile lockfile, and durable seed markers before uploading the artifact. Native installation, first launch, shutdown, child cleanup, directory selection, file opening, PTY, and sandbox behavior remain release validation requirements for the other platforms. Signed update metadata waits for release signing and rollback support.
+The Windows job silently installs its final NSIS artifact into a path containing spaces and Chinese characters, verifies the installed runtime, launches the installed application with isolated app data, and requires Harness readiness, all four preset dependencies and bundle entries, the profile lockfile, durable seed markers, and the Windows x64 Codex payload before uploading the artifact. Native installation, first launch, shutdown, child cleanup, directory selection, file opening, PTY, and sandbox behavior remain release validation requirements for the other platforms. Signed update metadata waits for release signing and rollback support.
 
 Do not package the checkout by copying all workspace sources into Electron. The release artifact must contain the published runtime closure, generated third-party notices, and no development credentials.
 

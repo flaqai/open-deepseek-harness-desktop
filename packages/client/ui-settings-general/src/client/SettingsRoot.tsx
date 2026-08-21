@@ -47,6 +47,13 @@ type OnboardingPanelProps = {
   onComplete: () => void
 }
 
+const ONBOARDING_SECTION_STEPS = [
+  'onboarding.step.models',
+  'onboarding.step.messages',
+  'onboarding.step.codex',
+  'onboarding.step.ready',
+] as const
+
 /** Reuse one settings section inside the selected first-run progress shell. */
 function OnboardingSectionPanel({ request, renderSlot, t, onBack, onComplete }: OnboardingPanelProps) {
   const titleId = useId()
@@ -60,7 +67,8 @@ function OnboardingSectionPanel({ request, renderSlot, t, onBack, onComplete }: 
       <div className={css.onboardingPanel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <aside className={css.onboardingRail}>
           <h2 id={titleId} className={css.onboardingRailTitle}>{t('onboarding.start')}</h2>
-          {[1, 2, 3].map((step) => {
+          {ONBOARDING_SECTION_STEPS.map((label, index) => {
+            const step = index + 1
             const active = step === request.step
             const complete = step < request.step
             return (
@@ -68,11 +76,7 @@ function OnboardingSectionPanel({ request, renderSlot, t, onBack, onComplete }: 
                 <span className={clsx(css.onboardingStepNumber, complete && css.onboardingStepComplete)}>
                   {complete ? <IconCheckOutline16 size={14} /> : step}
                 </span>
-                <span>{t(step === 1
-                  ? 'onboarding.step.models'
-                  : step === 2
-                    ? 'onboarding.step.messages'
-                    : 'onboarding.step.ready')}</span>
+                <span>{t(label)}</span>
               </div>
             )
           })}

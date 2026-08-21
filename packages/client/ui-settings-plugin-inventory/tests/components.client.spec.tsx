@@ -217,6 +217,21 @@ describe('ExternalToolsSection', () => {
     expect(await screen.findByText(en['external.preset.ready'])).toBeTruthy()
     expect(screen.getByRole('button', { name: en['external.action.disconnect'] })).toBeTruthy()
   })
+
+  it('presents the official DeepSeek Codex connector rather than the community fork', async () => {
+    render(<ExternalToolsSection {...({
+      t,
+      list: async () => inventory,
+      externalTools: async () => ({ scope: 'complete-presets', codex: false, claudeCode: false }),
+      setExternalTool: vi.fn(),
+      startInstall: vi.fn(),
+      getInstall: vi.fn(),
+    } as ExternalToolsSectionProps)} />)
+
+    expect(await screen.findByText(en['external.codex.description'])).toBeTruthy()
+    expect(en['external.codex.description']).toContain('Maintained by DeepSeek')
+    expect(en['external.codex.description']).not.toContain('hecoococ')
+  })
 })
 
 describe('PluginDiagnosticsSection', () => {
@@ -237,6 +252,7 @@ describe('PluginDiagnosticsSection', () => {
       quarantined: [],
     },
   }
+
   const issues: PluginDoctorSnapshot = {
     ...healthy,
     phase: 'issues',

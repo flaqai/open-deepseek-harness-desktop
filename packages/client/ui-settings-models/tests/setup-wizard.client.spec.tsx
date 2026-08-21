@@ -109,12 +109,17 @@ describe('SetupWizard', () => {
     expect(screen.getByText(zh['setup.progress'].replace('{count}', '1'))).toBeTruthy()
   })
 
-  it('opens the IM tab in the Plugins page and reaches the success welcome', () => {
+  it('opens the IM tab and Codex connection center before reaching the success welcome', () => {
     const h = mount({ modelReady: true })
-    fireEvent.click(screen.getByRole('button', { name: zh['setup.configure'] }))
+    fireEvent.click(screen.getAllByRole('button', { name: zh['setup.configure'] })[0]!)
     const request = h.openSection.mock.calls[0]![0]
     expect(request).toMatchObject({ sectionId: 'plugins', subsectionId: 'im', step: 2 })
     act(() => { request.complete() })
+
+    fireEvent.click(screen.getByRole('button', { name: zh['setup.connect'] }))
+    const codexRequest = h.openSection.mock.calls[1]![0]
+    expect(codexRequest).toMatchObject({ sectionId: 'external-tools', step: 3 })
+    act(() => { codexRequest.complete() })
 
     expect(screen.getByRole('heading', { name: zh['setup.success'] })).toBeTruthy()
     expect(screen.getByRole('button', { name: zh['setup.experience'] })).toBeTruthy()
