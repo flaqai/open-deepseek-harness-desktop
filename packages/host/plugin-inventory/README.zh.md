@@ -4,7 +4,7 @@
 
 当前 Cordis Loader 树的 Host 投影，并提供受控的 profile 插件管理与共享依赖健康状态。`PluginInventoryGateway` 注册 `pluginInventory` 服务，并发布用于清单、安装／卸载任务、当前依赖 doctor 检查与修复、隔离重试与残留卸载、保留修复通知关闭的直接 Remote。隔离卸载会拒绝仍存在于 profile 依赖或 bundle 顺序中的插件，删除停用插件的顶层软件包目录，并且只在删除完成后清除持久记录。每次 list 调用都直接读取 `ctx.loader.entries()`，跳过结构性的 group 行，再按 Loader 顺序返回其余条目的 Loader 条目 id、模块标识、有效启用状态与当前根 Fiber 阶段。同一快照还会投影所配置 profile 的最新实质性修复报告和持久隔离记录，但不暴露文件系统路径。
 
-`externalTools` 投影 Host 连接设置，`setExternalTool` 通过 `AgentPresets` 改变一个受支持的产品。Host 只接受闭集中的 `codex` 与 `claude-code` id，并注册产品专用 projector，把固定的 `dsh-tool-subagent` 绑定挂载到合格 Agent scope。roster 负责持久化、完整模式资格、安全的 idle／回合边界时序，以及每个 step 的持久能力记录，而不会把这些控制交给浏览器。
+`externalTools` 投影 Host 连接设置，`setExternalTool` 通过 `AgentPresets` 改变一个受支持的产品。Host 只接受闭集中的 `codex` 与 `claude-code` id，并注册产品专用 projector，把固定的 `dsh-tool-subagent` 绑定挂载到合格 Agent scope。每个绑定还会提供产品专用使用提示，因此用户明确要求使用 Codex 或 Claude Code 时，模型会选择委派工具，而不是寻找同名 shell 可执行文件。roster 负责持久化、完整模式资格、安全的 idle／回合边界时序，以及每个 step 的持久能力记录，而不会把这些控制交给浏览器。
 
 `startInstall` 接收结构化 profile 名称与 npm registry 软件包说明符。它拒绝路径、URL、flag 与 shell 文本，依赖受管 subprocess 能力，并在没有 shell 插值的情况下启动当前产品启动器的 `dsh plugin --profile <name> add <package>` 模式。`startUninstall` 对精确 registry 包名采用相同边界。`startDependencyDoctor` 执行核心只读 `doctor` 命令或明确的 `--repair` 模式；`getDependencyDoctor` 返回结构化的 `healthy`、`issues`、`repaired`、`quarantined` 或 `failed` 状态，并投影不含本地路径的冲突与失管 bundle。隔离重试会为选中的持久 id 调用 `doctor --retry`，保留记录中的依赖说明符与 bundle 位置，而不是合成一次 registry 安装。调用立即返回任务 id；同一目标最多只有一个运行中任务。成功的改动只影响 profile 的下次启动组合，绝不会修改已经启动的 Loader 树。
 

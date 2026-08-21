@@ -24,6 +24,7 @@
 - `ctx.agentPresets.copy(from, id, name?): Promise<void>` 通过整目录复制一个既有 preset 来创建本地创作的 preset——唯一的创作写入。组装文本不经过这道接缝，因此副本与其来源同等可加载；复制出的元数据保留来源的描述、但绝不保留其名称与 roster 排序，`name`（或回退到 id）才是区分两行的依据。
 - `ctx.agentPresets.remove(id): Promise<void>` 删除一个本地创作的 preset；已加入的会话保留其常驻挂载。若用户默认值恰好指向刚删除的 preset 则一并清除：存一个尚不存在的默认值是刻意的，但本次删除的这个再也不会有人提供，留着会让所有未显式指定的新会话无法启动。
 - `ctx.agentPresets.externalToolsState(): Promise<ExternalToolsPresetState>` 读取 Host 投影到完整 Agent Preset 的 Codex 与 Claude Code 连接状态。
+- 缺失的旧桌面预设 id `external-tools` 会回退到 `standard`，让 Host 级连接出现前创建的会话仍可恢复；如果部署中仍明确安装了同名预设，则它优先。
 - `ctx.agentPresets.setExternalTool(tool, enabled): Promise<ExternalToolsPresetState>` 连接或断开一个受支持的产品。空闲的完整模式 Agent 立即更新；运行中的 Agent 保持本轮工具直到回到 idle，`minimal` 永不接收该投影。
 - `ctx.agentPresets.registerExternalToolProjector(projector): () => void` 注册唯一的 Host 实现，把已连接产品挂载到 Agent 自己的 scope。通用 roster 负责设置与安全边界时序，不依赖具体产品工具包。
 

@@ -23,6 +23,11 @@ export const EXTERNAL_TOOL_PRESETS: ReadonlySet<string> = new Set([
   'standard',
   'code',
   'cordis',
+  // Compatibility with the desktop-managed preset used before connections
+  // became a Host projection. A deployment that still carries the preset can
+  // resume it; deployments that removed it fall back to `standard` in
+  // AgentPresets.resolve().
+  'external-tools',
 ])
 
 /**

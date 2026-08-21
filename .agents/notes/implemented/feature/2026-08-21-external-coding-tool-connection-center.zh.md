@@ -32,8 +32,8 @@ Settings 在现有产品分区旁提供一个根 `external-tools` 分区。它�
 
 ## 后果
 
-用户无需预先知道软件包名或 preset 工具行就能发现 Codex 与 Claude Code；连接现在表示已有或新建完整模式 Session 从下一轮开始可用。闭集 Remote 与唯一 projector 防止便利界面退化成任意 preset 编辑器或 shell 启动器。通用 roster 不依赖具体产品工具包；桌面 Host 拥有固定的 Provider/工具绑定。新增另一个可操作产品需要正式 Provider bundle、闭集 Host id、明确的适用模式决策、本地化产品文案，以及覆盖边界投影、持久请求记录、Remote 注册与 Settings 交互的聚焦测试。
+用户无需预先知道软件包名或 preset 工具行就能发现 Codex 与 Claude Code；连接现在表示已有或新建完整模式 Session 从下一轮开始可用。产品专用提示会把这些工具与同名 shell 可执行文件区分开；缺失的旧 `external-tools` 预设 id 则回退到 `standard`，使旧桌面会话仍可恢复。闭集 Remote 与唯一 projector 防止便利界面退化成任意 preset 编辑器或 shell 启动器。通用 roster 不依赖具体产品工具包；桌面 Host 拥有固定的 Provider/工具绑定。新增另一个可操作产品需要正式 Provider bundle、闭集 Host id、明确的适用模式决策、本地化产品文案，以及覆盖边界投影、持久请求记录、Remote 注册与 Settings 交互的聚焦测试。
 
 ## 验证
 
-preset 测试固定适用模式、独立设置、已有会话投影、断开移除、minimal 排除、重复 projector 拒绝，以及每个 step 唯一的持久能力记录。Host 测试固定有类型的 Remote 清单，客户端测试固定本地化分区注册、受支持操作、诚实占位项与 Codex 连接状态变化。类型检查覆盖 projector 依赖图、生成的 Remote 图与桌面客户端组装。
+preset 测试固定适用模式、独立设置、已有会话投影、旧预设回退、断开移除、minimal 排除、重复 projector 拒绝，以及每个 step 唯一的持久能力记录。真实 Web composition 测试会启动已安装的 Codex bundle，并断言 `standard` 同时得到 `subagent_codex` schema 与模型提示。Host 测试固定有类型的 Remote 清单，客户端测试固定本地化分区注册、受支持操作、诚实占位项与 Codex 连接状态变化。类型检查覆盖 projector 依赖图、生成的 Remote 图与桌面客户端组装。

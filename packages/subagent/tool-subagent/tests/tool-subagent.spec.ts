@@ -349,6 +349,29 @@ describe('dsh-tool-subagent', () => {
     expect(ctx.tools.schemas().some(schema => schema.name === 'subagent')).toBe(false)
   })
 
+  it('shows a configured product usage hint only while its tool is visible', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SubagentRuntime)
+    const mounted = await ctx.plugin(tool, {
+      provider: 'product',
+      toolName: 'subagent_product',
+      usageHint: 'Use subagent_product when the user explicitly requests Product.',
+      maxDepth: 'provider-managed',
+    })
+
+    expect((await ctx.systemPrompt.assemble()).sections.find(section => section.name === 'tool:subagent_product')?.text)
+      .toBe('')
+    const provider = await mock.mountScriptedProvider(ctx, { name: 'product' })
+    expect((await ctx.systemPrompt.assemble()).sections.find(section => section.name === 'tool:subagent_product')?.text)
+      .toBe('Use subagent_product when the user explicitly requests Product.')
+    await provider.dispose()
+    expect((await ctx.systemPrompt.assemble()).sections.find(section => section.name === 'tool:subagent_product')?.text)
+      .toBe('')
+    await mounted.dispose()
+  })
+
   it('mirrors the provider lifecycle: gone on backend dispose, re-derived wording on re-registration', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)

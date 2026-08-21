@@ -20,6 +20,7 @@ A foreground call passes the execution signal through startup and execution, awa
 |---|---|
 | `provider` (required) | Provider name (`spawn`, `fork`, `acp`, ...). |
 | `toolName` | Model-facing name, default `subagent`; distinct for every loaded instance. |
+| `usageHint` | Optional product-specific system-prompt instruction, visible only while this tool and its provider are available in the current Agent scope. |
 | `enableRunInBackground` | Exposes background mode, default `true`; disabling also rejects forced background calls. |
 | `backgroundMode` | Background lifecycle policy, default `one-shot`. `one-shot` defaults calls to foreground; `continuable` defaults them to background, requires the provider's `prepareContinuable` capability, and returns a durable child id without requiring the follow-up tool. |
 | `agentOptions` | Provider-specific child `provider`, `model`, and positive `maxTokens`; the in-process provider treats explicit values as overrides of inherited parent options. |
@@ -37,11 +38,11 @@ Foreground and background calls are concurrency-safe: sibling delegations in one
 
 #### What the model sees
 
-The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-subagent) under this instance's configured name while its provider exists. Provider context inheritance changes the tool and prompt descriptions. Enabled background mode adds `run_in_background`: continuable mode documents its `true` default, runtime settlement notice, and explicit foreground override, while one-shot mode documents its `false` default and the job id collected with `job_output` or stopped with `job_kill`. While the tool is visible in an assembly's scope, a `tool:<toolName>` system-prompt section tells the model to start independent continuable delegations together, keep working while they run, and choose foreground only when its next action depends on the result; a tool restriction removes both its schema and this guidance.
+The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-subagent) under this instance's configured name while its provider exists. Provider context inheritance changes the tool and prompt descriptions. Enabled background mode adds `run_in_background`: continuable mode documents its `true` default, runtime settlement notice, and explicit foreground override, while one-shot mode documents its `false` default and the job id collected with `job_output` or stopped with `job_kill`. While the tool is visible in an assembly's scope, a `tool:<toolName>` system-prompt section carries the optional product `usageHint` and tells continuable instances to start independent delegations together, keep working while they run, and choose foreground only when the next action depends on the result; a tool restriction removes both the schema and this guidance.
 
 #### Token effect
 
-Fixed schema cost per parent request; each provider instance adds one schema, and each continuable instance adds one short system-prompt section.
+Fixed schema cost per parent request; each provider instance adds one schema, and each instance configured with `usageHint` or continuable background behavior adds one short system-prompt section.
 
 #### KV Cache effect
 

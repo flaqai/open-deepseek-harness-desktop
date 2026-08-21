@@ -149,6 +149,21 @@ describe('the default preset as a user setting', () => {
 })
 
 describe('Host-connected external tools', () => {
+  it('resumes the removed desktop external-tools preset on standard', async () => {
+    const { ctx } = await harness()
+
+    expect((await ctx.agentPresets.resolve('external-tools')).id).toBe('standard')
+    const handle = await ctx.agents.create({
+      sessionId: SessionId('legacy-external-tools'),
+      setup: async (agentCtx: Context) => void await ctx.agentPresets.mount(agentCtx, 'external-tools'),
+    })
+    try {
+      expect(toolNames(ctx, handle.agent)).toEqual(['alpha'])
+    } finally {
+      await handle.dispose()
+    }
+  })
+
   it('updates an existing complete-mode session while keeping minimal lean', async () => {
     const { ctx } = await harness()
     const disposeProjector = ctx.agentPresets.registerExternalToolProjector((agent, tool) => (

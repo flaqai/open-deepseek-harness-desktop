@@ -35,6 +35,12 @@ export interface Config {
    */
   toolName?: string
   /**
+   * Optional product-specific instruction shown only while this tool is
+   * visible in the current Agent scope. Use it to distinguish several
+   * delegation products whose generic schemas otherwise read alike.
+   */
+  usageHint?: string
+  /**
    * Expose `run_in_background` (default true). Disabled instances omit the
    * parameter and reject forced background calls.
    */
@@ -81,6 +87,7 @@ export interface Config {
 export const Config: z<Config> = z.object({
   provider: z.string().required(),
   toolName: z.string().default('subagent'),
+  usageHint: z.string(),
   enableRunInBackground: z.boolean().default(true),
   backgroundMode: z.union(['one-shot', 'continuable'] as const).default('one-shot'),
   // Prevent Schemastery from materializing omitted agentOptions as `{}`.
@@ -461,16 +468,21 @@ export function apply(ctx: Context, config: Config): void {
     // A backend fiber may activate later; a misspelled provider remains visible in this log.
     ctx.logger.info(`subagent provider "${config.provider}" not registered yet; the "${config.toolName ?? 'subagent'}" tool will register when it appears`)
   }
-  if (backgroundEnabled && continuable) {
+  if ((backgroundEnabled && continuable) || config.usageHint !== undefined) {
     // The section follows provider availability without its own manual
     // lifecycle: empty text is omitted from rendered prompts while the tool is
     // absent, and the registration itself stays owned by this plugin fiber.
     ctx.systemPrompt.section({
       name: `tool:${toolName}`,
       order: SUBAGENT_SECTION_ORDER,
-      text: context => disposeTool === undefined || ctx.tools.get(toolName, context.scope) === undefined
-        ? ''
-        : `Use ${toolName} in the background by default. Start independent delegations together in one assistant message and continue useful work while they run. Set \`run_in_background: false\` only when your next action depends on that subagent's result. When a background run settles, the runtime sends you a notice containing its outcome and any final assistant message.`,
+      text: (context) => {
+        if (disposeTool === undefined || ctx.tools.get(toolName, context.scope) === undefined) return ''
+        const instructions = [config.usageHint]
+        if (backgroundEnabled && continuable) {
+          instructions.push(`Use ${toolName} in the background by default. Start independent delegations together in one assistant message and continue useful work while they run. Set \`run_in_background: false\` only when your next action depends on that subagent's result. When a background run settles, the runtime sends you a notice containing its outcome and any final assistant message.`)
+        }
+        return instructions.filter((instruction): instruction is string => instruction !== undefined).join(' ')
+      },
     })
   }
 }

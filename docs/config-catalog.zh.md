@@ -2787,6 +2787,12 @@ export interface Config {
    */
   toolName?: string
   /**
+   * Optional product-specific instruction shown only while this tool is
+   * visible in the current Agent scope. Use it to distinguish several
+   * delegation products whose generic schemas otherwise read alike.
+   */
+  usageHint?: string
+  /**
    * Expose `run_in_background` (default true). Disabled instances omit the
    * parameter and reject forced background calls.
    */

@@ -7,7 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { boot, healProfilesModuleFallback, loadOverlayPatches, loadProfile } from '@deepseek-ai/dsh-app-boot'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import type { Agent } from '@deepseek-ai/dsh-agent'
+import { assembleContextFor, type Agent } from '@deepseek-ai/dsh-agent'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
@@ -461,12 +461,17 @@ describe('product Bundle and user-preset intersection', () => {
   type Product = 'codex' | 'claude-code'
   type PresetId = typeof presetIds[number]
 
-  async function bootProducts(installed: readonly Product[]): Promise<Context> {
+  async function bootProducts(
+    installed: readonly Product[],
+    connected: { codex?: boolean; claudeCode?: boolean } = {},
+  ): Promise<Context> {
     const root = await mkdtemp(join(tmpdir(), 'dsh-product-presets-'))
     const userRoot = join(root, 'presets')
     const settingsFile = join(root, 'settings.yaml')
     const standard = await readFile(join(CONFIG_DIR, 'agent-presets', 'standard', 'agent.cordis.yml'), 'utf8')
-    await writeFile(settingsFile, '{}\n')
+    await writeFile(settingsFile, JSON.stringify({
+      'agent-presets': { externalTools: connected },
+    }, null, 2) + '\n')
     for (const id of presetIds) {
       let composition = standard
       if (id === 'products-codex' || id === 'products-both') {
@@ -556,6 +561,26 @@ describe('product Bundle and user-preset intersection', () => {
         spawn.mockRestore()
         await productCtx.fiber.dispose()
       }
+    }
+  }, 120_000)
+
+  it('projects a connected product into standard with explicit model guidance', async () => {
+    const productCtx = await bootProducts(['codex'], { codex: true })
+    try {
+      const handle = await productCtx.agents.create({
+        sessionId: SessionId('host-connected-codex'),
+        setup: agentCtx => productCtx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
+      })
+      try {
+        expect(toolNames(productCtx, handle.agent)).toContain('subagent_codex')
+        const assembly = await productCtx.systemPrompt.assemble(assembleContextFor(handle.agent))
+        expect(assembly.sections.find(section => section.name === 'tool:subagent_codex')?.text)
+          .toContain('When the user asks to use Codex')
+      } finally {
+        await handle.dispose()
+      }
+    } finally {
+      await productCtx.fiber.dispose()
     }
   }, 120_000)
 

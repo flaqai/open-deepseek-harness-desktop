@@ -342,10 +342,19 @@ export class AgentPresets extends Service {
     const wanted = id ?? this.defaultId
     const presets = await this.list()
     const found = presets.find(preset => preset.id === wanted)
-    if (found === undefined) {
-      throw new UnknownPresetError(wanted, presets.map(preset => preset.id))
+    if (found !== undefined) return found
+
+    // Desktop builds before dynamic Host connections created sessions under a
+    // managed `external-tools` preset. That preset is no longer shipped, but
+    // its sessions remain valid standard-mode history. Resolve the missing
+    // legacy identity to the standard composition instead of making those
+    // conversations permanently unopenable. An explicitly installed preset
+    // with that id still wins through the direct lookup above.
+    if (wanted === 'external-tools') {
+      const standard = presets.find(preset => preset.id === 'standard')
+      if (standard !== undefined) return standard
     }
-    return found
+    throw new UnknownPresetError(wanted, presets.map(preset => preset.id))
   }
 
   /**

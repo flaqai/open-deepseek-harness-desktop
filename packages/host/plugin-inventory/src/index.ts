@@ -118,12 +118,14 @@ const EXTERNAL_TOOL_CONFIGS = {
   codex: {
     provider: 'codex',
     toolName: 'subagent_codex',
+    usageHint: 'Codex is connected through the subagent_codex tool. When the user asks to use Codex or asks for work to be done in Codex, call subagent_codex instead of searching for or invoking a Codex CLI through shell tools.',
     backgroundMode: 'one-shot',
     maxDepth: 'provider-managed',
   },
   'claude-code': {
     provider: 'claude-code',
     toolName: 'subagent_claude_code',
+    usageHint: 'Claude Code is connected through the subagent_claude_code tool. When the user asks to use Claude Code or asks for work to be done in Claude Code, call subagent_claude_code instead of searching for or invoking a Claude CLI through shell tools.',
     backgroundMode: 'one-shot',
     maxDepth: 'provider-managed',
   },
