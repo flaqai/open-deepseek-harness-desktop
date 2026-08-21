@@ -133,7 +133,7 @@ export interface SettingsOnboardingSectionRequest {
   /** Optional feature-owned subsection, such as the IM plugin tab. */
   subsectionId?: string
   /** Which progress-rail step this page configures. */
-  step: 1 | 2
+  step: 1 | 2 | 3
   /** Mark the task complete after the user leaves the reused settings page. */
   complete: () => void
 }

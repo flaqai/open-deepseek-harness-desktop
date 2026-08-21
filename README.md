@@ -5,7 +5,7 @@
 <h1 align="center">Open DeepSeek Harness Desktop</h1>
 
 <p align="center">
-  <strong>An open, extensible desktop workspace for DeepSeek Harness</strong>
+  <strong>A ready-to-use, dependency-safe desktop edition of DeepSeek Harness</strong>
 </p>
 
 English | [中文](README.zh.md)
@@ -26,6 +26,12 @@ This repository is not an official DeepSeek product. It is released under the [M
 
 This distribution preserves the upstream DeepSeek Harness Web client while adding desktop-specific integration and ready-to-use features.
 
+### A complete desktop host
+
+Electron is more than a wrapper around a Web page. The desktop host supervises the Harness child process, closes to the tray by default, waits for orderly cleanup on every true quit path, delivers system notifications, supports launch at login on macOS, exposes the log, and checks this client's releases. If Harness takes unusually long to start, the startup page offers the log while continuing to wait. Three consecutive early exits instead produce an explicit failure state with retry and log actions rather than an endless “starting” screen.
+
+The tray can reopen the window, reveal the log, toggle notifications and launch at login, and quit safely. Abnormal exits, repeated startup failures, and recovery produce throttled native notifications. Every bridge is capability-scoped: Web content may manage these desktop preferences, reveal the fixed `harness.log`, or query this project's Releases, but it receives no generic shell, filesystem, or arbitrary-URL capability.
+
 ### Copy from the desktop client
 
 The Electron host grants sanitized clipboard-write permission to the supervised Harness page, so message, code, and conversation copy controls work in the desktop client just as they do in the upstream Web client. Clipboard reads and unrelated browser permissions remain denied.
@@ -33,6 +39,16 @@ The Electron host grants sanitized clipboard-write permission to the supervised 
 ### Plugin Marketplace included
 
 Packaged installations include the Plugin Marketplace and seed it on first launch, so plugin discovery, installation, and management are available without a separate setup step. The marketplace remains an ordinary Harness plugin: users can uninstall it from the client, and the desktop app respects that choice instead of installing it again.
+
+### Official Codex connection included
+
+Each platform installer carries the official DeepSeek Harness [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) plugin, a pinned [`@openai/codex`](https://github.com/openai/codex) wrapper, and only the native payload matching that operating system and CPU. Onboarding and **Settings → External tools** expose the Codex connection; installation, startup, and delegation do not depend on a system Node, pnpm, or Codex CLI. The plugin remains removable, and a durable seed marker remembers that choice so upgrades and restarts do not silently restore it.
+
+The official connector currently treats every delegation as an independent, ephemeral Codex task. Codex uses the parent session's working directory and the login, model, MCP, and Skill configuration already present under the local `CODEX_HOME`, but it does not inherit the Harness conversation transcript or persist its temporary Codex thread into the Harness session. The parent receives only the final answer or a sanitized failure diagnostic; intermediate reasoning, tool traffic, raw stderr, and the complete workspace diff are not copied back.
+
+### External coding tools connection center
+
+**Settings → External tools** brings Codex, Claude Code, and placeholders for future Hermes and Trae Providers into one discoverable surface. After a supported Provider is connected, existing and new full-mode sessions receive its tool at the next safe turn boundary; an already running turn is never rewritten, and minimal mode stays intentionally lean. Disconnecting withdraws the tool without deleting Harness sessions or data owned by the external product.
 
 ### Preset IM bot connections
 
@@ -59,6 +75,10 @@ Switch between system, light, dark, and eight product themes; pair them with eig
   </tr>
 </table>
 
+### Tracking DeepSeek Harness rc.8
+
+The current desktop baseline fully incorporates upstream `dsh-v0.1.0-rc.8`. Highlights include `@file`, `@directory`, and `@Session` references; image attachments for commands with image-size and request-body limits; concurrent multi-query `web_search`; correct multi-turn `reasoning_content` passback; a persistent PowerShell PTY on Windows; and more capable Codex and Claude Code product subagents. The desktop client also adopts model batch selection, dynamic client packages, build Profiles, and branding slots. Electron always passes `--no-open` to `dsh web`, so launching the desktop app does not also open a system browser.
+
 ## Release status
 
 The project is in developer preview and may introduce breaking changes. We are preparing the same five desktop release variants listed below. macOS Apple Silicon is the first locally packaged and validated target; the other rows describe the committed release matrix and will become downloadable as their native build and validation work is completed.
@@ -69,6 +89,7 @@ The project is in developer preview and may introduce breaking changes. We are p
 - Open local workspaces, create persistent sessions, stream agent responses, copy messages, remove sessions, and clear conversation history.
 - Review model-visible execution records and concise key-step summaries so important tool activity is easier to confirm.
 - Invoke Skills and extend the product through Cordis plugins.
+- Connect Codex or Claude Code from one surface so full-mode sessions can delegate independent coding tasks to official product subagents.
 - Check the fixed official upstream for stable Harness changes and perform a guarded clean fast-forward update from desktop source runs.
 
 ## Installation
@@ -144,9 +165,9 @@ See the [desktop application reference](apps/desktop/README.md) for environment 
 | Platform | Current status | Next release work |
 | --- | --- | --- |
 | macOS Apple Silicon | Ad-hoc DMG/ZIP packaging exercised locally | Publish and validate the arm64 release assets |
-| macOS Intel | Shared Electron/Node implementation present | Build and validate the x64 DMG on an Intel-compatible runner |
-| Windows x64 | Shared Electron/Node implementation present | Build the EXE installer and validate process, PTY, filesystem, and sandbox behavior |
-| Linux x64 | Shared Electron/Node implementation present | Build and validate Debian and RPM packages |
+| macOS Intel | Dedicated x64 Node runtime, DMG/ZIP targets, and platform Codex payload configured | Complete native installation validation on an Intel-compatible runner |
+| Windows x64 | Official Node runtime, NSIS target, and final-install smoke test configured | Continue validating real Windows 10/11, PTY, sandboxing, and paths with spaces or Chinese characters |
+| Linux x64 | Dedicated x64 Node runtime, DEB/RPM targets, and platform Codex payload configured | Complete native installation validation on target distributions |
 | Web | Available from source through `pnpm dsh web` | Continue sharing the same Harness services and configuration |
 
 ## Architecture
@@ -180,7 +201,8 @@ API keys remain owned by the Harness credentials service. Do not commit credenti
 
 - Produce reproducible macOS arm64/x64 DMG, Windows x64 EXE, and Linux x64 DEB/RPM releases with checksums and generated third-party notices.
 - Improve plugin and Skill discovery, compatibility metadata, lifecycle management, and update visibility.
-- Add native approvals, notifications, tray status, deep links, and an authenticated local control endpoint.
+- Build on the existing tray, notifications, and startup diagnostics with native approvals, richer task status, deep links, and an authenticated local control endpoint.
+- Improve interactive approval, progress, change summaries, and resumable sessions for external coding tools while keeping the Harness and product context boundaries explicit.
 - Continue strengthening identity mapping, authorization, audit events, rate limits, and revocation for the preset IM bot connections.
 
 These items describe direction, not completed support. See the [desktop release matrix](apps/desktop/README.md#cross-platform-release-matrix) for the current implementation boundary.
@@ -193,6 +215,8 @@ These items describe direction, not completed support. See the [desktop release 
 - See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing and [AGENTS.md](AGENTS.md) when working with coding agents in this repository.
 
 ## Acknowledgements
+
+Thank you to the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) maintainers for the official Codex Provider, and to [OpenAI Codex](https://github.com/openai/codex) for its pinned wrapper and native platform runtimes. This project packages those official components for each target and integrates them with the desktop connection center.
 
 Thank you to the authors and maintainers of these community plugins. They ship as removable first-launch presets with the desktop installer so commonly used extensions are ready to use:
 

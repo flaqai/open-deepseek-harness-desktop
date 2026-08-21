@@ -5,7 +5,7 @@
 <h1 align="center">Open DeepSeek Harness Desktop</h1>
 
 <p align="center">
-  <strong>面向 DeepSeek Harness 的开放、可扩展桌面工作区</strong>
+  <strong>开箱即用、依赖安全的 DeepSeek Harness 桌面版</strong>
 </p>
 
 [English](README.md) | 中文
@@ -26,6 +26,12 @@ Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](htt
 
 本项目保留 DeepSeek Harness 官方 Web 客户端的使用体验，并加入适合桌面应用的系统集成和开箱即用功能。
 
+### 完整的桌面宿主
+
+Electron 不只是包住 Web 页面的外壳。桌面宿主负责 Harness 子进程监管、默认关闭到托盘、完整退出时的有序清理、系统通知、macOS 开机启动、日志入口和客户端版本检查。若 Harness 启动时间过长，启动页会提供日志入口并继续等待；连续三次提前退出后则进入明确的失败状态，可直接重试或打开日志，不再无限停留在“正在启动”。
+
+托盘菜单可以重新打开窗口、查看日志、切换通知与开机启动并安全退出。异常退出、连续启动失败和恢复成功会触发带节流的原生通知。所有桥接能力均是闭集接口：渲染页面只能管理这些桌面偏好、打开固定的 `harness.log` 或查询本项目 Release，不能获得通用 Shell、文件系统或任意 URL 打开权限。
+
 ### 客户端复制
 
 Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板写入权限，因此消息、代码和对话的复制按钮可以像官方 Web 端一样在桌面客户端正常使用。剪贴板读取及其他无关的浏览器权限仍保持禁用。
@@ -33,6 +39,16 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
 ### 预装插件市场
 
 安装包内置插件市场，并在首次启动时完成预设安装，无需额外配置即可发现、安装和管理插件。插件市场仍是普通 Harness 插件：用户可以在客户端中将其卸载，桌面应用会尊重该选择，不会再次自动安装。
+
+### 预装官方 Codex 连接
+
+各平台安装包离线预装 DeepSeek Harness 官方 [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) 插件、固定版本的 [`@openai/codex`](https://github.com/openai/codex) wrapper，以及仅与当前系统和 CPU 匹配的原生载荷。首次引导与“设置 → 外部工具”提供 Codex 连接入口；安装、启动和委派任务不依赖用户系统中另行安装 Node、pnpm 或 Codex CLI。该插件仍可卸载，持久化 seed 标记会记住用户的选择，应用升级或重启不会擅自装回。
+
+官方连接当前把每次委派作为一个独立、临时的 Codex 任务：Codex 使用父会话的工作目录和本机 `CODEX_HOME` 中已有的登录、模型、MCP 与 Skill 配置，但不会继承 Harness 的对话正文，也不会把临时 Codex thread 保存到 Harness 会话。父会话只收到最终回答或经过脱敏的失败诊断；Codex 的中间推理、工具通信、原始 stderr 与完整工作区差异不会被复制回来。
+
+### 外部编码工具连接中心
+
+“设置 → 外部工具”集中展示 Codex、Claude Code 以及等待正式 Provider 的 Hermes、Trae。连接受支持的 Provider 后，已有和新建的完整模式会话会从下一轮安全边界获得对应工具，正在运行的回合不会被中途改写，精简模式也继续保持最小工具集。断开连接只撤下工具，不删除 Harness 会话或外部产品自身的数据。
 
 ### 预设 IM 机器人连接
 
@@ -59,6 +75,10 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
   </tr>
 </table>
 
+### 跟进 DeepSeek Harness rc.8
+
+当前桌面基线已完整同步上游 `dsh-v0.1.0-rc.8`。主要变化包括 `@文件`、`@目录` 与 `@Session` 引用，命令图片附件和图片体积限制，多查询并发 `web_search`，推理模型多轮 `reasoning_content` 回传，Windows 持久 PowerShell PTY，以及更完善的 Codex / Claude Code 产品型子 Agent。桌面客户端还接入了模型批量选择、动态客户端包、构建 Profile 与品牌插槽；Electron 始终为 `dsh web` 传入 `--no-open`，因此启动桌面应用不会额外打开系统浏览器。
+
 ## 发布状态
 
 项目目前处于开发者预览阶段，可能发生破坏兼容性的变更。我们将准备下方列出的五种桌面发行版本。macOS Apple Silicon 是首个在本地完成打包与验证的目标；其他行代表已经确定的发行矩阵，会在对应原生构建与验证工作完成后提供下载。
@@ -69,6 +89,7 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
 - 打开本地工作区、创建持久会话、流式接收智能体回复、复制消息、删除会话和清空对话记录。
 - 查看进入模型上下文的执行记录与精简的关键步骤摘要，便于确认重要工具操作。
 - 调用 Skill，并通过 Cordis 插件扩展产品。
+- 从统一连接中心启用 Codex 或 Claude Code，使完整模式会话能够把独立编码任务委派给官方产品型子 Agent。
 - 检查固定的官方上游稳定变更，并在桌面源码运行模式下执行受保护的干净快进更新。
 
 ## 安装
@@ -144,9 +165,9 @@ pnpm dsh web
 | 平台 | 当前状态 | 后续发布工作 |
 | --- | --- | --- |
 | macOS Apple Silicon | 已在本地验证 ad-hoc DMG/ZIP 打包 | 发布并验证 arm64 发行产物 |
-| macOS Intel | 已具备共享的 Electron/Node 实现 | 在兼容 Intel 的运行器上构建并验证 x64 DMG |
-| Windows x64 | 已具备共享的 Electron/Node 实现 | 构建 EXE 安装程序，验证进程、PTY、文件系统和沙箱行为 |
-| Linux x64 | 已具备共享的 Electron/Node 实现 | 构建并验证 Debian 与 RPM 软件包 |
+| macOS Intel | 已配置独立 x64 Node 运行时、DMG/ZIP 和平台 Codex 载荷 | 在兼容 Intel 的运行器上完成原生安装验证 |
+| Windows x64 | 已配置官方 Node、NSIS 与最终安装烟雾测试 | 持续验证真实 Windows 10/11、PTY、沙箱及含空格/中文路径 |
+| Linux x64 | 已配置独立 x64 Node 运行时、DEB/RPM 和平台 Codex 载荷 | 在目标发行版上完成原生安装验证 |
 | Web | 可通过源码命令 `pnpm dsh web` 使用 | 继续与桌面端共享相同的 Harness 服务和配置 |
 
 ## 架构
@@ -180,7 +201,8 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 
 - 提供可复现的 macOS arm64/x64 DMG、Windows x64 EXE 和 Linux x64 DEB/RPM 版本，并附带校验值与第三方许可证声明。
 - 改进插件与 Skill 的发现、兼容性元数据、生命周期管理和更新可见性。
-- 增加原生审批、通知、托盘状态、深度链接和经过身份验证的本地控制端点。
+- 在现有托盘、通知和启动诊断基础上，继续增加原生审批、更丰富的任务状态、深度链接和经过身份验证的本地控制端点。
+- 完善外部编码工具的交互审批、任务进度、修改摘要与可恢复会话，同时保持 Harness 与外部产品的上下文边界清晰可见。
 - 继续完善预设 IM 机器人连接的身份映射、授权、审计事件、速率限制和撤销能力。
 
 以上内容是项目方向，并不代表已经完成支持。当前实现边界见[桌面发行矩阵](apps/desktop/README.md#cross-platform-release-matrix)。
@@ -193,6 +215,8 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 - 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；使用编码智能体处理本仓库时请遵循 [AGENTS.md](AGENTS.md)。
 
 ## 致谢
+
+感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 上游维护官方 Codex Provider，并感谢 [OpenAI Codex](https://github.com/openai/codex) 提供其固定版本的 wrapper 与各平台原生运行时。本项目仅负责把这些官方组件按目标平台离线打包并接入桌面连接中心。
 
 感谢以下社区插件的作者与维护者。它们作为可卸载的首次启动预设随桌面安装包提供，让常用扩展能力可以开箱即用：
 
