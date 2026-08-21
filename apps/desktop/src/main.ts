@@ -6,7 +6,9 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray, type MenuItemConstructorOptions } from 'electron'
-import { appendBundledPluginFailure, seedBundledPlugin, type BundledPluginManifestEntry } from './bundled-plugin-seed.ts'
+import {
+  appendBundledPluginFailure, ensureProfileBuildAllowances, seedBundledPlugin, type BundledPluginManifestEntry,
+} from './bundled-plugin-seed.ts'
 import { resolveHarnessInvocation, resolveHarnessLaunch, type DesktopLaunchOptions, type HarnessLaunch } from './launch.ts'
 import { allowsHarnessPermission } from './permissions.ts'
 import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
@@ -403,6 +405,32 @@ async function startApplication(): Promise<void> {
       plugins: BundledPluginManifestEntry[]
     }
     const dshHome = process.env.DSH_HOME?.trim() || join(homedir(), '.dsh')
+    const buildAllowances = new Map<string, Set<string>>()
+    for (const entry of manifest.plugins) {
+      if (entry.allowBuilds === undefined) continue
+      const names = buildAllowances.get(entry.profile) ?? new Set<string>()
+      for (const packageName of entry.allowBuilds) names.add(packageName)
+      buildAllowances.set(entry.profile, names)
+    }
+    for (const [profile, packageNames] of buildAllowances) {
+      try {
+        await runHarnessInvocation(resolveHarnessInvocation(process.env, [
+          'plugin', '--profile', profile, 'root',
+        ], launchOptions), harnessLogPath)
+      } catch (error) {
+        console.error(error)
+        continue
+      }
+      try {
+        await ensureProfileBuildAllowances(
+          join(dshHome, 'profiles', profile, 'pnpm-workspace.yaml'),
+          [...packageNames],
+        )
+      } catch (error) {
+        await appendBundledPluginFailure(harnessLogPath, error)
+        console.error(error)
+      }
+    }
     for (const entry of manifest.plugins) {
       try {
         await seedBundledPlugin({

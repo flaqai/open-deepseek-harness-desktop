@@ -11,6 +11,7 @@ export interface BundledPluginManifestEntry {
   readonly profile: string
   readonly archive: string
   readonly integrity: string
+  readonly allowBuilds?: readonly string[]
 }
 
 export interface SeedBundledPluginOptions {
@@ -38,9 +39,50 @@ function assertEntry(entry: BundledPluginManifestEntry): void {
   if (!/^[a-z0-9][a-z0-9._-]*$/iu.test(entry.seedId)
     || !/^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/iu.test(entry.packageName)
     || basename(entry.archive) !== entry.archive
-    || !entry.integrity.startsWith('sha512-')) {
+    || !entry.integrity.startsWith('sha512-')
+    || entry.allowBuilds?.some(packageName => !/^[a-z0-9][a-z0-9._-]*$/u.test(packageName))) {
     throw new TypeError(`desktop: invalid bundled plugin manifest entry ${entry.seedId}`)
   }
+}
+
+/** Add reviewed lifecycle-script permissions to an initialized profile without broadening pnpm policy. */
+export async function ensureProfileBuildAllowances(
+  workspacePath: string,
+  packageNames: readonly string[],
+): Promise<void> {
+  const requested = [...new Set(packageNames)].sort()
+  if (requested.length === 0) return
+  for (const packageName of requested) {
+    if (!/^[a-z0-9][a-z0-9._-]*$/u.test(packageName)) {
+      throw new TypeError(`desktop: invalid bundled plugin build allowance ${packageName}`)
+    }
+  }
+
+  const source = await readFile(workspacePath, 'utf8')
+  const lines = source.replace(/\r\n/gu, '\n').split('\n')
+  let heading = lines.findIndex(line => /^allowBuilds:\s*(?:#.*)?$/u.test(line))
+  if (heading < 0) {
+    while (lines.at(-1) === '') lines.pop()
+    lines.push('', 'allowBuilds:')
+    heading = lines.length - 1
+  }
+  let end = heading + 1
+  while (end < lines.length && (lines[end]?.trim() === '' || /^\s/u.test(lines[end] ?? '') || /^\s*#/u.test(lines[end] ?? ''))) end += 1
+
+  for (const packageName of requested) {
+    const escaped = packageName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+    const existing = lines.slice(heading + 1, end).find(line => new RegExp(`^\\s+["']?${escaped}["']?:\\s*(true|false)\\s*(?:#.*)?$`, 'u').test(line))
+    if (existing !== undefined) {
+      if (/\bfalse\b/u.test(existing)) throw new Error(`desktop: pnpm build allowance for ${packageName} is explicitly disabled in ${workspacePath}`)
+      continue
+    }
+    lines.splice(end, 0, `  ${JSON.stringify(packageName)}: true`)
+    end += 1
+  }
+
+  const temporary = `${workspacePath}.${process.pid}.tmp`
+  await writeFile(temporary, `${lines.join('\n').replace(/\n*$/u, '')}\n`, { flag: 'wx' })
+  await rename(temporary, workspacePath)
 }
 
 async function hasDependency(packagePath: string, packageName: string): Promise<boolean> {

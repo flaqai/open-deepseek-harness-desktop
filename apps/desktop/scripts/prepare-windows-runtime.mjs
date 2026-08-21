@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { ensureProfileBuildAllowances } from '../lib/bundled-plugin-seed.js'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
@@ -279,6 +280,27 @@ async function smokeBundledPlugins() {
   const bundledDirectory = join(repositoryRoot, '.artifacts', 'desktop-bundled-plugins')
   const manifest = JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8'))
   try {
+    const buildAllowances = new Map()
+    for (const plugin of manifest.plugins) {
+      if (!Array.isArray(plugin.allowBuilds)) continue
+      const names = buildAllowances.get(plugin.profile) ?? new Set()
+      for (const packageName of plugin.allowBuilds) names.add(packageName)
+      buildAllowances.set(plugin.profile, names)
+    }
+    for (const [profile, packageNames] of buildAllowances) {
+      await run(nodeExecutable, [entry, 'plugin', '--profile', profile, 'root'], {
+        env: {
+          ...process.env,
+          DSH_HOME: smokeHome,
+          DSH_PNPM_BIN: stagedPnpmEntry,
+          PATH: `${runtimeRoot};${process.env.PATH ?? ''}`,
+        },
+      })
+      await ensureProfileBuildAllowances(
+        join(smokeHome, 'profiles', profile, 'pnpm-workspace.yaml'),
+        [...packageNames],
+      )
+    }
     for (const plugin of manifest.plugins) {
       await run(nodeExecutable, [
         entry,

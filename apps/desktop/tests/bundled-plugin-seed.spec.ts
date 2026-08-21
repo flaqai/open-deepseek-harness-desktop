@@ -3,7 +3,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { appendBundledPluginFailure, seedBundledPlugin, type BundledPluginManifestEntry } from '../src/bundled-plugin-seed.ts'
+import {
+  appendBundledPluginFailure, ensureProfileBuildAllowances, seedBundledPlugin, type BundledPluginManifestEntry,
+} from '../src/bundled-plugin-seed.ts'
 
 const roots: string[] = []
 
@@ -78,6 +80,27 @@ describe('bundled plugin seed', () => {
     expect(install).toHaveBeenCalledOnce()
     expect(JSON.parse(await readFile(join(options.dshHome, 'bundled-plugins', 'dshmarket.seeded.json'), 'utf8')))
       .toMatchObject({ packageName: 'dshmarket', version: '1.12.1' })
+  })
+
+  it('adds only reviewed pnpm build allowances and preserves existing settings', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-bundled-plugin-policy-'))
+    roots.push(root)
+    const workspacePath = join(root, 'pnpm-workspace.yaml')
+    await writeFile(workspacePath, 'packages:\n  - .\n\nallowBuilds:\n  esbuild: true\n')
+    await ensureProfileBuildAllowances(workspacePath, ['node-pty', 'node-pty'])
+    await ensureProfileBuildAllowances(workspacePath, ['node-pty'])
+    const policy = await readFile(workspacePath, 'utf8')
+    expect(policy).toContain('  esbuild: true')
+    expect(policy.match(/"node-pty": true/gu)).toHaveLength(1)
+  })
+
+  it('does not override an explicitly denied build allowance', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-bundled-plugin-policy-denied-'))
+    roots.push(root)
+    const workspacePath = join(root, 'pnpm-workspace.yaml')
+    await writeFile(workspacePath, 'packages:\n  - .\nallowBuilds:\n  node-pty: false\n')
+    await expect(ensureProfileBuildAllowances(workspacePath, ['node-pty']))
+      .rejects.toThrow(/explicitly disabled/u)
   })
 
   it('adopts an existing dependency without replacing its version', async () => {
