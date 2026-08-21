@@ -38,3 +38,7 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  # Prefer faster ZIP extraction for the full Node/Harness runtime. The
+  # resulting installer can be larger than electron-builder's default 7z/LZMA
+  # payload, so Windows CI records both size and install duration.
+  useZip: true

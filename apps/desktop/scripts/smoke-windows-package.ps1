@@ -23,6 +23,7 @@ $installStart.UseShellExecute = $false
 $installStart.ArgumentList.Add('/S')
 $installStart.ArgumentList.Add('/currentuser')
 $installStart.ArgumentList.Add("/D=$installRoot")
+$installStartedAt = Get-Date
 $install = [System.Diagnostics.Process]::Start($installStart)
 $installDeadline = (Get-Date).AddMinutes(15)
 $nextInstallProgress = (Get-Date).AddSeconds(30)
@@ -45,6 +46,9 @@ if (-not $install.HasExited) {
 if ($install.ExitCode -ne 0) {
   throw "Windows installer exited with $($install.ExitCode)"
 }
+$installElapsedSeconds = [Math]::Round(((Get-Date) - $installStartedAt).TotalSeconds, 1)
+$installerSizeBytes = (Get-Item $installer).Length
+Write-Host "WINDOWS_INSTALL_METRICS installer_bytes=$installerSizeBytes install_seconds=$installElapsedSeconds"
 
 $required = @(
   (Join-Path $installRoot 'DeepSeek Harness.exe'),
@@ -65,6 +69,7 @@ $appStart = [System.Diagnostics.ProcessStartInfo]::new()
 $appStart.FileName = Join-Path $installRoot 'DeepSeek Harness.exe'
 $appStart.UseShellExecute = $false
 $appStart.ArgumentList.Add("--user-data-dir=$appData")
+$appStartedAt = Get-Date
 $app = [System.Diagnostics.Process]::Start($appStart)
 $deadline = (Get-Date).AddSeconds(180)
 $ready = $false
@@ -84,6 +89,8 @@ try {
     $tail = if ($null -eq $diagnostic) { 'No harness.log was created.' } else { (Get-Content $diagnostic.FullName -Tail 80) -join "`n" }
     throw "Installed application did not reach Harness readiness within 180 seconds.`n$tail"
   }
+  $readyElapsedSeconds = [Math]::Round(((Get-Date) - $appStartedAt).TotalSeconds, 1)
+  Write-Host "WINDOWS_STARTUP_METRICS ready_seconds=$readyElapsedSeconds"
 } finally {
   if (-not $app.HasExited) {
     $null = $app.CloseMainWindow()
