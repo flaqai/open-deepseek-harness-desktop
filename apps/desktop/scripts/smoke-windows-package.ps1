@@ -100,7 +100,7 @@ $profileManifest = Get-Content $profileManifestPath -Raw | ConvertFrom-Json
 $bundledManifestPath = Join-Path $installRoot 'resources/bundled-plugins/manifest.json'
 $bundledManifest = Get-Content $bundledManifestPath -Raw | ConvertFrom-Json
 $bundledPlugins = @($bundledManifest.plugins)
-foreach ($packageName in @('dshmarket', '@xmanrui/dsh-im', 'dsh-skill-picker', '@deepseek-ai/dsh-subagent-codex')) {
+foreach ($packageName in @('dshmarket', 'dsh-font', 'dsh-better-sidebar', '@xmanrui/dsh-im', 'dsh-skill-picker', 'dsh-pocket', '@deepseek-ai/dsh-subagent-codex')) {
   if ($bundledPlugins.PackageName -notcontains $packageName) {
     throw "Bundled plugin manifest is missing required preset $packageName"
   }

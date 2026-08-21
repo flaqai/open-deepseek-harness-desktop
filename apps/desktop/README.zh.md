@@ -18,7 +18,7 @@ pnpm run dev:desktop
 
 应用提供与 `dsh web` 相同的引导和设置界面。用户无需维护第二份配置，即可配置 DeepSeek 或其他兼容 API Provider、选择模型、查看已安装插件、编辑受支持的插件设置、调用 Skill、选择工作区并管理会话。
 
-打包版本内置固定的 `dshmarket@1.12.1`、`@xmanrui/dsh-im@0.11.0` 和 `dsh-skill-picker@0.2.0` 归档，并加入当前工作区的官方 `@deepseek-ai/dsh-subagent-codex@0.1.0-rc.8`、`@openai/codex@0.147.0` 与仅属于目标平台的原生 payload，作为 Web profile 离线、可卸载的首次启动种子。每个持久种子标记都会在用户卸载后保留，因此后续启动不会擅自装回用户已经移除的插件。构建只复制仓库中固定的三个归档，并由固定源码和版本生成 Codex 归档；它不会读取开发电脑上已经安装或更新过的 Web profile。
+打包版本内置固定的 `dshmarket@1.12.1`、`dsh-font@1.1.0`、`dsh-better-sidebar@0.14.0`、`@xmanrui/dsh-im@0.11.0`、`dsh-skill-picker@0.2.0` 和 `dsh-pocket@1.9.2` 归档，并加入当前工作区的官方 `@deepseek-ai/dsh-subagent-codex@0.1.0-rc.8`、`@openai/codex@0.147.0` 与仅属于目标平台的原生 payload，作为 Web profile 可卸载的首次启动种子。每个持久种子标记都会在用户卸载后保留，因此后续启动不会擅自装回用户已经移除的插件。构建只复制仓库中固定的六个社区插件归档，并由固定源码和版本生成 Codex 归档；它不会读取开发电脑上已经安装或更新过的 Web profile，因此本机后来更新插件不会暗中改变安装包内容。
 
 ## 桌面发行包
 

@@ -40,6 +40,10 @@ The Electron host grants sanitized clipboard-write permission to the supervised 
 
 Packaged installations include the Plugin Marketplace and seed it on first launch, so plugin discovery, installation, and management are available without a separate setup step. The marketplace remains an ordinary Harness plugin: users can uninstall it from the client, and the desktop app respects that choice instead of installing it again.
 
+### More ready-to-use community plugins
+
+The installer also carries pinned, removable presets for `dsh-font@1.1.0`, `dsh-better-sidebar@0.14.0`, and `dsh-pocket@1.9.2`. They add interface and code-font selection, a VS Code-like sidebar with files, editor, terminal, Git, and preview tools, and QR-code mobile access to the local Harness workspace. Like the Marketplace, IM connection, and Skill picker presets, each is installed only on first launch; uninstalling one leaves a durable marker so an application restart or upgrade does not silently restore it. Installer contents come from checked-in, integrity-pinned archives rather than whichever versions happen to be installed on the developer machine.
+
 ### Dependency safety before plugin execution
 
 Third-party plugins share the Host's Node.js runtime. One incompatible transitive dependency, orphaned Loader entry, or failed root-plugin mount can otherwise take down the whole Harness before its Settings page is available. This client adds an independent dependency-safety layer before plugin code executes: it reads the profile manifest, lockfile, Bundle order, and installation-level shared runtime, constructs the complete dependency relationship first, and only then decides which plugins may enter the current process.
@@ -251,6 +255,9 @@ Thank you to the authors and maintainers of these community plugins. They ship a
 - [`dsh-im`](https://github.com/xmanrui/dsh-im), maintained by [xmanrui](https://github.com/xmanrui): connects nine IM bot channels, including WeChat and Feishu.
 - [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), maintained by [a735624258](https://github.com/a735624258): selects a Skill from the composer and inserts the Harness Skill invocation.
 - [`dsh-market`](https://github.com/dsh-market/dsh-market), maintained by the [dsh-market](https://github.com/dsh-market) community: browses, searches, installs, and manages plugins inside Harness.
+- [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), maintained by [omdsh-dev](https://github.com/omdsh-dev): adds a VS Code-like sidebar with workspace files, editing, terminal, Git, browser, and preview surfaces (MIT).
+- [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), maintained by [shaobeichen](https://github.com/shaobeichen): provides QR-code mobile access over local-network or tunnel connections (GPL-2.0; its archive preserves the upstream license).
+- [`dsh-font`](https://github.com/tianyhjg-lab/dsh-font), maintained by [tianyhjg-lab](https://github.com/tianyhjg-lab): switches interface and code font stacks without bundling font files (declared MIT).
 
 ## About FLAQ.AI
 

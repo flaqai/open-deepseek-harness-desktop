@@ -40,6 +40,10 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
 
 安装包内置插件市场，并在首次启动时完成预设安装，无需额外配置即可发现、安装和管理插件。插件市场仍是普通 Harness 插件：用户可以在客户端中将其卸载，桌面应用会尊重该选择，不会再次自动安装。
 
+### 更多开箱即用的社区插件
+
+安装包还固定预装可卸载的 `dsh-font@1.1.0`、`dsh-better-sidebar@0.14.0` 与 `dsh-pocket@1.9.2`，分别提供界面/代码字体选择、包含文件、编辑器、终端、Git 与预览工具的类 VS Code 侧边栏，以及通过二维码从手机访问本地 Harness 工作区的能力。它们与插件市场、IM 连接和 Skill 选择器一样只在首次启动时安装；用户卸载后会留下持久标记，应用重启或升级不会擅自装回。安装包内容来自仓库中固定版本并校验完整性的归档，而不是开发电脑当时恰好安装的版本。
+
 ### 插件执行前的依赖安全层
 
 第三方插件与 Host 共享 Node.js 运行时，一个不兼容的间接依赖、残留 Loader 条目或根插件挂载失败，都可能在设置页打开之前拖垮整个 Harness。本客户端在插件代码执行前增加了独立的依赖安全层：它读取 profile 清单、锁文件、Bundle 顺序和安装级共享运行时，先构建完整依赖关系，再决定哪些插件可以进入当前进程。
@@ -251,6 +255,9 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 - [`dsh-im`](https://github.com/xmanrui/dsh-im)，由 [xmanrui](https://github.com/xmanrui) 维护：连接微信、飞书等九种 IM 机器人。
 - [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)，由 [a735624258](https://github.com/a735624258) 维护：在输入区选择 Skill，并插入 Harness 的 Skill 调用指令。
 - [`dsh-market`](https://github.com/dsh-market/dsh-market)，由 [dsh-market](https://github.com/dsh-market) 社区维护：在 Harness 内浏览、搜索、安装和管理插件。
+- [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)，由 [omdsh-dev](https://github.com/omdsh-dev) 维护：加入类 VS Code 的工作区文件、编辑器、终端、Git、浏览器和预览侧边栏（MIT）。
+- [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)，由 [shaobeichen](https://github.com/shaobeichen) 维护：通过局域网或隧道提供二维码手机访问（GPL-2.0，归档保留上游许可证）。
+- [`dsh-font`](https://github.com/tianyhjg-lab/dsh-font)，由 [tianyhjg-lab](https://github.com/tianyhjg-lab) 维护：在不打包字体文件的前提下切换界面与代码字体栈（包内声明为 MIT）。
 
 ## 关于 FLAQ.AI
 

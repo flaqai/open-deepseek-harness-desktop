@@ -10,6 +10,22 @@
       "integrity": "sha512-jjpwAA8tJEnbVDVsN9R4e59CUoVMv/L+qTNOl7BHO791PpMqZLAM+5VZcZs05C069jGFnyu5r2M/NT8OKoXU7Q=="
     },
     {
+      "seedId": "dsh-font",
+      "packageName": "dsh-font",
+      "version": "1.1.0",
+      "profile": "web",
+      "archive": "dsh-font-1.1.0.tgz",
+      "integrity": "sha512-FJVCYih4My+9NwqvDjwW17AVP/9F843nL0O0mS8+Z/YQdVkmoGT0q3fPLXvNdr8M68FVo0Wr2upnud0y406a0g=="
+    },
+    {
+      "seedId": "dsh-better-sidebar",
+      "packageName": "dsh-better-sidebar",
+      "version": "0.14.0",
+      "profile": "web",
+      "archive": "dsh-better-sidebar-0.14.0.tgz",
+      "integrity": "sha512-cF52XM8dY0+VBmU72XxKPllQNUip7CO6d+uB8c+ptFraWwGCClz8AEsDbBKsWO+cAJXgfSBoUv+/PgdO4T4ynw=="
+    },
+    {
       "seedId": "xmanrui-dsh-im",
       "packageName": "@xmanrui/dsh-im",
       "version": "0.11.0",
@@ -24,6 +40,14 @@
       "profile": "web",
       "archive": "dsh-skill-picker-0.2.0.tgz",
       "integrity": "sha512-qSnpKKafj2Zt3rGTn+plrTlxEOmrgaZ550s3zK3kQ/tPMZlNqHGMXsVyzNnIYK0lCYFyCZICe0SUykjhXgCU4g=="
+    },
+    {
+      "seedId": "dsh-pocket",
+      "packageName": "dsh-pocket",
+      "version": "1.9.2",
+      "profile": "web",
+      "archive": "dsh-pocket-1.9.2.tgz",
+      "integrity": "sha512-MZQjJPJ4xCyJEOj/FP3CiAnvw6kJsLbUZAzhnkBje8MkC+b16adz87PbcUy5c+P7PVemFVnhoIsNhxFue161Hg=="
     }
   ]
 }

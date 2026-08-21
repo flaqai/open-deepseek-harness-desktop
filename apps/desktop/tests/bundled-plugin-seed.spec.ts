@@ -56,8 +56,11 @@ describe('bundled plugin seed', () => {
     expect(manifest.schema).toBe(1)
     expect(manifest.plugins.map(entry => [entry.packageName, entry.version])).toEqual([
       ['dshmarket', '1.12.1'],
+      ['dsh-font', '1.1.0'],
+      ['dsh-better-sidebar', '0.14.0'],
       ['@xmanrui/dsh-im', '0.11.0'],
       ['dsh-skill-picker', '0.2.0'],
+      ['dsh-pocket', '1.9.2'],
     ])
     expect(new Set(manifest.plugins.map(entry => entry.seedId)).size).toBe(manifest.plugins.length)
     for (const entry of manifest.plugins) {
