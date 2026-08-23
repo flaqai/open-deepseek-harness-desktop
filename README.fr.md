@@ -2,7 +2,7 @@
   <img src="./apps/desktop/src/icon.png" width="112" alt="Icône Open DeepSeek Harness Desktop">
 </p>
 
-<h1 align="center">Open DeepSeek Harness Desktop</h1>
+<h1 align="center">Open DSH Desktop</h1>
 
 <p align="center">
   <strong>Une édition de bureau de DeepSeek Harness prête à l'emploi et attentive à la sécurité des dépendances</strong>
