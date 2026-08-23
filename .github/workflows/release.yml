@@ -2,15 +2,11 @@
 # the apps/ entries, all on one version. The vendored framework and the native
 # packages are separate sequences with their own workflows and version lines.
 #
-# Pack runs without credentials on every pull request and master push, so a
-# pull request proves the whole publish set still packs. Publication is a
-# manual dispatch from a dsh-v* tag and consumes exactly the packed bytes.
+# This fork does not publish the upstream npm family automatically. A manual
+# dispatch retains the pack rehearsal for maintainers who need it.
 name: Release (dsh)
 
 on:
-  pull_request:
-  push:
-    branches: [master]
   workflow_dispatch:
     inputs:
       publish:

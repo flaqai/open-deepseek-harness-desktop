@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { requiresWindowsCommandShell } from './windows-command-shell.mjs'
 
 const PACKAGE_NAME = '@deepseek-ai/dsh-subagent-codex'
 const VERSION = '0.1.0-rc.8'
@@ -31,10 +32,12 @@ function targetArgument() {
 
 function run(command, args, cwd, env = {}) {
   return new Promise((resolvePromise, reject) => {
+    const needsCommandShell = requiresWindowsCommandShell(process.platform, command)
     const child = spawn(command, args, {
       cwd,
       env: { ...process.env, ...env },
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: needsCommandShell,
     })
     const stdout = []
     const stderr = []

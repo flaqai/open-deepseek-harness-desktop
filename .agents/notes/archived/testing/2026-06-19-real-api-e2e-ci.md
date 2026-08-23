@@ -1,6 +1,7 @@
 # Agent Note: Real-API e2e in CI against the external DeepSeek API
 
 Status: implemented
+Archived: 2026-08-23
 
 English | [中文](2026-06-19-real-api-e2e-ci.zh.md)
 

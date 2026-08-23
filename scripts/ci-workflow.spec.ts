@@ -238,17 +238,28 @@ describe('E2B e2e workflow', () => {
   })
 })
 
-describe('DeepSeek e2e workflow', () => {
-  it('prepares bubblewrap from the pinned payload without a package transaction', () => {
-    const workflow = loadWorkflow('.github/workflows/e2e.yml')
-    const e2e = workflowJob(workflow, 'e2e')
-    if (!Array.isArray(e2e.steps)) throw new TypeError('DeepSeek e2e workflow must define steps')
+describe('fork CI scope', () => {
+  it('keeps npm release manual and isolates loaded macOS PowerShell tests', () => {
+    const release = loadWorkflow('.github/workflows/release.yml')
+    if (!isRecord(release.on)) throw new TypeError('Release workflow must define events')
+    expect(Object.keys(release.on)).toEqual(['workflow_dispatch'])
 
-    const steps = e2e.steps.filter(isRecord)
-    expect(steps.find(step => step.name === 'Prepare bubblewrap (unrestrict userns)')).toMatchObject({
-      run: 'bash scripts/prepare-ci-bubblewrap.sh',
-    })
-    expect(JSON.stringify(steps)).not.toContain('apt-get')
+    const sandbox = loadWorkflow('.github/workflows/sandbox.yml')
+    const push = workflowEvent(sandbox, 'push')
+    expect(push['paths-ignore']).toEqual(['**/*.md', '.agents/**', 'docs/**', 'website/**'])
+
+    const sandboxJob = workflowJob(sandbox, 'sandbox-e2e')
+    if (!Array.isArray(sandboxJob.steps)) throw new TypeError('Sandbox workflow must define steps')
+    const sandboxSteps: unknown[] = sandboxJob.steps
+    const darwinTests = sandboxSteps.find(
+      step => isRecord(step) && step.name === 'Unit tests (darwin parity)',
+    )
+    if (!isRecord(darwinTests) || typeof darwinTests.run !== 'string') {
+      throw new TypeError('Sandbox workflow must define the darwin parity step')
+    }
+    expect(darwinTests.run).toContain('--exclude=packages/shell/tool-pwsh-persistent/tests/loader-composition.spec.ts')
+    expect(darwinTests.run).toContain('--maxWorkers=1')
+    expect(darwinTests.run).toContain('packages/terminal/terminal-bash/tests/local.spec.ts')
   })
 })
 

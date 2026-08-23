@@ -10,6 +10,11 @@ name: Sandbox
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - '**/*.md'
+      - '.agents/**'
+      - 'docs/**'
+      - 'website/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -93,7 +98,13 @@ jobs:
       # take their darwin branch only on this runner.
       - name: Unit tests (darwin parity)
         if: matrix.runner == 'seatbelt'
-        run: pnpm run test
+        run: |
+          pnpm run test -- \
+            --exclude=packages/shell/tool-pwsh-persistent/tests/loader-composition.spec.ts \
+            --exclude=packages/terminal/terminal-bash/tests/local.spec.ts
+          pnpm exec vitest run --maxWorkers=1 \
+            packages/shell/tool-pwsh-persistent/tests/loader-composition.spec.ts \
+            packages/terminal/terminal-bash/tests/local.spec.ts
 
       - name: Sandbox e2e (real kernel confinement, world-verified)
         # NO_COLOR: vitest force-enables ANSI color under GITHUB_ACTIONS even
