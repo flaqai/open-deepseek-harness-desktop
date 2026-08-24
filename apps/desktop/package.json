@@ -15,9 +15,9 @@
     "dev": "node scripts/dev-watch.mjs",
     "dev:once": "pnpm run build && electron lib/main.js",
     "package:win:x64": "pnpm --dir ../.. run build:community-desktop && node scripts/prepare-bundled-official-codex.mjs --target win32-x64 && node scripts/prepare-windows-runtime.mjs && node node_modules/electron-builder/out/cli/cli.js --win nsis --x64 --publish never",
-    "package:macos:arm64": "pnpm --dir ../.. run build:community-desktop && node scripts/prepare-bundled-official-codex.mjs --target darwin-arm64 && node scripts/prepare-unix-runtime.mjs && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --arm64 --publish never",
-    "package:macos:x64": "pnpm --dir ../.. run build:community-desktop && node scripts/prepare-bundled-official-codex.mjs --target darwin-x64 && node scripts/prepare-unix-runtime.mjs && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --x64 --publish never",
-    "package:linux:x64": "pnpm --dir ../.. run build:community-desktop && node scripts/prepare-bundled-official-codex.mjs --target linux-x64 && node scripts/prepare-unix-runtime.mjs && node node_modules/electron-builder/out/cli/cli.js --config electron-builder.linux.yml --linux deb rpm --x64 --publish never",
+    "package:macos:arm64": "pnpm --dir ../.. run build:community-desktop && node scripts/prepare-bundled-official-codex.mjs --target darwin-arm64 && node scripts/prepare-unix-runtime.mjs --target darwin-arm64 && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --arm64 --publish never",
+    "package:macos:x64": "pnpm --dir ../.. run build:community-desktop && node scripts/prepare-bundled-official-codex.mjs --target darwin-x64 && node scripts/prepare-unix-runtime.mjs --target darwin-x64 && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --x64 --publish never",
+    "package:linux:x64": "pnpm --dir ../.. run build:community-desktop && node scripts/prepare-bundled-official-codex.mjs --target linux-x64 && node scripts/prepare-unix-runtime.mjs --target linux-x64 && node node_modules/electron-builder/out/cli/cli.js --config electron-builder.linux.yml --linux deb rpm --x64 --publish never",
     "start": "electron lib/main.js",
     "test": "vitest run --config vitest.config.ts"
   },

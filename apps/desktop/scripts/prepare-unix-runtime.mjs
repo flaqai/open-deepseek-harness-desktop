@@ -7,10 +7,15 @@ import { basename, delimiter, dirname, join, relative, resolve, sep } from 'node
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
-const target = `${process.platform}-${process.arch}`
+const { values } = parseArgs({
+  options: { target: { type: 'string' } },
+  allowPositionals: false,
+})
+const target = values.target ?? `${process.platform}-${process.arch}`
 const targets = {
   'darwin-arm64': {
     nodeSha256: 'b05aa3a66efe680023f930bd5af3fdbbd542794da5644ca2ad711d68cbd4dc35',
@@ -203,8 +208,8 @@ if (staging === repositoryRoot || repositoryRoot.startsWith(staging + sep)) {
 await rm(staging, { recursive: true, force: true })
 await rm(archive, { force: true })
 await run('pnpm', [
-  '--filter',
-  '@deepseek-ai/dsh',
+  '--dir',
+  join(repositoryRoot, 'apps', 'cli'),
   'deploy',
   '--prod',
   '--legacy',

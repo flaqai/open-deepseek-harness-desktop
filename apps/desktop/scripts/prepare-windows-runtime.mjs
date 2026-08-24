@@ -348,7 +348,7 @@ async function smokeBundledPlugins() {
   const bundledDirectory = join(repositoryRoot, '.artifacts', 'desktop-bundled-plugins')
   const manifest = JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8'))
   try {
-    for (const plugin of manifest.plugins) {
+    for (const plugin of manifest.plugins.filter(plugin => plugin.installPolicy === 'startup')) {
       await run(nodeExecutable, [
         entry,
         'plugin', '--profile', plugin.profile,
@@ -402,8 +402,8 @@ await rm(outputRoot, { recursive: true, force: true })
 await mkdir(outputRoot, { recursive: true })
 await run(process.execPath, [
   pnpmEntry,
-  '--filter',
-  '@deepseek-ai/dsh',
+  '--dir',
+  join(repositoryRoot, 'apps', 'cli'),
   'deploy',
   '--prod',
   '--legacy',

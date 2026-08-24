@@ -2,7 +2,7 @@
 /** Rebuild and restart the Electron shell after desktop source changes. */
 
 import { spawn } from 'node:child_process'
-import { statSync, watch } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -10,6 +10,7 @@ const APP_DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PNPM = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 const ELECTRON = process.platform === 'win32' ? 'electron.cmd' : 'electron'
 const WATCH_TARGETS = ['src', 'package.json', 'tsconfig.json', 'tsdown.preload.config.ts']
+const POLL_INTERVAL_MS = 500
 
 let electron
 let build
@@ -17,6 +18,24 @@ let timer
 let closing = false
 let rebuildQueued = false
 let restarting = false
+
+function pathStamp(path) {
+  try {
+    const stat = statSync(path)
+    if (!stat.isDirectory()) return `${path}:${String(stat.mtimeMs)}:${String(stat.size)}`
+    return readdirSync(path, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map(entry => pathStamp(join(path, entry.name)))
+      .join('|')
+  } catch (error) {
+    if (error.code === 'ENOENT') return `${path}:missing`
+    throw error
+  }
+}
+
+function workspaceStamp() {
+  return WATCH_TARGETS.map(target => pathStamp(join(APP_DIRECTORY, target))).join('|')
+}
 
 function startElectron() {
   electron = spawn(ELECTRON, ['lib/main.js'], { cwd: APP_DIRECTORY, stdio: 'inherit', env: process.env })
@@ -62,16 +81,19 @@ function scheduleBuild() {
   timer = setTimeout(() => { timer = undefined; runBuild() }, 250)
 }
 
-const watchers = WATCH_TARGETS.map((target) => {
-  const path = join(APP_DIRECTORY, target)
-  return watch(path, statSync(path).isDirectory() ? { recursive: true } : {}, scheduleBuild)
-})
+let lastStamp = workspaceStamp()
+const poller = setInterval(() => {
+  const nextStamp = workspaceStamp()
+  if (nextStamp === lastStamp) return
+  lastStamp = nextStamp
+  scheduleBuild()
+}, POLL_INTERVAL_MS)
 
 function shutdown() {
   if (closing) return
   closing = true
   if (timer !== undefined) clearTimeout(timer)
-  for (const watcher of watchers) watcher.close()
+  clearInterval(poller)
   build?.kill('SIGTERM')
   void stopElectron().finally(() => { process.exit(0) })
 }

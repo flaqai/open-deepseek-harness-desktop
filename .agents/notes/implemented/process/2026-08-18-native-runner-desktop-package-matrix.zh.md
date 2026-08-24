@@ -12,7 +12,7 @@ Status: implemented
 
 `.github/workflows/desktop-packages.yml` 在匹配的 GitHub 原生运行器上构建每种产物。macOS arm64 与 x64 分别生成 ad-hoc 签名的 DMG 和更新 ZIP，Windows x64 生成 NSIS 安装程序，Linux x64 生成 DEB 与 RPM 软件包。工作流将各安装包作为独立产物上传，并在一个 `SHA256SUMS` 产物中记录其 SHA-256 值；它不会创建或发布 GitHub Release。
 
-`apps/desktop/scripts/prepare-unix-runtime.mjs` 从原生 Node 进程确定目标。脚本仅接受 darwin-arm64、darwin-x64 和 linux-x64，下载对应的固定 Node 24.11.1 压缩包并核对官方 SHA-256 值，部署生产 Harness 依赖闭包，验证目标平台的 Koffi、Sharp 与 require-builtin 原生包，嵌入 pnpm 11.7.0，并写入目标专属的运行时压缩包。打包后的 macOS 与 Linux 应用会把该压缩包解压到带版本号的用户数据目录，并使用其中的 Node 与 pnpm 启动 Harness。
+`apps/desktop/scripts/prepare-unix-runtime.mjs` 接收与 Codex 组合包和 electron-builder 调用相同的显式 darwin-arm64、darwin-x64 或 linux-x64 目标。脚本下载对应的固定 Node 24.11.1 压缩包并核对官方 SHA-256 值，部署生产 Harness 依赖闭包，验证目标平台的 Koffi、Sharp 与 require-builtin 原生包，嵌入 pnpm 11.7.0，并写入目标专属的运行时压缩包。桌面与 Web 的包脚本从各自应用目录直接运行，而不是通过仓库 workspace 选择目标，因此平台专属 workspace 包不会参与无关应用的命令发现。打包后的 macOS 与 Linux 应用会把该压缩包解压到带版本号的用户数据目录，并使用其中的 Node 与 pnpm 启动 Harness。
 
 Windows 保留独立的无符号链接运行时闭包，因为 Electron 会提供兼容 Node 的可执行文件。安装后的应用会在该可执行文件旁生成 pnpm 启动器，并通过 `NODE_PATH` 暴露中性的 `runtime-dependencies` 目录。
 
