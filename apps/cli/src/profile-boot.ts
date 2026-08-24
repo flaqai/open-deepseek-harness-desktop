@@ -12,6 +12,7 @@
  */
 
 import { existsSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FiberState, type Context } from '@deepseek-ai/cordis'
@@ -87,6 +88,57 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
   return { id: TELEMETRY_ROW_ID, disabled: true }
 }
 
+/** A package name reserved for modules supplied by the running Harness installation. */
+const IN_BOX_PACKAGE_PREFIX = '@deepseek-ai/dsh-'
+
+/**
+ * Return temporary disable patches for stale user loader rows that name an
+ * in-box package no longer supplied by this Harness installation.
+ *
+ * A development checkout can be upgraded while its private profile survives
+ * between runs.  In that case an old user `cordis.patch.yml` can insert a
+ * removed client module (for example a retired UI package).  Letting that one
+ * row reach Loader makes the complete Host fail to boot.  We deliberately
+ * constrain this recovery to user-introduced `@deepseek-ai/dsh-*` rows:
+ * third-party packages and shipped bundle rows retain their ordinary
+ * fail-loud behaviour, and fixing or restoring the package re-enables the
+ * row on the next launch without rewriting user configuration.
+ *
+ * @param bundlePatches - patches owned by the current installation.
+ * @param userPatches - profile and home patches owned by the user.
+ * @param profileDir - module-resolution anchor for the active profile.
+ * @param resolveModule - injectable resolver for focused tests.
+ * @returns id-targeted disable patches safe to append as the highest layer.
+ */
+export function quarantineStaleInBoxLoaderEntries(
+  bundlePatches: readonly PatchOptions[],
+  userPatches: readonly PatchOptions[],
+  profileDir: string,
+  resolveModule: (name: string) => void = (name) => { createRequire(join(profileDir, 'package.json')).resolve(name) },
+): PatchOptions[] {
+  const bundleRows = new Map<string, EntryOptions>()
+  for (const row of composeEntries([[...bundlePatches]])) {
+    if (typeof row.id === 'string') bundleRows.set(row.id, row)
+  }
+  const recovered: PatchOptions[] = []
+  for (const row of composeEntries([[...bundlePatches], [...userPatches]])) {
+    if (typeof row.id !== 'string' || typeof row.name !== 'string' || !row.name.startsWith(IN_BOX_PACKAGE_PREFIX)) continue
+    // A bundle row with the same module name belongs to the running app. Do
+    // not hide an incomplete/corrupt installation behind profile recovery.
+    if (bundleRows.get(row.id)?.name === row.name) continue
+    try {
+      resolveModule(row.name)
+    } catch {
+      recovered.push({ id: row.id, disabled: true })
+      process.stderr.write(
+        `${NAME}: temporarily disabled stale user loader entry ${JSON.stringify(row.id)} (${row.name}); `
+        + 'the running Harness no longer provides that in-box module. Restore or update the user patch to re-enable it.\n',
+      )
+    }
+  }
+  return recovered
+}
+
 /**
  * Load a resolved profile for `name`: heal the shared module fallback, then
  * (re)write the empty root config. The root is always rewritten: the whole
@@ -152,11 +204,14 @@ function composeProfile(
   const homePatches = loadOptionalPatches(NAME, homePatchPath()) ?? []
   const overlays = patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
   const bundlePatches = profile.layers.flatMap(layer => layer.patches)
+  const staleLoaderQuarantine = quarantineStaleInBoxLoaderEntries(
+    bundlePatches, [...profile.patches, ...homePatches], profile.dir,
+  )
   const rows = new Map<string, EntryOptions>()
-  for (const row of composeEntries([bundlePatches, profile.patches, homePatches, overlays])) {
+  for (const row of composeEntries([bundlePatches, profile.patches, homePatches, overlays, staleLoaderQuarantine])) {
     if (typeof row.id === 'string') rows.set(row.id, row)
   }
-  const composedOverlays = [...overlays]
+  const composedOverlays = [...overlays, ...staleLoaderQuarantine]
   // The SHIPPED root is the part of the roster only this app can resolve: it
   // sits beside this app's own config, in both the source and built layouts.
   // The writable root the roster appends is `dsh-agent-presets`' own, so a

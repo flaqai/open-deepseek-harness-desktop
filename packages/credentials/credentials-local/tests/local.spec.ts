@@ -289,6 +289,26 @@ describe('document validation', () => {
     const ctx = await boot({ path, watch: false })
     expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'stored', source: 'file' })
   })
+
+  it('reads exact string-version and bare-refs preview wrappers', async () => {
+    const dir = await tempDir()
+    const versionedPath = join(dir, '.credentials.yaml')
+    await writeCredentials(versionedPath, 'version: "v1"\nrefs:\n  DSH_CRED_TEST: stored\n')
+    const versioned = await boot({ path: versionedPath, watch: false })
+    expect(await versioned.credentials.resolve(KEY)).toEqual({ value: 'stored', source: 'file' })
+
+    const refsOnlyPath = join(dir, '.credentials-refs.yaml')
+    await writeCredentials(refsOnlyPath, 'refs:\n  DSH_CRED_TEST: stored\n')
+    const refsOnly = await boot({ path: refsOnlyPath, watch: false })
+    expect(await refsOnly.credentials.resolve(KEY)).toEqual({ value: 'stored', source: 'file' })
+  })
+
+  it('does not guess through unexpected legacy-wrapper fields', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_TEST: stored\nextra: true\n')
+    await expect(boot({ path, watch: false })).rejects.toThrow('the value for "refs"')
+  })
 })
 
 describe('document writes', () => {
@@ -308,6 +328,21 @@ describe('document writes', () => {
     const ctx = await boot({ path, watch: false })
     await ctx.credentials.set(KEY, 'new')
     expect(await readFile(path, 'utf8')).toBe('DSH_CRED_TEST: new\n')
+  })
+
+  it('canonicalizes supported string-version and refs-only wrappers on write', async () => {
+    const dir = await tempDir()
+    const versionedPath = join(dir, '.credentials.yaml')
+    await writeCredentials(versionedPath, 'version: "1"\nrefs:\n  DSH_CRED_TEST: old\n')
+    const versioned = await boot({ path: versionedPath, watch: false })
+    await versioned.credentials.set(KEY, 'new')
+    expect(await readFile(versionedPath, 'utf8')).toBe('DSH_CRED_TEST: new\n')
+
+    const refsOnlyPath = join(dir, '.credentials-refs.yaml')
+    await writeCredentials(refsOnlyPath, 'refs:\n  DSH_CRED_TEST: old\n')
+    const refsOnly = await boot({ path: refsOnlyPath, watch: false })
+    await refsOnly.credentials.set(KEY, 'new')
+    expect(await readFile(refsOnlyPath, 'utf8')).toBe('DSH_CRED_TEST: new\n')
   })
 
   it('adds a missing key to a fresh 0600 document and emits the commit', async () => {

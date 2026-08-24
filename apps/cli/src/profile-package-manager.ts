@@ -7,6 +7,22 @@ import type { ProfilePackageManagerResult } from '@deepseek-ai/dsh-app-boot'
 const NAME = 'dsh'
 
 /**
+ * Recover pnpm's human-readable Git prepare diagnostic when an NDJSON reporter
+ * has JSON-escaped it. Third-party callers can then recognize the existing
+ * pnpm approval flow without needing to parse a reporter-specific envelope.
+ */
+export function normalizePnpmDiagnostic(diagnostic: string): string {
+  if (!diagnostic.includes('ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED')) return diagnostic
+  const readable = diagnostic.replaceAll('\\"', '"')
+  const match = /The git-hosted package "([^"\r\n]+)" needs to execute build scripts/.exec(readable)
+  if (match === null) return diagnostic
+  const canonical = `The git-hosted package "${match[1]}" needs to execute build scripts but is not in the "allowBuilds" allowlist.`
+  // Keep pnpm's raw output for support, but append one plain line. This is
+  // intentionally a compatibility bridge in DSH, not a change to dshmarket.
+  return diagnostic.includes(canonical) ? diagnostic : `${diagnostic}\n${NAME}: ${canonical}`
+}
+
+/**
  * Resolve the pnpm executable selected by the host process.
  * @param environment - environment inherited by the CLI.
  * @returns the configured absolute executable or the ordinary PATH name.
@@ -70,7 +86,7 @@ export function runProfilePackageManager(
     }
     throw result.error
   }
-  const diagnostic = [result.stdout, result.stderr].filter(value => value.trim() !== '').join('\n').trim()
+  const diagnostic = normalizePnpmDiagnostic([result.stdout, result.stderr].filter(value => value.trim() !== '').join('\n').trim())
   return {
     exitCode: result.status ?? 1,
     ...(diagnostic === '' ? {} : { diagnostic: diagnostic.slice(-64 * 1024) }),

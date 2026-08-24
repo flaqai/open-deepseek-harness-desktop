@@ -153,23 +153,38 @@ function describeYamlError(error: YAMLError): string {
  */
 interface ParsedCredentialsDocument {
   entries: Map<string, string>
-  ignoredLegacyVersion: boolean
+  legacyFormat?: LegacyCredentialsFormat
 }
 
+type LegacyCredentialsFormat = 'flat-version' | 'v1-refs' | 'refs-wrapper'
+
 /** A desktop preview briefly wrote this metadata into the otherwise-flat store. */
-function isLegacyVersionMetadata(value: unknown): value is number {
+function isLegacyNumericVersion(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+/** The only wrapper schema emitted by the preview was v1. */
+function isLegacyWrapperV1(value: unknown): boolean {
+  return value === 1 || value === '1' || value === 'v1'
 }
 
 function isPlainMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** The v1 preview wrapped the flat credential mapping in `refs`. */
-function legacyRefs(root: Record<string, unknown>): Record<string, unknown> | undefined {
-  if (!isLegacyVersionMetadata(root.version) || !isPlainMapping(root.refs)) return undefined
-  if (Object.keys(root).length !== 2) return undefined
-  return root.refs
+/** Recognize only exact preview wrappers that can be flattened without guessing. */
+function legacyRefs(root: Record<string, unknown>): { entries: Record<string, unknown>; format: LegacyCredentialsFormat } | undefined {
+  if (!isPlainMapping(root.refs)) return undefined
+  const keys = Object.keys(root)
+  if (keys.length === 1 && keys[0] === 'refs') return { entries: root.refs, format: 'refs-wrapper' }
+  if (keys.length !== 2 || !keys.includes('version')) return undefined
+  const version = root.version
+  // A string version is accepted only inside this exact wrapper, where `refs`
+  // makes it unambiguously document metadata rather than a credential.
+  if (isLegacyWrapperV1(version)) {
+    return { entries: root.refs, format: 'v1-refs' }
+  }
+  return undefined
 }
 
 /** Parse the document while recognizing the one known legacy metadata field. */
@@ -189,16 +204,16 @@ function parseCredentialsDocumentState(text: string, filename: string): ParsedCr
     throw new TypeError(`credentials-local: ${filename} must be a mapping of credential reference to value`)
   }
   const wrappedRefs = legacyRefs(rawRoot)
-  const root = wrappedRefs ?? rawRoot
+  const root = wrappedRefs?.entries ?? rawRoot
   const entries = new Map<string, string>()
-  let ignoredLegacyVersion = wrappedRefs !== undefined
+  let legacyFormat = wrappedRefs?.format
   for (const [key, value] of Object.entries(root)) {
     // Some early desktop builds accidentally persisted their numeric document
     // version beside the credentials. It was never a credential, so accepting
     // it as one (for example by stringifying it) would be misleading. Ignore
     // only this exact legacy shape; every other non-string remains invalid.
-    if (key === 'version' && isLegacyVersionMetadata(value)) {
-      ignoredLegacyVersion = true
+    if (key === 'version' && isLegacyNumericVersion(value)) {
+      legacyFormat = 'flat-version'
       continue
     }
     // credentialRef throws on anything that is not a POSIX identifier, which
@@ -215,7 +230,7 @@ function parseCredentialsDocumentState(text: string, filename: string): ParsedCr
     }
     entries.set(key, value)
   }
-  return { entries, ignoredLegacyVersion }
+  return legacyFormat === undefined ? { entries } : { entries, legacyFormat }
 }
 
 export function parseCredentialsDocument(text: string, filename: string): Map<string, string> {
@@ -245,7 +260,7 @@ function renderDocument(text: string | undefined, ref: CredentialRef, value: str
   }
   // A supported write also converges a compatible legacy document to the
   // canonical flat mapping that current builds produce.
-  if (isLegacyVersionMetadata(document.getIn(['version']))) document.deleteIn(['version'])
+  if (isLegacyNumericVersion(document.getIn(['version']))) document.deleteIn(['version'])
   if (value === undefined) document.deleteIn([ref])
   else document.setIn([ref], value)
   return document.toString()
@@ -479,9 +494,10 @@ export class LocalCredentialProvider extends CredentialProvider {
       return
     }
     const parsed = parseCredentialsDocumentState(text, this.spec.filename)
-    if (parsed.ignoredLegacyVersion) {
+    if (parsed.legacyFormat !== undefined) {
       this.ctx.logger.warn(
-        'credentials-local: ignoring legacy numeric "version" metadata in %s; the next credential write will remove it',
+        'credentials-local: reading compatible legacy credentials format (%s) in %s; the next credential write will canonicalize it',
+        parsed.legacyFormat,
         this.spec.filename,
       )
     }
@@ -530,9 +546,10 @@ export class LocalCredentialProvider extends CredentialProvider {
     }
     if (text === this.text || this.isClosed()) return
     const parsed = text === undefined ? undefined : parseCredentialsDocumentState(text, this.spec.filename)
-    if (parsed?.ignoredLegacyVersion === true) {
+    if (parsed?.legacyFormat !== undefined) {
       this.ctx.logger.warn(
-        'credentials-local: ignoring legacy numeric "version" metadata in %s; the next credential write will remove it',
+        'credentials-local: reading compatible legacy credentials format (%s) in %s; the next credential write will canonicalize it',
+        parsed.legacyFormat,
         this.spec.filename,
       )
     }
