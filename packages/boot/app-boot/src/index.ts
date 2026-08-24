@@ -50,6 +50,11 @@ export {
 } from './profile.ts'
 
 export {
+  allowProfilePackageBuild,
+  type ProfilePackageBuildAllowance,
+} from './profile-package-builds.ts'
+
+export {
   clearQuarantinedProfilePlugin,
   clearLastProfileRepairReport,
   inspectProfileDependencies,

@@ -62,7 +62,7 @@ dsh plugin --profile tui remove turtle-ui
 dsh --profile tui
 ```
 
-Git-hosted plugins that ship sources build during install through their `prepare` script, which pnpm ≥10 blocks until the consumer allows it: the first `add` fails with pnpm's `allowBuilds` hint (and a dsh pointer at the profile's `pnpm-workspace.yaml`); copy the printed key there and re-run. Installing a built tarball or a local checkout needs no allowance.
+Git-hosted plugins that ship sources build during install through their `prepare` script. For an explicit `dsh plugin ... add`, dsh retains pnpm's exact dependency-path key, adds only that key to the profile's `allowBuilds`, and retries once. An existing `false` rule remains authoritative, malformed or incomplete diagnostics do not change the profile, and a failed retry remains visible. Installing a built tarball or a local checkout needs no allowance.
 
 ## Web alias
 

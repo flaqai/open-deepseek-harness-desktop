@@ -29,7 +29,7 @@ import {
   type ProfileRepairReport,
 } from '@deepseek-ai/dsh-app-boot'
 import { INSTALL_ANCHOR } from './install-anchor.ts'
-import { runProfilePackageManager } from './profile-package-manager.ts'
+import { runProfilePackageManager, runProfilePackageManagerWithGitBuildApproval } from './profile-package-manager.ts'
 
 export { resolvePnpmCommand } from './profile-package-manager.ts'
 
@@ -204,7 +204,7 @@ export function runPlugin(profile: string, args: readonly string[]): number {
   const before = readProfileManifest(NAME, dir)
   // A host-provided pnpm.mjs is executed by the current Node process without a
   // shell; ordinary Windows pnpm.cmd discovery retains its compatibility path.
-  const result = runProfilePackageManager(
+  const result = runProfilePackageManagerWithGitBuildApproval(
     dir,
     args.map(argument => anchorPathSpec(argument, process.cwd())),
   )
@@ -226,16 +226,7 @@ export function runPlugin(profile: string, args: readonly string[]): number {
       process.stderr.write(`${NAME}: profile dependency health ${JSON.stringify(dependencyHealth)}\n`)
     }
   } else {
-    // pnpm's own diagnostics name pnpm-workspace.yaml without saying WHICH
-    // one; the profile owns it, and the commonest failure here is pnpm ≥10
-    // blocking a git dependency's prepare (build) script until allowlisted.
     process.stderr.write(`${NAME}: pnpm failed in profile directory ${dir}\n`)
-    if (args.some(argument => /^git\+|^github:|\.git(?:#|$)/.test(argument))) {
-      process.stderr.write(
-        `${NAME}: git-hosted plugins build on install via their prepare script, which pnpm blocks until allowed — `
-        + `add the exact key pnpm printed above under allowBuilds in ${join(dir, 'pnpm-workspace.yaml')}, then re-run\n`,
-      )
-    }
   }
   return exitCode
 }

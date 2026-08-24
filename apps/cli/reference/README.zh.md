@@ -62,7 +62,7 @@ dsh plugin --profile tui remove turtle-ui
 dsh --profile tui
 ```
 
-随源码发布的 Git 托管插件会在安装期间通过 `prepare` 脚本构建，而 pnpm ≥10 默认会阻止该脚本，直到使用方明确允许。首次运行 `add` 会失败，并显示 pnpm 的 `allowBuilds` 提示；dsh 还会提示应修改该 profile 的 `pnpm-workspace.yaml`。将输出的键复制到该文件后，重新运行命令即可。安装已经构建好的 tarball 或本地 checkout 时，无需加入 `allowBuilds`。
+随源码发布的 Git 托管插件会在安装期间通过 `prepare` 脚本构建。对于明确执行的 `dsh plugin ... add`，dsh 会保留 pnpm 输出的精确依赖路径键，只将该键加入 profile 的 `allowBuilds`，然后重试一次。已有的 `false` 规则仍然优先；不完整或格式异常的诊断不会修改 profile；重试失败仍会明确显示。安装已经构建好的 tarball 或本地 checkout 时，无需加入 `allowBuilds`。
 
 ## Web 别名
 

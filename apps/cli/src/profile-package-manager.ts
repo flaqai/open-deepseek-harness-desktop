@@ -2,9 +2,53 @@
 
 import { spawnSync } from 'node:child_process'
 import { extname, isAbsolute } from 'node:path'
-import type { ProfilePackageManagerResult } from '@deepseek-ai/dsh-app-boot'
+import { allowProfilePackageBuild, type ProfilePackageManagerResult } from '@deepseek-ai/dsh-app-boot'
 
 const NAME = 'dsh'
+
+function diagnosticStrings(value: unknown, output: string[]): void {
+  if (typeof value === 'string') {
+    output.push(value)
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) diagnosticStrings(entry, output)
+    return
+  }
+  if (value === null || typeof value !== 'object') return
+  for (const entry of Object.values(value)) diagnosticStrings(entry, output)
+}
+
+/**
+ * Read the exact dependency path from pnpm's Git prepare allowBuilds hint.
+ * @param diagnostic - Combined pnpm output, including an optional NDJSON reporter envelope.
+ * @returns The exact allowBuilds key, or undefined for unrelated and incomplete failures.
+ */
+export function extractGitPrepareBuildKey(diagnostic: string): string | undefined {
+  const retained = /^dsh: pnpm allowBuilds key (".*")$/mu.exec(diagnostic)
+  if (retained?.[1] !== undefined) {
+    try {
+      const value: unknown = JSON.parse(retained[1])
+      if (typeof value === 'string') return value
+    } catch {
+      // Continue with pnpm's reporter payload when a retained line is malformed.
+    }
+  }
+  if (!diagnostic.includes('ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED')) return undefined
+  const candidates = [diagnostic, diagnostic.replaceAll('\\n', '\n').replaceAll('\\"', '"')]
+  for (const line of diagnostic.split(/\r?\n/u)) {
+    try {
+      diagnosticStrings(JSON.parse(line) as unknown, candidates)
+    } catch {
+      // A reporter may mix ordinary text with NDJSON; only complete JSON lines add candidates.
+    }
+  }
+  for (const candidate of candidates) {
+    const match = /allowBuilds:\s*\r?\n\s+(.+?):\s*true(?=\r?\n|["},]|$)/u.exec(candidate)
+    if (match?.[1] !== undefined) return match[1].trim()
+  }
+  return undefined
+}
 
 /**
  * Recover pnpm's human-readable Git prepare diagnostic when an NDJSON reporter
@@ -15,11 +59,20 @@ export function normalizePnpmDiagnostic(diagnostic: string): string {
   if (!diagnostic.includes('ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED')) return diagnostic
   const readable = diagnostic.replaceAll('\\"', '"')
   const match = /The git-hosted package "([^"\r\n]+)" needs to execute build scripts/.exec(readable)
-  if (match === null) return diagnostic
-  const canonical = `The git-hosted package "${match[1]}" needs to execute build scripts but is not in the "allowBuilds" allowlist.`
-  // Keep pnpm's raw output for support, but append one plain line. This is
-  // intentionally a compatibility bridge in DSH, not a change to dshmarket.
-  return diagnostic.includes(canonical) ? diagnostic : `${diagnostic}\n${NAME}: ${canonical}`
+  const canonical = match === null
+    ? undefined
+    : `The git-hosted package "${match[1]}" needs to execute build scripts but is not in the "allowBuilds" allowlist.`
+  const packageBuildKey = extractGitPrepareBuildKey(diagnostic)
+  const retained = packageBuildKey === undefined
+    ? undefined
+    : `${NAME}: pnpm allowBuilds key ${JSON.stringify(packageBuildKey)}`
+  const additions = [
+    ...(canonical === undefined || diagnostic.includes(canonical) ? [] : [`${NAME}: ${canonical}`]),
+    ...(retained === undefined || diagnostic.includes(retained) ? [] : [retained]),
+  ]
+  // Append bounded, reporter-independent facts before the caller keeps the
+  // diagnostic tail; large pnpm stacks must not discard the exact retry key.
+  return additions.length === 0 ? diagnostic : `${diagnostic}\n${additions.join('\n')}`
 }
 
 /**
@@ -90,5 +143,39 @@ export function runProfilePackageManager(
   return {
     exitCode: result.status ?? 1,
     ...(diagnostic === '' ? {} : { diagnostic: diagnostic.slice(-64 * 1024) }),
+  }
+}
+
+/**
+ * Run an explicit profile operation and retry one Git add after recording pnpm's exact build key.
+ * @param profileDir - Profile working directory and owner of pnpm-workspace.yaml.
+ * @param args - Exact pnpm arguments.
+ * @returns The first result, or the single retry result with a concise approval diagnostic.
+ */
+export function runProfilePackageManagerWithGitBuildApproval(
+  profileDir: string,
+  args: readonly string[],
+): ProfilePackageManagerResult {
+  const first = runProfilePackageManager(profileDir, args)
+  if (first.exitCode === 0 || args[0] !== 'add' || first.diagnostic === undefined) return first
+  const packageBuildKey = extractGitPrepareBuildKey(first.diagnostic)
+  if (packageBuildKey === undefined) return first
+  let allowance
+  try {
+    allowance = allowProfilePackageBuild(profileDir, packageBuildKey)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return { exitCode: first.exitCode, diagnostic: `${first.diagnostic}\n${NAME}: ${message}` }
+  }
+  if (allowance !== 'added') return first
+  const retry = runProfilePackageManager(profileDir, args)
+  const approval = `${NAME}: allowed reviewed Git build ${JSON.stringify(packageBuildKey)} in ${profileDir} and retried installation`
+  return {
+    exitCode: retry.exitCode,
+    diagnostic: [
+      approval,
+      ...(retry.exitCode === 0 ? [] : [first.diagnostic]),
+      ...(retry.diagnostic === undefined ? [] : [retry.diagnostic]),
+    ].join('\n'),
   }
 }

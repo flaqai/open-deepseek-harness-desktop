@@ -1,10 +1,16 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolvePnpmCommand, runPlugin } from '../src/plugin.ts'
-import { normalizePnpmDiagnostic, resolvePnpmInvocation, runProfilePackageManager } from '../src/profile-package-manager.ts'
+import {
+  extractGitPrepareBuildKey,
+  normalizePnpmDiagnostic,
+  resolvePnpmInvocation,
+  runProfilePackageManager,
+  runProfilePackageManagerWithGitBuildApproval,
+} from '../src/profile-package-manager.ts'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -63,6 +69,10 @@ describe('profile plugin package manager', () => {
     expect(normalizePnpmDiagnostic(raw)).toContain(
       'dsh: The git-hosted package "@dsh-external/dsh-client-ui-skin-maid-atelier@0.0.1" needs to execute build scripts but is not in the "allowBuilds" allowlist.',
     )
+    expect(extractGitPrepareBuildKey(JSON.stringify({
+      code: 'ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED',
+      hint: 'Add the package.\nallowBuilds:\n  @dsh-external/dsh-client-ui-skin-maid-atelier@git+https://example.invalid/skin.git#commit: true',
+    }))).toBe('@dsh-external/dsh-client-ui-skin-maid-atelier@git+https://example.invalid/skin.git#commit')
   })
 
   it('preserves the approval hint through the package-manager subprocess bridge', () => {
@@ -72,27 +82,30 @@ describe('profile plugin package manager', () => {
       err: {
         code: 'ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED',
         message: 'The git-hosted package "@dsh-external/dsh-client-ui-skin-maid-atelier@0.0.1" needs to execute build scripts but is not in the "allowBuilds" allowlist.',
+        hint: 'Add the package.\nallowBuilds:\n  @dsh-external/dsh-client-ui-skin-maid-atelier@github:example/skin#commit: true',
       },
     })
-    writeFileSync(entry, `process.stderr.write(${JSON.stringify(output)}); process.exit(1)\n`)
+    writeFileSync(entry, `process.stderr.write(${JSON.stringify(output + 'x'.repeat(70 * 1024))}); process.exit(1)\n`)
     vi.stubEnv('DSH_PNPM_BIN', entry)
     try {
-      expect(runProfilePackageManager(root, ['add', 'github:example/plugin'])).toMatchObject({
-        exitCode: 1,
-        diagnostic: expect.stringContaining('dsh: The git-hosted package "@dsh-external/dsh-client-ui-skin-maid-atelier@0.0.1" needs to execute build scripts'),
-      })
+      const result = runProfilePackageManager(root, ['add', 'github:example/plugin'])
+      expect(result.exitCode).toBe(1)
+      expect(result.diagnostic).toContain(
+        'dsh: The git-hosted package "@dsh-external/dsh-client-ui-skin-maid-atelier@0.0.1" needs to execute build scripts',
+      )
+      expect(extractGitPrepareBuildKey(result.diagnostic ?? ''))
+        .toBe('@dsh-external/dsh-client-ui-skin-maid-atelier@github:example/skin#commit')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
   })
 
-  it('surfaces a real local Git prepare block in a market-readable form', () => {
+  it('records pnpm\'s exact Git build key and retries one explicit add', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-pnpm-real-git-prepare-'))
     const source = join(root, 'source')
     const profile = join(root, 'profile')
     try {
       writeFileSync(join(root, 'package.json'), JSON.stringify({ private: true }))
-      writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - source\n  - profile\n')
       mkdirSync(source, { recursive: true })
       mkdirSync(profile, { recursive: true })
       writeFileSync(join(source, 'package.json'), JSON.stringify({
@@ -101,6 +114,7 @@ describe('profile plugin package manager', () => {
         scripts: { prepare: 'node -e "process.exit(0)"' },
       }))
       writeFileSync(join(profile, 'package.json'), JSON.stringify({ private: true }))
+      writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'packages:\n  - .\n\n# keep user settings\nnodeLinker: hoisted\n')
       for (const args of [
         ['init'],
         ['add', 'package.json'],
@@ -111,12 +125,16 @@ describe('profile plugin package manager', () => {
       }
       const pnpm = join(process.cwd(), 'apps', 'desktop', 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
       vi.stubEnv('DSH_PNPM_BIN', pnpm)
-      const result = runProfilePackageManager(profile, ['add', `git+file://${source}`, '--reporter=ndjson'])
-      expect(result.exitCode).toBe(1)
-      expect(result.diagnostic).toContain('ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED')
-      expect(result.diagnostic).toContain(
-        'dsh: The git-hosted package "dsh-fixture-git-prepare@1.0.0" needs to execute build scripts',
+      const result = runProfilePackageManagerWithGitBuildApproval(
+        profile,
+        ['add', `git+file://${source}`, '--reporter=ndjson'],
       )
+      expect(result.exitCode, result.diagnostic).toBe(0)
+      expect(result.diagnostic).toContain('dsh: allowed reviewed Git build')
+      const workspace = readFileSync(join(profile, 'pnpm-workspace.yaml'), 'utf8')
+      expect(workspace).toContain('# keep user settings')
+      expect(workspace).toContain('allowBuilds:')
+      expect(workspace).toContain('dsh-fixture-git-prepare@git+file:')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
