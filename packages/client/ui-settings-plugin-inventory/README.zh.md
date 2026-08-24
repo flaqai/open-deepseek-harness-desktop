@@ -10,7 +10,7 @@ Web 插件清单、诊断、外部工具连接与发现界面。浏览器插件�
 
 “外部工具”分区为 Codex 与 Claude Code 提供一处易发现的连接流程：安装精确版本的官方 Provider bundle，重启使其挂载，再为完整模式连接或断开该产品。Host 独立于 Agent Preset 保存连接状态，并在 Agent 发布、idle 或从 idle 同步进入 running 的边界把启用工具投影到 Agent 自己的 scope。因此已有历史会话会从下一轮获得新连接；运行中的回合保持当前工具直到回到 idle，`minimal` 继续保持精简。当前 Harness 版本没有 Hermes 与 Trae 的官方 Provider bundle，因此两者仍显示为不可操作的占位项。
 
-插件清单标签页在插件激活期间不会读取 Remote；首次选择该标签页时才挂载组件，并通过 [`api-remotes`](../../api/remotes/README.md) 懒调用 `ctx.remote.pluginInventory.list()`。
+插件清单标签页在插件激活期间不会读取 Remote；首次选择该标签页时才挂载组件，并通过 [`api-remotes`](../../api/remotes/README.zh.md) 懒调用 `ctx.remote.pluginInventory.list()`。
 
 独立的“诊断”分区会运行核心 profile doctor，而不是从市场插件输出推断依赖健康状态。“立即检查”始终只读；“检查并修复”调用受保护的收敛与隔离策略。页面汇总当前冲突、失管 Loader 条目、运行中根 Fiber 挂载失败和持久隔离记录，再展示不含文件系统路径的依赖链与兼容性。冲突所指向的活动根插件在用户明确确认风险后，会通过与清单界面相同的结构化 `startUninstall` 任务移除；界面轮询进度，并在任务结束后刷新下次启动清单。失管 Loader 条目已经不属于 profile 依赖，因此不会伪装成包管理器可卸载项。启动时保留的修复通知仍可关闭，但不会删除隔离历史。每个隔离插件都支持按记录中的说明符重试，或在风险确认后物理移除处于停用状态的残留软件包与持久记录。该实现完全属于本包，不修改也不依赖 `dshmarket` 自带的诊断标签。
 

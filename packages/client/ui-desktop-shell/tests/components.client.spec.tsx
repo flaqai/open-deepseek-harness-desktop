@@ -57,10 +57,12 @@ describe('desktop shell components', () => {
     b.controller.dispose()
   })
 
-  it('renders the available-version badge and opens its Release', async () => {
+  it('renders the available-version badge with one update dot and opens its Release', async () => {
     const b = setup()
-    render(<ReleaseFooterAction {...({ wide: true, controller: b.controller, t } as ReleaseFooterActionProps)} />)
+    const view = render(<ReleaseFooterAction {...({ wide: true, controller: b.controller, t } as ReleaseFooterActionProps)} />)
     const action = await screen.findByRole('button', { name: 'Version 0.1.0-rc.8' })
+    expect(view.container.querySelectorAll('[data-desktop-release]')).toHaveLength(1)
+    expect(view.container.querySelectorAll('[data-update-dot]')).toHaveLength(1)
     fireEvent.click(action)
     await waitFor(() => { expect(b.bridge.releases.openDownload).toHaveBeenCalledOnce() })
     b.controller.dispose()

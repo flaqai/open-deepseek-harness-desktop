@@ -354,7 +354,7 @@ const VENDORED_LIBRARY = /^@deepseek-ai\\/(cosmokit|schemastery)(\\/|$)/
     id: 'vendoring-cookbook-name-invariant-zh',
     file: 'docs/cookbook/adding-a-vendored-package.zh.md',
     find: '保留上游的 `name`/`version`/`exports`/`type`',
-    replace: '改写 `name` 的 scope（[映射](../rescope.md)），保留上游的 `version`/`exports`/`type`',
+    replace: '改写 `name` 的 scope（[映射](../rescope.zh.md)），保留上游的 `version`/`exports`/`type`',
     expect: 1,
   },
   {

@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-16-whale-skins-and-chat-backgrounds.md
 2026-08-16-whale-skins-and-chat-backgrounds.md: ceddf71ca9865aefb8382cbe302189568e675398
-2026-08-16-whale-skins-and-chat-backgrounds.zh.md: 02bcab7327edfd316adce86dffb8331ea3efa162
+2026-08-16-whale-skins-and-chat-backgrounds.zh.md: cf3e897008a602c22c3348303f59f73af9ba94ee

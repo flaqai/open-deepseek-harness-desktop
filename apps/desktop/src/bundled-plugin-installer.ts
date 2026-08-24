@@ -17,7 +17,7 @@ export interface BundledPluginManifest {
   readonly plugins: readonly BundledPluginManifestEntry[]
 }
 
-export type BundledPluginInstallPhase = 'running' | 'succeeded' | 'failed'
+type BundledPluginInstallPhase = 'running' | 'succeeded' | 'failed'
 
 export interface BundledPluginInstallSnapshot {
   readonly installId: string
@@ -54,7 +54,7 @@ interface InstallJob {
 }
 
 /** Exact UI request represented by one bundled manifest entry. */
-export function bundledPluginRequestSpec(entry: BundledPluginManifestEntry): string {
+function bundledPluginRequestSpec(entry: BundledPluginManifestEntry): string {
   return entry.registrySpec ?? `${entry.packageName}@${entry.version}`
 }
 

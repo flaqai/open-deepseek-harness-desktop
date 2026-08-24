@@ -2,13 +2,13 @@
   <img src="./apps/desktop/src/icon.png" width="112" alt="Open DeepSeek Harness Desktop 图标">
 </p>
 
-<h1 align="center">Open DSH Desktop</h1>
+# Open DSH Desktop
 
 <p align="center">
   <strong>开箱即用、依赖安全的 DeepSeek Harness 桌面版</strong>
 </p>
 
-语言：[English](README.md) · 简体中文 · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+[English](README.md) | 中文
 
 <p align="center">
   <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="下载量"></a>
@@ -40,7 +40,7 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
 
 ### 预设插件基础能力
 
-安装包启动后即可使用插件市场、IM 连接、Skill 选择器、字体支持和 Pocket。它们仍是普通 Harness 依赖：用户可以卸载，桌面应用会尊重该选择，不会再次自动安装。联网安装会保留精确 npm 版本或固定 Git 提交身份，使插件市场可以发现后续更新；经过完整性校验的内置归档负责离线回退。体积更大的 Better Sidebar 归档也随安装包提供，但只有用户在“探索插件”中明确选择后才会安装。
+安装包启动后即可使用插件市场、IM 连接、Skill 选择器、字体支持和 Pocket。它们仍是普通 Harness 依赖：用户可以卸载，桌面应用会尊重该选择，不会再次自动安装。联网安装会保留精确 npm 版本或固定 Git 提交身份，使插件市场可以发现后续更新；经过完整性校验的内置归档负责离线回退。体积更大的 Better Sidebar 归档也随安装包提供，但会等主界面可用后才准备，并通过可见、非阻塞的进度卡展示状态。
 
 ### 插件执行前的依赖安全层
 
@@ -55,7 +55,7 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
 
 ### 可离线安装的官方 Codex 连接
 
-各平台安装包携带 DeepSeek Harness 官方 [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) 插件、固定版本的 [`@openai/codex`](https://github.com/openai/codex) wrapper，以及仅与当前系统和 CPU 匹配的原生载荷。它不会在启动阶段自动安装：首次引导与“设置 → 外部工具”提供明确的安装操作，点击后使用安装包内与平台匹配的归档，不依赖用户系统中另行安装 Node、pnpm 或 Codex CLI。该插件仍可卸载，应用升级或重启不会擅自装回。
+各平台安装包携带 DeepSeek Harness 官方 [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.zh.md) 插件、固定版本的 [`@openai/codex`](https://github.com/openai/codex) wrapper，以及仅与当前系统和 CPU 匹配的原生载荷。它不会在启动阶段自动安装：首次引导与“设置 → 外部工具”提供明确的安装操作，点击后使用安装包内与平台匹配的归档，不依赖用户系统中另行安装 Node、pnpm 或 Codex CLI。该插件仍可卸载，应用升级或重启不会擅自装回。
 
 官方连接当前把每次委派作为一个独立、临时的 Codex 任务：Codex 使用父会话的工作目录和本机 `CODEX_HOME` 中已有的登录、模型、MCP 与 Skill 配置，但不会继承 Harness 的对话正文，也不会把临时 Codex thread 保存到 Harness 会话。父会话只收到最终回答或经过脱敏的失败诊断；Codex 的中间推理、工具通信、原始 stderr 与完整工作区差异不会被复制回来。
 
@@ -92,7 +92,7 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
 
 ### 主题与背景
 
-你可以在跟随系统、浅色、深色及八套产品主题之间切换，并搭配八张原创内置插画，或使用自己的 PNG、JPEG、WebP 图片替换聊天背景。自定义图片仅保存在本地浏览器存储中，不会发送给模型。支持格式与大小限制见[主题与背景参考](packages/client/ui-theme/README.md)。
+你可以在跟随系统、浅色、深色及八套产品主题之间切换，并搭配八张原创内置插画，或使用自己的 PNG、JPEG、WebP 图片替换聊天背景。自定义图片仅保存在本地浏览器存储中，不会发送给模型。支持格式与大小限制见[主题与背景参考](packages/client/ui-theme/README.zh.md)。
 
 <table>
   <tr>
@@ -105,9 +105,9 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
   </tr>
 </table>
 
-### 跟进 DeepSeek Harness rc.8
+### 跟进 DeepSeek Harness 0.1.1-rc.2
 
-当前桌面基线已完整同步上游 `dsh-v0.1.0-rc.8`。主要变化包括 `@文件`、`@目录` 与 `@Session` 引用，命令图片附件和图片体积限制，多查询并发 `web_search`，推理模型多轮 `reasoning_content` 回传，Windows 持久 PowerShell PTY，以及更完善的 Codex / Claude Code 产品型子 Agent。桌面客户端还接入了模型批量选择、动态客户端包、构建 Profile 与品牌插槽；Electron 始终为 `dsh web` 传入 `--no-open`，因此启动桌面应用不会额外打开系统浏览器。
+当前桌面基线已同步上游 `dsh-v0.1.1-rc.2`。本次新增统一图片与 DeepSeek Files 管线、确定性的图片准入、凭据记录与用户主导的提供商授权、稳定的会话投影、多行问题、更清晰的子 Agent 导航，以及 Windows 独立 pnpm 支持。此前的文件与 Session 引用、多查询并发 `web_search`、推理内容回传、持久 PowerShell PTY、动态客户端包、构建 Profile 与品牌插槽继续保留；Electron 始终为 `dsh web` 传入 `--no-open`，因此启动桌面应用不会额外打开系统浏览器。
 
 ## 发布状态
 
@@ -186,7 +186,7 @@ pnpm run dev:desktop
 pnpm dsh web
 ```
 
-环境变量覆盖、进程监管、更新行为和现有限制见[桌面应用参考](apps/desktop/README.md)。浏览器端工作流见 [Web UI 指南](docs/user/guide/index.md)。
+环境变量覆盖、进程监管、更新行为和现有限制见[桌面应用参考](apps/desktop/README.zh.md)。浏览器端工作流见 [Web UI 指南](docs/user/guide/index.zh.md)。
 
 `pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。Web 命令默认在 `http://127.0.0.1:3080` 启动，并在本机启动时打开默认浏览器。传入 `--no-open` 可只运行服务器；Electron 宿主始终使用该模式。
 
@@ -213,7 +213,7 @@ flowchart LR
     R --> E["Plugins + Skills + workflows"]
 ```
 
-DeepSeek Harness 采用由 [Cordis](https://github.com/cordiverse/cordis) 驱动的**一切皆插件**架构。桌面窗口不会成为第二套运行时：配置、凭据、会话、插件和 Skill 仍由 Harness 服务统一管理。修改软件包前，请先阅读[架构文档](docs/architecture.md)和[开发指南](docs/development.md)。
+DeepSeek Harness 采用由 [Cordis](https://github.com/cordiverse/cordis) 驱动的**一切皆插件**架构。桌面窗口不会成为第二套运行时：配置、凭据、会话、插件和 Skill 仍由 Harness 服务统一管理。修改软件包前，请先阅读[架构文档](docs/architecture.zh.md)和[开发指南](docs/development.zh.md)。
 
 ## 插件与 Skill
 
@@ -244,14 +244,14 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 - 完善外部编码工具的交互审批、任务进度、修改摘要与可恢复会话，同时保持 Harness 与外部产品的上下文边界清晰可见。
 - 继续完善预设 IM 机器人连接的身份映射、授权、审计事件、速率限制和撤销能力。
 
-以上内容是项目方向，并不代表已经完成支持。当前实现边界见[桌面发行矩阵](apps/desktop/README.md#cross-platform-release-matrix)。
+以上内容是项目方向，并不代表已经完成支持。当前实现边界见[桌面发行矩阵](apps/desktop/README.zh.md#cross-platform-release-matrix)。
 
 ## 文档与社区
 
-- 阅读[用户指南](docs/user/guide/index.md)、[插件介绍](docs/user/develop/framework/index.md)和 [Skill 指南](docs/subsystems/skills.md)。
+- 阅读[用户指南](docs/user/guide/index.zh.md)、[插件介绍](docs/user/develop/framework/index.zh.md)和 [Skill 指南](docs/subsystems/skills.zh.md)。
 - 通过 [GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues) 提交可复现的缺陷和功能建议。
 - 在 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 或其 [Discord 社区](https://discord.gg/Ycq5dCaS4)讨论上游运行时。
-- 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；使用编码智能体处理本仓库时请遵循 [AGENTS.md](AGENTS.md)。
+- 贡献前请阅读 [CONTRIBUTING.zh.md](CONTRIBUTING.zh.md)；使用编码智能体处理本仓库时请遵循 [AGENTS.md](AGENTS.md)。
 
 ## 致谢
 

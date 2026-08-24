@@ -16,10 +16,13 @@ export function ReleaseFooterAction({ wide, controller, t }: ReleaseFooterAction
   if (release.phase !== 'available') return null
   const label = t('release.badge', { version: release.latestVersion })
   return (
-    <div className={wide ? css.footer : `${css.footer} ${css.rail}`}>
+    <div className={wide ? css.footer : `${css.footer} ${css.rail}`} data-desktop-release>
       <Tooltip label={label} side="right" delayMs={300} disabled={wide}>
         <button type="button" className={css.footerButton} aria-label={label} onClick={() => { void controller.openRelease() }}>
-          <IconDownloadOutline16 size={wide ? 14 : 18} />
+          <span className={css.releaseIcon} aria-hidden>
+            <IconDownloadOutline16 size={wide ? 14 : 18} />
+            <span className={css.updateDot} data-update-dot />
+          </span>
           {wide && <span>{label}</span>}
         </button>
       </Tooltip>

@@ -614,7 +614,7 @@ The backends that consume this contract are on [persistence.md](persistence.md).
 
 ## Cordis API
 
-Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — this section is byte-identical in both language sides of the page. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
 <a id="ctxsessions--sessionstore"></a>
 
@@ -750,7 +750,7 @@ fork(source: SessionForkSource, boundary?: number, childSessionId?: SessionId): 
 
 Types: [CreateSessionOptions](persistence.md) · [PrepareSessionOptions](persistence.md) · [SessionId](core.md)
 
-Source: [`packages/core/session/src/index.ts:792`](../../packages/core/session/src/index.ts)
+Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
 
 <a id="session-events"></a>
 
@@ -779,7 +779,7 @@ Creation announcement during session publication. A synchronous throw vetoes and
 
 Types: [Scoped](scope.md)
 
-Source: [`packages/core/session/src/index.ts:54`](../../packages/core/session/src/index.ts)
+Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
 
 <a id="sessiondisposed--emit"></a>
 
@@ -802,7 +802,7 @@ Emitted once when an announced session leaves the store, including publication r
 
 Types: [Scoped](scope.md)
 
-Source: [`packages/core/session/src/index.ts:64`](../../packages/core/session/src/index.ts)
+Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
 
 <a id="sessionevent--emit"></a>
 
@@ -827,7 +827,7 @@ Post-commit, fire-and-forget append feed. The listener snapshot resolves before 
 
 Types: [Scoped](scope.md)
 
-Source: [`packages/core/session/src/index.ts:76`](../../packages/core/session/src/index.ts)
+Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
 
 <a id="sessionflush--parallel"></a>
 
@@ -849,5 +849,5 @@ Awaited parallel durability checkpoint: every listener runs and the caller await
 
 Types: [Scoped](scope.md)
 
-Source: [`packages/core/session/src/index.ts:85`](../../packages/core/session/src/index.ts)
+Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
 <!-- END GENERATED cordis-surface -->

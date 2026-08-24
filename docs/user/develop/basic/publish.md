@@ -181,5 +181,5 @@ If you would rather not ask users for the allowance, distribute built artifacts 
 
 ## Next steps
 
-- [Plugins and lifecycle](../framework/) — the full plugin lifecycle
+- [Plugins and lifecycle](../framework/index.md) — the full plugin lifecycle
 - [CLI behavior reference](../../../../apps/cli/reference/README.md) — exact layer precedence, flags, and profile mechanics

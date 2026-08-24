@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-16-multilingual-desktop-project-readme.md
 2026-08-16-multilingual-desktop-project-readme.md: 90ede0a4932855e98b9ce5e7a981548acfaa00c4
-2026-08-16-multilingual-desktop-project-readme.zh.md: 85bc3db3badbaf781c6e61a0ab93f9b9d949ebc9
+2026-08-16-multilingual-desktop-project-readme.zh.md: 6da339bcd672e5c10fd82b2964147039e863ac2f

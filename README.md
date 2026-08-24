@@ -2,13 +2,13 @@
   <img src="./apps/desktop/src/icon.png" width="112" alt="Open DeepSeek Harness Desktop icon">
 </p>
 
-<h1 align="center">Open DSH Desktop</h1>
+# Open DSH Desktop
 
 <p align="center">
   <strong>A ready-to-use, dependency-safe desktop edition of DeepSeek Harness</strong>
 </p>
 
-Languages: English · [简体中文](README.zh.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+English | [中文](README.zh.md)
 
 <p align="center">
   <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="Downloads"></a>
@@ -40,7 +40,7 @@ The Electron host grants sanitized clipboard-write permission to the supervised 
 
 ### Preset plugin foundation
 
-The installer starts with the Plugin Marketplace, IM connections, Skill picker, font support, and Pocket ready to use. They remain ordinary Harness dependencies: users can uninstall them, and the desktop app respects that decision instead of silently restoring them. Connected installations retain exact npm or pinned Git identities so the market can discover later releases; integrity-checked archives provide an offline fallback. The larger Better Sidebar archive is carried by the installer but is installed only after the user chooses it in **Explore plugins**.
+The installer starts with the Plugin Marketplace, IM connections, Skill picker, font support, and Pocket ready to use. They remain ordinary Harness dependencies: users can uninstall them, and the desktop app respects that decision instead of silently restoring them. Connected installations retain exact npm or pinned Git identities so the market can discover later releases; integrity-checked archives provide an offline fallback. The larger Better Sidebar archive is carried by the installer and prepared only after the main interface becomes usable, with a visible non-blocking progress card.
 
 ### Dependency safety before plugin execution
 
@@ -105,9 +105,9 @@ Switch between system, light, dark, and eight product themes; pair them with eig
   </tr>
 </table>
 
-### Tracking DeepSeek Harness rc.8
+### Tracking DeepSeek Harness 0.1.1-rc.2
 
-The current desktop baseline fully incorporates upstream `dsh-v0.1.0-rc.8`. Highlights include `@file`, `@directory`, and `@Session` references; image attachments for commands with image-size and request-body limits; concurrent multi-query `web_search`; correct multi-turn `reasoning_content` passback; a persistent PowerShell PTY on Windows; and more capable Codex and Claude Code product subagents. The desktop client also adopts model batch selection, dynamic client packages, build Profiles, and branding slots. Electron always passes `--no-open` to `dsh web`, so launching the desktop app does not also open a system browser.
+The current desktop baseline incorporates upstream `dsh-v0.1.1-rc.2`. It adds the unified image and DeepSeek Files pipeline, deterministic image admission, credential records and human-driven provider authorization, stable session projections, multiline questions, refined subagent navigation, and standalone pnpm support on Windows. The earlier file and session references, concurrent `web_search`, reasoning passback, persistent PowerShell PTY, dynamic client packages, build Profiles, and branding slots remain available. Electron always passes `--no-open` to `dsh web`, so launching the desktop app does not also open a system browser.
 
 ## Release status
 

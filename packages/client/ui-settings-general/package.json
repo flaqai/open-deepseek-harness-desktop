@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-general",
   "description": "Settings shell and onboarding frame: General settings, shared chrome copy, and reusable first-run section routing",
-  "version": "0.1.0-rc.8",
+  "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"
   },
