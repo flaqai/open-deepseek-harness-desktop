@@ -16,6 +16,8 @@ Status: implemented
 
 Windows 保留独立的无符号链接运行时闭包，因为 Electron 会提供兼容 Node 的可执行文件。安装后的应用会在该可执行文件旁生成 pnpm 启动器，并通过 `NODE_PATH` 暴露中性的 `runtime-dependencies` 目录。
 
+Windows NSIS 配置不设置 `useZip`，因此 electron-builder 使用默认的 7z/LZMA 载荷。原生冒烟测试会先把该载荷安装到包含空格和中文的路径，再启动应用。ZIP 载荷试验在 15 分钟期限内没有生成已安装的可执行文件或 Harness 文件，而默认载荷能够完成安装并使 Harness 就绪。
+
 TypeScript 桌面构建会为主进程生成 ES 模块，但 Electron 的沙箱 preload 加载器要求 CommonJS。因此，专用的 tsdown 步骤会把 preload 及其本地窗口边框辅助代码打包为 `lib/preload.cjs`，同时将 `electron` 保留为运行时 `require`；BrowserWindow 加载该 `.cjs` 产物。
 
 发行文件名不包含软件包版本，使 `releases/latest/download` URL 保持稳定：`DeepSeek-Harness-macos-{arm64,x64}.dmg`、`DeepSeek-Harness-windows-x64.exe`、`DeepSeek-Harness-linux-x64.{deb,rpm}` 与 `SHA256SUMS`。每个软件包都包含可卸载的首次运行插件市场种子。
@@ -30,6 +32,8 @@ TypeScript 桌面构建会为主进程生成 ES 模块，但 Electron 的沙箱 
 
 **直接加载 TypeScript 生成的 `preload.js`。** 桌面包属于 ES 模块包，因此 TypeScript 会生成基于 `import` 的 preload。Electron 的沙箱 preload 加载器会把该文件当作 CommonJS，并在桥接代码安装前拒绝加载。
 
+**在 NSIS 安装器内部使用 ZIP 压缩。** ZIP 可能降低解压 CPU 开销，但经过验证的 Windows Runner 无法在 15 分钟内完成该运行时的解压。默认 7z/LZMA 载荷保留了原生安装与启动冒烟测试已经证明可用的安装路径。
+
 ## Consequences
 
-发行包矩阵会占用四个原生任务，无法在一台开发者设备上完整复现。任务成功可以证明对应的原生依赖闭包与安装包格式已完成组装，但产品支持仍需验证各平台的生命周期、PTY、文件系统、沙箱、安装和首次启动行为。固定文件名可让后续最新版链接保持稳定，但每次 Release 的同一平台与架构只能容纳一个同名产物。
+发行包矩阵会占用四个原生任务，无法在一台开发者设备上完整复现。任务成功可以证明对应的原生依赖闭包与安装包格式已完成组装，但产品支持仍需验证各平台的生命周期、PTY、文件系统、沙箱、安装和首次启动行为。固定文件名可让后续最新版链接保持稳定，但每次 Release 的同一平台与架构只能容纳一个同名产物。Windows 打包优先采用已验证的 7z/LZMA 安装路径，而不是 ZIP 载荷的解压特性。

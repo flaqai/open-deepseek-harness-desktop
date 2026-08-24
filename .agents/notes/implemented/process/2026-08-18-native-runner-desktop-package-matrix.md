@@ -16,6 +16,8 @@ The desktop application depends on platform-specific Node packages and native bi
 
 Windows keeps a separate symlink-free runtime closure because Electron supplies its Node-compatible executable. The installed application materializes pnpm launchers beside that executable and exposes the neutral `runtime-dependencies` directory through `NODE_PATH`.
 
+The Windows NSIS configuration leaves `useZip` unset, so electron-builder uses its default 7z/LZMA payload. The native smoke installs that payload into a path containing spaces and Chinese characters before starting the application. A ZIP-payload trial did not create the installed executable or Harness files within the 15-minute deadline, while the default payload completed installation and reached Harness readiness.
+
 The TypeScript desktop build emits ES modules for the main process, but Electron's sandboxed preload loader requires CommonJS. A dedicated tsdown pass therefore bundles the preload and its local window-frame helper into `lib/preload.cjs` while preserving `electron` as a runtime `require`; the BrowserWindow loads that `.cjs` artifact.
 
 Release filenames omit the package version so `releases/latest/download` URLs remain stable: `DeepSeek-Harness-macos-{arm64,x64}.dmg`, `DeepSeek-Harness-windows-x64.exe`, `DeepSeek-Harness-linux-x64.{deb,rpm}`, and `SHA256SUMS`. Each package includes the removable first-run plugin-market seed.
@@ -30,6 +32,8 @@ Release filenames omit the package version so `releases/latest/download` URLs re
 
 **Load the TypeScript-emitted `preload.js` directly.** The desktop package is an ES module package, so TypeScript emits an `import`-based preload. Electron's sandboxed preload loader treats that file as CommonJS and rejects it before the bridge is installed.
 
+**Use ZIP compression inside the NSIS installer.** ZIP can reduce decompression CPU time, but the reviewed Windows runner did not complete extraction of this runtime within 15 minutes. The default 7z/LZMA payload keeps the installer path proven by the native install-and-launch smoke.
+
 ## Consequences
 
-The package matrix consumes four native jobs and cannot be reproduced completely on one developer machine. A successful job proves that the matching native dependency closure and installer format were assembled, while product support still requires platform lifecycle, PTY, filesystem, sandbox, installation, and first-launch validation. Fixed filenames make later latest-release links stable, at the cost of allowing only one artifact per platform and architecture in a release.
+The package matrix consumes four native jobs and cannot be reproduced completely on one developer machine. A successful job proves that the matching native dependency closure and installer format were assembled, while product support still requires platform lifecycle, PTY, filesystem, sandbox, installation, and first-launch validation. Fixed filenames make later latest-release links stable, at the cost of allowing only one artifact per platform and architecture in a release. Windows packaging favors the proven 7z/LZMA installation path over the attempted ZIP payload's extraction profile.
