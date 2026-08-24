@@ -28,7 +28,7 @@ import {
 import { DesktopReleaseChecker, isAllowedReleaseUrl, type DesktopReleaseStatus } from './release-checker.ts'
 import { SourceUpdater } from './source-updater.ts'
 import { createDesktopLifecycle, type DesktopLifecycle } from './window-lifecycle.ts'
-import { usesCustomWindowFrame } from './window-frame.ts'
+import { usesCustomWindowFrame, withCustomWindowFrameInset } from './window-frame.ts'
 import { stageDiagnosticFixture } from './diagnostic-fixture.ts'
 
 const APP_NAME = 'DeepSeek Harness'
@@ -287,7 +287,7 @@ function createWindow(): BrowserWindow {
   })
   mainWindow = window
   if (harnessOrigin === undefined) showLoading('starting')
-  else void window.loadURL(harnessOrigin)
+  else void window.loadURL(withCustomWindowFrameInset(harnessOrigin, process.platform))
   return window
 }
 
@@ -500,7 +500,9 @@ async function startApplication(): Promise<void> {
     environment: { ...process.env },
     onReady: (url) => {
       harnessOrigin = new URL(url).origin
-      if (mainWindow !== undefined && !mainWindow.isDestroyed()) void mainWindow.loadURL(url)
+      if (mainWindow !== undefined && !mainWindow.isDestroyed()) {
+        void mainWindow.loadURL(withCustomWindowFrameInset(url, process.platform))
+      }
       if (recovering) {
         recovering = false
         showNotification('recovered', notificationCopy.recovered)

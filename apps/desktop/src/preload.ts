@@ -10,7 +10,7 @@ import type {
   BundledPluginInstallSnapshot,
   BundledPluginStartResult,
 } from './bundled-plugin-installer.ts'
-import { usesCustomWindowFrame } from './window-frame.ts'
+import { CUSTOM_WINDOW_TITLE_BAR_HEIGHT, usesCustomWindowFrame } from './window-frame.ts'
 
 /** Renderer-visible update methods; no generic process or filesystem access is exposed. */
 export interface DesktopUpdateBridge {
@@ -175,7 +175,7 @@ const TITLE_BAR_STYLE = `
     box-sizing: border-box;
     height: 100%;
     overflow: hidden;
-    padding-top: 36px;
+    padding-top: ${CUSTOM_WINDOW_TITLE_BAR_HEIGHT}px;
   }
   html.dsh-desktop-custom-frame body {
     box-sizing: border-box;
@@ -190,7 +190,7 @@ const TITLE_BAR_STYLE = `
     color: var(--dsw-alias-label-primary, #171719);
     display: flex;
     font-family: var(--dsw-font-family, "Segoe UI", sans-serif);
-    height: 36px;
+    height: ${CUSTOM_WINDOW_TITLE_BAR_HEIGHT}px;
     inset: 0 0 auto;
     position: fixed;
     user-select: none;
@@ -200,7 +200,7 @@ const TITLE_BAR_STYLE = `
     flex: 1;
     font-size: 12px;
     font-weight: 500;
-    line-height: 36px;
+    line-height: ${CUSTOM_WINDOW_TITLE_BAR_HEIGHT}px;
     min-width: 0;
     overflow: hidden;
     padding: 0 12px;
@@ -217,7 +217,7 @@ const TITLE_BAR_STYLE = `
     background: transparent;
     border: 0;
     color: inherit;
-    height: 36px;
+    height: ${CUSTOM_WINDOW_TITLE_BAR_HEIGHT}px;
     margin: 0;
     outline: none;
     padding: 0;

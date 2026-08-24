@@ -13,10 +13,13 @@ export type ReleaseFooterActionProps = PropsRuntime<'sidebar.footer.action'>
 
 export function ReleaseFooterAction({ wide, controller, t }: ReleaseFooterActionProps) {
   const release = useSyncExternalStore(controller.subscribe, controller.getSnapshot).release
-  if (release.phase !== 'available') return null
+  if (release.phase !== 'available') return <div className={css.releaseOwner} data-desktop-release hidden />
   const label = t('release.badge', { version: release.latestVersion })
   return (
-    <div className={wide ? css.footer : `${css.footer} ${css.rail}`} data-desktop-release>
+    <div
+      className={wide ? `${css.releaseOwner} ${css.footer}` : `${css.releaseOwner} ${css.footer} ${css.rail}`}
+      data-desktop-release
+    >
       <Tooltip label={label} side="right" delayMs={300} disabled={wide}>
         <button type="button" className={css.footerButton} aria-label={label} onClick={() => { void controller.openRelease() }}>
           <span className={css.releaseIcon} aria-hidden>

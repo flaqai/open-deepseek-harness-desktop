@@ -20,7 +20,7 @@ DeepSeek Harness 已经拥有浏览器界面、Provider 和模型配置、插件
 
 BrowserWindow 启用 context isolation 和渲染进程 sandbox，并关闭 Node integration。顶层导航仅限已选定的回环来源。新开的 HTTPS 窗口交给系统浏览器，其余窗口创建全部拒绝。除精确的受监管 Harness 来源主框架发起的安全剪贴板写入外，渲染进程权限全部拒绝；剪贴板读取仍保持拒绝。共用客户端使用标准 Web Clipboard API，因此不新增通用的高权限剪贴板 bridge。
 
-macOS 保留原生标题栏和交通灯按钮。Windows 和 Linux 创建无系统边框的 BrowserWindow；沙箱 preload 在加载页和 Web GUI 上方插入一条桌面宿主自有、跟随主题 token 的 36 px 标题栏。可拖拽区域显示当前文档标题，固定的最小化、最大化或还原、关闭按钮发送窄范围 IPC 意图，主进程只接受当前桌面窗口的请求。Web 客户端既不拥有也不暴露这些操作系统控制能力。
+macOS 保留原生标题栏和交通灯按钮。Windows 和 Linux 创建无系统边框的 BrowserWindow；沙箱 preload 在加载页和 Web GUI 上方插入一条桌面宿主自有、跟随主题 token 的 36 px 标题栏。可拖拽区域显示当前文档标题，固定的最小化、最大化或还原、关闭按钮发送窄范围 IPC 意图，主进程只接受当前桌面窗口的请求。这两个平台的 Harness 导航通过 `dsh-desktop-titlebar-inset` URL 参数声明同一高度，使固定或全视口 Web 插件为桌面 chrome 预留空间，而不会渲染到其下方。Web 客户端既不拥有也不暴露这些操作系统控制能力。
 
 源码运行仍要求兼容的 Node 可执行文件和已构建的仓库。macOS arm64 包组合扁平化的第三方生产 deploy、传递性的 workspace 运行时闭包、Node 24.11.1 与 pnpm 11.7.0；准备脚本会先验证固定的 Node 官方归档 SHA-256，再进行解压。应用首次启动时把归档解压到按版本隔离的用户数据目录，布局标记会让不完整缓存失效。内置 Node 负责启动 Harness；宿主把 `DSH_PNPM_BIN` 固定为内置 pnpm，并以内置运行时的 `bin` 目录作为 `PATH` 开头，使插件生命周期脚本使用同一个 Node。DMG 与 ZIP 均为未签名的开发验证产物。
 

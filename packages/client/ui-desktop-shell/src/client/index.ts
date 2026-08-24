@@ -36,7 +36,7 @@ export function apply(ctx: ClientContext): void {
     inject: () => ({ controller }),
   }, DesktopPreferencesRow))
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action', id: 'desktop-release', order: 0, locale: NS,
+    name: 'sidebar.footer.action', id: 'desktop-release', order: -1000, locale: NS,
     inject: () => ({ controller }),
   }, ReleaseFooterAction))
 }

@@ -14,7 +14,7 @@ The Electron main process owns one durable preference file under `userData`, one
 
 The connecting page reveals the fixed Harness log after fifteen seconds without treating a slow start as failure. The main process reveals that known file or its parent directory and never accepts a renderer path. Restart, repeated failure, and recovery notifications are localized from the operating-system locale and throttled by event kind.
 
-Packaged applications query `flaqai/open-deepseek-harness-desktop` Releases and expose only normalized status plus a repository-validated Release URL. Prerelease clients follow their current prerelease channel and may move to a higher stable version; stable clients ignore prereleases. The client UI links to the Release page and does not download, install, or replace application files. Source runs retain the separate trusted-checkout updater.
+Packaged applications query `flaqai/open-deepseek-harness-desktop` Releases and expose only normalized status plus a repository-validated Release URL. Prerelease clients follow their current prerelease channel and may move to a higher stable version; stable clients ignore prereleases. In the desktop sidebar this owner suppresses plugin-provided footer shortcuts and renders one Release action only when an update exists, marking its icon with one blue dot; General Settings retains the detailed state and manual check. The client UI links to the Release page and does not download, install, or replace application files. Source runs retain the separate trusted-checkout updater.
 
 ## Alternatives considered
 

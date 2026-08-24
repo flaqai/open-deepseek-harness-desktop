@@ -65,7 +65,7 @@ Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web -
 
 ## 打包版本的 Release 发现
 
-打包应用会在启动后和用户明确请求时检查 `https://github.com/flaqai/open-deepseek-harness-desktop` 的 Releases。稳定版忽略预发布；rc 或 beta 客户端跟随同名预发布通道，也接受更高稳定版。可用版本会显示在“设置”上方和“通用设置”中。操作只会在系统浏览器打开经过校验的 GitHub Release 页面；应用不会下载、安装或替换安装程序。
+打包应用会在启动后和用户明确请求时检查 `https://github.com/flaqai/open-deepseek-harness-desktop` 的 Releases。稳定版忽略预发布；rc 或 beta 客户端跟随同名预发布通道，也接受更高稳定版。发现可用版本时，“设置”上方只显示这一项，图标右上角带一个蓝色圆点，同时继续在“通用设置”中显示版本状态；桌面宿主会隐藏其他插件提供的页脚快捷按钮。操作只会在系统浏览器打开经过校验的 GitHub Release 页面；应用不会下载、安装或替换安装程序。
 
 ## 安全性
 
@@ -77,7 +77,7 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 
 ## 跨平台发行矩阵
 
-源码宿主只使用 macOS、Windows 和 Linux 共用的 Electron 与 Node 进程 API。macOS 保留原生标题栏与交通灯按钮；Windows 和 Linux 使用无系统边框窗口，由 Harness 自绘可拖拽标题栏及最小化、最大化或还原、关闭按钮。打包工作流会在匹配的原生运行器上构建以下矩阵：
+源码宿主只使用 macOS、Windows 和 Linux 共用的 Electron 与 Node 进程 API。macOS 保留原生标题栏与交通灯按钮；Windows 和 Linux 使用无系统边框窗口，由 Harness 自绘 36 px 可拖拽标题栏及最小化、最大化或还原、关闭按钮。这两个平台的 Harness URL 会同时声明 36 px 的 `dsh-desktop-titlebar-inset`，使 Better Sidebar 等固定或全视口 Web 插件为桌面 chrome 预留空间，而不会渲染到窗口按钮下方。打包工作流会在匹配的原生运行器上构建以下矩阵：
 
 | 平台 | 原生运行器 | 产物 |
 | --- | --- | --- |

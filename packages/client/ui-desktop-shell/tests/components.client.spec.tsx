@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { DesktopBridge } from '../src/client/bridge.ts'
+import type { DesktopBridge, DesktopReleaseStatus } from '../src/client/bridge.ts'
 import { DesktopShellController } from '../src/client/controller.ts'
 import { DesktopPreferencesRow, type DesktopPreferencesRowProps } from '../src/client/DesktopPreferencesRow.tsx'
 import { ReleaseFooterAction, type ReleaseFooterActionProps } from '../src/client/ReleaseFooterAction.tsx'
@@ -15,7 +15,10 @@ const t = ((key: string, params?: Record<string, string | number>) => {
   return value
 }) as never
 
-function setup() {
+function setup(releaseStatus: DesktopReleaseStatus = {
+  phase: 'available', currentVersion: '0.1.0-rc.7', latestVersion: '0.1.0-rc.8',
+  publishedAt: '2026-08-20T00:00:00Z', releaseUrl: 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/dsh-v0.1.0-rc.8',
+}) {
   const updatePreferences = vi.fn((patch: Record<string, unknown>) => Promise.resolve({
     closeBehavior: patch.closeBehavior === 'quit' ? 'quit' as const : 'tray' as const,
     notificationsEnabled: patch.notificationsEnabled !== false,
@@ -34,10 +37,7 @@ function setup() {
       openLog: vi.fn(),
     },
     releases: {
-      getStatus: () => Promise.resolve({
-        phase: 'available', currentVersion: '0.1.0-rc.7', latestVersion: '0.1.0-rc.8',
-        publishedAt: '2026-08-20T00:00:00Z', releaseUrl: 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/dsh-v0.1.0-rc.8',
-      }),
+      getStatus: () => Promise.resolve(releaseStatus),
       check: vi.fn(), onStatus: () => () => {}, openDownload: vi.fn(() => Promise.resolve({ error: '' })),
     },
   }
@@ -65,6 +65,18 @@ describe('desktop shell components', () => {
     expect(view.container.querySelectorAll('[data-update-dot]')).toHaveLength(1)
     fireEvent.click(action)
     await waitFor(() => { expect(b.bridge.releases.openDownload).toHaveBeenCalledOnce() })
+    b.controller.dispose()
+  })
+
+  it('keeps the desktop footer owner mounted without an available Release', async () => {
+    const b = setup({ phase: 'current', currentVersion: '0.1.0-rc.8' })
+    const view = render(<ReleaseFooterAction {...({ wide: true, controller: b.controller, t } as ReleaseFooterActionProps)} />)
+
+    await waitFor(() => {
+      expect(view.container.querySelector('[data-desktop-release]')).toBeTruthy()
+      expect(view.container.querySelector('[data-desktop-release]')?.hasAttribute('hidden')).toBe(true)
+    })
+    expect(screen.queryByRole('button')).toBeNull()
     b.controller.dispose()
   })
 })

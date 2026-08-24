@@ -65,7 +65,7 @@ Set `DSH_DESKTOP_SOURCE_ROOT` only when testing a different trusted checkout. Th
 
 ## Packaged Release discovery
 
-Packaged applications check Releases from `https://github.com/flaqai/open-deepseek-harness-desktop` after startup and on explicit request. Stable clients ignore prereleases; an rc or beta client follows the same prerelease channel and also accepts a higher stable version. Available versions appear above Settings and in General Settings. The action opens the validated GitHub Release page in the system browser; the application never downloads, installs, or replaces an installer.
+Packaged applications check Releases from `https://github.com/flaqai/open-deepseek-harness-desktop` after startup and on explicit request. Stable clients ignore prereleases; an rc or beta client follows the same prerelease channel and also accepts a higher stable version. An available version appears as the sole action above Settings, with one blue dot on its icon, and in General Settings; other plugin-provided footer shortcuts stay hidden in the desktop host. The action opens the validated GitHub Release page in the system browser; the application never downloads, installs, or replaces an installer.
 
 ## Security
 
@@ -77,7 +77,7 @@ Profile plugins are trusted executable code. The embedded package runtime makes 
 
 ## Cross-platform release matrix
 
-The source host uses only Electron and Node process APIs that are shared by macOS, Windows, and Linux. macOS retains its native title bar and traffic lights. Windows and Linux use a frameless window with a Harness-owned draggable title bar and explicit minimize, maximize or restore, and close controls. The package workflow builds this matrix on matching native runners:
+The source host uses only Electron and Node process APIs that are shared by macOS, Windows, and Linux. macOS retains its native title bar and traffic lights. Windows and Linux use a frameless window with a Harness-owned draggable 36 px title bar and explicit minimize, maximize or restore, and close controls. Harness URLs on those platforms declare the same 36 px `dsh-desktop-titlebar-inset`, allowing fixed or full-viewport Web plugins such as Better Sidebar to reserve the desktop chrome instead of rendering beneath the window controls. The package workflow builds this matrix on matching native runners:
 
 | Platform | Native runner | Artifacts |
 | --- | --- | --- |

@@ -61,7 +61,9 @@ describe('ui-desktop-shell apply', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.slots.entries('settings.general.item')[0]?.component).toBe(DesktopPreferencesRow)
-    expect(b.slots.entries('sidebar.footer.action')[0]?.component).toBe(ReleaseFooterAction)
+    const release = b.slots.entries('sidebar.footer.action')[0]
+    expect(release?.component).toBe(ReleaseFooterAction)
+    expect(release?.options).toMatchObject({ id: 'desktop-release', order: -1000 })
     await fiber.dispose()
     expect(b.slots.entries('settings.general.item')).toEqual([])
     expect(b.slots.entries('sidebar.footer.action')).toEqual([])
