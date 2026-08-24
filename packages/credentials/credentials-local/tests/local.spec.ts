@@ -232,6 +232,7 @@ describe('document validation', () => {
     ['a sequence root', '- DSH_CRED_TEST\n', /must be a mapping/],
     ['a key that is not a POSIX identifier', 'not-a-ref: value\n', /credential ref/],
     ['a non-string value', 'DSH_CRED_TEST: 123\n', /must be a string/],
+    ['non-numeric version metadata', 'version: true\n', /must be a string/],
     ['an empty value', 'DSH_CRED_TEST: ""\n', /is empty/],
     ['duplicate keys', 'DSH_CRED_TEST: one\nDSH_CRED_TEST: two\n', /invalid document/],
     ['malformed yaml', 'DSH_CRED_TEST: "unterminated\n', /invalid document/],
@@ -271,9 +272,44 @@ describe('document validation', () => {
     const ctx = await boot({ path, watch: false })
     expect(await ctx.credentials.resolve(KEY)).toBeUndefined()
   })
+
+  it('ignores legacy numeric version metadata without relaxing other entries', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    await writeCredentials(path, 'version: 1\nDSH_CRED_TEST: stored\n')
+    const ctx = await boot({ path, watch: false })
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'stored', source: 'file' })
+    expect(await ctx.credentials.resolve(credentialRef('version'))).toBeUndefined()
+  })
+
+  it('reads the v1 version-and-refs wrapper as the canonical credential mapping', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_TEST: stored\n')
+    const ctx = await boot({ path, watch: false })
+    expect(await ctx.credentials.resolve(KEY)).toEqual({ value: 'stored', source: 'file' })
+  })
 })
 
 describe('document writes', () => {
+  it('removes ignored legacy version metadata on the next supported write', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    await writeCredentials(path, 'version: 1\nDSH_CRED_TEST: old\n')
+    const ctx = await boot({ path, watch: false })
+    await ctx.credentials.set(KEY, 'new')
+    expect(await readFile(path, 'utf8')).toBe('DSH_CRED_TEST: new\n')
+  })
+
+  it('flattens the v1 refs wrapper on the next supported write', async () => {
+    const dir = await tempDir()
+    const path = join(dir, '.credentials.yaml')
+    await writeCredentials(path, 'version: 1\nrefs:\n  DSH_CRED_TEST: old\n')
+    const ctx = await boot({ path, watch: false })
+    await ctx.credentials.set(KEY, 'new')
+    expect(await readFile(path, 'utf8')).toBe('DSH_CRED_TEST: new\n')
+  })
+
   it('adds a missing key to a fresh 0600 document and emits the commit', async () => {
     const dir = await tempDir()
     const path = join(dir, '.credentials.yaml')

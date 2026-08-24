@@ -40,7 +40,7 @@ import z from '@deepseek-ai/schemastery'
 import { watch as chokidarWatch } from 'chokidar'
 import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { Document, parseDocument, type YAMLError } from 'yaml'
+import { Document, isMap, parseDocument, type YAMLError } from 'yaml'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { canonicalizeWatchPath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
@@ -151,7 +151,29 @@ function describeYamlError(error: YAMLError): string {
  * @param filename - absolute path, quoted in errors.
  * @returns the parsed entries, keyed by reference.
  */
-export function parseCredentialsDocument(text: string, filename: string): Map<string, string> {
+interface ParsedCredentialsDocument {
+  entries: Map<string, string>
+  ignoredLegacyVersion: boolean
+}
+
+/** A desktop preview briefly wrote this metadata into the otherwise-flat store. */
+function isLegacyVersionMetadata(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+function isPlainMapping(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** The v1 preview wrapped the flat credential mapping in `refs`. */
+function legacyRefs(root: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!isLegacyVersionMetadata(root.version) || !isPlainMapping(root.refs)) return undefined
+  if (Object.keys(root).length !== 2) return undefined
+  return root.refs
+}
+
+/** Parse the document while recognizing the one known legacy metadata field. */
+function parseCredentialsDocumentState(text: string, filename: string): ParsedCredentialsDocument {
   // `prettyErrors` is on only for `linePos`; `error.message` is never used,
   // because the parser quotes the offending source line and in this document
   // that line is a secret. Only the code and position leave this function, and
@@ -162,12 +184,23 @@ export function parseCredentialsDocument(text: string, filename: string): Map<st
     throw new Error(`credentials-local: invalid document at ${filename}: ${
       document.errors.map(describeYamlError).join('; ')}`)
   }
-  const root: unknown = document.toJS() ?? {}
-  if (typeof root !== 'object' || root === null || Array.isArray(root)) {
+  const rawRoot: unknown = document.toJS() ?? {}
+  if (!isPlainMapping(rawRoot)) {
     throw new TypeError(`credentials-local: ${filename} must be a mapping of credential reference to value`)
   }
+  const wrappedRefs = legacyRefs(rawRoot)
+  const root = wrappedRefs ?? rawRoot
   const entries = new Map<string, string>()
-  for (const [key, value] of Object.entries(root as Record<string, unknown>)) {
+  let ignoredLegacyVersion = wrappedRefs !== undefined
+  for (const [key, value] of Object.entries(root)) {
+    // Some early desktop builds accidentally persisted their numeric document
+    // version beside the credentials. It was never a credential, so accepting
+    // it as one (for example by stringifying it) would be misleading. Ignore
+    // only this exact legacy shape; every other non-string remains invalid.
+    if (key === 'version' && isLegacyVersionMetadata(value)) {
+      ignoredLegacyVersion = true
+      continue
+    }
     // credentialRef throws on anything that is not a POSIX identifier, which
     // is exactly the constraint a stored reference must satisfy to be
     // addressable through the seam.
@@ -182,7 +215,11 @@ export function parseCredentialsDocument(text: string, filename: string): Map<st
     }
     entries.set(key, value)
   }
-  return entries
+  return { entries, ignoredLegacyVersion }
+}
+
+export function parseCredentialsDocument(text: string, filename: string): Map<string, string> {
+  return parseCredentialsDocumentState(text, filename).entries
 }
 
 /**
@@ -198,6 +235,17 @@ function renderDocument(text: string | undefined, ref: CredentialRef, value: str
   // `text` only ever caches content that parsed successfully, so this re-parse
   // for the mutable comment-preserving tree cannot fail.
   const document = text === undefined ? new Document({}) : parseDocument(text)
+  const root = document.toJS() ?? {}
+  if (isPlainMapping(root) && legacyRefs(root) !== undefined) {
+    // Preserve the existing YAML node and its entry formatting while replacing
+    // the obsolete wrapper with the canonical flat mapping.
+    const refs = document.get('refs', true)
+    if (!isMap(refs)) throw new Error('credentials-local: legacy refs must be a YAML mapping')
+    document.contents = refs
+  }
+  // A supported write also converges a compatible legacy document to the
+  // canonical flat mapping that current builds produce.
+  if (isLegacyVersionMetadata(document.getIn(['version']))) document.deleteIn(['version'])
   if (value === undefined) document.deleteIn([ref])
   else document.setIn([ref], value)
   return document.toString()
@@ -430,7 +478,14 @@ export class LocalCredentialProvider extends CredentialProvider {
       if (!isENOENT(error)) throw error
       return
     }
-    this.values = parseCredentialsDocument(text, this.spec.filename)
+    const parsed = parseCredentialsDocumentState(text, this.spec.filename)
+    if (parsed.ignoredLegacyVersion) {
+      this.ctx.logger.warn(
+        'credentials-local: ignoring legacy numeric "version" metadata in %s; the next credential write will remove it',
+        this.spec.filename,
+      )
+    }
+    this.values = parsed.entries
     this.text = text
   }
 
@@ -474,7 +529,14 @@ export class LocalCredentialProvider extends CredentialProvider {
       text = undefined
     }
     if (text === this.text || this.isClosed()) return
-    const next = text === undefined ? new Map<string, string>() : parseCredentialsDocument(text, this.spec.filename)
+    const parsed = text === undefined ? undefined : parseCredentialsDocumentState(text, this.spec.filename)
+    if (parsed?.ignoredLegacyVersion === true) {
+      this.ctx.logger.warn(
+        'credentials-local: ignoring legacy numeric "version" metadata in %s; the next credential write will remove it',
+        this.spec.filename,
+      )
+    }
+    const next = parsed?.entries ?? new Map<string, string>()
     const changed = this.changedRefs(this.values, next)
     this.text = text
     this.values = next
