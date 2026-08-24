@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-18-removable-bundled-plugin-market.md
-2026-08-18-removable-bundled-plugin-market.md: fd2bbae9164de25162f6a3662397592ce893c23b
-2026-08-18-removable-bundled-plugin-market.zh.md: 003a77d25c977f2b3489370bcbb2a57d6eec6488
+2026-08-18-removable-bundled-plugin-market.md: 73aaaec258e77f7f953660a5ee24014536cb74aa
+2026-08-18-removable-bundled-plugin-market.zh.md: d6e00e4d51ef33b0ee3c40825d92b61c60ea898a

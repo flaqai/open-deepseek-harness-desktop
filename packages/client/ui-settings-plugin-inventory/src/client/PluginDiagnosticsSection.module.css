@@ -124,6 +124,42 @@
   font-variant-numeric: tabular-nums;
 }
 
+.summaryAnalysis {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  padding-top: 11px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.summaryAnalysis > strong {
+  font-size: 12px;
+}
+
+.summaryAnalysis > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.summaryAnalysis p,
+.conflictDetail p {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.summaryAnalysis code,
+.conflictDetail code {
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--ds-font-family-code);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .inlineError {
   display: flex;
   align-items: flex-start;
@@ -133,6 +169,82 @@
   font-size: 12px;
   line-height: 18px;
   overflow-wrap: anywhere;
+}
+
+.fixtureDialog {
+  width: min(420px, 100%);
+  padding: 0;
+  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 26%, #e7e9ec);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.fixtureDialogContent {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.fixtureDialogCopy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fixtureDialogCopy strong {
+  color: #1f2329;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.fixtureDialogCopy p {
+  margin: 0;
+  color: #646a73;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.fixtureDialogActions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fixtureDialogActions button {
+  min-width: 68px;
+  height: 34px;
+  border-radius: 8px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.fixtureCancel {
+  border: 1px solid #dfe1e5;
+  background: #fff;
+  color: #25282d;
+}
+
+.fixtureCancel:hover {
+  background: #f5f6f7;
+}
+
+.fixtureConfirm {
+  border: 1px solid #17181a;
+  background: #17181a;
+  color: #fff;
+}
+
+.fixtureConfirm:hover {
+  filter: brightness(0.96);
 }
 
 .inlineError button {
@@ -221,6 +333,12 @@
 .finding > div:first-child span {
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
+}
+
+.conflictDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .explainers {

@@ -18,7 +18,9 @@ pnpm run dev:desktop
 
 应用提供与 `dsh web` 相同的引导和设置界面。用户无需维护第二份配置，即可配置 DeepSeek 或其他兼容 API Provider、选择模型、查看已安装插件、编辑受支持的插件设置、调用 Skill、选择工作区并管理会话。
 
-打包版本携带经过固定版本和完整性校验的 `dshmarket@1.19.0`、`@xmanrui/dsh-im@1.0.2`、`dsh-skill-picker@0.2.0`、`dsh-font@1.1.0`、`dsh-pocket@1.12.3` 与 `dsh-better-sidebar@0.15.2` 归档，并加入官方 `@deepseek-ai/dsh-subagent-codex@0.1.0-rc.8`、`@openai/codex@0.147.0` 和仅属于目标平台的原生 payload。启动阶段只预设前五个插件；Better Sidebar 仅在用户点击发现页安装操作后安装，Codex 仅在用户点击“外部工具”安装操作后安装。联网时优先使用精确 registry 版本或固定 Git 提交，使社区插件保留可更新的依赖身份；内置归档作为离线回退。持久种子标记在用户卸载后继续保留，因此启动不会擅自装回插件，而用户明确点击安装时仍可重新安装。构建只使用这些受控输入，不会复制开发电脑 Web profile 中已经安装或更新过的插件。
+打包版本携带经过固定版本和完整性校验的 `dshmarket@1.19.0`、`@xmanrui/dsh-im@1.0.2`、`dsh-skill-picker@0.2.0`、`dsh-font@1.1.0`、`dsh-pocket@1.12.3` 与 `dsh-better-sidebar@0.15.2` 归档，并加入官方 `@deepseek-ai/dsh-subagent-codex@0.1.0-rc.8`、`@openai/codex@0.147.0` 和仅属于目标平台的原生 payload。Harness 启动前只预设前五个插件；主界面可用后，右下角非阻塞卡片再校验、解压并配置 Better Sidebar。隐藏卡片不会停止任务，完成后提示重启应用，失败时提供重试与既有 Harness 日志入口。Codex 仍只在用户点击“外部工具”安装操作后安装。联网时优先使用精确 registry 版本或固定 Git 提交，使社区插件保留可更新的依赖身份；内置归档作为离线回退。持久种子标记在用户卸载后继续保留，因此启动与延后安装卡片都不会擅自装回插件，而用户明确点击发现页安装时仍可重新安装。构建只使用这些受控输入，不会复制开发电脑 Web profile 中已经安装或更新过的插件。
+
+开发与打包脚本会从 Desktop 和 Web 各自的应用目录执行。每个 Unix 打包命令都会把明确的平台与架构同时传给运行时和 Codex 准备步骤，使 macOS Apple 芯片、macOS Intel、Linux x64 与 Windows x64 的 staging 相互独立。
 
 ## 桌面发行包
 
@@ -84,7 +86,7 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 | Windows x64 | `windows-2025` | NSIS EXE |
 | Linux x64 | `ubuntu-24.04` | DEB 与 RPM |
 
-Windows 任务会把最终 NSIS 产物静默安装到包含空格和中文字符的路径，检查安装后的运行时，使用隔离的应用数据启动已安装程序，并在上传产物前要求 Harness 输出就绪行，同时确认五个启动预设的依赖、bundle 条目、Profile 锁文件和持久化 seed 标记均已生成。任务还要求 Better Sidebar 与 Windows x64 Codex 归档确实存在，但在用户操作前不得出现在 profile 中。其他平台仍需完成原生安装、首次启动、退出、子进程清理、目录选择、文件打开、PTY 与沙箱行为的发布验证。只有在发布签名与回滚可用后才添加已签名的更新元数据。
+Windows 任务会把最终 NSIS 产物静默安装到包含空格和中文字符的路径，检查安装后的运行时，使用隔离的应用数据启动已安装程序，并在上传产物前要求 Harness 输出就绪行，同时确认五个启动预设的依赖、bundle 条目、Profile 锁文件和持久化 seed 标记均已生成。任务还要求 Better Sidebar 与 Windows x64 Codex 归档确实存在；Codex 在用户操作前必须保持未安装，而 Better Sidebar 只能在可用主界面加载后开始处理。其他平台仍需完成原生安装、首次启动、退出、子进程清理、目录选择、文件打开、PTY 与沙箱行为的发布验证。只有在发布签名与回滚可用后才添加已签名的更新元数据。
 
 不得通过把整个工作区源码复制进 Electron 来打包仓库。发布产物必须只包含已发布的运行时闭包、生成的第三方声明，且不得包含开发凭证。
 

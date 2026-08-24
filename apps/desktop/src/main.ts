@@ -10,6 +10,7 @@ import { appendBundledPluginFailure } from './bundled-plugin-seed.ts'
 import {
   BundledPluginInstaller,
   installBundledPluginSource,
+  type BundledPluginDeferredStartResult,
   type BundledPluginManifest,
   type BundledPluginStartResult,
   type BundledPluginInstallSnapshot,
@@ -28,6 +29,7 @@ import { DesktopReleaseChecker, isAllowedReleaseUrl, type DesktopReleaseStatus }
 import { SourceUpdater } from './source-updater.ts'
 import { createDesktopLifecycle, type DesktopLifecycle } from './window-lifecycle.ts'
 import { usesCustomWindowFrame } from './window-frame.ts'
+import { stageDiagnosticFixture } from './diagnostic-fixture.ts'
 
 const APP_NAME = 'DeepSeek Harness'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
@@ -178,8 +180,8 @@ function applyDevelopmentDockIcon(): void {
   dock.setIcon(image)
 }
 
-async function runHarnessInvocation(launch: HarnessLaunch): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
+async function runHarnessInvocation(launch: HarnessLaunch): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(launch.command, launch.args, {
       env: { ...process.env, ...launch.environment },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -190,8 +192,9 @@ async function runHarnessInvocation(launch: HarnessLaunch): Promise<void> {
     child.stderr.on('data', (chunk: Buffer) => { output.push(chunk) })
     child.once('error', reject)
     child.once('close', (code, signal) => {
-      if (code === 0) resolve()
-      else reject(new Error(`desktop: bundled plugin install failed (${String(code)}, ${String(signal)}): ${Buffer.concat(output).toString('utf8').slice(-4000)}`))
+      const diagnostic = Buffer.concat(output).toString('utf8')
+      if (code === 0) resolve(diagnostic)
+      else reject(new Error(`desktop: Harness invocation failed (${String(code)}, ${String(signal)}): ${diagnostic.slice(-4000)}`))
     })
   })
 }
@@ -343,6 +346,14 @@ async function startApplication(): Promise<void> {
     }, 250)
     return { restarting: true as const }
   })
+  ipcMain.handle('dsh:desktop:restart', (event) => {
+    assertMainRenderer(event.sender)
+    setTimeout(() => {
+      app.relaunch()
+      app.quit()
+    }, 250)
+    return { restarting: true as const }
+  })
   ipcMain.handle('dsh:harness:retry', () => ({ started: supervisor?.retry() ?? false }))
   ipcMain.handle('dsh:harness:open-logs', () => openHarnessLog())
   ipcMain.handle('dsh:desktop:bundled-plugins:start', (event, request: unknown): BundledPluginStartResult => {
@@ -354,11 +365,36 @@ async function startApplication(): Promise<void> {
     }
     return bundledPluginInstaller?.startManual(profile, packageSpec) ?? { handled: false }
   })
+  ipcMain.handle('dsh:desktop:bundled-plugins:start-deferred', async (
+    event,
+    request: unknown,
+  ): Promise<BundledPluginDeferredStartResult> => {
+    assertMainRenderer(event.sender)
+    if (request === null || typeof request !== 'object') throw new TypeError('desktop: invalid bundled plugin request')
+    const { profile, packageSpec } = request as { profile?: unknown; packageSpec?: unknown }
+    if (typeof profile !== 'string' || typeof packageSpec !== 'string') {
+      throw new TypeError('desktop: invalid bundled plugin request')
+    }
+    return bundledPluginInstaller?.startDeferred(profile, packageSpec) ?? { handled: false }
+  })
   ipcMain.handle('dsh:desktop:bundled-plugins:get', (event, installId: unknown): BundledPluginInstallSnapshot => {
     assertMainRenderer(event.sender)
     if (typeof installId !== 'string') throw new TypeError('desktop: invalid bundled plugin install id')
     if (bundledPluginInstaller === undefined) throw new Error('desktop: bundled plugin installer is unavailable')
     return bundledPluginInstaller.getInstall(installId)
+  })
+  ipcMain.handle('dsh:desktop:diagnostic-fixture:install', async (event) => {
+    assertMainRenderer(event.sender)
+    if (app.isPackaged) throw new Error('desktop: diagnostic fixture is unavailable in packaged builds')
+    const fixtureSource = join(DEFAULT_SOURCE_ROOT, 'apps', 'desktop', 'fixtures', 'diagnostic-incompatible-plugin')
+    const fixtureArchive = await stageDiagnosticFixture(
+      fixtureSource,
+      join(app.getPath('userData'), 'diagnostic-fixtures', 'incompatible-plugin'),
+    )
+    const diagnostic = await runHarnessInvocation(resolveHarnessInvocation(process.env, [
+      'plugin', '--profile', 'web', 'add', fixtureArchive,
+    ]))
+    return { installed: true as const, diagnostic: diagnostic.slice(-4000) }
   })
   ipcMain.on('dsh:window:minimize', (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)

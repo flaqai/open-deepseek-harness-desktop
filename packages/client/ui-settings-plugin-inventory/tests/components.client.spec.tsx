@@ -272,6 +272,77 @@ describe('PluginDiagnosticsSection', () => {
     },
   }
 
+  it('installs the fixed source-mode fixture and reloads the real quarantine record', async () => {
+    const startDependencyDoctor = vi.fn()
+    const startUninstall = vi.fn()
+    const startQuarantineRetry = vi.fn()
+    const uninstallQuarantine = vi.fn()
+    const quarantinedSnapshot = {
+      entries: [],
+      dependencyHealth: {
+        lastRepair: { status: 'quarantined', conflicts: [] },
+        quarantined: [{
+          quarantineId: 'fixture-quarantine',
+          profile: 'web',
+          packageName: '@hecoococ/dsh-diagnostic-conflict-fixture',
+          packageSpec: 'file:fixture',
+          quarantinedAt: '2026-08-24T00:00:00.000Z',
+          reason: 'incompatible-host-dependency',
+          conflicts: [{
+            rootPackage: '@hecoococ/dsh-diagnostic-conflict-fixture',
+            dependencyChain: ['@hecoococ/dsh-diagnostic-conflict-fixture', '@deepseek-ai/dsh-tools'],
+            dependency: '@deepseek-ai/dsh-tools',
+            declaredRange: '^0.0.0',
+            declaredIn: 'dependencies',
+            hostVersion: '0.1.0-rc.8',
+            compatible: false,
+          }],
+        }],
+      },
+    } as unknown as Snapshot
+    const list = vi.fn()
+      .mockResolvedValueOnce(diagnosticsSnapshot)
+      .mockResolvedValue(quarantinedSnapshot)
+    const installDiagnosticFixture = vi.fn(async () => 'real quarantine report')
+    const view = render(<PluginDiagnosticsSection {...({
+      t,
+      installDiagnosticFixture,
+      list,
+      startDependencyDoctor,
+      getDependencyDoctor: vi.fn(),
+      getInstall: vi.fn(),
+      startUninstall,
+      startQuarantineRetry,
+      uninstallQuarantine,
+      dismissDependencyHealth: vi.fn(),
+    } as PluginDiagnosticsSectionProps)} />)
+
+    const installButton = await screen.findByRole('button', { name: en['diagnostics.fixture.install'] })
+    expect(screen.queryByText(en['diagnostics.fixture.title'])).toBeNull()
+    fireEvent.focus(installButton)
+    expect(await screen.findByText(en['diagnostics.fixture.description'])).toBeTruthy()
+    fireEvent.click(installButton)
+    expect(screen.getByRole('dialog', { name: en['diagnostics.fixture.title'] })).toBeTruthy()
+    expect(installDiagnosticFixture).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: en['diagnostics.fixture.cancel'] }))
+    expect(screen.queryByRole('dialog', { name: en['diagnostics.fixture.title'] })).toBeNull()
+    fireEvent.click(installButton)
+    fireEvent.click(screen.getByRole('button', { name: en['diagnostics.fixture.confirm'] }))
+    await waitFor(() => { expect(installDiagnosticFixture).toHaveBeenCalledOnce() })
+    expect(await screen.findAllByText('@hecoococ/dsh-diagnostic-conflict-fixture')).toHaveLength(2)
+    expect(screen.getByText(en['diagnostics.quarantined'])).toBeTruthy()
+    expect(screen.getByText(en['health.quarantine.reason.incompatible'])).toBeTruthy()
+    expect(view.container.textContent).toContain('@deepseek-ai/dsh-tools@^0.0.0')
+    expect(view.container.textContent).toContain('0.1.0-rc.8')
+    expect(screen.getByText(en['diagnostics.metric.issues']).parentElement?.querySelector('dd')?.textContent).toBe('1')
+    expect(screen.getByText(en['diagnostics.metric.conflicts']).parentElement?.querySelector('dd')?.textContent).toBe('1')
+    expect(screen.getByText(en['diagnostics.metric.quarantine']).parentElement?.querySelector('dd')?.textContent).toBe('1')
+    expect(startDependencyDoctor).not.toHaveBeenCalled()
+    expect(startUninstall).not.toHaveBeenCalled()
+    expect(startQuarantineRetry).not.toHaveBeenCalled()
+    expect(uninstallQuarantine).not.toHaveBeenCalled()
+  })
+
   it('runs a current read-only check and presents the structured result', async () => {
     const startDependencyDoctor = vi.fn(async () => healthy)
     render(<PluginDiagnosticsSection {...({

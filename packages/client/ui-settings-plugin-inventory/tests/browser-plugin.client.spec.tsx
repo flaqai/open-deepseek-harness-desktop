@@ -11,6 +11,7 @@ import { PluginInventorySettingsTab } from '../src/client/PluginInventorySetting
 import { PluginDiagnosticsSection } from '../src/client/PluginDiagnosticsSection.tsx'
 import { ExternalToolsSection } from '../src/client/ExternalToolsSection.tsx'
 import { PluginDiscovery } from '../src/client/PluginDiscovery.tsx'
+import { BetterSidebarInstallCard } from '../src/client/BetterSidebarInstallCard.tsx'
 import type { PluginInventorySettingsTabInjected } from '../src/client/PluginInventorySettingsTab.tsx'
 
 usePinnedBrowserLanguages('zh-CN')
@@ -73,6 +74,7 @@ function declare(slots: SlotRegistry): () => void {
       'settings.plugins.tab': { kind: 'list', scope: 'root' },
       'settings.section': { kind: 'list', scope: 'root' },
       'conversation.hero.pluginDiscovery': { kind: 'single', scope: 'root' },
+      'shell.overlay': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
 }
@@ -102,6 +104,7 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     expect(diagnostics.options).toMatchObject({ id: 'diagnostics', order: 25 })
     expect(resolveSlotLabel(diagnostics.options.label)).toBe('诊断')
     expect(b.slots.entries('conversation.hero.pluginDiscovery')[0]?.component).toBe(PluginDiscovery)
+    expect(b.slots.entries('shell.overlay')[0]?.component).toBe(BetterSidebarInstallCard)
     expect(b.list).not.toHaveBeenCalled()
 
     const injected = (entry.inject as unknown as () => PluginInventorySettingsTabInjected)()
@@ -119,6 +122,7 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
     expect(b.slots.entries('settings.section')).toHaveLength(0)
     expect(b.slots.entries('conversation.hero.pluginDiscovery')).toHaveLength(0)
+    expect(b.slots.entries('shell.overlay')).toHaveLength(0)
 
     const stop = declare(b.slots)
     await vi.waitFor(() => { expect(b.slots.entries('settings.plugins.tab')).toHaveLength(1) })
@@ -141,12 +145,14 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
       expect(sections.find(section => section.options.id === 'external-tools')?.component).toBe(ExternalToolsSection)
       expect(sections.find(section => section.options.id === 'diagnostics')?.component).toBe(PluginDiagnosticsSection)
       expect(b.slots.entries('conversation.hero.pluginDiscovery')[0]?.component).toBe(PluginDiscovery)
+      expect(b.slots.entries('shell.overlay')[0]?.component).toBe(BetterSidebarInstallCard)
     })
 
     await fiber.dispose()
     expect(b.slots.entries('settings.plugins.tab')).toHaveLength(0)
     expect(b.slots.entries('settings.section')).toHaveLength(0)
     expect(b.slots.entries('conversation.hero.pluginDiscovery')).toHaveLength(0)
+    expect(b.slots.entries('shell.overlay')).toHaveLength(0)
     expect(() => b.locale.register(NS, 'zh', {})).not.toThrow()
     await b.ctx.fiber.dispose()
   })

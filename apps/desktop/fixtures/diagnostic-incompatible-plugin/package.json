@@ -1,0 +1,19 @@
+{
+  "name": "@hecoococ/dsh-diagnostic-conflict-fixture",
+  "version": "0.0.0-development",
+  "private": true,
+  "type": "module",
+  "description": "Development-only DSH plugin fixture with a deliberately incompatible shared Host dependency",
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "^0.0.0"
+  },
+  "bundledDependencies": [
+    "@deepseek-ai/dsh-tools"
+  ]
+}

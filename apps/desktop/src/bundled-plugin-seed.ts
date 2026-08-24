@@ -23,9 +23,20 @@ export interface SeedBundledPluginOptions {
   readonly install: (archivePath: string, entry: BundledPluginManifestEntry) => Promise<void>
   /** Explicit UI installs may replace a tombstone left by an earlier uninstall. */
   readonly force?: boolean
+  /** Milestone updates for a desktop-owned progress surface. */
+  readonly onProgress?: (progress: BundledPluginSeedProgress) => void
 }
 
 export type SeedBundledPluginResult = 'installed' | 'already-seeded' | 'already-installed'
+
+/** Coarse installation milestones that remain truthful across package-manager implementations. */
+export type BundledPluginSeedStage = 'verifying' | 'extracting' | 'configuring'
+
+/** Point-in-time milestone emitted while one bundled plugin is being prepared. */
+export interface BundledPluginSeedProgress {
+  readonly stage: BundledPluginSeedStage
+  readonly progress: number
+}
 
 /**
  * Persist a preset installation failure before the Harness supervisor starts.
@@ -78,6 +89,46 @@ async function markerExists(path: string): Promise<boolean> {
   }
 }
 
+/**
+ * Check the durable uninstall-aware seed marker for one packaged entry.
+ * @param dshHome - Harness home directory that owns bundled-plugin state.
+ * @param entry - Exact allowlisted packaged plugin.
+ * @returns Whether startup or a prior deferred install has already handled the entry.
+ */
+export async function hasBundledPluginSeedMarker(
+  dshHome: string,
+  entry: BundledPluginManifestEntry,
+): Promise<boolean> {
+  assertBundledPluginManifestEntry(entry)
+  return markerExists(join(dshHome, 'bundled-plugins', `${entry.seedId}.seeded.json`))
+}
+
+/**
+ * Check whether dependency health deliberately removed this plugin from the active profile.
+ * A deferred installer must not undo quarantine automatically; an explicit user install may.
+ *
+ * @param dshHome - Harness home directory that owns quarantine state.
+ * @param entry - allowlisted packaged plugin being considered for deferred installation.
+ * @returns Whether a matching durable quarantine record exists.
+ */
+export async function hasBundledPluginQuarantineRecord(
+  dshHome: string,
+  entry: BundledPluginManifestEntry,
+): Promise<boolean> {
+  assertBundledPluginManifestEntry(entry)
+  try {
+    const parsed = JSON.parse(await readFile(join(dshHome, 'quarantine', 'profile-plugins.json'), 'utf8')) as {
+      plugins?: Array<{ profile?: unknown; packageName?: unknown }>
+    }
+    return Array.isArray(parsed.plugins) && parsed.plugins.some(record => (
+      record.profile === entry.profile && record.packageName === entry.packageName
+    ))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
+}
+
 async function writeMarker(path: string, entry: BundledPluginManifestEntry): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
   const temporary = `${path}.${process.pid}.tmp`
@@ -93,17 +144,20 @@ async function writeMarker(path: string, entry: BundledPluginManifestEntry): Pro
 
 /** Seed once. The durable marker intentionally survives a later user uninstall. */
 export async function seedBundledPlugin(options: SeedBundledPluginOptions): Promise<SeedBundledPluginResult> {
-  const { entry, resourcesDirectory, dshHome, install, force = false } = options
+  const { entry, resourcesDirectory, dshHome, install, force = false, onProgress } = options
   assertBundledPluginManifestEntry(entry)
   const stateDirectory = join(dshHome, 'bundled-plugins')
   const markerPath = join(stateDirectory, `${entry.seedId}.seeded.json`)
   if (!force && await markerExists(markerPath)) return 'already-seeded'
 
   if (await hasDependency(join(dshHome, 'profiles', entry.profile, 'package.json'), entry.packageName)) {
+    onProgress?.({ stage: 'configuring', progress: 90 })
     await writeMarker(markerPath, entry)
+    onProgress?.({ stage: 'configuring', progress: 100 })
     return 'already-installed'
   }
 
+  onProgress?.({ stage: 'verifying', progress: 8 })
   const source = join(resourcesDirectory, entry.archive)
   const bytes = await readFile(source)
   const actualIntegrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
@@ -113,7 +167,10 @@ export async function seedBundledPlugin(options: SeedBundledPluginOptions): Prom
   await mkdir(stateDirectory, { recursive: true })
   const stableArchive = join(stateDirectory, entry.archive)
   await copyFile(source, stableArchive)
+  onProgress?.({ stage: 'extracting', progress: 46 })
   await install(stableArchive, entry)
+  onProgress?.({ stage: 'configuring', progress: 90 })
   await writeMarker(markerPath, entry)
+  onProgress?.({ stage: 'configuring', progress: 100 })
   return 'installed'
 }

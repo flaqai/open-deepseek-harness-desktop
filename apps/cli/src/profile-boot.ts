@@ -91,6 +91,44 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
 /** A package name reserved for modules supplied by the running Harness installation. */
 const IN_BOX_PACKAGE_PREFIX = '@deepseek-ai/dsh-'
 
+/** Third-party modules that own process-global routes/services and cannot be mounted twice. */
+const SINGLETON_PLUGIN_MODULES = new Set(['dsh-better-sidebar'])
+
+/**
+ * Temporarily disable later duplicate rows for known third-party singleton plugins.
+ *
+ * Better Sidebar was historically mounted from a hand-written profile patch and is
+ * now also available as a bundle. Keeping both rows active makes both instances
+ * register `/sidebar/api`, which aborts the entire profile before diagnostics can
+ * render. The first enabled row remains authoritative; only later duplicates are
+ * disabled in memory, so user configuration is preserved and can still be edited.
+ *
+ * @param patchLayers - effective patch layers in application order.
+ * @returns id-targeted disable overlays for later singleton duplicates.
+ */
+export function quarantineDuplicateSingletonLoaderEntries(
+  patchLayers: readonly (readonly PatchOptions[])[],
+): PatchOptions[] {
+  const firstByModule = new Map<string, string>()
+  const recovered: PatchOptions[] = []
+  for (const row of composeEntries(patchLayers.map(layer => [...layer]))) {
+    if (typeof row.id !== 'string' || typeof row.name !== 'string'
+      || !SINGLETON_PLUGIN_MODULES.has(row.name) || row.disabled === true) continue
+    const first = firstByModule.get(row.name)
+    if (first === undefined) {
+      firstByModule.set(row.name, row.id)
+      continue
+    }
+    if (first === row.id) continue
+    recovered.push({ id: row.id, disabled: true })
+    process.stderr.write(
+      `${NAME}: temporarily disabled duplicate singleton loader entry ${JSON.stringify(row.id)} (${row.name}); `
+      + `entry ${JSON.stringify(first)} already owns this plugin. Remove the legacy duplicate from cordis.patch.yml.\n`,
+    )
+  }
+  return recovered
+}
+
 /**
  * Return temporary disable patches for stale user loader rows that name an
  * in-box package no longer supplied by this Harness installation.
@@ -207,11 +245,25 @@ function composeProfile(
   const staleLoaderQuarantine = quarantineStaleInBoxLoaderEntries(
     bundlePatches, [...profile.patches, ...homePatches], profile.dir,
   )
+  const duplicateSingletonQuarantine = quarantineDuplicateSingletonLoaderEntries([
+    bundlePatches,
+    profile.patches,
+    homePatches,
+    overlays,
+    staleLoaderQuarantine,
+  ])
   const rows = new Map<string, EntryOptions>()
-  for (const row of composeEntries([bundlePatches, profile.patches, homePatches, overlays, staleLoaderQuarantine])) {
+  for (const row of composeEntries([
+    bundlePatches,
+    profile.patches,
+    homePatches,
+    overlays,
+    staleLoaderQuarantine,
+    duplicateSingletonQuarantine,
+  ])) {
     if (typeof row.id === 'string') rows.set(row.id, row)
   }
-  const composedOverlays = [...overlays, ...staleLoaderQuarantine]
+  const composedOverlays = [...overlays, ...staleLoaderQuarantine, ...duplicateSingletonQuarantine]
   // The SHIPPED root is the part of the roster only this app can resolve: it
   // sits beside this app's own config, in both the source and built layouts.
   // The writable root the roster appends is `dsh-agent-presets`' own, so a

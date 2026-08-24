@@ -12,7 +12,9 @@ import {
   Button,
   IconRefreshOutline16,
   IconWarningOutline16,
+  Modal,
   RiskConfirmation,
+  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PluginInventoryLocaleKey } from './locales.ts'
@@ -20,6 +22,8 @@ import css from './PluginDiagnosticsSection.module.css'
 
 /** Remote operations owned by the dedicated Diagnostics settings page. */
 export interface PluginDiagnosticsSectionInjected {
+  /** Install the fixed incompatible test plugin; present only in Electron source mode. */
+  readonly installDiagnosticFixture?: () => Promise<string | undefined>
   /** Read retained repair and quarantine state. */
   list: () => Promise<PluginInventorySnapshot>
   /** Start a current dependency-tree check or repair. */
@@ -75,6 +79,12 @@ const RETRY_KEYS = {
   failed: 'health.retry.failed',
 } satisfies Record<Exclude<PluginInstallSnapshot['phase'], 'running'>, PluginInventoryLocaleKey>
 
+const QUARANTINE_REASON_KEYS = {
+  'incompatible-host-dependency': 'health.quarantine.reason.incompatible',
+  'convergence-failed': 'health.quarantine.reason.convergenceFailed',
+  'orphaned-bundle': 'health.quarantine.reason.orphanedBundle',
+} satisfies Record<PluginInventorySnapshot['dependencyHealth']['quarantined'][number]['reason'], PluginInventoryLocaleKey>
+
 type UninstallTarget =
   | { readonly kind: 'active'; readonly packageName: string }
   | { readonly kind: 'quarantine'; readonly quarantineId: string }
@@ -90,6 +100,7 @@ function uninstallSucceeded(snapshot: PluginInstallSnapshot | undefined): boolea
 
 /** Dedicated profile dependency diagnosis and recovery page. */
 export function PluginDiagnosticsSection({
+  installDiagnosticFixture,
   list,
   startDependencyDoctor,
   getDependencyDoctor,
@@ -103,6 +114,8 @@ export function PluginDiagnosticsSection({
   const [revision, setRevision] = useState(0)
   const [inventory, setInventory] = useState<InventoryState>({ status: 'loading' })
   const [doctor, setDoctor] = useState<PluginDoctorSnapshot | null>(null)
+  const [diagnosticFixtureConfirmOpen, setDiagnosticFixtureConfirmOpen] = useState(false)
+  const [diagnosticFixtureInstalling, setDiagnosticFixtureInstalling] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [quarantineInstall, setQuarantineInstall] = useState<{
     quarantineId: string
@@ -191,6 +204,23 @@ export function PluginDiagnosticsSection({
       (error) => { setActionError(errorMessage(error)) },
     )
   }
+  const confirmDiagnosticFixture = (): void => {
+    if (installDiagnosticFixture === undefined) return
+    setDiagnosticFixtureConfirmOpen(false)
+    setActionError(null)
+    setDiagnosticFixtureInstalling(true)
+    void installDiagnosticFixture().then(
+      () => {
+        setDiagnosticFixtureInstalling(false)
+        setDoctor(null)
+        setRevision(value => value + 1)
+      },
+      (error) => {
+        setDiagnosticFixtureInstalling(false)
+        setActionError(errorMessage(error))
+      },
+    )
+  }
   const confirmUninstall = (): void => {
     if (uninstallTarget === null) return
     const target = uninstallTarget
@@ -232,13 +262,28 @@ export function PluginDiagnosticsSection({
   const failedEntries = inventory.status === 'ready'
     ? inventory.snapshot.entries.filter(entry => entry.enabled && entry.fiberPhase === 'failed')
     : []
-  const issueCount = (report?.conflicts.length ?? 0) + (report?.orphanedBundles.length ?? 0) + failedEntries.length
+  const retainedConflicts = retained?.conflicts ?? []
+  const quarantinedConflicts = quarantined.flatMap(record => record.conflicts)
+  const visibleConflicts = report !== undefined && report.conflicts.length > 0
+    ? report.conflicts
+    : retainedConflicts.length > 0 ? retainedConflicts : quarantinedConflicts
+  const retainedOrphanCount = quarantined.filter(record => record.reason === 'orphaned-bundle').length
+  const visibleOrphanCount = report !== undefined && report.orphanedBundles.length > 0
+    ? report.orphanedBundles.length
+    : retainedOrphanCount
+  const issueCount = new Set([
+    ...(report?.conflicts ?? []).map(conflict => `plugin:${conflict.rootPackage}`),
+    ...(report?.orphanedBundles ?? []).map(bundle => `plugin:${bundle.packageName}`),
+    ...quarantined.map(record => `plugin:${record.packageName}`),
+    ...failedEntries.map(entry => `runtime:${entry.entryId}`),
+  ]).size
+  const effectiveDoctorPhase = doctor?.phase ?? retained?.status ?? (quarantined.length > 0 ? 'quarantined' : 'idle')
   const statusKey = doctor?.phase === 'healthy' && failedEntries.length > 0
     ? 'diagnostics.runtimeIssues'
     : doctor === null && failedEntries.length > 0
       ? 'diagnostics.runtimeIssues'
       : doctor === null
-        ? 'diagnostics.notChecked'
+        ? retained === null ? 'diagnostics.notChecked' : DOCTOR_KEYS[retained.status]
         : DOCTOR_KEYS[doctor.phase]
 
   return (
@@ -249,6 +294,23 @@ export function PluginDiagnosticsSection({
           <p>{t('diagnostics.description')}</p>
         </div>
         <div className={css.actions}>
+          {installDiagnosticFixture !== undefined ? (
+            <Tooltip
+              label={t('diagnostics.fixture.description')}
+              side="bottom"
+              delayMs={250}
+              maxWidth={320}
+            >
+              <Button
+                variant="outline"
+                disabled={diagnosticFixtureInstalling}
+                onClick={() => { setDiagnosticFixtureConfirmOpen(true) }}
+              >
+                <IconWarningOutline16 size={14} />
+                {t(diagnosticFixtureInstalling ? 'diagnostics.fixture.installing' : 'diagnostics.fixture.install')}
+              </Button>
+            </Tooltip>
+          ) : null}
           <Button variant="outline" disabled={doctor?.phase === 'running'} onClick={() => { runDoctor(false) }}>
             <IconRefreshOutline16 size={14} />
             {t('diagnostics.check')}
@@ -259,18 +321,40 @@ export function PluginDiagnosticsSection({
         </div>
       </header>
 
-      <div className={css.summary} data-doctor-phase={doctor?.phase ?? 'idle'}>
+      <div className={css.summary} data-doctor-phase={effectiveDoctorPhase}>
         <div className={css.summaryLead}>
           <span className={css.healthDot} aria-hidden="true" />
           <strong>{t(statusKey)}</strong>
         </div>
         <dl>
           <div><dt>{t('diagnostics.metric.issues')}</dt><dd>{issueCount}</dd></div>
-          <div><dt>{t('diagnostics.metric.conflicts')}</dt><dd>{report?.conflicts.length ?? 0}</dd></div>
-          <div><dt>{t('diagnostics.metric.orphans')}</dt><dd>{report?.orphanedBundles.length ?? 0}</dd></div>
+          <div><dt>{t('diagnostics.metric.conflicts')}</dt><dd>{visibleConflicts.length}</dd></div>
+          <div><dt>{t('diagnostics.metric.orphans')}</dt><dd>{visibleOrphanCount}</dd></div>
           <div><dt>{t('diagnostics.metric.runtime')}</dt><dd>{failedEntries.length}</dd></div>
           <div><dt>{t('diagnostics.metric.quarantine')}</dt><dd>{quarantined.length}</dd></div>
         </dl>
+        {quarantined.length > 0 ? (
+          <div className={css.summaryAnalysis}>
+            <strong>{t('diagnostics.summary.analysis')}</strong>
+            {quarantined.map(record => (
+              <div key={record.quarantineId}>
+                <span><b>{record.packageName}</b> · {t(QUARANTINE_REASON_KEYS[record.reason])}</span>
+                {record.conflicts.length > 0 ? record.conflicts.map(conflict => (
+                  <p key={`${conflict.dependencyChain.join('>')}:${conflict.declaredIn}`}>
+                    <code>{conflict.dependencyChain.join(' → ')}</code>
+                    {' · '}{t('health.quarantine.conflict.requires')} {conflict.dependency}@{conflict.declaredRange}
+                    {' · '}{t('health.quarantine.conflict.hostUses')} {conflict.hostVersion}
+                    {' · '}{t(conflict.compatible
+                      ? 'health.quarantine.conflict.convergence'
+                      : 'health.quarantine.conflict.incompatible')}
+                  </p>
+                )) : (
+                  <p>{t(`health.quarantine.analysis.${record.reason}`)}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {inventory.status === 'loading' ? <p className={css.muted}>{t('diagnostics.loading')}</p> : null}
@@ -379,12 +463,17 @@ export function PluginDiagnosticsSection({
               : undefined
             return (
               <article className={css.finding} key={record.quarantineId} data-quarantined-plugin={record.packageName}>
-                <div><strong>{record.packageName}</strong><span>{record.reason}</span></div>
+                <div><strong>{record.packageName}</strong><span>{t(QUARANTINE_REASON_KEYS[record.reason])}</span></div>
                 {record.conflicts.map(conflict => (
-                  <code key={`${conflict.dependencyChain.join('>')}:${conflict.declaredIn}`}>
-                    {conflict.dependency}@{conflict.declaredRange} → Host {conflict.hostVersion}
-                  </code>
+                  <div className={css.conflictDetail} key={`${conflict.dependencyChain.join('>')}:${conflict.declaredIn}`}>
+                    <code>{conflict.dependencyChain.join(' → ')}</code>
+                    <p>
+                      {t('health.quarantine.conflict.requires')} {conflict.dependency}@{conflict.declaredRange}
+                      {' · '}{t('health.quarantine.conflict.hostUses')} {conflict.hostVersion}
+                    </p>
+                  </div>
                 ))}
+                {record.conflicts.length === 0 ? <p>{t(`health.quarantine.analysis.${record.reason}`)}</p> : null}
                 <div className={css.actions}>
                   <Button variant="primary" disabled={active?.phase === 'running' || removal?.phase === 'running'} onClick={() => {
                     setActionError(null)
@@ -419,6 +508,29 @@ export function PluginDiagnosticsSection({
           <p>{t('diagnostics.safety.body')}</p>
         </details>
       </div>
+      <Modal
+        open={diagnosticFixtureConfirmOpen}
+        onClose={() => { setDiagnosticFixtureConfirmOpen(false) }}
+        title={t('diagnostics.fixture.title')}
+        className={css.fixtureDialog ?? ''}
+        headless
+      >
+        <div className={css.fixtureDialogContent}>
+          <IconWarningOutline16 size={22} />
+          <div className={css.fixtureDialogCopy}>
+            <strong>{t('diagnostics.fixture.title')}</strong>
+            <p>{t('diagnostics.fixture.description')}</p>
+          </div>
+          <div className={css.fixtureDialogActions}>
+            <button type="button" className={css.fixtureCancel} onClick={() => { setDiagnosticFixtureConfirmOpen(false) }}>
+              {t('diagnostics.fixture.cancel')}
+            </button>
+            <button type="button" className={css.fixtureConfirm} onClick={confirmDiagnosticFixture}>
+              {t('diagnostics.fixture.confirm')}
+            </button>
+          </div>
+        </div>
+      </Modal>
       <RiskConfirmation
         open={uninstallTarget !== null}
         title={t(uninstallTarget?.kind === 'quarantine' ? 'health.uninstall.confirm.title' : 'diagnostics.uninstall.confirm.title')}

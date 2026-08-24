@@ -4,13 +4,23 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import { PluginInventorySettingsTab, type PluginInventorySettingsTabInjected } from './PluginInventorySettingsTab.tsx'
 import { PluginDiagnosticsSection, type PluginDiagnosticsSectionInjected } from './PluginDiagnosticsSection.tsx'
 import { PluginDiscovery } from './PluginDiscovery.tsx'
 import type { PluginDiscoveryInjected } from './PluginDiscovery.tsx'
 import { ExternalToolsSection, type ExternalToolsSectionInjected } from './ExternalToolsSection.tsx'
+import { BetterSidebarInstallCard, type BetterSidebarInstallCardInjected } from './BetterSidebarInstallCard.tsx'
 import { en, zh, type PluginInventoryLocaleKey } from './locales.ts'
-import { getPluginInstall, startPluginInstall } from './bundled-install-bridge.ts'
+import {
+  getDeferredPluginInstall,
+  getPluginInstall,
+  installDesktopDiagnosticFixture,
+  openDesktopHarnessLog,
+  restartDesktopApplication,
+  startDeferredPluginInstall,
+  startPluginInstall,
+} from './bundled-install-bridge.ts'
 
 export type { PluginInventorySettingsTabInjected, PluginInventorySettingsTabProps } from './PluginInventorySettingsTab.tsx'
 export type { PluginDiagnosticsSectionInjected, PluginDiagnosticsSectionProps } from './PluginDiagnosticsSection.tsx'
@@ -64,6 +74,7 @@ export function apply(ctx: ClientContext): void {
     list,
     getInstall,
     startUninstall,
+    installDiagnosticFixture: installDesktopDiagnosticFixture,
     startDependencyDoctor: async (request) => {
       const result = await ctx.remote.pluginInventory.startDependencyDoctor(request)
       if (!result.ok) throw new Error(`pluginInventory.startDependencyDoctor failed: ${result.error.code}: ${result.error.message}`)
@@ -115,6 +126,12 @@ export function apply(ctx: ClientContext): void {
       return result.value
     },
   })
+  const betterSidebarInjected = (): BetterSidebarInstallCardInjected => ({
+    startInstall: startDeferredPluginInstall,
+    getInstall: getDeferredPluginInstall,
+    openLog: openDesktopHarnessLog,
+    restart: restartDesktopApplication,
+  })
 
   ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
     name: 'settings.plugins.tab',
@@ -145,4 +162,11 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: discoveryInjected,
   }, PluginDiscovery))
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'better-sidebar-install',
+    order: 20,
+    locale: NS,
+    inject: betterSidebarInjected,
+  }, BetterSidebarInstallCard))
 }

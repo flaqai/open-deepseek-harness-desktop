@@ -1,0 +1,7 @@
+{
+  "name": "@deepseek-ai/dsh-tools",
+  "version": "0.0.0-diagnostic-fixture",
+  "private": true,
+  "type": "module",
+  "description": "Deliberately incompatible package identity used only by the desktop diagnostic fixture"
+}

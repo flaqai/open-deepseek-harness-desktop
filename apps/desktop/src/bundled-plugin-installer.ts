@@ -3,8 +3,12 @@
 import { randomUUID } from 'node:crypto'
 import {
   assertBundledPluginManifestEntry,
+  hasBundledPluginQuarantineRecord,
+  hasBundledPluginSeedMarker,
   seedBundledPlugin,
   type BundledPluginManifestEntry,
+  type BundledPluginSeedProgress,
+  type BundledPluginSeedStage,
   type SeedBundledPluginResult,
 } from './bundled-plugin-seed.ts'
 
@@ -21,6 +25,8 @@ export interface BundledPluginInstallSnapshot {
   readonly packageSpec: string
   readonly command: string
   readonly phase: BundledPluginInstallPhase
+  readonly stage: BundledPluginSeedStage
+  readonly progress: number
   readonly exitCode?: number | null
   readonly diagnostic?: string
 }
@@ -28,6 +34,10 @@ export interface BundledPluginInstallSnapshot {
 export type BundledPluginStartResult =
   | { readonly handled: false }
   | { readonly handled: true; readonly snapshot: BundledPluginInstallSnapshot }
+
+export type BundledPluginDeferredStartResult =
+  | { readonly handled: false }
+  | { readonly handled: true; readonly snapshot?: BundledPluginInstallSnapshot }
 
 export interface BundledPluginInstallerOptions {
   readonly manifest: BundledPluginManifest
@@ -121,12 +131,32 @@ export class BundledPluginInstaller {
 
   /** Start only an exact manual entry; all other registry requests stay Host-owned. */
   startManual(profile: string, packageSpec: string): BundledPluginStartResult {
-    const entry = this.options.manifest.plugins.find(candidate => (
+    const entry = this.findManual(profile, packageSpec)
+    if (entry === undefined) return { handled: false }
+
+    return this.startJob(entry, true)
+  }
+
+  /** Start an entry after the shell is ready while preserving a prior uninstall marker. */
+  async startDeferred(profile: string, packageSpec: string): Promise<BundledPluginDeferredStartResult> {
+    const entry = this.findManual(profile, packageSpec)
+    if (entry === undefined) return { handled: false }
+    if (await hasBundledPluginSeedMarker(this.options.dshHome, entry)) return { handled: true }
+    if (await hasBundledPluginQuarantineRecord(this.options.dshHome, entry)) return { handled: true }
+    return this.startJob(entry, false)
+  }
+
+  private findManual(profile: string, packageSpec: string): BundledPluginManifestEntry | undefined {
+    return this.options.manifest.plugins.find(candidate => (
       candidate.installPolicy === 'manual'
       && candidate.profile === profile
       && bundledPluginRequestSpec(candidate) === packageSpec
     ))
-    if (entry === undefined) return { handled: false }
+  }
+
+  private startJob(entry: BundledPluginManifestEntry, force: boolean): BundledPluginStartResult {
+    const packageSpec = bundledPluginRequestSpec(entry)
+    const profile = entry.profile
 
     const target = `${profile}\0${packageSpec}`
     const activeId = this.activeTargets.get(target)
@@ -142,11 +172,13 @@ export class BundledPluginInstaller {
       packageSpec,
       command: `dsh plugin --profile ${profile} add ${packageSpec}`,
       phase: 'running',
+      stage: 'verifying',
+      progress: 0,
     }
     const job: InstallJob = { snapshot, target }
     this.jobs.set(installId, job)
     this.activeTargets.set(target, installId)
-    void this.runManual(job, entry)
+    void this.runJob(job, entry, force)
     return { handled: true, snapshot }
   }
 
@@ -160,20 +192,28 @@ export class BundledPluginInstaller {
     return job.snapshot
   }
 
-  private async seed(entry: BundledPluginManifestEntry, force: boolean): Promise<SeedBundledPluginResult> {
+  private async seed(
+    entry: BundledPluginManifestEntry,
+    force: boolean,
+    onProgress?: (progress: BundledPluginSeedProgress) => void,
+  ): Promise<SeedBundledPluginResult> {
     return seedBundledPlugin({
       entry,
       resourcesDirectory: this.options.resourcesDirectory,
       dshHome: this.options.dshHome,
       install: this.options.install,
       force,
+      ...(onProgress === undefined ? {} : { onProgress }),
     })
   }
 
-  private async runManual(job: InstallJob, entry: BundledPluginManifestEntry): Promise<void> {
+  private async runJob(job: InstallJob, entry: BundledPluginManifestEntry, force: boolean): Promise<void> {
     try {
-      await this.seed(entry, true)
-      job.snapshot = { ...job.snapshot, phase: 'succeeded', exitCode: 0 }
+      await this.seed(entry, force, (progress) => {
+        if (job.snapshot.phase !== 'running') return
+        job.snapshot = { ...job.snapshot, ...progress }
+      })
+      job.snapshot = { ...job.snapshot, phase: 'succeeded', stage: 'configuring', progress: 100, exitCode: 0 }
     } catch (error) {
       job.snapshot = { ...job.snapshot, phase: 'failed', exitCode: 1, diagnostic: errorDiagnostic(error) }
       try {

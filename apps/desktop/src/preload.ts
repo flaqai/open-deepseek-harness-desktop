@@ -6,6 +6,7 @@ import type { DesktopPreferences, DesktopPreferencesPatch } from './preferences.
 import type { DesktopReleaseStatus } from './release-checker.ts'
 import type { SourceUpdateResult, SourceUpdateStatus } from './source-updater.ts'
 import type {
+  BundledPluginDeferredStartResult,
   BundledPluginInstallSnapshot,
   BundledPluginStartResult,
 } from './bundled-plugin-installer.ts'
@@ -39,6 +40,7 @@ export interface DesktopShellBridge {
   updatePreferences(patch: DesktopPreferencesPatch): Promise<DesktopPreferences>
   onPreferences(callback: (preferences: DesktopPreferences) => void): () => void
   openLog(): Promise<OpenLogResult>
+  restart(): Promise<{ restarting: true }>
 }
 
 /** Release discovery bridge; it never downloads or installs application files. */
@@ -52,7 +54,13 @@ export interface DesktopReleasesBridge {
 /** Exact allowlisted bundled-plugin operations; no arbitrary package path is exposed. */
 export interface DesktopBundledPluginsBridge {
   startInstall(request: { profile: string; packageSpec: string }): Promise<BundledPluginStartResult>
+  startDeferred(request: { profile: string; packageSpec: string }): Promise<BundledPluginDeferredStartResult>
   getInstall(installId: string): Promise<BundledPluginInstallSnapshot>
+}
+
+/** Fixed source-mode fixture operation; no renderer-supplied path is accepted. */
+export interface DesktopDiagnosticFixturesBridge {
+  install(): Promise<{ installed: true; diagnostic: string }>
 }
 
 const shellBridge: DesktopShellBridge = {
@@ -65,6 +73,7 @@ const shellBridge: DesktopShellBridge = {
     return () => { ipcRenderer.removeListener('dsh:desktop:preferences', listener) }
   },
   openLog: () => ipcRenderer.invoke('dsh:desktop:log:open') as Promise<OpenLogResult>,
+  restart: () => ipcRenderer.invoke('dsh:desktop:restart') as Promise<{ restarting: true }>,
 }
 
 const releasesBridge: DesktopReleasesBridge = {
@@ -80,7 +89,12 @@ const releasesBridge: DesktopReleasesBridge = {
 
 const bundledPluginsBridge: DesktopBundledPluginsBridge = {
   startInstall: request => ipcRenderer.invoke('dsh:desktop:bundled-plugins:start', request) as Promise<BundledPluginStartResult>,
+  startDeferred: request => ipcRenderer.invoke('dsh:desktop:bundled-plugins:start-deferred', request) as Promise<BundledPluginDeferredStartResult>,
   getInstall: installId => ipcRenderer.invoke('dsh:desktop:bundled-plugins:get', installId) as Promise<BundledPluginInstallSnapshot>,
+}
+
+const diagnosticFixturesBridge: DesktopDiagnosticFixturesBridge = {
+  install: () => ipcRenderer.invoke('dsh:desktop:diagnostic-fixture:install') as Promise<{ installed: true; diagnostic: string }>,
 }
 
 const sourceMode = process.argv.includes('--dsh-source')
@@ -88,7 +102,10 @@ contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({
   shell: Object.freeze(shellBridge),
   releases: Object.freeze(releasesBridge),
   bundledPlugins: Object.freeze(bundledPluginsBridge),
-  ...(sourceMode ? { updater: Object.freeze(bridge) } : {}),
+  ...(sourceMode ? {
+    updater: Object.freeze(bridge),
+    diagnosticFixtures: Object.freeze(diagnosticFixturesBridge),
+  } : {}),
 }))
 
 function installLoadingPage(): void {

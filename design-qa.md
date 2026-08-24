@@ -41,4 +41,26 @@ A separate crop was not needed: at matched 1487 × 1058 dimensions the rail labe
 
 - P3: if a future design pass wants exact mock proportions, the rail may grow from 250px toward 300px and the modal toward 1160 × 840px. Current proportions intentionally align with existing Settings geometry and do not reduce usability.
 
+## Better Sidebar deferred-install card design QA
+
+- Reference: selected Product Design option 3 (`exec-319684e4-0aea-4610-9395-51859add8769.png`), 1680 × 945.
+- Implementation capture: `/private/tmp/better-sidebar-qa-final.jpg`, normalized to the same 16:9 state.
+- Combined comparison: `/private/tmp/better-sidebar-comparison.jpg`.
+- Browser preview: `http://127.0.0.1:4180/` using the production React component with an extraction-stage fixture.
+
+## Visual checks
+
+- Bottom-right placement, card hierarchy, 16 px corner treatment, restrained shadow, stage rail, 46% progress, and two-action footer match the selected direction.
+- Accent color uses the existing DeepSeek information-blue token instead of introducing a standalone palette.
+- Width remains bounded at 440 px and collapses to a 12 px mobile inset below 640 px.
+- Chinese copy remains legible without truncation at the validated 1280 × 720 viewport.
+
+## Functional checks
+
+- The native progress element exposes progress semantics and the card uses polite live-region updates.
+- “隐藏” removes the card without invoking cancellation; the background poll remains owned by the mounted component.
+- Success returns the card with “稍后” and the narrow application-restart action.
+- Failure returns the card with retry and the existing fixed Harness-log action.
+- Browser console check reported no errors; focused component, bridge, installer, and slot tests passed.
+
 final result: passed
