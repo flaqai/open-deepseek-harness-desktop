@@ -212,6 +212,75 @@ async function pruneForeignNativePackages() {
   }
 }
 
+// These files are useful in a source checkout but add thousands of files for
+// Defender to inspect during NSIS extraction.  Keep package.json, compiled
+// output, type declarations and every non-document asset: the final Windows
+// smoke starts the real Harness and installs every bundled plugin after this
+// pruning step.
+const REMOVABLE_PACKAGE_DIRECTORIES = new Set(['.github', 'coverage', 'test', 'tests', '__tests__'])
+const REMOVABLE_DOCUMENTATION = /^(?:CHANGELOG|HISTORY|README)(?:\..*)?$/i
+
+function packageSupportsWindowsX64(manifest) {
+  const allows = (values, target) => {
+    if (!Array.isArray(values)) return true
+    const positive = values.filter(value => typeof value === 'string' && !value.startsWith('!'))
+    const negative = values.filter(value => typeof value === 'string' && value.startsWith('!')).map(value => value.slice(1))
+    return !negative.includes(target) && (positive.length === 0 || positive.includes(target))
+  }
+  return allows(manifest.os, 'win32') && allows(manifest.cpu, 'x64')
+}
+
+async function prunePackageContents(directory, packageName, counters) {
+  const isInBoxPackage = packageName.startsWith('@deepseek-ai/')
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules') {
+        await pruneNodeModules(path, counters)
+      } else if (REMOVABLE_PACKAGE_DIRECTORIES.has(entry.name) || (isInBoxPackage && entry.name === 'src')) {
+        await rm(path, { recursive: true, force: true })
+        counters.directories += 1
+      } else {
+        await prunePackageContents(path, packageName, counters)
+      }
+    } else if (entry.isFile() && (entry.name.endsWith('.map') || REMOVABLE_DOCUMENTATION.test(entry.name))) {
+      await rm(path, { force: true })
+      counters.files += 1
+    }
+  }
+}
+
+async function pruneNodeModules(directory, counters) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    const candidate = join(directory, entry.name)
+    const manifestPath = join(candidate, 'package.json')
+    if (!existsSync(manifestPath)) {
+      // Scoped package containers (for example @deepseek-ai) are not package
+      // roots themselves; walk them to find their children.
+      await pruneNodeModules(candidate, counters)
+      continue
+    }
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+    if (!packageSupportsWindowsX64(manifest)) {
+      await rm(candidate, { recursive: true, force: true })
+      counters.foreignPackages += 1
+      continue
+    }
+    await prunePackageContents(candidate, typeof manifest.name === 'string' ? manifest.name : entry.name, counters)
+  }
+}
+
+/** Remove source-only material and manifest-declared non-Windows packages from the staged runtime. */
+async function pruneRuntimeBloat() {
+  const counters = { directories: 0, files: 0, foreignPackages: 0 }
+  await pruneNodeModules(join(harnessRoot, 'node_modules'), counters)
+  console.log(
+    `prepare-windows-runtime: pruned ${counters.directories} source/test directories, ${counters.files} docs/maps, `
+    + `and ${counters.foreignPackages} non-Windows package payloads`,
+  )
+}
+
 async function stagePackageManager() {
   const pnpmManifest = JSON.parse(await readFile(pnpmManifestPath, 'utf8'))
   if (pnpmManifest.version !== pnpmVersion) {
@@ -347,6 +416,7 @@ await materializeLinks()
 await injectWorkspaceClosure()
 await injectVendoredDependencies()
 await pruneForeignNativePackages()
+await pruneRuntimeBloat()
 await stageNodeRuntime()
 await stagePackageManager()
 await verifyRuntime()

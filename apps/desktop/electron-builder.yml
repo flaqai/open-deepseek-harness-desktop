@@ -38,3 +38,9 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  # Ask before any assisted-installer page. Keep the shipped language set
+  # intentionally small so every installer string has a reviewed translation.
+  displayLanguageSelector: true
+  installerLanguages:
+    - zh_CN
+    - en_US
