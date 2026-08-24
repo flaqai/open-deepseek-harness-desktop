@@ -18,7 +18,7 @@ pnpm run dev:desktop
 
 应用提供与 `dsh web` 相同的引导和设置界面。用户无需维护第二份配置，即可配置 DeepSeek 或其他兼容 API Provider、选择模型、查看已安装插件、编辑受支持的插件设置、调用 Skill、选择工作区并管理会话。
 
-打包版本内置固定的 `dshmarket@1.12.1`、`@xmanrui/dsh-im@0.11.0` 和 `dsh-skill-picker@0.2.0` 归档，并加入当前工作区的官方 `@deepseek-ai/dsh-subagent-codex@0.1.0-rc.8`、`@openai/codex@0.147.0` 与仅属于目标平台的原生 payload，作为 Web profile 离线、可卸载的首次启动种子。每个持久种子标记都会在用户卸载后保留，因此后续启动不会擅自装回用户已经移除的插件。构建只复制仓库中固定的三个归档，并由固定源码和版本生成 Codex 归档；它不会读取开发电脑上已经安装或更新过的 Web profile。
+打包版本携带经过固定版本和完整性校验的 `dshmarket@1.19.0`、`@xmanrui/dsh-im@1.0.2`、`dsh-skill-picker@0.2.0`、`dsh-font@1.1.0`、`dsh-pocket@1.12.3` 与 `dsh-better-sidebar@0.15.2` 归档，并加入官方 `@deepseek-ai/dsh-subagent-codex@0.1.0-rc.8`、`@openai/codex@0.147.0` 和仅属于目标平台的原生 payload。启动阶段只预设前五个插件；Better Sidebar 仅在用户点击发现页安装操作后安装，Codex 仅在用户点击“外部工具”安装操作后安装。联网时优先使用精确 registry 版本或固定 Git 提交，使社区插件保留可更新的依赖身份；内置归档作为离线回退。持久种子标记在用户卸载后继续保留，因此启动不会擅自装回插件，而用户明确点击安装时仍可重新安装。构建只使用这些受控输入，不会复制开发电脑 Web profile 中已经安装或更新过的插件。
 
 ## 桌面发行包
 
@@ -69,7 +69,7 @@ Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web -
 
 渲染进程使用 `nodeIntegration: false`、`contextIsolation: true` 和 `sandbox: true`。导航仅允许 Harness 进程对应的精确回环来源。新开的 HTTPS 窗口交给系统浏览器，其余新窗口全部拒绝。除受监管 Harness 来源的主框架发起的安全剪贴板写入外，渲染进程的权限请求全部拒绝；剪贴板读取和其他所有权限仍保持拒绝。因此，共用客户端可直接使用标准 Web Clipboard API，而不必暴露通用的高权限 Electron bridge。
 
-API 密钥仍由 Harness credentials 服务持有；桌面宿主不会读取或复制密钥。沙箱 preload 在源码运行中暴露类型化源码更新调用，并提供桌面能力、偏好更新、固定日志定位与 Release 发现。Release URL 仅限本仓库，渲染进程不能提供文件路径。在 Windows 和 Linux 上，preload 还会渲染桌面宿主自有标题栏，并将固定的最小化、最大化或还原、关闭意图直接发送给主进程。它不暴露通用命令、文件系统、URL 打开、下载或安装方法。
+API 密钥仍由 Harness credentials 服务持有；桌面宿主不会读取或复制密钥。沙箱 preload 在源码运行中暴露类型化源码更新调用，并提供桌面能力、偏好更新、固定日志定位、Release 发现，以及仅覆盖安装包内 Better Sidebar 与 Codex 归档的精确白名单。任意包名和路径仍必须经过受保护的 Harness 插件服务，不能发送给 Electron。Release URL 仅限本仓库，渲染进程不能提供文件路径。在 Windows 和 Linux 上，preload 还会渲染桌面宿主自有标题栏，并将固定的最小化、最大化或还原、关闭意图直接发送给主进程。它不暴露通用命令、文件系统、URL 打开或下载方法。
 
 Profile 插件属于可信的可执行代码。内置包管理运行时让插件的 pnpm 生命周期脚本使用确定的工具版本，但不会对从 registry、Git 仓库、tarball 或本地 checkout 安装的代码提供沙箱或背书。
 
@@ -84,7 +84,7 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 | Windows x64 | `windows-2025` | NSIS EXE |
 | Linux x64 | `ubuntu-24.04` | DEB 与 RPM |
 
-Windows 任务会把最终 NSIS 产物静默安装到包含空格和中文字符的路径，检查安装后的运行时，使用隔离的应用数据启动已安装程序，并在上传产物前要求 Harness 输出就绪行，同时确认四个预设依赖与 bundle 条目、Profile 锁文件、持久化 seed 标记和 Windows x64 Codex payload 均已生成。其他平台仍需完成原生安装、首次启动、退出、子进程清理、目录选择、文件打开、PTY 与沙箱行为的发布验证。只有在发布签名与回滚可用后才添加已签名的更新元数据。
+Windows 任务会把最终 NSIS 产物静默安装到包含空格和中文字符的路径，检查安装后的运行时，使用隔离的应用数据启动已安装程序，并在上传产物前要求 Harness 输出就绪行，同时确认五个启动预设的依赖、bundle 条目、Profile 锁文件和持久化 seed 标记均已生成。任务还要求 Better Sidebar 与 Windows x64 Codex 归档确实存在，但在用户操作前不得出现在 profile 中。其他平台仍需完成原生安装、首次启动、退出、子进程清理、目录选择、文件打开、PTY 与沙箱行为的发布验证。只有在发布签名与回滚可用后才添加已签名的更新元数据。
 
 不得通过把整个工作区源码复制进 Electron 来打包仓库。发布产物必须只包含已发布的运行时闭包、生成的第三方声明，且不得包含开发凭证。
 

@@ -5,6 +5,10 @@ import type { OpenLogResult } from './log-reveal.ts'
 import type { DesktopPreferences, DesktopPreferencesPatch } from './preferences.ts'
 import type { DesktopReleaseStatus } from './release-checker.ts'
 import type { SourceUpdateResult, SourceUpdateStatus } from './source-updater.ts'
+import type {
+  BundledPluginInstallSnapshot,
+  BundledPluginStartResult,
+} from './bundled-plugin-installer.ts'
 import { usesCustomWindowFrame } from './window-frame.ts'
 
 /** Renderer-visible update methods; no generic process or filesystem access is exposed. */
@@ -45,6 +49,12 @@ export interface DesktopReleasesBridge {
   openDownload(releaseUrl: string): Promise<{ error: string }>
 }
 
+/** Exact allowlisted bundled-plugin operations; no arbitrary package path is exposed. */
+export interface DesktopBundledPluginsBridge {
+  startInstall(request: { profile: string; packageSpec: string }): Promise<BundledPluginStartResult>
+  getInstall(installId: string): Promise<BundledPluginInstallSnapshot>
+}
+
 const shellBridge: DesktopShellBridge = {
   getCapabilities: () => ipcRenderer.invoke('dsh:desktop:capabilities') as Promise<DesktopCapabilities>,
   getPreferences: () => ipcRenderer.invoke('dsh:desktop:preferences:get') as Promise<DesktopPreferences>,
@@ -68,10 +78,16 @@ const releasesBridge: DesktopReleasesBridge = {
   openDownload: releaseUrl => ipcRenderer.invoke('dsh:desktop:releases:open', releaseUrl) as Promise<{ error: string }>,
 }
 
+const bundledPluginsBridge: DesktopBundledPluginsBridge = {
+  startInstall: request => ipcRenderer.invoke('dsh:desktop:bundled-plugins:start', request) as Promise<BundledPluginStartResult>,
+  getInstall: installId => ipcRenderer.invoke('dsh:desktop:bundled-plugins:get', installId) as Promise<BundledPluginInstallSnapshot>,
+}
+
 const sourceMode = process.argv.includes('--dsh-source')
 contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({
   shell: Object.freeze(shellBridge),
   releases: Object.freeze(releasesBridge),
+  bundledPlugins: Object.freeze(bundledPluginsBridge),
   ...(sourceMode ? { updater: Object.freeze(bridge) } : {}),
 }))
 

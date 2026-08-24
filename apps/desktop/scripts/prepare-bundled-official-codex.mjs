@@ -157,6 +157,7 @@ async function main() {
       packageName: PACKAGE_NAME,
       version: VERSION,
       profile: 'web',
+      installPolicy: 'manual',
       archive,
       integrity,
     })

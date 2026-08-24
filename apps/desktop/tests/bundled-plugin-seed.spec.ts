@@ -33,6 +33,8 @@ async function fixture(): Promise<{
       packageName: 'dshmarket',
       version: '1.12.1',
       profile: 'web',
+      installPolicy: 'startup',
+      registrySpec: 'dshmarket@1.19.0',
       archive: 'dshmarket.tgz',
       integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}`,
     },
@@ -53,11 +55,14 @@ describe('bundled plugin seed', () => {
       schema: number
       plugins: BundledPluginManifestEntry[]
     }
-    expect(manifest.schema).toBe(1)
-    expect(manifest.plugins.map(entry => [entry.packageName, entry.version])).toEqual([
-      ['dshmarket', '1.12.1'],
-      ['@xmanrui/dsh-im', '0.11.0'],
-      ['dsh-skill-picker', '0.2.0'],
+    expect(manifest.schema).toBe(2)
+    expect(manifest.plugins.map(entry => [entry.packageName, entry.version, entry.installPolicy])).toEqual([
+      ['dshmarket', '1.19.0', 'startup'],
+      ['@xmanrui/dsh-im', '1.0.2', 'startup'],
+      ['dsh-skill-picker', '0.2.0', 'startup'],
+      ['dsh-font', '1.1.0', 'startup'],
+      ['dsh-better-sidebar', '0.15.2', 'manual'],
+      ['dsh-pocket', '1.12.3', 'startup'],
     ])
     expect(new Set(manifest.plugins.map(entry => entry.seedId)).size).toBe(manifest.plugins.length)
     for (const entry of manifest.plugins) {
@@ -85,6 +90,14 @@ describe('bundled plugin seed', () => {
     const install = vi.fn(async () => {})
     await expect(seedBundledPlugin({ ...options, install })).resolves.toBe('already-installed')
     expect(install).not.toHaveBeenCalled()
+  })
+
+  it('allows an explicit manual install to replace an uninstall tombstone', async () => {
+    const options = await fixture()
+    const install = vi.fn(async () => {})
+    await seedBundledPlugin({ ...options, install })
+    await expect(seedBundledPlugin({ ...options, force: true, install })).resolves.toBe('installed')
+    expect(install).toHaveBeenCalledTimes(2)
   })
 
   it('refuses a modified archive without writing a marker', async () => {

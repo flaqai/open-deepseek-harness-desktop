@@ -10,6 +10,7 @@ import { PluginDiscovery } from './PluginDiscovery.tsx'
 import type { PluginDiscoveryInjected } from './PluginDiscovery.tsx'
 import { ExternalToolsSection, type ExternalToolsSectionInjected } from './ExternalToolsSection.tsx'
 import { en, zh, type PluginInventoryLocaleKey } from './locales.ts'
+import { getPluginInstall, startPluginInstall } from './bundled-install-bridge.ts'
 
 export type { PluginInventorySettingsTabInjected, PluginInventorySettingsTabProps } from './PluginInventorySettingsTab.tsx'
 export type { PluginDiagnosticsSectionInjected, PluginDiagnosticsSectionProps } from './PluginDiagnosticsSection.tsx'
@@ -41,11 +42,14 @@ export function apply(ctx: ClientContext): void {
     }
     return result.value
   }
-  const getInstall: PluginInventorySettingsTabInjected['getInstall'] = async (installId) => {
+  const getHostInstall: PluginInventorySettingsTabInjected['getInstall'] = async (installId) => {
     const result = await ctx.remote.pluginInventory.getInstall(installId)
     if (!result.ok) throw new Error(`pluginInventory.getInstall failed: ${result.error.code}: ${result.error.message}`)
     return result.value
   }
+  const getInstall: PluginInventorySettingsTabInjected['getInstall'] = installId => (
+    getPluginInstall(installId, getHostInstall)
+  )
   const startUninstall: PluginInventorySettingsTabInjected['startUninstall'] = async (request) => {
     const result = await ctx.remote.pluginInventory.startUninstall(request)
     if (!result.ok) throw new Error(`pluginInventory.startUninstall failed: ${result.error.code}: ${result.error.message}`)
@@ -87,13 +91,13 @@ export function apply(ctx: ClientContext): void {
     },
   })
   const discoveryInjected = (): PluginDiscoveryInjected => ({
-    startInstall: async (request) => {
-      const result = await ctx.remote.pluginInventory.startInstall(request)
+    startInstall: request => startPluginInstall(request, async (fallbackRequest) => {
+      const result = await ctx.remote.pluginInventory.startInstall(fallbackRequest)
       if (!result.ok) {
         throw new Error(`pluginInventory.startInstall failed: ${result.error.code}: ${result.error.message}`)
       }
       return result.value
-    },
+    }),
     getInstall,
   })
   const externalToolsInjected = (): ExternalToolsSectionInjected => ({

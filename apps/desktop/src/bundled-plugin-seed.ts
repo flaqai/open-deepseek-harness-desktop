@@ -9,6 +9,9 @@ export interface BundledPluginManifestEntry {
   readonly packageName: string
   readonly version: string
   readonly profile: string
+  readonly installPolicy: 'startup' | 'manual'
+  /** Exact npm or Git spec used first so ordinary installs remain updateable. */
+  readonly registrySpec?: string
   readonly archive: string
   readonly integrity: string
 }
@@ -18,6 +21,8 @@ export interface SeedBundledPluginOptions {
   readonly resourcesDirectory: string
   readonly dshHome: string
   readonly install: (archivePath: string, entry: BundledPluginManifestEntry) => Promise<void>
+  /** Explicit UI installs may replace a tombstone left by an earlier uninstall. */
+  readonly force?: boolean
 }
 
 export type SeedBundledPluginResult = 'installed' | 'already-seeded' | 'already-installed'
@@ -34,10 +39,15 @@ export async function appendBundledPluginFailure(logPath: string, error: unknown
   await appendFile(logPath, `[bundled-plugin] ${message}\n`)
 }
 
-function assertEntry(entry: BundledPluginManifestEntry): void {
+/** Reject malformed packaged metadata before it can become an install allowlist. */
+export function assertBundledPluginManifestEntry(entry: BundledPluginManifestEntry): void {
   if (!/^[a-z0-9][a-z0-9._-]*$/iu.test(entry.seedId)
     || !/^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/iu.test(entry.packageName)
+    || !/^[a-z0-9][a-z0-9._-]*$/iu.test(entry.profile)
+    || !/^[a-z0-9][a-z0-9.+-]*$/iu.test(entry.version)
     || basename(entry.archive) !== entry.archive
+    || (entry.installPolicy !== 'startup' && entry.installPolicy !== 'manual')
+    || (entry.registrySpec !== undefined && (!/^\S+$/u.test(entry.registrySpec) || entry.registrySpec.length > 512))
     || !entry.integrity.startsWith('sha512-')) {
     throw new TypeError(`desktop: invalid bundled plugin manifest entry ${entry.seedId}`)
   }
@@ -83,11 +93,11 @@ async function writeMarker(path: string, entry: BundledPluginManifestEntry): Pro
 
 /** Seed once. The durable marker intentionally survives a later user uninstall. */
 export async function seedBundledPlugin(options: SeedBundledPluginOptions): Promise<SeedBundledPluginResult> {
-  const { entry, resourcesDirectory, dshHome, install } = options
-  assertEntry(entry)
+  const { entry, resourcesDirectory, dshHome, install, force = false } = options
+  assertBundledPluginManifestEntry(entry)
   const stateDirectory = join(dshHome, 'bundled-plugins')
   const markerPath = join(stateDirectory, `${entry.seedId}.seeded.json`)
-  if (await markerExists(markerPath)) return 'already-seeded'
+  if (!force && await markerExists(markerPath)) return 'already-seeded'
 
   if (await hasDependency(join(dshHome, 'profiles', entry.profile, 'package.json'), entry.packageName)) {
     await writeMarker(markerPath, entry)

@@ -6,7 +6,14 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, shell, Tray, type MenuItemConstructorOptions } from 'electron'
-import { appendBundledPluginFailure, seedBundledPlugin, type BundledPluginManifestEntry } from './bundled-plugin-seed.ts'
+import { appendBundledPluginFailure } from './bundled-plugin-seed.ts'
+import {
+  BundledPluginInstaller,
+  installBundledPluginSource,
+  type BundledPluginManifest,
+  type BundledPluginStartResult,
+  type BundledPluginInstallSnapshot,
+} from './bundled-plugin-installer.ts'
 import { resolveHarnessInvocation, resolveHarnessLaunch, type DesktopLaunchOptions, type HarnessLaunch } from './launch.ts'
 import { allowsHarnessPermission } from './permissions.ts'
 import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
@@ -41,6 +48,7 @@ let quitReleased = false
 let hiddenLaunch = false
 let harnessLogPath = ''
 let releaseChecker: DesktopReleaseChecker | undefined
+let bundledPluginInstaller: BundledPluginInstaller | undefined
 
 interface DesktopCapabilities {
   platform: NodeJS.Platform
@@ -170,7 +178,7 @@ function applyDevelopmentDockIcon(): void {
   dock.setIcon(image)
 }
 
-async function runHarnessInvocation(launch: HarnessLaunch, logPath: string): Promise<void> {
+async function runHarnessInvocation(launch: HarnessLaunch): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn(launch.command, launch.args, {
       env: { ...process.env, ...launch.environment },
@@ -185,10 +193,13 @@ async function runHarnessInvocation(launch: HarnessLaunch, logPath: string): Pro
       if (code === 0) resolve()
       else reject(new Error(`desktop: bundled plugin install failed (${String(code)}, ${String(signal)}): ${Buffer.concat(output).toString('utf8').slice(-4000)}`))
     })
-  }).catch(async (error: unknown) => {
-    await appendBundledPluginFailure(logPath, error)
-    throw error
   })
+}
+
+function assertMainRenderer(sender: Electron.WebContents): void {
+  if (mainWindow === undefined || mainWindow.isDestroyed() || sender !== mainWindow.webContents) {
+    throw new Error('desktop: bundled plugin request came from an untrusted renderer')
+  }
 }
 
 function showLoading(state: HarnessState, failure?: HarnessFailure & { logPath: string }): void {
@@ -334,6 +345,21 @@ async function startApplication(): Promise<void> {
   })
   ipcMain.handle('dsh:harness:retry', () => ({ started: supervisor?.retry() ?? false }))
   ipcMain.handle('dsh:harness:open-logs', () => openHarnessLog())
+  ipcMain.handle('dsh:desktop:bundled-plugins:start', (event, request: unknown): BundledPluginStartResult => {
+    assertMainRenderer(event.sender)
+    if (request === null || typeof request !== 'object') throw new TypeError('desktop: invalid bundled plugin request')
+    const { profile, packageSpec } = request as { profile?: unknown; packageSpec?: unknown }
+    if (typeof profile !== 'string' || typeof packageSpec !== 'string') {
+      throw new TypeError('desktop: invalid bundled plugin request')
+    }
+    return bundledPluginInstaller?.startManual(profile, packageSpec) ?? { handled: false }
+  })
+  ipcMain.handle('dsh:desktop:bundled-plugins:get', (event, installId: unknown): BundledPluginInstallSnapshot => {
+    assertMainRenderer(event.sender)
+    if (typeof installId !== 'string') throw new TypeError('desktop: invalid bundled plugin install id')
+    if (bundledPluginInstaller === undefined) throw new Error('desktop: bundled plugin installer is unavailable')
+    return bundledPluginInstaller.getInstall(installId)
+  })
   ipcMain.on('dsh:window:minimize', (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
     if (window === mainWindow && usesCustomWindowFrame(process.platform)) window.minimize()
@@ -399,26 +425,28 @@ async function startApplication(): Promise<void> {
     }
 
     const bundledDirectory = join(process.resourcesPath, 'bundled-plugins')
-    const manifest = JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8')) as {
-      plugins: BundledPluginManifestEntry[]
-    }
+    const manifest = JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8')) as BundledPluginManifest
     const dshHome = process.env.DSH_HOME?.trim() || join(homedir(), '.dsh')
-    for (const entry of manifest.plugins) {
-      try {
-        await seedBundledPlugin({
-          entry,
-          resourcesDirectory: bundledDirectory,
-          dshHome,
-          install: async (archivePath, plugin) => {
-            await runHarnessInvocation(resolveHarnessInvocation(process.env, [
-              'plugin', '--profile', plugin.profile, 'add', '--save-exact', archivePath,
-            ], launchOptions), harnessLogPath)
-          },
+    bundledPluginInstaller = new BundledPluginInstaller({
+      manifest,
+      resourcesDirectory: bundledDirectory,
+      dshHome,
+      install: async (archivePath, plugin) => {
+        await installBundledPluginSource(plugin, archivePath, async (packageSpec, preferOffline) => {
+          await runHarnessInvocation(resolveHarnessInvocation(process.env, [
+            'plugin', '--profile', plugin.profile, 'add', '--save-exact',
+            ...(preferOffline ? ['--prefer-offline'] : []), packageSpec,
+          ], launchOptions))
+        }, (error) => {
+          console.warn(`desktop: registry install failed for ${plugin.packageName}; using bundled archive`, error)
         })
-      } catch (error) {
+      },
+      onFailure: async (error) => {
+        await appendBundledPluginFailure(harnessLogPath, error)
         console.error(error)
-      }
-    }
+      },
+    })
+    await bundledPluginInstaller.seedStartup()
   }
   const launch = resolveHarnessLaunch(process.env, launchOptions)
   const notificationCopy = desktopNotificationDictionary(app.getLocale())

@@ -100,12 +100,15 @@ $profileManifest = Get-Content $profileManifestPath -Raw | ConvertFrom-Json
 $bundledManifestPath = Join-Path $installRoot 'resources/bundled-plugins/manifest.json'
 $bundledManifest = Get-Content $bundledManifestPath -Raw | ConvertFrom-Json
 $bundledPlugins = @($bundledManifest.plugins)
-foreach ($packageName in @('dshmarket', '@xmanrui/dsh-im', 'dsh-skill-picker', '@deepseek-ai/dsh-subagent-codex')) {
+foreach ($packageName in @(
+  'dshmarket', '@xmanrui/dsh-im', 'dsh-skill-picker', 'dsh-font',
+  'dsh-pocket', 'dsh-better-sidebar', '@deepseek-ai/dsh-subagent-codex'
+)) {
   if ($bundledPlugins.PackageName -notcontains $packageName) {
     throw "Bundled plugin manifest is missing required preset $packageName"
   }
 }
-foreach ($plugin in $bundledPlugins) {
+foreach ($plugin in @($bundledPlugins | Where-Object { $_.InstallPolicy -eq 'startup' })) {
   if ($null -eq $profileManifest.dependencies.PSObject.Properties[$plugin.PackageName]) {
     throw "Bundled plugin dependency $($plugin.PackageName) is absent from $profileManifestPath"
   }
@@ -119,15 +122,14 @@ foreach ($plugin in $bundledPlugins) {
     throw "Bundled plugin seed marker has unexpected package metadata: $markerPath"
   }
 }
-$codexDependencyRoot = Join-Path $profileDirectory 'node_modules/@deepseek-ai/dsh-subagent-codex/node_modules/@openai'
-$codexPackagePath = Join-Path $codexDependencyRoot 'codex/package.json'
-$codexPayloadPath = Join-Path $codexDependencyRoot 'codex-win32-x64/package.json'
-if (-not (Test-Path $codexPackagePath)) { throw "Bundled Codex connector is missing @openai/codex" }
-if (-not (Test-Path $codexPayloadPath)) { throw "Bundled Codex connector is missing the win32-x64 payload" }
-$codexPackage = Get-Content $codexPackagePath -Raw | ConvertFrom-Json
-$codexPayload = Get-Content $codexPayloadPath -Raw | ConvertFrom-Json
-if ($codexPackage.version -ne '0.147.0' -or $codexPayload.version -ne '0.147.0-win32-x64') {
-  throw "Bundled Codex versions are unexpected: $($codexPackage.version), $($codexPayload.version)"
+foreach ($plugin in @($bundledPlugins | Where-Object { $_.InstallPolicy -eq 'manual' })) {
+  if ($null -ne $profileManifest.dependencies.PSObject.Properties[$plugin.PackageName]) {
+    throw "Manual bundled plugin $($plugin.PackageName) was installed without user action"
+  }
+  $archivePath = Join-Path $installRoot "resources/bundled-plugins/$($plugin.Archive)"
+  if (-not (Test-Path $archivePath)) { throw "Manual bundled plugin archive is missing: $archivePath" }
+  $markerPath = Join-Path $dshHome "bundled-plugins/$($plugin.SeedId).seeded.json"
+  if (Test-Path $markerPath) { throw "Manual bundled plugin marker exists before user action: $markerPath" }
 }
 $bundledFailure = Get-ChildItem -Path $appData -Filter harness.log -File -Recurse -ErrorAction SilentlyContinue |
   Where-Object { (Get-Content $_.FullName -Raw) -match '(?m)^\[bundled-plugin\]' } |
@@ -136,4 +138,4 @@ if ($null -ne $bundledFailure) {
   throw "Bundled plugin failure was written to $($bundledFailure.FullName)"
 }
 
-Write-Host 'Installed Windows package reached Harness readiness with all bundled plugins seeded.'
+Write-Host 'Installed Windows package reached Harness readiness with startup plugins seeded and manual plugins deferred.'

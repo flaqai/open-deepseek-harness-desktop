@@ -1,29 +1,65 @@
 {
-  "schema": 1,
+  "schema": 2,
   "plugins": [
     {
       "seedId": "dshmarket",
       "packageName": "dshmarket",
-      "version": "1.12.1",
+      "version": "1.19.0",
       "profile": "web",
-      "archive": "dshmarket-1.12.1.tgz",
-      "integrity": "sha512-jjpwAA8tJEnbVDVsN9R4e59CUoVMv/L+qTNOl7BHO791PpMqZLAM+5VZcZs05C069jGFnyu5r2M/NT8OKoXU7Q=="
+      "installPolicy": "startup",
+      "registrySpec": "dshmarket@1.19.0",
+      "archive": "dshmarket-1.19.0.tgz",
+      "integrity": "sha512-R6S6zT5PXTiY3HjqDXQglcTJ/hLJhuDlEERBK6+j9gIJCEECnz2hJKtCqvJi5uBAl4kBrwffKRAMqFGd2z56xQ=="
     },
     {
       "seedId": "xmanrui-dsh-im",
       "packageName": "@xmanrui/dsh-im",
-      "version": "0.11.0",
+      "version": "1.0.2",
       "profile": "web",
-      "archive": "xmanrui-dsh-im-0.11.0.tgz",
-      "integrity": "sha512-cxwI+6I+5A1sUIKOaqmCMPUuuLu6bqMuKV+cT/1mEGJKwn2AAdtdBf/Kh216P757+o6O1F/dUSckeINS3oU4KA=="
+      "installPolicy": "startup",
+      "registrySpec": "@xmanrui/dsh-im@1.0.2",
+      "archive": "xmanrui-dsh-im-1.0.2.tgz",
+      "integrity": "sha512-xYZPRjSCHMjXzBinfmJw3OjJRUaPhXN+cLXBUbuTvMHjEocXOTD4SKR/YXKYLVPGTc8zTKBZ1kljbcZ1wLYd4A=="
     },
     {
       "seedId": "dsh-skill-picker",
       "packageName": "dsh-skill-picker",
       "version": "0.2.0",
       "profile": "web",
+      "installPolicy": "startup",
+      "registrySpec": "dsh-skill-picker@0.2.0",
       "archive": "dsh-skill-picker-0.2.0.tgz",
       "integrity": "sha512-qSnpKKafj2Zt3rGTn+plrTlxEOmrgaZ550s3zK3kQ/tPMZlNqHGMXsVyzNnIYK0lCYFyCZICe0SUykjhXgCU4g=="
+    },
+    {
+      "seedId": "dsh-font",
+      "packageName": "dsh-font",
+      "version": "1.1.0",
+      "profile": "web",
+      "installPolicy": "startup",
+      "registrySpec": "github:tianyhjg-lab/dsh-font#d299f56bde1e10e7fef152848e74cff2eecd7917",
+      "archive": "dsh-font-1.1.0.tgz",
+      "integrity": "sha512-FJVCYih4My+9NwqvDjwW17AVP/9F843nL0O0mS8+Z/YQdVkmoGT0q3fPLXvNdr8M68FVo0Wr2upnud0y406a0g=="
+    },
+    {
+      "seedId": "dsh-better-sidebar",
+      "packageName": "dsh-better-sidebar",
+      "version": "0.15.2",
+      "profile": "web",
+      "installPolicy": "manual",
+      "registrySpec": "dsh-better-sidebar@0.15.2",
+      "archive": "dsh-better-sidebar-0.15.2.tgz",
+      "integrity": "sha512-XHr7cAqxz1k60D3W9q5VAuZ64kGhnZz9M4etBaRDNNCzuJZbJTvQ/Fzgl8mY06B/PpEcgzG6PTn2RMYF3FVnGQ=="
+    },
+    {
+      "seedId": "dsh-pocket",
+      "packageName": "dsh-pocket",
+      "version": "1.12.3",
+      "profile": "web",
+      "installPolicy": "startup",
+      "registrySpec": "dsh-pocket@1.12.3",
+      "archive": "dsh-pocket-1.12.3.tgz",
+      "integrity": "sha512-QqffCn8MS6FPaRTMGfG/gVYkdj8iWWyIH75by8fF7KusLLyuHxhzBydzWYemi5n9zsoqu5SJio+NKQ2KSdToSg=="
     }
   ]
 }

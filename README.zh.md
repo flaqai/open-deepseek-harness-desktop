@@ -38,9 +38,9 @@ Electron 不只是包住 Web 页面的外壳。桌面宿主负责 Harness 子进
 
 Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板写入权限，因此消息、代码和对话的复制按钮可以像官方 Web 端一样在桌面客户端正常使用。剪贴板读取及其他无关的浏览器权限仍保持禁用。
 
-### 预装插件市场
+### 预设插件基础能力
 
-安装包内置插件市场，并在首次启动时完成预设安装，无需额外配置即可发现、安装和管理插件。插件市场仍是普通 Harness 插件：用户可以在客户端中将其卸载，桌面应用会尊重该选择，不会再次自动安装。
+安装包启动后即可使用插件市场、IM 连接、Skill 选择器、字体支持和 Pocket。它们仍是普通 Harness 依赖：用户可以卸载，桌面应用会尊重该选择，不会再次自动安装。联网安装会保留精确 npm 版本或固定 Git 提交身份，使插件市场可以发现后续更新；经过完整性校验的内置归档负责离线回退。体积更大的 Better Sidebar 归档也随安装包提供，但只有用户在“探索插件”中明确选择后才会安装。
 
 ### 插件执行前的依赖安全层
 
@@ -53,9 +53,9 @@ Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板�
 
 这项能力必须由桌面客户端的启动层持有，不能再做成一个普通诊断插件：插件只有在依赖解析和 Loader 挂载已经成功后才能运行，而本功能要处理的正是这个时点之前的失败。这种“在扩展代码之前治理扩展依赖”的边界，让开放的插件生态与普通用户需要的客户端稳定性可以同时存在。
 
-### 预装官方 Codex 连接
+### 可离线安装的官方 Codex 连接
 
-各平台安装包离线预装 DeepSeek Harness 官方 [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) 插件、固定版本的 [`@openai/codex`](https://github.com/openai/codex) wrapper，以及仅与当前系统和 CPU 匹配的原生载荷。首次引导与“设置 → 外部工具”提供 Codex 连接入口；安装、启动和委派任务不依赖用户系统中另行安装 Node、pnpm 或 Codex CLI。该插件仍可卸载，持久化 seed 标记会记住用户的选择，应用升级或重启不会擅自装回。
+各平台安装包携带 DeepSeek Harness 官方 [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) 插件、固定版本的 [`@openai/codex`](https://github.com/openai/codex) wrapper，以及仅与当前系统和 CPU 匹配的原生载荷。它不会在启动阶段自动安装：首次引导与“设置 → 外部工具”提供明确的安装操作，点击后使用安装包内与平台匹配的归档，不依赖用户系统中另行安装 Node、pnpm 或 Codex CLI。该插件仍可卸载，应用升级或重启不会擅自装回。
 
 官方连接当前把每次委派作为一个独立、临时的 Codex 任务：Codex 使用父会话的工作目录和本机 `CODEX_HOME` 中已有的登录、模型、MCP 与 Skill 配置，但不会继承 Harness 的对话正文，也不会把临时 Codex thread 保存到 Harness 会话。父会话只收到最终回答或经过脱敏的失败诊断；Codex 的中间推理、工具通信、原始 stderr 与完整工作区差异不会被复制回来。
 
@@ -257,11 +257,14 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 
 感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 上游维护官方 Codex Provider，并感谢 [OpenAI Codex](https://github.com/openai/codex) 提供其固定版本的 wrapper 与各平台原生运行时。本项目仅负责把这些官方组件按目标平台离线打包并接入桌面连接中心。
 
-感谢以下社区插件的作者与维护者。它们作为可卸载的首次启动预设随桌面安装包提供，让常用扩展能力可以开箱即用：
+感谢以下社区插件的作者与维护者。启动预设均可卸载；体积较大的 Better Sidebar 保持为用户明确触发的安装项：
 
 - [`dsh-im`](https://github.com/xmanrui/dsh-im)，由 [xmanrui](https://github.com/xmanrui) 维护：连接微信、飞书等九种 IM 机器人。
 - [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)，由 [a735624258](https://github.com/a735624258) 维护：在输入区选择 Skill，并插入 Harness 的 Skill 调用指令。
 - [`dsh-market`](https://github.com/dsh-market/dsh-market)，由 [dsh-market](https://github.com/dsh-market) 社区维护：在 Harness 内浏览、搜索、安装和管理插件。
+- [`dsh-font`](https://github.com/tianyhjg-lab/dsh-font)：通过固定 Git 提交提供客户端字体定制。
+- [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)：提供启动阶段预设的 Pocket 扩展。
+- [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)：提供仅在用户明确请求后安装的增强侧边栏。
 
 ## 关于 FLAQ AI 团队
 
