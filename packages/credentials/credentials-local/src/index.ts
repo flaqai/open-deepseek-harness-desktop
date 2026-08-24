@@ -233,6 +233,12 @@ function parseCredentialsDocumentState(text: string, filename: string): ParsedCr
   return legacyFormat === undefined ? { entries } : { entries, legacyFormat }
 }
 
+/**
+ * Parse a credentials document into validated reference-value entries.
+ * @param text - Raw YAML credentials document.
+ * @param filename - Source filename used in validation diagnostics.
+ * @returns Validated credential entries keyed by reference name.
+ */
 export function parseCredentialsDocument(text: string, filename: string): Map<string, string> {
   return parseCredentialsDocumentState(text, filename).entries
 }
