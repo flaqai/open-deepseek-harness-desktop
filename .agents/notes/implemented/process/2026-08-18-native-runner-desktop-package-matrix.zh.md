@@ -18,6 +18,8 @@ Windows 保留独立的无符号链接运行时闭包，因为 Electron 会提�
 
 Windows NSIS 配置不设置 `useZip`，因此 electron-builder 使用默认的 7z/LZMA 载荷。原生冒烟测试会先把该载荷安装到包含空格和中文的路径，再启动应用。ZIP 载荷试验在 15 分钟期限内没有生成已安装的可执行文件或 Harness 文件，而默认载荷能够完成安装并使 Harness 就绪。
 
+内置插件准备流程会把生成的归档从 Runner 临时目录复制到 checkout 的产物目录。Windows Runner 可能把这两个目录放在不同卷上，此时 `rename` 会以 `EXDEV` 失败；外层的临时目录清理负责删除源文件副本。
+
 TypeScript 桌面构建会为主进程生成 ES 模块，但 Electron 的沙箱 preload 加载器要求 CommonJS。因此，专用的 tsdown 步骤会把 preload 及其本地窗口边框辅助代码打包为 `lib/preload.cjs`，同时将 `electron` 保留为运行时 `require`；BrowserWindow 加载该 `.cjs` 产物。
 
 发行文件名不包含软件包版本，使 `releases/latest/download` URL 保持稳定：`DeepSeek-Harness-macos-{arm64,x64}.dmg`、`DeepSeek-Harness-windows-x64.exe`、`DeepSeek-Harness-linux-x64.{deb,rpm}` 与 `SHA256SUMS`。每个软件包都包含可卸载的首次运行插件市场种子。
@@ -33,6 +35,8 @@ TypeScript 桌面构建会为主进程生成 ES 模块，但 Electron 的沙箱 
 **直接加载 TypeScript 生成的 `preload.js`。** 桌面包属于 ES 模块包，因此 TypeScript 会生成基于 `import` 的 preload。Electron 的沙箱 preload 加载器会把该文件当作 CommonJS，并在桥接代码安装前拒绝加载。
 
 **在 NSIS 安装器内部使用 ZIP 压缩。** ZIP 可能降低解压 CPU 开销，但经过验证的 Windows Runner 无法在 15 分钟内完成该运行时的解压。默认 7z/LZMA 载荷保留了原生安装与启动冒烟测试已经证明可用的安装路径。
+
+**使用 `rename` 移动生成的插件归档。** 重命名在单个文件系统内具有原子性，但 Windows Runner 的临时目录和 checkout 可能位于不同卷。复制到产物目录能够跨卷工作，现有临时目录清理会删除源文件。
 
 ## Consequences
 

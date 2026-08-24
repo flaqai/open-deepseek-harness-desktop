@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
@@ -145,7 +145,8 @@ async function main() {
     })
     const archive = `deepseek-ai-dsh-subagent-codex-${VERSION}-${target}.tgz`
     const archivePath = join(outputDirectory, archive)
-    await rename(await packedArchive(packed), archivePath)
+    // Windows runner temp and checkout paths can be on different volumes.
+    await copyFile(await packedArchive(packed), archivePath)
     const bytes = await readFile(archivePath)
     const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
     const manifestPath = join(outputDirectory, 'manifest.json')

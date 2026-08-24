@@ -18,6 +18,8 @@ Windows keeps a separate symlink-free runtime closure because Electron supplies 
 
 The Windows NSIS configuration leaves `useZip` unset, so electron-builder uses its default 7z/LZMA payload. The native smoke installs that payload into a path containing spaces and Chinese characters before starting the application. A ZIP-payload trial did not create the installed executable or Harness files within the 15-minute deadline, while the default payload completed installation and reached Harness readiness.
 
+Bundled-plugin preparation copies generated archives from the runner temporary directory into the checkout artifact directory. Windows runners can place those directories on different volumes, where `rename` fails with `EXDEV`; the enclosing temporary-directory cleanup owns removal of the source copy.
+
 The TypeScript desktop build emits ES modules for the main process, but Electron's sandboxed preload loader requires CommonJS. A dedicated tsdown pass therefore bundles the preload and its local window-frame helper into `lib/preload.cjs` while preserving `electron` as a runtime `require`; the BrowserWindow loads that `.cjs` artifact.
 
 Release filenames omit the package version so `releases/latest/download` URLs remain stable: `DeepSeek-Harness-macos-{arm64,x64}.dmg`, `DeepSeek-Harness-windows-x64.exe`, `DeepSeek-Harness-linux-x64.{deb,rpm}`, and `SHA256SUMS`. Each package includes the removable first-run plugin-market seed.
@@ -33,6 +35,8 @@ Release filenames omit the package version so `releases/latest/download` URLs re
 **Load the TypeScript-emitted `preload.js` directly.** The desktop package is an ES module package, so TypeScript emits an `import`-based preload. Electron's sandboxed preload loader treats that file as CommonJS and rejects it before the bridge is installed.
 
 **Use ZIP compression inside the NSIS installer.** ZIP can reduce decompression CPU time, but the reviewed Windows runner did not complete extraction of this runtime within 15 minutes. The default 7z/LZMA payload keeps the installer path proven by the native install-and-launch smoke.
+
+**Move generated plugin archives with `rename`.** A rename is atomic on one filesystem, but the Windows runner uses separate temporary and checkout volumes. Copying into the artifact directory works across volumes, and the existing temporary-directory cleanup removes the source.
 
 ## Consequences
 

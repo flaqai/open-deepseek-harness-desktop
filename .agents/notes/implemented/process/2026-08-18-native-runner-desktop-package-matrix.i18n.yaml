@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-18-native-runner-desktop-package-matrix.md
-2026-08-18-native-runner-desktop-package-matrix.md: b6db026dd8ef606bb7939b8df3b0765d3c67b03c
-2026-08-18-native-runner-desktop-package-matrix.zh.md: d0f5792669a76842b6540ad03e35660d2c1fa93a
+2026-08-18-native-runner-desktop-package-matrix.md: 3476d2cf17611d3f23a210d922f3d2cfb5d20eae
+2026-08-18-native-runner-desktop-package-matrix.zh.md: fb7af2611a71346cdce3d3cf4aa92256f0dcb42c
