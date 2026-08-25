@@ -8,7 +8,9 @@
   <strong>开箱即用、依赖安全的 DeepSeek Harness 桌面版</strong>
 </p>
 
-[English](README.md) | 中文
+[中文首页](README.md) | 中文 | [English](README.en.md)
+
+> 正在处理各位用户的bug，结合官方更新、bug修复和体验优化的新版本准备出炉……
 
 <p align="center">
   <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="下载量"></a>
@@ -244,7 +246,7 @@ API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何�
 - 完善外部编码工具的交互审批、任务进度、修改摘要与可恢复会话，同时保持 Harness 与外部产品的上下文边界清晰可见。
 - 继续完善预设 IM 机器人连接的身份映射、授权、审计事件、速率限制和撤销能力。
 
-以上内容是项目方向，并不代表已经完成支持。当前实现边界见[桌面发行矩阵](apps/desktop/README.zh.md#cross-platform-release-matrix)。
+以上内容是项目方向，并不代表已经完成支持。当前实现边界见[桌面发行矩阵](apps/desktop/README.zh.md)。
 
 ## 文档与社区
 

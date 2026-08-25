@@ -77,10 +77,15 @@ export function languageSwitcherLinkOffset(
     const end = node.position.end.offset
     if (start === undefined || end === undefined) continue
     const authored = markdown.slice(start, end)
-    if (!/^(?:English \| \[中文\]\([^\n]+\)|\[English\]\([^\n]+\) \| 中文)$/.test(authored)) continue
+    const canonical = /^(?:English \| \[中文\]\([^\n]+\)|\[English\]\([^\n]+\) \| 中文)$/.test(authored)
+    const chineseDefaultSource = /^\[中文备用入口\]\([^\n]+\) \| 中文（默认） \| \[English\]\([^\n]+\)$/.test(authored)
+    const chineseDefaultMirror = /^\[中文首页\]\([^\n]+\) \| 中文 \| \[English\]\([^\n]+\)$/.test(authored)
+    const chineseDefault = chineseDefaultSource || chineseDefaultMirror
+    if (!canonical && !chineseDefault) continue
     const links = node.children.filter((child): child is Extract<Nodes, { type: 'link' }> => child.type === 'link')
-    if (links.length === 1 && accepted.has(links[0]?.url ?? '')) {
-      return links[0]?.position?.start.offset
+    const acceptedLinks = links.filter(link => accepted.has(link.url))
+    if (acceptedLinks.length === 1) {
+      return acceptedLinks[0]?.position?.start.offset
     }
   }
   return undefined

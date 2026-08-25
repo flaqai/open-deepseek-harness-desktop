@@ -1,146 +1,148 @@
 <p align="center">
-  <img src="./apps/desktop/src/icon.png" width="112" alt="Open DeepSeek Harness Desktop icon">
+  <img src="./apps/desktop/src/icon.png" width="112" alt="Open DeepSeek Harness Desktop 图标">
 </p>
 
 # Open DSH Desktop
 
 <p align="center">
-  <strong>A ready-to-use, dependency-safe desktop edition of DeepSeek Harness</strong>
+  <strong>开箱即用、依赖安全的 DeepSeek Harness 桌面版</strong>
 </p>
 
-English | [中文](README.zh.md)
+[中文备用入口](README.zh.md) | 中文（默认） | [English](README.en.md)
+
+> 正在处理各位用户的bug，结合官方更新、bug修复和体验优化的新版本准备出炉……
 
 <p align="center">
-  <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="Downloads"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/flaqai/open-deepseek-harness-desktop?style=flat" alt="MIT License"></a>
-  <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/upstream-DeepSeek%20Harness-4d6bfe?style=flat" alt="DeepSeek Harness upstream"></a>
+  <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="下载量"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/flaqai/open-deepseek-harness-desktop?style=flat" alt="MIT 许可证"></a>
+  <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/upstream-DeepSeek%20Harness-4d6bfe?style=flat" alt="DeepSeek Harness 上游"></a>
 </p>
 
-Open DeepSeek Harness Desktop is an independent, community-maintained desktop distribution of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It combines the upstream plugin-based agent runtime with a visual workspace for configuring models, running coding sessions, inspecting execution, and managing extensions.
+Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 桌面发行版。它将上游基于插件的智能体运行时与可视化工作区结合起来，可用于配置模型、运行编码会话、查看执行过程和管理扩展。
 
-The project is maintained by the FLAQ AI team from hands-on work integrating models, packaging desktop clients, and operating plugin- and Agent-based product workflows. We publish the reusable engineering layer so startup supervision, dependency safety, cross-platform packaging, and practical integrations can be inspected and improved in the open.
+本项目由 FLAQ AI 团队基于模型接入、桌面客户端打包和插件化 Agent 产品工作流的一线实践持续维护。我们把其中可复用的工程层开源出来，让启动监管、依赖安全、跨平台打包和实用集成能够被公开检查、复用并共同改进。
 
-This repository is not an official DeepSeek product. It is released under the [MIT License](LICENSE) and keeps the Harness architecture intact: capabilities remain plugins, while the Electron application acts as a secure local host for the existing Web client.
+本仓库并非 DeepSeek 官方产品。项目采用 [MIT 许可证](LICENSE)，并保留 Harness 的架构原则：各项能力仍由插件提供，Electron 应用仅作为现有 Web 客户端的安全本地宿主。
 
-**Development notice:** Open DeepSeek Harness Desktop is under active development. Features, packaging, and the local data schema may change. This is an independent community project, not an official DeepSeek product.
+**开发提示：** Open DeepSeek Harness Desktop 正在积极开发中，功能、打包方式和本地数据结构可能发生变化。本项目由社区独立维护，并非 DeepSeek 官方产品。
 
-## Desktop enhancements to the upstream Web experience
+## 相比官方 Web 版的桌面增强
 
-This distribution preserves the upstream DeepSeek Harness Web client while adding desktop-specific integration and ready-to-use features.
+本项目保留 DeepSeek Harness 官方 Web 客户端的使用体验，并加入适合桌面应用的系统集成和开箱即用功能。
 
-### A complete desktop host
+### 完整的桌面宿主
 
-Electron is more than a wrapper around a Web page. The desktop host supervises the Harness child process, closes to the tray by default, waits for orderly cleanup on every true quit path, delivers system notifications, supports launch at login on macOS, exposes the log, and checks this client's releases. If Harness takes unusually long to start, the startup page offers the log while continuing to wait. Three consecutive early exits instead produce an explicit failure state with retry and log actions rather than an endless “starting” screen.
+Electron 不只是包住 Web 页面的外壳。桌面宿主负责 Harness 子进程监管、默认关闭到托盘、完整退出时的有序清理、系统通知、macOS 开机启动、日志入口和客户端版本检查。若 Harness 启动时间过长，启动页会提供日志入口并继续等待；连续三次提前退出后则进入明确的失败状态，可直接重试或打开日志，不再无限停留在“正在启动”。
 
-The tray can reopen the window, reveal the log, toggle notifications and launch at login, and quit safely. Abnormal exits, repeated startup failures, and recovery produce throttled native notifications. Every bridge is capability-scoped: Web content may manage these desktop preferences, reveal the fixed `harness.log`, or query this project's Releases, but it receives no generic shell, filesystem, or arbitrary-URL capability.
+托盘菜单可以重新打开窗口、查看日志、切换通知与开机启动并安全退出。异常退出、连续启动失败和恢复成功会触发带节流的原生通知。所有桥接能力均是闭集接口：渲染页面只能管理这些桌面偏好、打开固定的 `harness.log` 或查询本项目 Release，不能获得通用 Shell、文件系统或任意 URL 打开权限。
 
-### Copy from the desktop client
+### 客户端复制
 
-The Electron host grants sanitized clipboard-write permission to the supervised Harness page, so message, code, and conversation copy controls work in the desktop client just as they do in the upstream Web client. Clipboard reads and unrelated browser permissions remain denied.
+Electron 宿主仅向受监管的 Harness 页面授予经过净化的剪贴板写入权限，因此消息、代码和对话的复制按钮可以像官方 Web 端一样在桌面客户端正常使用。剪贴板读取及其他无关的浏览器权限仍保持禁用。
 
-### Preset plugin foundation
+### 预设插件基础能力
 
-The installer starts with the Plugin Marketplace, IM connections, Skill picker, font support, and Pocket ready to use. They remain ordinary Harness dependencies: users can uninstall them, and the desktop app respects that decision instead of silently restoring them. Connected installations retain exact npm or pinned Git identities so the market can discover later releases; integrity-checked archives provide an offline fallback. The larger Better Sidebar archive is carried by the installer and prepared only after the main interface becomes usable, with a visible non-blocking progress card.
+安装包启动后即可使用插件市场、IM 连接、Skill 选择器、字体支持和 Pocket。它们仍是普通 Harness 依赖：用户可以卸载，桌面应用会尊重该选择，不会再次自动安装。联网安装会保留精确 npm 版本或固定 Git 提交身份，使插件市场可以发现后续更新；经过完整性校验的内置归档负责离线回退。体积更大的 Better Sidebar 归档也随安装包提供，但会等主界面可用后才准备，并通过可见、非阻塞的进度卡展示状态。
 
-### Dependency safety before plugin execution
+### 插件执行前的依赖安全层
 
-Third-party plugins share the Host's Node.js runtime. One incompatible transitive dependency, orphaned Loader entry, or failed root-plugin mount can otherwise take down the whole Harness before its Settings page is available. This client adds an independent dependency-safety layer before plugin code executes: it reads the profile manifest, lockfile, Bundle order, and installation-level shared runtime, constructs the complete dependency relationship first, and only then decides which plugins may enter the current process.
+第三方插件与 Host 共享 Node.js 运行时，一个不兼容的间接依赖、残留 Loader 条目或根插件挂载失败，都可能在设置页打开之前拖垮整个 Harness。本客户端在插件代码执行前增加了独立的依赖安全层：它读取 profile 清单、锁文件、Bundle 顺序和安装级共享运行时，先构建完整依赖关系，再决定哪些插件可以进入当前进程。
 
-- **Earlier than plugin execution:** Inspection happens before the faulty plugin is imported and mounted. Even when that plugin cannot start at all, the client can still produce a diagnosis and protect the remaining features.
-- **Dependency-graph evidence, not error-string guessing:** Diagnostics expose the conflicting dependency, declared range, actual Host version, and complete reference chain, distinguishing version conflicts, orphaned Bundles, and runtime mount failures.
-- **Converge first, quarantine second:** Repair first attempts to make plugins share the Host dependencies supplied by the installation. If safe convergence remains impossible, only the faulty root plugin is removed from the active profile dependencies and startup order instead of failing the whole client.
-- **Fail closed and remain recoverable:** Unknown conflicts are not silently accepted, and a faulty plugin is not allowed into the live runtime. The quarantine reason and disposition remain durable, while users can retry repair or explicitly uninstall it from Diagnostics.
+- **早于插件执行**：检查发生在故障插件被 `import` 和挂载之前。即使该插件自身完全无法启动，客户端仍能给出诊断并保护其他功能。
+- **基于依赖图，而非猜测报错文本**：诊断会展示冲突依赖、声明范围、Host 实际版本和完整引用链，可区分版本冲突、孤立 Bundle 与运行时挂载故障。
+- **先收敛，后隔离**：修复会先尝试让插件统一使用安装包提供的共享 Host 依赖。仍无法安全收敛时，只将故障根插件移出当前 profile 的活动依赖和启动顺序，而不是让整个客户端失败。
+- **失败关闭且可恢复**：未知冲突不会被静默忽略，故障插件也不会带病进入运行时。隔离原因和处置状态会持久保留，用户可在诊断页重试修复或确认卸载。
 
-This capability must belong to the desktop client's boot layer rather than another ordinary diagnostic plugin. A plugin can run only after dependency resolution and Loader mounting have already succeeded, while this feature must handle failures before that point. Governing extension dependencies before extension code executes is the boundary that lets an open plugin ecosystem coexist with the stability expected by ordinary desktop users.
+这项能力必须由桌面客户端的启动层持有，不能再做成一个普通诊断插件：插件只有在依赖解析和 Loader 挂载已经成功后才能运行，而本功能要处理的正是这个时点之前的失败。这种“在扩展代码之前治理扩展依赖”的边界，让开放的插件生态与普通用户需要的客户端稳定性可以同时存在。
 
-### Official Codex connection available offline
+### 可离线安装的官方 Codex 连接
 
-Each platform installer carries the official DeepSeek Harness [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) plugin, a pinned [`@openai/codex`](https://github.com/openai/codex) wrapper, and only the native payload matching that operating system and CPU. It is not installed during startup: onboarding and **Settings → External tools** expose an explicit install action, which uses the packaged target-native archive and does not depend on a system Node, pnpm, or Codex CLI. The plugin remains removable; restart and upgrade never silently restore it.
+各平台安装包携带 DeepSeek Harness 官方 [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) 插件、固定版本的 [`@openai/codex`](https://github.com/openai/codex) wrapper，以及仅与当前系统和 CPU 匹配的原生载荷。它不会在启动阶段自动安装：首次引导与“设置 → 外部工具”提供明确的安装操作，点击后使用安装包内与平台匹配的归档，不依赖用户系统中另行安装 Node、pnpm 或 Codex CLI。该插件仍可卸载，应用升级或重启不会擅自装回。
 
-The official connector currently treats every delegation as an independent, ephemeral Codex task. Codex uses the parent session's working directory and the login, model, MCP, and Skill configuration already present under the local `CODEX_HOME`, but it does not inherit the Harness conversation transcript or persist its temporary Codex thread into the Harness session. The parent receives only the final answer or a sanitized failure diagnostic; intermediate reasoning, tool traffic, raw stderr, and the complete workspace diff are not copied back.
+官方连接当前把每次委派作为一个独立、临时的 Codex 任务：Codex 使用父会话的工作目录和本机 `CODEX_HOME` 中已有的登录、模型、MCP 与 Skill 配置，但不会继承 Harness 的对话正文，也不会把临时 Codex thread 保存到 Harness 会话。父会话只收到最终回答或经过脱敏的失败诊断；Codex 的中间推理、工具通信、原始 stderr 与完整工作区差异不会被复制回来。
 
 <p align="center">
-  <img src="./assets/readme/codex-task-in-session-zh.jpg" width="900" alt="Using Codex from a full-mode DeepSeek Harness session">
+  <img src="./assets/readme/codex-task-in-session-zh.jpg" width="900" alt="在 DeepSeek Harness 完整模式会话中使用 Codex">
   <br>
-  <sub>Using the connected Codex capability from a full-mode session</sub>
+  <sub>在完整模式会话中使用已连接的 Codex 能力</sub>
 </p>
 
-### External coding tools connection center
+### 外部编码工具连接中心
 
-**Settings → External tools** brings Codex, Claude Code, and placeholders for future Hermes and Trae Providers into one discoverable surface. After a supported Provider is connected, existing and new full-mode sessions receive its tool at the next safe turn boundary; an already running turn is never rewritten, and minimal mode stays intentionally lean. Disconnecting withdraws the tool without deleting Harness sessions or data owned by the external product.
+“设置 → 外部工具”集中展示 Codex、Claude Code 以及等待正式 Provider 的 Hermes、Trae。连接受支持的 Provider 后，已有和新建的完整模式会话会从下一轮安全边界获得对应工具，正在运行的回合不会被中途改写，精简模式也继续保持最小工具集。断开连接只撤下工具，不删除 Harness 会话或外部产品自身的数据。
 
 <p align="center">
-  <img src="./assets/readme/codex-connection-center-zh.png" width="760" alt="Codex connection state in the external coding tools center">
+  <img src="./assets/readme/codex-connection-center-zh.png" width="760" alt="外部编码工具连接中心中的 Codex 连接状态">
   <br>
-  <sub>External tools center: Codex is connected and the other Provider states remain visible</sub>
+  <sub>外部工具连接中心：Codex 已连接，其他 Provider 状态集中展示</sub>
 </p>
 
-### Dynamic tool projection: connection becomes capability
+### 动态工具投影：连接即能力
 
-Conventional Agent compositions pin tools to a particular preset: users must choose the right specialized preset in advance, while existing sessions often cannot receive a product connected later. This client treats an external-product connection as independent, durable Host capability state, then dynamically projects `subagent_codex` into each eligible Agent scope at a safe model-request boundary. Users therefore do not need to recreate a conversation or switch to a dedicated “external tools” preset: new and historical sessions both receive the currently connected capability from their next turn.
+常见的 Agent 组装方式会把工具固定在某个预设中：用户需要先选对专用预设，已有会话则往往无法获得后来连接的能力。本客户端把“外部产品连接”作为独立、持久的 Host 能力状态，再在每个模型请求的安全边界，将 `subagent_codex` 动态投影到符合条件的 Agent 作用域。因此，用户无需重建会话，也不必切换到专用的“外部工具”预设：新会话和历史会话都会从下一轮获得当前已连接的能力。
 
-- **Turn safety:** A connection change never mutates the tool schema in the middle of a request. Connections take effect on the next turn; disconnections wait until the Agent is idle before removing the tool safely.
-- **Mode isolation:** Projection is limited to full modes such as `standard`, `code`, and `cordis`; `minimal` remains lean to prevent capability inflation and accidental delegation.
-- **Model discovery:** The tool and its product-specific usage guidance appear together. When a user explicitly asks to use Codex, the model is directed to call `subagent_codex` instead of guessing at or searching for a similarly named CLI through Shell.
-- **Auditable state:** The external tools actually available to every model request are recorded as an `external-tools/resolved` event. Session recovery and inspection can reconstruct the capability boundary that existed then instead of guessing history from today's settings.
+- **回合安全**：连接变化不会在请求执行中突然改变工具 schema。连接在下一轮生效；断开则等待 Agent 回到空闲状态后安全撤载。
+- **模式隔离**：只向 `standard`、`code`、`cordis` 等完整模式投影；`minimal` 继续保持精简，避免能力膨胀和无意委派。
+- **模型可发现**：工具与产品专用使用提示一起动态出现。当用户明确要求使用 Codex 时，模型会优先调用 `subagent_codex`，而不是去 Shell 中猜测或寻找同名 CLI。
+- **状态可追溯**：每个模型请求实际获得的外部工具会记录为 `external-tools/resolved` 事件。恢复和审计会话时，可以重建当时的能力边界，而不是用当前设置猜测历史。
 
-This design separates the conversation, Agent preset, external Provider, and model-visible tools for the current turn into four independently evolving layers. The plugin remains removable, the connection remains revocable, and historical sessions do not break when preset composition changes. The official Codex Provider still treats each delegation as an independent one-shot task: dynamic projection solves capability discovery and session lifecycle, without pretending that the official Provider already supplies persistent Codex threads.
+这种设计将“会话”、“Agent 预设”、“外部 Provider”和“本轮模型可见工具”分成四个可独立演进的层次：插件仍可卸载，连接仍可随时撤销，历史会话也不会因为预设变化而失效。当前官方 Codex Provider 仍把每次委派作为独立的一次性任务；动态投影解决的是能力发现与会话生命周期问题，不会假装官方 Provider 已具备持久 Codex thread。
 
-### Preset IM bot connections
+### 预设 IM 机器人连接
 
-Packaged installations seed `dsh-im`, which lets users connect WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord, and WhatsApp from the client settings through QR codes, app manifests, or existing bot credentials. The channels share one IM management surface, with controls for switching Harness workspaces and rebinding existing sessions. Bot credentials are submitted only to the local Harness Host and managed by protected credential storage. This capability remains a removable plugin; after users remove it, the client does not silently restore it on a later launch.
+安装包预设 `dsh-im`，可从客户端设置中通过扫码、应用清单或已有机器人凭据连接微信、飞书、钉钉、企业微信、QQ、Slack、Telegram、Discord 和 WhatsApp。不同渠道统一在一个 IM 管理入口中配置，并可为机器人切换 Harness 工作区或重新绑定已有会话。机器人凭据只提交给本机 Harness Host，并由受保护的凭据存储管理。该功能仍由可卸载插件提供；用户移除后，客户端不会在后续启动时擅自装回。
 
-### Themes and backgrounds
+### 主题与背景
 
-Switch between system, light, dark, and eight product themes; pair them with eight original built-in illustrations or replace the chat background with your own PNG, JPEG, or WebP image. Custom images remain in local browser storage and are not sent to the model. See the [theme and background reference](packages/client/ui-theme/README.md) for formats and size limits.
+你可以在跟随系统、浅色、深色及八套产品主题之间切换，并搭配八张原创内置插画，或使用自己的 PNG、JPEG、WebP 图片替换聊天背景。自定义图片仅保存在本地浏览器存储中，不会发送给模型。支持格式与大小限制见[主题与背景参考](packages/client/ui-theme/README.md)。
 
 <table>
   <tr>
-    <th width="50%">Theme settings</th>
-    <th width="50%">Background settings</th>
+    <th width="50%">主题栏</th>
+    <th width="50%">背景栏</th>
   </tr>
   <tr>
-    <td align="center"><img src="./assets/readme/theme-settings-en.png" alt="Theme settings in English"></td>
-    <td align="center"><img src="./assets/readme/background-settings-en.png" alt="Background settings in English"></td>
+    <td align="center"><img src="./assets/readme/theme-settings-zh.png" alt="中文主题栏设置"></td>
+    <td align="center"><img src="./assets/readme/background-settings-zh.png" alt="中文背景栏设置"></td>
   </tr>
 </table>
 
-### Tracking DeepSeek Harness 0.1.1-rc.2
+### 跟进 DeepSeek Harness 0.1.1-rc.2
 
-The current desktop baseline incorporates upstream `dsh-v0.1.1-rc.2`. It adds the unified image and DeepSeek Files pipeline, deterministic image admission, credential records and human-driven provider authorization, stable session projections, multiline questions, refined subagent navigation, and standalone pnpm support on Windows. The earlier file and session references, concurrent `web_search`, reasoning passback, persistent PowerShell PTY, dynamic client packages, build Profiles, and branding slots remain available. Electron always passes `--no-open` to `dsh web`, so launching the desktop app does not also open a system browser.
+当前桌面基线已同步上游 `dsh-v0.1.1-rc.2`。本次新增统一图片与 DeepSeek Files 管线、确定性的图片准入、凭据记录与用户主导的提供商授权、稳定的会话投影、多行问题、更清晰的子 Agent 导航，以及 Windows 独立 pnpm 支持。此前的文件与 Session 引用、多查询并发 `web_search`、推理内容回传、持久 PowerShell PTY、动态客户端包、构建 Profile 与品牌插槽继续保留；Electron 始终为 `dsh web` 传入 `--no-open`，因此启动桌面应用不会额外打开系统浏览器。
 
-## Release status
+## 发布状态
 
-The project is in developer preview and may introduce breaking changes. We are preparing the same five desktop release variants listed below. macOS Apple Silicon is the first locally packaged and validated target; the other rows describe the committed release matrix and will become downloadable as their native build and validation work is completed.
+项目目前处于开发者预览阶段，可能发生破坏兼容性的变更。我们将准备下方列出的五种桌面发行版本。macOS Apple Silicon 是首个在本地完成打包与验证的目标；其他行代表已经确定的发行矩阵，会在对应原生构建与验证工作完成后提供下载。
 
-## What you can do
+## 现有能力
 
-- Connect to DeepSeek by default or configure a compatible API base URL, API key reference, and custom model identifiers from onboarding or Settings.
-- Open local workspaces, create persistent sessions, stream agent responses, copy messages, remove sessions, and clear conversation history.
-- Review model-visible execution records and concise key-step summaries so important tool activity is easier to confirm.
-- Invoke Skills and extend the product through Cordis plugins.
-- Connect Codex or Claude Code from one surface so full-mode sessions can delegate independent coding tasks to official product subagents.
-- Check the fixed official upstream for stable Harness changes and perform a guarded clean fast-forward update from desktop source runs.
+- 默认接入 DeepSeek，也可在首次引导或设置中配置兼容 API 的基础地址、API 密钥引用和自定义模型标识。
+- 打开本地工作区、创建持久会话、流式接收智能体回复、复制消息、删除会话和清空对话记录。
+- 查看进入模型上下文的执行记录与精简的关键步骤摘要，便于确认重要工具操作。
+- 调用 Skill，并通过 Cordis 插件扩展产品。
+- 从统一连接中心启用 Codex 或 Claude Code，使完整模式会话能够把独立编码任务委派给官方产品型子 Agent。
+- 检查固定的官方上游稳定变更，并在桌面源码运行模式下执行受保护的干净快进更新。
 
-## Installation
+## 安装
 
-Download builds only from the official [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases) page. Release assets will follow this matrix:
+请只从本项目的官方 [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases) 页面下载安装包。发行产物将遵循以下矩阵：
 
-| Platform | Architecture | Release package |
+| 平台 | 架构 | 发行包 |
 | --- | --- | --- |
-| macOS | Apple Silicon (`arm64`) | `DeepSeek-Harness-macos-arm64.dmg` |
-| macOS | Intel (`x64`) | `DeepSeek-Harness-macos-x64.dmg` |
+| macOS | Apple Silicon（`arm64`） | `DeepSeek-Harness-macos-arm64.dmg` |
+| macOS | Intel（`x64`） | `DeepSeek-Harness-macos-x64.dmg` |
 | Windows | `x64` | `DeepSeek-Harness-windows-x64.exe` |
-| Linux | Debian / Ubuntu (`x64`) | `DeepSeek-Harness-linux-x64.deb` |
-| Linux | Fedora / RHEL (`x64`) | `DeepSeek-Harness-linux-x64.rpm` |
+| Linux | Debian / Ubuntu（`x64`） | `DeepSeek-Harness-linux-x64.deb` |
+| Linux | Fedora / RHEL（`x64`） | `DeepSeek-Harness-linux-x64.rpm` |
 
-Published releases will also include a `SHA256SUMS` file so downloaded artifacts can be verified before installation. An asset is supported only after it appears on the Releases page; the table itself is not an availability claim.
+正式发布时还会提供 `SHA256SUMS` 文件，便于在安装前校验下载产物。只有实际出现在 Releases 页面中的文件才属于可用版本；此表本身不代表对应安装包已经发布。
 
 ### macOS
 
-1. Download the package matching your Mac processor and open the `.dmg`.
-2. Drag `DeepSeek Harness.app` into the Applications folder.
-3. Current open-source builds use ad-hoc signing and are not notarized. If Gatekeeper blocks the first launch, use **System Settings → Privacy & Security → Open Anyway**. Alternatively, after confirming the download came from this repository, run:
+1. 下载与 Mac 处理器相符的安装包并打开 `.dmg`。
+2. 将 `DeepSeek Harness.app` 拖入“应用程序”文件夹。
+3. 当前开源构建使用 ad-hoc 签名且未经 Apple 公证。若 Gatekeeper 阻止首次打开，请前往**系统设置 → 隐私与安全性 → 仍要打开**。也可以在确认文件来自本仓库后执行：
 
    ```bash
    xattr -dr com.apple.quarantine "/Applications/DeepSeek Harness.app"
@@ -148,15 +150,15 @@ Published releases will also include a `SHA256SUMS` file so downloaded artifacts
 
 > [!CAUTION]
 >
-> Removing the quarantine attribute bypasses a macOS security check. Use the command only for this exact application path and only for a package downloaded from the official Releases page. You can also try Apple's [Open Anyway](https://support.apple.com/102445) flow under **System Settings → Privacy & Security**.
+> 移除 quarantine 属性会绕过 macOS 安全检查。此命令仅适用于从官方 Releases 页面下载并安装到上述准确路径的 `DeepSeek Harness.app`，切勿将路径替换为宽泛目录。也可以前往**系统设置 → 隐私与安全性**，尝试 Apple 的[“仍要打开”](https://support.apple.com/102445)功能。
 
 ### Windows
 
-Download and run the Windows x64 installer. Windows may display a reputation-based warning for an unsigned or newly published build; continue only after checking the publisher repository and the release checksum.
+下载并运行 Windows x64 安装程序。对于未签名或刚发布的版本，Windows 可能显示基于信誉的安全警告；继续安装前请确认仓库来源并核对发行校验值。
 
 ### Linux
 
-Install the package matching your distribution:
+请选择与发行版匹配的软件包：
 
 ```bash
 # Debian / Ubuntu
@@ -168,9 +170,9 @@ sudo dnf install "/path/to/DeepSeek-Harness-linux-x64.rpm"
 
 <a id="run"></a><a id="run-from-source"></a>
 
-## Quick start
+## 快速开始
 
-Install Node.js `^22.19.0 || >=24.0.0` and pnpm `11.7.0`, then run:
+安装 Node.js `^22.19.0 || >=24.0.0` 与 pnpm `11.7.0`，然后执行：
 
 ```sh
 git clone https://github.com/flaqai/open-deepseek-harness-desktop.git
@@ -180,27 +182,27 @@ pnpm run build
 pnpm run dev:desktop
 ```
 
-The desktop host starts a local Harness process and opens its loopback Web UI in a hardened Electron window. To run only the Web client from the same checkout:
+桌面宿主会启动本地 Harness 进程，并在经过加固的 Electron 窗口中打开其回环地址 Web UI。若只需从同一份源码运行 Web 客户端：
 
 ```sh
 pnpm dsh web
 ```
 
-See the [desktop application reference](apps/desktop/README.md) for environment overrides, process supervision, update behavior, and current limitations. The [Web UI guide](docs/user/guide/index.md) covers the browser workflow.
+环境变量覆盖、进程监管、更新行为和现有限制见[桌面应用参考](apps/desktop/README.md)。浏览器端工作流见 [Web UI 指南](docs/user/guide/index.md)。
 
-`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding. The Web command starts at `http://127.0.0.1:3080` and opens the default browser for a local launch. Pass `--no-open` to keep it server-only; the Electron host always uses this mode.
+`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。Web 命令默认在 `http://127.0.0.1:3080` 启动，并在本机启动时打开默认浏览器。传入 `--no-open` 可只运行服务器；Electron 宿主始终使用该模式。
 
-## Platform status
+## 平台状态
 
-| Platform | Current status | Next release work |
+| 平台 | 当前状态 | 后续发布工作 |
 | --- | --- | --- |
-| macOS Apple Silicon | Ad-hoc DMG/ZIP packaging exercised locally | Publish and validate the arm64 release assets |
-| macOS Intel | Dedicated x64 Node runtime, DMG/ZIP targets, and platform Codex payload configured | Complete native installation validation on an Intel-compatible runner |
-| Windows x64 | Official Node runtime, NSIS target, and final-install smoke test configured | Continue validating real Windows 10/11, PTY, sandboxing, and paths with spaces or Chinese characters |
-| Linux x64 | Dedicated x64 Node runtime, DEB/RPM targets, and platform Codex payload configured | Complete native installation validation on target distributions |
-| Web | Available from source through `pnpm dsh web` | Continue sharing the same Harness services and configuration |
+| macOS Apple Silicon | 已在本地验证 ad-hoc DMG/ZIP 打包 | 发布并验证 arm64 发行产物 |
+| macOS Intel | 已配置独立 x64 Node 运行时、DMG/ZIP 和平台 Codex 载荷 | 在兼容 Intel 的运行器上完成原生安装验证 |
+| Windows x64 | 已配置官方 Node、NSIS 与最终安装烟雾测试 | 持续验证真实 Windows 10/11、PTY、沙箱及含空格/中文路径 |
+| Linux x64 | 已配置独立 x64 Node 运行时、DEB/RPM 和平台 Codex 载荷 | 在目标发行版上完成原生安装验证 |
+| Web | 可通过源码命令 `pnpm dsh web` 使用 | 继续与桌面端共享相同的 Harness 服务和配置 |
 
-## Architecture
+## 架构
 
 ```mermaid
 flowchart LR
@@ -213,67 +215,67 @@ flowchart LR
     R --> E["Plugins + Skills + workflows"]
 ```
 
-DeepSeek Harness follows an **everything is a plugin** architecture powered by [Cordis](https://github.com/cordiverse/cordis). The desktop window does not become a second runtime: configuration, credentials, sessions, plugins, and Skills remain owned by Harness services. Start with the [architecture documentation](docs/architecture.md) and [development guide](docs/development.md) before changing packages.
+DeepSeek Harness 采用由 [Cordis](https://github.com/cordiverse/cordis) 驱动的**一切皆插件**架构。桌面窗口不会成为第二套运行时：配置、凭据、会话、插件和 Skill 仍由 Harness 服务统一管理。修改软件包前，请先阅读[架构文档](docs/architecture.md)和[开发指南](docs/development.md)。
 
-## Plugins and Skills
+## 插件与 Skill
 
-The home and Settings surfaces expose plugin discovery and supported installation actions. Registry installation uses validated package specifications, explicit confirmation, streamed command output, and a restart-required result; it is not a generic shell prompt. Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to a compatible plugin repository so users can find it.
+首页和设置界面提供插件发现与受支持的安装操作。注册表安装会校验包标识、要求明确确认、流式展示命令输出并返回需要重启的结果；它不是通用 Shell 输入框。为兼容插件仓库添加 [`dsh-plugin`](https://github.com/topics/dsh-plugin) 话题，可帮助用户发现插件。
 
-Skills remain managed through Harness providers and are invoked in the same session context as the rest of the agent. Plugin authors should use documented service definitions, providers, consumers, effects, and configuration instead of Electron-only state.
+Skill 继续由 Harness 提供程序管理，并与智能体的其他能力在同一会话上下文中调用。插件作者应使用已有的服务定义、提供程序、消费者、effect 和配置机制，不应依赖 Electron 专属状态。
 
-## Security and privacy
+## 安全与隐私
 
-The renderer runs with Node integration disabled, context isolation enabled, and Chromium sandboxing enabled. Navigation is restricted to the exact loopback Harness origin, renderer permission requests are denied, and no generic command or filesystem bridge is exposed to Web content.
+渲染进程禁用 Node 集成，启用上下文隔离和 Chromium 沙箱。页面导航仅允许准确的 Harness 回环来源，渲染进程权限请求会被拒绝，Web 内容也无法访问通用命令或文件系统桥接。
 
-API keys remain owned by the Harness credentials service. Do not commit credentials. Before selecting any compatible provider, review its endpoint, model support, tool-calling behavior, pricing, rate limits, and data-handling terms.
+API 密钥仍由 Harness 凭据服务管理，请勿提交凭据。选择任何兼容提供商前，请核对其端点、模型支持、工具调用行为、价格、速率限制和数据处理条款。
 
-## Free API-token options for evaluation
+## 可免费试用的 API Token 渠道
 
-Users who want to try Harness before purchasing model credits can evaluate these OpenAI-compatible options. They are independent third-party services, are not bundled or selected by default, and may change their free quotas, model names, rate limits, logging policies, or availability at any time.
+希望先体验 Harness、暂不购买模型额度的用户，可以评估以下 OpenAI 兼容渠道。它们都是独立第三方服务，本项目不会内置或默认选中；免费额度、模型名称、速率限制、日志政策和可用性都可能随时变化。
 
-- **[Agnes AI](https://agnes-ai.com/)** — offers an API-key application and free-access entry for its multimodal gateway. Add it as an OpenAI-compatible provider with Base URL `https://apihub.agnes-ai.com/v1`; `agnes-2.5-flash` is the current general choice for coding, reasoning, tool calling, and Agent workflows. Confirm the account's current Token Plan and limits in the Agnes console before relying on it.
-- **[OpenRouter · Ox Alpha](https://openrouter.ai/stealth/ox-alpha?view=api)** — use Base URL `https://openrouter.ai/api/v1` and model ID `stealth/ox-alpha`. Its current catalog price is zero for input and output tokens, but stealth/alpha models are previews and may be renamed, withdrawn, rate-limited, or repriced. OpenRouter's account-level free-model limits still apply.
+- **[Agnes AI](https://agnes-ai.com/)**：提供 API Key 申请和多模态网关的免费使用入口。可按 OpenAI 兼容提供商添加，Base URL 填写 `https://apihub.agnes-ai.com/v1`；当前适合编码、推理、工具调用和 Agent 工作流的通用选择是 `agnes-2.5-flash`。正式依赖前请在 Agnes 控制台确认账号当前的 Token Plan 与限额。
+- **[OpenRouter · Ox Alpha](https://openrouter.ai/stealth/ox-alpha?view=api)**：Base URL 使用 `https://openrouter.ai/api/v1`，模型 ID 使用 `stealth/ox-alpha`。其当前目录价格为输入、输出 Token 均为零，但 stealth/alpha 模型属于预览能力，之后可能改名、下线、限流或调整价格，同时仍受 OpenRouter 账号级免费模型限额约束。
 
-Create keys only on the providers' official sites and save them through Harness credentials. Never paste API tokens into issues, screenshots, README files, or committed configuration.
+请只在提供商官方网站创建 Key，并通过 Harness 凭据服务保存。不要把 API Token 粘贴到 Issue、截图、README 或会被提交的配置文件中。
 
-## Project direction
+## 项目方向
 
-- Produce reproducible macOS arm64/x64 DMG, Windows x64 EXE, and Linux x64 DEB/RPM releases with checksums and generated third-party notices.
-- Improve plugin and Skill discovery, compatibility metadata, lifecycle management, and update visibility.
-- Build on the existing tray, notifications, and startup diagnostics with native approvals, richer task status, deep links, and an authenticated local control endpoint.
-- Improve interactive approval, progress, change summaries, and resumable sessions for external coding tools while keeping the Harness and product context boundaries explicit.
-- Continue strengthening identity mapping, authorization, audit events, rate limits, and revocation for the preset IM bot connections.
+- 提供可复现的 macOS arm64/x64 DMG、Windows x64 EXE 和 Linux x64 DEB/RPM 版本，并附带校验值与第三方许可证声明。
+- 改进插件与 Skill 的发现、兼容性元数据、生命周期管理和更新可见性。
+- 在现有托盘、通知和启动诊断基础上，继续增加原生审批、更丰富的任务状态、深度链接和经过身份验证的本地控制端点。
+- 完善外部编码工具的交互审批、任务进度、修改摘要与可恢复会话，同时保持 Harness 与外部产品的上下文边界清晰可见。
+- 继续完善预设 IM 机器人连接的身份映射、授权、审计事件、速率限制和撤销能力。
 
-These items describe direction, not completed support. See the [desktop release matrix](apps/desktop/README.md#cross-platform-release-matrix) for the current implementation boundary.
+以上内容是项目方向，并不代表已经完成支持。当前实现边界见[桌面发行矩阵](apps/desktop/README.md)。
 
-## Documentation and community
+## 文档与社区
 
-- Read the [user guide](docs/user/guide/index.md), [plugin introduction](docs/user/develop/framework/index.md), and [Skill guide](docs/subsystems/skills.md).
-- Use [GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues) for reproducible bugs and feature requests.
-- Discuss the upstream runtime in [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) or its [Discord community](https://discord.gg/Ycq5dCaS4).
-- See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing and [AGENTS.md](AGENTS.md) when working with coding agents in this repository.
+- 阅读[用户指南](docs/user/guide/index.md)、[插件介绍](docs/user/develop/framework/index.md)和 [Skill 指南](docs/subsystems/skills.md)。
+- 通过 [GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues) 提交可复现的缺陷和功能建议。
+- 在 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 或其 [Discord 社区](https://discord.gg/Ycq5dCaS4)讨论上游运行时。
+- 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；使用编码智能体处理本仓库时请遵循 [AGENTS.md](AGENTS.md)。
 
-## Acknowledgements
+## 致谢
 
-Thank you to the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) maintainers for the official Codex Provider, and to [OpenAI Codex](https://github.com/openai/codex) for its pinned wrapper and native platform runtimes. This project packages those official components for each target and integrates them with the desktop connection center.
+感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 上游维护官方 Codex Provider，并感谢 [OpenAI Codex](https://github.com/openai/codex) 提供其固定版本的 wrapper 与各平台原生运行时。本项目仅负责把这些官方组件按目标平台离线打包并接入桌面连接中心。
 
-Thank you to the authors and maintainers of these community plugins. The startup set is removable, while the larger Better Sidebar remains an explicit install:
+感谢以下社区插件的作者与维护者。启动预设均可卸载；体积较大的 Better Sidebar 保持为用户明确触发的安装项：
 
-- [`dsh-im`](https://github.com/xmanrui/dsh-im), maintained by [xmanrui](https://github.com/xmanrui): connects nine IM bot channels, including WeChat and Feishu.
-- [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), maintained by [a735624258](https://github.com/a735624258): selects a Skill from the composer and inserts the Harness Skill invocation.
-- [`dsh-market`](https://github.com/dsh-market/dsh-market), maintained by the [dsh-market](https://github.com/dsh-market) community: browses, searches, installs, and manages plugins inside Harness.
-- [`dsh-font`](https://github.com/tianyhjg-lab/dsh-font): provides client font customization from a pinned Git revision.
-- [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket): provides the Pocket extension included in the startup set.
-- [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar): provides the optional enhanced sidebar installed only on request.
+- [`dsh-im`](https://github.com/xmanrui/dsh-im)，由 [xmanrui](https://github.com/xmanrui) 维护：连接微信、飞书等九种 IM 机器人。
+- [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)，由 [a735624258](https://github.com/a735624258) 维护：在输入区选择 Skill，并插入 Harness 的 Skill 调用指令。
+- [`dsh-market`](https://github.com/dsh-market/dsh-market)，由 [dsh-market](https://github.com/dsh-market) 社区维护：在 Harness 内浏览、搜索、安装和管理插件。
+- [`dsh-font`](https://github.com/tianyhjg-lab/dsh-font)：通过固定 Git 提交提供客户端字体定制。
+- [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)：提供启动阶段预设的 Pocket 扩展。
+- [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)：提供仅在用户明确请求后安装的增强侧边栏。
 
-## About the FLAQ AI team
+## 关于 FLAQ AI 团队
 
-[FLAQ.AI](https://flaq.ai/) provides unified API access to image, video, music, and language models for AI Agents and production applications, together with documentation and developer-oriented workflows. This desktop project comes from the team's recurring work around model integration, local Agent environments, plugin delivery, and cross-platform application packaging; open-sourcing it turns those implementation lessons into an inspectable and reusable community project.
+[FLAQ.AI](https://flaq.ai/) 面向 AI Agent 和生产应用，提供图片、视频、音乐及语言模型的统一 API 接入、文档和开发者工作流。本桌面项目来自团队在模型集成、本地 Agent 环境、插件交付与跨平台应用打包中的反复实践；我们将它开源，是希望把这些实施经验整理成可检查、可复用、可继续改进的社区项目。
 
-Related open-source projects include [Backlink Skills](https://github.com/flaqai/backlink_skills), [Awesome Codex Skills](https://github.com/flaqai/awesome_codex_skills), and [Awesome Claude Code Skills](https://github.com/flaqai/awesome_claude_code_skills).
+相关开源项目包括 [Backlink Skills](https://github.com/flaqai/backlink_skills)、[Awesome Codex Skills](https://github.com/flaqai/awesome_codex_skills) 和 [Awesome Claude Code Skills](https://github.com/flaqai/awesome_claude_code_skills)。
 
-FLAQ.AI remains an optional compatible provider or companion platform. It is not required to run this repository, is not configured as a hidden default, and does not imply endorsement by DeepSeek. Provider capabilities, availability, and commercial terms can change, so confirm current details in the [FLAQ.AI documentation](https://flaq.ai/docs/) before production use.
+FLAQ.AI 仍只是可选的兼容提供商或配套平台。运行本仓库不依赖 FLAQ.AI，项目也不会将其设为隐藏默认服务；提及 FLAQ.AI 不代表 DeepSeek 对其背书。提供商能力、可用性和商业条款可能变化，投入生产前请在 [FLAQ.AI 文档](https://flaq.ai/docs/)中核对最新信息。
 
-## License
+## 许可证
 
-Open DeepSeek Harness Desktop is available under the [MIT License](LICENSE). Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Open DeepSeek Harness Desktop 采用 [MIT 许可证](LICENSE)。第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
