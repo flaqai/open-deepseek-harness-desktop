@@ -30,4 +30,4 @@ None; this package neither assembles nor sends a provider request.
 - **Read-only Loader view** — local search does not add provenance, current-browser activation diagnosis, grouping by source, or live Loader mutation controls.
 - **Dated discovery metadata** — the curated cards are a source-reviewed guide captured on 2026-08-16, not a live ranking. The linked GitHub topic is the source for a broader and changing catalog.
 - **Registry install sources only** — the install action accepts reviewed npm registry package specs. Git, URL, alias, tarball, and local-path sources remain available through the displayed CLI workflow.
-- **Official providers only** — Codex and Claude Code are actionable because this release ships provider bundles for them; Hermes and Trae remain informational until an official provider contract exists.
+- **Official providers only** — Codex and Claude Code are actionable because their reviewed official Bundles can be installed from npm on demand; neither Bundle is carried in the desktop installer. Hermes and Trae remain informational until an official provider contract exists.

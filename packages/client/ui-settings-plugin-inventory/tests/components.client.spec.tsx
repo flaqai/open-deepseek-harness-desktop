@@ -20,6 +20,7 @@ import type {
   PluginDoctorId,
   PluginDoctorSnapshot,
   PluginInstallId,
+  PluginInstallRequest,
   PluginInstallSnapshot,
 } from '@deepseek-ai/dsh-host-plugin-inventory/types'
 import { en, type PluginInventoryLocaleKey } from '../src/client/locales.ts'
@@ -231,6 +232,41 @@ describe('ExternalToolsSection', () => {
     expect(await screen.findByText(en['external.codex.description'])).toBeTruthy()
     expect(en['external.codex.description']).toContain('Maintained by DeepSeek')
     expect(en['external.codex.description']).not.toContain('hecoococ')
+  })
+
+  it('installs the current official Codex and Claude Code bundle versions', async () => {
+    const startInstall = vi.fn(async (request: PluginInstallRequest) => ({
+      installId: `install-${String(startInstall.mock.calls.length)}`,
+      profile: request.profile,
+      packageSpec: request.packageSpec,
+      command: 'dsh plugin add',
+      phase: 'failed' as const,
+      exitCode: 1,
+    }))
+    render(<ExternalToolsSection {...({
+      t,
+      list: async () => ({ ...inventory, entries: [] }),
+      externalTools: async () => ({ scope: 'complete-presets', codex: false, claudeCode: false }),
+      setExternalTool: vi.fn(),
+      startInstall,
+      getInstall: vi.fn(),
+    } as ExternalToolsSectionProps)} />)
+
+    const codexCard = (await screen.findByRole('heading', { name: 'Codex' })).closest('li')
+    const claudeCard = screen.getByRole('heading', { name: 'Claude Code' }).closest('li')
+    if (codexCard === null || claudeCard === null) throw new Error('expected external-tool cards')
+    fireEvent.click(codexCard.querySelector('button')!)
+    await waitFor(() => {
+      expect(startInstall).toHaveBeenCalledWith({
+        profile: 'web', packageSpec: '@deepseek-ai/dsh-subagent-codex@0.1.1-rc.2',
+      })
+    })
+    fireEvent.click(claudeCard.querySelector('button')!)
+    await waitFor(() => {
+      expect(startInstall).toHaveBeenCalledWith({
+        profile: 'web', packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.1.1-rc.2',
+      })
+    })
   })
 })
 

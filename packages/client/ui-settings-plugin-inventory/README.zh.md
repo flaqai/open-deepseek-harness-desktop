@@ -30,4 +30,4 @@ Web 插件清单、诊断、外部工具连接与发现界面。浏览器插件�
 - **只读 Loader 视图** —— 本地搜索不会额外引入来源、按来源分组、当前浏览器激活诊断或实时 Loader 修改控件。
 - **带日期的发现元数据** —— 精选卡片是 2026-08-16 采集并检查来源的指引，不是实时榜单。链接的 GitHub 专题用于查看更广、持续变化的目录。
 - **仅 registry 安装来源** —— 安装操作接受已审阅的 npm registry 软件包说明符。Git、URL、alias、tarball 与本地路径来源继续通过界面展示的 CLI 流程使用。
-- **仅官方 Provider** —— Codex 与 Claude Code 因本版本带有对应 Provider bundle 而可操作；Hermes 与 Trae 在正式 Provider 契约出现前只作信息展示。
+- **仅官方 Provider** —— Codex 与 Claude Code 可按需从 npm 安装经过审核的官方 Bundle，桌面安装包本身不携带这两个 Bundle；Hermes 与 Trae 在正式 Provider 契约出现前只作信息展示。

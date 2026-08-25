@@ -112,10 +112,20 @@ $bundledManifest = Get-Content $bundledManifestPath -Raw | ConvertFrom-Json
 $bundledPlugins = @($bundledManifest.plugins)
 foreach ($packageName in @(
   'dshmarket', '@xmanrui/dsh-im', 'dsh-skill-picker', 'dsh-font',
-  'dsh-pocket', 'dsh-better-sidebar', '@deepseek-ai/dsh-subagent-codex'
+  'dsh-pocket', 'dsh-better-sidebar'
 )) {
   if ($bundledPlugins.PackageName -notcontains $packageName) {
     throw "Bundled plugin manifest is missing required preset $packageName"
+  }
+}
+foreach ($onlineOnlyPackage in @(
+  '@deepseek-ai/dsh-subagent-codex', '@deepseek-ai/dsh-subagent-claude-code'
+)) {
+  if ($bundledPlugins.PackageName -contains $onlineOnlyPackage) {
+    throw "Online-only external tool connector must not be bundled: $onlineOnlyPackage"
+  }
+  if ($null -ne $profileManifest.dependencies.PSObject.Properties[$onlineOnlyPackage]) {
+    throw "Online-only external tool connector was installed without user action: $onlineOnlyPackage"
   }
 }
 foreach ($plugin in @($bundledPlugins | Where-Object { $_.InstallPolicy -eq 'startup' })) {
@@ -158,4 +168,4 @@ if ($null -ne $bundledFailure) {
   throw "Bundled plugin failure was written to $($bundledFailure.FullName)"
 }
 
-Write-Host 'Installed Windows package reached Harness readiness, seeded startup plugins, completed deferred Better Sidebar, and kept Codex manual.'
+Write-Host 'Installed Windows package reached Harness readiness, seeded startup plugins, completed deferred Better Sidebar, and kept Codex and Claude Code online-only.'
