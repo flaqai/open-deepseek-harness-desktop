@@ -279,3 +279,7 @@ FLAQ.AI 仍只是可选的兼容提供商或配套平台。运行本仓库不依
 ## 许可证
 
 Open DeepSeek Harness Desktop 采用 [MIT 许可证](LICENSE)。第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+## Friends
+
+- [DSHFind](https://dshfind.com/zh) — DeepSeek Harness 中文学习与分享社区，汇集入门教程、插件生态与社区内容。
