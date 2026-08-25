@@ -1,7 +1,7 @@
 /** Resolve the local Harness process used by the Electron host. */
 
 import { existsSync } from 'node:fs'
-import { delimiter } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /** Executable and arguments for one Harness child process. */
@@ -13,6 +13,7 @@ export interface HarnessLaunch {
 
 /** Environment variables accepted by {@link resolveHarnessLaunch}. */
 export interface DesktopLaunchEnvironment {
+  DSH_HOME?: string
   DSH_DESKTOP_DSH_BIN?: string
   DSH_DESKTOP_NODE_BIN?: string
   PATH?: string
@@ -28,6 +29,32 @@ export interface DesktopLaunchOptions {
   packageManagerBin?: string
   /** Directory prepended to PATH for plugin lifecycle scripts. */
   runtimeBinPath?: string
+}
+
+/**
+ * Decide whether one bounded CLI invocation completed with an expected code.
+ * @param code - Child-process exit code, or null when terminated by a signal.
+ * @param signal - Child-process termination signal, if any.
+ * @param acceptedCodes - Explicit success-like codes owned by that command.
+ * @returns True only for a signal-free exit whose code is explicitly accepted.
+ */
+export function acceptsHarnessInvocationExit(
+  code: number | null,
+  signal: NodeJS.Signals | null,
+  acceptedCodes: readonly number[],
+): boolean {
+  return signal === null && code !== null && acceptedCodes.includes(code)
+}
+
+/**
+ * Pin source-mode profile mutations to the checkout's pnpm major and store.
+ * @param sourceRoot - Repository root containing the Desktop workspace package.
+ * @returns Launch options shared by Harness and plugin lifecycle children.
+ */
+export function resolveDevelopmentLaunchOptions(sourceRoot: string): DesktopLaunchOptions {
+  return {
+    packageManagerBin: join(sourceRoot, 'apps', 'desktop', 'node_modules', 'pnpm', 'bin', 'pnpm.mjs'),
+  }
 }
 
 /**
@@ -65,6 +92,9 @@ export function resolveHarnessInvocation(
     args: [harnessBin, ...invocationArgs],
   }
   const launchEnvironment: NodeJS.ProcessEnv = {}
+  if (environment.DSH_HOME !== undefined && environment.DSH_HOME.trim() !== '') {
+    launchEnvironment.DSH_HOME = environment.DSH_HOME
+  }
   if (options.packageManagerBin !== undefined) launchEnvironment.DSH_PNPM_BIN = options.packageManagerBin
   if (options.runtimeBinPath !== undefined) {
     launchEnvironment.PATH = environment.PATH === undefined || environment.PATH.length === 0

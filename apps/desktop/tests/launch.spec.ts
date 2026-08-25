@@ -2,9 +2,27 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { resolveHarnessInvocation, resolveHarnessLaunch } from '../src/launch.ts'
+import {
+  acceptsHarnessInvocationExit,
+  resolveDevelopmentLaunchOptions,
+  resolveHarnessInvocation,
+  resolveHarnessLaunch,
+} from '../src/launch.ts'
 
 describe('desktop Harness launch', () => {
+  it('accepts only explicit signal-free lifecycle exit codes', () => {
+    expect(acceptsHarnessInvocationExit(0, null, [0])).toBe(true)
+    expect(acceptsHarnessInvocationExit(11, null, [0, 10, 11])).toBe(true)
+    expect(acceptsHarnessInvocationExit(1, null, [0, 10, 11])).toBe(false)
+    expect(acceptsHarnessInvocationExit(null, 'SIGTERM', [0, 10, 11])).toBe(false)
+  })
+
+  it('pins development plugin mutations to the checkout pnpm entry', () => {
+    expect(resolveDevelopmentLaunchOptions('/checkout')).toEqual({
+      packageManagerBin: join('/checkout', 'apps', 'desktop', 'node_modules', 'pnpm', 'bin', 'pnpm.mjs'),
+    })
+  })
+
   it('uses explicit executable overrides without a shell', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-launch-'))
     const harnessBin = join(root, 'bin.js')
@@ -31,6 +49,15 @@ describe('desktop Harness launch', () => {
       harnessBin,
       nodeCommand: '/runtime/node',
     }).args).toEqual([harnessBin, 'plugin', '--profile', 'web', 'remove', 'dshmarket'])
+  })
+
+  it('passes the selected independent Harness home to lifecycle invocations', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-home-launch-'))
+    const harnessBin = join(root, 'bin.js')
+    writeFileSync(harnessBin, '')
+    expect(resolveHarnessInvocation({ DSH_HOME: '/desktop/dsh-home' }, ['plugin', '--profile', 'web', 'add', 'x'], {
+      harnessBin,
+    }).environment).toEqual({ DSH_HOME: '/desktop/dsh-home' })
   })
 
   it('uses the packaged Windows Node executable without Electron compatibility flags', () => {
