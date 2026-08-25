@@ -8,7 +8,7 @@
   <strong>开箱即用、依赖安全的 DeepSeek Harness 桌面版</strong>
 </p>
 
-[中文备用入口](README.zh.md) | 中文（默认） | [English](README.en.md)
+语言：简体中文（默认） · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
 > 正在处理各位用户的bug，结合官方更新、bug修复和体验优化的新版本准备出炉……
 

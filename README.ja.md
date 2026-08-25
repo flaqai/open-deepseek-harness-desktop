@@ -8,7 +8,9 @@
   <strong>すぐに使えて、依存関係にも配慮した DeepSeek Harness デスクトップ版</strong>
 </p>
 
-言語：[English](README.md) · [简体中文](README.zh.md) · 日本語 · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+言語：[English](README.en.md) · [简体中文](README.md) · 日本語 · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+
+> 現在、皆さまから寄せられた不具合に対応しています。公式アップデート、バグ修正、使い勝手の改善を盛り込んだ新バージョンを準備中です……
 
 Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) を macOS、Windows、Linux で使いやすくする、コミュニティ運営の独立したデスクトップ配布版です。Electron は別の Agent ランタイムを作るのではなく、ローカルの Harness Host を安全に起動・監視し、既存の Web クライアントを表示します。
 

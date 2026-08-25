@@ -8,7 +8,7 @@
   <strong>A ready-to-use, dependency-safe desktop edition of DeepSeek Harness</strong>
 </p>
 
-English | [中文](README.md)
+Languages: [简体中文](README.md) · English · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
 > We are addressing user-reported bugs. A new release combining upstream updates, bug fixes, and experience improvements is on the way…
 
