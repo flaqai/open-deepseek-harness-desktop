@@ -5,7 +5,7 @@ import { defineConfig } from 'tsdown'
  * local helpers while leaving Electron's built-in bridge as a runtime require.
  */
 export default defineConfig({
-  entry: ['lib/preload.js'],
+  entry: ['lib/preload.js', 'lib/data-home-preload.js'],
   outDir: 'lib',
   format: ['cjs'],
   platform: 'node',

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'">
+    <title>选择数据目录</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #171719;
+        background: #fff;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; overflow: hidden; background: #fff; }
+      button { font: inherit; }
+      .shell { display: grid; grid-template-rows: 68px 1fr 82px; min-height: 100vh; }
+      .titlebar {
+        align-items: center;
+        border-bottom: 1px solid #e6e7ea;
+        display: flex;
+        justify-content: center;
+        position: relative;
+      }
+      .brand { align-items: center; display: flex; gap: 11px; font-size: 18px; font-weight: 650; }
+      .brand img { border-radius: 8px; height: 30px; width: 30px; }
+      .content { display: grid; grid-template-columns: minmax(340px, 42%) 1fr; min-height: 0; }
+      .choices { border-right: 1px solid #e6e7ea; padding: 48px 38px; }
+      .choice {
+        appearance: none;
+        background: transparent;
+        border: 0;
+        border-bottom: 1px solid #e6e7ea;
+        color: inherit;
+        cursor: pointer;
+        display: grid;
+        gap: 0 16px;
+        grid-template-columns: 28px 1fr;
+        padding: 24px 14px;
+        text-align: left;
+        width: 100%;
+      }
+      .choice:first-child { padding-top: 8px; }
+      .choice:last-child { border-bottom: 0; }
+      .choice:hover { background: #f8faff; }
+      .choice:focus-visible { border-radius: 10px; outline: 2px solid #4176e6; outline-offset: -2px; }
+      .choice[aria-checked="true"] { background: #eef4ff; border-radius: 10px; border-bottom-color: transparent; }
+      .radio {
+        border: 1.5px solid #a7abb3;
+        border-radius: 50%;
+        height: 22px;
+        margin-top: 2px;
+        position: relative;
+        width: 22px;
+      }
+      .choice[aria-checked="true"] .radio { border: 6px solid #4176e6; }
+      .choice-title { align-items: center; display: flex; gap: 10px; font-size: 18px; font-weight: 620; line-height: 1.4; }
+      .recommended { background: #e9f0ff; border-radius: 999px; color: #316bd8; font-size: 12px; font-weight: 600; padding: 3px 8px; }
+      .choice-description { color: #696d76; font-size: 14px; line-height: 1.65; margin-top: 7px; }
+      .detail { min-width: 0; padding: 46px 52px 36px; }
+      .detail-heading { align-items: center; display: flex; gap: 12px; margin-bottom: 22px; }
+      .detail-heading h1 { font-size: 28px; letter-spacing: -.025em; line-height: 1.25; margin: 0; }
+      .help-button {
+        align-items: center;
+        appearance: none;
+        background: #fff;
+        border: 0;
+        border-radius: 50%;
+        color: #62666f;
+        cursor: pointer;
+        display: inline-flex;
+        height: 30px;
+        justify-content: center;
+        width: 30px;
+      }
+      .help-button img { height: 17px; width: 17px; }
+      .help-button:hover { background: #f3f5f8; color: #171719; }
+      .help-button:focus-visible { outline: 2px solid #4176e6; outline-offset: 2px; }
+      .risk { background: #fff7e9; border: 1px solid #f5c979; border-radius: 8px; color: #ad6100; font-size: 14px; line-height: 1.5; margin: 0 0 24px; padding: 13px 16px; }
+      .risk[hidden] { display: none; }
+      .facts { margin: 0; }
+      .fact { border-bottom: 1px solid #e6e7ea; padding: 18px 0; }
+      .fact:last-child { border-bottom: 0; }
+      .fact dt { font-size: 15px; font-weight: 620; margin-bottom: 7px; }
+      .fact dd { color: #696d76; font-size: 14px; line-height: 1.55; margin: 0; }
+      .footer { align-items: center; border-top: 1px solid #e6e7ea; display: flex; justify-content: space-between; padding: 0 52px; }
+      .compare-link { appearance: none; background: transparent; border: 0; color: #286be8; cursor: pointer; padding: 8px 0; }
+      .compare-link:hover { text-decoration: underline; }
+      .actions { display: flex; gap: 12px; }
+      .action { appearance: none; border-radius: 8px; cursor: pointer; min-width: 104px; padding: 10px 20px; }
+      .action.secondary { background: #fff; border: 1px solid #c8cbd1; color: #171719; }
+      .action.primary { background: #171719; border: 1px solid #171719; color: #fff; min-width: 154px; }
+      .action:hover { filter: brightness(.96); }
+      .action:focus-visible, .compare-link:focus-visible { outline: 2px solid #4176e6; outline-offset: 2px; }
+      .overlay { align-items: center; background: rgb(15 18 24 / 42%); display: flex; inset: 0; justify-content: center; padding: 34px; position: fixed; z-index: 10; }
+      .overlay[hidden] { display: none; }
+      .comparison { background: #fff; border-radius: 14px; box-shadow: 0 20px 60px rgb(15 18 24 / 22%); max-width: 920px; padding: 28px; width: 100%; }
+      .comparison-header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 22px; }
+      .comparison-header h2 { font-size: 22px; margin: 0; }
+      .close { appearance: none; background: transparent; border: 0; color: #555a63; cursor: pointer; line-height: 1; padding: 7px; }
+      .close img { height: 16px; width: 16px; }
+      table { border-collapse: separate; border-spacing: 0; font-size: 13px; line-height: 1.5; overflow: hidden; table-layout: fixed; width: 100%; }
+      th, td { border-bottom: 1px solid #e6e7ea; border-right: 1px solid #e6e7ea; padding: 12px; text-align: left; vertical-align: top; }
+      th:first-child, td:first-child { border-left: 1px solid #e6e7ea; width: 112px; }
+      thead th { border-top: 1px solid #e6e7ea; font-weight: 650; text-align: center; }
+      thead th:first-child { border-top-left-radius: 8px; }
+      thead th:last-child { border-top-right-radius: 8px; }
+      .reuse-column { background: #fffaf1; }
+      .comparison-note { background: #f5f6f8; border-radius: 8px; color: #62666f; font-size: 13px; line-height: 1.55; margin: 18px 0 0; padding: 11px 13px; }
+      .comparison-footer { display: flex; justify-content: flex-end; margin-top: 20px; }
+      @media (max-width: 860px) {
+        .content { grid-template-columns: 1fr; overflow: auto; }
+        .choices { border-bottom: 1px solid #e6e7ea; border-right: 0; padding: 26px; }
+        .detail { padding: 30px; }
+        .footer { padding: 0 30px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="titlebar">
+        <div class="brand"><img src="icon.png" alt=""><span data-copy="windowTitle">选择数据目录</span></div>
+      </header>
+      <section class="content">
+        <div class="choices" role="radiogroup" aria-label="数据目录模式">
+          <button class="choice" type="button" role="radio" aria-checked="true" data-mode="imported">
+            <span class="radio" aria-hidden="true"></span>
+            <span><span class="choice-title"><span data-copy="importTitle">复制到独立目录</span><span class="recommended" data-copy="recommended">推荐</span></span><span class="choice-description" data-copy="importSummary">保留官方数据副本，之后互不影响。</span></span>
+          </button>
+          <button class="choice" type="button" role="radio" aria-checked="false" data-mode="reused">
+            <span class="radio" aria-hidden="true"></span>
+            <span><span class="choice-title" data-copy="reuseTitle">直接复用官方配置</span><span class="choice-description" data-copy="reuseSummary">与官方 dsh 共享设置、凭据、会话和插件。</span></span>
+          </button>
+          <button class="choice" type="button" role="radio" aria-checked="false" data-mode="fresh">
+            <span class="radio" aria-hidden="true"></span>
+            <span><span class="choice-title" data-copy="freshTitle">全新开始</span><span class="choice-description" data-copy="freshSummary">不导入任何现有数据。</span></span>
+          </button>
+        </div>
+        <article class="detail">
+          <div class="detail-heading"><h1 id="detail-title"></h1><button id="help" class="help-button" type="button" aria-label="查看三个选项的区别"><img src="question-outline-14.svg" alt=""></button></div>
+          <p id="risk" class="risk" hidden></p>
+          <dl class="facts">
+            <div class="fact"><dt data-copy="locationLabel">数据位置</dt><dd id="location-value"></dd></div>
+            <div class="fact"><dt data-copy="sharingLabel">共享范围</dt><dd id="sharing-value"></dd></div>
+            <div class="fact"><dt data-copy="pluginsLabel">已有插件</dt><dd id="plugins-value"></dd></div>
+            <div class="fact"><dt data-copy="buildsLabel">构建权限</dt><dd id="builds-value"></dd></div>
+          </dl>
+        </article>
+      </section>
+      <footer class="footer">
+        <button id="compare" class="compare-link" type="button" data-copy="compare">查看完整对比</button>
+        <div class="actions"><button id="cancel" class="action secondary" type="button" data-copy="cancel">取消</button><button id="continue" class="action primary" type="button" data-copy="continue">使用此配置</button></div>
+      </footer>
+    </main>
+    <div id="overlay" class="overlay" hidden>
+      <section class="comparison" role="dialog" aria-modal="true" aria-labelledby="comparison-title">
+        <header class="comparison-header"><h2 id="comparison-title" data-copy="comparisonTitle">这三个选项有什么区别？</h2><button id="close-comparison" class="close" type="button" aria-label="关闭"><img src="close-outline-16.svg" alt=""></button></header>
+        <table>
+          <thead><tr><th></th><th data-copy="importTitle">复制到独立目录</th><th class="reuse-column" data-copy="reuseTitle">直接复用官方配置</th><th data-copy="freshTitle">全新开始</th></tr></thead>
+          <tbody>
+            <tr><th data-copy="locationLabel">数据位置</th><td data-copy="compareImportLocation"></td><td class="reuse-column" data-copy="compareReuseLocation"></td><td data-copy="compareFreshLocation"></td></tr>
+            <tr><th data-copy="sharingLabel">是否共享</th><td data-copy="compareImportSharing"></td><td class="reuse-column" data-copy="compareReuseSharing"></td><td data-copy="compareFreshSharing"></td></tr>
+            <tr><th data-copy="pluginsLabel">已有插件</th><td data-copy="compareImportPlugins"></td><td class="reuse-column" data-copy="compareReusePlugins"></td><td data-copy="compareFreshPlugins"></td></tr>
+            <tr><th data-copy="suitableLabel">适合谁</th><td data-copy="compareImportSuitable"></td><td class="reuse-column" data-copy="compareReuseSuitable"></td><td data-copy="compareFreshSuitable"></td></tr>
+          </tbody>
+        </table>
+        <p class="comparison-note" data-copy="comparisonNote"></p>
+        <footer class="comparison-footer"><button id="acknowledge" class="action primary" type="button" data-copy="acknowledge">知道了</button></footer>
+      </section>
+    </div>
+  </body>
+</html>

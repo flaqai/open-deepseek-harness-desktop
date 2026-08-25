@@ -8,6 +8,18 @@ copyFileSync(
   fileURLToPath(new URL('../lib/loading.html', import.meta.url)),
 )
 copyFileSync(
+  fileURLToPath(new URL('../src/data-home.html', import.meta.url)),
+  fileURLToPath(new URL('../lib/data-home.html', import.meta.url)),
+)
+copyFileSync(
+  fileURLToPath(new URL('../src/question-outline-14.svg', import.meta.url)),
+  fileURLToPath(new URL('../lib/question-outline-14.svg', import.meta.url)),
+)
+copyFileSync(
+  fileURLToPath(new URL('../src/close-outline-16.svg', import.meta.url)),
+  fileURLToPath(new URL('../lib/close-outline-16.svg', import.meta.url)),
+)
+copyFileSync(
   fileURLToPath(new URL('../src/icon.png', import.meta.url)),
   fileURLToPath(new URL('../lib/icon.png', import.meta.url)),
 )
