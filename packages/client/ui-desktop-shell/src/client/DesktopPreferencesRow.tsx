@@ -56,8 +56,20 @@ export function DesktopPreferencesRow({ controller, icons, t }: DesktopPreferenc
     if (state.menuDestination === 'data-home') {
       setDataHomeTarget(state.dataHome?.activeKind === 'official' ? 'official' : 'desktop')
       setDataHomeOpen(true)
-    } else updateRow.current?.scrollIntoView({ block: 'center' })
-    controller.navigate()
+      controller.navigate()
+      return
+    }
+    let secondFrame = 0
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        updateRow.current?.scrollIntoView({ block: 'center' })
+        controller.navigate()
+      })
+    })
+    return () => {
+      window.cancelAnimationFrame(firstFrame)
+      if (secondFrame !== 0) window.cancelAnimationFrame(secondFrame)
+    }
   }, [controller, state.preferences, state.capabilities, state.menuDestination, state.dataHome])
   if (preferences === null || state.capabilities === null) return null
   const release = state.release

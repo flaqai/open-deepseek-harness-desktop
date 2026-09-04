@@ -12,7 +12,7 @@ Desktop Release discovery was visible only after opening Settings. A user could 
 
 The desktop shell owns one shared Release presentation state. A new `sidebar.settings.action` list slot sits immediately to the right of the Settings trigger without changing the existing full-width `sidebar.footer.action` rows above it. The desktop shell registers a blue, white-label update action into that seat.
 
-The action renders only for an available Release and only while the sidebar is expanded. It opens General Settings at the update row. The settings-header action, sidebar action, and development simulator read the same controller snapshot, so they appear and disappear together.
+The action renders only for an available Release and only while the sidebar is expanded. It opens General Settings at the update row. Navigation waits for the settings panel to complete layout before scrolling the row into view, so opening the panel cannot reset the requested position. The settings-header action, sidebar action, and development simulator read the same controller snapshot, so they appear and disappear together.
 
 ## Alternatives considered
 

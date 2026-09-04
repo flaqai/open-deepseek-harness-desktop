@@ -76,8 +76,8 @@ export function apply(ctx: Context): void {
   }, DesktopPreferencesRow))
   ctx.inject(['settingsNavigation'], (inner) => {
     const openUpdates = (): void => {
-      controller.navigate('updates')
       inner.settingsNavigation.open({ sectionId: 'general' })
+      controller.navigate('updates')
     }
     inner.slots.inject('settings.action', () => inner.slots.register({
       name: 'settings.action', id: 'desktop-update', order: -20, locale: NS,

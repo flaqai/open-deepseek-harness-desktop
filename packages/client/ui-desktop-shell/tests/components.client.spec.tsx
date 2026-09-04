@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type {
   DesktopBridge, DesktopCliStatus, DesktopReleaseDownloadStatus, DesktopReleaseStatus,
 } from '../src/client/bridge.ts'
@@ -12,7 +12,10 @@ import {
 } from '../src/client/DesktopSidebarUpdateButton.tsx'
 import { en } from '../src/client/locales.ts'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 const t = ((key: string, params?: Record<string, string | number>) => {
   let value = (en as Record<string, string>)[key] ?? key
@@ -142,6 +145,32 @@ describe('desktop shell components', () => {
     fireEvent.click(notifications)
     await waitFor(() => { expect(b.updatePreferences).toHaveBeenCalledWith({ notificationsEnabled: false }) })
     expect(screen.getByText('Version 0.1.0-rc.8 is available')).toBeTruthy()
+    b.controller.dispose()
+  })
+
+  it('reveals the update row after the settings panel has completed layout', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => {
+      frames.push(callback)
+      return frames.length
+    }))
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    const b = setup()
+    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    await screen.findAllByText('Check for updates')
+    const updateTitle = screen.getAllByText('Check for updates').find(element => element.tagName === 'DIV')
+    expect(updateTitle).toBeDefined()
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(updateTitle!, 'scrollIntoView', { configurable: true, value: scrollIntoView })
+
+    act(() => { b.controller.navigate('updates') })
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    expect(b.controller.getSnapshot().menuDestination).toBe('updates')
+    act(() => { frames.shift()?.(0) })
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    act(() => { frames.shift()?.(16) })
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' })
+    expect(b.controller.getSnapshot().menuDestination).toBeUndefined()
     b.controller.dispose()
   })
 
