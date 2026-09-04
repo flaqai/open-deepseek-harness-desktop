@@ -181,11 +181,12 @@ export class PluginSnapshotManager {
     await this.#options.createSnapshot('bootable')
   }
 
-  reportReadiness(phase: 'client' | 'event-dispatch'): void {
-    if (this.#operation?.phase !== 'verifying-startup') return
+  async reportReadiness(phase: 'client' | 'event-dispatch'): Promise<boolean> {
+    if (this.#operation?.phase !== 'verifying-startup') return false
     this.#readiness.add(phase)
-    if (this.#readiness.size !== 2) return
-    void this.#commitSuccessfulRestore()
+    if (this.#readiness.size !== 2) return false
+    await this.#commitSuccessfulRestore()
+    return true
   }
 
   async handleHarnessFailure(message: string): Promise<boolean> {

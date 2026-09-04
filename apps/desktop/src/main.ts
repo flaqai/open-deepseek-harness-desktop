@@ -26,8 +26,8 @@ import {
   resolveHarnessInvocation,
   resolveHarnessLaunch,
   type DesktopLaunchOptions,
-  type HarnessLaunch,
 } from './launch.ts'
+import { runHarnessInvocation } from './harness-invocation.ts'
 import { allowsHarnessPermission } from './permissions.ts'
 import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
 import { HarnessSupervisor, type HarnessFailure, type HarnessState } from './supervisor.ts'
@@ -132,6 +132,7 @@ const DATA_HOME_PAGE = fileURLToPath(new URL('./data-home.html', import.meta.url
 const DATA_HOME_PRELOAD = fileURLToPath(new URL('./data-home-preload.cjs', import.meta.url))
 const DATA_HOME_SELECTION_LIFETIME_MS = 5 * 60_000
 const DESKTOP_PNPM_VERSION = '11.7.0'
+const SNAPSHOT_COMMAND_TIMEOUT_MS = 30_000
 const DEFAULT_SOURCE_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 const DESKTOP_DATA_HOME = resolveDesktopDataHomeLayout(
   app.getPath('appData'),
@@ -807,28 +808,6 @@ function applyDesktopIcons(images: DesktopIconImages, shortcuts: boolean, create
   return results
 }
 
-async function runHarnessInvocation(
-  launch: HarnessLaunch,
-  acceptedExitCodes: readonly number[] = [0],
-): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn(launch.command, launch.args, {
-      env: { ...process.env, ...launch.environment },
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-    })
-    const output: Buffer[] = []
-    child.stdout.on('data', (chunk: Buffer) => { output.push(chunk) })
-    child.stderr.on('data', (chunk: Buffer) => { output.push(chunk) })
-    child.once('error', reject)
-    child.once('close', (code, signal) => {
-      const diagnostic = Buffer.concat(output).toString('utf8')
-      if (acceptsHarnessInvocationExit(code, signal, acceptedExitCodes)) resolve(diagnostic)
-      else reject(new Error(`desktop: Harness invocation failed (${String(code)}, ${String(signal)}): ${diagnostic.slice(-4000)}`))
-    })
-  })
-}
-
 const PLUGIN_SNAPSHOT_JSON_MARKER = 'dsh:plugin-snapshot-json '
 
 function parsePluginSnapshotJson(output: string): unknown {
@@ -1471,12 +1450,21 @@ async function startApplication(): Promise<void> {
     if (rendererOrigin !== harnessOrigin || reportedDesktopReadiness.has(phase)) return
     reportedDesktopReadiness.add(phase)
     void appendDesktopStartupLog(phase === 'client' ? 'client ready' : 'event-dispatch is ready')
-    pluginSnapshotManager?.reportReadiness(phase)
-    if (reportedDesktopReadiness.size === 2) {
-      void pluginSnapshotManager?.markBootable().catch((error: unknown) => {
-        console.warn('desktop: could not retain the latest bootable plugin snapshot', error)
-      })
-    }
+    const readinessComplete = reportedDesktopReadiness.size === 2
+    const manager = pluginSnapshotManager
+    if (manager !== undefined) void (async () => {
+      await manager.reportReadiness(phase)
+      if (readinessComplete) {
+        await appendDesktopStartupLog('Creating post-readiness plugin snapshot.')
+        await manager.markBootable()
+        await appendDesktopStartupLog('Post-readiness plugin snapshot retained.')
+      }
+    })().catch(async (error: unknown) => {
+      await appendDesktopStartupLog(
+        `Post-readiness plugin snapshot failed without interrupting Harness: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      console.warn('desktop: could not retain the latest bootable plugin snapshot', error)
+    })
   })
   ipcMain.handle('dsh:desktop:releases:get', (event): DesktopReleaseStatus => {
     assertMainRenderer(event.sender)
@@ -1893,10 +1881,10 @@ async function startApplication(): Promise<void> {
   } catch (error) {
     console.warn('desktop: could not refresh the registered dsh command', error)
   }
-  const runSnapshotCommand = async <T>(args: readonly string[]): Promise<T> => {
+  const runSnapshotCommand = async <T>(args: readonly string[], timeoutMs?: number): Promise<T> => {
     const output = await runHarnessInvocation(resolveHarnessInvocation(harnessEnvironment, [
       'plugin', '--profile', 'web', 'snapshot', ...args,
-    ], launchOptions))
+    ], launchOptions), [0], timeoutMs)
     return parsePluginSnapshotJson(output) as T
   }
   publishStartupProgress({ stage: 'checking-profile', progress: 28 })
@@ -1959,17 +1947,10 @@ async function startApplication(): Promise<void> {
       console.error(error)
     },
   })
-  let seedSnapshot: { snapshotId: string; deduplicated?: true } | undefined
-  harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN = randomUUID()
-  harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID = String(process.pid)
-  try {
-    seedSnapshot = await runSnapshotCommand<{ snapshotId: string; deduplicated?: true }>(['begin-startup-seed'])
-    harnessEnvironment.DSH_PLUGIN_SNAPSHOT_BATCH = '1'
-  } catch (error) {
-    delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN
-    delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID
-    console.warn('desktop: could not begin the bundled-plugin snapshot batch; installation will continue', error)
-  }
+  // Startup seed is trusted, verified application material. Suppress per-plugin
+  // automatic snapshots here and retain one known-bootable point only after the
+  // client and event dispatcher both prove the resulting Profile can start.
+  harnessEnvironment.DSH_PLUGIN_SNAPSHOT_BATCH = '1'
   try {
     await bundledPluginInstaller.seedStartup((progress) => {
       publishStartupProgress(mapBundledPluginProgress(
@@ -1981,20 +1962,7 @@ async function startApplication(): Promise<void> {
       ))
     })
   } finally {
-    if (seedSnapshot !== undefined) {
-      try {
-        await runSnapshotCommand([
-          'finalize',
-          seedSnapshot.snapshotId,
-          ...(seedSnapshot.deduplicated === true ? ['--preserve-if-unchanged'] : []),
-        ])
-      } catch (error) {
-        console.warn('desktop: could not finalize the bundled-plugin snapshot batch', error)
-      }
-    }
     delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_BATCH
-    delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN
-    delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID
   }
   await appendDesktopStartupLog('Bundled startup plugin seeding completed.')
   const installedProfileDependencies: Record<string, string> = {}
@@ -2084,15 +2052,16 @@ async function startApplication(): Promise<void> {
   })
   let restoreLeaseToken: string | undefined
   pluginSnapshotManager = new PluginSnapshotManager({
-    listSnapshots: () => runSnapshotCommand<readonly PluginSnapshotSummary[]>(['list']),
+    listSnapshots: () => runSnapshotCommand<readonly PluginSnapshotSummary[]>(['list'], SNAPSHOT_COMMAND_TIMEOUT_MS),
     createSnapshot: (kind, label) => runSnapshotCommand<{ snapshotId: string; kind: typeof kind }>(
       kind === 'manual'
         ? ['create', ...(label === undefined ? [] : [label])]
         : [kind === 'bootable' ? 'mark-bootable' : 'create-safety'],
+      SNAPSHOT_COMMAND_TIMEOUT_MS,
     ),
-    removeSnapshot: async (snapshotId) => { await runSnapshotCommand(['remove', snapshotId]) },
-    restoreFiles: async (snapshotId) => { await runSnapshotCommand(['restore-files', snapshotId]) },
-    settleSafety: async (snapshotId) => { await runSnapshotCommand(['settle-safety', snapshotId]) },
+    removeSnapshot: async (snapshotId) => { await runSnapshotCommand(['remove', snapshotId], SNAPSHOT_COMMAND_TIMEOUT_MS) },
+    restoreFiles: async (snapshotId) => { await runSnapshotCommand(['restore-files', snapshotId], SNAPSHOT_COMMAND_TIMEOUT_MS) },
+    settleSafety: async (snapshotId) => { await runSnapshotCommand(['settle-safety', snapshotId], SNAPSHOT_COMMAND_TIMEOUT_MS) },
     beginMutationLease: async () => {
       if (restoreLeaseToken !== undefined) throw new Error('desktop: plugin snapshot restore lease is already active')
       const token = randomUUID()
@@ -2100,7 +2069,7 @@ async function startApplication(): Promise<void> {
       harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN = token
       harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID = String(process.pid)
       try {
-        await runSnapshotCommand(['begin-restore-lease'])
+        await runSnapshotCommand(['begin-restore-lease'], SNAPSHOT_COMMAND_TIMEOUT_MS)
       } catch (error) {
         restoreLeaseToken = undefined
         delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN
@@ -2111,7 +2080,7 @@ async function startApplication(): Promise<void> {
     endMutationLease: async () => {
       if (restoreLeaseToken === undefined) return
       try {
-        await runSnapshotCommand(['end-restore-lease'])
+        await runSnapshotCommand(['end-restore-lease'], SNAPSHOT_COMMAND_TIMEOUT_MS)
       } finally {
         restoreLeaseToken = undefined
         delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN

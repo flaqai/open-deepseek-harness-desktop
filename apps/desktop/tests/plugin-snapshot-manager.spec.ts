@@ -65,12 +65,10 @@ describe('PluginSnapshotManager', () => {
     await vi.waitFor(() => {
       expect(f.events.at(-1)?.phase).toBe('verifying-startup')
     })
-    f.manager.reportReadiness('client')
+    await expect(f.manager.reportReadiness('client')).resolves.toBe(false)
     expect(f.events.at(-1)?.phase).toBe('verifying-startup')
-    f.manager.reportReadiness('event-dispatch')
-    await vi.waitFor(() => {
-      expect(f.events.at(-1)?.phase).toBe('succeeded')
-    })
+    await expect(f.manager.reportReadiness('event-dispatch')).resolves.toBe(true)
+    expect(f.events.at(-1)?.phase).toBe('succeeded')
     expect(f.restoreFiles).toHaveBeenCalledWith(TARGET_ID)
     expect(f.settleSafety).toHaveBeenCalledWith(SAFETY_ID)
     expect(f.beginMutationLease).toHaveBeenCalledOnce()
@@ -150,9 +148,9 @@ describe('PluginSnapshotManager', () => {
       const f = fixture({ journalPath: join(directory, 'restore.json') })
       f.manager.startRestore(TARGET_ID, false)
       await vi.waitFor(() => { expect(f.events.at(-1)?.phase).toBe('verifying-startup') })
-      f.manager.reportReadiness('client')
-      f.manager.reportReadiness('event-dispatch')
-      await vi.waitFor(() => { expect(f.events.at(-1)?.phase).toBe('succeeded') })
+      await f.manager.reportReadiness('client')
+      await f.manager.reportReadiness('event-dispatch')
+      expect(f.events.at(-1)?.phase).toBe('succeeded')
       expect(readdirSync(join(directory, 'restore-history'))).toHaveLength(1)
     } finally {
       rmSync(directory, { recursive: true, force: true })

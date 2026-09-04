@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -30,6 +30,64 @@ function fixture() {
 }
 
 describe('Profile plugin snapshots', () => {
+  it.runIf(process.platform !== 'win32')('refuses a symlinked snapshot root', () => {
+    const { home } = fixture()
+    const outside = mkdtempSync(join(tmpdir(), 'dsh-plugin-snapshot-outside-'))
+    try {
+      mkdirSync(join(home, 'plugin-snapshots'), { recursive: true })
+      symlinkSync(outside, join(home, 'plugin-snapshots', 'v1'), 'dir')
+      expect(() => createProfilePluginSnapshot({
+        home, profile: 'web', kind: 'manual', trigger: 'manual',
+      })).toThrow('snapshot root is unsafe')
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it.runIf(process.platform !== 'win32')('refuses managed Profile files reached through an escaping symlink', () => {
+    const { home, profileDir } = fixture()
+    const outside = mkdtempSync(join(tmpdir(), 'dsh-plugin-profile-outside-'))
+    try {
+      writeFileSync(join(outside, 'package.json'), '{"name":"outside"}\n')
+      writeFileSync(join(outside, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+      writeFileSync(join(outside, 'pnpm-workspace.yaml'), 'packages: []\n')
+      rmSync(profileDir, { recursive: true, force: true })
+      symlinkSync(outside, profileDir, 'dir')
+      expect(() => createProfilePluginSnapshot({
+        home, profile: 'web', kind: 'manual', trigger: 'manual',
+      })).toThrow('physically escapes its root')
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it.runIf(process.platform !== 'win32')('refuses a snapshot payload redirected outside its directory', () => {
+    const { home } = fixture()
+    const outside = mkdtempSync(join(tmpdir(), 'dsh-plugin-payload-outside-'))
+    try {
+      const record = createProfilePluginSnapshot({
+        home, profile: 'web', kind: 'manual', trigger: 'manual',
+      })
+      const payload = join(
+        home, 'plugin-snapshots', 'v1', record.snapshotId,
+        'files', 'profiles', 'web', 'package.json',
+      )
+      const outsidePayload = join(outside, 'package.json')
+      writeFileSync(outsidePayload, '{"name":"forged"}\n')
+      rmSync(payload)
+      symlinkSync(outsidePayload, payload, 'file')
+
+      expect(() => restoreProfilePluginSnapshotFiles({
+        home, profile: 'web', snapshotId: record.snapshotId,
+      })).toThrow('physically escapes its root')
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
   it('captures, compares, and restores only managed plugin-stack files', () => {
     const { home, profileDir } = fixture()
     try {
@@ -138,7 +196,9 @@ describe('Profile plugin snapshots', () => {
       })
       expect(replacement.snapshotId).not.toBe(damaged.snapshotId)
       expect(replacement.deduplicated).toBeUndefined()
-      expect(listProfilePluginSnapshots({ home, profile: 'web' })).toHaveLength(2)
+      expect(listProfilePluginSnapshots({ home, profile: 'web' })).toEqual([
+        expect.objectContaining({ snapshotId: replacement.snapshotId }),
+      ])
     } finally {
       rmSync(home, { recursive: true, force: true })
     }
