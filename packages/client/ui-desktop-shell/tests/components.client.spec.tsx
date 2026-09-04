@@ -6,6 +6,10 @@ import type {
 } from '../src/client/bridge.ts'
 import { DesktopShellController } from '../src/client/controller.ts'
 import { DesktopPreferencesRow, type DesktopPreferencesRowProps } from '../src/client/DesktopPreferencesRow.tsx'
+import { DesktopUpdateBadge, type DesktopUpdateBadgeProps } from '../src/client/DesktopUpdateBadge.tsx'
+import {
+  DesktopSidebarUpdateButton, type DesktopSidebarUpdateButtonProps,
+} from '../src/client/DesktopSidebarUpdateButton.tsx'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -18,6 +22,7 @@ const t = ((key: string, params?: Record<string, string | number>) => {
 
 function setup(releaseStatus: DesktopReleaseStatus = {
   phase: 'available', currentVersion: '0.1.0-rc.7', latestVersion: '0.1.0-rc.8',
+  tagName: 'dsh-v0.1.0-rc.8',
   publishedAt: '2026-08-20T00:00:00Z', releaseUrl: 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/dsh-v0.1.0-rc.8',
 }, commandLine: DesktopCliStatus = {
   phase: 'uninstalled', commandPath: '/desktop/cli/bin/dsh', dataHome: '/desktop/dsh-home',
@@ -92,6 +97,44 @@ function setup(releaseStatus: DesktopReleaseStatus = {
 }
 
 describe('desktop shell components', () => {
+  it('shows a quiet header badge only for an available update and opens its settings row', async () => {
+    const b = setup()
+    const openUpdates = vi.fn()
+    render(<DesktopUpdateBadge {...({ controller: b.controller, openUpdates, t } as DesktopUpdateBadgeProps)} />)
+    const badge = await screen.findByRole('button', { name: 'Version 0.1.0-rc.8' })
+    fireEvent.click(badge)
+    expect(openUpdates).toHaveBeenCalledOnce()
+    b.controller.dispose()
+  })
+
+  it('shows the blue sidebar action only for an available update in wide mode', async () => {
+    const b = setup()
+    const openUpdates = vi.fn()
+    const view = render(<DesktopSidebarUpdateButton {...({
+      controller: b.controller, openUpdates, t, wide: true,
+    } as DesktopSidebarUpdateButtonProps)} />)
+    const action = await screen.findByRole('button', { name: 'Version 0.1.0-rc.8' })
+    expect(action.textContent).toBe('Update')
+    fireEvent.click(action)
+    expect(openUpdates).toHaveBeenCalledOnce()
+
+    view.rerender(<DesktopSidebarUpdateButton {...({
+      controller: b.controller, openUpdates, t, wide: false,
+    } as DesktopSidebarUpdateButtonProps)} />)
+    expect(screen.queryByRole('button', { name: 'Version 0.1.0-rc.8' })).toBeNull()
+    b.controller.dispose()
+  })
+
+  it('keeps the sidebar update action hidden while no update is available', async () => {
+    const b = setup({ phase: 'current', currentVersion: '0.1.0-rc.8' })
+    render(<DesktopSidebarUpdateButton {...({
+      controller: b.controller, openUpdates: vi.fn(), t, wide: true,
+    } as DesktopSidebarUpdateButtonProps)} />)
+    await waitFor(() => { expect(b.controller.getSnapshot().release.phase).toBe('current') })
+    expect(screen.queryByRole('button')).toBeNull()
+    b.controller.dispose()
+  })
+
   it('shows preferences and sends toggle updates', async () => {
     const b = setup()
     render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
@@ -141,13 +184,25 @@ describe('desktop shell components', () => {
 
   it('toggles simulated current and available update states in development mode', async () => {
     const b = setup({ phase: 'unsupported' })
-    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    const openUpdates = vi.fn()
+    render(<>
+      <DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />
+      <DesktopUpdateBadge {...({ controller: b.controller, openUpdates, t } as DesktopUpdateBadgeProps)} />
+      <DesktopSidebarUpdateButton {...({
+        controller: b.controller, openUpdates, t, wide: true,
+      } as DesktopSidebarUpdateButtonProps)} />
+    </>)
 
     expect(await screen.findByText('Development mode: this is the latest version')).toBeTruthy()
+    expect(screen.queryAllByRole('button', { name: 'Version 0.1.1-rc.3' })).toHaveLength(0)
     fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }))
     expect(screen.getByText('Development mode: simulated version 0.1.1-rc.3 is available')).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Version 0.1.1-rc.3' })).toHaveLength(2)
+    fireEvent.click(screen.getByText('Update'))
+    expect(openUpdates).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'Update now' }))
     expect(screen.getByText('Development mode: this is the latest version')).toBeTruthy()
+    expect(screen.queryAllByRole('button', { name: 'Version 0.1.1-rc.3' })).toHaveLength(0)
     expect(b.openDownload).not.toHaveBeenCalled()
     b.controller.dispose()
   })

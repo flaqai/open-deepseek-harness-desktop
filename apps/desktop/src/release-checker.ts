@@ -3,6 +3,8 @@
 const RELEASES_ENDPOINT = 'https://api.github.com/repos/flaqai/open-deepseek-harness-desktop/releases?per_page=30'
 const RELEASE_URL_PREFIX = 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/'
 const RELEASE_CHECK_TIMEOUT_MS = 15_000
+export const RELEASE_CHECK_INITIAL_DELAY_MS = 10_000
+export const RELEASE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000
 
 /** Renderer-visible release check status. */
 export type DesktopReleaseStatus =
@@ -10,7 +12,14 @@ export type DesktopReleaseStatus =
   | { phase: 'idle'; currentVersion: string }
   | { phase: 'checking'; currentVersion: string }
   | { phase: 'current'; currentVersion: string }
-  | { phase: 'available'; currentVersion: string; latestVersion: string; publishedAt: string; releaseUrl: string }
+  | {
+    phase: 'available'
+    currentVersion: string
+    latestVersion: string
+    tagName: string
+    publishedAt: string
+    releaseUrl: string
+  }
   | { phase: 'error'; currentVersion: string; message: string }
 
 interface GitHubRelease {
@@ -86,12 +95,17 @@ export function selectRelease(currentVersion: string, releases: readonly GitHubR
   if (current === undefined) return { phase: 'error', currentVersion, message: 'The installed version is not valid semantic version data.' }
   const allowPrerelease = current.prerelease.length > 0
   const candidates = releases.flatMap((release) => {
-    if (release.draft === true) return []
+    if (release.draft === true || release.prerelease === true) return []
     if (typeof release.tag_name !== 'string' || typeof release.html_url !== 'string' || typeof release.published_at !== 'string') return []
     const parsed = parseVersion(release.tag_name)
     if (!isAllowedReleaseUrl(release.html_url) || parsed === undefined) return []
-    if (!allowPrerelease && (release.prerelease === true || parsed.prerelease.length > 0)) return []
-    return [{ version: releaseVersion(release.tag_name), url: release.html_url, publishedAt: release.published_at }]
+    if (!allowPrerelease && parsed.prerelease.length > 0) return []
+    return [{
+      version: releaseVersion(release.tag_name),
+      tagName: release.tag_name,
+      url: release.html_url,
+      publishedAt: release.published_at,
+    }]
   }).sort((a, b) => compareDesktopVersions(b.version, a.version) ?? 0)
   const newest = candidates[0]
   if (newest === undefined || (compareDesktopVersions(newest.version, currentVersion) ?? 0) <= 0) {
@@ -101,6 +115,7 @@ export function selectRelease(currentVersion: string, releases: readonly GitHubR
     phase: 'available',
     currentVersion,
     latestVersion: newest.version,
+    tagName: newest.tagName,
     publishedAt: newest.publishedAt,
     releaseUrl: newest.url,
   }
@@ -144,6 +159,7 @@ export async function fetchGitHubReleases(
 export class DesktopReleaseChecker {
   #status: DesktopReleaseStatus
   #running: Promise<DesktopReleaseStatus> | undefined
+  #stopPolling: (() => void) | undefined
   readonly #listeners = new Set<(status: DesktopReleaseStatus) => void>()
 
   constructor(
@@ -169,16 +185,57 @@ export class DesktopReleaseChecker {
   }
 
   check(): Promise<DesktopReleaseStatus> {
+    return this.#check(false)
+  }
+
+  /** Refresh Release state without publishing transient checking or network-error states. */
+  checkInBackground(): Promise<DesktopReleaseStatus> {
+    return this.#check(true)
+  }
+
+  #check(background: boolean): Promise<DesktopReleaseStatus> {
     if (this.#running !== undefined) return this.#running
-    this.#publish({ phase: 'checking', currentVersion: this.currentVersion })
+    const previous = this.#status
+    if (!background) this.#publish({ phase: 'checking', currentVersion: this.currentVersion })
     this.#running = this.fetchReleases()
       .then(releases => this.#publish(selectRelease(this.currentVersion, releases)))
-      .catch((error: unknown) => this.#publish({
-        phase: 'error',
-        currentVersion: this.currentVersion,
-        message: error instanceof Error ? error.message : String(error),
-      }))
+      .catch((error: unknown) => background
+        ? previous
+        : this.#publish({
+          phase: 'error',
+          currentVersion: this.currentVersion,
+          message: error instanceof Error ? error.message : String(error),
+        }))
       .finally(() => { this.#running = undefined })
     return this.#running
+  }
+
+  /** Start one delayed check followed by low-frequency refreshes; replaces any previous schedule. */
+  startPolling(
+    initialDelayMs = RELEASE_CHECK_INITIAL_DELAY_MS,
+    intervalMs = RELEASE_CHECK_INTERVAL_MS,
+  ): () => void {
+    if (!Number.isFinite(initialDelayMs) || initialDelayMs < 0) throw new RangeError('Initial Release check delay must be non-negative.')
+    if (!Number.isFinite(intervalMs) || intervalMs <= 0) throw new RangeError('Release check interval must be positive.')
+    this.#stopPolling?.()
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const schedule = (delay: number): void => {
+      timer = setTimeout(() => {
+        void this.checkInBackground().finally(() => {
+          if (active) schedule(intervalMs)
+        })
+      }, delay)
+      timer.unref()
+    }
+    const stop = (): void => {
+      if (!active) return
+      active = false
+      if (timer !== undefined) clearTimeout(timer)
+      if (this.#stopPolling === stop) this.#stopPolling = undefined
+    }
+    this.#stopPolling = stop
+    schedule(initialDelayMs)
+    return stop
   }
 }

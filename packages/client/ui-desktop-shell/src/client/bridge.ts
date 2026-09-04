@@ -73,7 +73,14 @@ export interface DesktopCliStatus {
 export type DesktopReleaseStatus =
   | { phase: 'unsupported' }
   | { phase: 'idle' | 'checking' | 'current'; currentVersion: string }
-  | { phase: 'available'; currentVersion: string; latestVersion: string; publishedAt: string; releaseUrl: string }
+  | {
+    phase: 'available'
+    currentVersion: string
+    latestVersion: string
+    tagName: string
+    publishedAt: string
+    releaseUrl: string
+  }
   | { phase: 'error'; currentVersion: string; message: string }
 
 /** Installer download phases mirrored from the desktop wire protocol. */

@@ -11,6 +11,11 @@ const RELEASE_DOWNLOAD_PREFIX = `/${REPOSITORY}/releases/download/`
 const CHECKSUM_ASSET = 'SHA256SUMS'
 const MAX_CHECKSUM_BYTES = 1024 * 1024
 
+/** Accept only the tag families recognized by Release discovery for this exact version. */
+export function isAllowedReleaseTag(tag: string, version: string): boolean {
+  return tag === `odsh-v${version}` || tag === `dsh-v${version}` || tag === `v${version}`
+}
+
 /** Renderer-visible installer download state. */
 export type DesktopReleaseDownloadStatus =
   | { phase: 'unsupported' }
@@ -38,6 +43,7 @@ interface GitHubReleaseAsset {
 
 interface GitHubReleaseDetails {
   draft?: unknown
+  prerelease?: unknown
   tag_name?: unknown
   assets?: unknown
 }
@@ -168,7 +174,7 @@ export class DesktopReleaseDownloader {
     const controller = new AbortController()
     this.#abortController = controller
     this.#publish({ phase: 'resolving', version: release.latestVersion })
-    this.#running = this.#download(release.latestVersion, this.#assetName, controller.signal)
+    this.#running = this.#download(release.latestVersion, release.tagName, this.#assetName, controller.signal)
       .catch((error: unknown) => {
         if (isAbortError(error)) return this.#publish({ phase: 'cancelled', version: release.latestVersion })
         return this.#publish({ phase: 'error', version: release.latestVersion, message: errorMessage(error) })
@@ -194,8 +200,13 @@ export class DesktopReleaseDownloader {
     return { error: await this.options.openPath(this.#readyPath) }
   }
 
-  async #download(version: string, fileName: string, signal: AbortSignal): Promise<DesktopReleaseDownloadStatus> {
-    const tag = `dsh-v${version}`
+  async #download(
+    version: string,
+    tag: string,
+    fileName: string,
+    signal: AbortSignal,
+  ): Promise<DesktopReleaseDownloadStatus> {
+    if (!isAllowedReleaseTag(tag, version)) throw new Error('Selected Release tag did not match its version.')
     const releaseResponse = await this.#fetch(`${API_RELEASE_PREFIX}${encodeURIComponent(tag)}`, {
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'DeepSeek-Harness-Desktop' },
       signal,
@@ -204,7 +215,10 @@ export class DesktopReleaseDownloader {
     const details: unknown = await releaseResponse.json()
     if (details === null || typeof details !== 'object') throw new Error('GitHub Release returned invalid metadata.')
     const releaseDetails = details as GitHubReleaseDetails
-    if (releaseDetails.draft === true || releaseDetails.tag_name !== tag || !Array.isArray(releaseDetails.assets)) {
+    if (releaseDetails.draft === true || releaseDetails.prerelease === true) {
+      throw new Error('Release is no longer available for in-app updates.')
+    }
+    if (releaseDetails.tag_name !== tag || !Array.isArray(releaseDetails.assets)) {
       throw new Error('GitHub Release metadata did not match the selected version.')
     }
     const assets = releaseDetails.assets as GitHubReleaseAsset[]

@@ -127,6 +127,7 @@ export const zh = {
   'release.developmentAvailable': '开发模式：发现模拟新版本 {version}',
   'release.developmentOpen': '去更新',
   'release.badge': '新版本 {version}',
+  'release.sidebar': '有更新',
 } satisfies Record<string, string>
 
 /** Desktop-shell dictionary key union. */
@@ -260,4 +261,5 @@ export const en = {
   'release.developmentAvailable': 'Development mode: simulated version {version} is available',
   'release.developmentOpen': 'Update now',
   'release.badge': 'Version {version}',
+  'release.sidebar': 'Update',
 } satisfies Record<DesktopShellKey, string>

@@ -6,6 +6,8 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SettingsNavigation } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { apply, inject } from '../src/client/index.ts'
 import { DesktopPreferencesRow } from '../src/client/DesktopPreferencesRow.tsx'
+import { DesktopUpdateBadge } from '../src/client/DesktopUpdateBadge.tsx'
+import { DesktopSidebarUpdateButton } from '../src/client/DesktopSidebarUpdateButton.tsx'
 
 afterEach(() => {
   delete (globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop
@@ -73,6 +75,8 @@ async function bench() {
     children: {
       'settings.general.item': { kind: 'list', scope: 'root' },
       'settings.section': { kind: 'list', scope: 'root' },
+      'settings.action': { kind: 'list', scope: 'root' },
+      'sidebar.settings.action': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
   return {
@@ -125,6 +129,7 @@ describe('ui-desktop-shell apply', () => {
   it('registers desktop preferences and Release checks when the bridge exists', async () => {
     const reportReadiness = installBridge()
     const b = await bench()
+    new SettingsNavigation(b.ctx)
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(reportReadiness).toHaveBeenCalledWith('client')
@@ -132,7 +137,11 @@ describe('ui-desktop-shell apply', () => {
     b.connect()
     expect(reportReadiness).toHaveBeenCalledWith('event-dispatch')
     expect(b.slots.entries('settings.general.item')[0]?.component).toBe(DesktopPreferencesRow)
+    expect(b.slots.entries('settings.action')[0]?.component).toBe(DesktopUpdateBadge)
+    expect(b.slots.entries('sidebar.settings.action')[0]?.component).toBe(DesktopSidebarUpdateButton)
     await fiber.dispose()
     expect(b.slots.entries('settings.general.item')).toEqual([])
+    expect(b.slots.entries('settings.action')).toEqual([])
+    expect(b.slots.entries('sidebar.settings.action')).toEqual([])
   })
 })

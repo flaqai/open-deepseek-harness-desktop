@@ -5,7 +5,10 @@ import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { DesktopPreferencesRow } from './DesktopPreferencesRow.tsx'
+import { DesktopSidebarUpdateButton } from './DesktopSidebarUpdateButton.tsx'
+import { DesktopUpdateBadge } from './DesktopUpdateBadge.tsx'
 import { readDesktopBridge } from './bridge.ts'
 import { DesktopShellController } from './controller.ts'
 import { navigateDesktopMenu } from './menu-navigation.ts'
@@ -71,4 +74,21 @@ export function apply(ctx: Context): void {
     name: 'settings.general.item', id: 'desktop-shell', order: 75, locale: NS,
     inject: () => ({ controller, icons: bridge.icons }),
   }, DesktopPreferencesRow))
+  ctx.inject(['settingsNavigation'], (inner) => {
+    const openUpdates = (): void => {
+      controller.navigate('updates')
+      inner.settingsNavigation.open({ sectionId: 'general' })
+    }
+    inner.slots.inject('settings.action', () => inner.slots.register({
+      name: 'settings.action', id: 'desktop-update', order: -20, locale: NS,
+      inject: () => ({
+        controller,
+        openUpdates,
+      }),
+    }, DesktopUpdateBadge))
+    inner.slots.inject('sidebar.settings.action', () => inner.slots.register({
+      name: 'sidebar.settings.action', id: 'desktop-update', order: -20, locale: NS,
+      inject: () => ({ controller, openUpdates }),
+    }, DesktopSidebarUpdateButton))
+  })
 }

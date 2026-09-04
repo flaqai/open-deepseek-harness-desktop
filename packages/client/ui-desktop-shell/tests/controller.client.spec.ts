@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import type { DesktopBridge, DesktopPreferences, DesktopReleaseStatus } from '../src/client/bridge.ts'
 import { DesktopShellController } from '../src/client/controller.ts'
 
-function bench() {
+function bench(initialRelease: DesktopReleaseStatus = { phase: 'idle', currentVersion: '0.1.0-rc.7' }) {
   let preferences: DesktopPreferences = {
     closeBehavior: 'tray', notificationsEnabled: true, launchAtLoginEnabled: false,
   }
-  let release: DesktopReleaseStatus = { phase: 'idle', currentVersion: '0.1.0-rc.7' }
+  let release: DesktopReleaseStatus = initialRelease
   const openDownload = vi.fn(() => Promise.resolve({ error: '' }))
   const startDownload = vi.fn(() => Promise.resolve({
     phase: 'ready' as const, version: '0.1.0-rc.8', fileName: 'DeepSeek-Harness-macos-arm64.dmg',
@@ -48,6 +48,7 @@ function bench() {
       check: vi.fn(() => {
         release = {
           phase: 'available', currentVersion: '0.1.0-rc.7', latestVersion: '0.1.0-rc.8',
+          tagName: 'dsh-v0.1.0-rc.8',
           publishedAt: '2026-08-20T00:00:00Z', releaseUrl: 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/dsh-v0.1.0-rc.8',
         }
         return Promise.resolve(release)
@@ -66,6 +67,18 @@ function bench() {
 }
 
 describe('DesktopShellController', () => {
+  it('publishes one shared simulated-update state in development mode', async () => {
+    const b = bench({ phase: 'unsupported' })
+    b.controller.start()
+    await vi.waitFor(() => { expect(b.controller.getSnapshot().preferences).not.toBeNull() })
+    expect(b.controller.getSnapshot().simulatedReleaseAvailable).toBe(false)
+    b.controller.toggleSimulatedRelease()
+    expect(b.controller.getSnapshot().simulatedReleaseAvailable).toBe(true)
+    b.controller.toggleSimulatedRelease()
+    expect(b.controller.getSnapshot().simulatedReleaseAvailable).toBe(false)
+    b.controller.dispose()
+  })
+
   it('loads bridge state, writes preferences, and opens an available Release', async () => {
     const b = bench()
     b.controller.start()

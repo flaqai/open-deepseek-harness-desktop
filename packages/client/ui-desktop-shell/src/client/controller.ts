@@ -12,6 +12,7 @@ export interface DesktopShellSnapshot {
   capabilities: DesktopCapabilities | null
   preferences: DesktopPreferences | null
   release: DesktopReleaseStatus
+  simulatedReleaseAvailable: boolean
   releaseDownload: DesktopReleaseDownloadStatus
   commandLine: DesktopCliStatus | null
   dataHome: DesktopDataHomeStatus | null
@@ -21,12 +22,16 @@ export interface DesktopShellSnapshot {
   error: string | null
 }
 
+/** Fixed presentation version used only by the development-mode update simulator. */
+export const DEVELOPMENT_RELEASE_VERSION = '0.1.1-rc.3'
+
 /** Small external store shared by the General row and sidebar badge. */
 export class DesktopShellController {
   #snapshot: DesktopShellSnapshot = {
     capabilities: null,
     preferences: null,
     release: { phase: 'unsupported' },
+    simulatedReleaseAvailable: false,
     releaseDownload: { phase: 'unsupported' },
     commandLine: null,
     dataHome: null,
@@ -177,6 +182,12 @@ export class DesktopShellController {
     try { this.#publish({ release: await this.bridge.releases.check() }) } catch (error) {
       this.#publish({ error: error instanceof Error ? error.message : String(error) })
     }
+  }
+
+  /** Toggle the shared development-only update state used by every update surface. */
+  toggleSimulatedRelease(): void {
+    if (this.#snapshot.release.phase !== 'unsupported') return
+    this.#publish({ simulatedReleaseAvailable: !this.#snapshot.simulatedReleaseAvailable })
   }
 
   /** Open the currently selected repository-validated Release page. */

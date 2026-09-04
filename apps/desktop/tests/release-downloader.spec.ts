@@ -4,10 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  DesktopReleaseDownloader, installerAssetName, isAllowedReleaseAssetUrl, readReleaseChecksum,
+  DesktopReleaseDownloader, installerAssetName, isAllowedReleaseAssetUrl, isAllowedReleaseTag,
+  readReleaseChecksum,
 } from '../src/release-downloader.ts'
 
-const tag = 'dsh-v0.1.0-rc.8'
+const tag = 'odsh-v0.1.0-rc.8'
 const installerName = 'DeepSeek-Harness-macos-arm64.dmg'
 const releaseUrl = `https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/${tag}/`
 const temporaryDirectories: string[] = []
@@ -31,6 +32,10 @@ describe('desktop Release downloader', () => {
     const checksum = 'a'.repeat(64)
     expect(readReleaseChecksum(`${checksum}  ${installerName}\n`, installerName)).toBe(checksum)
     expect(readReleaseChecksum(`${checksum}  another.dmg\n`, installerName)).toBeUndefined()
+    expect(isAllowedReleaseTag('odsh-v0.1.2-rc.1', '0.1.2-rc.1')).toBe(true)
+    expect(isAllowedReleaseTag('dsh-v0.1.2-rc.1', '0.1.2-rc.1')).toBe(true)
+    expect(isAllowedReleaseTag('v0.1.2-rc.1', '0.1.2-rc.1')).toBe(true)
+    expect(isAllowedReleaseTag('odsh-v0.1.2-rc.2', '0.1.2-rc.1')).toBe(false)
   })
 
   it('downloads the platform installer, verifies SHA-256, and opens only the verified file', async () => {
@@ -41,7 +46,7 @@ describe('desktop Release downloader', () => {
     const installerUrl = `${releaseUrl}${installerName}`
     const fetchMock = vi.fn((input: string | URL | Request) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (url.startsWith('https://api.github.com/')) {
+      if (url === `https://api.github.com/repos/flaqai/open-deepseek-harness-desktop/releases/tags/${tag}`) {
         return Promise.resolve(new Response(JSON.stringify({
           draft: false,
           tag_name: tag,
@@ -67,8 +72,9 @@ describe('desktop Release downloader', () => {
         phase: 'available',
         currentVersion: '0.1.0-rc.7',
         latestVersion: '0.1.0-rc.8',
+        tagName: tag,
         publishedAt: '2026-08-20T00:00:00Z',
-        releaseUrl: 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/dsh-v0.1.0-rc.8',
+        releaseUrl: `https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/${tag}`,
       }),
       openPath,
       fetch: fetchMock,
@@ -91,7 +97,7 @@ describe('desktop Release downloader', () => {
     const installer = Buffer.from('tampered installer')
     const fetchMock = vi.fn((input: string | URL | Request) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (url.startsWith('https://api.github.com/')) {
+      if (url === `https://api.github.com/repos/flaqai/open-deepseek-harness-desktop/releases/tags/${tag}`) {
         return Promise.resolve(new Response(JSON.stringify({
           draft: false,
           tag_name: tag,
@@ -108,8 +114,9 @@ describe('desktop Release downloader', () => {
       platform: 'darwin', arch: 'arm64', downloadDirectory: directory,
       getRelease: () => ({
         phase: 'available', currentVersion: '0.1.0-rc.7', latestVersion: '0.1.0-rc.8',
+        tagName: tag,
         publishedAt: '2026-08-20T00:00:00Z',
-        releaseUrl: 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/dsh-v0.1.0-rc.8',
+        releaseUrl: `https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/${tag}`,
       }),
       openPath: vi.fn(() => Promise.resolve('')),
       fetch: fetchMock,
@@ -120,5 +127,32 @@ describe('desktop Release downloader', () => {
     })
     await expect(stat(join(directory, '0.1.0-rc.8', `${installerName}.part`))).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(manager.open()).resolves.toEqual({ error: 'The installer has not finished downloading.' })
+  })
+
+  it('rejects a selected Release that was changed to prerelease before download', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-release-download-'))
+    temporaryDirectories.push(directory)
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      draft: false,
+      prerelease: true,
+      tag_name: tag,
+      assets: [],
+    }))))
+    const manager = new DesktopReleaseDownloader({
+      platform: 'darwin', arch: 'arm64', downloadDirectory: directory,
+      getRelease: () => ({
+        phase: 'available', currentVersion: '0.1.0-rc.7', latestVersion: '0.1.0-rc.8',
+        tagName: tag,
+        publishedAt: '2026-08-20T00:00:00Z',
+        releaseUrl: `https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/${tag}`,
+      }),
+      openPath: vi.fn(() => Promise.resolve('')),
+      fetch: fetchMock,
+    })
+
+    await expect(manager.start()).resolves.toMatchObject({
+      phase: 'error', message: 'Release is no longer available for in-app updates.',
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 })

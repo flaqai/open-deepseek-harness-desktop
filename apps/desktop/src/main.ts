@@ -245,6 +245,7 @@ let hiddenLaunch = false
 let harnessLogPath = ''
 let releaseChecker: DesktopReleaseChecker | undefined
 let releaseDownloader: DesktopReleaseDownloader | undefined
+let stopReleaseChecks: (() => void) | undefined
 let externalToolCompatibility: ExternalToolCompatibilityManager | undefined
 let bundledPluginInstaller: BundledPluginInstaller | undefined
 let importedPluginRestoreManager: ImportedPluginRestoreManager | undefined
@@ -1485,9 +1486,13 @@ async function startApplication(): Promise<void> {
     assertMainRenderer(event.sender)
     return releaseDownloader?.status ?? { phase: 'unsupported' }
   })
-  ipcMain.handle('dsh:desktop:releases:download:start', (event) => {
+  ipcMain.handle('dsh:desktop:releases:download:start', async (event) => {
     assertMainRenderer(event.sender)
-    return releaseDownloader?.start() ?? Promise.resolve({ phase: 'unsupported' } satisfies DesktopReleaseDownloadStatus)
+    if (releaseChecker === undefined || releaseDownloader === undefined) {
+      return { phase: 'unsupported' } satisfies DesktopReleaseDownloadStatus
+    }
+    await releaseChecker.check()
+    return releaseDownloader.start()
   })
   ipcMain.handle('dsh:desktop:releases:download:cancel', (event): DesktopReleaseDownloadStatus => {
     assertMainRenderer(event.sender)
@@ -2164,9 +2169,7 @@ async function startApplication(): Promise<void> {
   }
   supervisor.start()
 
-  if (releaseChecker !== undefined) {
-    setTimeout(() => { void releaseChecker?.check() }, 10_000)
-  }
+  stopReleaseChecks = releaseChecker?.startPolling()
 
   app.on('activate', () => {
     lifecycle?.showWindow()
@@ -2187,6 +2190,7 @@ if (!app.requestSingleInstanceLock()) {
     event.preventDefault()
     void lifecycle?.requestQuit()
   })
+  app.on('will-quit', () => { stopReleaseChecks?.() })
   void startApplication().catch((error: unknown) => {
     if (!(error instanceof DesktopDataHomeSelectionCancelledError)) console.error(error)
     if (lifecycle === undefined) {

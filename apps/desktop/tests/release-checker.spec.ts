@@ -18,13 +18,25 @@ describe('desktop Release checker', () => {
     expect(isAllowedReleaseUrl('javascript:alert(1)')).toBe(false)
   })
 
-  it('accepts prereleases for an rc client but not for a stable client', () => {
+  it('accepts a published semantic prerelease for an rc client but not for a stable client', () => {
+    const releases = [{
+      draft: false, prerelease: false, tag_name: 'dsh-v0.1.0-rc.8', html_url: url,
+      published_at: '2026-08-20T00:00:00Z',
+    }]
+    expect(selectRelease('0.1.0-rc.7', releases)).toMatchObject({
+      phase: 'available', latestVersion: '0.1.0-rc.8', tagName: 'dsh-v0.1.0-rc.8',
+    })
+    expect(selectRelease('0.1.0', releases)).toEqual({ phase: 'current', currentVersion: '0.1.0' })
+  })
+
+  it('treats the GitHub prerelease flag as a withdrawal from in-app updates', () => {
     const releases = [{
       draft: false, prerelease: true, tag_name: 'dsh-v0.1.0-rc.8', html_url: url,
       published_at: '2026-08-20T00:00:00Z',
     }]
-    expect(selectRelease('0.1.0-rc.7', releases)).toMatchObject({ phase: 'available', latestVersion: '0.1.0-rc.8' })
-    expect(selectRelease('0.1.0', releases)).toEqual({ phase: 'current', currentVersion: '0.1.0' })
+    expect(selectRelease('0.1.0-rc.7', releases)).toEqual({
+      phase: 'current', currentVersion: '0.1.0-rc.7',
+    })
   })
 
   it('recognizes community tags and lets prerelease clients move between channels', () => {
@@ -34,7 +46,7 @@ describe('desktop Release checker', () => {
       published_at: '2026-08-30T09:06:58Z',
     }]
     expect(selectRelease('0.1.1-rc.2', releases)).toMatchObject({
-      phase: 'available', latestVersion: '0.1.2-alpha.1', releaseUrl,
+      phase: 'available', latestVersion: '0.1.2-alpha.1', tagName: 'odsh-v0.1.2-alpha.1', releaseUrl,
     })
     expect(selectRelease('0.1.2-alpha.1', releases)).toEqual({
       phase: 'current', currentVersion: '0.1.2-alpha.1',
@@ -77,5 +89,41 @@ describe('desktop Release checker', () => {
     expect(first).toBe(second)
     await expect(first).resolves.toMatchObject({ phase: 'error', message: 'offline' })
     expect(fetchReleases).toHaveBeenCalledOnce()
+  })
+
+  it('polls after the startup delay, repeats at a low frequency, and stops cleanly', async () => {
+    vi.useFakeTimers()
+    try {
+      const fetchReleases = vi.fn(() => Promise.resolve([]))
+      const checker = new DesktopReleaseChecker('0.1.0-rc.7', fetchReleases)
+      const stop = checker.startPolling(100, 500)
+      await vi.advanceTimersByTimeAsync(99)
+      expect(fetchReleases).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(fetchReleases).toHaveBeenCalledOnce()
+      await vi.advanceTimersByTimeAsync(500)
+      expect(fetchReleases).toHaveBeenCalledTimes(2)
+      stop()
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(fetchReleases).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('retains an available update when a background refresh is offline', async () => {
+    const release = {
+      draft: false, prerelease: false, tag_name: 'odsh-v0.1.0-rc.8',
+      html_url: 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.0-rc.8',
+      published_at: '2026-08-20T00:00:00Z',
+    }
+    const fetchReleases = vi.fn()
+      .mockResolvedValueOnce([release])
+      .mockRejectedValueOnce(new Error('offline'))
+    const checker = new DesktopReleaseChecker('0.1.0-rc.7', fetchReleases)
+    const available = await checker.checkInBackground()
+    expect(available).toMatchObject({ phase: 'available', latestVersion: '0.1.0-rc.8' })
+    await expect(checker.checkInBackground()).resolves.toBe(available)
+    expect(checker.status).toBe(available)
   })
 })

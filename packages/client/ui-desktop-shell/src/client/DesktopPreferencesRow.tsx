@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { Button, IconChevronDownOutline14, Menu, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { DesktopShellController } from './controller.ts'
+import { DEVELOPMENT_RELEASE_VERSION, type DesktopShellController } from './controller.ts'
 import type { DesktopIconsBridge } from './icon-protocol.ts'
 import { DesktopIconSettings } from './DesktopIconSettings.tsx'
 import css from './DesktopShell.module.css'
@@ -46,7 +46,6 @@ export function DesktopPreferencesRow({ controller, icons, t }: DesktopPreferenc
   const getSnapshot = useCallback(() => controller.getSnapshot(), [controller])
   const state = useSyncExternalStore(subscribe, getSnapshot)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [developmentUpdateAvailable, setDevelopmentUpdateAvailable] = useState(false)
   const [confirmingCommandLine, setConfirmingCommandLine] = useState(false)
   const [dataHomeOpen, setDataHomeOpen] = useState(false)
   const [dataHomeTarget, setDataHomeTarget] = useState<'desktop' | 'official' | 'custom' | 'create'>('desktop')
@@ -78,8 +77,8 @@ export function DesktopPreferencesRow({ controller, icons, t }: DesktopPreferenc
     || commandLine?.phase === 'unsupported-shell'
     || commandLine?.phase === 'setup-required'
   const releaseText = release.phase === 'unsupported'
-    ? developmentUpdateAvailable
-      ? t('release.developmentAvailable', { version: '0.1.1-rc.3' })
+    ? state.simulatedReleaseAvailable
+      ? t('release.developmentAvailable', { version: DEVELOPMENT_RELEASE_VERSION })
       : t('release.developmentCurrent')
     : release.phase === 'checking'
       ? t('release.checking')
@@ -265,10 +264,10 @@ export function DesktopPreferencesRow({ controller, icons, t }: DesktopPreferenc
         {release.phase === 'unsupported' ? (
           <div className={css.actions}>
             <Button
-              variant={developmentUpdateAvailable ? 'primary' : 'outline'}
-              onClick={() => { setDevelopmentUpdateAvailable(value => !value) }}
+              variant={state.simulatedReleaseAvailable ? 'primary' : 'outline'}
+              onClick={() => { controller.toggleSimulatedRelease() }}
             >
-              {t(developmentUpdateAvailable ? 'release.developmentOpen' : 'release.check')}
+              {t(state.simulatedReleaseAvailable ? 'release.developmentOpen' : 'release.check')}
             </Button>
           </div>
         ) : (
