@@ -8,9 +8,9 @@
 
 > [!IMPORTANT]
 >
-> **[v0.1.2-alpha.5가 출시되었습니다. 다운로드해 사용해 보세요](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-alpha.5).** 이 릴리스는 DeepSeek Harness 0.1.2-alpha.5를 기반으로 alpha.2~alpha.5의 누적 업데이트를 포함합니다. 플러그인 스냅샷 복원, 앱·트레이 아이콘 사용자 지정과 함께 플러그인 진단 및 복구, 외부 도구의 호환 버전 검증, 크로스 플랫폼 안정성을 강화했습니다.
+> **[v0.1.2-rc.1이 출시되었습니다. 다운로드해 사용해 보세요](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1).** 이 릴리스는 DeepSeek Harness 0.1.2-rc.1을 기반으로 네이티브 애플리케이션 메뉴와 보호된 재시작·종료 흐름을 추가합니다. macOS Dock·메뉴 막대 아이콘을 개선하고 Codex 시스템 프록시의 적용 범위와 사용자 지정 Profile 시작 호환성도 수정했습니다.
 >
-> 이 버전은 Alpha 프리릴리스입니다. 업그레이드 전에 중요한 설정을 백업하고, 문제를 보고할 때 관련 로그나 진단 보고서를 첨부해 주세요.
+> 이 버전은 Release Candidate 프리릴리스입니다. 업그레이드 전에 중요한 설정을 백업하고, 문제를 보고할 때 관련 로그나 진단 보고서를 첨부해 주세요.
 
 Open DeepSeek Harness Desktop는 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)를 기반으로 하는 독립적인 커뮤니티 배포판입니다. 설치 프로그램에 Node.js, pnpm, Harness 런타임이 포함되어 모델 설정, 코딩 세션, 실행 기록, 플러그인과 Skill, 외부 코딩 도구 및 IM 봇을 별도 개발 환경 없이 사용할 수 있습니다.
 
@@ -182,7 +182,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 ## 다운로드 및 설치
 
-[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-alpha.5)에서 운영체제에 맞는 파일을 다운로드하세요.
+[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1)에서 운영체제에 맞는 파일을 다운로드하세요.
 
 | 운영체제 | 아키텍처 | 패키지 |
 | --- | --- | --- |
