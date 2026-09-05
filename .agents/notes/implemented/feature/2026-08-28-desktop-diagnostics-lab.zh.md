@@ -12,7 +12,7 @@ Status: implemented
 
 ## 决策
 
-桌面宿主通过窄范围 Electron Bridge 提供版本化诊断演练中心。目录包含十四个固定场景标识和固定样本字节：兼容与不兼容 Host 影子副本、孤立 Bundle、旧版隔离卸载残留、scoped 根包与 unscoped Loader 包名不匹配、入口可解析但内部依赖缺失的 Loader、损坏的设置文档、安装包内 `dsh-font` 客户端不兼容、缺失模块、无效 Patch、重复 Loader、生命周期失败、构建许可被阻止和修复中断。渲染层只能选择这些标识，以及隔离沙箱或需明确确认的当前 Profile。
+桌面宿主通过窄范围 Electron Bridge 提供版本化诊断演练中心。目录包含十五个固定场景标识和固定样本字节：兼容与不兼容 Host 影子副本、孤立 Bundle、旧版隔离卸载残留、scoped 根包与 unscoped Loader 包名不匹配、入口可解析但内部依赖缺失的 Loader、损坏的设置文档、安装包内 `dsh-font` 客户端不兼容、缺失模块、无效 Patch、重复 Loader、生命周期失败、构建许可被阻止、修复中断，以及有界的启动操作超时。渲染层只能选择这些标识，以及隔离沙箱或需明确确认的当前 Profile。默认不选中任何场景。
 
 每个选中场景只注入一次。成功运行进入持久的 `active` 阶段，不再自动清理。本次运行的文件、包管理器状态、修复处置和隔离记录会一直保留，直到用户点击**全部恢复**。报告保留预期与实际产品错误码、修复处置、耗时和经过限长脱敏的诊断。
 
@@ -23,6 +23,8 @@ Status: implemented
 Scoped 名称场景会通过普通插件 CLI 安装经过完整性固定的 `@dsh-diagnostic-lab/scoped-loader-mismatch@1.0.0` 资源。其根包使用 scoped 名称，而 Bundle Patch 故意指向不存在的 unscoped Loader 模块。安装后 Profile 预检必须把最终 entry 唯一归属到这个直接根包，立即以 `loader-module-unresolvable` 隔离，并保留真实的诊断计数与解决操作。沙箱模式会在本次运行专属 DSH home 中执行同一包，因此其隔离不会改变活动 Profile。
 
 内部依赖缺失场景同样安装经过完整性固定的 `@dsh-diagnostic-lab/loader-dependency-unavailable@1.0.0`，但它的 Loader entry 本身可以解析，随后静态导入一个不存在的内部 Host 模块。相同的预检必须报告 `loader.dependency-unavailable`，把责任归到聚合根插件，并以 `loader-dependency-unavailable` 隔离。损坏设置场景会向所选 home 写入重复键并保留精确字节；当前 Profile 模式会恢复真实 Harness，直到安全模式报告记录 `config.settings-invalid` 和 `skippedUserSettings: true`，再验证安装方维护的空设置文件没有替换损坏的用户文档。需要浏览器恢复的场景排在最后：先运行 `dsh-font`，再运行损坏设置，避免保留的设置错误遮蔽客户端模块演练。“全部恢复”会还原逐字节一致的原设置，并删除演练前不存在的安全模式设置文件。
+
+启动操作超时场景只允许在沙箱运行。它会调用桌面端拥有的假 CLI；该程序写入私有 marker 后持续运行。正式的 `DesktopOperationSupervisor` 会应用缩短的演练期限、终止进程树、返回结构化超时结果、删除 marker 以模拟事务回滚，并证明执行器可以继续下一步骤。该场景不会打开或修改活动 Profile，也不会真的等待生产环境的完整超时时长。
 
 恢复日志区分四种状态。`injecting` 与 `restoring` 表示未完成事务，进程中断后必须在加载 Profile 插件前自动回滚；`active` 表示用户主动保留的演练，应用重启后应重新连接到界面；`clean` 表示全部恢复已经完成。这样既不会让崩溃恢复误删演示现场，也不会放行只写了一半的修改。
 
@@ -46,4 +48,4 @@ Scoped 名称场景会通过普通插件 CLI 安装经过完整性固定的 `@ds
 
 活动任务由 Electron 主进程和 schema 2 恢复日志/报告持有。`current` Bridge 操作使重载后的渲染页面能够重新连接；根级 `shell.overlay` 卡片显示注入进度、现场保留状态、通过/失败数量和“全部恢复”。隐藏卡片只改变展示。
 
-聚焦测试固定了单次注入、样本不会写入 Profile 全局 Host override、沙箱持久状态、真实 Profile 隔离统计、旧版卸载残留的写入与有界清理、强制依赖恢复、clean 日志下的残留恢复、失败关闭的重启行为、有效的安全模式模块 URL、重启后重新连接、取消回滚、报告脱敏、受限 Preload Bridge、设置页呈现和类型安全的本地化。本桌面能力的验证通道不包含浏览器回放或 Playwright。
+聚焦测试固定了单次注入、默认空选择、样本不会写入 Profile 全局 Host override、沙箱持久状态、真实 Profile 隔离统计、旧版卸载残留的写入与有界清理、强制依赖恢复、clean 日志下的残留恢复、失败关闭的重启行为、有效的安全模式模块 URL、重启后重新连接、启动进程树超时与模拟回滚、取消回滚、报告脱敏、受限 Preload Bridge、设置页呈现和类型安全的本地化。本桌面能力的验证通道不包含浏览器回放或 Playwright。

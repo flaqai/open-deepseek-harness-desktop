@@ -1,6 +1,5 @@
 /** Electron application host for the existing DeepSeek Harness Web GUI. */
 
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { appendFile, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir, userInfo } from 'node:os'
@@ -11,6 +10,7 @@ import {
   type MenuItemConstructorOptions, type MessageBoxOptions, type WebContents, type WebPreferences,
 } from 'electron'
 import { appendBundledPluginFailure, verifyBundledPluginArchive } from './bundled-plugin-seed.ts'
+import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
 import {
   BundledPluginInstaller,
   installBundledPluginSource,
@@ -21,13 +21,16 @@ import {
   type BundledPluginInstallSnapshot,
 } from './bundled-plugin-installer.ts'
 import {
-  acceptsHarnessInvocationExit,
   resolveDevelopmentLaunchOptions,
   resolveHarnessInvocation,
   resolveHarnessLaunch,
   type DesktopLaunchOptions,
+  type HarnessLaunch,
 } from './launch.ts'
-import { runHarnessInvocation } from './harness-invocation.ts'
+import {
+  DesktopOperationSupervisor,
+  HarnessInvocationError,
+} from './harness-invocation.ts'
 import { allowsHarnessPermission } from './permissions.ts'
 import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
 import { HarnessSupervisor, type HarnessFailure, type HarnessState } from './supervisor.ts'
@@ -50,7 +53,7 @@ import { EXTERNAL_TOOL_IDS, type DesktopExternalToolId } from './external-tool-c
 import { createDesktopLifecycle, type DesktopLifecycle } from './window-lifecycle.ts'
 import { ApplicationMenuController } from './application-menu-controller.ts'
 import { CLIENT_COMMANDS, menuCopy, type DesktopCommand } from './application-menu.ts'
-import { menuMutationActive } from './menu-mutation-guard.ts'
+import { inspectProfileMutationLock } from './menu-mutation-guard.ts'
 import { isDesktopRenderer, withDesktopWindowMetadata } from './window-frame.ts'
 import {
   createDesktopWindowSurface,
@@ -105,6 +108,7 @@ import {
 import {
   classifyImportedPluginSourceFailure,
   ImportedPluginRestoreManager,
+  mergeImportedAllowBuilds,
   type ImportedPluginRestoreSnapshot,
 } from './imported-plugin-restore.ts'
 import {
@@ -120,6 +124,12 @@ import {
   type PluginSnapshotSummary,
 } from './plugin-snapshot-manager.ts'
 import { backupAndResetDesktopSettings } from './settings-recovery.ts'
+import {
+  readStartupDiagnostics,
+  recordStartupDiagnostic,
+  type StartupDiagnosticCode,
+  type StartupDiagnosticIncident,
+} from './startup-diagnostics.ts'
 
 const APP_NAME = 'DeepSeek Harness'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
@@ -132,7 +142,14 @@ const DATA_HOME_PAGE = fileURLToPath(new URL('./data-home.html', import.meta.url
 const DATA_HOME_PRELOAD = fileURLToPath(new URL('./data-home-preload.cjs', import.meta.url))
 const DATA_HOME_SELECTION_LIFETIME_MS = 5 * 60_000
 const DESKTOP_PNPM_VERSION = '11.7.0'
-const SNAPSHOT_COMMAND_TIMEOUT_MS = 30_000
+const PROFILE_CHECK_TIMEOUT_MS = 15_000
+const PROFILE_LOCK_WAIT_MS = 5_000
+const PROFILE_REPAIR_TIMEOUT_MS = 60_000
+const BUILD_APPROVAL_TIMEOUT_MS = 15_000
+const BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS = 45_000
+const SNAPSHOT_COMMAND_TIMEOUT_MS = 15_000
+const IMPORTED_PLUGIN_INSTALL_TIMEOUT_MS = 60_000
+const BOOTABLE_SNAPSHOT_DELAY_MS = 30_000
 const DEFAULT_SOURCE_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 const DESKTOP_DATA_HOME = resolveDesktopDataHomeLayout(
   app.getPath('appData'),
@@ -158,14 +175,84 @@ let activeMenuHome: string | undefined
 let menuLocale = 'en'
 let menuClientReady = false
 let snapshotMutationActive = false
+const oneShotOperations = new DesktopOperationSupervisor()
+let bootableSnapshotTimer: NodeJS.Timeout | undefined
+const startupWarnings: string[] = []
 let trayUnavailable = false
 let trayWarningOpen = false
 const pendingMenuCommands = new Map<string, { resolve(): void; reject(error: Error): void; timer: NodeJS.Timeout }>()
 
+function runDesktopInvocation(
+  launch: HarnessLaunch,
+  kind: string,
+  timeoutMs: number,
+  acceptedExitCodes: readonly number[] = [0],
+  allowDuringDisposal = false,
+): Promise<string> {
+  return oneShotOperations.run(launch, {
+    kind, timeoutMs, acceptedExitCodes,
+    ...(allowDuringDisposal ? { allowDuringDisposal: true } : {}),
+  })
+}
+
+function cancelBootableSnapshot(): void {
+  if (bootableSnapshotTimer === undefined) return
+  clearTimeout(bootableSnapshotTimer)
+  bootableSnapshotTimer = undefined
+}
+
+function scheduleBootableSnapshot(manager: PluginSnapshotManager): void {
+  cancelBootableSnapshot()
+  bootableSnapshotTimer = setTimeout(() => {
+    bootableSnapshotTimer = undefined
+    if (harnessOrigin === undefined || lifecycle?.isQuitting === true) return
+    if (menuBusy()) {
+      void appendDesktopStartupLog(
+        'Bootable plugin snapshot stability window restarted because a managed operation is active.',
+      )
+      scheduleBootableSnapshot(manager)
+      return
+    }
+    void (async () => {
+      await appendDesktopStartupLog('Creating post-readiness plugin snapshot after stable runtime.')
+      await manager.markBootable()
+      await appendDesktopStartupLog('Post-readiness plugin snapshot retained.')
+    })().catch(async (error: unknown) => {
+      await appendDesktopStartupLog(
+        `Post-readiness plugin snapshot failed without interrupting Harness: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      console.warn('desktop: could not retain the latest bootable plugin snapshot', error)
+    })
+  }, BOOTABLE_SNAPSHOT_DELAY_MS)
+}
+
+function restartBootableSnapshotStabilityWindow(reason: string): void {
+  cancelBootableSnapshot()
+  const manager = pluginSnapshotManager
+  if (manager === undefined || harnessOrigin === undefined
+    || lifecycle?.isQuitting === true || reportedDesktopReadiness.size !== 2) return
+  void appendDesktopStartupLog(`Restarting bootable plugin snapshot stability window: ${reason}.`)
+  scheduleBootableSnapshot(manager)
+}
+
+function profileDoctorStatus(output: string): 'failed' | 'healthy' | 'quarantined' | 'repaired' | undefined {
+  const start = output.indexOf('{')
+  const end = output.lastIndexOf('}')
+  if (start < 0 || end < start) return undefined
+  try {
+    const value = JSON.parse(output.slice(start, end + 1)) as { status?: unknown }
+    return typeof value.status === 'string'
+      && ['failed', 'healthy', 'quarantined', 'repaired'].includes(value.status)
+      ? value.status as 'failed' | 'healthy' | 'quarantined' | 'repaired'
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function menuBusy(): boolean {
   const lab = diagnosticLabManager?.current()
   return snapshotMutationActive || lab?.phase === 'running' || lab?.phase === 'queued' || lab?.phase === 'restoring'
-    || (activeMenuHome !== undefined && menuMutationActive(activeMenuHome))
 }
 
 function reportMenuError(error: unknown): void {
@@ -248,6 +335,7 @@ let releaseDownloader: DesktopReleaseDownloader | undefined
 let stopReleaseChecks: (() => void) | undefined
 let externalToolCompatibility: ExternalToolCompatibilityManager | undefined
 let bundledPluginInstaller: BundledPluginInstaller | undefined
+let bundledPluginCooldown: BundledPluginStartupCooldown | undefined
 let importedPluginRestoreManager: ImportedPluginRestoreManager | undefined
 let desktopCliManager: DesktopCliManager | undefined
 let chatBackgroundStore: DesktopChatBackgroundStore | undefined
@@ -858,40 +946,19 @@ async function runPackageManagerInvocation(
     ? environment.DSH_DESKTOP_NODE_BIN ?? options.nodeCommand ?? 'node'
     : packageManager
   const commandArgs = javaScriptEntry ? [packageManager, ...args] : [...args]
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn(command, commandArgs, {
+  try {
+    return await runDesktopInvocation({
+      command,
+      args: commandArgs,
       cwd,
-      env: { ...process.env, ...environment },
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-    })
-    const output: Buffer[] = []
-    let outputBytes = 0
-    let timedOut = false
-    const append = (chunk: Buffer): void => {
-      outputBytes += chunk.length
-      if (outputBytes <= 2 * 1024 * 1024) output.push(chunk)
-    }
-    child.stdout.on('data', append)
-    child.stderr.on('data', append)
-    const timeout = setTimeout(() => {
-      timedOut = true
-      child.kill()
-    }, timeoutMs)
-    child.once('error', (error) => {
-      clearTimeout(timeout)
-      reject(error)
-    })
-    child.once('close', (code, signal) => {
-      clearTimeout(timeout)
-      const diagnostic = Buffer.concat(output).toString('utf8')
-      if (!timedOut && acceptsHarnessInvocationExit(code, signal, [0])) resolve(diagnostic)
-      else reject(new PackageManagerInvocationError(
-        `desktop: pnpm invocation failed (${String(code)}, ${String(signal)}): ${diagnostic.slice(-4000)}`,
-        timedOut,
-      ))
-    })
-  })
+      environment,
+    }, 'package-manager', timeoutMs)
+  } catch (error) {
+    throw new PackageManagerInvocationError(
+      error instanceof Error ? error.message : String(error),
+      error instanceof HarnessInvocationError && error.timedOut,
+    )
+  }
 }
 
 async function inspectImportedPluginSource(
@@ -951,13 +1018,13 @@ async function resolveStartupBuildApproval(
 
   const recoveryDiagnostics: string[] = []
   try {
-    recoveryDiagnostics.push(await runHarnessInvocation(resolveHarnessInvocation(environment, [
+    recoveryDiagnostics.push(await runDesktopInvocation(resolveHarnessInvocation(environment, [
       'plugin', '--profile', 'web', 'approve-build-key', approval.packageBuildKey,
-    ], launchOptions)))
+    ], launchOptions), 'build-approval-recovery', BUILD_APPROVAL_TIMEOUT_MS))
     for (const quarantineId of approval.quarantineIds) {
-      recoveryDiagnostics.push(await runHarnessInvocation(resolveHarnessInvocation(environment, [
+      recoveryDiagnostics.push(await runDesktopInvocation(resolveHarnessInvocation(environment, [
         'plugin', '--profile', 'web', 'doctor', '--retry', quarantineId,
-      ], launchOptions), [0, 10, 11]))
+      ], launchOptions), 'quarantine-retry', PROFILE_REPAIR_TIMEOUT_MS, [0, 10, 11]))
     }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
@@ -983,7 +1050,11 @@ function assertMainRenderer(sender: Electron.WebContents): void {
 }
 
 function publishStartupProgress(next: DesktopStartupProgress): void {
-  startupProgress = next
+  startupProgress = {
+    ...next,
+    startedAt: next.startedAt ?? Date.now(),
+    state: next.state ?? 'running',
+  }
   mainSurface?.send('dsh:startup-progress', startupProgress)
 }
 
@@ -1151,6 +1222,18 @@ async function startApplication(): Promise<void> {
   applyStartupDockIcon()
   const dshHome = await prepareDesktopDshHome(DESKTOP_DATA_HOME)
   activeMenuHome = dshHome
+  const retainStartupWarning = async (
+    code: StartupDiagnosticCode,
+    operation: string,
+    actions: StartupDiagnosticIncident['actions'],
+    packageName?: string,
+  ): Promise<void> => {
+    startupWarnings.push(`${code}: ${packageName ?? operation}`)
+    await recordStartupDiagnostic(dshHome, {
+      code, operation, actions,
+      ...(packageName === undefined ? {} : { packageName }),
+    })
+  }
   applyDesktopThemeSource(await readDesktopThemeSource(
     dshHome,
     (error) => { console.warn('desktop: could not read theme preference; following the system appearance', error) },
@@ -1456,9 +1539,8 @@ async function startApplication(): Promise<void> {
     if (manager !== undefined) void (async () => {
       await manager.reportReadiness(phase)
       if (readinessComplete) {
-        await appendDesktopStartupLog('Creating post-readiness plugin snapshot.')
-        await manager.markBootable()
-        await appendDesktopStartupLog('Post-readiness plugin snapshot retained.')
+        await appendDesktopStartupLog('Scheduling bootable plugin snapshot after 30 stable seconds.')
+        scheduleBootableSnapshot(manager)
       }
     })().catch(async (error: unknown) => {
       await appendDesktopStartupLog(
@@ -1580,7 +1662,7 @@ async function startApplication(): Promise<void> {
     assertMainRenderer(event.sender)
     return importedPluginRestoreManager?.startSourceCheck()
   })
-  ipcMain.handle('dsh:desktop:imported-plugins:start', (
+  ipcMain.handle('dsh:desktop:imported-plugins:start', async (
     event,
     restoreIds: unknown,
   ): Promise<ImportedPluginRestoreSnapshot> => {
@@ -1591,7 +1673,12 @@ async function startApplication(): Promise<void> {
     if (importedPluginRestoreManager === undefined) {
       throw new Error('desktop: imported plugin restore manager is unavailable')
     }
-    return importedPluginRestoreManager.start(restoreIds)
+    cancelBootableSnapshot()
+    try {
+      return await importedPluginRestoreManager.start(restoreIds)
+    } finally {
+      restartBootableSnapshotStabilityWindow('imported plugin restore settled')
+    }
   })
   ipcMain.handle('dsh:desktop:imported-plugins:dismiss', async (
     event,
@@ -1651,7 +1738,12 @@ async function startApplication(): Promise<void> {
         })
         if (confirmation.response !== 1) return importedPluginRestoreManager.snapshot()
       }
-      return await importedPluginRestoreManager.installLocal(restoreId, staged.archivePath)
+      cancelBootableSnapshot()
+      try {
+        return await importedPluginRestoreManager.installLocal(restoreId, staged.archivePath)
+      } finally {
+        restartBootableSnapshotStabilityWindow('local plugin restore settled')
+      }
     } finally {
       await staged?.cleanup()
     }
@@ -1668,6 +1760,37 @@ async function startApplication(): Promise<void> {
     assertMainRenderer(event.sender)
     if (diagnosticLabManager === undefined) throw new Error('desktop: diagnostic lab is unavailable')
     return diagnosticLabManager.catalog()
+  })
+  ipcMain.handle('dsh:desktop:startup-diagnostics:list', async (event) => {
+    assertMainRenderer(event.sender)
+    if (activeMenuHome === undefined) return []
+    return readStartupDiagnostics(activeMenuHome)
+  })
+  ipcMain.handle('dsh:desktop:startup-diagnostics:retry', async (event, incidentId: unknown) => {
+    assertMainRenderer(event.sender)
+    if (activeMenuHome === undefined || typeof incidentId !== 'string' || incidentId.length > 80) {
+      throw new TypeError('desktop: invalid startup diagnostic retry request')
+    }
+    const incident = (await readStartupDiagnostics(activeMenuHome))
+      .find(candidate => candidate.incidentId === incidentId)
+    if (incident === undefined) throw new Error('desktop: startup diagnostic incident was not found')
+    if (incident.code === 'runtime.profile-check-timeout'
+      || incident.code === 'runtime.profile-repair-timeout'
+      || incident.code === 'runtime.profile-repair-failed') {
+      requestDesktopRestart()
+      return { status: 'restarting' as const }
+    }
+    if ((incident.code === 'runtime.bundled-plugin-timeout'
+      || incident.code === 'runtime.bundled-plugin-failed')
+      && incident.packageName !== undefined
+      && bundledPluginInstaller !== undefined) {
+      await bundledPluginCooldown?.clear(incident.packageName)
+      const started = bundledPluginInstaller.startManual('web', incident.packageName)
+      if (started.handled) {
+        return { status: 'plugin-started' as const, installId: started.snapshot.installId }
+      }
+    }
+    return { status: 'unsupported' as const }
   })
   ipcMain.handle('dsh:desktop:diagnostic-lab:current', (event) => {
     assertMainRenderer(event.sender)
@@ -1796,7 +1919,10 @@ async function startApplication(): Promise<void> {
       }).then((result) => { if (result.response === 1) void lifecycle?.requestQuit() })
         .finally(() => { trayWarningOpen = false })
     },
-    disposeHost: async () => { await supervisor?.stop() },
+    disposeHost: async () => {
+      cancelBootableSnapshot()
+      await Promise.allSettled([oneShotOperations.dispose(), supervisor?.stop()])
+    },
     releaseQuit: () => {
       quitReleased = true
       disposeApplicationMenu?.()
@@ -1886,23 +2012,213 @@ async function startApplication(): Promise<void> {
   } catch (error) {
     console.warn('desktop: could not refresh the registered dsh command', error)
   }
-  const runSnapshotCommand = async <T>(args: readonly string[], timeoutMs?: number): Promise<T> => {
-    const output = await runHarnessInvocation(resolveHarnessInvocation(harnessEnvironment, [
+  const runSnapshotCommand = async <T>(
+    args: readonly string[],
+    timeoutMs?: number,
+    allowDuringDisposal = false,
+  ): Promise<T> => {
+    const output = await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
       'plugin', '--profile', 'web', 'snapshot', ...args,
-    ], launchOptions), [0], timeoutMs)
+    ], launchOptions), `plugin-snapshot:${args[0] ?? 'unknown'}`,
+    timeoutMs ?? SNAPSHOT_COMMAND_TIMEOUT_MS, [0], allowDuringDisposal)
     return parsePluginSnapshotJson(output) as T
   }
-  publishStartupProgress({ stage: 'checking-profile', progress: 28 })
-  let initialProfileRepairDiagnostic: string
-  try {
-    await appendDesktopStartupLog('Checking Web Profile compatibility.')
-    initialProfileRepairDiagnostic = await runHarnessInvocation(resolveHarnessInvocation(harnessEnvironment, [
-      'plugin', '--profile', 'web', 'doctor', '--repair',
-    ], launchOptions), [0, 10, 11])
-    await appendDesktopStartupLog('Web Profile compatibility check completed.')
-  } catch (error) {
-    initialProfileRepairDiagnostic = error instanceof Error ? error.message : String(error)
-    console.warn('desktop: Profile startup repair did not settle; supervised startup will classify the failure', error)
+  const startupSafety = { rollbackFailed: false }
+  const withProfileMutationSafety = async <T>(
+    operationKind: string,
+    operation: () => Promise<T>,
+  ): Promise<T> => {
+    const token = randomUUID()
+    let leaseActive = false
+    let safetySnapshotId: string | undefined
+    harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN = token
+    harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID = String(process.pid)
+    try {
+      await runSnapshotCommand(['begin-restore-lease'], SNAPSHOT_COMMAND_TIMEOUT_MS)
+      leaseActive = true
+      const safety = await runSnapshotCommand<{ snapshotId: string }>(['create-safety'], SNAPSHOT_COMMAND_TIMEOUT_MS)
+      safetySnapshotId = safety.snapshotId
+      try {
+        return await operation()
+      } catch (operationError) {
+        try {
+          await runSnapshotCommand(['restore-files', safety.snapshotId], SNAPSHOT_COMMAND_TIMEOUT_MS, true)
+          await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
+            'plugin', '--profile', 'web', 'install', '--offline', '--frozen-lockfile',
+          ], launchOptions), `${operationKind}:rollback`, BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS, [0], true)
+          await appendDesktopStartupLog(`Rolled back startup mutation ${operationKind}.`)
+        } catch (rollbackError) {
+          startupSafety.rollbackFailed = true
+          safetySnapshotId = undefined
+          const detail = rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+          await retainStartupWarning(
+            'runtime.startup-rollback-failed',
+            `${operationKind}:rollback`,
+            ['diagnostics', 'open-log', 'snapshot-restore'],
+          )
+          throw new Error(`desktop: could not roll back startup mutation ${operationKind}: ${detail}`, {
+            cause: operationError,
+          })
+        }
+        throw operationError
+      }
+    } finally {
+      try {
+        if (safetySnapshotId !== undefined) {
+          await runSnapshotCommand(['settle-safety', safetySnapshotId], SNAPSHOT_COMMAND_TIMEOUT_MS, true)
+        }
+      } finally {
+        try {
+          if (leaseActive) await runSnapshotCommand(['end-restore-lease'], SNAPSHOT_COMMAND_TIMEOUT_MS, true)
+        } finally {
+          delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN
+          delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID
+        }
+      }
+    }
+  }
+  const profileCheckStartedAt = Date.now()
+  publishStartupProgress({
+    stage: 'checking-profile', progress: 28,
+    detail: 'profile-read-only-check',
+    startedAt: profileCheckStartedAt,
+    deadlineAt: profileCheckStartedAt + PROFILE_CHECK_TIMEOUT_MS,
+  })
+  let initialProfileRepairDiagnostic = ''
+  const profileManifestPath = join(dshHome, 'profiles', 'web', 'package.json')
+  const profileInitialized = await lstat(profileManifestPath).then(stat => stat.isFile(), () => false)
+  let profileMutationLock = inspectProfileMutationLock(dshHome)
+  if (profileMutationLock.active) {
+    const lockWaitStartedAt = Date.now()
+    publishStartupProgress({
+      stage: 'checking-profile', progress: 28,
+      detail: 'profile-lock-wait',
+      startedAt: lockWaitStartedAt,
+      deadlineAt: lockWaitStartedAt + PROFILE_LOCK_WAIT_MS,
+    })
+    await new Promise<void>((resolve) => { setTimeout(resolve, PROFILE_LOCK_WAIT_MS) })
+    profileMutationLock = inspectProfileMutationLock(dshHome)
+  }
+  const profileMutationBlocked = profileMutationLock.active
+  let startupProfileMutationAllowed = !profileMutationBlocked
+  let profileNeedsRepair = !profileInitialized && !profileMutationBlocked
+  if (profileMutationBlocked) {
+    const created = profileMutationLock.createdAt === undefined
+      ? undefined
+      : Date.parse(profileMutationLock.createdAt)
+    const heldMs = created === undefined || !Number.isFinite(created)
+      ? undefined
+      : Math.max(0, Date.now() - created)
+    const owner = [
+      `state=${profileMutationLock.state}`,
+      `operation=${profileMutationLock.operationKind ?? 'unknown'}`,
+      ...(profileMutationLock.pid === undefined ? [] : [`pid=${profileMutationLock.pid}`]),
+      ...(heldMs === undefined ? [] : [`heldMs=${heldMs}`]),
+      `lock=${profileMutationLock.lockPath}`,
+    ].join(' ')
+    const warning = `runtime.profile-mutation-lock-busy: ${owner}; starting diagnostic safe mode without reading the active Profile`
+    await retainStartupWarning(
+      'runtime.profile-mutation-lock-busy',
+      `profile-lock-check:${profileMutationLock.operationKind ?? profileMutationLock.state}`,
+      ['diagnostics', 'open-log', 'switch-profile'],
+    )
+    await appendDesktopStartupLog(warning)
+    publishStartupProgress({
+      stage: 'checking-profile', progress: 34,
+      detail: 'profile-lock-safe-mode',
+      state: 'degraded',
+    })
+  } else if (profileInitialized) {
+    try {
+      await appendDesktopStartupLog('Checking Web Profile compatibility without modifying it.')
+      const inspection = await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
+        'plugin', '--profile', 'web', 'doctor',
+      ], launchOptions), 'profile-check', PROFILE_CHECK_TIMEOUT_MS, [0, 2])
+      profileNeedsRepair = profileDoctorStatus(inspection) !== 'healthy'
+      await appendDesktopStartupLog(profileNeedsRepair
+        ? 'Web Profile compatibility issues require bounded repair.'
+        : 'Web Profile compatibility check completed without repair.')
+    } catch (error) {
+      if (error instanceof HarnessInvocationError && error.timedOut) {
+        const warning = 'runtime.profile-check-timeout: compatibility inspection exceeded 15 seconds; continuing without Profile changes'
+        await retainStartupWarning(
+          'runtime.profile-check-timeout',
+          'profile-check',
+          ['diagnostics', 'open-log'],
+        )
+        await appendDesktopStartupLog(warning)
+        publishStartupProgress({
+          stage: 'checking-profile', progress: 32,
+          detail: 'profile-check-timeout',
+          state: 'degraded',
+        })
+        profileNeedsRepair = false
+        startupProfileMutationAllowed = false
+      } else {
+        await appendDesktopStartupLog(
+          `Web Profile read-only inspection failed without modifying the Profile: ${error instanceof Error ? error.message : String(error)}`,
+        )
+        profileNeedsRepair = false
+        startupProfileMutationAllowed = false
+      }
+    }
+  }
+  if (profileNeedsRepair) {
+    try {
+      const repairStartedAt = Date.now()
+      publishStartupProgress({
+        stage: 'checking-profile', progress: 31,
+        detail: profileInitialized ? 'profile-repair' : 'profile-initialize',
+        startedAt: repairStartedAt,
+        deadlineAt: repairStartedAt + PROFILE_REPAIR_TIMEOUT_MS,
+      })
+      await appendDesktopStartupLog(profileInitialized
+        ? 'Repairing Web Profile compatibility with a hard timeout.'
+        : 'Initializing the new Web Profile with a hard timeout.')
+      const runProfileRepair = (): Promise<string> => runDesktopInvocation(
+        resolveHarnessInvocation(harnessEnvironment, [
+          'plugin', '--profile', 'web', 'doctor', '--repair',
+        ], launchOptions),
+        profileInitialized ? 'profile-repair' : 'profile-initialize',
+        PROFILE_REPAIR_TIMEOUT_MS,
+        [0, 10, 11],
+      )
+      initialProfileRepairDiagnostic = profileInitialized
+        ? await withProfileMutationSafety('profile-repair', runProfileRepair)
+        : await runProfileRepair()
+      await appendDesktopStartupLog('Web Profile compatibility repair completed.')
+    } catch (error) {
+      if (!profileInitialized) {
+        const message = error instanceof Error ? error.message : String(error)
+        await retainStartupWarning(
+          'runtime.profile-repair-failed',
+          'profile-initialize',
+          ['diagnostics', 'open-log', 'switch-profile'],
+        )
+        await appendDesktopStartupLog(`Web Profile initialization failed: ${message}`)
+        publishStartupProgress({
+          stage: 'checking-profile', progress: 31,
+          detail: 'profile-initialize-failed',
+          state: 'degraded',
+        })
+        showLoading('failed', {
+          message: `Web Profile initialization failed: ${message}`,
+          logPath: harnessLogPath,
+        })
+        return
+      }
+      initialProfileRepairDiagnostic = error instanceof Error ? error.message : String(error)
+      startupProfileMutationAllowed = false
+      const code = error instanceof HarnessInvocationError && error.timedOut
+        ? 'runtime.profile-repair-timeout'
+        : 'runtime.profile-repair-failed'
+      await retainStartupWarning(
+        code,
+        'profile-repair',
+        ['diagnostics', 'open-log', 'snapshot-restore'],
+      )
+      console.warn('desktop: Profile startup repair did not settle; supervised startup will classify the failure', error)
+    }
   }
   const profileRepairDiagnostic = await resolveStartupBuildApproval(
     initialProfileRepairDiagnostic,
@@ -1925,30 +2241,59 @@ async function startApplication(): Promise<void> {
   const manifest = parseBundledPluginManifest(
     JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8')) as unknown,
   )
+  const startupPluginCooldown = new BundledPluginStartupCooldown(dshHome)
+  bundledPluginCooldown = startupPluginCooldown
+  const withStartupPluginTransaction = async <T>(
+    packageName: string,
+    operation: () => Promise<T>,
+  ): Promise<T> => {
+    if (startupSafety.rollbackFailed) {
+      throw new Error('desktop: bundled plugin startup stopped after rollback failure')
+    }
+    return withProfileMutationSafety(`bundled-plugin:${packageName}`, operation)
+  }
   bundledPluginInstaller = new BundledPluginInstaller({
     manifest,
     resourcesDirectory: bundledDirectory,
     dshHome,
     repairLegacyMarkers: !app.isPackaged,
+    startupBudgetMs: 120_000,
+    shouldAttemptStartup: plugin => startupPluginCooldown.shouldAttempt(plugin.packageName, plugin.version),
+    onStartupSuccess: plugin => startupPluginCooldown.clear(plugin.packageName),
+    onManagedMutationStart: () => { cancelBootableSnapshot() },
+    onManagedMutationSettled: (plugin) => {
+      restartBootableSnapshotStabilityWindow(`bundled plugin ${plugin.packageName} settled`)
+    },
+    withStartupTransaction: (plugin, operation) => withStartupPluginTransaction(plugin.packageName, operation),
     prepare: async (plugin) => {
       await appendDesktopStartupLog(`Preparing bundled plugin ${plugin.packageName}@${plugin.version}.`)
       for (const packageName of plugin.approvedBuilds ?? []) {
-        await runHarnessInvocation(resolveHarnessInvocation(harnessEnvironment, [
+        await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
           'plugin', '--profile', plugin.profile, 'approve-build', packageName,
-        ], launchOptions))
+        ], launchOptions), `bundled-plugin-approve:${plugin.packageName}`, BUILD_APPROVAL_TIMEOUT_MS)
       }
     },
     install: async (archivePath, plugin) => {
       await appendDesktopStartupLog(`Installing bundled plugin ${plugin.packageName}@${plugin.version}.`)
       await installBundledPluginSource(plugin, archivePath, async (packageSpec) => {
-        await runHarnessInvocation(resolveHarnessInvocation(harnessEnvironment, [
+        await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
           'plugin', '--profile', plugin.profile, 'add', '--save-exact', packageSpec,
-        ], launchOptions))
+        ], launchOptions), `bundled-plugin-install:${plugin.packageName}`, BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS)
       })
       await appendDesktopStartupLog(`Bundled plugin ${plugin.packageName}@${plugin.version} installed.`)
     },
-    onFailure: async (error) => {
+    onFailure: async (error, plugin) => {
       await appendBundledPluginFailure(harnessLogPath, error)
+      await startupPluginCooldown.record(plugin.packageName, plugin.version)
+      const code = error instanceof HarnessInvocationError && error.timedOut
+        ? 'runtime.bundled-plugin-timeout'
+        : 'runtime.bundled-plugin-failed'
+      await retainStartupWarning(
+        code,
+        'bundled-plugin-install',
+        ['diagnostics', 'open-log', 'retry-plugin'],
+        plugin.packageName,
+      )
       console.error(error)
     },
   })
@@ -1957,15 +2302,21 @@ async function startApplication(): Promise<void> {
   // client and event dispatcher both prove the resulting Profile can start.
   harnessEnvironment.DSH_PLUGIN_SNAPSHOT_BATCH = '1'
   try {
-    await bundledPluginInstaller.seedStartup((progress) => {
-      publishStartupProgress(mapBundledPluginProgress(
-        progress.entry.packageName,
-        progress.index,
-        progress.total,
-        progress.stage,
-        progress.progress,
-      ))
-    })
+    if (startupProfileMutationAllowed) {
+      await bundledPluginInstaller.seedStartup((progress) => {
+        publishStartupProgress(mapBundledPluginProgress(
+          progress.entry.packageName,
+          progress.index,
+          progress.total,
+          progress.stage,
+          progress.progress,
+        ))
+      })
+    } else {
+      await appendDesktopStartupLog(
+        'Skipped bundled startup plugin mutations because Profile health was not proven safe for writes.',
+      )
+    }
   } finally {
     delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_BATCH
   }
@@ -1985,12 +2336,19 @@ async function startApplication(): Promise<void> {
     dshHome,
     providedDependencies: installedProfileDependencies,
     inspectSource: packageSpec => inspectImportedPluginSource(packageSpec, harnessEnvironment, launchOptions),
-    install: packageSpec => runHarnessInvocation(resolveHarnessInvocation(harnessEnvironment, [
+    install: packageSpec => runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
       'plugin', '--profile', 'web', 'add', packageSpec,
-    ], launchOptions)),
+    ], launchOptions), 'imported-plugin-install', IMPORTED_PLUGIN_INSTALL_TIMEOUT_MS),
+    mergeAllowBuilds: (profileDir, rules) => withProfileMutationSafety(
+      'imported-plugin-allow-builds',
+      () => mergeImportedAllowBuilds(profileDir, rules),
+    ),
   })
   try {
-    await importedPluginRestoreManager.prepare()
+    if (startupProfileMutationAllowed) await importedPluginRestoreManager.prepare()
+    else await appendDesktopStartupLog(
+      'Skipped imported plugin restore preparation because Profile health was not proven safe for writes.',
+    )
   } catch (error) {
     console.warn('desktop: imported plugin restore metadata is unavailable; startup will continue', error)
     await appendFile(harnessLogPath, `[desktop] Imported plugin restore unavailable: ${error instanceof Error ? error.message : String(error)}\n`)
@@ -2011,6 +2369,14 @@ async function startApplication(): Promise<void> {
     launch,
     logPath: harnessLogPath,
     environment: harnessEnvironment,
+    ...(profileMutationBlocked || startupSafety.rollbackFailed
+      ? {
+        initialSafeMode: true,
+        initialSafeModeReason: profileMutationBlocked
+          ? 'The active Profile is owned by another plugin mutation operation.'
+          : 'A startup plugin mutation could not be rolled back safely.',
+      }
+      : {}),
     ...(process.platform === 'win32' ? { terminateProcessTree: terminateWindowsProcessTree } : {}),
     onReady: (url) => {
       harnessOrigin = new URL(url).origin
@@ -2025,9 +2391,16 @@ async function startApplication(): Promise<void> {
         recovering = false
         showNotification('recovered', notificationCopy.recovered)
       }
+      if (startupWarnings.length > 0) showNotification('startup-warning', {
+        ...notificationCopy.startupWarning,
+        body: `${notificationCopy.startupWarning.body}\n${startupWarnings.slice(0, 3).join('\n')}`,
+      })
     },
     onState: (state) => {
-      if (state === 'restarting' || state === 'failed') harnessOrigin = undefined
+      if (state === 'restarting' || state === 'failed') {
+        cancelBootableSnapshot()
+        harnessOrigin = undefined
+      }
       if (state !== 'ready') menuClientReady = false
       applicationMenu?.refresh()
       if (state === 'starting') publishStartupProgress({ stage: 'starting-harness', progress: 92 })
@@ -2104,9 +2477,9 @@ async function startApplication(): Promise<void> {
       )
     },
     doctorHealthy: async () => {
-      const output = await runHarnessInvocation(resolveHarnessInvocation(harnessEnvironment, [
+      const output = await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
         'plugin', '--profile', 'web', 'doctor',
-      ], launchOptions), [0, 2])
+      ], launchOptions), 'snapshot-restore-doctor', PROFILE_CHECK_TIMEOUT_MS, [0, 2])
       return parseDiagnosticLabDoctorOutput(output).status === 'healthy'
     },
     onStatus: (snapshot) => {
@@ -2122,6 +2495,44 @@ async function startApplication(): Promise<void> {
     logDirectory: join(app.getPath('logs'), 'diagnostic-lab'),
     suspendHarness: async () => { await supervisor?.stop() },
     resumeHarness: () => { supervisor?.resume() },
+    runStartupTimeoutExercise: async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'dsh-startup-timeout-lab-'))
+      const marker = join(directory, 'mutation.marker')
+      const script = join(directory, 'fake-cli.cjs')
+      try {
+        await writeFile(script, [
+          "const { writeFileSync } = require('node:fs')",
+          `writeFileSync(${JSON.stringify(marker)}, 'partial mutation')`,
+          'setInterval(() => {}, 1000)',
+          '',
+        ].join('\n'), { mode: 0o600 })
+        const nodeCommand = launchOptions.nodeCommand
+          ?? harnessEnvironment.DSH_DESKTOP_NODE_BIN
+          ?? process.execPath
+        let cancelled = false
+        try {
+          await runDesktopInvocation({
+            command: nodeCommand,
+            args: [script],
+            environment: { ...harnessEnvironment, ELECTRON_RUN_AS_NODE: '1' },
+          }, 'diagnostic-startup-timeout', 250)
+        } catch (error) {
+          if (!(error instanceof HarnessInvocationError) || !error.timedOut) throw error
+          cancelled = true
+        }
+        const mutationObserved = await lstat(marker).then(stat => stat.isFile(), () => false)
+        await rm(marker, { force: true })
+        const rolledBack = mutationObserved && !await lstat(marker).then(() => true, () => false)
+        return {
+          actualCode: 'runtime.profile-check-timeout' as const,
+          cancelled,
+          rolledBack,
+          continued: true,
+        }
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
     installProfile: async (home, force) => {
       await runPackageManagerInvocation(
         ['install', '--offline', '--ignore-scripts', ...(force ? ['--force'] : [])],
@@ -2139,17 +2550,19 @@ async function startApplication(): Promise<void> {
       ))
       if (entry === undefined) throw new Error(`desktop: packaged diagnostic plugin ${packageName} is unavailable`)
       const archivePath = await verifyBundledPluginArchive(bundledDirectory, entry)
-      await runHarnessInvocation(resolveHarnessInvocation(
+      await runDesktopInvocation(resolveHarnessInvocation(
         { ...harnessEnvironment, DSH_HOME: home },
         ['plugin', '--profile', entry.profile, 'add', '--save-exact', archivePath],
         launchOptions,
-      ))
+      ), `diagnostic-plugin-install:${entry.packageName}`, BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS)
     },
     runDoctor: async (home, repair) => {
       const environment = { ...harnessEnvironment, DSH_HOME: home }
-      const output = await runHarnessInvocation(resolveHarnessInvocation(environment, [
+      const output = await runDesktopInvocation(resolveHarnessInvocation(environment, [
         'plugin', '--profile', 'web', 'doctor', ...(repair ? ['--repair'] : []),
-      ], launchOptions), repair ? [0, 10, 11] : [0, 2])
+      ], launchOptions), repair ? 'diagnostic-doctor-repair' : 'diagnostic-doctor-check',
+      repair ? PROFILE_REPAIR_TIMEOUT_MS : PROFILE_CHECK_TIMEOUT_MS,
+      repair ? [0, 10, 11] : [0, 2])
       return parseDiagnosticLabDoctorOutput(output)
     },
     onSnapshot: (snapshot: DiagnosticLabRunSnapshot) => {

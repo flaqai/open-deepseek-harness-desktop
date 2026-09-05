@@ -28,6 +28,10 @@ export interface HarnessSupervisorOptions {
   onReady(url: string): void
   onState(state: HarnessState): void
   onFailure(failure: HarnessFailure): void
+  /** Start directly with the installation-owned diagnostic Profile. */
+  initialSafeMode?: boolean
+  /** Primary reason retained if an explicitly selected safe mode also fails. */
+  initialSafeModeReason?: string
   /** Windows-only process-tree cleanup; omitted on Unix hosts. */
   terminateProcessTree?(processId: number, force: boolean): Promise<void>
   /** Test override for the bounded graceful shutdown interval. */
@@ -47,9 +51,22 @@ export class HarnessSupervisor {
   #primaryStartupFailure: string | undefined
   #stopping = false
 
-  /** @param options - Process launch, log destination, and lifecycle observers. */
   constructor(options: HarnessSupervisorOptions) {
     this.#options = options
+    this.#safeMode = options.initialSafeMode ?? false
+    this.#primaryStartupFailure = options.initialSafeModeReason
+  }
+
+  #reportStartupFailure(message: string, logLine: string): void {
+    const notify = (): void => {
+      this.#options.onState('failed')
+      this.#options.onFailure({ message })
+    }
+    if (this.#log === undefined) {
+      notify()
+      return
+    }
+    this.#log.write(logLine, () => { notify() })
   }
 
   /** Start the child process; repeated calls while it is running are ignored. */
@@ -127,9 +144,10 @@ export class HarnessSupervisor {
             ? `diagnostic safe mode exited before becoming ready (code ${String(code)}, signal ${String(signal)})`
             : `diagnostic safe mode could not start: ${spawnError.message}`
           const message = `${this.#primaryStartupFailure ?? 'The active Profile could not start'} ${secondary}.`
-          this.#log?.write(`[desktop] Harness startup failed after one normal and one diagnostic attempt: ${message}\n`)
-          this.#options.onState('failed')
-          this.#options.onFailure({ message })
+          this.#reportStartupFailure(
+            message,
+            `[desktop] Harness startup failed after one normal and one diagnostic attempt: ${message}\n`,
+          )
           return
         }
         this.#preReadyExitCount += 1
@@ -138,9 +156,10 @@ export class HarnessSupervisor {
           const message = spawnError === undefined
             ? `Harness exited before becoming ready (code ${String(code)}, signal ${String(signal)}).`
             : `Harness could not start: ${spawnError.message}`
-          this.#log?.write(`[desktop] Harness startup failed after ${PRE_READY_EXIT_LIMIT} attempts: ${message}\n`)
-          this.#options.onState('failed')
-          this.#options.onFailure({ message })
+          this.#reportStartupFailure(
+            message,
+            `[desktop] Harness startup failed after ${PRE_READY_EXIT_LIMIT} attempts: ${message}\n`,
+          )
           return
         }
       }

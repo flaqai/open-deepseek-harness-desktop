@@ -632,6 +632,11 @@ function pluginInvocationMutates(args: readonly string[]): boolean {
  * @returns Process exit code.
  */
 export function runPlugin(profile: string, args: readonly string[]): number {
+  const leaseToken = process.env.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN
+  if (leaseToken !== undefined && pluginInvocationMutates(args)) {
+    assertProfilePluginMutationLease({ profile, token: leaseToken })
+    return runPluginWithoutSnapshot(profile, args)
+  }
   if (!pluginInvocationMutates(args) || process.env.DSH_PLUGIN_SNAPSHOT_BATCH === '1') {
     return runPluginWithoutSnapshot(profile, args)
   }

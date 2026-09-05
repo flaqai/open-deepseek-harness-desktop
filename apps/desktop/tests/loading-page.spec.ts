@@ -31,4 +31,14 @@ describe('desktop loading page', () => {
     expect(preload).toContain("{ kind: 'custom', selectionId: selection.selectionId }")
     expect(preload).not.toContain("{ kind: 'custom', path:")
   })
+
+  it('shows the active bounded operation and its automatic degradation policy', async () => {
+    const preload = await readFile(new URL('../src/preload.ts', import.meta.url), 'utf8')
+
+    expect(preload).toContain("'profile-read-only-check': '正在只读检查插件兼容性'")
+    expect(preload).toContain("'profile-check-timeout': '兼容性检查已超时，已跳过异常步骤并继续启动'")
+    expect(preload).toContain('snapshot.deadlineAt - now')
+    expect(preload).toContain("ipcRenderer.invoke('dsh:desktop:log:open')")
+    expect(preload).toContain('不会无限等待')
+  })
 })

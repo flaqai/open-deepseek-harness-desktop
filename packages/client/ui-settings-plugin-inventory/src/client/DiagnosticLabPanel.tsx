@@ -37,6 +37,7 @@ const SCENARIO_KEYS: Record<DiagnosticLabScenarioId, {
   'quarantine-removal-residue': { title: 'lab.scenario.quarantineRemoval.title', body: 'lab.scenario.quarantineRemoval.body' },
   'client-module-unavailable': { title: 'lab.scenario.clientModule.title', body: 'lab.scenario.clientModule.body' },
   'loader-package-name-mismatch': { title: 'lab.scenario.loaderPackageNameMismatch.title', body: 'lab.scenario.loaderPackageNameMismatch.body' },
+  'startup-operation-timeout': { title: 'lab.scenario.startupTimeout.title', body: 'lab.scenario.startupTimeout.body' },
   'loader-dependency-unavailable': { title: 'lab.scenario.loaderDependency.title', body: 'lab.scenario.loaderDependency.body' },
   'settings-invalid': { title: 'lab.scenario.settingsInvalid.title', body: 'lab.scenario.settingsInvalid.body' },
   'module-resolution-missing': { title: 'lab.scenario.module.title', body: 'lab.scenario.module.body' },

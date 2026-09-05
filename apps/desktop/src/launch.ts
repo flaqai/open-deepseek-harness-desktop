@@ -9,6 +9,7 @@ export interface HarnessLaunch {
   command: string
   args: string[]
   environment?: NodeJS.ProcessEnv
+  cwd?: string
 }
 
 /** Environment variables accepted by {@link resolveHarnessLaunch}. */

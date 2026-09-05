@@ -28,6 +28,12 @@ async function bench(): Promise<{
     | '@dsh-diagnostic-lab/scoped-loader-mismatch'
     | '@dsh-diagnostic-lab/loader-dependency-unavailable') => Promise<void>>
   runDoctor: Mock<() => Promise<{ status: string; issueCodes: string[]; output: string }>>
+  runStartupTimeoutExercise: Mock<() => Promise<{
+    actualCode: 'runtime.profile-check-timeout'
+    cancelled: boolean
+    rolledBack: boolean
+    continued: boolean
+  }>>
 }> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-diagnostic-lab-'))
   roots.push(root)
@@ -65,6 +71,12 @@ async function bench(): Promise<{
     }))
   })
   const runDoctor = vi.fn(async () => ({ status: 'healthy', issueCodes: [], output: '{}' }))
+  const runStartupTimeoutExercise = vi.fn(async () => ({
+    actualCode: 'runtime.profile-check-timeout' as const,
+    cancelled: true,
+    rolledBack: true,
+    continued: true,
+  }))
   const manager = new DiagnosticLabManager({
     root: join(root, 'lab'),
     activeDshHome: home,
@@ -74,11 +86,13 @@ async function bench(): Promise<{
     installProfile,
     installDiagnosticPlugin,
     runDoctor,
+    runStartupTimeoutExercise,
     productionDoctorFixtures: false,
     onSnapshot: (snapshot) => { snapshots.push(snapshot) },
   })
   return {
     root, home, manager, snapshots, suspendHarness, resumeHarness, installProfile, installDiagnosticPlugin, runDoctor,
+    runStartupTimeoutExercise,
   }
 }
 
@@ -109,9 +123,12 @@ describe('DiagnosticLabManager', () => {
       id === 'loader-package-name-mismatch' || id === 'loader-dependency-unavailable'
     )).length
     const settingsScenarios = scenarioIds.filter(id => id === 'settings-invalid').length
+    const startupTimeoutScenarios = scenarioIds.filter(id => id === 'startup-operation-timeout').length
     expect(b.runDoctor).toHaveBeenCalledTimes(
-      (scenarioIds.length - directLoaderScenarios - settingsScenarios) * 4 + directLoaderScenarios,
+      (scenarioIds.length - directLoaderScenarios - settingsScenarios - startupTimeoutScenarios) * 4
+      + directLoaderScenarios,
     )
+    expect(b.runStartupTimeoutExercise).toHaveBeenCalledTimes(startupTimeoutScenarios)
     expect(b.suspendHarness).not.toHaveBeenCalled()
     expect(b.resumeHarness).not.toHaveBeenCalled()
     expect(existsSync(join(b.root, 'lab', 'runs', initial.runId, 'runtime'))).toBe(true)

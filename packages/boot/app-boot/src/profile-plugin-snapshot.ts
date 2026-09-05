@@ -65,6 +65,8 @@ export interface ProfilePluginSnapshotRecord {
   readonly trigger: ProfilePluginSnapshotTrigger
   readonly label?: string
   readonly createdAt: string
+  /** Most recent proven successful startup for a deduplicated bootable point. */
+  readonly lastVerifiedAt?: string
   readonly fingerprint: string
   readonly packages: readonly ProfilePluginSnapshotPackage[]
   readonly bundles: readonly string[]
@@ -131,6 +133,7 @@ const SNAPSHOT_DIRECTORY = join('plugin-snapshots', 'v1')
 const SNAPSHOT_METADATA = 'snapshot.json'
 const SNAPSHOT_FILES = 'files'
 const SNAPSHOT_LOCK = '.profile-plugin-mutation'
+const SNAPSHOT_LOCK_SCHEMA = 'dsh/profile-plugin-mutation-lock/v2'
 const AUTOMATIC_RETENTION = 10
 const SNAPSHOT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
 const PROFILE_NAME = /^[A-Za-z0-9._~-]{1,64}$/u
@@ -345,6 +348,8 @@ function readRecord(home: string, snapshotId: string): ProfilePluginSnapshotReco
     || !Array.isArray(value.files) || !Array.isArray(value.packages) || !Array.isArray(value.bundles)
     || typeof value.createdAt !== 'string' || Number.isNaN(Date.parse(value.createdAt))
     || typeof value.fingerprint !== 'string' || !/^[0-9a-f]{64}$/u.test(value.fingerprint)
+    || (value.lastVerifiedAt !== undefined
+      && (typeof value.lastVerifiedAt !== 'string' || Number.isNaN(Date.parse(value.lastVerifiedAt))))
     || !['best-effort', 'local-source-missing'].includes(value.offlineState ?? '')
     || value.nodeVersion === undefined || typeof value.nodeVersion !== 'string'
     || (value.label !== undefined && typeof value.label !== 'string')
@@ -446,6 +451,25 @@ export function createProfilePluginSnapshot(
     return { ...file, bytes, metadata }
   })
   const capturedFingerprint = fingerprint(captured.map(file => file.metadata))
+  if (options.kind === 'bootable') {
+    const duplicate = listProfilePluginSnapshots({ home, profile: options.profile })
+      .find(snapshot => snapshot.kind === 'bootable' && snapshot.fingerprint === capturedFingerprint)
+    if (duplicate !== undefined) {
+      const verifiedAt = (options.now ?? (() => new Date()))().toISOString()
+      const { difference: _difference, ...retained } = duplicate
+      const updated: ProfilePluginSnapshotRecord = { ...retained, lastVerifiedAt: verifiedAt }
+      const metadataPath = join(snapshotDirectory(home, duplicate.snapshotId), SNAPSHOT_METADATA)
+      const temporaryMetadata = `${metadataPath}.${process.pid}.${randomUUID()}.tmp`
+      try {
+        writePrivateFile(temporaryMetadata, `${JSON.stringify(updated, undefined, 2)}\n`)
+        renameSync(temporaryMetadata, metadataPath)
+      } catch (error) {
+        rmSync(temporaryMetadata, { force: true })
+        throw error
+      }
+      return { ...updated, deduplicated: true }
+    }
+  }
   if (options.kind === 'automatic') {
     const duplicate = listProfilePluginSnapshots({ home, profile: options.profile })
       .find(snapshot => snapshot.kind !== 'safety'
@@ -563,7 +587,9 @@ export function listProfilePluginSnapshots(
       // A damaged snapshot stays unavailable instead of hiding healthy entries.
     }
   }
-  return output.sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+  return output.sort((left, right) => (
+    right.lastVerifiedAt ?? right.createdAt
+  ).localeCompare(left.lastVerifiedAt ?? left.createdAt))
 }
 
 /**
@@ -735,30 +761,48 @@ function wait(delayMs: number): void {
  * @returns Idempotent release callback.
  */
 export function acquireProfilePluginMutationLock(
-  options: ProfilePluginSnapshotOptions & { readonly waitMs?: number },
+  options: ProfilePluginSnapshotOptions & { readonly waitMs?: number; readonly operationKind?: string },
 ): () => void {
   assertProfile(options.profile)
   const home = options.home ?? resolveDshHome()
   const root = safeSnapshotRoot(home, true)
   const lockPath = join(root, `${SNAPSHOT_LOCK}.${options.profile}.lock`)
   const deadline = Date.now() + (options.waitMs ?? 5_000)
+  const token = randomUUID()
   for (;;) {
     try {
       const descriptor = openSync(lockPath, 'wx', 0o600)
-      writeFileSync(descriptor, `${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}\n`)
+      writeFileSync(descriptor, `${JSON.stringify({
+        schema: SNAPSHOT_LOCK_SCHEMA,
+        token,
+        pid: process.pid,
+        parentPid: process.ppid,
+        operationKind: options.operationKind ?? 'profile-mutation',
+        createdAt: new Date().toISOString(),
+      })}\n`)
       closeSync(descriptor)
       let released = false
       return () => {
         if (released) return
         released = true
-        rmSync(lockPath, { force: true })
+        try {
+          const current = JSON.parse(readFileSync(lockPath, 'utf8')) as { token?: unknown }
+          if (current.token === token) unlinkSync(lockPath)
+        } catch (error) {
+          // A missing, unreadable, or replaced lock no longer belongs to this
+          // owner. Leave it in place rather than risking deletion of a newer
+          // operation or turning cleanup into an application failure.
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+        }
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
       try {
-        const owner = JSON.parse(readFileSync(lockPath, 'utf8')) as { pid?: unknown }
+        const ownerSource = readFileSync(lockPath, 'utf8')
+        const owner = JSON.parse(ownerSource) as { pid?: unknown; token?: unknown }
         if (typeof owner.pid === 'number' && Number.isInteger(owner.pid) && !processExists(owner.pid)) {
-          rmSync(lockPath, { force: true })
+          const current = readFileSync(lockPath, 'utf8')
+          if (current === ownerSource) unlinkSync(lockPath)
           continue
         }
       } catch {
@@ -789,8 +833,11 @@ export function beginProfilePluginMutationLease(
   const root = safeSnapshotRoot(home, true)
   const lockPath = join(root, `${SNAPSHOT_LOCK}.${options.profile}.lock`)
   const content = `${JSON.stringify({
+    schema: SNAPSHOT_LOCK_SCHEMA,
     pid: options.ownerPid,
+    parentPid: process.ppid,
     token: options.token,
+    operationKind: 'desktop-mutation-lease',
     createdAt: new Date().toISOString(),
   })}\n`
   try {
@@ -802,8 +849,11 @@ export function beginProfilePluginMutationLease(
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-    const current = JSON.parse(readFileSync(lockPath, 'utf8')) as { pid?: unknown; token?: unknown }
-    if (current.pid !== process.pid || current.token !== undefined) {
+    const current = JSON.parse(readFileSync(lockPath, 'utf8')) as {
+      pid?: unknown
+      operationKind?: unknown
+    }
+    if (current.pid !== process.pid || current.operationKind === 'desktop-mutation-lease') {
       throw new Error(`dsh: another process is changing Profile ${options.profile}; cannot begin startup batch`)
     }
     writeFileSync(lockPath, content, { flag: 'w', mode: 0o600 })
@@ -823,6 +873,8 @@ export function endProfilePluginMutationLease(
   const lockPath = join(safeSnapshotRoot(home, false), `${SNAPSHOT_LOCK}.${options.profile}.lock`)
   const owner = JSON.parse(readFileSync(lockPath, 'utf8')) as { token?: unknown }
   if (owner.token !== options.token) throw new Error('dsh: plugin mutation lease token does not match')
+  const current = JSON.parse(readFileSync(lockPath, 'utf8')) as { token?: unknown }
+  if (current.token !== options.token) throw new Error('dsh: plugin mutation lease changed before release')
   unlinkSync(lockPath)
 }
 

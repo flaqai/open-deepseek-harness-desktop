@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import {
   assertBundledPluginManifestEntry,
+  bundledPluginSeedIsSettled,
   hasBundledPluginQuarantineRecord,
   hasLegacyBundledPluginSeedMarker,
   hasBundledPluginSeedMarker,
@@ -47,7 +48,17 @@ export interface BundledPluginInstallerOptions {
   readonly dshHome: string
   readonly install: (archivePath: string, entry: BundledPluginManifestEntry) => Promise<void>
   readonly prepare?: (entry: BundledPluginManifestEntry) => Promise<void>
-  readonly onFailure?: (error: unknown) => Promise<void>
+  readonly onFailure?: (error: unknown, entry: BundledPluginManifestEntry) => Promise<void>
+  readonly withStartupTransaction?: <T>(
+    entry: BundledPluginManifestEntry,
+    operation: () => Promise<T>,
+  ) => Promise<T>
+  readonly startupBudgetMs?: number
+  readonly now?: () => number
+  readonly shouldAttemptStartup?: (entry: BundledPluginManifestEntry) => Promise<boolean>
+  readonly onStartupSuccess?: (entry: BundledPluginManifestEntry) => Promise<void>
+  readonly onManagedMutationStart?: (entry: BundledPluginManifestEntry) => void
+  readonly onManagedMutationSettled?: (entry: BundledPluginManifestEntry) => void
   readonly createId?: () => string
   readonly repairLegacyMarkers?: boolean
 }
@@ -150,6 +161,7 @@ export class BundledPluginInstaller {
   ): Promise<ReadonlyArray<{ entry: BundledPluginManifestEntry; result?: SeedBundledPluginResult }>> {
     const results: Array<{ entry: BundledPluginManifestEntry; result?: SeedBundledPluginResult }> = []
     const entries = this.options.manifest.plugins.filter(entry => entry.installPolicy === 'startup')
+    const deadline = (this.options.now?.() ?? Date.now()) + (this.options.startupBudgetMs ?? 120_000)
     for (const [index, entry] of entries.entries()) {
       const report = (progress: BundledPluginSeedProgress): void => {
         try {
@@ -159,14 +171,38 @@ export class BundledPluginInstaller {
         }
       }
       try {
+        if (await bundledPluginSeedIsSettled(
+          this.options.dshHome,
+          entry,
+          this.options.repairLegacyMarkers ?? false,
+        )) {
+          report({ stage: 'configuring', progress: 100 })
+          results.push({ entry, result: 'already-seeded' })
+          await this.options.onStartupSuccess?.(entry)
+          continue
+        }
+        if (this.options.shouldAttemptStartup !== undefined
+          && !await this.options.shouldAttemptStartup(entry)) {
+          report({ stage: 'configuring', progress: 100 })
+          results.push({ entry })
+          continue
+        }
+        if ((this.options.now?.() ?? Date.now()) >= deadline) {
+          report({ stage: 'configuring', progress: 100 })
+          results.push({ entry })
+          continue
+        }
         report({ stage: 'verifying', progress: 0 })
-        const result = await this.seed(entry, false, report)
+        const result = this.options.withStartupTransaction === undefined
+          ? await this.seed(entry, false, report)
+          : await this.options.withStartupTransaction(entry, () => this.seed(entry, false, report))
         if (result === 'already-seeded') report({ stage: 'configuring', progress: 100 })
         results.push({ entry, result })
+        await this.options.onStartupSuccess?.(entry)
       } catch (error) {
         results.push({ entry })
         try {
-          await this.options.onFailure?.(error)
+          await this.options.onFailure?.(error, entry)
         } catch {
           // Logging must not prevent later independent startup entries.
         }
@@ -258,6 +294,7 @@ export class BundledPluginInstaller {
   }
 
   private async runJob(job: InstallJob, entry: BundledPluginManifestEntry, force: boolean): Promise<void> {
+    this.options.onManagedMutationStart?.(entry)
     try {
       await this.seed(entry, force, (progress) => {
         if (job.snapshot.phase !== 'running') return
@@ -267,12 +304,15 @@ export class BundledPluginInstaller {
     } catch (error) {
       job.snapshot = { ...job.snapshot, phase: 'failed', exitCode: 1, diagnostic: errorDiagnostic(error) }
       try {
-        await this.options.onFailure?.(error)
+        await this.options.onFailure?.(error, entry)
       } catch {
         // The settled job remains pollable even when diagnostics cannot persist.
       }
     } finally {
       this.activeTargets.delete(job.target)
+      try { this.options.onManagedMutationSettled?.(entry) } catch {
+        // Snapshot scheduling cannot change the already-settled install result.
+      }
     }
   }
 }

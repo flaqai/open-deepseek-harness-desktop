@@ -12,6 +12,7 @@ export interface PluginSnapshotSummary {
   readonly trigger: string
   readonly label?: string
   readonly createdAt: string
+  readonly lastVerifiedAt?: string
   readonly packages: readonly { readonly name: string; readonly source: string; readonly version?: string }[]
   readonly bundles: readonly string[]
   readonly offlineState: 'best-effort' | 'local-source-missing'

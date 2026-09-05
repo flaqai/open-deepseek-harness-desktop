@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   appendBundledPluginFailure,
   assertBundledPluginManifestEntry,
+  bundledPluginSeedIsSettled,
   seedBundledPlugin,
   type BundledPluginManifestEntry,
 } from '../src/bundled-plugin-seed.ts'
@@ -164,6 +165,22 @@ describe('bundled plugin seed', () => {
     const prepare = vi.fn(async () => {})
     await expect(seedBundledPlugin({ ...options, install: vi.fn(), prepare })).resolves.toBe('already-seeded')
     expect(prepare).toHaveBeenCalledWith(options.entry)
+  })
+
+  it('uses the settled fast path only after reviewed build approvals have durable policy entries', async () => {
+    const options = await fixture()
+    const entry = { ...options.entry, approvedBuilds: ['node-pty'] }
+    const profile = join(options.dshHome, 'profiles', 'web')
+    const state = join(options.dshHome, 'bundled-plugins')
+    await mkdir(profile, { recursive: true })
+    await mkdir(state, { recursive: true })
+    await writeFile(join(state, 'dshmarket.seeded.json'), JSON.stringify({
+      schema: 2, version: entry.version,
+    }))
+
+    await expect(bundledPluginSeedIsSettled(options.dshHome, entry)).resolves.toBe(false)
+    await writeFile(join(profile, 'pnpm-workspace.yaml'), 'allowBuilds:\n  node-pty: true\n')
+    await expect(bundledPluginSeedIsSettled(options.dshHome, entry)).resolves.toBe(true)
   })
 
   it('upgrades a stale desktop-owned archive when the bundled version changes', async () => {

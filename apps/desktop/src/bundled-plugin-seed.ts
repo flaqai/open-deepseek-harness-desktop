@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto'
 import { appendFile, copyFile, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve } from 'node:path'
+import { isMap, parseDocument } from 'yaml'
 
 export interface BundledPluginManifestEntry {
   readonly seedId: string
@@ -243,6 +244,38 @@ export async function hasLegacyBundledPluginSeedMarker(
   return marker !== undefined && marker.schema < 2
 }
 
+/** Return true when startup can trust an exact durable marker without invoking pnpm. */
+export async function bundledPluginSeedIsSettled(
+  dshHome: string,
+  entry: BundledPluginManifestEntry,
+  repairLegacyMarker = false,
+): Promise<boolean> {
+  assertBundledPluginManifestEntry(entry)
+  const marker = await readSeedMarker(join(dshHome, 'bundled-plugins', `${entry.seedId}.seeded.json`))
+  if (marker === undefined) return false
+  if (repairLegacyMarker && marker.schema < 2) return false
+  if (await snapshotVersionHeld(dshHome, entry, marker)) return true
+  if (marker.schema < 2 || marker.version !== entry.version) return false
+  const approvedBuilds = entry.approvedBuilds ?? []
+  if (approvedBuilds.length === 0) return true
+  try {
+    const source = await readFile(join(
+      dshHome, 'profiles', entry.profile, 'pnpm-workspace.yaml',
+    ), 'utf8')
+    const document = parseDocument(source)
+    if (document.errors.length > 0) return false
+    const allowBuilds = document.get('allowBuilds', true)
+    if (!isMap(allowBuilds)) return false
+    return approvedBuilds.every((packageName) => {
+      const value = allowBuilds.get(packageName)
+      return value === true || value === false
+    })
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
+}
+
 /**
  * Check whether dependency health deliberately removed this plugin from the active profile.
  * A deferred installer must not undo quarantine automatically; an explicit user install may.
@@ -321,7 +354,6 @@ export async function seedBundledPlugin(options: SeedBundledPluginOptions): Prom
     const marker = await readSeedMarker(markerPath)
     if (marker !== undefined) {
       if (await snapshotVersionHeld(dshHome, entry, marker)) {
-        if (dependency.present) await prepare?.(entry)
         return 'already-seeded'
       }
       const bundledVersionChanged = marker.schema >= 2

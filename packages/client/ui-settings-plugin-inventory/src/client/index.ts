@@ -24,6 +24,7 @@ import {
 import { readImportedPluginRestoreBridge } from './imported-restore-bridge.ts'
 import { desktopPluginSnapshotsAvailable } from './plugin-snapshot-bridge.ts'
 import { desktopSettingsRecoveryAvailable } from './settings-recovery-bridge.ts'
+import { desktopStartupDiagnosticsAvailable } from './startup-diagnostics-bridge.ts'
 import { en, zh, type PluginInventoryLocaleKey } from './locales.ts'
 import {
   cancelDesktopDiagnosticLabRun,
@@ -112,6 +113,7 @@ export function apply(ctx: ClientContext): void {
     : undefined
   const pluginSnapshots = desktopPluginSnapshotsAvailable()
   const settingsRecovery = desktopSettingsRecoveryAvailable()
+  const startupDiagnostics = desktopStartupDiagnosticsAvailable()
   const diagnosticsInjected = (): PluginDiagnosticsSectionInjected => ({
     list,
     getInstall,
@@ -119,6 +121,7 @@ export function apply(ctx: ClientContext): void {
     ...(diagnosticLab === undefined ? {} : { diagnosticLab }),
     ...(pluginSnapshots === undefined ? {} : { pluginSnapshots }),
     ...(settingsRecovery === undefined ? {} : { settingsRecovery }),
+    ...(startupDiagnostics === undefined ? {} : { startupDiagnostics }),
     startDependencyDoctor: async (request) => {
       const result = await ctx.remote.pluginInventory.startDependencyDoctor(request)
       if (!result.ok) throw new Error(`pluginInventory.startDependencyDoctor failed: ${result.error.code}: ${result.error.message}`)

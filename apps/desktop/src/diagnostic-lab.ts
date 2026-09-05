@@ -26,6 +26,7 @@ export type DiagnosticLabScenarioId =
   | 'loader-lifecycle-failure'
   | 'build-script-blocked'
   | 'interrupted-repair'
+  | 'startup-operation-timeout'
 
 /** Data environment used by one diagnostic exercise. */
 type DiagnosticLabTarget = 'isolated' | 'active-profile'
@@ -135,6 +136,13 @@ export interface DiagnosticLabManagerOptions {
       | '@dsh-diagnostic-lab/loader-dependency-unavailable',
   ): Promise<void>
   runDoctor(home: string, repair: boolean): Promise<DiagnosticLabDoctorResult>
+  /** Run the desktop-owned fake CLI that proves timeout cancellation and rollback. */
+  runStartupTimeoutExercise?(): Promise<{
+    readonly actualCode: 'runtime.profile-check-timeout'
+    readonly cancelled: boolean
+    readonly rolledBack: boolean
+    readonly continued: boolean
+  }>
   onSnapshot(snapshot: DiagnosticLabRunSnapshot): void
   readonly now?: () => Date
   /** Test-only escape hatch; production always stages real Doctor fixtures. */
@@ -158,6 +166,7 @@ const SCENARIOS: readonly DiagnosticLabScenario[] = [
   { id: 'loader-lifecycle-failure', title: 'Loader lifecycle failure', description: 'Exercises mount failure attribution and rollback reporting.', expectedCode: 'loader.lifecycle-failed', targets: ['isolated'] },
   { id: 'build-script-blocked', title: 'Blocked build script', description: 'Uses a reviewed local marker script to verify exact allowBuilds approval.', expectedCode: 'pnpm.build-script-blocked', targets: ['isolated'] },
   { id: 'interrupted-repair', title: 'Interrupted repair recovery', description: 'Leaves a recovery journal at a controlled boundary and resumes cleanup.', expectedCode: 'runtime.interrupted-repair', targets: ['isolated'] },
+  { id: 'startup-operation-timeout', title: 'Bounded startup operation timeout', description: 'Simulates a one-shot startup command timing out, then verifies cancellation, rollback evidence, and continued startup.', expectedCode: 'runtime.profile-check-timeout', targets: ['isolated'] },
 ]
 
 const SCENARIO_BY_ID = new Map(SCENARIOS.map(scenario => [scenario.id, scenario]))
@@ -199,6 +208,7 @@ const FIXTURES: Record<DiagnosticLabScenarioId, ScenarioFixture> = {
   'loader-lifecycle-failure': { code: 'loader.lifecycle-failed', file: 'profile/lifecycle.json', content: '{"entry":"diagnostic-lab","mount":"throw","rollback":"verified"}\n', checksum: 'ab378d7d5445c8506ac472dbec274b18a06259813dd8cbe70a98cd4d62696238', repairedContent: '{"disabled":true}\n' },
   'build-script-blocked': { code: 'pnpm.build-script-blocked', file: 'profile/build.json', content: '{"package":"@hecoococ/dsh-lab-build","allowed":false,"script":"write-marker"}\n', checksum: 'ed9d0c04fd3ce37918df14818a6c2d39d884a1f97ed735bfe76f22c1080234d5', repairedContent: '{"package":"@hecoococ/dsh-lab-build","allowed":true,"marker":true}\n' },
   'interrupted-repair': { code: 'runtime.interrupted-repair', file: 'profile/interrupted.json', content: '{"repair":"interrupted","journal":true}\n', checksum: '45864a432cef75a4af007e732ec9c42166174f6c3a20b1ba035d5c2f708cca13', repairedContent: '{"repair":"recovered"}\n' },
+  'startup-operation-timeout': { code: 'runtime.profile-check-timeout', file: 'profile/startup-timeout.json', content: '{"operation":"profile-check","state":"timeout","rolledBack":true}\n', checksum: 'e5cd8557899751ba49b1fba0e27266fb46303f05f3ca22f2d71450f3c488c0ee', repairedContent: '{"operation":"profile-check","state":"cancelled","rolledBack":true}\n' },
 }
 
 function sha256(content: string | Buffer): string {
@@ -560,6 +570,8 @@ export class DiagnosticLabManager {
         } else if (scenarioId === 'loader-package-name-mismatch'
           || scenarioId === 'loader-dependency-unavailable') {
           await this.#runLoaderPluginScenario(runRoot, scenarioId)
+        } else if (scenarioId === 'startup-operation-timeout') {
+          await this.#runStartupTimeoutScenario(runRoot)
         } else {
           await this.#runScenario(runRoot, scenarioId)
         }
@@ -626,6 +638,64 @@ export class DiagnosticLabManager {
     }
     await this.#writeReport(runRoot, terminalSnapshot)
     this.#replace(terminalSnapshot)
+  }
+
+  /** Exercise the bounded one-shot supervisor without touching the active Profile. */
+  async #runStartupTimeoutScenario(runRoot: string): Promise<void> {
+    const scenarioId = 'startup-operation-timeout' as const
+    const fixture = FIXTURES[scenarioId]
+    const active = this.#requireActive()
+    const scenarioRoot = join(runRoot, 'runtime', 'scenarios', scenarioId)
+    assertInside(join(runRoot, 'runtime'), scenarioRoot)
+    const fixturePath = join(scenarioRoot, fixture.file)
+    const started = Date.now()
+    let actualCode: string | undefined
+    try {
+      await this.#step(scenarioId, 'baseline')
+      if (existsSync(scenarioRoot)) throw new Error('diagnostic scenario baseline contains stale files')
+      await this.#step(scenarioId, 'inject')
+      await atomicWrite(fixturePath, fixture.content)
+      if (sha256(await readFile(fixturePath)) !== fixture.checksum) {
+        throw new Error('diagnostic fixture integrity check failed')
+      }
+      await this.#step(scenarioId, 'detect')
+      const exercise = await this.#options.runStartupTimeoutExercise?.()
+      if (exercise === undefined) throw new Error('desktop startup timeout exercise is unavailable')
+      actualCode = exercise.actualCode
+      if (actualCode !== fixture.code || !exercise.cancelled) {
+        throw new Error('fake startup CLI was not cancelled with the expected timeout incident')
+      }
+      await this.#step(scenarioId, 'repair')
+      if (!exercise.rolledBack) throw new Error('fake startup CLI mutation was not rolled back')
+      if (fixture.repairedContent !== undefined) await atomicWrite(fixturePath, fixture.repairedContent)
+      await this.#step(scenarioId, 'verify')
+      if (!exercise.continued || await this.#detectScenario(fixturePath, fixture) === fixture.code) {
+        throw new Error('startup did not continue after the bounded timeout rollback')
+      }
+      await this.#step(scenarioId, 'retain')
+      this.#appendResult({
+        scenarioId,
+        phase: 'passed',
+        expectedCode: fixture.code,
+        actualCode,
+        repaired: true,
+        retained: true,
+        disposition: 'repaired',
+        durationMs: Date.now() - started,
+      })
+    } catch (error) {
+      this.#appendResult({
+        scenarioId,
+        phase: this.#cancelled.has(active.runId) ? 'cancelled' : 'failed',
+        expectedCode: fixture.code,
+        ...(actualCode === undefined ? {} : { actualCode }),
+        repaired: false,
+        retained: existsSync(scenarioRoot),
+        durationMs: Date.now() - started,
+        diagnostic: sanitize(describeUnknown(error), this.#options.activeDshHome),
+      })
+      throw error
+    }
   }
 
   /** Install a Loader fixture through the normal CLI and verify immediate quarantine. */

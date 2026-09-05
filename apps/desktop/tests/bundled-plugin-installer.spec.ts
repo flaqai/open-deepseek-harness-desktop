@@ -9,6 +9,7 @@ import {
   resolveBundledPluginResourcesDirectory,
   type BundledPluginManifest,
 } from '../src/bundled-plugin-installer.ts'
+import type { BundledPluginManifestEntry } from '../src/bundled-plugin-seed.ts'
 
 const roots: string[] = []
 
@@ -47,6 +48,23 @@ async function fixture() {
 }
 
 describe('BundledPluginInstaller', () => {
+  function twoStartupPlugins(manifest: BundledPluginManifest): BundledPluginManifest {
+    const first = manifest.plugins[0]
+    if (first === undefined) throw new Error('fixture requires one startup plugin')
+    return {
+      schema: 2,
+      plugins: [
+        first,
+        {
+          ...first,
+          seedId: 'startup-two',
+          packageName: 'startup-two',
+          registrySpec: 'startup-two@1.0.0',
+        },
+      ],
+    }
+  }
+
   it('uses checked-in archives in development and packaged resources in releases', () => {
     expect(resolveBundledPluginResourcesDirectory(false, '/resources', '/checkout'))
       .toBe(join('/checkout', 'apps', 'desktop', 'bundled-plugins'))
@@ -75,6 +93,49 @@ describe('BundledPluginInstaller', () => {
     expect(results.map(item => item.entry.packageName)).toEqual(['startup'])
     expect(install).toHaveBeenCalledOnce()
     expect(onFailure).toHaveBeenCalledOnce()
+  })
+
+  it('wraps each startup plugin in an independent transaction and continues after failure', async () => {
+    const f = await fixture()
+    const manifest = twoStartupPlugins(f.manifest)
+    const install = vi.fn(async () => {})
+    const onFailure = vi.fn(async () => {})
+    const withStartupTransaction = vi.fn(async <T>(
+      entry: BundledPluginManifestEntry,
+      operation: () => Promise<T>,
+    ): Promise<T> => {
+      if (entry.packageName === 'startup') throw new Error('first transaction failed')
+      return operation()
+    })
+    const installer = new BundledPluginInstaller({
+      manifest, resourcesDirectory: f.resourcesDirectory, dshHome: join(f.root, 'home'),
+      install, onFailure, withStartupTransaction,
+    })
+
+    const results = await installer.seedStartup()
+
+    expect(results).toHaveLength(2)
+    expect(withStartupTransaction).toHaveBeenCalledTimes(2)
+    expect(onFailure).toHaveBeenCalledOnce()
+    expect(install).toHaveBeenCalledOnce()
+  })
+
+  it('skips plugins that have not started when the total startup budget is exhausted', async () => {
+    const f = await fixture()
+    const manifest = twoStartupPlugins(f.manifest)
+    let now = 0
+    const install = vi.fn(async () => { now = 101 })
+    const onFailure = vi.fn(async () => {})
+    const installer = new BundledPluginInstaller({
+      manifest, resourcesDirectory: f.resourcesDirectory, dshHome: join(f.root, 'home'),
+      install, onFailure, now: () => now, startupBudgetMs: 100,
+    })
+
+    const results = await installer.seedStartup()
+
+    expect(results.map(item => item.result)).toEqual(['installed', undefined])
+    expect(install).toHaveBeenCalledOnce()
+    expect(onFailure).not.toHaveBeenCalled()
   })
 
   it('reports the current startup plugin and its real seed milestones', async () => {
@@ -112,7 +173,6 @@ describe('BundledPluginInstaller', () => {
       progress: event.progress,
     }))
     expect(progress).toEqual([
-      { packageName: 'startup', index: 0, total: 1, stage: 'verifying', progress: 0 },
       { packageName: 'startup', index: 0, total: 1, stage: 'configuring', progress: 100 },
     ])
   })

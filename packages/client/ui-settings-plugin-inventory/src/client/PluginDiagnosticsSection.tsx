@@ -23,6 +23,10 @@ import { DiagnosticLabPanel, type DiagnosticLabInjected } from './DiagnosticLabP
 import { PluginSnapshotPanel } from './PluginSnapshotPanel.tsx'
 import type { PluginSnapshotsInjected } from './plugin-snapshot-bridge.ts'
 import type { SettingsRecoveryInjected } from './settings-recovery-bridge.ts'
+import type {
+  StartupDiagnosticIncident,
+  StartupDiagnosticsInjected,
+} from './startup-diagnostics-bridge.ts'
 import css from './PluginDiagnosticsSection.module.css'
 
 /** Remote operations owned by the dedicated Diagnostics settings page. */
@@ -33,6 +37,8 @@ export interface PluginDiagnosticsSectionInjected {
   readonly pluginSnapshots?: PluginSnapshotsInjected
   /** Fixed-path settings recovery owned by Electron; never accepts a renderer path. */
   readonly settingsRecovery?: SettingsRecoveryInjected
+  /** Redacted desktop startup timeouts and recovery failures. */
+  readonly startupDiagnostics?: StartupDiagnosticsInjected
   /** Read retained repair and quarantine state. */
   list: () => Promise<PluginInventorySnapshot>
   /** Start a current dependency-tree check or repair. */
@@ -155,6 +161,28 @@ function diagnosticIssueCopy(code: DiagnosticIssue['code']): PluginInventoryLoca
   return 'diagnostics.issue.unknown'
 }
 
+function startupDiagnosticSolution(code: string): PluginInventoryLocaleKey {
+  if (code === 'runtime.profile-check-timeout') return 'diagnostics.startup.solution.profileCheck'
+  if (code === 'runtime.profile-repair-timeout' || code === 'runtime.profile-repair-failed') {
+    return 'diagnostics.startup.solution.profileRepair'
+  }
+  if (code === 'runtime.bundled-plugin-timeout' || code === 'runtime.bundled-plugin-failed') {
+    return 'diagnostics.startup.solution.bundledPlugin'
+  }
+  if (code === 'runtime.profile-mutation-lock-busy') return 'diagnostics.startup.solution.lockBusy'
+  if (code === 'runtime.startup-rollback-failed') return 'diagnostics.startup.solution.rollback'
+  return 'diagnostics.startup.solution.unknown'
+}
+
+type StartupRetryStatus = 'running' | 'started'
+
+function withoutStartupRetryStatus(
+  current: Readonly<Record<string, StartupRetryStatus>>,
+  incidentId: string,
+): Record<string, StartupRetryStatus> {
+  return Object.fromEntries(Object.entries(current).filter(([key]) => key !== incidentId))
+}
+
 type UninstallTarget =
   | { readonly kind: 'active'; readonly packageName: string }
   | {
@@ -186,6 +214,7 @@ export function PluginDiagnosticsSection({
   diagnosticLab,
   pluginSnapshots,
   settingsRecovery,
+  startupDiagnostics,
   list,
   startDependencyDoctor,
   getDependencyDoctor,
@@ -224,6 +253,18 @@ export function PluginDiagnosticsSection({
     snapshot: PluginInstallSnapshot
   } | null>(null)
   const [uninstallAcknowledged, setUninstallAcknowledged] = useState(false)
+  const [startupIncidents, setStartupIncidents] = useState<readonly StartupDiagnosticIncident[]>([])
+  const [startupRetryStatus, setStartupRetryStatus] = useState<Record<string, StartupRetryStatus>>({})
+
+  useEffect(() => {
+    let current = true
+    if (startupDiagnostics === undefined) return () => { current = false }
+    void startupDiagnostics.list().then(
+      (incidents) => { if (current) setStartupIncidents(incidents) },
+      (error: unknown) => { if (current) setActionError(errorMessage(error)) },
+    )
+    return () => { current = false }
+  }, [startupDiagnostics, revision])
 
   useEffect(() => {
     let current = true
@@ -484,6 +525,78 @@ export function PluginDiagnosticsSection({
             {safeMode.skippedBundles.length > 0 ? <code>{safeMode.skippedBundles.join(', ')}</code> : null}
           </div>
         </article>
+      ) : null}
+
+      {startupIncidents.length > 0 ? (
+        <section className={css.findings} aria-labelledby="desktop-startup-diagnostics">
+          <h3 id="desktop-startup-diagnostics">{t('diagnostics.startup.title')}</h3>
+          <p className={css.muted}>{t('diagnostics.startup.description')}</p>
+          {startupIncidents.map(incident => (
+            <article className={css.finding} key={incident.incidentId} data-diagnostic-code={incident.code}>
+              <div>
+                <strong>{t('diagnostics.startup.issue')}</strong>
+                <span>{incident.code}</span>
+              </div>
+              {incident.packageName === undefined ? null : <code>{incident.packageName}</code>}
+              <p>{incident.operation} · {new Date(incident.createdAt).toLocaleString()}</p>
+              <p className={css.summarySolution}>
+                <b>{t('health.quarantine.solution.title')}：</b>{t(startupDiagnosticSolution(incident.code))}
+              </p>
+              <div className={css.actions}>
+                {incident.actions.includes('retry-plugin')
+                  || incident.code === 'runtime.profile-check-timeout'
+                  || incident.code === 'runtime.profile-repair-timeout'
+                  || incident.code === 'runtime.profile-repair-failed' ? (
+                    <Button
+                      variant="primary"
+                      disabled={startupRetryStatus[incident.incidentId] !== undefined}
+                      onClick={() => {
+                        setActionError(null)
+                        setStartupRetryStatus(current => ({ ...current, [incident.incidentId]: 'running' }))
+                        void startupDiagnostics?.retry(incident.incidentId).then(
+                          (result) => {
+                            if (result.status === 'plugin-started') {
+                              setStartupRetryStatus(current => ({ ...current, [incident.incidentId]: 'started' }))
+                            } else if (result.status === 'unsupported') {
+                              setStartupRetryStatus(current => (
+                                withoutStartupRetryStatus(current, incident.incidentId)
+                              ))
+                              setActionError(t('diagnostics.startup.retryUnsupported'))
+                            }
+                          },
+                          (error: unknown) => {
+                            setStartupRetryStatus(current => (
+                              withoutStartupRetryStatus(current, incident.incidentId)
+                            ))
+                            setActionError(errorMessage(error))
+                          },
+                        )
+                      }}
+                    >
+                      {startupRetryStatus[incident.incidentId] === 'running'
+                        ? t('diagnostics.startup.retrying')
+                        : startupRetryStatus[incident.incidentId] === 'started'
+                          ? t('diagnostics.startup.retryStarted')
+                          : t('diagnostics.startup.retry')}
+                    </Button>
+                  ) : null}
+                {incident.actions.includes('snapshot-restore') ? (
+                  <Button onClick={() => { snapshotsSection.current?.scrollIntoView({ block: 'start' }) }}>
+                    {t('diagnostics.startup.snapshots')}
+                  </Button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+          <div className={css.actions}>
+            <Button onClick={() => {
+              void startupDiagnostics?.openLog().then(
+                ({ error }) => { if (error !== '') setActionError(error) },
+                (error: unknown) => { setActionError(errorMessage(error)) },
+              )
+            }}>{t('diagnostics.startup.openLog')}</Button>
+          </div>
+        </section>
       ) : null}
 
       {currentIssues.length > 0 ? (

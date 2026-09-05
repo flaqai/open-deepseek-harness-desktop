@@ -22,11 +22,17 @@ describe('desktop startup progress', () => {
     expect(parseDesktopStartupProgress({ stage: 'checking-profile', progress: 28 })).toEqual({
       stage: 'checking-profile', progress: 28,
     })
+    expect(parseDesktopStartupProgress({
+      stage: 'checking-profile', progress: 28, startedAt: 10, deadlineAt: 20, state: 'degraded',
+    })).toEqual({
+      stage: 'checking-profile', progress: 28, startedAt: 10, deadlineAt: 20, state: 'degraded',
+    })
     expect(parseDesktopStartupProgress({ stage: 'ready', progress: 99.6, detail: 'x'.repeat(200) }))
       .toEqual({ stage: 'ready', progress: 100, detail: 'x'.repeat(160) })
     expect(parseDesktopStartupProgress({ stage: 'unknown', progress: 20 })).toBeUndefined()
     expect(parseDesktopStartupProgress({ stage: 'ready', progress: '100' })).toBeUndefined()
     expect(parseDesktopStartupProgress({ stage: 'ready', progress: 100, detail: 1 })).toBeUndefined()
+    expect(parseDesktopStartupProgress({ stage: 'ready', progress: 100, state: 'stuck' })).toBeUndefined()
     expect(parseDesktopStartupProgress(null)).toBeUndefined()
   })
 })

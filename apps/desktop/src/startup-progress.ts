@@ -18,6 +18,9 @@ export interface DesktopStartupProgress {
   readonly stage: DesktopStartupStage
   readonly progress: number
   readonly detail?: string
+  readonly startedAt?: number
+  readonly deadlineAt?: number
+  readonly state?: 'degraded' | 'running'
 }
 
 const pluginStages: Record<BundledPluginSeedStage, DesktopStartupStage> = {
@@ -81,15 +84,30 @@ export function mapBundledPluginProgress(
  */
 export function parseDesktopStartupProgress(value: unknown): DesktopStartupProgress | undefined {
   if (typeof value !== 'object' || value === null) return undefined
-  const candidate = value as { stage?: unknown; progress?: unknown; detail?: unknown }
+  const candidate = value as {
+    stage?: unknown
+    progress?: unknown
+    detail?: unknown
+    startedAt?: unknown
+    deadlineAt?: unknown
+    state?: unknown
+  }
   if (typeof candidate.stage !== 'string' || !startupStages.includes(candidate.stage as DesktopStartupStage)) {
     return undefined
   }
   if (typeof candidate.progress !== 'number' || !Number.isFinite(candidate.progress)) return undefined
   if (candidate.detail !== undefined && typeof candidate.detail !== 'string') return undefined
+  if (candidate.startedAt !== undefined
+    && (typeof candidate.startedAt !== 'number' || !Number.isFinite(candidate.startedAt))) return undefined
+  if (candidate.deadlineAt !== undefined
+    && (typeof candidate.deadlineAt !== 'number' || !Number.isFinite(candidate.deadlineAt))) return undefined
+  if (candidate.state !== undefined && candidate.state !== 'running' && candidate.state !== 'degraded') return undefined
   return {
     stage: candidate.stage as DesktopStartupStage,
     progress: clampStartupProgress(candidate.progress),
     ...(candidate.detail === undefined ? {} : { detail: candidate.detail.slice(0, 160) }),
+    ...(candidate.startedAt === undefined ? {} : { startedAt: candidate.startedAt }),
+    ...(candidate.deadlineAt === undefined ? {} : { deadlineAt: candidate.deadlineAt }),
+    ...(candidate.state === undefined ? {} : { state: candidate.state }),
   }
 }
