@@ -27,7 +27,7 @@ function installBridge(): ReturnType<typeof vi.fn> {
       })),
       chooseDataHome: vi.fn(), switchDataHome: vi.fn(),
       getPreferences: vi.fn(() => Promise.resolve({
-        closeBehavior: 'tray', notificationsEnabled: true, launchAtLoginEnabled: false,
+        closeBehavior: 'tray', notificationsEnabled: true, launchAtLoginEnabled: false, openBrowserOnStartup: false,
       })),
       updatePreferences: vi.fn(), onPreferences: vi.fn(() => () => {}), openLog: vi.fn(),
       getCommandLine: vi.fn(() => Promise.resolve({
@@ -42,6 +42,11 @@ function installBridge(): ReturnType<typeof vi.fn> {
       getDownloadStatus: vi.fn(() => Promise.resolve({ phase: 'idle' })),
       startDownload: vi.fn(), cancelDownload: vi.fn(), openInstaller: vi.fn(),
       onDownloadStatus: vi.fn(() => () => {}),
+    },
+    desktopWeb: {
+      getStatus: vi.fn(() => Promise.resolve({ phase: 'ready' })),
+      open: vi.fn(),
+      onStatus: vi.fn(() => () => {}),
     },
   }
   return reportReadiness

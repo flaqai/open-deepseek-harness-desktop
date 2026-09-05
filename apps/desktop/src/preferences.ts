@@ -11,6 +11,7 @@ export interface DesktopPreferences {
   closeBehavior: CloseBehavior
   notificationsEnabled: boolean
   launchAtLoginEnabled: boolean
+  openBrowserOnStartup: boolean
 }
 
 /** Desktop preference defaults used for a new or unreadable store. */
@@ -18,6 +19,7 @@ export const DEFAULT_DESKTOP_PREFERENCES: DesktopPreferences = Object.freeze({
   closeBehavior: 'tray',
   notificationsEnabled: true,
   launchAtLoginEnabled: false,
+  openBrowserOnStartup: false,
 })
 
 /** Fields accepted by the renderer preference update bridge. */
@@ -36,6 +38,9 @@ export function normalizeDesktopPreferences(raw: unknown): DesktopPreferences {
     launchAtLoginEnabled: typeof source.launchAtLoginEnabled === 'boolean'
       ? source.launchAtLoginEnabled
       : DEFAULT_DESKTOP_PREFERENCES.launchAtLoginEnabled,
+    openBrowserOnStartup: typeof source.openBrowserOnStartup === 'boolean'
+      ? source.openBrowserOnStartup
+      : DEFAULT_DESKTOP_PREFERENCES.openBrowserOnStartup,
   }
 }
 
@@ -45,7 +50,7 @@ export function parseDesktopPreferencesPatch(raw: unknown): DesktopPreferencesPa
     throw new TypeError('desktop: preference patch must be an object')
   }
   const source = raw as Record<string, unknown>
-  const allowed = new Set(['closeBehavior', 'notificationsEnabled', 'launchAtLoginEnabled'])
+  const allowed = new Set(['closeBehavior', 'notificationsEnabled', 'launchAtLoginEnabled', 'openBrowserOnStartup'])
   for (const key of Object.keys(source)) {
     if (!allowed.has(key)) throw new TypeError(`desktop: unknown preference ${key}`)
   }
@@ -67,6 +72,12 @@ export function parseDesktopPreferencesPatch(raw: unknown): DesktopPreferencesPa
       throw new TypeError('desktop: launchAtLoginEnabled must be boolean')
     }
     patch.launchAtLoginEnabled = source.launchAtLoginEnabled
+  }
+  if ('openBrowserOnStartup' in source) {
+    if (typeof source.openBrowserOnStartup !== 'boolean') {
+      throw new TypeError('desktop: openBrowserOnStartup must be boolean')
+    }
+    patch.openBrowserOnStartup = source.openBrowserOnStartup
   }
   return patch
 }

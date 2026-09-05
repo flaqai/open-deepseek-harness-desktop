@@ -10,7 +10,7 @@ import {
 describe('desktop preferences', () => {
   it('normalizes missing and invalid fields independently', () => {
     expect(normalizeDesktopPreferences({ closeBehavior: 'quit', notificationsEnabled: 'yes' })).toEqual({
-      closeBehavior: 'quit', notificationsEnabled: true, launchAtLoginEnabled: false,
+      closeBehavior: 'quit', notificationsEnabled: true, launchAtLoginEnabled: false, openBrowserOnStartup: false,
     })
     expect(normalizeDesktopPreferences(null)).toEqual(DEFAULT_DESKTOP_PREFERENCES)
   })
@@ -19,6 +19,7 @@ describe('desktop preferences', () => {
     expect(() => parseDesktopPreferencesPatch({ closeBehavior: 'hide' })).toThrow()
     expect(() => parseDesktopPreferencesPatch({ extra: true })).toThrow()
     expect(parseDesktopPreferencesPatch({ notificationsEnabled: false })).toEqual({ notificationsEnabled: false })
+    expect(parseDesktopPreferencesPatch({ openBrowserOnStartup: true })).toEqual({ openBrowserOnStartup: true })
   })
 
   it('writes complete JSON atomically and falls back on corrupt data', () => {
@@ -27,9 +28,11 @@ describe('desktop preferences', () => {
     const report = vi.fn()
     try {
       const store = createDesktopPreferencesStore(path, report)
-      store.write({ closeBehavior: 'quit', notificationsEnabled: false, launchAtLoginEnabled: true })
+      store.write({
+        closeBehavior: 'quit', notificationsEnabled: false, launchAtLoginEnabled: true, openBrowserOnStartup: true,
+      })
       expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
-        closeBehavior: 'quit', notificationsEnabled: false, launchAtLoginEnabled: true,
+        closeBehavior: 'quit', notificationsEnabled: false, launchAtLoginEnabled: true, openBrowserOnStartup: true,
       })
       writeFileSync(path, '{broken', 'utf8')
       expect(store.read()).toEqual(DEFAULT_DESKTOP_PREFERENCES)

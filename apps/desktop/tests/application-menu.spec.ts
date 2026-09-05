@@ -14,6 +14,7 @@ describe('platform application menus', () => {
     for (const id of ['new-session', 'settings', 'updates', 'market', 'snapshots', 'phone', 'im', 'restart', 'quit']) {
       expect(items.filter(item => item.id === id)).toHaveLength(1)
     }
+    expect(items.some(item => item.id === 'open-web')).toBe(platform !== 'linux')
     expect(items.some(item => item.id === 'devtools')).toBe(false)
     expect(items.some(item => item.role === 'services')).toBe(platform === 'darwin')
   })
@@ -29,6 +30,8 @@ describe('platform application menus', () => {
   it('disables disconnected navigation and guarded mutations but retains recovery help', () => {
     expect(commandEnabled('new-session', { ...state, ready: false })).toBe(false)
     expect(commandEnabled('zoom-in', { ...state, ready: false })).toBe(false)
+    expect(commandEnabled('open-web', { ...state, ready: false })).toBe(false)
+    expect(commandEnabled('open-web', { ...state, platform: 'linux' })).toBe(false)
     expect(commandEnabled('restart', { ...state, busy: true })).toBe(false)
     expect(commandEnabled('quit', { ...state, busy: true })).toBe(false)
     for (const command of ['about', 'logs', 'docs'] as const) expect(commandEnabled(command, { ...state, ready: false, busy: true })).toBe(true)

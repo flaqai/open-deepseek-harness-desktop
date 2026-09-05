@@ -3,7 +3,7 @@ import type { MenuItemConstructorOptions } from 'electron'
 
 /** Fixed commands accepted by the desktop host; never executable renderer input. */
 export const DESKTOP_COMMANDS = [
-  'about', 'settings', 'updates', 'new-session', 'open-config', 'close', 'quit',
+  'about', 'settings', 'updates', 'new-session', 'open-config', 'open-web', 'close', 'quit',
   'undo', 'redo', 'cut', 'copy', 'paste', 'select-all', 'zoom-in', 'zoom-out', 'zoom-reset',
   'fullscreen', 'market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools',
   'phone', 'im', 'data-home', 'restart', 'show', 'minimize', 'maximize',
@@ -20,7 +20,7 @@ export const CLIENT_COMMANDS = [
 const en = {
   app: 'Open DSH Desktop', file: 'File', edit: 'Edit', view: 'View', tools: 'Tools', window: 'Window', help: 'Help', more: 'More',
   about: 'About Open DSH Desktop', settings: 'Settings…', updates: 'Check for Updates…',
-  'new-session': 'New Conversation', 'open-config': 'Open Configuration File', close: 'Close Window', quit: 'Quit Completely',
+  'new-session': 'New Conversation', 'open-config': 'Open Configuration File', 'open-web': 'Open in Browser', close: 'Close Window', quit: 'Quit Completely',
   undo: 'Undo', redo: 'Redo', cut: 'Cut', copy: 'Copy', paste: 'Paste', 'select-all': 'Select All',
   'zoom-in': 'Zoom In', 'zoom-out': 'Zoom Out', 'zoom-reset': 'Actual Size', fullscreen: 'Enter Full Screen',
   'leave-fullscreen': 'Exit Full Screen', market: 'Plugin Market', 'plugin-restore': 'Plugin Recovery',
@@ -38,7 +38,7 @@ const en = {
 const zh: typeof en = {
   app: 'Open DSH Desktop', file: '文件', edit: '编辑', view: '视图', tools: '工具', window: '窗口', help: '帮助', more: '更多',
   about: '关于 Open DSH Desktop', settings: '设置…', updates: '检查更新…', 'new-session': '新对话',
-  'open-config': '打开配置文件', close: '关闭窗口', quit: '完整退出', undo: '撤销', redo: '重做', cut: '剪切',
+  'open-config': '打开配置文件', 'open-web': '在浏览器中打开', close: '关闭窗口', quit: '完整退出', undo: '撤销', redo: '重做', cut: '剪切',
   copy: '复制', paste: '粘贴', 'select-all': '全选', 'zoom-in': '放大', 'zoom-out': '缩小', 'zoom-reset': '实际大小',
   fullscreen: '进入全屏', 'leave-fullscreen': '退出全屏', market: '插件市场', 'plugin-restore': '插件恢复',
   diagnostics: '诊断中心', snapshots: '插件快照', 'external-tools': '外部工具', phone: '手机访问', im: 'IM 机器人',
@@ -77,6 +77,7 @@ export function commandEnabled(command: DesktopCommand, state: DesktopMenuState)
   if ((CLIENT_COMMANDS as readonly string[]).includes(command)) return state.ready && !state.busy
   // Loading and titlebar pages share file://; never write that origin's zoom preference.
   if (command === 'zoom-in' || command === 'zoom-out' || command === 'zoom-reset') return state.ready
+  if (command === 'open-web') return state.ready && (state.platform === 'darwin' || state.platform === 'win32')
   if (command === 'quit' || command === 'restart') return !state.busy
   if (command === 'devtools') return state.development
   return true
@@ -114,7 +115,9 @@ export function applicationMenuTemplate(
     ...(mac ? [{ id: 'app', label: t.app, submenu: [item('about'), separator, item('settings'), item('updates'), separator,
       { label: t.services, role: 'services' as const }, separator, { label: t.hide, role: 'hide' as const },
       { label: t['hide-others'], role: 'hideOthers' as const }, { label: t.unhide, role: 'unhide' as const }, separator, item('quit')] }] : []),
-    group('file', [item('new-session'), item('open-config'), separator, ...(!mac ? [item('settings'), separator] : []), item('close'), ...(!mac ? [item('quit')] : [])]),
+    group('file', [item('new-session'), item('open-config'),
+      ...(['darwin', 'win32'].includes(state.platform) ? [item('open-web')] : []), separator,
+      ...(!mac ? [item('settings'), separator] : []), item('close'), ...(!mac ? [item('quit')] : [])]),
     group('edit', [item('undo'), item('redo'), separator, item('cut'), item('copy'), item('paste'), item('select-all'),
       ...(mac ? [separator, item('emoji')] : [])]),
     group('view', [item('zoom-in'), item('zoom-out'), item('zoom-reset'), separator, item('fullscreen'),

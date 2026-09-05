@@ -4,7 +4,7 @@ import { DesktopShellController } from '../src/client/controller.ts'
 
 function bench(initialRelease: DesktopReleaseStatus = { phase: 'idle', currentVersion: '0.1.0-rc.7' }) {
   let preferences: DesktopPreferences = {
-    closeBehavior: 'tray', notificationsEnabled: true, launchAtLoginEnabled: false,
+    closeBehavior: 'tray', notificationsEnabled: true, launchAtLoginEnabled: false, openBrowserOnStartup: false,
   }
   let release: DesktopReleaseStatus = initialRelease
   const openDownload = vi.fn(() => Promise.resolve({ error: '' }))
@@ -12,6 +12,7 @@ function bench(initialRelease: DesktopReleaseStatus = { phase: 'idle', currentVe
     phase: 'ready' as const, version: '0.1.0-rc.8', fileName: 'DeepSeek-Harness-macos-arm64.dmg',
   }))
   const openInstaller = vi.fn(() => Promise.resolve({ error: '' }))
+  const openDesktopWeb = vi.fn(() => Promise.resolve({ opened: true as const, hidden: true }))
   const bridge: DesktopBridge = {
     shell: {
       getCapabilities: vi.fn(() => Promise.resolve({
@@ -61,9 +62,14 @@ function bench(initialRelease: DesktopReleaseStatus = { phase: 'idle', currentVe
       openInstaller,
       onDownloadStatus: vi.fn(() => () => {}),
     },
+    desktopWeb: {
+      getStatus: vi.fn(() => Promise.resolve({ phase: 'ready' as const })),
+      open: openDesktopWeb,
+      onStatus: vi.fn(() => () => {}),
+    },
   }
   const controller = new DesktopShellController(bridge)
-  return { bridge, controller, openDownload, startDownload, openInstaller }
+  return { bridge, controller, openDownload, startDownload, openInstaller, openDesktopWeb }
 }
 
 describe('DesktopShellController', () => {
@@ -85,6 +91,10 @@ describe('DesktopShellController', () => {
     await vi.waitFor(() => { expect(b.controller.getSnapshot().preferences?.closeBehavior).toBe('tray') })
     await b.controller.setPreference({ closeBehavior: 'quit' })
     expect(b.controller.getSnapshot().preferences?.closeBehavior).toBe('quit')
+    b.controller.setOpenBrowserOnStartup(true)
+    await vi.waitFor(() => { expect(b.controller.getSnapshot().preferences?.openBrowserOnStartup).toBe(true) })
+    await b.controller.openDesktopWeb()
+    expect(b.openDesktopWeb).toHaveBeenCalledOnce()
     await b.controller.checkRelease()
     expect(b.controller.getSnapshot().release.phase).toBe('available')
     await b.controller.openRelease()

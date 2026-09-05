@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package contributes Electron-only General Settings rows for close behavior, native notifications, login launch, the managed `dsh` command-line entry, and Release discovery. An ordinary `dsh web` browser receives no contribution.
+This package contributes Electron-only General Settings rows for local-browser handoff, close behavior, native notifications, login launch, the managed `dsh` command-line entry, and Release discovery. An ordinary `dsh web` browser receives no contribution.
 
 ## Table of Contents
 
@@ -26,6 +26,8 @@ This package contributes Electron-only General Settings rows for close behavior,
 
 Mount the package in the desktop client bundle. It activates only when the narrow `window.deepSeekHarnessDesktop` preload bridge is present and reflects capabilities reported by the Electron main process.
 
+On macOS and Windows, Use in a browser requests the current authenticated loopback page without receiving its URL. Electron opens the system browser and hides the desktop window only after a successful handoff. Open browser after startup is disabled by default and persists in Electron `userData`; each Harness generation consumes it at most once.
+
 Native application-menu navigation uses the existing workspace and settings services. New Conversation preserves their ordinary draft behavior; General Settings consumes a one-shot request for updates or the data-directory chooser. Missing plugin sections report an error without installing anything. Connection and locale subscriptions publish current menu readiness and are disposed with the plugin. See [application menus](../../../apps/desktop/README.md#application-menus) for platform behavior.
 
 Release discovery projects one shared state into General Settings, the settings-panel header, and a blue sidebar action immediately beside Settings. Both update actions are absent unless a newer Release is available; selecting either opens General Settings and reveals the update row after the panel has completed layout. Source builds expose the same projection through their development update simulator.
@@ -37,7 +39,7 @@ On Windows and macOS, Application icons provides local image selection, a keyboa
 <a id="understand-the-security-boundary"></a>
 ## Understand the security boundary
 
-The preload bridge owns every privileged operation. This package receives normalized state and requests allowlisted actions; it cannot read arbitrary files, run arbitrary commands, choose arbitrary external URLs, or replace the application runtime.
+The preload bridge owns every privileged operation. This package receives normalized state and requests allowlisted actions; it cannot read the authenticated Web URL, read arbitrary files, run arbitrary commands, choose arbitrary external URLs, or replace the application runtime.
 
 The crop UI submits only a renderer-bound selection ID, a fixed destination, and bounded square coordinates. Electron validates and crops the image before atomic persistence; browser preview pixels are not authoritative. Closing the editor releases the draft. Icon changes do not invoke Harness or rewrite plugin configuration.
 
@@ -57,6 +59,7 @@ None; this package neither assembles nor sends a provider request.
 <a id="known-limitations-and-deferred-work"></a>
 
 - Platform capabilities differ: login launch and shell profile integration are reported by the desktop host rather than assumed by the browser.
+- The system browser depends on the desktop process. Quitting Desktop ends the shared Harness connection, and Electron-only controls remain absent from that browser page.
 - Release installation remains host-controlled and requires a verified artifact; the client package never executes an installer itself.
 
 <a id="dev-note"></a>

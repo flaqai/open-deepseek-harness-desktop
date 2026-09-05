@@ -130,8 +130,10 @@ import {
   type StartupDiagnosticCode,
   type StartupDiagnosticIncident,
 } from './startup-diagnostics.ts'
+import { DesktopWebAccess, type DesktopWebStatus } from './desktop-web-access.ts'
 
 const APP_NAME = 'DeepSeek Harness'
+const DESKTOP_WEB_SUPPORTED = process.platform === 'darwin' || process.platform === 'win32'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
 const WINDOW_ICON = fileURLToPath(new URL('./icon.png', import.meta.url))
 const MACOS_TRAY_ICON = fileURLToPath(new URL('./tray-iconTemplate.png', import.meta.url))
@@ -168,6 +170,7 @@ let iconManager: DesktopIconManager | undefined
 let mainSurface: DesktopWindowSurface | undefined
 let supervisor: HarnessSupervisor | undefined
 let harnessOrigin: string | undefined
+let desktopWebAccess: DesktopWebAccess | undefined
 let lifecycle: DesktopLifecycle | undefined
 let applicationMenu: ApplicationMenuController | undefined
 let disposeApplicationMenu: (() => void) | undefined
@@ -284,6 +287,10 @@ async function executeProductMenu(command: DesktopCommand): Promise<void> {
   }
   switch (command) {
     case 'show': lifecycle?.showWindow(); return
+    case 'open-web':
+      if (desktopWebAccess === undefined) throw new Error(menuCopy(menuLocale).unavailable)
+      await desktopWebAccess.open()
+      return
     case 'restart': requestDesktopRestart(); return
     case 'quit':
       if (lifecycle === undefined) { quitReleased = true; app.quit() }
@@ -433,6 +440,7 @@ function desktopCapabilities(): DesktopCapabilities {
 
 function desktopCopy(): {
   open: string
+  openWeb: string
   restart: string
   openLog: string
   launchAtLogin: string
@@ -442,11 +450,11 @@ function desktopCopy(): {
 } {
   return app.getLocale().toLowerCase().startsWith('zh')
     ? {
-      open: '打开窗口', restart: '快速重启', openLog: '打开 Harness 日志', launchAtLogin: '开机自启',
+      open: '打开窗口', openWeb: '在浏览器中打开', restart: '快速重启', openLog: '打开 Harness 日志', launchAtLogin: '开机自启',
       notifications: '系统通知', quit: '退出', logErrorTitle: '无法打开日志',
     }
     : {
-      open: 'Open Window', restart: 'Quick Restart', openLog: 'Open Harness Log', launchAtLogin: 'Launch at Login',
+      open: 'Open Window', openWeb: 'Open in Browser', restart: 'Quick Restart', openLog: 'Open Harness Log', launchAtLogin: 'Launch at Login',
       notifications: 'Notifications', quit: 'Quit', logErrorTitle: 'Could Not Open Log',
     }
 }
@@ -757,6 +765,12 @@ function publishPreferences(): void {
   refreshTrayMenu()
 }
 
+function publishDesktopWebStatus(status: DesktopWebStatus): void {
+  mainSurface?.send('dsh:desktop:web:status', status)
+  applicationMenu?.refresh()
+  refreshTrayMenu()
+}
+
 function updatePreferences(raw: unknown): DesktopPreferences {
   const patch = parseDesktopPreferencesPatch(raw)
   if (patch.launchAtLoginEnabled !== undefined) {
@@ -792,6 +806,11 @@ function buildTrayMenu(): Menu {
   const capabilities = desktopCapabilities()
   const template: MenuItemConstructorOptions[] = [
     { label: copy.open, click: () => { lifecycle?.showWindow() } },
+    ...(DESKTOP_WEB_SUPPORTED ? [{
+      label: copy.openWeb,
+      enabled: desktopWebAccess?.canOpen() ?? false,
+      click: () => { applicationMenu?.execute('open-web') },
+    }] : []),
     {
       label: copy.restart,
       click: () => { applicationMenu?.execute('restart') },
@@ -1270,9 +1289,9 @@ async function startApplication(): Promise<void> {
   )
   if (!desktopCapabilities().launchAtLoginAvailable) preferences.launchAtLoginEnabled = false
   applyLaunchAtLogin(preferences.launchAtLoginEnabled)
-  hiddenLaunch = process.platform === 'darwin'
+  hiddenLaunch = (DESKTOP_WEB_SUPPORTED && preferences.openBrowserOnStartup) || (process.platform === 'darwin'
     && preferences.launchAtLoginEnabled
-    && app.getLoginItemSettings().wasOpenedAtLogin
+    && app.getLoginItemSettings().wasOpenedAtLogin)
   const updater = new SourceUpdater({
     sourceRoot: process.env.DSH_DESKTOP_SOURCE_ROOT ?? DEFAULT_SOURCE_ROOT,
     nodeCommand: process.env.DSH_DESKTOP_NODE_BIN ?? 'node',
@@ -1469,6 +1488,15 @@ async function startApplication(): Promise<void> {
   ipcMain.handle('dsh:desktop:preferences:update', (event, patch: unknown) => {
     assertMainRenderer(event.sender)
     return updatePreferences(patch)
+  })
+  ipcMain.handle('dsh:desktop:web:get', (event) => {
+    assertMainRenderer(event.sender)
+    return desktopWebAccess?.status() ?? { phase: 'starting' }
+  })
+  ipcMain.handle('dsh:desktop:web:open', async (event) => {
+    assertMainRenderer(event.sender)
+    if (desktopWebAccess === undefined) throw new Error('desktop: local Web interface is unavailable')
+    return desktopWebAccess.open()
   })
   ipcMain.handle('dsh:desktop:chat-background:read', (event) => {
     assertMainRenderer(event.sender)
@@ -1932,6 +1960,13 @@ async function startApplication(): Promise<void> {
     },
     reportError: (error) => { console.error('desktop: shutdown failed', error) },
   })
+  desktopWebAccess = DESKTOP_WEB_SUPPORTED ? new DesktopWebAccess({
+    openExternal: url => shell.openExternal(url),
+    canHideWindow: () => !trayUnavailable,
+    hideWindow: () => { mainWindow?.hide() },
+    showWindow: () => { lifecycle?.showWindow() },
+    publish: publishDesktopWebStatus,
+  }) : undefined
   try { createTray() } catch (error) {
     hiddenLaunch = false
     trayUnavailable = true
@@ -2380,6 +2415,7 @@ async function startApplication(): Promise<void> {
     ...(process.platform === 'win32' ? { terminateProcessTree: terminateWindowsProcessTree } : {}),
     onReady: (url) => {
       harnessOrigin = new URL(url).origin
+      desktopWebAccess?.setReady(url)
       reportedDesktopReadiness.clear()
       publishStartupProgress({ stage: 'ready', progress: 100 })
       const readyOrigin = harnessOrigin
@@ -2395,11 +2431,13 @@ async function startApplication(): Promise<void> {
         ...notificationCopy.startupWarning,
         body: `${notificationCopy.startupWarning.body}\n${startupWarnings.slice(0, 3).join('\n')}`,
       })
+      desktopWebAccess?.openAutomatically(preferences.openBrowserOnStartup)
     },
     onState: (state) => {
       if (state === 'restarting' || state === 'failed') {
         cancelBootableSnapshot()
         harnessOrigin = undefined
+        desktopWebAccess?.clear()
       }
       if (state !== 'ready') menuClientReady = false
       applicationMenu?.refresh()

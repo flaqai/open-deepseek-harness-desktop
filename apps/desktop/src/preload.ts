@@ -42,6 +42,7 @@ import {
   type DesktopStartupStage,
 } from './startup-progress.ts'
 import type { StartupDiagnosticIncident } from './startup-diagnostics.ts'
+import type { DesktopWebOpenResult, DesktopWebStatus } from './desktop-web-access.ts'
 
 /** Renderer-visible update methods; no generic process or filesystem access is exposed. */
 export interface DesktopUpdateBridge {
@@ -95,6 +96,13 @@ export interface DesktopReleasesBridge {
   cancelDownload(): Promise<DesktopReleaseDownloadStatus>
   openInstaller(): Promise<{ error: string }>
   onDownloadStatus(callback: (status: DesktopReleaseDownloadStatus) => void): () => void
+}
+
+/** URL-free access to the main process's authenticated local Web handoff. */
+export interface DesktopWebBridge {
+  getStatus(): Promise<DesktopWebStatus>
+  open(): Promise<DesktopWebOpenResult>
+  onStatus(callback: (status: DesktopWebStatus) => void): () => void
 }
 
 /** Exact allowlisted bundled-plugin operations; no arbitrary package path is exposed. */
@@ -212,6 +220,16 @@ const releasesBridge: DesktopReleasesBridge = {
     const listener = (_event: Electron.IpcRendererEvent, next: DesktopReleaseDownloadStatus): void => { callback(next) }
     ipcRenderer.on('dsh:desktop:release-download-status', listener)
     return () => { ipcRenderer.removeListener('dsh:desktop:release-download-status', listener) }
+  },
+}
+
+const desktopWebBridge: DesktopWebBridge = {
+  getStatus: () => ipcRenderer.invoke('dsh:desktop:web:get') as Promise<DesktopWebStatus>,
+  open: () => ipcRenderer.invoke('dsh:desktop:web:open') as Promise<DesktopWebOpenResult>,
+  onStatus(callback) {
+    const listener = (_event: Electron.IpcRendererEvent, status: DesktopWebStatus): void => { callback(status) }
+    ipcRenderer.on('dsh:desktop:web:status', listener)
+    return () => { ipcRenderer.removeListener('dsh:desktop:web:status', listener) }
   },
 }
 
@@ -339,6 +357,7 @@ contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({
   shell: Object.freeze(shellBridge),
   icons: Object.freeze(iconsBridge),
   releases: Object.freeze(releasesBridge),
+  desktopWeb: Object.freeze(desktopWebBridge),
   bundledPlugins: Object.freeze(bundledPluginsBridge),
   externalTools: Object.freeze(externalToolsBridge),
   importedPlugins: Object.freeze(sourceMode

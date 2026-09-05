@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type {
-  DesktopBridge, DesktopCliStatus, DesktopReleaseDownloadStatus, DesktopReleaseStatus,
+  DesktopBridge, DesktopCliStatus, DesktopReleaseDownloadStatus, DesktopReleaseStatus, DesktopWebStatus,
 } from '../src/client/bridge.ts'
 import { DesktopShellController } from '../src/client/controller.ts'
 import { DesktopPreferencesRow, type DesktopPreferencesRowProps } from '../src/client/DesktopPreferencesRow.tsx'
@@ -29,11 +29,14 @@ function setup(releaseStatus: DesktopReleaseStatus = {
   publishedAt: '2026-08-20T00:00:00Z', releaseUrl: 'https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/dsh-v0.1.0-rc.8',
 }, commandLine: DesktopCliStatus = {
   phase: 'uninstalled', commandPath: '/desktop/cli/bin/dsh', dataHome: '/desktop/dsh-home',
-}, downloadStatus: DesktopReleaseDownloadStatus = { phase: 'idle' }) {
+}, downloadStatus: DesktopReleaseDownloadStatus = { phase: 'idle' }, desktopWebStatus: DesktopWebStatus = {
+  phase: 'ready',
+}, platform: 'darwin' | 'win32' | 'linux' = 'darwin') {
   const updatePreferences = vi.fn((patch: Record<string, unknown>) => Promise.resolve({
     closeBehavior: patch.closeBehavior === 'quit' ? 'quit' as const : 'tray' as const,
     notificationsEnabled: patch.notificationsEnabled !== false,
     launchAtLoginEnabled: patch.launchAtLoginEnabled === true,
+    openBrowserOnStartup: patch.openBrowserOnStartup === true,
   }))
   const openDownload = vi.fn(() => Promise.resolve({ error: '' }))
   const startDownload = vi.fn(() => Promise.resolve({
@@ -41,6 +44,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
   }))
   const cancelDownload = vi.fn(() => Promise.resolve({ phase: 'cancelled' as const, version: '0.1.0-rc.8' }))
   const openInstaller = vi.fn(() => Promise.resolve({ error: '' }))
+  const openDesktopWeb = vi.fn(() => Promise.resolve({ opened: true as const, hidden: true }))
   const installCommandLine = vi.fn(() => Promise.resolve({
     phase: 'installed' as const, commandPath: '/desktop/cli/bin/dsh', dataHome: '/desktop/dsh-home',
   }))
@@ -58,7 +62,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
   const bridge: DesktopBridge = {
     shell: {
       getCapabilities: () => Promise.resolve({
-        platform: 'darwin', packaged: true, launchAtLoginAvailable: true, sourceUpdateAvailable: false,
+        platform, packaged: true, launchAtLoginAvailable: true, sourceUpdateAvailable: false,
         commandLineAvailable: true,
       }),
       getDataHome: () => Promise.resolve({
@@ -69,7 +73,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
       chooseDataHome,
       switchDataHome,
       getPreferences: () => Promise.resolve({
-        closeBehavior: 'tray', notificationsEnabled: true, launchAtLoginEnabled: false,
+        closeBehavior: 'tray', notificationsEnabled: true, launchAtLoginEnabled: false, openBrowserOnStartup: false,
       }),
       updatePreferences,
       onPreferences: () => () => {},
@@ -90,12 +94,17 @@ function setup(releaseStatus: DesktopReleaseStatus = {
       openInstaller,
       onDownloadStatus: () => () => {},
     },
+    desktopWeb: {
+      getStatus: () => Promise.resolve(desktopWebStatus),
+      open: openDesktopWeb,
+      onStatus: () => () => {},
+    },
   }
   const controller = new DesktopShellController(bridge)
   controller.start()
   return {
     controller, updatePreferences, openDownload, startDownload, cancelDownload, openInstaller, installCommandLine,
-    chooseDataHome, switchDataHome,
+    chooseDataHome, switchDataHome, openDesktopWeb,
   }
 }
 
@@ -145,6 +154,37 @@ describe('desktop shell components', () => {
     fireEvent.click(notifications)
     await waitFor(() => { expect(b.updatePreferences).toHaveBeenCalledWith({ notificationsEnabled: false }) })
     expect(screen.getByText('Version 0.1.0-rc.8 is available')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Open in browser' }))
+    await waitFor(() => { expect(b.openDesktopWeb).toHaveBeenCalledOnce() })
+    fireEvent.click(screen.getByRole('switch', { name: 'Open browser after startup' }))
+    await waitFor(() => { expect(b.updatePreferences).toHaveBeenCalledWith({ openBrowserOnStartup: true }) })
+    b.controller.dispose()
+  })
+
+  it('disables the browser handoff while Harness is starting', async () => {
+    const b = setup(undefined, undefined, undefined, { phase: 'starting' })
+    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    const button = await screen.findByRole('button', { name: 'Starting…' })
+    expect(button.hasAttribute('disabled')).toBe(true)
+    expect(b.openDesktopWeb).not.toHaveBeenCalled()
+    b.controller.dispose()
+  })
+
+  it('shows a browser handoff error and permits a manual retry', async () => {
+    const b = setup(undefined, undefined, undefined, { phase: 'error', message: 'Browser launch was blocked' })
+    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    expect(await screen.findByText('Could not open the browser: Browser launch was blocked')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Open in browser' }))
+    await waitFor(() => { expect(b.openDesktopWeb).toHaveBeenCalledOnce() })
+    b.controller.dispose()
+  })
+
+  it('does not expose local browser mode on Linux', async () => {
+    const b = setup(undefined, undefined, undefined, { phase: 'ready' }, 'linux')
+    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    await screen.findByText('When closing the window')
+    expect(screen.queryByText('Use in a browser')).toBeNull()
+    expect(screen.queryByRole('switch', { name: 'Open browser after startup' })).toBeNull()
     b.controller.dispose()
   })
 

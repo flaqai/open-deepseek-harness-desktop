@@ -9,6 +9,19 @@ export interface DesktopPreferences {
   closeBehavior: CloseBehavior
   notificationsEnabled: boolean
   launchAtLoginEnabled: boolean
+  openBrowserOnStartup: boolean
+}
+
+/** URL-free state of the system-browser handoff. */
+export type DesktopWebStatus =
+  | { phase: 'starting' | 'ready' | 'opening' }
+  | { phase: 'error'; message: string }
+
+/** Restricted local-browser operations exposed by Electron. */
+export interface DesktopWebBridge {
+  getStatus(): Promise<DesktopWebStatus>
+  open(): Promise<{ opened: true; hidden: boolean }>
+  onStatus(callback: (status: DesktopWebStatus) => void): () => void
 }
 
 /** Platform and build-mode support reported by Electron. */
@@ -137,6 +150,7 @@ export interface DesktopBridge {
   }
   shell: DesktopShellBridge
   releases: DesktopReleasesBridge
+  desktopWeb: DesktopWebBridge
   icons?: DesktopIconsBridge
 }
 
@@ -149,12 +163,13 @@ export function readDesktopBridge(): DesktopBridge | null {
   const candidate = (globalThis as typeof globalThis & { deepSeekHarnessDesktop?: unknown }).deepSeekHarnessDesktop as {
     shell?: DesktopShellBridge
     releases?: DesktopReleasesBridge
+    desktopWeb?: DesktopWebBridge
     icons?: DesktopIconsBridge
     menu?: DesktopBridge['menu']
   } | undefined
-  return candidate?.shell === undefined || candidate.releases === undefined
+  return candidate?.shell === undefined || candidate.releases === undefined || candidate.desktopWeb === undefined
     ? null
-    : { shell: candidate.shell, releases: candidate.releases,
+    : { shell: candidate.shell, releases: candidate.releases, desktopWeb: candidate.desktopWeb,
       ...(candidate.menu === undefined ? {} : { menu: candidate.menu }),
       ...(candidate.icons === undefined ? {} : { icons: candidate.icons }) }
 }

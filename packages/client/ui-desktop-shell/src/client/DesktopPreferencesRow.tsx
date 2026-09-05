@@ -101,6 +101,7 @@ export function DesktopPreferencesRow({ controller, icons, t }: DesktopPreferenc
           : t('release.error')
   const installerDownloadSupported = state.capabilities.packaged
     && (state.capabilities.platform === 'darwin' || state.capabilities.platform === 'win32')
+  const desktopWebSupported = state.capabilities.platform === 'darwin' || state.capabilities.platform === 'win32'
   const selectedDownload = release.phase === 'available'
     && 'version' in releaseDownload
     && releaseDownload.version === release.latestVersion
@@ -132,6 +133,35 @@ export function DesktopPreferencesRow({ controller, icons, t }: DesktopPreferenc
   return (
     <section className={css.group}>
       {icons !== undefined && ['darwin', 'win32'].includes(state.capabilities.platform) && <DesktopIconSettings bridge={icons} t={t} />}
+      {desktopWebSupported && <><div className={css.row}>
+        <div className={css.text}>
+          <div className={css.title}>{t('web.title')}</div>
+          <div className={css.description}>{t('web.description')}</div>
+          {state.desktopWeb.phase === 'error' && <div className={css.error}>{t('web.error', { message: state.desktopWeb.message })}</div>}
+        </div>
+        <div className={css.actions}>
+          <Button
+            variant="outline"
+            disabled={state.desktopWeb.phase === 'starting' || state.desktopWeb.phase === 'opening'}
+            onClick={() => { void controller.openDesktopWeb() }}
+          >
+            {t(state.desktopWeb.phase === 'starting' ? 'web.starting'
+              : state.desktopWeb.phase === 'opening' ? 'web.opening' : 'web.open')}
+          </Button>
+        </div>
+      </div>
+      <div className={css.row}>
+        <div className={css.text}>
+          <div className={css.title}>{t('web.auto.title')}</div>
+          <div className={css.description}>{t('web.auto.description')}</div>
+        </div>
+        <Toggle
+          label={t('web.auto.title')}
+          enabled={preferences.openBrowserOnStartup}
+          disabled={state.busy}
+          onChange={(enabled) => { controller.setOpenBrowserOnStartup(enabled) }}
+        />
+      </div></>}
       <div className={css.row}>
         <div className={css.text}>
           <div className={css.title}>{t('close.title')}</div>

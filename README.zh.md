@@ -344,7 +344,7 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 ## 同步 DeepSeek Harness 0.1.2-rc.1
 
-当前桌面基线使用上游 `dsh-v0.1.2-rc.1`。会话、模型、子 Agent、图片和文件能力由同一套 Harness Runtime 提供，桌面客户端在其上增加环境选择、插件管理、诊断保护和系统集成。文件与 Session 引用、多查询并发 `web_search`、推理内容回传、持久 PowerShell PTY、动态客户端包、构建 Profile 与品牌插槽继续可用；Electron 为 `dsh web` 传入 `--no-open`，启动桌面应用不会额外打开系统浏览器。
+当前桌面基线使用上游 `dsh-v0.1.2-rc.1`。会话、模型、子 Agent、图片和文件能力由同一套 Harness Runtime 提供，桌面客户端在其上增加环境选择、插件管理、诊断保护和系统集成。文件与 Session 引用、多查询并发 `web_search`、推理内容回传、持久 PowerShell PTY、动态客户端包、构建 Profile 与品牌插槽继续可用；Electron 默认不会额外打开系统浏览器，用户可以从通用设置、文件菜单或托盘菜单打开同一套本机 Web 界面，也可以选择在每次 Harness 就绪后自动打开。
 
 ## 下载安装
 
@@ -406,7 +406,7 @@ pnpm run build
 pnpm run dev:desktop
 ```
 
-桌面宿主会启动本地 Harness 进程，并在加固的 Electron 窗口中打开其回环地址。若只需运行 Web 客户端：
+桌面宿主会启动本地 Harness 进程，并在加固的 Electron 窗口中打开其回环地址。macOS 和 Windows 安装版可从通用设置选择“在浏览器中打开”，浏览器与桌面窗口共用当前配置、会话和插件；完整退出桌面客户端会停止该连接。若只需从源码独立运行 Web 客户端：
 
 ```sh
 pnpm dsh web
