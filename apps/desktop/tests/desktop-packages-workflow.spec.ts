@@ -50,17 +50,17 @@ describe('desktop package workflow bundled plugins', () => {
     expect(workflow.jobs.checksums?.if).toContain("inputs.target == 'linux-x64'")
   })
 
-  it('publishes community tags while retaining legacy desktop tags', () => {
+  it('keeps packaging manual and leaves GitHub Release publication to the explicit local workflow', () => {
     const source = readFileSync(resolve(import.meta.dirname, '../../../.github/workflows/desktop-packages.yml'), 'utf8')
     const workflow = parse(source) as {
-      on: { push: { tags: string[] }; workflow_dispatch: { inputs: { publish: { description: string } } } }
+      on: { workflow_dispatch: { inputs: Record<string, unknown> } }
+      permissions: Record<string, string>
       jobs: Record<string, WorkflowJob>
     }
-    expect(workflow.on.push.tags).toEqual(['odsh-v*', 'dsh-v*'])
-    expect(workflow.on.workflow_dispatch.inputs.publish.description).toContain('odsh-v*')
-    const releaseScript = workflow.jobs.release?.steps?.map(step => step.run ?? '').join('\n') ?? ''
-    expect(releaseScript).toContain('refs/tags/odsh-v*|refs/tags/dsh-v*')
-    expect(releaseScript).toContain('version="${tag#odsh-v}"')
-    expect(releaseScript).toContain('gh release edit "$tag" "${release_args[@]}"')
+    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
+    expect(Object.keys(workflow.on.workflow_dispatch.inputs)).toEqual(['target'])
+    expect(workflow.permissions).toEqual({ contents: 'read' })
+    expect(workflow.jobs.release).toBeUndefined()
+    expect(source).not.toContain('gh release ')
   })
 })
