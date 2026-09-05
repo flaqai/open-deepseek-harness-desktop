@@ -10,7 +10,7 @@ The desktop application already hosts the complete Web GUI on loopback, but user
 
 ## Decision
 
-Electron owns one local-browser handoff for each Harness generation. It accepts only an authenticated `http://127.0.0.1:<port>/` root emitted by readiness, retains the URL in the main process, and exposes only URL-free status and open operations through preload. The system browser exchanges the existing launch token for its authority-bound cookie and therefore shares the desktop Profile, sessions, plugins, and Host process.
+Electron owns one local-browser handoff for each Harness generation. It accepts only an authenticated `http://127.0.0.1:<port>/` root emitted by readiness, retains the URL in the main process, and exposes only URL-free status and open operations through preload. The system browser exchanges the existing launch token for its authority-bound cookie and therefore shares the desktop Profile, sessions, plugins, and Host process. Electron also creates a generation-scoped return capability on a separate random loopback port. The browser receives it in a fragment, removes it from the visible URL, and can use it only to reveal the existing window; the listener requires the exact Harness origin and token.
 
 On macOS and Windows, General Settings, the File menu, and the tray menu offer the handoff. A desktop preference, disabled by default, opens at most once for each distinct ready URL. Successful opening hides the Electron window only when its tray is available; a failed automatic opening restores the window. A late result from an invalidated generation cannot hide the current window or republish readiness.
 
@@ -24,4 +24,4 @@ On macOS and Windows, General Settings, the File menu, and the tray menu offer t
 
 ## Consequences
 
-Browser and Electron views can operate on the same live state without duplicating Harness. The browser depends on the desktop process and disconnects after complete quit. Electron-only controls remain absent because the external browser has no preload bridge. Every Harness restart changes the authority, so automatic mode opens the newly authenticated generation rather than attempting to revive an obsolete page.
+Browser and Electron views can operate on the same live state without duplicating Harness. The browser depends on the desktop process and disconnects after complete quit. Electron-only controls remain absent because the external browser has no preload bridge; it receives only Return to Desktop. Every Harness restart changes both capabilities, so automatic mode opens the newly authenticated generation rather than attempting to revive an obsolete page.

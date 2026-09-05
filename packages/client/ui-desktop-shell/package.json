@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-desktop-shell",
-  "description": "Electron-only desktop preferences, diagnostics, and Release notification UI",
+  "description": "Desktop settings plus a scoped browser-to-Electron return action",
   "version": "0.1.2-rc.1",
   "private": true,
   "repository": {

@@ -8,9 +8,12 @@ import { apply, inject } from '../src/client/index.ts'
 import { DesktopPreferencesRow } from '../src/client/DesktopPreferencesRow.tsx'
 import { DesktopUpdateBadge } from '../src/client/DesktopUpdateBadge.tsx'
 import { DesktopSidebarUpdateButton } from '../src/client/DesktopSidebarUpdateButton.tsx'
+import { DesktopBrowserReturnButton } from '../src/client/DesktopBrowserReturnButton.tsx'
 
 afterEach(() => {
   delete (globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop
+  window.sessionStorage.clear()
+  window.history.replaceState(null, '', '/')
 })
 
 function installBridge(): ReturnType<typeof vi.fn> {
@@ -129,6 +132,20 @@ describe('ui-desktop-shell apply', () => {
     await fiber.await()
     expect(b.slots.entries('settings.general.item')).toEqual([])
     await fiber.dispose()
+  })
+
+  it('registers only the return action for a browser opened by Desktop', async () => {
+    const returnUrl = 'http://127.0.0.1:51777/show?token=abc_DEF-123'
+    window.history.replaceState(null, '', `/#dsh-desktop-return=${encodeURIComponent(returnUrl)}`)
+    const b = await bench()
+    const fiber = b.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    expect(b.slots.entries('settings.general.item')).toEqual([])
+    expect(b.slots.entries('settings.action')).toEqual([])
+    expect(b.slots.entries('sidebar.settings.action')[0]?.component).toBe(DesktopBrowserReturnButton)
+    expect(window.location.hash).toBe('')
+    await fiber.dispose()
+    expect(b.slots.entries('sidebar.settings.action')).toEqual([])
   })
 
   it('registers desktop preferences and Release checks when the bridge exists', async () => {

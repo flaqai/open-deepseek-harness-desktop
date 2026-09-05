@@ -360,7 +360,7 @@ Switch between system, light, dark, and eight product themes; pair them with eig
 
 ### Synchronized with DeepSeek Harness 0.1.2-rc.1
 
-The desktop baseline uses upstream `dsh-v0.1.2-rc.1`. Conversation, model, subagent, image, and file capabilities come from the same Harness runtime, while the desktop distribution adds environment selection, plugin management, diagnostic protection, and system integration. File and Session references, concurrent `web_search`, reasoning passback, persistent PowerShell PTY, dynamic client packages, build Profiles, and branding slots remain available. Electron passes `--no-open` to `dsh web`, so starting the desktop app does not also open a system browser.
+The desktop baseline uses upstream `dsh-v0.1.2-rc.1`. Conversation, model, subagent, image, and file capabilities come from the same Harness runtime, while the desktop distribution adds environment selection, plugin management, diagnostic protection, and system integration. File and Session references, concurrent `web_search`, reasoning passback, persistent PowerShell PTY, dynamic client packages, build Profiles, and branding slots remain available. Electron passes `--no-open` to `dsh web`, so starting the desktop app does not also open a system browser. Packaged macOS and Windows clients can open their active Harness in the browser and reveal the same desktop window through Return to Desktop.
 
 ## What you can do
 

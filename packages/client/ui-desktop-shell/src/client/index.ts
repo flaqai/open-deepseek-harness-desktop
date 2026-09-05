@@ -1,4 +1,4 @@
-/** Electron-only desktop shell settings and Release notification plugin. */
+/** Desktop shell settings and the scoped browser-to-Electron return action. */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
@@ -7,9 +7,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { DesktopPreferencesRow } from './DesktopPreferencesRow.tsx'
+import { DesktopBrowserReturnButton } from './DesktopBrowserReturnButton.tsx'
 import { DesktopSidebarUpdateButton } from './DesktopSidebarUpdateButton.tsx'
 import { DesktopUpdateBadge } from './DesktopUpdateBadge.tsx'
 import { readDesktopBridge } from './bridge.ts'
+import { captureDesktopReturnTarget, requestDesktopReturn } from './browser-return.ts'
 import { DesktopShellController } from './controller.ts'
 import { navigateDesktopMenu } from './menu-navigation.ts'
 import { en, zh, type DesktopShellKey } from './locales.ts'
@@ -28,7 +30,16 @@ export const inject = ['slots', 'locale', 'connection']
 
 export function apply(ctx: Context): void {
   const bridge = readDesktopBridge()
-  if (bridge === null) return
+  if (bridge === null) {
+    const target = captureDesktopReturnTarget()
+    if (target === undefined) return
+    ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-desktop-shell: browser return dictionaries')
+    ctx.slots.inject('sidebar.settings.action', () => ctx.slots.register({
+      name: 'sidebar.settings.action', id: 'desktop-return', order: -30, locale: NS,
+      inject: () => ({ returnToDesktop: () => requestDesktopReturn(target) }),
+    }, DesktopBrowserReturnButton))
+    return
+  }
   const connection = ctx.get('connection') as ConnectionHandle
   bridge.shell.reportReadiness('client')
   ctx.effect(() => {

@@ -1,5 +1,5 @@
 ---
-description: "Electron 专用的桌面偏好、命令行注册与 Release 发现客户端设置。"
+description: "桌面客户端设置，以及从其浏览器页面安全返回客户端的操作。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包向“通用设置”贡献 Electron 专用的本机浏览器交接、关闭行为、原生通知、登录启动、受管 `dsh` 命令行入口和 Release 发现设置行。普通 `dsh web` 浏览器不会收到任何贡献。
+本包向“通用设置”贡献 Electron 专用的本机浏览器交接、关闭行为、原生通知、登录启动、受管 `dsh` 命令行入口和 Release 发现设置行。由 Desktop 打开的浏览器页面只会收到“返回客户端”操作；独立的 `dsh web` 浏览器不会收到任何贡献。
 
 ## 目录
 
@@ -26,7 +26,7 @@ kind: "package-reference"
 
 将本包挂载到桌面客户端 Bundle。它只在窄权限的 `window.deepSeekHarnessDesktop` 预加载桥存在时激活，并严格反映 Electron 主进程报告的能力。
 
-在 macOS 和 Windows 中，“在浏览器中使用”只请求打开当前已认证回环页面，不接收其 URL。Electron 通过系统浏览器完成交接后才隐藏桌面窗口。“启动后自动打开浏览器”默认关闭并持久化在 Electron `userData`；每个 Harness 启动代次最多消费一次该偏好。
+在 macOS 和 Windows 中，“在浏览器中使用”只请求打开当前已认证回环页面，不接收其 URL。Electron 通过系统浏览器完成交接后才隐藏桌面窗口。浏览器会在“设置”旁显示“返回客户端”，用于唤醒同一个 Electron 客户端，不会启动另一套 Harness。“启动后自动打开浏览器”默认关闭并持久化在 Electron `userData`；每个 Harness 启动代次最多消费一次该偏好。
 
 原生应用菜单导航使用现有工作区和设置服务。“新对话”保留这些服务原有的草稿行为；通用设置消费一次性的更新区域或数据目录选择请求。插件设置项缺失时报告错误，不安装任何内容。连接与语言订阅发布当前菜单就绪状态，并随插件释放。平台行为见[应用菜单](../../../apps/desktop/README.zh.md#application-menus)。
 
@@ -39,7 +39,7 @@ Windows 与 macOS 的“应用图标”提供本地图片选择、支持键盘�
 <a id="understand-the-security-boundary"></a>
 ## 安全边界
 
-所有高权限操作都由预加载桥持有。本包只接收规范化状态并请求白名单操作；它不能读取已认证 Web URL、读取任意文件、运行任意命令、选择任意外部 URL 或替换应用运行时。
+所有高权限桌面设置都由预加载桥持有。“返回客户端”通过 URL 片段接收当前启动代次的回环凭证，将其移入标签页级存储并从可见地址删除，而且只能请求 Electron 显示窗口。控制监听器要求请求携带当前 Harness 的精确来源与凭证。本包不能读取已认证 Web URL、读取任意文件、运行任意命令、选择任意外部 URL 或替换应用运行时。
 
 裁剪界面只提交绑定渲染窗口的选择 ID、固定用途及有界的方形坐标。Electron 会在原子持久化前校验并裁剪图片，浏览器预览像素不具有最终决定权。关闭编辑器会释放临时图片。图标变更不会调用 Harness 或改写插件配置。
 
@@ -59,7 +59,7 @@ Windows 与 macOS 的“应用图标”提供本地图片选择、支持键盘�
 <a id="known-limitations-and-deferred-work"></a>
 
 - 平台能力存在差异：登录启动和 Shell Profile 集成由桌面宿主报告，浏览器层不作假设。
-- 系统浏览器依赖桌面进程；完整退出 Desktop 会结束共用 Harness 连接，且该浏览器页面不会获得 Electron 专属控件。
+- 系统浏览器依赖桌面进程；完整退出 Desktop 会结束共用 Harness 连接。浏览器只保留“返回客户端”，不会获得 Electron 专属设置。
 - Release 安装仍由宿主控制并要求已验证的产物；客户端包本身不执行安装程序。
 
 <a id="dev-note"></a>

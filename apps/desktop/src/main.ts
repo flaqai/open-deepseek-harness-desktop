@@ -131,6 +131,7 @@ import {
   type StartupDiagnosticIncident,
 } from './startup-diagnostics.ts'
 import { DesktopWebAccess, type DesktopWebStatus } from './desktop-web-access.ts'
+import { DesktopReturnControl } from './desktop-return-control.ts'
 
 const APP_NAME = 'DeepSeek Harness'
 const DESKTOP_WEB_SUPPORTED = process.platform === 'darwin' || process.platform === 'win32'
@@ -171,6 +172,7 @@ let mainSurface: DesktopWindowSurface | undefined
 let supervisor: HarnessSupervisor | undefined
 let harnessOrigin: string | undefined
 let desktopWebAccess: DesktopWebAccess | undefined
+let desktopReturnControl: DesktopReturnControl | undefined
 let lifecycle: DesktopLifecycle | undefined
 let applicationMenu: ApplicationMenuController | undefined
 let disposeApplicationMenu: (() => void) | undefined
@@ -1949,7 +1951,7 @@ async function startApplication(): Promise<void> {
     },
     disposeHost: async () => {
       cancelBootableSnapshot()
-      await Promise.allSettled([oneShotOperations.dispose(), supervisor?.stop()])
+      await Promise.allSettled([oneShotOperations.dispose(), supervisor?.stop(), desktopReturnControl?.close()])
     },
     releaseQuit: () => {
       quitReleased = true
@@ -1960,8 +1962,24 @@ async function startApplication(): Promise<void> {
     },
     reportError: (error) => { console.error('desktop: shutdown failed', error) },
   })
+  desktopReturnControl = DESKTOP_WEB_SUPPORTED ? new DesktopReturnControl({
+    showWindow: () => { lifecycle?.showWindow() },
+  }) : undefined
+  try {
+    await desktopReturnControl?.start()
+  } catch (error) {
+    desktopReturnControl = undefined
+    console.error('desktop: browser return control is unavailable', error)
+  }
   desktopWebAccess = DESKTOP_WEB_SUPPORTED ? new DesktopWebAccess({
     openExternal: url => shell.openExternal(url),
+    decorateUrl: (url) => {
+      const returnUrl = desktopReturnControl?.returnUrl()
+      if (returnUrl === undefined) return url
+      const external = new URL(url)
+      external.hash = `dsh-desktop-return=${encodeURIComponent(returnUrl)}`
+      return external.href
+    },
     canHideWindow: () => !trayUnavailable,
     hideWindow: () => { mainWindow?.hide() },
     showWindow: () => { lifecycle?.showWindow() },
@@ -2415,6 +2433,7 @@ async function startApplication(): Promise<void> {
     ...(process.platform === 'win32' ? { terminateProcessTree: terminateWindowsProcessTree } : {}),
     onReady: (url) => {
       harnessOrigin = new URL(url).origin
+      desktopReturnControl?.setHarnessOrigin(`${harnessOrigin}/`)
       desktopWebAccess?.setReady(url)
       reportedDesktopReadiness.clear()
       publishStartupProgress({ stage: 'ready', progress: 100 })
@@ -2437,6 +2456,7 @@ async function startApplication(): Promise<void> {
       if (state === 'restarting' || state === 'failed') {
         cancelBootableSnapshot()
         harnessOrigin = undefined
+        desktopReturnControl?.clear()
         desktopWebAccess?.clear()
       }
       if (state !== 'ready') menuClientReady = false

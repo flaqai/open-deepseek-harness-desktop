@@ -22,6 +22,7 @@
 
 .button:hover { filter: brightness(0.94); }
 .button:active { transform: translateY(1px); }
+.button:disabled { cursor: wait; filter: saturate(0.75); }
 
 .button:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary-new-colorprimary-new-color);

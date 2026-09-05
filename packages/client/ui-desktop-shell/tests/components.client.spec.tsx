@@ -10,6 +10,9 @@ import { DesktopUpdateBadge, type DesktopUpdateBadgeProps } from '../src/client/
 import {
   DesktopSidebarUpdateButton, type DesktopSidebarUpdateButtonProps,
 } from '../src/client/DesktopSidebarUpdateButton.tsx'
+import {
+  DesktopBrowserReturnButton, type DesktopBrowserReturnButtonProps,
+} from '../src/client/DesktopBrowserReturnButton.tsx'
 import { en } from '../src/client/locales.ts'
 
 afterEach(() => {
@@ -109,6 +112,19 @@ function setup(releaseStatus: DesktopReleaseStatus = {
 }
 
 describe('desktop shell components', () => {
+  it('returns from a browser to Desktop and permits retry after failure', async () => {
+    const returnToDesktop = vi.fn()
+      .mockRejectedValueOnce(new Error('closed'))
+      .mockResolvedValueOnce(undefined)
+    render(<DesktopBrowserReturnButton {...({
+      returnToDesktop, t, wide: true,
+    } as DesktopBrowserReturnButtonProps)} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Return to Desktop' }))
+    await waitFor(() => { expect(screen.getByTitle(/Could not reveal Desktop/u)).toBeTruthy() })
+    fireEvent.click(screen.getByRole('button', { name: 'Return to Desktop' }))
+    await waitFor(() => { expect(returnToDesktop).toHaveBeenCalledTimes(2) })
+  })
+
   it('shows a quiet header badge only for an available update and opens its settings row', async () => {
     const b = setup()
     const openUpdates = vi.fn()

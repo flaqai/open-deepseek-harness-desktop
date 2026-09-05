@@ -17,6 +17,7 @@ export interface DesktopWebOpenResult {
 /** Native operations supplied by the Electron application host. */
 export interface DesktopWebAccessOptions {
   openExternal(url: string): Promise<void>
+  decorateUrl?(url: string): string
   canHideWindow(): boolean
   hideWindow(): void
   showWindow(): void
@@ -86,7 +87,8 @@ export class DesktopWebAccess {
     if (url === undefined) return Promise.reject(new Error('desktop: local Web interface is not ready'))
     const generation = this.#generation
     this.#setStatus({ phase: 'opening' })
-    const operation = this.options.openExternal(url).then(() => {
+    const externalUrl = this.options.decorateUrl?.(url) ?? url
+    const operation = this.options.openExternal(externalUrl).then(() => {
       if (generation !== this.#generation || url !== this.#url) return { opened: true as const, hidden: false }
       const hidden = this.options.canHideWindow()
       if (hidden) this.options.hideWindow()

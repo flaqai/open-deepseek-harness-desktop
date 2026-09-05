@@ -50,6 +50,22 @@ describe('desktop local Web access', () => {
     expect(b.access.status()).toEqual({ phase: 'ready' })
   })
 
+  it('decorates only the URL sent to the system browser', async () => {
+    const b = bench()
+    const access = new DesktopWebAccess({
+      openExternal: b.openExternal,
+      decorateUrl: url => `${url}#dsh-desktop-return=opaque`,
+      canHideWindow: () => true,
+      hideWindow: b.hideWindow,
+      showWindow: b.showWindow,
+      publish: () => {},
+    })
+    access.setReady(URL)
+    await access.open()
+    expect(b.openExternal).toHaveBeenCalledWith(`${URL}#dsh-desktop-return=opaque`)
+    expect(access.status()).toEqual({ phase: 'ready' })
+  })
+
   it('retains the current generation for retry and keeps the window visible after failure', async () => {
     const b = bench()
     b.openExternal.mockRejectedValueOnce(new Error('no browser'))
