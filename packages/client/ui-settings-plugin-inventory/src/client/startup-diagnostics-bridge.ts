@@ -9,6 +9,7 @@ export interface StartupDiagnosticIncident {
   readonly actions: readonly string[]
 }
 
+/** Narrow desktop bridge used to inspect and repair startup incidents. */
 export interface StartupDiagnosticsInjected {
   readonly list: () => Promise<readonly StartupDiagnosticIncident[]>
   readonly retry: (incidentId: string) => Promise<{
@@ -30,6 +31,9 @@ function readBridge(): StartupDiagnosticsInjected | undefined {
   return candidate as StartupDiagnosticsInjected
 }
 
+/** Resolve a validated startup-diagnostics bridge when running inside Desktop.
+ * @returns A restricted bridge in Electron, or `undefined` in a regular browser.
+ */
 export function desktopStartupDiagnosticsAvailable(): StartupDiagnosticsInjected | undefined {
   const bridge = readBridge()
   return bridge === undefined ? undefined : {
