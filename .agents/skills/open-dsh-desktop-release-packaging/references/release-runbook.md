@@ -2,7 +2,7 @@
 
 ## Scope
 
-This runbook qualifies native desktop installers without publishing a release. The source of truth is `.github/workflows/desktop-packages.yml`.
+This runbook qualifies native desktop installers. The source of truth is the manually dispatched `.github/workflows/desktop-packages.yml`. Read `release-publication.md` only when the requested endpoint includes notes or a public Release.
 
 ## 1. Establish the release base
 
@@ -111,9 +111,11 @@ SHA256SUMS
 
 GitHub displays ten Release assets because it adds `Source code (zip)` and `Source code (tar.gz)` automatically. Those generated archives are not files in the local handoff directory and are not uploaded by this workflow.
 
-The helper requires all three runs to name the same source commit and bundled-plugin snapshot. It validates each run conclusion, expected filename, and workflow checksum; validates ZIP payloads and optionally DMGs on macOS; combines the seven checksum entries; and refuses to replace an existing release directory.
+The helper requires all three runs to name the same source commit and bundled-plugin snapshot. It validates each run conclusion, exact artifact ID, expected filename, and workflow checksum; validates ZIP payloads and optionally DMGs on macOS; combines the seven checksum entries; and refuses to replace an existing release directory.
 
-If a large download fails, obtain a fresh artifact URL or rerun `gh run download` into a new staging directory. Never rename unknown temporary files by process ID, file size, or download order. Never resume one artifact with another artifact's URL.
+Downloads use a stable directory below the system temporary directory, keyed by repository, run IDs, and version. When `aria2c` is present, each archive uses 16 parallel ranges by default; otherwise `curl` resumes serially. A failed run retains the staging directory, and a retry refreshes the signed URL while continuing the same artifact ID. Completed archives are reused only when both the API-reported size and ZIP integrity match. Extraction is always non-interactive. A successful atomic handoff removes its staging directory.
+
+Do not delete a retained staging directory just to retry, and do not introduce a one-off download script for large artifacts. Never rename unknown temporary files by process ID, file size, or download order. Never resume one artifact with another artifact's URL. If intentional cleanup is needed later, use the exact retained path printed by the helper after confirming that no retry needs it.
 
 ## 6. Final verification
 
@@ -127,4 +129,4 @@ The verifier requires exactly seven installers and one checksum file at the dire
 
 ## 7. Publication boundary
 
-The packaging workflow accepts `odsh-v*` and legacy `dsh-v*` tags, and a tag push can publish. Do not create or push a tag, set `publish=true`, create a GitHub Release, or upload assets until the user explicitly asks for publication. Packaging authorization alone is insufficient.
+The packaging workflow does not run on tag pushes and never publishes a Release. Publication uses the eight files already verified in `release/<version>/`; it does not rebuild or replace them. Do not create a tag, create a GitHub Release, or upload assets until the user explicitly selects publication, reviews the notes and asset plan, and gives fresh authorization immediately before the external mutation. Packaging authorization alone is insufficient.

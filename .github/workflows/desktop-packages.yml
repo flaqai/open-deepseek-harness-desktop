@@ -2,10 +2,6 @@
 name: Desktop packages
 
 on:
-  push:
-    tags:
-      - 'odsh-v*'
-      - 'dsh-v*'
   workflow_dispatch:
     inputs:
       target:
@@ -18,11 +14,6 @@ on:
           - macos
           - windows-x64
           - linux-x64
-      publish:
-        description: Create or update the GitHub Release; requires an odsh-v* or legacy dsh-v* tag
-        required: true
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -68,7 +59,7 @@ jobs:
 
   macos:
     name: macOS ${{ matrix.arch }}
-    if: ${{ github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'macos' }}
+    if: ${{ inputs.target == 'all' || inputs.target == 'macos' }}
     needs: bundled-plugins
     env:
       DSH_BUNDLED_PLUGINS_REFRESH: '0'
@@ -118,7 +109,7 @@ jobs:
 
   windows:
     name: Windows x64
-    if: ${{ github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'windows-x64' }}
+    if: ${{ inputs.target == 'all' || inputs.target == 'windows-x64' }}
     needs: bundled-plugins
     env:
       DSH_BUNDLED_PLUGINS_REFRESH: '0'
@@ -162,7 +153,7 @@ jobs:
 
   linux:
     name: Linux x64
-    if: ${{ github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'linux-x64' }}
+    if: ${{ inputs.target == 'all' || inputs.target == 'linux-x64' }}
     needs: bundled-plugins
     env:
       DSH_BUNDLED_PLUGINS_REFRESH: '0'
@@ -212,11 +203,10 @@ jobs:
     needs: [macos, windows, linux]
     if: >-
       ${{ always() && (
-        (github.event_name == 'push' && needs.macos.result == 'success' && needs.windows.result == 'success' && needs.linux.result == 'success') ||
-        (github.event_name == 'workflow_dispatch' && inputs.target == 'all' && needs.macos.result == 'success' && needs.windows.result == 'success' && needs.linux.result == 'success') ||
-        (github.event_name == 'workflow_dispatch' && inputs.target == 'macos' && needs.macos.result == 'success') ||
-        (github.event_name == 'workflow_dispatch' && inputs.target == 'windows-x64' && needs.windows.result == 'success') ||
-        (github.event_name == 'workflow_dispatch' && inputs.target == 'linux-x64' && needs.linux.result == 'success')
+        (inputs.target == 'all' && needs.macos.result == 'success' && needs.windows.result == 'success' && needs.linux.result == 'success') ||
+        (inputs.target == 'macos' && needs.macos.result == 'success') ||
+        (inputs.target == 'windows-x64' && needs.windows.result == 'success') ||
+        (inputs.target == 'linux-x64' && needs.linux.result == 'success')
       ) }}
     runs-on: ubuntu-24.04
     steps:
@@ -236,44 +226,3 @@ jobs:
           path: dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
-
-  release:
-    name: GitHub Release
-    needs: [macos, windows, linux, checksums]
-    if: ${{ always() && needs.checksums.result == 'success' && (github.event_name == 'push' || inputs.publish) }}
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: desktop-*
-          path: dist
-          merge-multiple: true
-
-      - name: Verify release tag
-        run: |
-          case "$GITHUB_REF" in
-            refs/tags/odsh-v*|refs/tags/dsh-v*) ;;
-            *) echo "::error::Desktop publication requires an odsh-v* or legacy dsh-v* tag"; exit 1 ;;
-          esac
-
-      - name: Create or update Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          tag="${GITHUB_REF#refs/tags/}"
-          version="${tag#odsh-v}"
-          version="${version#dsh-v}"
-          release_args=(--title "DeepSeek Harness Desktop $version")
-          case "$version" in
-            *-*) release_args+=(--prerelease) ;;
-            *) release_args+=(--latest) ;;
-          esac
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" dist/* --clobber
-            gh release edit "$tag" "${release_args[@]}"
-          else
-            gh release create "$tag" --generate-notes "${release_args[@]}" dist/*
-          fi
