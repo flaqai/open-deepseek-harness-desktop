@@ -4,7 +4,18 @@
 .iconRow { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0; font-size: 13px; }
 .iconRow > img, .trayPreview { flex: none; }
 .iconRow > span { flex: 1; }
-.trayPreview { display: grid; place-items: center; width: 56px; height: 40px; border-radius: 10px; background: var(--dsw-alias-bg-module-platform); }
+.trayPreview {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: #e9ebee;
+  background-image: repeating-conic-gradient(#cfd3d8 0% 25%, #eef0f2 0% 50%);
+  background-position: 0 0;
+  background-size: 12px 12px;
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 12%);
+}
 .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .follow { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .follow input, .zoom input { accent-color: var(--dsw-alias-label-primary); }

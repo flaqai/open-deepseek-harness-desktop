@@ -24,6 +24,13 @@ function setup(platform = 'darwin') {
   return { bridge, status }
 }
 describe('icon settings crop and preview', () => {
+  it('shows the transparent tray artwork on an explicit checkerboard preview', async () => {
+    const { bridge } = setup()
+    render(<DesktopIconSettings bridge={bridge} t={t} />)
+    const tray = await screen.findByAltText(en['icons.tray'])
+    expect(tray.parentElement?.dataset.background).toBe('transparency')
+    expect(screen.getByAltText(en['icons.application']).parentElement?.dataset.background).toBeUndefined()
+  })
   it.each(['darwin', 'win32'])('previews %s artwork with the native inset and corner geometry', async (platform) => {
     const { bridge } = setup(platform)
     render(<DesktopIconSettings bridge={bridge} t={t} />)

@@ -198,7 +198,7 @@ export function DesktopIconSettings({ bridge, t }: { bridge: DesktopIconsBridge;
           <Button disabled={busy} onClick={() => { void choose('application') }}>{t('icons.change')}</Button>
           <Button disabled={busy || (!status.applicationCustom && !status.damaged)} onClick={() => { void run(() => bridge.reset('application')) }}>{t('icons.reset')}</Button>
         </div></div>
-      <div className={css.iconRow}><div className={css.trayPreview}><img src={status.tray} width="24" height="24" alt={t('icons.tray')} /></div><span>{t('icons.tray')}</span>
+      <div className={css.iconRow}><div className={css.trayPreview} data-background="transparency"><img src={status.tray} width="24" height="24" alt={t('icons.tray')} /></div><span>{t('icons.tray')}</span>
         <label className={css.follow}><input type="checkbox" checked={status.trayFollowsApplication} disabled={busy}
           onChange={(event) => { void run(() => bridge.followTray(event.target.checked)) }} />{t('icons.follow')}</label>
       </div>
