@@ -12,7 +12,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.1.2-rc.1 を公開しました。ぜひダウンロードしてお試しください](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1)。** 本版は DeepSeek Harness 0.1.2-rc.1 を上流の基盤とし、ネイティブアプリメニューと保護された再起動・終了フローを追加しました。macOS の Dock・メニューバーアイコンを改善し、Codex のシステムプロキシ適用範囲とカスタム Profile の起動互換性も修正しています。
+> **[v0.1.2-rc.1.1 を公開しました。ぜひダウンロードしてお試しください](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1)。** このメンテナンス版では、対話式の起動復旧ワークスペースと拡張されたプラグイン診断・隔離を追加し、2 回目の起動停止と Profile ロックを修正しました。デスクトップとブラウザーの双方向切り替え、権限確認、選択テキストからのクイック再起動、Windows カスタム ICO の鮮明さも改善しています。
 >
 > これは Release Candidate のプレリリースです。アップグレード前に重要な設定をバックアップし、問題を報告する際はログまたは診断レポートを添付してください。
 
@@ -176,6 +176,10 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 インストーラーには、Plugin Marketplace、dsh-im、dsh-skill-picker、Better Sidebar、dsh-pocket、`@ychris12138/dsh-usage-stats`、`dsh-smooth-stream` の 7 つの起動プリセットが、整合性を検証したローカルアーカイブとして含まれます。Usage Stats は Token 使用量、Provider アカウント、セッション費用の見積もり、予算、エクスポート機能を提供し、Smooth Stream は Markdown、コードブロック、表、ツール結果の滑らかなストリーミング表示とスクロールを提供します。`dsh-font` は診断演習用サンプルとしてのみ提供されます。ユーザーがプリセットをアンインストールしても、クライアントが自動で戻すことはありません。
 
+#### プリセットプラグインへの謝辞
+
+[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream) の作者とメンテナーに感謝します。本プロジェクトはデスクトップ統合と整合性を検証したアーカイブ配布を担当し、各プラグインの著作権、ライセンス、継続的な保守はそれぞれのプロジェクトに帰属します。
+
 <p align="center"><img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="Pocket の QR コードまたは LAN アドレスでスマートフォンを接続"><br><sub>スマートフォンアクセス：同じネットワークでスキャンし、必要に応じて公開アクセスも有効化</sub></p>
 
 <p align="center"><img src="./assets/readme/preset-im-robot-zh.png" width="900" alt="dsh-im で WeChat などの IM ボットを接続"><br><sub>IM ボット：WeChat、Feishu、DingTalk、WeCom、QQ、Slack、Telegram、Discord、WhatsApp に接続</sub></p>
@@ -204,7 +208,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 ## ダウンロードとインストール
 
-[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1) から対象パッケージを入手してください。
+[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1) から対象パッケージを入手してください。
 
 | OS | アーキテクチャ | パッケージ |
 | --- | --- | --- |

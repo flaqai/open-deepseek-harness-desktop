@@ -12,7 +12,7 @@ Languages: [简体中文](README.md) · English · [日本語](README.ja.md) · 
 
 > [!IMPORTANT]
 >
-> **[v0.1.2-rc.1 is available—download it and give it a try](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1).** This release uses DeepSeek Harness 0.1.2-rc.1 as its upstream baseline, adds native application menus and guarded restart and quit flows, refines macOS Dock and menu-bar icons, and fixes Codex system-proxy scoping and custom Profile startup compatibility.
+> **[v0.1.2-rc.1.1 is available—download it and give it a try](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1).** This maintenance release adds an interactive startup-recovery workspace and broader plugin diagnosis and quarantine, addresses second-launch stalls and Profile locking, and improves bidirectional browser switching, permission consent, Quick Restart from selected text, and Windows custom ICO clarity.
 >
 > This is a Release Candidate prerelease. Back up important configuration before upgrading, and include relevant logs or diagnostic reports when reporting problems.
 
@@ -273,6 +273,10 @@ The Electron host grants sanitized clipboard-write permission to the supervised 
 
 The installer carries integrity-checked archives for seven startup presets: Plugin Marketplace, IM connections, Skill picker, Better Sidebar, Pocket, `@ychris12138/dsh-usage-stats`, and `dsh-smooth-stream`. Usage Stats adds token usage, provider accounts, session cost estimates, budgets, and exports; Smooth Stream adds fluid streaming rendering and scrolling for Markdown, code blocks, tables, and tool results. `dsh-font` and the minimal offline `@dsh-diagnostic-lab/scoped-loader-mismatch`, `@dsh-diagnostic-lab/loader-dependency-unavailable`, and `@dsh-diagnostic-lab/loader-export-unavailable` packages are supplied only as Diagnostics Lab samples. Initial preparation can use the local archives without fetching the plugin packages on demand, while package and source identities remain available for compatible online update discovery. They remain ordinary Harness dependencies: users can uninstall them, and the desktop app respects that decision instead of silently restoring them.
 
+#### Preset plugin acknowledgements
+
+Thank you to the authors and maintainers of [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), and [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream). This project provides desktop integration and integrity-checked archive distribution; copyright, licensing, and ongoing maintenance remain with each plugin project.
+
 <p align="center">
   <img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="Connect a phone through the Pocket QR code or LAN address">
   <br>
@@ -373,7 +377,7 @@ The desktop baseline uses upstream `dsh-v0.1.2-rc.1`. Conversation, model, subag
 
 ## Installation
 
-Download builds only from this project's [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1) page. [`v0.1.2-rc.1`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1) provides the following artifacts:
+Download builds only from this project's [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1) page. [`v0.1.2-rc.1.1`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1) provides the following artifacts:
 
 | Platform | Architecture | Release package | Status |
 | --- | --- | --- | --- |
@@ -498,14 +502,15 @@ These items describe direction, not completed support. See the [desktop release 
 
 Thank you to the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) maintainers for the official Codex and Claude Code Providers, and to [OpenAI Codex](https://github.com/openai/codex) and [Anthropic Claude Code](https://github.com/anthropics/claude-code) for their product runtimes. This project integrates user-triggered npm installation of those official connectors with the desktop connection center.
 
-Thank you to the authors and maintainers of these community plugins. The startup set is removable, while the larger Better Sidebar remains an explicit install:
+Thank you to the authors and maintainers of the seven removable community plugin presets:
 
 - [`dsh-im`](https://github.com/xmanrui/dsh-im), maintained by [xmanrui](https://github.com/xmanrui): connects nine IM bot channels, including WeChat and Feishu.
 - [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), maintained by [a735624258](https://github.com/a735624258): selects a Skill from the composer and inserts the Harness Skill invocation.
 - [`dsh-market`](https://github.com/dsh-market/dsh-market), maintained by the [dsh-market](https://github.com/dsh-market) community: browses, searches, installs, and manages plugins inside Harness.
-- [`dsh-font`](https://github.com/tianyhjg-lab/dsh-font): provides client font customization from a pinned Git revision.
 - [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket): provides the Pocket extension included in the startup set.
-- [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar): provides the optional enhanced sidebar installed only on request.
+- [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar): provides the enhanced sidebar.
+- [`DSH Usage Stats`](https://github.com/Ychris12138/dsh-usage-stats): provides token usage, account, cost-estimate, budget, and export views.
+- [`DSH Smooth Stream`](https://github.com/Laplace-bit/dsh-smooth-stream): provides smoother streaming rendering and scrolling.
 
 ## About the FLAQ AI team
 

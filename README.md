@@ -12,7 +12,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.1.2-rc.1 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1)。** 本版以官方 DeepSeek Harness 0.1.2-rc.1 为核心基线，新增桌面原生应用菜单与受保护的重启、退出流程，优化 macOS Dock 与菜单栏图标，并修复 Codex 系统代理作用范围及自定义 Profile 启动兼容性。
+> **[v0.1.2-rc.1.1 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1)。** 本维护版新增交互式启动失败恢复模式和更完整的插件诊断隔离，治理第二次启动卡顿与 Profile 写锁，并完善桌面与浏览器双向切换、按需权限确认、选中文字后的快速重启及 Windows 自定义 ICO 清晰度。
 >
 > 这是 Release Candidate 预发布版本。升级前建议备份重要配置，并将遇到的问题连同日志或诊断报告反馈给我们。
 
@@ -303,6 +303,10 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 安装包携带七个启动预设的完整性校验归档：插件市场、`dsh-im`、`dsh-skill-picker`、Better Sidebar、`dsh-pocket`、`@ychris12138/dsh-usage-stats` 和 `dsh-smooth-stream`；Usage Stats 提供 Token 用量、Provider 账户、会话费用估算、预算与导出能力，Smooth Stream 为回复中的 Markdown、代码块、表格和工具结果提供平滑流式渲染与滚动。`dsh-font`、最小离线 `@dsh-diagnostic-lab/scoped-loader-mismatch`、`@dsh-diagnostic-lab/loader-dependency-unavailable` 与 `@dsh-diagnostic-lab/loader-export-unavailable` 仅作为诊断演练样本提供。首次准备可以使用包内归档，不需要临时联网下载这些插件本体；插件仍保留包信息与来源身份，以便后续发现兼容的联网更新。普通传递依赖继续由 Profile 的 pnpm 解析规则管理。
 
+#### 预设插件致谢
+
+感谢这些启动预设的作者与维护者：[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats) 和 [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)。本项目负责桌面集成和经过校验的归档分发；各插件的版权、许可证与后续维护归各自项目。
+
 <p align="center">
   <img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="通过 dsh-pocket 的二维码和局域网地址连接手机">
   <br>
@@ -348,7 +352,7 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 ## 下载安装
 
-请只从本项目的 [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1) 页面下载安装包。[`v0.1.2-rc.1`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1) 已提供以下发行产物：
+请只从本项目的 [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1) 页面下载安装包。[`v0.1.2-rc.1.1`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1) 已提供以下发行产物：
 
 | 平台      | 架构                     | 发行包                                | 状态  |
 | ------- | ---------------------- | ---------------------------------- | --- |
@@ -485,13 +489,15 @@ API Key 由 Harness 凭据服务管理，请勿提交凭据。选择任何兼容
 
 感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 上游维护核心运行时与官方 Provider，并感谢 [OpenAI Codex](https://github.com/openai/codex) 和 [Anthropic Claude Code](https://github.com/anthropics/claude-code) 提供产品运行时。
 
-感谢以下社区插件的作者与维护者：
+感谢以下七个预设社区插件的作者与维护者：
 
 - [`dsh-im`](https://github.com/xmanrui/dsh-im)，由 [xmanrui](https://github.com/xmanrui) 维护：连接微信、飞书等九种 IM 机器人。
 - [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)，由 [a735624258](https://github.com/a735624258) 维护：在输入区选择 Skill，并插入 Harness 的 Skill 调用指令。
 - [`dsh-market`](https://github.com/dsh-market/dsh-market)，由 [dsh-market](https://github.com/dsh-market) 社区维护：在 Harness 内浏览、搜索、安装和管理插件。
 - [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)：提供 Pocket 扩展。
 - [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)：提供增强侧边栏。
+- [`DSH Usage Stats`](https://github.com/Ychris12138/dsh-usage-stats)：提供 Token 用量、账户、费用估算、预算和导出能力。
+- [`DSH Smooth Stream`](https://github.com/Laplace-bit/dsh-smooth-stream)：提供更平滑的流式渲染与滚动。
 
 ## 关于 FLAQ AI 团队
 

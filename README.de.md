@@ -8,7 +8,7 @@ Sprachen: [简体中文](README.md) · [English](README.en.md) · [日本語](RE
 
 > [!IMPORTANT]
 >
-> **[v0.1.2-rc.1 ist verfügbar – jetzt herunterladen und ausprobieren](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1).** Diese Version basiert auf DeepSeek Harness 0.1.2-rc.1, ergänzt native Anwendungsmenüs und geschützte Abläufe für Neustart und Beenden, verbessert die macOS-Dock- und Menüleistensymbole und behebt die Eingrenzung des Codex-Systemproxys sowie den Start benutzerdefinierter Profiles.
+> **[v0.1.2-rc.1.1 ist verfügbar – jetzt herunterladen und ausprobieren](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1).** Diese Wartungsversion ergänzt einen interaktiven Arbeitsbereich zur Startwiederherstellung sowie erweiterte Plugin-Diagnose und Quarantäne. Sie behebt Hänger beim zweiten Start und Profile-Sperren und verbessert den Wechsel zwischen Desktop und Browser, die Berechtigungsabfrage, den Schnellneustart für markierten Text und die Schärfe eigener Windows-ICO-Dateien.
 >
 > Dies ist ein Release Candidate. Sichern Sie wichtige Konfigurationen vor dem Upgrade und fügen Sie Problemmeldungen relevante Protokolle oder Diagnoseberichte bei.
 
@@ -154,6 +154,10 @@ Wartet die Sitzung auf Auswahl, Bestätigung oder Antwort oder ist der Editor ge
 
 Der Installer enthält sieben Start-Presets als integritätsgeprüfte lokale Archive: Plugin Marketplace, dsh-im, dsh-skill-picker, Better Sidebar, dsh-pocket, `@ychris12138/dsh-usage-stats` und `dsh-smooth-stream`. Usage Stats ergänzt Token-Nutzung, Provider-Konten, Kostenschätzungen für Sitzungen, Budgets und Exporte; Smooth Stream sorgt für flüssiges Streaming und Scrollen bei Markdown, Codeblöcken, Tabellen und Werkzeugergebnissen. `dsh-font` wird ausschließlich als Beispiel für Diagnoseübungen bereitgestellt. Deinstalliert ein Benutzer ein Preset, installiert der Client es nicht automatisch erneut.
 
+#### Dank an die Preset-Plugins
+
+Vielen Dank an die Autoren und Maintainer von [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats) und [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream). Dieses Projekt übernimmt die Desktop-Integration und die Verteilung integritätsgeprüfter Archive; Urheberrecht, Lizenzen und laufende Pflege verbleiben bei den jeweiligen Plugin-Projekten.
+
 <p align="center"><img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="Telefon über Pocket-QR-Code oder LAN-Adresse verbinden"><br><sub>Mobiler Zugriff: im selben Netzwerk scannen und öffentlichen Zugriff nur bei Bedarf aktivieren</sub></p>
 
 <p align="center"><img src="./assets/readme/preset-im-robot-zh.png" width="900" alt="WeChat und weitere IM-Bots über dsh-im verbinden"><br><sub>IM-Bots: WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord und WhatsApp</sub></p>
@@ -176,7 +180,7 @@ Unterstützt System, Hell, Dunkel und acht Produkt-Themes, acht integrierte Illu
 
 ## Download und Installation
 
-Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1) herunter.
+Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.2-rc.1.1) herunter.
 
 | System | Architektur | Paket |
 | --- | --- | --- |
