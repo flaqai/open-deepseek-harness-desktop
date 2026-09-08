@@ -106,7 +106,8 @@ describe('application entrypoints', () => {
 
   it('rejects a community Desktop preload that is no longer owned by its build', () => {
     const root = fixture()
-    write(root, 'apps/desktop/package.json', '{"main":"lib/main.js"}\n')
+    write(root, 'apps/desktop/package.json', '{"main":"lib/entry.js"}\n')
+    write(root, 'apps/desktop/src/entry.ts', "await import('./main.js')\n")
     write(root, 'apps/desktop/src/main.ts', '')
     write(root, 'apps/desktop/src/preload.ts', '')
     write(root, 'apps/desktop/src/data-home-preload.ts', '')

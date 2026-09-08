@@ -65,6 +65,7 @@ Repeat for `macos`, then `linux-x64`. The accepted jobs are:
 - bundled plugin resolution;
 - native package build;
 - Windows installed-package smoke test for Windows;
+- final DMG and ZIP Helper-layout, signature, and native Electron startup checks for each macOS architecture;
 - SHA-256 checksum generation;
 - artifact upload.
 
@@ -77,6 +78,14 @@ gh run view <run-id> --log-failed
 Fix the actual failure on the packaging-fix branch. After any source commit changes, previous platform artifacts are stale even if their earlier run was green.
 
 ## 4. Bundled plugin consistency
+
+### macOS native startup qualification
+
+Keep `CFBundleName` consistent with `productName` and the packaged Helper executable names. Prefer electron-builder's generated `CFBundleName`; display-only branding belongs in `CFBundleDisplayName`. Electron reads `CFBundleName` before JavaScript starts to locate its Helper, so a mismatch can terminate with `SIGTRAP` and `Unable to find helper app` even after the user approves Gatekeeper and deep signature verification passes.
+
+Run `node --test apps/desktop/scripts/smoke-macos-package.test.mjs`, then `node apps/desktop/scripts/smoke-macos-package.mjs <final.dmg> <final.zip>` on each matching native macOS runner. The script checks extracted final artifacts rather than the build directory, verifies all four Helpers and deep signatures, and requires `--dsh-native-smoke` to report `DSH_NATIVE_SMOKE_READY` and exit successfully within 15 seconds. This dedicated entry waits for Electron readiness before importing any stateful desktop modules; it uses a temporary user-data directory. A packaged application can ignore `--version` and start normally, so that flag is not a substitute. Never set `ELECTRON_RUN_AS_NODE` for this probe; it would bypass the failing native path. A failure blocks artifact upload and checksums; fix before accepting the build.
+
+The native probe establishes Electron initialization, not Harness or UI readiness. Before publication, also launch the extracted application with isolated test data, inspect newly appended logs for `dsh web:`, `client ready`, and `event-dispatch is ready`, verify its client URL responds and Electron remains alive, then quit cleanly. Record the tested architecture and distinguish any untested platform; a developer Electron launch is not a packaged-app test. Do not disable SIP or Gatekeeper as a workaround for a Helper-name defect.
 
 Each workflow run resolves registry-backed entries at their current stable version and passes one offline snapshot to that run's native builders. Separate Windows, macOS, and Linux runs can resolve different snapshots if a plugin publishes between runs.
 

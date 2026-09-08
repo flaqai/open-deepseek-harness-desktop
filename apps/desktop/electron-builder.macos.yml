@@ -19,7 +19,6 @@ extraResources:
     to: cli/desktop-cli.mjs
 mac:
   extendInfo:
-    CFBundleName: Open DSH Desktop
     CFBundleDisplayName: Open DSH Desktop
     NSMicrophoneUsageDescription: DeepSeek Harness uses the microphone only after you approve a voice-input or recording request.
     NSCameraUsageDescription: DeepSeek Harness uses the camera only after you approve a camera request.

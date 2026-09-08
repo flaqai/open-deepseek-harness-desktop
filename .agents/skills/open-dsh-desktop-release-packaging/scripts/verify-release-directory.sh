@@ -6,6 +6,11 @@ usage() {
   exit 2
 }
 
+macos_only=0
+if [[ $# -eq 2 && $1 == --macos-only ]]; then
+  macos_only=1
+  shift
+fi
 [[ $# -eq 1 ]] || usage
 directory=$1
 installers=(
@@ -17,6 +22,9 @@ installers=(
   DeepSeek-Harness-macos-x64.zip
   DeepSeek-Harness-windows-x64.exe
 )
+if [[ "$macos_only" == 1 ]]; then
+  installers=(DeepSeek-Harness-macos-arm64.dmg DeepSeek-Harness-macos-arm64.zip DeepSeek-Harness-macos-x64.dmg DeepSeek-Harness-macos-x64.zip)
+fi
 expected=("${installers[@]}" SHA256SUMS)
 
 [[ -d "$directory" ]] || { echo "release directory does not exist: $directory" >&2; exit 1; }
@@ -24,7 +32,7 @@ expected=("${installers[@]}" SHA256SUMS)
 expected_listing=$(printf '%s\n' "${expected[@]}" | LC_ALL=C sort)
 actual_listing=$(find "$directory" -mindepth 1 -maxdepth 1 -exec basename {} \; | LC_ALL=C sort)
 if [[ "$actual_listing" != "$expected_listing" ]]; then
-  echo "release directory must contain exactly eight flat files" >&2
+  echo "release directory must contain exactly ${#expected[@]} flat files" >&2
   echo "expected:" >&2
   printf '  %s\n' "${expected[@]}" >&2
   echo "actual:" >&2

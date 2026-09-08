@@ -74,6 +74,8 @@ Windows 与 macOS 安装版可以注册由桌面客户端管理的 `dsh` 命令�
 
 在架构匹配的 Mac 上使用下列命令构建 ad-hoc 签名、未公证的 macOS 软件包：
 
+macOS 保持自动生成的 `CFBundleName` 与 `productName` 和所有 Helper 可执行文件名称一致，显示品牌使用 `CFBundleDisplayName`。上传前，打包工作流对最终 DMG 和 ZIP 都运行[原生安装包检查](scripts/smoke-macos-package.mjs)。专用 `--dsh-native-smoke` 入口等待 Electron 就绪后退出，不加载桌面宿主；该检查不代表 Harness 或界面已就绪。
+
 ```sh
 npm run package:desktop:macos:arm64
 npm run package:desktop:macos:x64

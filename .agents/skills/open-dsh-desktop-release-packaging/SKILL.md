@@ -38,9 +38,12 @@ An earlier permission to push a packaging-fix branch does not authorize a tag or
 - The local handoff directory is exactly `release/<version>/`. It is flat and contains exactly seven installers plus `SHA256SUMS`; it contains no platform subdirectories, run metadata, snapshot metadata, or other files.
 - A GitHub Release page shows ten entries because GitHub adds source ZIP and TAR archives to the eight uploaded files. Do not download those generated source archives into the local handoff directory or upload replacements for them.
 - A green build is not a downloaded deliverable. Download the named artifacts, verify the CI checksums, and report exact local paths.
+- macOS qualification requires the final DMG and ZIP to pass `apps/desktop/scripts/smoke-macos-package.mjs` on each matching native runner before upload. Follow the macOS startup checks in the runbook; valid signatures and matching checksums alone do not establish launchability.
 - Never adopt a partial file from `gh` temporary storage or pair a resumable signed URL with a guessed artifact filename. A ZIP central directory can look plausible while its payload belongs to another artifact.
 
 ## Execution
+
+For an explicitly requested macOS-only repair, use `target=macos` and `refresh_plugins=false` to retain the committed plugin archives. Download with `scripts/download-desktop-release.sh --macos-only <owner/repo> <run-id>` into the repair worktree's `release/<version>/`. This partial handoff contains four macOS installers and their `SHA256SUMS`; verify it with `scripts/verify-release-directory.sh --macos-only <directory>`. Do not present this subset as a rebuilt eight-file release or overwrite the full Release checksum file with its four-entry checksum file. Retained Windows/Linux assets keep their original source provenance.
 
 1. Confirm the version, base branch, final source commit, expected branch names, remote, and publication boundary.
 2. Create `release/<version>` from the confirmed base. Change only `apps/desktop/package.json` when that is the sole desktop version owner, then run proportionate checks and commit.

@@ -2,14 +2,22 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 <owner/repo> <windows-run-id> <macos-run-id> <linux-run-id>" >&2
+  echo "usage: $0 <owner/repo> <windows-run-id> <macos-run-id> <linux-run-id> | --macos-only <owner/repo> <macos-run-id>" >&2
   exit 2
 }
 
-[[ $# -eq 4 ]] || usage
-repository=$1
-run_ids=("$2" "$3" "$4")
-targets=(windows-x64 macos linux-x64)
+verify_args=()
+if [[ $# -eq 3 && $1 == --macos-only ]]; then
+  repository=$2
+  run_ids=("$3")
+  targets=(macos)
+  verify_args=(--macos-only)
+else
+  [[ $# -eq 4 ]] || usage
+  repository=$1
+  run_ids=("$2" "$3" "$4")
+  targets=(windows-x64 macos linux-x64)
+fi
 script_directory=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repository_root=$(cd "$script_directory/../../../.." && pwd)
 
@@ -153,7 +161,7 @@ download_archive() {
 common_head_sha=
 common_snapshot_digest=
 
-for index in 0 1 2; do
+for index in "${!run_ids[@]}"; do
   run_id=${run_ids[$index]}
   target=${targets[$index]}
   run_directory="$staging/$target"
@@ -257,7 +265,7 @@ EOF
 done
 
 LC_ALL=C sort -k2,2 "$combined_checksums" > "$final_directory/SHA256SUMS"
-ODSH_VERIFY_DMG=${ODSH_VERIFY_DMG:-1} "$script_directory/verify-release-directory.sh" "$final_directory"
+ODSH_VERIFY_DMG=${ODSH_VERIFY_DMG:-1} "$script_directory/verify-release-directory.sh" ${verify_args[@]+"${verify_args[@]}"} "$final_directory"
 
 mkdir -p "$(dirname "$output_directory")"
 mv "$final_directory" "$output_directory"

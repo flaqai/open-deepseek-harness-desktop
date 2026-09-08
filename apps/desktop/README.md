@@ -74,6 +74,8 @@ The launcher always uses the app's embedded Node, Harness, and pnpm paths. It re
 
 Build the ad-hoc-signed, unnotarized macOS packages on a matching Mac with:
 
+macOS keeps the generated `CFBundleName` aligned with `productName` and all Helper executables; display branding uses `CFBundleDisplayName`. Before upload, the packaging workflow checks both final DMG and ZIP with [the native package smoke](scripts/smoke-macos-package.mjs). Its `--dsh-native-smoke` entry waits for Electron readiness and exits before loading the desktop host; it does not establish Harness or UI readiness.
+
 ```sh
 npm run package:desktop:macos:arm64
 npm run package:desktop:macos:x64

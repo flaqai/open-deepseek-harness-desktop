@@ -171,3 +171,16 @@ ODSH_VERIFY_DMG=0 "$script_directory/verify-release-directory.sh" "$release_dire
   exit 1
 }
 echo "download-desktop-release fixture test passed"
+
+PATH="$fake_bin:$PATH" \
+ODSH_FIXTURE_ARTIFACT_STORE="$artifact_store" \
+ODSH_RELEASE_DOWNLOAD_STAGING_ROOT="$staging_root" \
+ODSH_RELEASE_OUTPUT_DIRECTORY="$fixture_root/macos-only" \
+ODSH_VERIFY_DMG=0 \
+  "$script_directory/download-desktop-release.sh" --macos-only fixture/repository 202
+ODSH_VERIFY_DMG=0 "$script_directory/verify-release-directory.sh" --macos-only "$fixture_root/macos-only"
+if ODSH_VERIFY_DMG=0 "$script_directory/verify-release-directory.sh" "$fixture_root/macos-only"; then
+  echo "partial macOS handoff must not pass the full release verifier" >&2
+  exit 1
+fi
+echo "macOS-only download fixture test passed"

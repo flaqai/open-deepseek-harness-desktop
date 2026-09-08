@@ -58,7 +58,13 @@ describe('desktop package workflow bundled plugins', () => {
       jobs: Record<string, WorkflowJob>
     }
     expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
-    expect(Object.keys(workflow.on.workflow_dispatch.inputs)).toEqual(['target'])
+    expect(Object.keys(workflow.on.workflow_dispatch.inputs)).toEqual(['target', 'refresh_plugins'])
+    expect(workflow.on.workflow_dispatch.inputs.refresh_plugins).toEqual({
+      description: 'Resolve latest stable bundled plugins (disable for a packaging-only rebuild)',
+      required: true,
+      type: 'boolean',
+      default: true,
+    })
     expect(workflow.permissions).toEqual({ contents: 'read' })
     expect(workflow.jobs.release).toBeUndefined()
     expect(source).not.toContain('gh release ')

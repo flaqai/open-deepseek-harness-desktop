@@ -61,7 +61,8 @@ const ROOT_DEMO_POLICIES = new Map<string, DemoPolicy>([
 
 /** Community Desktop entrypoints that root knip no longer owns after alpha.4. */
 const DESKTOP_ENTRYPOINT_OWNERS: readonly DesktopEntrypointOwner[] = [
-  { source: 'apps/desktop/src/main.ts', owner: 'apps/desktop/package.json', needle: '"main": "lib/main.js"' },
+  { source: 'apps/desktop/src/entry.ts', owner: 'apps/desktop/package.json', needle: '"main": "lib/entry.js"' },
+  { source: 'apps/desktop/src/main.ts', owner: 'apps/desktop/src/entry.ts', needle: "import('./main.js')" },
   { source: 'apps/desktop/src/preload.ts', owner: 'apps/desktop/tsdown.preload.config.ts', needle: 'lib/preload.js' },
   { source: 'apps/desktop/src/data-home-preload.ts', owner: 'apps/desktop/tsdown.preload.config.ts', needle: 'lib/data-home-preload.js' },
   { source: 'apps/desktop/src/titlebar-preload.ts', owner: 'apps/desktop/tsdown.preload.config.ts', needle: 'lib/titlebar-preload.js' },
@@ -72,6 +73,7 @@ const DESKTOP_ENTRYPOINT_OWNERS: readonly DesktopEntrypointOwner[] = [
   { source: 'apps/desktop/scripts/refresh-bundled-plugins.ts', owner: 'package.json', needle: 'apps/desktop/scripts/refresh-bundled-plugins.ts' },
   { source: 'apps/desktop/scripts/verify-external-tool-compatibility.ts', owner: 'package.json', needle: 'apps/desktop/scripts/verify-external-tool-compatibility.ts' },
   { source: 'apps/desktop/scripts/smoke-windows-package.ps1', owner: '.github/workflows/desktop-packages.yml', needle: 'apps/desktop/scripts/smoke-windows-package.ps1' },
+  { source: 'apps/desktop/scripts/smoke-macos-package.mjs', owner: '.github/workflows/desktop-packages.yml', needle: 'apps/desktop/scripts/smoke-macos-package.mjs' },
   { source: 'apps/desktop/scripts/windows-command-shell.mjs', owner: 'apps/desktop/tests/windows-command-shell.spec.ts', needle: '../scripts/windows-command-shell.mjs' },
 ]
 

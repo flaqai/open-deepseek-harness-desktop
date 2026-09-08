@@ -9,7 +9,7 @@
     "email": "haoweibing@6677.ai"
   },
   "type": "module",
-  "main": "lib/main.js",
+  "main": "lib/entry.js",
   "dependencies": {
     "sigstore": "4.1.1",
     "tar": "^7.5.22",
