@@ -331,8 +331,27 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
 
   const openLogs = element<HTMLButtonElement>('#open-logs')
   openLogs.addEventListener('click', openLog)
+  const resetProcessRecovery = element<HTMLButtonElement>('#reset-process-recovery')
   const exportDiagnostics = element<HTMLButtonElement>('#export-diagnostics')
   const diagnosticsStatus = element<HTMLElement>('#diagnostics-status')
+  void ipcRenderer.invoke('dsh:desktop:process-recovery:get').then((value: unknown) => {
+    const resetAvailable = value !== null && typeof value === 'object'
+      && (value as { resetAvailable?: unknown }).resetAvailable === true
+    resetProcessRecovery.hidden = !resetAvailable
+    if (resetAvailable) retry.disabled = true
+  }, () => {
+    // The reset remains hidden when capability probing fails.
+  })
+  resetProcessRecovery.addEventListener('click', () => {
+    if (!window.confirm(copy.processRecoveryResetConfirm)) return
+    resetProcessRecovery.disabled = true
+    diagnosticsStatus.hidden = false
+    diagnosticsStatus.textContent = copy.processRecoveryResetting
+    void ipcRenderer.invoke('dsh:desktop:process-recovery:reset').catch((error: unknown) => {
+      diagnosticsStatus.textContent = `${copy.processRecoveryResetFailed}: ${error instanceof Error ? error.message : String(error)}`
+      resetProcessRecovery.disabled = false
+    })
+  })
   exportDiagnostics.addEventListener('click', () => {
     exportDiagnostics.disabled = true
     diagnosticsStatus.hidden = true
@@ -403,6 +422,9 @@ interface RecoveryCopy {
   readonly switchDataHomeFailed: string
   readonly exported: string
   readonly exportFailed: string
+  readonly processRecoveryResetConfirm: string
+  readonly processRecoveryResetting: string
+  readonly processRecoveryResetFailed: string
 }
 
 const chineseCopy: RecoveryCopy = {
@@ -416,7 +438,7 @@ const chineseCopy: RecoveryCopy = {
   slow: '启动时间较长，你可以打开 Harness 日志查看当前进度。',
   slowDetail: (task, elapsed, remaining) => remaining === undefined ? `${task} 已运行 ${elapsed} 秒。应用会自动降级或显示可恢复错误，不会无限等待。` : `${task} 已运行 ${elapsed} 秒，最迟约 ${remaining} 秒后自动降级。`,
   stages: { 'preparing-desktop': '正在准备桌面环境', 'preparing-runtime': '正在准备内置运行时', 'checking-profile': '正在检查插件兼容性', 'verifying-plugin': '正在校验插件', 'extracting-plugin': '正在解压插件', 'configuring-plugin': '正在配置插件', 'starting-harness': '正在启动 Harness', 'restarting-harness': '正在重新启动 Harness', 'waiting-background-tasks': '正在等待或取消后台修改任务', 'stopping-harness': '正在请求 Harness 和插件正常停止', 'reclaiming-processes': '正在回收受管进程树', 'checking-shutdown': '正在确认配置目录已解除占用', ready: '启动完成' },
-  operations: { 'profile-read-only-check': '正在只读检查插件兼容性', 'profile-lock-wait': 'Profile 正被其他操作占用，等待其完成', 'profile-lock-diagnostics': 'Profile 正被其他操作占用，正在打开诊断模式', 'profile-diagnostics-ready': '诊断工具已就绪，正常 Profile 仍保持暂停', 'profile-check-timeout': '兼容性检查已超时，已跳过异常步骤并继续启动', 'profile-repair': '正在修复 Profile', 'profile-initialize': '正在初始化全新 Profile', 'profile-initialize-failed': '全新 Profile 初始化失败' },
+  operations: { 'profile-read-only-check': '正在只读检查插件兼容性', 'profile-lock-wait': 'Profile 正被其他操作占用，等待其完成', 'profile-lock-diagnostics': 'Profile 正被其他操作占用，正在打开诊断模式', 'profile-diagnostics-ready': '诊断工具已就绪，正常 Profile 仍保持暂停', 'profile-check-timeout': '兼容性检查已超时，已跳过异常步骤并继续启动', 'profile-repair': '正在修复 Profile', 'profile-initialize': '正在初始化全新 Profile', 'profile-initialize-failed': '全新 Profile 初始化失败', 'process-recovery-blocked': '后台进程恢复未完成，已打开诊断模式' },
   pluginLoading: '正在读取已安装插件…', pluginLoadFailed: '无法读取插件清单',
   pluginSource: source => ({ registry: '在线安装', bundled: '桌面预装', local: '本地来源', other: '其他来源' })[source],
   pluginAttention: code => code === undefined ? '诊断异常' : `诊断异常 · ${code}`,
@@ -427,6 +449,8 @@ const chineseCopy: RecoveryCopy = {
   snapshotConfirm: '将恢复所选插件快照。会话、凭据和插件配置不会改变。是否继续？', snapshotFailed: '插件快照恢复失败', snapshotRunning: '正在校验、恢复并重新启动…', snapshotNeedsNetwork: '本地缓存不完整，原状态已恢复。允许联网后可重试。', snapshotRolledBack: '所选快照未能安全启动，已自动恢复到操作前状态。',
   invalidDataHome: '请选择受支持的 DSH 配置目录，或选择一个完全空的目录来新建配置。', unreadableDataHome: '无法读取所选目录，请检查目录权限后重试。', unchangedDataHome: '当前已在使用这个配置目录，请选择其他目录。', switchDataHomeFailed: '配置目录切换失败，请重试或查看日志。',
   exported: '诊断报告已导出', exportFailed: '诊断报告导出失败',
+  processRecoveryResetConfirm: '仅重置后台进程恢复记录并重新启动，不会删除会话、配置、插件或凭据。是否继续？',
+  processRecoveryResetting: '后台进程恢复记录已隔离，正在重新启动…', processRecoveryResetFailed: '无法重置后台进程恢复记录',
 }
 
 const englishCopy: RecoveryCopy = {
@@ -440,7 +464,7 @@ const englishCopy: RecoveryCopy = {
   slow: 'Startup is taking longer than expected. Open the Harness log to inspect its progress.',
   slowDetail: (task, elapsed, remaining) => remaining === undefined ? `${task} has run for ${elapsed}s. The app will degrade or show a recoverable error instead of waiting forever.` : `${task} has run for ${elapsed}s and will degrade in about ${remaining}s at the latest.`,
   stages: { 'preparing-desktop': 'Preparing desktop environment', 'preparing-runtime': 'Preparing the embedded runtime', 'checking-profile': 'Checking plugin compatibility', 'verifying-plugin': 'Verifying plugin', 'extracting-plugin': 'Extracting plugin', 'configuring-plugin': 'Configuring plugin', 'starting-harness': 'Starting Harness', 'restarting-harness': 'Restarting Harness', 'waiting-background-tasks': 'Waiting for or cancelling background mutations', 'stopping-harness': 'Requesting Harness and plugins to stop cleanly', 'reclaiming-processes': 'Reclaiming managed process trees', 'checking-shutdown': 'Confirming the Profile is no longer in use', ready: 'Startup complete' },
-  operations: { 'profile-read-only-check': 'Checking plugin compatibility without changes', 'profile-lock-wait': 'Waiting for the operation that owns the Profile', 'profile-lock-diagnostics': 'Another operation owns the Profile; opening Diagnostics', 'profile-diagnostics-ready': 'Diagnostic tools are ready; the normal Profile remains paused', 'profile-check-timeout': 'Compatibility check timed out; skipped the step and continued startup', 'profile-repair': 'Repairing the Profile', 'profile-initialize': 'Initializing a new Profile', 'profile-initialize-failed': 'New Profile initialization failed' },
+  operations: { 'profile-read-only-check': 'Checking plugin compatibility without changes', 'profile-lock-wait': 'Waiting for the operation that owns the Profile', 'profile-lock-diagnostics': 'Another operation owns the Profile; opening Diagnostics', 'profile-diagnostics-ready': 'Diagnostic tools are ready; the normal Profile remains paused', 'profile-check-timeout': 'Compatibility check timed out; skipped the step and continued startup', 'profile-repair': 'Repairing the Profile', 'profile-initialize': 'Initializing a new Profile', 'profile-initialize-failed': 'New Profile initialization failed', 'process-recovery-blocked': 'Background process recovery did not complete; Diagnostics is open' },
   pluginLoading: 'Loading installed plugins…', pluginLoadFailed: 'Could not load the plugin list',
   pluginSource: source => ({ registry: 'Online install', bundled: 'Desktop preset', local: 'Local source', other: 'Other source' })[source],
   pluginAttention: code => code === undefined ? 'Diagnostic issue' : `Diagnostic issue · ${code}`,
@@ -451,6 +475,8 @@ const englishCopy: RecoveryCopy = {
   snapshotConfirm: 'Restore the selected plugin snapshot? Sessions, credentials, and plugin configuration will not change.', snapshotFailed: 'Plugin snapshot restore failed', snapshotRunning: 'Verifying, restoring, and restarting…', snapshotNeedsNetwork: 'The local cache is incomplete and the prior state was restored. Allow network access to retry.', snapshotRolledBack: 'The selected snapshot did not start safely, so the pre-restore state was restored.',
   invalidDataHome: 'Choose a supported DSH data directory, or a completely empty folder for a new configuration.', unreadableDataHome: 'The selected directory cannot be read. Check its permissions and try again.', unchangedDataHome: 'This configuration directory is already active. Choose a different directory.', switchDataHomeFailed: 'Could not switch the configuration directory. Retry or inspect the log.',
   exported: 'Diagnostic report exported', exportFailed: 'Could not export the diagnostic report',
+  processRecoveryResetConfirm: 'Reset only the background-process recovery record and restart? Sessions, settings, plugins, and credentials are not removed.',
+  processRecoveryResetting: 'The background-process recovery record was quarantined. Restarting…', processRecoveryResetFailed: 'Could not reset the background-process recovery record',
 }
 
 function localizeRecoveryWorkspace(copy: RecoveryCopy): void {
@@ -464,7 +490,7 @@ function localizeRecoveryWorkspace(copy: RecoveryCopy): void {
     '#plugins-title': ['检查已安装的插件', 'Check installed plugins'], '#plugins-description': ['核心组件已保护，会话和凭据不受影响。', 'Core components are protected. Sessions and credentials are not affected.'], '#plugin-column-name': ['插件', 'Plugin'], '#plugin-column-version': ['版本', 'Version'], '#plugin-column-status': ['状态', 'Status'], '#plugin-empty': ['没有可卸载的外部插件。', 'No removable external plugins are installed.'],
     '#snapshot-title': ['回退插件快照', 'Roll back plugin snapshot'], '#snapshot-description': ['仅恢复插件依赖、版本、顺序和构建许可，不会改变会话、凭据和插件配置。', 'Only plugin dependencies, versions, order and build permissions are restored.'], '#snapshot-restore': ['恢复快照', 'Restore snapshot'],
     '#directory-title': ['切换配置目录', 'Switch data directory'], '#directory-description': ['选择另一套已有配置，或选择空文件夹创建新配置。', 'Choose another existing configuration, or select an empty folder to create a new one.'], '#switch-data-home': ['选择目录', 'Choose directory'],
-    '#diagnostics-title': ['导出诊断', 'Export diagnostics'], '#diagnostics-description': ['导出脱敏的启动与插件摘要，或打开本机日志目录进一步检查。', 'Export a redacted startup and plugin summary, or open the local log folder for deeper inspection.'], '#export-diagnostics': ['导出报告', 'Export report'], '#open-logs': ['打开日志目录', 'Open log folder'],
+    '#diagnostics-title': ['导出诊断', 'Export diagnostics'], '#diagnostics-description': ['导出脱敏的启动与插件摘要，或打开本机日志目录进一步检查。', 'Export a redacted startup and plugin summary, or open the local log folder for deeper inspection.'], '#export-diagnostics': ['导出报告', 'Export report'], '#open-logs': ['打开日志目录', 'Open log folder'], '#reset-process-recovery': ['重置后台进程记录', 'Reset background process record'],
     '#safe-note': ['诊断模式不会加载当前 Profile 的第三方插件，也不会修改会话和凭据。', 'Diagnostics mode does not load third-party plugins from the active Profile or modify sessions and credentials.'], '#footer-hint': ['“继续”会先关闭诊断环境，再重新尝试正常启动。', 'Continue closes the diagnostic environment before retrying normal startup.'], '#exit': ['退出', 'Quit'], '#retry': ['重新尝试启动', 'Retry startup'],
   }
   const chinese = copy === chineseCopy

@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { PROCESS_GUARDIAN_SOURCE } from '../src/process-observer.ts'
+import { PROCESS_GUARDIAN_SOURCE, readProcessRecoveryJournal } from '../src/process-observer.ts'
 
 const directories: string[] = []
 afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }) })
@@ -68,5 +68,32 @@ describe('desktop crash process guardian', () => {
     expect(await b.exited).toBe(0)
     expect(existsSync(b.marker)).toBe(false)
     expect(existsSync(b.recovery)).toBe(true)
+  })
+
+  it('accepts a BOM-prefixed current recovery journal', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'dsh-process-recovery-read-'))
+    directories.push(directory)
+    const recovery = join(directory, 'recovery-v1.json')
+    const document = { schema: 'open-dsh-desktop/process-recovery/v2', records: [] }
+    writeFileSync(recovery, `\uFEFF${JSON.stringify(document)}`)
+    await expect(readProcessRecoveryJournal(recovery)).resolves.toEqual(document)
+    expect(existsSync(`${recovery}.rejected`)).toBe(false)
+  })
+
+  it.each([
+    ['unreadable', '{'],
+    ['legacy', JSON.stringify({ schema: 'open-dsh-desktop/process-recovery/v1', records: [] })],
+    ['invalid current', JSON.stringify({
+      schema: 'open-dsh-desktop/process-recovery/v2',
+      records: [{ id: 'old', label: 'Harness', identities: [] }],
+    })],
+  ])('quarantines %s derived recovery state instead of blocking startup', async (_kind, source) => {
+    const directory = mkdtempSync(join(tmpdir(), 'dsh-process-recovery-read-'))
+    directories.push(directory)
+    const recovery = join(directory, 'recovery-v1.json')
+    writeFileSync(recovery, source)
+    await expect(readProcessRecoveryJournal(recovery)).resolves.toBeUndefined()
+    expect(existsSync(recovery)).toBe(false)
+    expect(readFileSync(`${recovery}.rejected`, 'utf8')).toBe(source)
   })
 })

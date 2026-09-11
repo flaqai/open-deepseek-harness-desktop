@@ -1,7 +1,11 @@
 /** Electron application host for the existing DeepSeek Harness Web GUI. */
 
 import { randomUUID } from 'node:crypto'
-import { loadProcessObserver, type DesktopProcessObserver } from './process-observer.ts'
+import {
+  loadProcessObserver,
+  quarantineProcessRecoveryJournal,
+  type DesktopProcessObserver,
+} from './process-observer.ts'
 import { appendFile, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir, userInfo } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -226,6 +230,7 @@ let recoveryActivateCandidate: (() => Promise<void>) | undefined
 let recoveryDiscardCandidate: (() => Promise<void>) | undefined
 let recoveryRestartRequired = false
 let recoveryPluginRemove: ((packageName: string) => Promise<void>) | undefined
+let blockedProcessRecoveryPath: string | undefined
 let latestRecoveryFailure: string | undefined
 let processObserver: DesktopProcessObserver | undefined
 let processObservationFailure: unknown
@@ -2107,6 +2112,19 @@ async function startApplication(): Promise<void> {
     }, undefined, 2)}\n`, { mode: 0o600 })
     return { saved: true as const, fileName: basename(result.filePath) }
   })
+  ipcMain.handle('dsh:desktop:process-recovery:get', (event) => {
+    assertMainRenderer(event.sender)
+    return { resetAvailable: blockedProcessRecoveryPath !== undefined }
+  })
+  ipcMain.handle('dsh:desktop:process-recovery:reset', async (event) => {
+    assertMainRenderer(event.sender)
+    const path = blockedProcessRecoveryPath
+    if (path === undefined) throw new Error('desktop: no blocked process recovery journal is available')
+    await quarantineProcessRecoveryJournal(path)
+    blockedProcessRecoveryPath = undefined
+    setTimeout(() => { requestDesktopRestart() }, 150)
+    return { restarting: true as const }
+  })
   ipcMain.handle('dsh:desktop:recovery:exit', async (event) => {
     assertMainRenderer(event.sender)
     if (recoveryCandidateHome?.() !== undefined) await recoveryDiscardCandidate?.()
@@ -2826,12 +2844,28 @@ async function startApplication(): Promise<void> {
   const observerLaunch = resolveHarnessInvocation(harnessEnvironment, [], launchOptions)
   const observerBin = observerLaunch.args[0]
   if (observerBin === undefined) throw new Error('desktop: Harness entry is unavailable for process ownership')
-  processObserver = await loadProcessObserver(
-    observerBin,
-    observerLaunch.command,
-    join(app.getPath('userData'), 'managed-processes', 'recovery-v1.json'),
-    `${persistentServicesPath}.runtime`,
-  )
+  const processRecoveryPath = join(app.getPath('userData'), 'managed-processes', 'recovery-v1.json')
+  try {
+    processObserver = await loadProcessObserver(
+      observerBin,
+      observerLaunch.command,
+      processRecoveryPath,
+      `${persistentServicesPath}.runtime`,
+    )
+  } catch (error) {
+    blockedProcessRecoveryPath = processRecoveryPath
+    const detail = error instanceof Error ? error.message : String(error)
+    await appendDesktopStartupLog(`Managed process recovery could not prove quiescence: ${detail}`)
+    publishStartupProgress({
+      stage: 'checking-profile', progress: 28,
+      detail: 'process-recovery-blocked', state: 'degraded',
+    })
+    showLoading('failed', {
+      message: shellMessages(app.getLocale()).processRecoveryFailed(detail),
+      logPath: harnessLogPath,
+    })
+    return
+  }
   const profileManifestPath = join(dshHome, 'profiles', 'web', 'package.json')
   const profileInitialized = await lstat(profileManifestPath).then(stat => stat.isFile(), () => false)
   let profileMutationLock = inspectProfileMutationLock(dshHome)

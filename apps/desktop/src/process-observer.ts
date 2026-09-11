@@ -7,6 +7,31 @@ import { dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Readable, Writable } from 'node:stream'
 
+const PROCESS_RECOVERY_SCHEMA = 'open-dsh-desktop/process-recovery/v2'
+
+function isProcessIdentity(value: unknown): value is { pid: number; started: string } {
+  if (value === null || typeof value !== 'object') return false
+  const identity = value as { pid?: unknown; started?: unknown }
+  return Number.isSafeInteger(identity.pid) && (identity.pid as number) > 0
+    && typeof identity.started === 'string' && identity.started.length > 0 && identity.started.length <= 128
+}
+
+function isCurrentProcessRecoveryJournal(value: unknown): boolean {
+  if (value === null || typeof value !== 'object') return false
+  const document = value as { schema?: unknown; records?: unknown }
+  if (document.schema !== PROCESS_RECOVERY_SCHEMA
+    || !Array.isArray(document.records) || document.records.length > 256) return false
+  return document.records.every((value: unknown) => {
+    if (value === null || typeof value !== 'object') return false
+    const record = value as { id?: unknown; label?: unknown; root?: unknown; identities?: unknown }
+    return typeof record.id === 'string' && record.id.length > 0 && record.id.length <= 128
+      && typeof record.label === 'string' && record.label.length > 0 && record.label.length <= 128
+      && isProcessIdentity(record.root)
+      && Array.isArray(record.identities) && record.identities.length <= 1_024
+      && record.identities.every(isProcessIdentity)
+  })
+}
+
 /** Streams and owned-range completion from the selected Harness runtime. */
 export interface DesktopManagedHandle {
   readonly rootPid?: number
@@ -155,6 +180,43 @@ async function readPersistentRuntimeIdentities(path: string | undefined): Promis
   })
 }
 
+/** Preserve one rejected process journal and remove it from startup admission.
+ * @param path - Desktop-owned recovery journal path.
+ */
+export async function quarantineProcessRecoveryJournal(path: string): Promise<void> {
+  const rejected = `${path}.rejected`
+  await rm(rejected, { force: true })
+  await rename(path, rejected).catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  })
+}
+
+/** Read a current process journal or quarantine derived state that cannot prove ownership.
+ * @param path - Desktop-owned recovery journal path.
+ * @returns Parsed current journal, or undefined after absence or quarantine.
+ */
+export async function readProcessRecoveryJournal(path: string): Promise<unknown> {
+  const source = await readFile(path, 'utf8').catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  })
+  if (source === undefined) return undefined
+  let value: unknown
+  try {
+    value = JSON.parse(source.charCodeAt(0) === 0xFEFF ? source.slice(1) : source) as unknown
+  } catch (error) {
+    await quarantineProcessRecoveryJournal(path)
+    console.warn('desktop: quarantined unreadable process recovery journal', error)
+    return undefined
+  }
+  if (!isCurrentProcessRecoveryJournal(value)) {
+    await quarantineProcessRecoveryJournal(path)
+    console.warn('desktop: quarantined legacy or invalid process recovery journal')
+    return undefined
+  }
+  return value
+}
+
 /** Load the exact selected Harness runtime's observer.
  * @param harnessBin - Absolute CLI entry selected by the desktop launcher.
  * @returns Observer whose native dependencies resolve beside that runtime.
@@ -182,22 +244,28 @@ export async function loadProcessObserver(
       runner: [string, string],
     ): { containment: string; handle: DesktopManagedHandle }
   }
+  if (recoveryPath !== undefined) {
+    const document = await readProcessRecoveryJournal(recoveryPath)
+    if (document !== undefined) {
+      const recovery = new module.DesktopProcessObserver()
+      let valid = true
+      try {
+        recovery.restoreRecoveryJournal(document)
+      } catch (error) {
+        valid = false
+        await quarantineProcessRecoveryJournal(recoveryPath)
+        console.warn('desktop: quarantined invalid process recovery journal', error)
+      }
+      if (valid) {
+        recovery.excludeIdentities(await readPersistentRuntimeIdentities(persistentRuntimePath))
+        await recovery.stopAll()
+        await rm(recoveryPath, { force: true })
+      }
+    }
+  }
   const closeGuardian = recoveryPath === undefined || persistentRuntimePath === undefined
     ? async (): Promise<void> => {}
     : await startProcessGuardian(nodeCommand, entry, recoveryPath, persistentRuntimePath)
-  if (recoveryPath !== undefined) {
-    const source = await readFile(recoveryPath, 'utf8').catch((error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
-      throw error
-    })
-    if (source !== undefined) {
-      const recovery = new module.DesktopProcessObserver()
-      recovery.restoreRecoveryJournal(JSON.parse(source) as unknown)
-      recovery.excludeIdentities(await readPersistentRuntimeIdentities(persistentRuntimePath))
-      await recovery.stopAll()
-      await rm(recoveryPath, { force: true })
-    }
-  }
   const observer = new module.DesktopProcessObserver()
   const runner: [string, string] = [nodeCommand, require.resolve('@deepseek-ai/dsh-subprocess-local/runner')]
   const handles = new Map<string, {
@@ -271,10 +339,11 @@ export async function loadProcessObserver(
       await persist()
     },
     stopRecovered: async (id, label, identities) => {
-      if (identities.length === 0) return
+      const root = identities[0]
+      if (root === undefined) return
       const restored = observer.restoreRecoveryJournal({
-        schema: 'open-dsh-desktop/process-recovery/v1',
-        records: [{ id, label, identities }],
+        schema: PROCESS_RECOVERY_SCHEMA,
+        records: [{ id, label, root, identities }],
       })
       if (restored === 0) return
       await observer.stopOne(id)

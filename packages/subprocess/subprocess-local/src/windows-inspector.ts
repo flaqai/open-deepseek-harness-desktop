@@ -38,10 +38,30 @@ export interface WindowsProcessInspectorInternals {
   taskkill(pid: number, force: boolean): void
 }
 
+function windowsCreationTicks(started: string): bigint | undefined {
+  const match = /^(\d+):(\d+)$/.exec(started)
+  if (match === null) return undefined
+  const highSource = match[1]
+  const lowSource = match[2]
+  if (highSource === undefined || lowSource === undefined) return undefined
+  const high = BigInt(highSource)
+  const low = BigInt(lowSource)
+  if (high > 0xFFFFFFFFn || low > 0xFFFFFFFFn) return undefined
+  return (high << 32n) | low
+}
+
+function canBeChildOf(childStarted: string, parentStarted: string): boolean {
+  const child = windowsCreationTicks(childStarted)
+  const parent = windowsCreationTicks(parentStarted)
+  return child === undefined || parent === undefined || child >= parent
+}
+
 /**
  * Walk a process table from one root in children-first order, retaining only
- * members whose start identity is readable (unreadable members are detector
- * misses, exactly like an unreadable `/proc` entry on Linux).
+ * members whose start identity is readable and whose creation time can follow
+ * their candidate parent. Windows retains a dead parent's PID in the child row;
+ * the time check prevents a later process that reuses that PID from adopting
+ * the older, unrelated child.
  * @param entries - the process table snapshot.
  * @param rootPid - the tree root to descend from.
  * @param started - creation-time identity resolver for one member.
@@ -66,12 +86,13 @@ export function windowsProcessTree(
   }
   const visited = new Set<number>()
   const result: ProcessIdentity[] = []
-  const visit = (entry: ProcessEntry): void => {
+  const visit = (entry: ProcessEntry, parentStarted?: string): void => {
     if (visited.has(entry.pid)) return
     visited.add(entry.pid)
-    for (const child of byParent.get(entry.pid) ?? []) visit(child)
     const identity = started(entry.pid)
-    if (identity !== undefined) result.push({ pid: entry.pid, started: identity })
+    if (identity === undefined || (parentStarted !== undefined && !canBeChildOf(identity, parentStarted))) return
+    for (const child of byParent.get(entry.pid) ?? []) visit(child, identity)
+    result.push({ pid: entry.pid, started: identity })
   }
   visit(root)
   return result

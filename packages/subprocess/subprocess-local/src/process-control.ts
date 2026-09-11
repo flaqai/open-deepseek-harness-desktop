@@ -55,10 +55,11 @@ export interface ObservedProcessRecord {
 
 /** Minimal crash-recovery document; it never contains argv, cwd or environment values. */
 export interface ObservedProcessRecoveryJournal {
-  readonly schema: 'open-dsh-desktop/process-recovery/v1'
+  readonly schema: 'open-dsh-desktop/process-recovery/v2'
   readonly records: readonly {
     readonly id: string
     readonly label: string
+    readonly root: ProcessIdentity
     readonly identities: readonly ProcessIdentity[]
   }[]
 }
@@ -68,6 +69,7 @@ export class DesktopProcessObserver {
   private records = new Map<string, {
     id: string
     label: string
+    root: ProcessIdentity
     identities: Map<string, ProcessIdentity>
     phase: ObservedProcessRecord['phase']
   }>()
@@ -87,9 +89,10 @@ export class DesktopProcessObserver {
   register(pid: number, label: string): string {
     if (this.closing) throw new Error('desktop: process registration is closed')
     const tree = this.inspector.snapshot().tree(pid)
-    if (!tree.some(identity => identity.pid === pid)) throw new Error('desktop: cannot establish process identity')
+    const root = tree.find(identity => identity.pid === pid)
+    if (root === undefined) throw new Error('desktop: cannot establish process identity')
     const id = randomUUID()
-    this.records.set(id, { id, label, identities: new Map(tree.map(identity => [this.key(identity), identity])), phase: 'running' })
+    this.records.set(id, { id, label, root, identities: new Map(tree.map(identity => [this.key(identity), identity])), phase: 'running' })
     this.startSampling()
     return id
   }
@@ -147,9 +150,9 @@ export class DesktopProcessObserver {
    */
   recoveryJournal(): ObservedProcessRecoveryJournal {
     return {
-      schema: 'open-dsh-desktop/process-recovery/v1',
+      schema: 'open-dsh-desktop/process-recovery/v2',
       records: [...this.records.values()].flatMap(record => record.identities.size === 0 ? [] : [{
-        id: record.id, label: record.label, identities: [...record.identities.values()],
+        id: record.id, label: record.label, root: record.root, identities: [...record.identities.values()],
       }]),
     }
   }
@@ -161,7 +164,7 @@ export class DesktopProcessObserver {
   restoreRecoveryJournal(value: unknown): number {
     if (value === null || typeof value !== 'object') throw new TypeError('desktop: invalid process recovery journal')
     const document = value as Partial<ObservedProcessRecoveryJournal>
-    if (document.schema !== 'open-dsh-desktop/process-recovery/v1'
+    if (document.schema !== 'open-dsh-desktop/process-recovery/v2'
       || !Array.isArray(document.records) || document.records.length > 256) {
       throw new TypeError('desktop: invalid process recovery journal')
     }
@@ -169,12 +172,19 @@ export class DesktopProcessObserver {
     let restored = 0
     for (const raw of document.records) {
       if (raw === null || typeof raw !== 'object') throw new TypeError('desktop: invalid process recovery record')
-      const record = raw as { id?: unknown; label?: unknown; identities?: unknown }
+      const record = raw as { id?: unknown; label?: unknown; root?: unknown; identities?: unknown }
       if (typeof record.id !== 'string' || record.id.length < 1 || record.id.length > 128
         || typeof record.label !== 'string' || record.label.length < 1 || record.label.length > 128
+        || record.root === null || typeof record.root !== 'object'
         || !Array.isArray(record.identities) || record.identities.length > 1_024) {
         throw new TypeError('desktop: invalid process recovery record')
       }
+      const rawRoot = record.root as Partial<ProcessIdentity>
+      if (!Number.isSafeInteger(rawRoot.pid) || (rawRoot.pid ?? 0) <= 0
+        || typeof rawRoot.started !== 'string' || rawRoot.started.length < 1 || rawRoot.started.length > 128) {
+        throw new TypeError('desktop: invalid recovered process root')
+      }
+      const root = { pid: rawRoot.pid as number, started: rawRoot.started }
       const identities = new Map<string, ProcessIdentity>()
       for (const rawIdentity of record.identities) {
         if (rawIdentity === null || typeof rawIdentity !== 'object') {
@@ -190,7 +200,7 @@ export class DesktopProcessObserver {
         if (!this.excluded.has(key) && snapshot.alive(parsed)) identities.set(key, parsed)
       }
       if (identities.size === 0) continue
-      this.records.set(record.id, { id: record.id, label: record.label, identities, phase: 'running' })
+      this.records.set(record.id, { id: record.id, label: record.label, root, identities, phase: 'running' })
       restored += 1
     }
     if (restored > 0) this.startSampling()

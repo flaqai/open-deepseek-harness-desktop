@@ -85,6 +85,7 @@ describe('desktop loading page', () => {
   it('keeps the paused startup bar while exposing four peer recovery tools', async () => {
     const html = await readFile(new URL('../src/loading.html', import.meta.url), 'utf8')
     const loadingPage = await readFile(new URL('../src/loading-page.ts', import.meta.url), 'utf8')
+    const main = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8')
 
     expect(html).toContain('id="recovery-home"')
     expect(html).toContain('data-open-panel="plugins"')
@@ -101,6 +102,10 @@ describe('desktop loading page', () => {
     expect(loadingPage).toContain("ipcRenderer.invoke('dsh:desktop:recovery-plugins:list')")
     expect(loadingPage).toContain("ipcRenderer.invoke('dsh:desktop:recovery-plugins:remove', plugin.packageName)")
     expect(loadingPage).toContain("ipcRenderer.invoke('dsh:desktop:recovery:export')")
+    expect(html).toContain('id="reset-process-recovery"')
+    expect(loadingPage).toContain("ipcRenderer.invoke('dsh:desktop:process-recovery:get')")
+    expect(loadingPage).toContain("ipcRenderer.invoke('dsh:desktop:process-recovery:reset')")
+    expect(main).toContain("ipcMain.handle('dsh:desktop:process-recovery:reset'")
   })
 
   it('keeps the diagnostic Profile behind the recovery page instead of opening it as the app', async () => {

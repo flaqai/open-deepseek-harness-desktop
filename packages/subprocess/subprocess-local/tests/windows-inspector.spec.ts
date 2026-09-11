@@ -82,6 +82,31 @@ describe('windowsProcessTree', () => {
     expect(windowsProcessTree([{ pid: 10, parentPid: 0 }], 99, () => 't')).toEqual([])
   })
 
+  it('rejects an older process left behind by a stale parent pid', () => {
+    const starts = new Map([
+      [10, '2:0'],
+      [11, '1:4294967295'],
+      [12, '2:1'],
+    ])
+    expect(windowsProcessTree([
+      { pid: 10, parentPid: 0 },
+      { pid: 11, parentPid: 10 },
+      { pid: 12, parentPid: 10 },
+    ], 10, pid => starts.get(pid))).toEqual([
+      { pid: 12, started: '2:1' },
+      { pid: 10, started: '2:0' },
+    ])
+  })
+
+  it('does not bridge through a child whose creation identity is unreadable', () => {
+    const starts = new Map([[10, '2:0'], [12, '2:2']])
+    expect(windowsProcessTree([
+      { pid: 10, parentPid: 0 },
+      { pid: 11, parentPid: 10 },
+      { pid: 12, parentPid: 11 },
+    ], 10, pid => starts.get(pid))).toEqual([{ pid: 10, started: '2:0' }])
+  })
+
   it('terminates on a parent cycle instead of recursing forever', () => {
     const entries = [
       { pid: 10, parentPid: 11 },

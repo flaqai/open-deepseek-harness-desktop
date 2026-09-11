@@ -63,15 +63,19 @@ describe('desktop legacy process observation', () => {
   it('restores only exact live identities from a redacted recovery journal', async () => {
     const b = bench()
     expect(b.observer.restoreRecoveryJournal({
-      schema: 'open-dsh-desktop/process-recovery/v1',
+      schema: 'open-dsh-desktop/process-recovery/v2',
       records: [{
         id: 'old-generation', label: 'Harness',
+        root: { pid: 101, started: 'a' },
         identities: [{ pid: 101, started: 'a' }, { pid: 102, started: 'reused' }],
       }],
     })).toBe(1)
     expect(b.observer.recoveryJournal()).toEqual({
-      schema: 'open-dsh-desktop/process-recovery/v1',
-      records: [{ id: 'old-generation', label: 'Harness', identities: [{ pid: 101, started: 'a' }] }],
+      schema: 'open-dsh-desktop/process-recovery/v2',
+      records: [{
+        id: 'old-generation', label: 'Harness', root: { pid: 101, started: 'a' },
+        identities: [{ pid: 101, started: 'a' }],
+      }],
     })
     b.orphan()
     await b.observer.stopAll(1, 1)
@@ -99,9 +103,20 @@ describe('desktop legacy process observation', () => {
   it('rejects malformed recovery data before adopting any process', () => {
     const b = bench()
     expect(() => b.observer.restoreRecoveryJournal({
-      schema: 'open-dsh-desktop/process-recovery/v1',
-      records: [{ id: 'x', label: 'Harness', identities: [{ pid: -1, started: 'a' }] }],
+      schema: 'open-dsh-desktop/process-recovery/v2',
+      records: [{
+        id: 'x', label: 'Harness', root: { pid: 101, started: 'a' },
+        identities: [{ pid: -1, started: 'a' }],
+      }],
     })).toThrow('invalid recovered process identity')
     expect(b.observer.list()).toEqual([])
+  })
+
+  it('rejects a journal without an explicit recovery root', () => {
+    const b = bench()
+    expect(() => b.observer.restoreRecoveryJournal({
+      schema: 'open-dsh-desktop/process-recovery/v2',
+      records: [{ id: 'x', label: 'Harness', identities: [{ pid: 101, started: 'a' }] }],
+    })).toThrow('invalid process recovery record')
   })
 })

@@ -94,7 +94,7 @@ kind: "package-reference"
 
 ### 安全不变式
 
-spill 文件以 `0600` 权限、`O_EXCL` 与随机名称在 `0700` 每进程目录下创建，可抵御共享临时目录中的符号链接植入；最终关闭失败时不公布 spill 路径。fallback 进程身份携带启动时间，因此清理绝不会跟随 PID 复用。选定的 native 路径失败时会报告错误，而不会通过 fallback 重放 argv；受管范围只有在清理完成后才从存活集合移除，否则失败仍保持可观察。宿主退出最终清理不创建 Promise 或定时器，保留宿主退出码与诊断，分别包含每个目标的失败，也不会声称已经完全停稳。
+spill 文件以 `0600` 权限、`O_EXCL` 与随机名称在 `0700` 每进程目录下创建，可抵御共享临时目录中的符号链接植入；最终关闭失败时不公布 spill 路径。fallback 进程身份携带启动时间，因此清理绝不会跟随 PID 复用。Windows 进程树还会拒绝创建时间早于父进程的候选子进程，因为陈旧父 PID 被复用后可能把更早启动的无关进程纳入。选定的 native 路径失败时会报告错误，而不会通过 fallback 重放 argv；受管范围只有在清理完成后才从存活集合移除，否则失败仍保持可观察。宿主退出最终清理不创建 Promise 或定时器，保留宿主退出码与诊断，分别包含每个目标的失败，也不会声称已经完全停稳。
 
 </details>
 
@@ -124,7 +124,7 @@ spill 文件以 `0600` 权限、`O_EXCL` 与随机名称在 `0700` 每进程目�
 
 ## 已知限制与延期工作
 
-`process-control` 入口提供 `DesktopProcessObserver`，用于追踪桌面启动根进程下已观察到的旧插件后代。它在父进程变化后保留 PID 和启动身份，已观察进程仍存活时拒绝报告清理成功。这是进程表回退机制，不是 Job/scope 隔离：观察前已经脱离的后代不在保障范围内。桌面调用方负责登记失败、退出提示和重启准入。
+`process-control` 入口提供 `DesktopProcessObserver`，用于追踪桌面启动根进程下已观察到的旧插件后代。它在父进程变化后保留明确的根身份以及 PID／启动身份，已观察进程仍存活时拒绝报告清理成功。这是进程表回退机制，不是 Job/scope 隔离：观察前已经脱离的后代不在保障范围内。桌面调用方负责登记失败、恢复日志隔离、退出提示和重启准入。
 
 本地提供方实现可选的授权常驻路径。它把许可声明与 PID／启动时间恢复身份分开保存，每两秒采样新产生的后代，并且只在确认受管范围为空后删除运行时日志。普通提供方 dispose、Desktop 清理与异常守护都会排除已经批准的常驻身份。已有存活身份会拒绝重复启动，插件可通过稳定协议重新连接。Windows 外层 Desktop Job 启用静默子进程脱离，使 subprocess 自有 Job 与授权常驻范围不会随 Harness 一起销毁。这是生命周期管理，不是安全边界：Profile 插件仍是受信任的可执行代码，责任声明依赖插件配合，绕过 `ctx.subprocess` 的插件也不会获得这些保障。Windows／Linux 原生常驻与安装包行为在发布前仍需对应平台实测。
 
@@ -134,7 +134,7 @@ spill 文件以 `0600` 权限、`O_EXCL` 与随机名称在 `0700` 每进程目�
 这些限制说明本提供方何时不合适，或何时需要特别的运维注意。它们是当前包约束，不是通用平台对比或任务积压。
 
 - **native ownership 有明确宿主要求**——Linux 需要可读的 user manager 与 `systemd-run --expand-environment=no`；旧版 systemd 使用带告警的 PGID fallback。macOS 因没有受支持的公开 persistent owner，始终使用该 fallback。
-- **native 选择具有有界的每次 spawn 成本**——Linux 会重复检查 bootstrap 入口、libc `execve`/`fcntl` bindings、存活的 user manager 与 literal-argv scope 支持，直到这套完整探测首次成功；后续符合条件的普通命令或终端 spawn 只重新检查存活的 user manager。Windows 会在每次普通 spawn 前重新检查 runner 入口、bindings 与当前 Job 支持。Linux 深度探测的成功状态与 fallback 告警去重会在 provider 生命周期内持续保留。所有探测都会在用户命令可能运行前完成，子进程探测的超时为 5 秒。每次 Linux 启动都会创建私有请求目录，以 50 毫秒间隔检查尚未确定的 scope 建立状态；scope 已建立且仍 active 后，查询间隔按指数增长，最多为 5 秒。Windows 普通命令会保留一个 runner 与一条 IPC 通道，直到 Job 报告活动进程数为零。目标会直接继承标准句柄，不使用 named-pipe stdio 或结果文件。
+- **native 选择具有有界的每次 spawn 成本**——Linux 会重复检查 bootstrap 入口、libc `execve`/`fcntl` bindings、存活的 user manager 与 literal-argv scope 支持，直到这套完整探测首次成功；后续符合条件的普通命令或终端 spawn 只重新检查存活的 user manager。Windows 会在每次普通 spawn 前重新检查 runner 入口、bindings 与当前 Job 支持。Linux 深度探测的成功状态与 fallback 告警去重会在 provider 生命周期内持续保留。所有探测都会在用户命令可能运行前完成，子进程探测的超时为 5 秒。每次 Linux 启动都会创建私有请求目录，以 50 毫秒间隔检查尚未确定的 scope 建立状态；scope 已建立且仍 active 后，查询间隔按指数增长，最多为 5 秒。Windows 普通命令会保留一个隐藏的 runner 与一条 IPC 通道，直到 Job 报告活动进程数为零，并且不会为通过管道通信的目标创建控制台窗口。目标会直接继承标准句柄，不使用 named-pipe stdio 或结果文件。
 - **Windows Job inheritance 有明确排除项**——普通后代默认继承 Job，但 breakaway 进程不在保证范围。目标只在 Job 分配后启动；runner 若在 create-to-assignment 极窄区间遭外力终止，可能留下 suspended target。
 - **Windows 终端信号是控制台级的**——SIGINT 以 `\x03` Ctrl-C 输入写入投递，由 conhost 转为控制台级 CTRL_C 事件；SIGTSTP 与 SIGHUP 被拒绝（不可用）；不带 `/F` 的 `taskkill` 无法终止控制台进程，因此拆卸的 TERM 档是 `/F` 升级前的宽限等待。Windows 就绪没有精确的 stdin-wait 档：prompt-marker 快路径把 shell pid 作为伪前台进程组比较，其余由静默与计时档覆盖。
 - **fallback 终端 ownership 仍依赖观察**——在 macOS 或缺少可用 user-systemd 的 Linux 上，子进程如果在任何前台检查快照之前重新设定父进程，或离开自有终端 session，就可能逃出进程表扫描。本地提供方不会新增持续进程表监视器；受支持的 Linux native 模式改由 scope membership 持有这些后代。
