@@ -52,6 +52,9 @@ jobs:
       - name: Verify external tool provider coordinates
         run: pnpm run verify:desktop:external-tools
 
+      - name: Verify embedded Node runtime pins
+        run: node --test apps/desktop/scripts/node-runtime-pins.test.mjs
+
       - name: Resolve latest stable plugin archives
         if: ${{ inputs.refresh_plugins }}
         run: pnpm run refresh:desktop:bundled-plugins

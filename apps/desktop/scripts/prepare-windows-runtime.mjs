@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { nodeArchiveSha256ByTarget, nodeVersion } from './node-runtime-pins.mjs'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
@@ -14,10 +15,9 @@ const outputRoot = join(repositoryRoot, '.artifacts', 'desktop-runtime-win-x64')
 const harnessRoot = join(outputRoot, 'harness')
 const runtimeRoot = join(outputRoot, 'runtime', 'win32-x64')
 const downloads = join(repositoryRoot, '.artifacts', 'downloads')
-const nodeVersion = '24.17.0'
 const pnpmVersion = '11.7.0'
 const nodeArchiveName = `node-v${nodeVersion}-win-x64.zip`
-const nodeArchiveSha256 = '5355ae6d7c49eddcfde7d34ac3486820600a831bf81dc3bdca5c8db6a9bb0e76'
+const nodeArchiveSha256 = nodeArchiveSha256ByTarget['win32-x64']
 const nodeArchive = join(downloads, nodeArchiveName)
 const nodeExecutable = join(runtimeRoot, 'node.exe')
 const pnpmCommand = join(runtimeRoot, 'pnpm.cmd')
