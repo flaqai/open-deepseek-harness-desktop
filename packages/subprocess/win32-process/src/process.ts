@@ -535,7 +535,7 @@ export function spawnCurrentTokenJobProcess(
       null,
       null,
       1,
-      abi.CREATE_SUSPENDED | abi.CREATE_UNICODE_ENVIRONMENT,
+      abi.CREATE_SUSPENDED | abi.CREATE_UNICODE_ENVIRONMENT | abi.CREATE_NO_WINDOW,
       environment,
       options.cwd,
       startupInfo,

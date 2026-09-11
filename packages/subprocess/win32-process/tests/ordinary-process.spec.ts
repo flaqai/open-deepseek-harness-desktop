@@ -10,6 +10,7 @@ import {
   Win32Error,
 } from '../src/index.ts'
 import {
+  CREATE_NO_WINDOW,
   CREATE_SUSPENDED,
   CREATE_UNICODE_ENVIRONMENT,
   JOBOBJECT_BASIC_ACCOUNTING_ACTIVE_PROCESSES_OFFSET,
@@ -127,7 +128,7 @@ describe('ordinary Job process operations', () => {
       null,
       null,
       1,
-      CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+      CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW,
       environment,
       'C:\\work',
       expect.anything(),
