@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { nodeArchiveSha256ByTarget, nodeVersion } from './node-runtime-pins.mjs'
+import { nodeRuntimeArchivesByTarget, nodeVersion } from './node-runtime-pins.mjs'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
@@ -19,7 +19,6 @@ const { values } = parseArgs({
 const target = values.target ?? `${process.platform}-${process.arch}`
 const targets = {
   'darwin-arm64': {
-    nodeSha256: nodeArchiveSha256ByTarget['darwin-arm64'],
     nativePackages: [
       '@koromix/koffi-darwin-arm64',
       '@img/sharp-darwin-arm64/sharp.node',
@@ -27,7 +26,6 @@ const targets = {
     ],
   },
   'darwin-x64': {
-    nodeSha256: nodeArchiveSha256ByTarget['darwin-x64'],
     nativePackages: [
       '@koromix/koffi-darwin-x64',
       '@img/sharp-darwin-x64/sharp.node',
@@ -35,7 +33,6 @@ const targets = {
     ],
   },
   'linux-x64': {
-    nodeSha256: nodeArchiveSha256ByTarget['linux-x64'],
     nativePackages: [
       '@koromix/koffi-linux-x64',
       '@img/sharp-linux-x64/sharp.node',
@@ -52,8 +49,8 @@ const staging = join(repositoryRoot, '.artifacts', runtimeName)
 const archive = join(repositoryRoot, '.artifacts', `${runtimeName}.tar.gz`)
 const runtimeMarker = '.desktop-runtime-v3'
 const pnpmVersion = '11.7.0'
-const nodeArchiveName = `node-v${nodeVersion}-${target}.tar.gz`
-const nodeArchiveSha256 = targetConfig.nodeSha256
+const nodeArchiveName = nodeRuntimeArchivesByTarget[target].name
+const nodeArchiveSha256 = nodeRuntimeArchivesByTarget[target].sha256
 const downloads = join(repositoryRoot, '.artifacts', 'downloads')
 const nodeArchive = join(downloads, nodeArchiveName)
 
