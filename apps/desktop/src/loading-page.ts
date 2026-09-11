@@ -14,6 +14,9 @@ import { parseDesktopStartupProgress, type DesktopStartupProgress, type DesktopS
 
 type RecoveryPanel = 'plugins' | 'snapshots' | 'directory' | 'diagnostics'
 
+/** Delay before the loading page reveals the slow-start details and log action. */
+export const STARTUP_SLOW_PROGRESS_DELAY_MS = 40_000
+
 function element<T extends Element>(selector: string, narrow?: (value: Element) => value is T): T {
   const result = document.querySelector(selector)
   if (result === null || (narrow !== undefined && !narrow(result))) {
@@ -108,7 +111,7 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
     const slowTimer = setTimeout(() => {
       showSlowProgress()
       slowTicker = setInterval(showSlowProgress, 1_000)
-    }, 15_000)
+    }, STARTUP_SLOW_PROGRESS_DELAY_MS)
     window.addEventListener('unload', () => {
       clearTimeout(slowTimer)
       if (slowTicker !== undefined) clearInterval(slowTicker)

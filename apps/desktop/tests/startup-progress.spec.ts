@@ -4,8 +4,13 @@ import {
   mapBundledPluginProgress,
   parseDesktopStartupProgress,
 } from '../src/startup-progress.ts'
+import { STARTUP_SLOW_PROGRESS_DELAY_MS } from '../src/loading-page.ts'
 
 describe('desktop startup progress', () => {
+  it('waits forty seconds before presenting startup as unusually slow', () => {
+    expect(STARTUP_SLOW_PROGRESS_DELAY_MS).toBe(40_000)
+  })
+
   it('maps ordered plugin milestones into the reserved startup interval', () => {
     const first = mapBundledPluginProgress('dshmarket', 0, 2, 'extracting', 46)
     const second = mapBundledPluginProgress('dsh-im', 1, 2, 'verifying', 8)
