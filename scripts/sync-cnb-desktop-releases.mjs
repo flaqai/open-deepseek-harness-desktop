@@ -13,6 +13,7 @@ export const CNB_DEFAULT_BRANCH = 'master'
 const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}`
 const CNB_API = `https://api.cnb.cool/${CNB_REPOSITORY}`
 const ASSET_PATTERN = /^DeepSeek-Harness-(?:macos-(?:arm64|x64)\.(?:dmg|zip)|windows-x64\.exe|linux-x64\.(?:deb|rpm))$/u
+const RELEASE_TAG_PATTERN = /^odsh-v[0-9A-Za-z][0-9A-Za-z._-]*$/u
 
 export function parseChecksums(source) {
   const checksums = new Map()
@@ -71,6 +72,17 @@ async function ensureCnbRelease(fetchImpl, token, releases, githubRelease) {
   return created
 }
 
+async function deleteCnbReleases(fetchImpl, token, releases, tags, targetTag) {
+  for (const tag of tags) {
+    if (!RELEASE_TAG_PATTERN.test(tag)) throw new Error(`invalid CNB cleanup tag: ${tag}`)
+    if (tag === targetTag) throw new Error(`refusing to delete the target CNB Release: ${tag}`)
+    const release = releases.find(candidate => candidate.tag_name === tag)
+    if (release === undefined) continue
+    await cnbJson(fetchImpl, token, `/-/releases/${encodeURIComponent(release.id)}`, { method: 'DELETE' }, [200, 204])
+    releases.splice(releases.indexOf(release), 1)
+  }
+}
+
 async function uploadCnbAsset(fetchImpl, token, release, name, bytes, checksum) {
   const same = release.assets?.find(asset => asset.name === name && asset.size === bytes.byteLength
     && String(asset.hash_algo).toLowerCase() === 'sha256' && String(asset.hash_value).toLowerCase() === checksum)
@@ -91,36 +103,38 @@ async function uploadCnbAsset(fetchImpl, token, release, name, bytes, checksum) 
   return { name, size: bytes.byteLength, hash_algo: 'sha256', hash_value: checksum }
 }
 
-export async function syncCnbDesktopReleases({ githubToken, cnbToken, outputPath, fetchImpl = fetch, now = new Date() }) {
+export async function syncCnbDesktopReleases({ githubToken, cnbToken, outputPath, targetTag, cleanupTags = [], fetchImpl = fetch, now = new Date() }) {
   if (!githubToken || !cnbToken) throw new Error('GITHUB_TOKEN and CNB_TOKEN are required')
-  const githubReleases = distributableGithubReleases(await githubJson(fetchImpl, githubToken, '/releases?per_page=20'))
+  if (targetTag !== undefined && !RELEASE_TAG_PATTERN.test(targetTag)) throw new Error(`invalid target GitHub Release tag: ${targetTag}`)
+  const githubRelease = await githubJson(fetchImpl, githubToken,
+    targetTag === undefined ? '/releases/latest' : `/releases/tags/${encodeURIComponent(targetTag)}`)
+  const [distributableRelease] = distributableGithubReleases([githubRelease])
+  if (distributableRelease === undefined) throw new Error(`GitHub Release is not distributable: ${targetTag ?? 'latest'}`)
   const cnbReleases = await cnbJson(fetchImpl, cnbToken, '/-/releases?page=1&page_size=100')
-  const indexReleases = []
-  for (const release of githubReleases) {
-    const checksumAsset = release.assets.find(asset => asset.name === 'SHA256SUMS')
-    if (checksumAsset === undefined) continue
-    const checksumBytes = await assetBytes(fetchImpl, githubToken, checksumAsset)
-    if (checksumBytes.byteLength > 1024 * 1024) throw new Error(`SHA256SUMS is too large for ${release.tag_name}`)
-    const checksums = parseChecksums(checksumBytes.toString('utf8'))
-    const installers = release.assets.filter(asset => ASSET_PATTERN.test(asset.name) && checksums.has(asset.name))
-    if (installers.length === 0) continue
-    const cnbRelease = await ensureCnbRelease(fetchImpl, cnbToken, cnbReleases, release)
-    const assets = []
-    for (const asset of installers) {
-      const bytes = await assetBytes(fetchImpl, githubToken, asset)
-      const checksum = checksums.get(asset.name)
-      if (createHash('sha256').update(bytes).digest('hex') !== checksum) throw new Error(`GitHub checksum mismatch for ${asset.name}`)
-      await uploadCnbAsset(fetchImpl, cnbToken, cnbRelease, asset.name, bytes, checksum)
-      const url = `https://cnb.cool/${CNB_REPOSITORY}/-/releases/download/${release.tag_name}/${asset.name}`
-      const probe = await checkedFetch(fetchImpl, url, { method: 'HEAD', redirect: 'follow' })
-      const size = Number(probe.headers.get('content-length'))
-      if (Number.isFinite(size) && size !== bytes.byteLength) throw new Error(`CNB asset size mismatch for ${asset.name}`)
-      assets.push({ name: asset.name, size: bytes.byteLength, sha256: checksum, url })
-    }
-    const version = release.tag_name.replace(/^(?:odsh-|dsh-)?v/u, '')
-    indexReleases.push({ version, tagName: release.tag_name, publishedAt: release.published_at,
-      releaseUrl: `https://cnb.cool/${CNB_REPOSITORY}/-/releases/tag/${release.tag_name}`, withdrawn: false, assets })
+  await deleteCnbReleases(fetchImpl, cnbToken, cnbReleases, cleanupTags, distributableRelease.tag_name)
+  const checksumAsset = distributableRelease.assets.find(asset => asset.name === 'SHA256SUMS')
+  if (checksumAsset === undefined) throw new Error(`GitHub Release has no SHA256SUMS: ${distributableRelease.tag_name}`)
+  const checksumBytes = await assetBytes(fetchImpl, githubToken, checksumAsset)
+  if (checksumBytes.byteLength > 1024 * 1024) throw new Error(`SHA256SUMS is too large for ${distributableRelease.tag_name}`)
+  const checksums = parseChecksums(checksumBytes.toString('utf8'))
+  const installers = distributableRelease.assets.filter(asset => ASSET_PATTERN.test(asset.name) && checksums.has(asset.name))
+  if (installers.length === 0) throw new Error(`GitHub Release has no verified installers: ${distributableRelease.tag_name}`)
+  const cnbRelease = await ensureCnbRelease(fetchImpl, cnbToken, cnbReleases, distributableRelease)
+  const assets = []
+  for (const asset of installers) {
+    const bytes = await assetBytes(fetchImpl, githubToken, asset)
+    const checksum = checksums.get(asset.name)
+    if (createHash('sha256').update(bytes).digest('hex') !== checksum) throw new Error(`GitHub checksum mismatch for ${asset.name}`)
+    await uploadCnbAsset(fetchImpl, cnbToken, cnbRelease, asset.name, bytes, checksum)
+    const url = `https://cnb.cool/${CNB_REPOSITORY}/-/releases/download/${distributableRelease.tag_name}/${asset.name}`
+    const probe = await checkedFetch(fetchImpl, url, { method: 'HEAD', redirect: 'follow' })
+    const size = Number(probe.headers.get('content-length'))
+    if (Number.isFinite(size) && size !== bytes.byteLength) throw new Error(`CNB asset size mismatch for ${asset.name}`)
+    assets.push({ name: asset.name, size: bytes.byteLength, sha256: checksum, url })
   }
+  const version = distributableRelease.tag_name.replace(/^(?:odsh-|dsh-)?v/u, '')
+  const indexReleases = [{ version, tagName: distributableRelease.tag_name, publishedAt: distributableRelease.published_at,
+    releaseUrl: `https://cnb.cool/${CNB_REPOSITORY}/-/releases/tag/${distributableRelease.tag_name}`, withdrawn: false, assets }]
   const previous = await readFile(outputPath, 'utf8').then(JSON.parse).catch(() => undefined)
   const index = { schema: 'open-dsh-desktop/cnb-update-index/v1', revision: Number(previous?.revision ?? 0) + 1,
     generatedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 2 * 60 * 60_000).toISOString(), releases: indexReleases }
@@ -131,7 +145,10 @@ export async function syncCnbDesktopReleases({ githubToken, cnbToken, outputPath
 
 async function main() {
   const output = resolve(process.argv[2] ?? '.artifacts/cnb-sync/desktop-update-v1.json')
-  await syncCnbDesktopReleases({ githubToken: process.env.GITHUB_TOKEN, cnbToken: process.env.CNB_TOKEN, outputPath: output })
+  const targetTag = process.env.CNB_TARGET_TAG?.trim() || undefined
+  const cleanupTags = (process.env.CNB_DELETE_TAGS ?? '').split(',').map(tag => tag.trim()).filter(Boolean)
+  await syncCnbDesktopReleases({ githubToken: process.env.GITHUB_TOKEN, cnbToken: process.env.CNB_TOKEN,
+    outputPath: output, targetTag, cleanupTags })
   console.log(`CNB desktop update index written to ${output}`)
 }
 

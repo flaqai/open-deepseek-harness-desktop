@@ -6,6 +6,15 @@ on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
+    inputs:
+      target_tag:
+        description: Exact GitHub Release tag to mirror
+        required: true
+        type: string
+      delete_tags:
+        description: Comma-separated CNB Release tags to delete before mirroring
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -35,6 +44,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_TARGET_TAG: ${{ github.event.release.tag_name || inputs.target_tag || '' }}
+          CNB_DELETE_TAGS: ${{ inputs.delete_tags || '' }}
         run: node scripts/sync-cnb-desktop-releases.mjs /tmp/cnb-desktop/desktop-update-v1.json
       - name: Publish anonymous index to the CNB master branch
         run: |

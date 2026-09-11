@@ -16,7 +16,7 @@ const index = {
 
 describe('CNB Release source', () => {
   it('reads the anonymous index from the configured master branch', () => {
-    expect(CNB_UPDATE_INDEX_URL).toContain('/-/raw/master/desktop-update-v1.json')
+    expect(CNB_UPDATE_INDEX_URL).toBe('https://cnb.cool/hecoococ/open-deepseek-harness-desktop/-/git/raw/master/desktop-update-v1.json')
   })
 
   it('validates a fresh index and selects its newest release independently', () => {

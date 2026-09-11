@@ -75,6 +75,7 @@ GitHub publication triggers `sync-cnb-desktop-releases.yml` through the `release
 
 1. Record the GitHub publication completion time and find the corresponding release-event sync run. Do not mistake an older scheduled or manually dispatched run for this publication.
 2. If no release-event run appears after a bounded wait, dispatch the same workflow once under the existing dual-target authorization. Do not dispatch a duplicate while the release-event run is queued or active.
+   Set `target_tag` to the exact reviewed GitHub tag. The workflow mirrors only that Release. Leave `delete_tags` empty unless the user has explicitly approved deletion of the listed CNB Releases.
 3. Wait for the sync job to finish and require a successful, non-skipped conclusion. The job must read the verified GitHub assets, create or reuse the matching CNB Release, upload the seven installers, and push the refreshed index to CNB `master`.
 4. Fetch `desktop-update-v1.json` anonymously from CNB. Require a non-expired index entry whose version and tag match the GitHub Release, whose `withdrawn` value is `false`, and whose seven installer names, sizes, and SHA-256 values exactly match the local `SHA256SUMS` and files.
 5. Probe every indexed CNB download URL without credentials and require the declared file size. When CNB exposes a remote digest, require the same SHA-256. Never log the CNB token or credential-bearing clone URL.

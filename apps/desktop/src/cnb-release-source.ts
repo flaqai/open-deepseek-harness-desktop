@@ -5,7 +5,7 @@ import type { ReleaseFetch } from './release-downloader.ts'
 
 export const CNB_REPOSITORY = 'hecoococ/open-deepseek-harness-desktop'
 export const CNB_DEFAULT_BRANCH = 'master'
-export const CNB_UPDATE_INDEX_URL = `https://cnb.cool/${CNB_REPOSITORY}/-/raw/${CNB_DEFAULT_BRANCH}/desktop-update-v1.json`
+export const CNB_UPDATE_INDEX_URL = `https://cnb.cool/${CNB_REPOSITORY}/-/git/raw/${CNB_DEFAULT_BRANCH}/desktop-update-v1.json`
 const CNB_RELEASE_PREFIX = `/${CNB_REPOSITORY}/-/releases/`
 const MAX_INDEX_BYTES = 1024 * 1024
 const DEFAULT_TIMEOUT_MS = 15_000

@@ -12,11 +12,11 @@ Status: implemented
 
 Electron 在 `userData` 下管理带版本的应用更新策略。渲染器只能通过窄权限桥接提交经过验证的来源和 HTTP(S) 代理字段。系统支持时，Electron 安全存储会加密代理密码；否则密码只留在进程内存中。日志、导出、浏览器客户端、`DSH_HOME` 和插件快照均不会收到这些秘密。
 
-应用更新可以选择现有 GitHub 适配器，也可以选择面向 `hecoococ/open-deepseek-harness-desktop` 的独立 CNB 适配器。CNB 只接受有大小上限、未过期的匿名索引和精确匹配仓库的附件 URL。索引包含修订号、两小时有效期、撤回状态、大小和 SHA-256。下载器会在传输前和打开前重新检查所选来源，并在 CNB 传输期间定期检查撤回状态，且不会拼接不同来源的断点文件。GitHub 保留系统网络和 Asset API 两条通道。
+应用更新可以选择现有 GitHub 适配器，也可以选择面向 `hecoococ/open-deepseek-harness-desktop` 的独立 CNB 适配器。CNB 只接受来自 `/-/git/raw/` 端点且有大小上限、未过期的匿名索引，以及精确匹配仓库的附件 URL。索引包含修订号、两小时有效期、撤回状态、大小和 SHA-256。下载器会在传输前和打开前重新检查所选来源，并在 CNB 传输期间定期检查撤回状态，且不会拼接不同来源的断点文件。GitHub 保留系统网络和 Asset API 两条通道。
 
 官方市场尚未提供由宿主管理网络策略的能力，因此 Desktop 不显示 npm 或 GitHub 插件下载设置。插件操作继续使用 Profile、pnpm、Git 和市场的网络配置。预装的 `dshmarket` 归档是其上游维护者发布的未修改软件包。
 
-CNB 同步工作流只镜像具有有效 `SHA256SUMS` 的非草稿、非预发布 GitHub Release；它会在上传前校验字节，验证匿名 CNB 附件，并最后发布索引。只有维护者同时配置 `CNB_SYNC_ENABLED=true` 和 `CNB_TOKEN` 后工作流才会启用；凭据只保存在 CI Secret 中，不会进入客户端。
+CNB 同步工作流只镜像一个明确指定且具有有效 `SHA256SUMS` 的非草稿、非预发布 GitHub Release；定时任务也只选择 GitHub 当前的 latest Release。它会在上传前校验字节，验证匿名 CNB 附件，并最后发布索引。手动清理必须提供精确的 CNB 标签名，且不能删除当前选定的目标版本。只有维护者同时配置 `CNB_SYNC_ENABLED=true` 和 `CNB_TOKEN` 后工作流才会启用；凭据只保存在 CI Secret 中，不会进入客户端。
 
 ## Alternatives considered
 
