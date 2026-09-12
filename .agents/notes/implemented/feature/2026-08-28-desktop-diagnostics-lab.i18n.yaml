@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-28-desktop-diagnostics-lab.md
-2026-08-28-desktop-diagnostics-lab.md: 9e65b6bf9899a31b54e79c017d7b8a41706e689d
-2026-08-28-desktop-diagnostics-lab.zh.md: 7e6701725b85be001af01e2c8efd9e9798df73e0
+2026-08-28-desktop-diagnostics-lab.md: c6e9355cd7d242ce4b81f6751ea18c7f10bb659d
+2026-08-28-desktop-diagnostics-lab.zh.md: 9de0c757270231e2c74a5a9524db5fcc6b667eb0

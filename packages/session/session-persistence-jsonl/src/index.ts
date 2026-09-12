@@ -1019,7 +1019,14 @@ class JsonlSessionPersistence extends SessionPersistence {
     } catch (error: unknown) {
       signal?.throwIfAborted()
       if (isENOENT(error)) return undefined
-      throw error
+      if (error instanceof SessionFormatUnsupportedError
+        || error instanceof SessionPersistenceCorruptionError
+        || isErrnoException(error)
+        || error instanceof DOMException && error.name === 'AbortError') throw error
+      throw new SessionPersistenceCorruptionError(
+        `stored log is corrupt: ${String(error)} (raw log: ${selected.sourcePath})`,
+        { cause: error },
+      )
     }
     signal?.throwIfAborted()
     if (first === undefined) return undefined

@@ -803,7 +803,9 @@ describe('JsonlSessionPersistence: default Zstandard encoding', () => {
       JSON.stringify({ type: 'turn/start' }),
       '',
     ].join('\n')))
-    await expect(ctx.sessionPersistence.list()).rejects.toThrow(/first frame is not exactly one header line/)
+    await expect(ctx.sessionPersistence.list()).rejects.toThrow(
+      /first frame is not exactly one header line.*raw log:/,
+    )
     await expect(ctx.sessionPersistence.open(twoLinesId, 'read'))
       .rejects.toThrow(/first frame is not exactly one header line/)
   })

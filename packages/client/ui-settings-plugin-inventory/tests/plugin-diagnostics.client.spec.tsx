@@ -140,4 +140,39 @@ describe('PluginDiagnosticsSection', () => {
     expect(screen.getByRole('button', { name: en['health.quarantine.action.findUpdate'] })).toBeTruthy()
     expect(screen.getByRole('button', { name: en['health.uninstall'] })).toBeTruthy()
   })
+
+  it('explains a plugin collision with a built-in Loader entry', async () => {
+    const packageName = 'dsh-file-upload'
+    render(<PluginDiagnosticsSection {...props({
+      entries: [],
+      dependencyHealth: {
+        lastRepair: null,
+        safeMode: null,
+        quarantined: [{
+          quarantineId: '00000000-0000-4000-8000-000000000018',
+          profile: 'web',
+          packageName,
+          packageSpec: '^0.4.3',
+          installedVersion: '0.4.3',
+          quarantinedAt: '2026-09-12T02:00:00.000Z',
+          reason: 'loader-entry-collision',
+          conflicts: [],
+        }],
+        issues: [{
+          diagnosticId: '00000000-0000-4000-8000-000000000019',
+          code: 'loader.duplicate-entry',
+          source: 'loader',
+          phase: 'apply',
+          severity: 'blocked',
+          attribution: { rootPackage: packageName, entryId: 'file-upload', moduleName: packageName },
+          actions: ['repair', 'isolate', 'open-config', 'export'],
+          evidence: [],
+        }],
+      },
+    })} />)
+
+    expect(await screen.findAllByText(en['health.quarantine.reason.loaderEntryCollision'])).toHaveLength(1)
+    expect(screen.getAllByText(en['health.quarantine.solution.loader-entry-collision'])).toHaveLength(2)
+    expect(screen.getByRole('button', { name: en['health.quarantine.action.findUpdate'] })).toBeTruthy()
+  })
 })

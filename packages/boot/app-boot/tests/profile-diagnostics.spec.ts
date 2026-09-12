@@ -40,6 +40,7 @@ describe('profile diagnostic v2', () => {
     ['credentials-local: the value for "version" must be a string', 'config.credentials-invalid', 'blocked'],
     ['settings-file: invalid document at C:\\Users\\Alice\\settings.yaml: DUPLICATE_KEY at line 9, column 3', 'config.settings-invalid', 'blocked'],
     ["Cannot find package '@deepseek-ai/dsh-session-persistence-sqlite' imported from cordis.patch.yml", 'profile.session-persistence-migration', 'blocked'],
+    ['corrupt Zstandard session log: first frame is not exactly one header line', 'session.persistence-corrupt', 'blocked'],
     ['loader dependency unavailable: Loader module @fixture/ui imports unavailable dependency @deepseek-ai/dsh-host-apiproxy', 'loader.dependency-unavailable', 'blocked'],
     ['loader dependency unavailable: Loader module dsh-webchat expects export installSettingsSection from @deepseek-ai/dsh-settings, but the installed dependency does not provide it', 'loader.dependency-unavailable', 'blocked'],
     ['duplicate loader entry web-panel', 'loader.duplicate-entry', 'blocked'],
@@ -100,6 +101,19 @@ describe('profile diagnostic v2', () => {
         moduleName: '@deepseek-ai/dsh-session-persistence-sqlite',
         configKind: 'profile-patch',
       },
+    })
+    expect(issue.actions).not.toContain('isolate')
+  })
+
+  it('does not misattribute a corrupt Session artifact to a plugin lifecycle failure', () => {
+    const error = new Error('plugin tree failed to load', {
+      cause: new Error('corrupt Zstandard session log: first frame is not exactly one header line'),
+    })
+    const issue = classifyProfileDiagnostic({ source: 'profile', phase: 'apply', value: error })
+    expect(issue).toMatchObject({
+      code: 'session.persistence-corrupt',
+      source: 'session',
+      actions: ['export'],
     })
     expect(issue.actions).not.toContain('isolate')
   })

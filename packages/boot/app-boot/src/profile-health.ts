@@ -41,6 +41,7 @@ import {
   createProfileDiagnosticReport,
   extractProfileBuildApprovalKey,
   orphanedBundleDiagnostic,
+  profileLoaderEntryCollisionDiagnostic,
   profileHostCompatibilityDiagnostic,
   profileDependencyConflictDiagnostic,
   quarantinedPluginDiagnostic,
@@ -136,6 +137,13 @@ export interface ProfileBundleEntryOwnership {
   readonly patchPath: string
 }
 
+/** An external Bundle entry whose id is already owned by a shipped Profile layer. */
+export interface ProfileLoaderEntryCollision extends ProfileBundleEntryOwnership {
+  readonly installationPackage: string
+  readonly installationModuleName: string
+  readonly installationPatchPath: string
+}
+
 /** Closed reason set persisted with each automatically isolated plugin. */
 export type ProfileQuarantineReason =
   | 'incompatible-host-version'
@@ -146,6 +154,7 @@ export type ProfileQuarantineReason =
   | 'client-module-unavailable'
   | 'loader-module-unresolvable'
   | 'loader-dependency-unavailable'
+  | 'loader-entry-collision'
   | 'loader-lifecycle-failed'
 
 /** Durable information required to explain or retry an automatically isolated plugin. */
@@ -686,6 +695,83 @@ function insertedLoaderEntries(patches: readonly PatchOptions[]): EntryOptions[]
     const insert = (patch as PatchOptions & { insert?: EntryOptions[] }).insert
     return Array.isArray(insert) ? nestedLoaderEntries(insert) : []
   })
+}
+
+function enabledInsertedLoaderEntries(patches: readonly PatchOptions[]): EntryOptions[] {
+  const result: EntryOptions[] = []
+  const visit = (entry: EntryOptions): void => {
+    if (entry.disabled === true) return
+    result.push(entry)
+    if (Array.isArray(entry.config)) {
+      for (const child of entry.config as EntryOptions[]) visit(child)
+    }
+  }
+  for (const patch of patches) {
+    const insert = (patch as PatchOptions & { insert?: EntryOptions[] }).insert
+    if (Array.isArray(insert)) for (const entry of insert) visit(entry)
+  }
+  return result
+}
+
+/**
+ * Find directly enabled external Bundle rows that reuse an entry id reserved
+ * by the active Profile's installation-owned layers.
+ * @param options - Profile identity, installation anchor, and optional Harness home.
+ * @returns Unambiguous external owners safe to quarantine before Loader activation.
+ */
+export function inspectProfileLoaderEntryCollisions(
+  options: ProfileDependencyOptions,
+): ProfileLoaderEntryCollision[] {
+  const home = options.home ?? resolveDshHome()
+  let profile: ReturnType<typeof loadProfile>
+  try {
+    profile = loadProfile(options.binName, options.profile, options.installAnchor, home)
+  } catch {
+    return []
+  }
+  const manifest = readProfileManifest(options.binName, profile.dir)
+  const dependencies = manifest.dependencies ?? {}
+  const bundles = new Set(manifest.dsh?.profile?.bundles ?? [])
+  const installationOwned = new Set(PROFILE_TEMPLATES[options.profile]?.bundles ?? DEFAULT_PROFILE_BUNDLES)
+  const shippedById = new Map<string, {
+    packageName: string
+    moduleName: string
+    patchPath: string
+  }>()
+  for (const layer of profile.layers) {
+    if (!installationOwned.has(layer.packageName)) continue
+    for (const entry of enabledInsertedLoaderEntries(layer.patches)) {
+      if (typeof entry.id !== 'string' || typeof entry.name !== 'string') continue
+      shippedById.set(entry.id, {
+        packageName: layer.packageName,
+        moduleName: entry.name,
+        patchPath: layer.patchPath,
+      })
+    }
+  }
+  const collisions = new Map<string, ProfileLoaderEntryCollision>()
+  for (const layer of profile.layers) {
+    if (installationOwned.has(layer.packageName)
+      || dependencies[layer.packageName] === undefined
+      || !bundles.has(layer.packageName)) continue
+    for (const entry of enabledInsertedLoaderEntries(layer.patches)) {
+      if (typeof entry.id !== 'string' || typeof entry.name !== 'string') continue
+      const shipped = shippedById.get(entry.id)
+      if (shipped === undefined) continue
+      const collision: ProfileLoaderEntryCollision = {
+        profile: options.profile,
+        rootPackage: layer.packageName,
+        entryId: entry.id,
+        moduleName: entry.name,
+        patchPath: layer.patchPath,
+        installationPackage: shipped.packageName,
+        installationModuleName: shipped.moduleName,
+        installationPatchPath: shipped.patchPath,
+      }
+      collisions.set(`${collision.rootPackage}\0${collision.entryId}`, collision)
+    }
+  }
+  return [...collisions.values()]
 }
 
 function loaderModuleDiagnostic(issue: UnresolvableProfileBundleEntry): ProfileDiagnostic {
@@ -1378,7 +1464,7 @@ export function quarantineProfilePluginAfterLoadFailure(
   options: ProfileRepairOptions,
   packageName: string,
   issue: ProfileDiagnostic,
-  reason: Extract<ProfileQuarantineReason, 'client-module-unavailable' | 'loader-module-unresolvable' | 'loader-dependency-unavailable' | 'loader-lifecycle-failed'> = 'client-module-unavailable',
+  reason: Extract<ProfileQuarantineReason, 'client-module-unavailable' | 'loader-module-unresolvable' | 'loader-dependency-unavailable' | 'loader-entry-collision' | 'loader-lifecycle-failed'> = 'client-module-unavailable',
 ): ProfileRepairReport {
   const home = options.home ?? resolveDshHome()
   const profileDir = resolveProfileDir(options.profile, home)
@@ -1433,8 +1519,11 @@ export function quarantineProfilePluginAfterLoadFailure(
     }
     const remainingConflicts = inspectProfileDependencies({ ...options, home })
     const remainingOrphans = inspectOrphanedProfileBundles({ ...options, home })
+    const remainingCollisions = inspectProfileLoaderEntryCollisions({ ...options, home })
+      .filter(collision => collision.rootPackage === packageName)
     const remainingResidue = retainedPluginDirectories(profileDir, [record])
-    if (remainingConflicts.length === 0 && remainingOrphans.length === 0 && remainingResidue.length === 0) {
+    if (remainingConflicts.length === 0 && remainingOrphans.length === 0
+      && remainingCollisions.length === 0 && remainingResidue.length === 0) {
       persistQuarantines(home, [record])
       const retainedIssue: ProfileDiagnostic = {
         ...issue,
@@ -1448,6 +1537,7 @@ export function quarantineProfilePluginAfterLoadFailure(
     cleanupDiagnostic = `profile remained unhealthy after quarantining ${packageName}: ${[
       ...remainingConflicts.map(conflict => conflict.dependency),
       ...remainingOrphans.map(orphan => orphan.packageName),
+      ...remainingCollisions.map(collision => `${collision.rootPackage}:${collision.entryId}`),
       ...remainingResidue.map(residue => residue.packageName),
     ].join(', ')}`
   } catch (error) {
@@ -1650,9 +1740,27 @@ export function repairProfileDependencies(options: ProfileRepairOptions): Profil
   const initialOrphans = inspectOrphanedProfileBundles({ ...options, home })
   const initialHostCompatibility = inspectProfileHostCompatibility({ ...options, home })
   if (initial.length === 0 && initialOrphans.length === 0 && initialHostCompatibility.length === 0) {
+    const loaderCollisions = inspectProfileLoaderEntryCollisions({ ...options, home })
     const loaderFailures = inspectUnresolvableProfileBundleEntries({ ...options, home })
     let loaderOutcome: ProfileRepairReport | undefined
     const quarantinedRoots = new Set<string>()
+    for (const collision of loaderCollisions) {
+      if (quarantinedRoots.has(collision.rootPackage)) continue
+      loaderOutcome = quarantineProfilePluginAfterLoadFailure(
+        options,
+        collision.rootPackage,
+        profileLoaderEntryCollisionDiagnostic(
+          collision.rootPackage,
+          collision.entryId,
+          collision.moduleName,
+          collision.installationPackage,
+          collision.installationModuleName,
+        ),
+        'loader-entry-collision',
+      )
+      if (loaderOutcome.status !== 'quarantined') return loaderOutcome
+      quarantinedRoots.add(collision.rootPackage)
+    }
     for (const failure of loaderFailures) {
       if (quarantinedRoots.has(failure.rootPackage)) continue
       loaderOutcome = quarantineProfilePluginAfterLoadFailure(

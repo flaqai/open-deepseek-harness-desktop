@@ -90,6 +90,7 @@ type ArmedSectionDrag = {
 
 type OnboardingPanelProps = {
   request: SettingsOnboardingSectionRequest
+  available: boolean
   renderSlot: SettingsRootComponentProps['renderSlot']
   t: SettingsRootComponentProps['t']
   onBack: () => void
@@ -105,7 +106,7 @@ const ONBOARDING_SECTION_STEPS = [
 ] as const
 
 /** Reuse one settings section inside the selected first-run progress shell. */
-function OnboardingSectionPanel({ request, renderSlot, t, onBack, onComplete }: OnboardingPanelProps) {
+function OnboardingSectionPanel({ request, available, renderSlot, t, onBack, onComplete }: OnboardingPanelProps) {
   const titleId = useId()
   const backButton = useRef<HTMLButtonElement | null>(null)
 
@@ -133,18 +134,25 @@ function OnboardingSectionPanel({ request, renderSlot, t, onBack, onComplete }: 
         </aside>
         <div className={css.onboardingSectionContent}>
           <div className={css.onboardingSectionBody}>
-            {renderSlot('settings.section', {
-              close: onBack,
-              ...request.subsectionId === undefined
-                ? {}
-                : { preferredSubsectionId: request.subsectionId },
-            }, { only: request.sectionId })}
+            {available
+              ? renderSlot('settings.section', {
+                close: onBack,
+                ...request.subsectionId === undefined
+                  ? {}
+                  : { preferredSubsectionId: request.subsectionId },
+              }, { only: request.sectionId })
+              : (
+                <div className={css.onboardingSectionUnavailable} role="status">
+                  <h3>{t('onboarding.sectionUnavailable.title')}</h3>
+                  <p>{t('onboarding.sectionUnavailable.description')}</p>
+                </div>
+              )}
           </div>
           <footer className={css.onboardingFooter}>
             <button ref={backButton} type="button" className={css.onboardingBack} onClick={onBack}>
               {t('onboarding.back')}
             </button>
-            <button type="button" className={css.onboardingDone} onClick={onComplete}>
+            <button type="button" className={css.onboardingDone} disabled={!available} onClick={onComplete}>
               {t('onboarding.done')}
             </button>
           </footer>
@@ -651,6 +659,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
       {onboardingSection !== undefined && (
         <OnboardingSectionPanel
           request={onboardingSection}
+          available={orderedRows.some(row => row.id === onboardingSection.sectionId)}
           renderSlot={renderSlot}
           t={t}
           onBack={() => { setOnboardingSection(undefined) }}

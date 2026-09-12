@@ -9,7 +9,7 @@ import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 export const PROFILE_DIAGNOSTIC_SCHEMA = 'dsh/profile-diagnostic/v2' as const
 
 /** Subsystem that reported one Profile problem. */
-export type ProfileDiagnosticSource = 'pnpm' | 'profile' | 'loader' | 'cordis-runtime' | 'runtime' | 'config'
+export type ProfileDiagnosticSource = 'pnpm' | 'profile' | 'loader' | 'cordis-runtime' | 'runtime' | 'config' | 'session'
 
 /** Operation phase in which one Profile problem became observable. */
 export type ProfileDiagnosticPhase =
@@ -61,6 +61,7 @@ export type ProfileDiagnosticCode =
   | 'profile.immutable-agent-input-mutation'
   | 'profile.session-api-incompatible'
   | 'profile.session-persistence-migration'
+  | 'session.persistence-corrupt'
   | 'loader.dependency-unavailable'
   | 'profile.patch-invalid'
   | 'profile.quarantine-removal-residue'
@@ -115,6 +116,8 @@ export interface ProfileDiagnosticReport {
     readonly skippedBundles: readonly string[]
     readonly skippedUserLayers: boolean
     readonly skippedUserSettings?: boolean
+    readonly skippedUserSessions?: boolean
+    readonly skippedUserStorage?: boolean
   }
 }
 
@@ -246,6 +249,10 @@ const RULES: readonly DiagnosticRule[] = [
     code: 'profile.session-persistence-migration', source: 'profile', severity: 'blocked',
     actions: ['open-config', 'export'],
     pattern: /@deepseek-ai\/dsh-session-persistence-sqlite/iu,
+  },
+  {
+    code: 'session.persistence-corrupt', source: 'session', severity: 'blocked', actions: ['export'],
+    pattern: /corrupt (?:Zstandard )?session log|stored session .* failed validation|stored log is corrupt/iu,
   },
   {
     code: 'loader.dependency-unavailable', source: 'loader', severity: 'blocked', actions: ['isolate', 'export'],
@@ -550,7 +557,7 @@ export function quarantineRemovalResidueDiagnostic(
  */
 export function quarantinedPluginDiagnostic(
   packageName: string,
-  reason: 'incompatible-host-version' | 'incompatible-host-dependency' | 'convergence-failed' | 'orphaned-bundle' | 'build-script-blocked' | 'client-module-unavailable' | 'loader-module-unresolvable' | 'loader-dependency-unavailable' | 'loader-lifecycle-failed',
+  reason: 'incompatible-host-version' | 'incompatible-host-dependency' | 'convergence-failed' | 'orphaned-bundle' | 'build-script-blocked' | 'client-module-unavailable' | 'loader-module-unresolvable' | 'loader-dependency-unavailable' | 'loader-entry-collision' | 'loader-lifecycle-failed',
   hostCompatibility?: {
     readonly hostVersion: string
     readonly supportedHostVersions: readonly string[]
@@ -565,15 +572,21 @@ export function quarantinedPluginDiagnostic(
         ? 'pnpm.build-script-blocked'
         : reason === 'loader-dependency-unavailable'
           ? 'loader.dependency-unavailable'
-          : reason === 'loader-lifecycle-failed'
-            ? 'loader.lifecycle-failed'
-            : reason === 'client-module-unavailable' || reason === 'loader-module-unresolvable'
-              ? 'profile.module-resolution'
-              : 'profile.host-dependency-conflict'
+          : reason === 'loader-entry-collision'
+            ? 'loader.duplicate-entry'
+            : reason === 'loader-lifecycle-failed'
+              ? 'loader.lifecycle-failed'
+              : reason === 'client-module-unavailable' || reason === 'loader-module-unresolvable'
+                ? 'profile.module-resolution'
+                : 'profile.host-dependency-conflict'
   return {
     diagnosticId: randomUUID(),
     code,
-    source: reason === 'build-script-blocked' ? 'pnpm' : 'profile',
+    source: reason === 'build-script-blocked'
+      ? 'pnpm'
+      : reason === 'loader-entry-collision'
+        ? 'loader'
+        : 'profile',
     phase: 'repair',
     severity: reason === 'build-script-blocked' ? 'security' : 'blocked',
     attribution: {
@@ -592,6 +605,42 @@ export function quarantinedPluginDiagnostic(
       ? ['approve-build', 'restore', 'export']
       : ['restore', 'export'],
     evidence: [],
+  }
+}
+
+/**
+ * Build one attributable diagnostic for an external Bundle that reuses an
+ * installation-owned Loader entry id.
+ * @param packageName - Direct external Bundle package.
+ * @param entryId - Colliding Loader entry id.
+ * @param moduleName - External module inserted at that id.
+ * @param installationPackage - Shipped Bundle that already owns the id.
+ * @param installationModuleName - Shipped module inserted at that id.
+ * @returns A blocked issue safe for automatic external-plugin quarantine.
+ */
+export function profileLoaderEntryCollisionDiagnostic(
+  packageName: string,
+  entryId: string,
+  moduleName: string,
+  installationPackage: string,
+  installationModuleName: string,
+): ProfileDiagnostic {
+  return {
+    diagnosticId: randomUUID(),
+    code: 'loader.duplicate-entry',
+    source: 'loader',
+    phase: 'apply',
+    severity: 'blocked',
+    attribution: {
+      rootPackage: packageName,
+      entryId,
+      moduleName,
+      configKind: 'profile-patch',
+    },
+    actions: ['repair', 'isolate', 'open-config', 'export'],
+    evidence: [
+      `External Bundle ${packageName} inserts Loader entry ${entryId} (${moduleName}), already owned by installation Bundle ${installationPackage} (${installationModuleName})`,
+    ],
   }
 }
 

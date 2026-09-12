@@ -46,6 +46,7 @@ import {
 } from './permissions.ts'
 import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
 import { HarnessSupervisor, type HarnessFailure, type HarnessState } from './supervisor.ts'
+import { readRecoveryFailureSummary, type RecoveryFailureSummary } from './recovery-failure.ts'
 import { ProfileTransactionManager } from './profile-transaction-manager.ts'
 import { terminateWindowsProcessTree } from './windows-process-tree.ts'
 import { revealHarnessLog, type OpenLogResult } from './log-reveal.ts'
@@ -232,6 +233,7 @@ let recoveryRestartRequired = false
 let recoveryPluginRemove: ((packageName: string) => Promise<void>) | undefined
 let blockedProcessRecoveryPath: string | undefined
 let latestRecoveryFailure: string | undefined
+let latestRecoveryDiagnostic: RecoveryFailureSummary | undefined
 let processObserver: DesktopProcessObserver | undefined
 let processObservationFailure: unknown
 let persistentServiceAuthority: FilePersistentServiceAuthorizer | undefined
@@ -1189,11 +1191,21 @@ function publishStartupProgress(next: DesktopStartupProgress): void {
 
 function showLoading(
   state: HarnessState,
-  failure?: HarnessFailure & { logPath: string },
+  failure?: HarnessFailure & { logPath: string } & Partial<RecoveryFailureSummary>,
   mode?: 'shutdown',
 ): void {
   if (mainSurface === undefined || mainSurface.window.isDestroyed() || state === 'ready' || state === 'stopped') return
-  if (failure !== undefined) latestRecoveryFailure = failure.message
+  if (failure !== undefined) {
+    latestRecoveryFailure = failure.message
+    latestRecoveryDiagnostic = failure.diagnosticCode === undefined ? undefined : {
+      diagnosticCode: failure.diagnosticCode,
+      ...(failure.nativeCode === undefined ? {} : { nativeCode: failure.nativeCode }),
+      ...(failure.packageName === undefined ? {} : { packageName: failure.packageName }),
+      ...(failure.entryId === undefined ? {} : { entryId: failure.entryId }),
+      ...(failure.moduleName === undefined ? {} : { moduleName: failure.moduleName }),
+      ...(failure.evidence === undefined ? {} : { evidence: failure.evidence }),
+    }
+  }
   void mainSurface.loadFile(LOADING_PAGE, {
     query: {
       state,
@@ -1207,7 +1219,16 @@ function showLoading(
       stage: startupProgress.stage,
       progress: String(startupProgress.progress),
       ...(startupProgress.detail === undefined ? {} : { detail: startupProgress.detail }),
-      ...(failure === undefined ? {} : { message: failure.message, logPath: failure.logPath }),
+      ...(failure === undefined ? {} : {
+        message: failure.message,
+        logPath: failure.logPath,
+        ...(failure.diagnosticCode === undefined ? {} : { diagnosticCode: failure.diagnosticCode }),
+        ...(failure.nativeCode === undefined ? {} : { nativeCode: failure.nativeCode }),
+        ...(failure.packageName === undefined ? {} : { packageName: failure.packageName }),
+        ...(failure.entryId === undefined ? {} : { entryId: failure.entryId }),
+        ...(failure.moduleName === undefined ? {} : { moduleName: failure.moduleName }),
+        ...(failure.evidence === undefined ? {} : { evidence: failure.evidence }),
+      }),
     },
   }).catch((error: unknown) => {
     // A newer loading stage or the ready page can supersede this navigation.
@@ -2107,6 +2128,13 @@ async function startApplication(): Promise<void> {
         detail: startupProgress.detail,
         state: startupProgress.state,
         ...(latestRecoveryFailure === undefined ? {} : { failure: redact(latestRecoveryFailure) }),
+        ...(latestRecoveryDiagnostic === undefined ? {} : {
+          diagnostic: {
+            ...latestRecoveryDiagnostic,
+            ...(latestRecoveryDiagnostic.evidence === undefined
+              ? {} : { evidence: redact(latestRecoveryDiagnostic.evidence) }),
+          },
+        }),
       },
       plugins: inventory,
     }, undefined, 2)}\n`, { mode: 0o600 })
@@ -2745,6 +2773,7 @@ async function startApplication(): Promise<void> {
       if (supervisor !== undefined) void supervisor.stop().then(() => {
         showLoading('failed', {
           message: shellMessages(app.getLocale()).transactionRecoveryFailed,
+          diagnosticCode: 'desktop.profile-transaction-rollback-failed',
           logPath: harnessLogPath,
         })
       })
@@ -2862,6 +2891,8 @@ async function startApplication(): Promise<void> {
     })
     showLoading('failed', {
       message: shellMessages(app.getLocale()).processRecoveryFailed(detail),
+      diagnosticCode: 'desktop.process-recovery-blocked',
+      evidence: detail,
       logPath: harnessLogPath,
     })
     return
@@ -2984,6 +3015,8 @@ async function startApplication(): Promise<void> {
         })
         showLoading('failed', {
           message: shellMessages(app.getLocale()).initializeFailed(message),
+          diagnosticCode: 'desktop.profile-initialize-failed',
+          evidence: message,
           logPath: harnessLogPath,
         })
         return
@@ -3185,6 +3218,7 @@ async function startApplication(): Promise<void> {
       recoveryHarnessSuspended = false
       recoveryRestartRequired = false
       latestRecoveryFailure = undefined
+      latestRecoveryDiagnostic = undefined
       harnessOrigin = new URL(url).origin
       desktopReturnControl?.setHarnessOrigin(`${harnessOrigin}/`)
       desktopWebAccess?.setReady(url)
@@ -3221,7 +3255,16 @@ async function startApplication(): Promise<void> {
       void appendDesktopStartupLog(
         `Diagnostic mode is ready; the active Profile remains paused: ${failure.message}`,
       )
-      showLoading('failed', { ...failure, logPath: harnessLogPath })
+      const diagnosticSummary = profileMutationBlocked
+        ? { diagnosticCode: 'desktop.profile-lock-busy' }
+        : startupSafety.rollbackFailed
+          ? { diagnosticCode: 'desktop.profile-transaction-rollback-failed' }
+          : readRecoveryFailureSummary(dshHome) ?? { diagnosticCode: 'desktop.harness-startup-failed' }
+      showLoading('failed', {
+        ...failure,
+        ...diagnosticSummary,
+        logPath: harnessLogPath,
+      })
       showNotification('failed', notificationCopy.failed)
     },
     onState: (state) => {
@@ -3243,18 +3286,28 @@ async function startApplication(): Promise<void> {
     },
     onFailure: (failure) => {
       profileTransactionManager?.failed()
+      const diagnosticSummary = profileMutationBlocked
+        ? { diagnosticCode: 'desktop.profile-lock-busy' }
+        : startupSafety.rollbackFailed
+          ? { diagnosticCode: 'desktop.profile-transaction-rollback-failed' }
+          : readRecoveryFailureSummary(dshHome) ?? { diagnosticCode: 'desktop.harness-startup-failed' }
+      const detailedFailure = {
+        ...failure,
+        ...diagnosticSummary,
+        logPath: harnessLogPath,
+      }
       if (pluginSnapshotManager === undefined) {
-        showLoading('failed', { ...failure, logPath: harnessLogPath })
+        showLoading('failed', detailedFailure)
         showNotification('failed', notificationCopy.failed)
         return
       }
       void pluginSnapshotManager.handleHarnessFailure(failure.message).then((handled) => {
         if (handled) return
-        showLoading('failed', { ...failure, logPath: harnessLogPath })
+        showLoading('failed', detailedFailure)
         showNotification('failed', notificationCopy.failed)
       }, (error: unknown) => {
         console.error('desktop: plugin snapshot rollback after startup failure failed', error)
-        showLoading('failed', { ...failure, logPath: harnessLogPath })
+        showLoading('failed', detailedFailure)
         showNotification('failed', notificationCopy.failed)
       })
     },

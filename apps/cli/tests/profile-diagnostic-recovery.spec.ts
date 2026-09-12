@@ -56,6 +56,7 @@ describe('Profile diagnostic recovery policy', () => {
       'credentials-local: the value for "version" must be a string',
       'failed to apply loader entry fixture (@fixture/broken): activation failed',
       'duplicate loader entry fixture',
+      'corrupt Zstandard session log: first frame is not exactly one header line',
     ]) {
       const issue = classifyProfileDiagnostic({ source: 'loader', phase: 'apply', value })
       expect(isDeterministicSafeModeFailure(issue), issue.code).toBe(true)

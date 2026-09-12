@@ -17,6 +17,203 @@ type RecoveryPanel = 'plugins' | 'snapshots' | 'directory' | 'diagnostics'
 /** Delay before the loading page reveals the slow-start details and log action. */
 export const STARTUP_SLOW_PROGRESS_DELAY_MS = 40_000
 
+interface LocalizedFailure {
+  readonly zh: readonly [title: string, guidance: string]
+  readonly en: readonly [title: string, guidance: string]
+}
+
+const recoveryFailures: Readonly<Record<string, LocalizedFailure>> = {
+  'session.persistence-corrupt': {
+    zh: ['会话日志损坏', '一个历史会话文件无法读取。卸载重装不会删除或修复用户数据；请先导出诊断，再备份会话或切换配置目录。'],
+    en: ['Corrupt session log', 'A stored session cannot be read. Reinstalling does not remove or repair user data; export diagnostics, then back up the sessions or switch data directories.'],
+  },
+  'profile.session-persistence-migration': {
+    zh: ['会话存储迁移失败', '旧版会话存储未能安全迁移。原始数据会保留，请导出诊断后再处理会话存储。'],
+    en: ['Session storage migration failed', 'Legacy session storage could not be migrated safely. The source data is preserved; export diagnostics before changing session storage.'],
+  },
+  'profile.module-resolution': {
+    zh: ['插件或 Bundle 文件缺失', '某个插件依赖无法从当前 Profile 解析。可在插件管理中卸载对应外部插件，或回退到可用的插件快照。'],
+    en: ['Plugin or Bundle file is missing', 'A plugin dependency cannot be resolved from this Profile. Remove the affected external plugin or restore a known-good plugin snapshot.'],
+  },
+  'loader.dependency-unavailable': {
+    zh: ['插件依赖不可用', '插件声明的运行依赖没有加载成功。请优先卸载相关插件或恢复插件快照。'],
+    en: ['Plugin dependency unavailable', 'A runtime dependency required by a plugin did not load. Remove the affected plugin or restore a plugin snapshot first.'],
+  },
+  'loader.duplicate-entry': {
+    zh: ['插件功能与现有功能重名', '两个 Bundle 注册了相同的 Loader 入口。通常需要卸载较旧的第三方增强插件，再重新启动。'],
+    en: ['Plugin feature duplicates an existing feature', 'Two Bundles registered the same Loader entry. Usually the older third-party enhancement should be removed before restarting.'],
+  },
+  'loader.duplicate-registration': {
+    zh: ['插件重复注册服务', '多个插件注册了同一个服务、路由或配置项。请卸载最近安装或被标记异常的插件。'],
+    en: ['Plugin registration conflict', 'Multiple plugins registered the same service, route, or setting. Remove the recently installed or flagged plugin.'],
+  },
+  'loader.unresolved-injection': {
+    zh: ['插件所需服务未就绪', '插件一直在等待不存在或未启动的服务。请检查对应插件版本及其依赖。'],
+    en: ['Required plugin service did not become ready', 'A plugin is waiting for a service that is missing or did not start. Check the affected plugin version and dependencies.'],
+  },
+  'loader.lifecycle-failed': {
+    zh: ['插件启动失败', '插件在导入或激活阶段抛出错误。可卸载被标记的插件，或恢复到上一个可用快照。'],
+    en: ['Plugin failed to start', 'A plugin failed while importing or activating. Remove the flagged plugin or restore the last known-good snapshot.'],
+  },
+  'loader.rollback-failed': {
+    zh: ['插件回滚未完成', '插件启动失败后的清理也未能完成。请不要反复重试，先导出诊断并恢复插件快照。'],
+    en: ['Plugin rollback did not complete', 'Cleanup after a plugin startup failure also failed. Do not repeatedly retry; export diagnostics and restore a plugin snapshot.'],
+  },
+  'profile.immutable-agent-input-mutation': {
+    zh: ['插件修改了只读消息', '外部插件尝试修改新版 Harness 的只读 Agent 输入。请卸载不兼容插件并等待其适配当前版本。'],
+    en: ['Plugin modified read-only agent input', 'An external plugin tried to mutate read-only Agent input in the current Harness. Remove the incompatible plugin until it is updated.'],
+  },
+  'profile.session-api-incompatible': {
+    zh: ['插件使用了旧版会话接口', '外部插件仍依赖已经变更的 Session API。请卸载或升级对应插件。'],
+    en: ['Plugin uses an obsolete Session API', 'An external plugin still depends on a changed Session API. Remove or update the affected plugin.'],
+  },
+  'profile.host-version-incompatible': {
+    zh: ['插件与当前 Harness 版本不兼容', '插件声明的 Host 版本范围不包含当前版本。请升级、降级或卸载该插件。'],
+    en: ['Plugin is incompatible with this Harness version', 'The plugin Host range does not include this version. Update, downgrade, or remove the plugin.'],
+  },
+  'profile.host-dependency-conflict': {
+    zh: ['插件核心依赖冲突', '插件要求了与当前 Host 不兼容的核心依赖版本。请恢复插件快照或卸载冲突插件。'],
+    en: ['Plugin host dependency conflict', 'A plugin requires a core dependency version incompatible with the current Host. Restore a snapshot or remove the conflicting plugin.'],
+  },
+  'profile.bundle-invalid': {
+    zh: ['插件 Bundle 声明无效', '插件包结构或 Bundle 配置不符合当前格式。请卸载该插件或联系插件作者。'],
+    en: ['Invalid plugin Bundle declaration', 'The plugin package structure or Bundle declaration is invalid. Remove it or contact the plugin author.'],
+  },
+  'profile.orphaned-bundle': {
+    zh: ['发现已卸载插件的残留项', 'Profile 仍引用一个已经不存在的插件。可运行检查并修复，或打开配置文件移除残留。'],
+    en: ['Removed plugin is still referenced', 'The Profile still references a plugin that no longer exists. Run repair or remove the stale entry from configuration.'],
+  },
+  'profile.patch-invalid': {
+    zh: ['Profile 补丁无效', '用户或主目录补丁无法安全应用。请打开配置文件检查补丁格式、目标路径和不受支持的 YAML 类型。'],
+    en: ['Invalid Profile patch', 'A Profile or home patch could not be applied safely. Inspect its format, target path, and unsupported YAML types.'],
+  },
+  'profile.quarantine-removal-residue': {
+    zh: ['隔离插件仍有残留配置', '插件已经隔离，但 Profile 中仍留有引用。运行检查并修复可清理受管残留。'],
+    en: ['Quarantined plugin left stale configuration', 'The plugin is quarantined but still referenced by the Profile. Run diagnostic repair to clean managed residue.'],
+  },
+  'profile.unknown': {
+    zh: ['Profile 启动错误尚未归类', '已捕获脱敏证据，但现有规则无法可靠判断责任插件。请导出诊断，不要批量卸载插件。'],
+    en: ['Profile startup error is not classified', 'Redacted evidence was captured, but no plugin can be attributed reliably. Export diagnostics instead of removing plugins in bulk.'],
+  },
+  'config.settings-invalid': {
+    zh: ['设置文件格式错误', 'settings.yaml 无法安全解析。请打开配置文件修正 YAML；也可以导出诊断后重置损坏的设置。'],
+    en: ['Invalid settings file', 'settings.yaml could not be parsed safely. Correct the YAML, or export diagnostics before resetting the damaged settings.'],
+  },
+  'config.credentials-invalid': {
+    zh: ['凭据文件格式错误', '凭据配置无法解析，但不会在此页面显示密钥内容。请检查凭据文件结构或切换配置目录。'],
+    en: ['Invalid credentials file', 'The credentials configuration cannot be parsed; secret values are not shown here. Check its structure or switch data directories.'],
+  },
+  'pnpm.build-script-blocked': {
+    zh: ['插件构建脚本需要授权', '依赖安装被构建许可策略阻止。请仅在确认插件来源可信后批准构建。'],
+    en: ['Plugin build script needs approval', 'Dependency installation was blocked by the build-approval policy. Approve only when the plugin source is trusted.'],
+  },
+  'pnpm.unexpected-store': {
+    zh: ['插件依赖存储位置不一致', '当前 node_modules 来自另一个 pnpm store。请使用诊断修复重新冻结依赖，不要手工复制 node_modules。'],
+    en: ['Plugin dependency store mismatch', 'The current node_modules belongs to another pnpm store. Use diagnostic repair to freeze dependencies again instead of copying node_modules.'],
+  },
+  'pnpm.network': {
+    zh: ['插件依赖下载失败', '插件安装时网络连接中断。检查下载源或代理后重试；现有 Profile 数据不会因此被删除。'],
+    en: ['Plugin dependency download failed', 'The network failed during plugin installation. Check the source or proxy and retry; existing Profile data is not removed.'],
+  },
+  'pnpm.registry-auth': {
+    zh: ['插件仓库拒绝访问', 'Registry 返回了认证或权限错误。请检查私有源凭据及 registry 配置。'],
+    en: ['Plugin registry denied access', 'The registry returned an authentication or permission error. Check private registry credentials and configuration.'],
+  },
+  'pnpm.lockfile': {
+    zh: ['插件锁文件不一致', '插件清单与锁文件无法一致解析。请使用检查并修复重新生成受管依赖。'],
+    en: ['Plugin lockfile is inconsistent', 'The plugin manifest and lockfile cannot be resolved together. Use diagnostic repair to regenerate managed dependencies.'],
+  },
+  'pnpm.integrity': {
+    zh: ['插件包完整性校验失败', '下载内容与可信校验值不一致。为安全起见不会继续加载，请勿绕过校验。'],
+    en: ['Plugin package integrity check failed', 'Downloaded content does not match its trusted integrity value. It will not be loaded; do not bypass this check.'],
+  },
+  'pnpm.minimum-release-age': {
+    zh: ['插件版本尚未达到安全等待期', '所选版本过新或缺少可信发布时间，依赖策略暂时拒绝安装。请等待镜像同步后重试。'],
+    en: ['Plugin version has not passed the safety delay', 'The selected version is too new or lacks trusted publish time metadata. Wait for registry synchronization and retry.'],
+  },
+  'pnpm.patch-failed': {
+    zh: ['插件补丁无法应用', '现有补丁与当前依赖内容不匹配。请检查补丁目标版本，不会用忽略补丁的方式继续安装。'],
+    en: ['Plugin patch could not be applied', 'The existing patch does not match the current dependency content. Check its target version; installation will not continue by ignoring it.'],
+  },
+  'pnpm.runtime-version': {
+    zh: ['插件依赖要求不同的 Node 版本', '依赖的运行时或模块格式与内置 Node 不兼容。请更换兼容插件版本。'],
+    en: ['Plugin dependency requires a different Node version', 'The dependency runtime or module layout is incompatible with the embedded Node. Use a compatible plugin version.'],
+  },
+  'pnpm.peer-dependency': {
+    zh: ['插件的对等依赖冲突', '插件要求的共享依赖版本无法同时满足。请升级或卸载冲突插件，不会强制忽略版本约束。'],
+    en: ['Plugin peer dependency conflict', 'The shared dependency versions requested by plugins cannot all be satisfied. Update or remove the conflicting plugin; constraints will not be forced.'],
+  },
+  'pnpm.supply-chain': {
+    zh: ['插件供应链安全检查失败', '依赖来源或覆盖规则触发安全保护。请核实插件来源与锁定信息，不要绕过检查。'],
+    en: ['Plugin supply-chain check failed', 'A dependency source or override triggered a safety policy. Verify the plugin source and lock information instead of bypassing the check.'],
+  },
+  'pnpm.version-resolution': {
+    zh: ['找不到所需的插件版本', '配置或锁文件引用的精确版本在当前来源不可用。请检查版本和下载源后重试。'],
+    en: ['Required plugin version was not found', 'The exact version referenced by configuration or the lockfile is unavailable from the current source. Check both before retrying.'],
+  },
+  'pnpm.invalid-dependency': {
+    zh: ['插件依赖声明无效', '插件清单包含不受支持的包名或来源格式。请检查插件配置或联系插件作者。'],
+    en: ['Invalid plugin dependency declaration', 'The plugin manifest contains an unsupported package name or source format. Inspect its configuration or contact the plugin author.'],
+  },
+  'pnpm.config-parse': {
+    zh: ['pnpm 配置文件格式错误', '工作区或 pnpm 配置无法解析。请修正对应 YAML/JSON 文件后再运行修复。'],
+    en: ['Invalid pnpm configuration', 'The workspace or pnpm configuration could not be parsed. Correct the relevant YAML or JSON file before running repair.'],
+  },
+  'runtime.launch-invalid': {
+    zh: ['内置运行环境无法启动', 'Node、pnpm 或 Harness 启动入口不可用。这通常需要修复安装文件，而不是卸载普通插件。'],
+    en: ['Embedded runtime could not start', 'The Node, pnpm, or Harness entry point is unavailable. This usually requires repairing the app installation, not removing a normal plugin.'],
+  },
+  'desktop.harness-startup-failed': {
+    zh: ['Harness 启动后立即退出', '没有生成可用的 Profile 分类报告。请展开详情查看退出原因并导出日志；不要在无法归属插件时批量卸载。'],
+    en: ['Harness exited during startup', 'No usable Profile classification report was produced. Expand the details and export logs; do not remove plugins in bulk without attribution.'],
+  },
+  'desktop.profile-initialize-failed': {
+    zh: ['全新 Profile 初始化失败', '首次创建配置时依赖或受管文件没有准备完成。请检查日志、磁盘权限和网络设置，修复后再重试。'],
+    en: ['New Profile initialization failed', 'Dependencies or managed files were not prepared during first-time setup. Check logs, disk permissions, and network settings before retrying.'],
+  },
+  'desktop.profile-transaction-rollback-failed': {
+    zh: ['插件变更无法安全回滚', '安装、更新或卸载插件后的恢复事务未完成。请优先恢复插件快照，不要继续修改当前 Profile。'],
+    en: ['Plugin change could not be rolled back safely', 'Recovery after a plugin install, update, or removal did not settle. Restore a plugin snapshot before making more Profile changes.'],
+  },
+  'desktop.process-recovery-blocked': {
+    zh: ['后台进程状态阻止启动', '应用无法确认上次受管进程已经退出。可在“导出诊断”中重置损坏的进程恢复记录；不会删除会话或插件。'],
+    en: ['Background process state blocked startup', 'The app cannot prove that prior managed processes exited. Reset the damaged process recovery record under Diagnostics; sessions and plugins are preserved.'],
+  },
+  'desktop.profile-lock-busy': {
+    zh: ['配置目录正被另一个操作占用', '检测到仍然存活的 Profile 写锁。请关闭另一个客户端或等待其完成，不会强行抢占该锁。'],
+    en: ['Data directory is owned by another operation', 'A live Profile write lock was detected. Close the other client or wait for it to finish; the lock will not be stolen.'],
+  },
+  'desktop.diagnostic-report-invalid': {
+    zh: ['诊断报告本身已损坏', 'Profile 的诊断元数据无法读取，因此不能安全判断具体插件。请导出日志或切换配置目录，不要盲目卸载。'],
+    en: ['Diagnostic report is damaged', 'The Profile diagnostic metadata cannot be read, so no plugin can be attributed safely. Export logs or switch data directories instead of removing plugins blindly.'],
+  },
+}
+
+interface FailurePresentation {
+  readonly code: string
+  readonly title: string
+  readonly guidance: string
+  readonly context: string
+}
+
+function recoveryFailureCopy(query: URLSearchParams, copy: RecoveryCopy): FailurePresentation | undefined {
+  const code = query.get('diagnosticCode')?.slice(0, 120)
+  if (code === undefined || !/^[a-z][a-z0-9.-]+$/u.test(code)) return undefined
+  const chinese = copy === chineseCopy
+  const generic: LocalizedFailure = code.startsWith('pnpm.')
+    ? { zh: ['插件依赖处理失败', 'pnpm 未能完成插件依赖操作。请查看错误码和日志，再选择重试、修复或回退快照。'], en: ['Plugin dependency operation failed', 'pnpm could not complete the plugin dependency operation. Inspect the code and log before retrying, repairing, or restoring a snapshot.'] }
+    : code.startsWith('loader.') || code.startsWith('profile.')
+      ? { zh: ['Profile 或插件无法启动', 'Profile 检查发现插件结构或兼容性问题。请根据相关对象选择卸载、修复或回退快照。'], en: ['Profile or plugin could not start', 'Profile checks found a plugin structure or compatibility problem. Use the affected item to decide whether to remove, repair, or restore.'] }
+      : { zh: ['启动错误已被分类', '应用已保留具体诊断码和脱敏证据。请查看详情后选择合适的恢复方式。'], en: ['Startup error classified', 'The app retained a specific diagnostic code and redacted evidence. Review the details before choosing a recovery option.'] }
+  const localized = recoveryFailures[code] ?? generic
+  const [title, guidance] = chinese ? localized.zh : localized.en
+  const contextValues = [
+    query.get('packageName')?.slice(0, 240), query.get('entryId')?.slice(0, 240),
+    query.get('moduleName')?.slice(0, 240), query.get('nativeCode')?.slice(0, 120),
+  ].filter((value): value is string => value !== undefined && value.length > 0)
+  return { code, title, guidance, context: contextValues.length === 0 ? '' : copy.affectedContext(contextValues) }
+}
+
 function element<T extends Element>(selector: string, narrow?: (value: Element) => value is T): T {
   const result = document.querySelector(selector)
   if (result === null || (narrow !== undefined && !narrow(result))) {
@@ -42,7 +239,9 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
   const recoveryDetail = element<HTMLElement>('#recovery-detail')
   const toggleDetails = element<HTMLButtonElement>('#toggle-details')
   const failureDetails = element<HTMLElement>('#failure-details')
+  const failureTitle = element<HTMLElement>('#failure-title')
   const failureMessage = element<HTMLElement>('#failure-message')
+  const failureContext = element<HTMLElement>('#failure-context')
   const logPath = element<HTMLElement>('#log-path')
   const slow = element<HTMLElement>('#slow')
   const slowMessage = element<HTMLElement>('#slow-message')
@@ -126,7 +325,20 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
   progress.setAttribute('aria-valuetext', shutdown ? copy.cleanupBlocked : copy.paused)
   toggleDetails.hidden = false
   toggleDetails.textContent = copy.viewDetails
-  failureMessage.textContent = query.get('message') ?? copy.recoveryDescription
+  const diagnostic = shutdown ? undefined : recoveryFailureCopy(query, copy)
+  if (diagnostic !== undefined) {
+    progressTask.textContent = diagnostic.title
+    progress.setAttribute('aria-valuetext', diagnostic.title)
+    description.textContent = diagnostic.guidance
+    failureTitle.textContent = `${diagnostic.title} · ${diagnostic.code}`
+    failureMessage.textContent = query.get('evidence') ?? query.get('message') ?? diagnostic.guidance
+    failureContext.textContent = diagnostic.context
+    failureContext.hidden = diagnostic.context.length === 0
+  } else {
+    failureTitle.textContent = shutdown ? copy.cleanupBlocked : copy.unknownFailureTitle
+    failureMessage.textContent = query.get('message') ?? copy.recoveryDescription
+    failureContext.hidden = true
+  }
   logPath.textContent = `${copy.logLabel}${query.get('logPath') ?? ''}`
   toggleDetails.addEventListener('click', () => {
     failureDetails.hidden = !failureDetails.hidden
@@ -388,6 +600,8 @@ interface RecoveryCopy {
   readonly retryCleanup: string
   readonly recoveryTitle: string
   readonly recoveryDescription: string
+  readonly unknownFailureTitle: string
+  readonly affectedContext: (values: readonly string[]) => string
   readonly paused: string
   readonly viewDetails: string
   readonly hideDetails: string
@@ -434,6 +648,7 @@ const chineseCopy: RecoveryCopy = {
   shutdownFailedHint: '请查看日志了解未退出的任务，然后重试回收。这里不会提供绕过检查的强制重启。',
   cleanupBlocked: '安全关闭已暂停', retryCleanup: '重试回收',
   recoveryTitle: '诊断模式', recoveryDescription: '正常启动已暂停。当前仅开放诊断与恢复工具，请查看原因、日志或选择一种恢复方式。',
+  unknownFailureTitle: '启动原因尚未分类', affectedContext: values => `相关对象：${values.join(' · ')}`,
   paused: '启动已暂停', viewDetails: '查看错误详情', hideDetails: '收起错误详情', logs: '打开日志目录', logLabel: '日志：',
   slow: '启动时间较长，你可以打开 Harness 日志查看当前进度。',
   slowDetail: (task, elapsed, remaining) => remaining === undefined ? `${task} 已运行 ${elapsed} 秒。应用会自动降级或显示可恢复错误，不会无限等待。` : `${task} 已运行 ${elapsed} 秒，最迟约 ${remaining} 秒后自动降级。`,
@@ -460,6 +675,7 @@ const englishCopy: RecoveryCopy = {
   shutdownFailedHint: 'Inspect the log for the task that is still running, then retry cleanup. There is no force-restart bypass.',
   cleanupBlocked: 'Safe shutdown paused', retryCleanup: 'Retry cleanup',
   recoveryTitle: 'Diagnostics mode', recoveryDescription: 'Normal startup is paused. Only diagnostic and recovery tools are available until you inspect the cause or choose a recovery option.',
+  unknownFailureTitle: 'Startup cause is not yet classified', affectedContext: values => `Affected: ${values.join(' · ')}`,
   paused: 'Startup paused', viewDetails: 'View error details', hideDetails: 'Hide error details', logs: 'Open log folder', logLabel: 'Log: ',
   slow: 'Startup is taking longer than expected. Open the Harness log to inspect its progress.',
   slowDetail: (task, elapsed, remaining) => remaining === undefined ? `${task} has run for ${elapsed}s. The app will degrade or show a recoverable error instead of waiting forever.` : `${task} has run for ${elapsed}s and will degrade in about ${remaining}s at the latest.`,

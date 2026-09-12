@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-25-profile-diagnostic-safe-mode.md
-2026-08-25-profile-diagnostic-safe-mode.md: a38e197d57f267294ead0e6614e4935e02e84f71
-2026-08-25-profile-diagnostic-safe-mode.zh.md: ddb52d328097c93242d54eb5a7c8e5fd109b757c
+2026-08-25-profile-diagnostic-safe-mode.md: 3b1cdc1cebde8aaa2c500dc4916aead2d52da116
+2026-08-25-profile-diagnostic-safe-mode.zh.md: 9c845f54247b0e181df465e93e7aa9416e23870c

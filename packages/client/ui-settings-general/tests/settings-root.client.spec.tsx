@@ -5,7 +5,9 @@ import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
-import type { SettingsNavigationRequest } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {
+  SettingsNavigationRequest, SettingsOnboardingSectionRequest,
+} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 import { en, zh } from '../src/client/locales.ts'
 
@@ -539,6 +541,33 @@ describe('SettingsPanel navigation', () => {
     const inactive = mount({ onboardingActive: false }).renderSlot.mock.calls
       .filter(call => call[0] === 'settings.onboarding')
     expect(inactive).toHaveLength(0)
+  })
+
+  it('never presents a blank onboarding page while an optional settings section is unavailable', () => {
+    const { renderSlot, bump } = mount()
+    const step = renderSlot.mock.calls.find(call => call[0] === 'settings.onboarding')
+    act(() => {
+      (step?.[1] as {
+        openSection: (request: SettingsOnboardingSectionRequest) => void
+      }).openSection({
+        sectionId: 'pocket',
+        step: 2,
+        complete: vi.fn(),
+      })
+    })
+
+    expect(screen.getByRole('status').textContent).toContain(en['onboarding.sectionUnavailable.title'])
+    expect((screen.getByRole('button', { name: en['onboarding.done'] }) as HTMLButtonElement).disabled).toBe(true)
+    expect(renderSlot).not.toHaveBeenCalledWith('settings.section', expect.anything(), { only: 'pocket' })
+
+    bump([
+      { id: 'general', order: 0, label: 'General' },
+      { id: 'models', order: 10, label: 'Models' },
+      { id: 'pocket', order: 15, label: 'Phone access' },
+    ])
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.getByTestId('section-pocket')).toBeTruthy()
+    expect((screen.getByRole('button', { name: en['onboarding.done'] }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('paints no takeover chrome of its own around the mounted step', () => {

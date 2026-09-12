@@ -29,6 +29,7 @@ import {
   inspectProfileHostCompatibility,
   inspectProfileImmutableAgentInputMutation,
   inspectProfileLegacySessionApi,
+  inspectProfileLoaderEntryCollisions,
   inspectOrphanedProfileBundles,
   inspectUnresolvableProfileBundleEntries,
   listProfilePluginSnapshots,
@@ -37,6 +38,7 @@ import {
   PROFILE_TEMPLATES,
   profileDependencyConflictDiagnostic,
   profileHostCompatibilityDiagnostic,
+  profileLoaderEntryCollisionDiagnostic,
   quarantineRemovalResidueDiagnostic,
   quarantineProfilePluginAfterLoadFailure,
   removeProfilePluginSnapshot,
@@ -530,6 +532,11 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
         profile,
         installAnchor: INSTALL_ANCHOR,
       })
+      const loaderCollisions = inspectProfileLoaderEntryCollisions({
+        binName: NAME,
+        profile,
+        installAnchor: INSTALL_ANCHOR,
+      })
       outcome = {
         schema: 'dsh/profile-dependency-repair/v1' as const,
         diagnosticSchema: 'dsh/profile-diagnostic/v2' as const,
@@ -554,6 +561,13 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
           ...quarantineRemovalResidue.map(residue => quarantineRemovalResidueDiagnostic(
             residue.packageName,
             residue.staleComponents,
+          )),
+          ...loaderCollisions.map(collision => profileLoaderEntryCollisionDiagnostic(
+            collision.rootPackage,
+            collision.entryId,
+            collision.moduleName,
+            collision.installationPackage,
+            collision.installationModuleName,
           )),
           ...loaderFailures.map(failure => classifyProfileDiagnostic({
             source: 'profile',

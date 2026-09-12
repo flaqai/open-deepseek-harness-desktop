@@ -1,7 +1,7 @@
 /** Guarded recovery helpers for a user-owned settings document. */
 
 import { randomUUID } from 'node:crypto'
-import { existsSync, lstatSync, mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 
@@ -25,6 +25,38 @@ export function prepareDiagnosticSettingsDocument(home: string = resolveDshHome(
   if (existsSync(path)) unlinkSync(path)
   atomicWrite(path, '{}\n')
   return path
+}
+
+/** Isolated writable roots used by one diagnostic-safe-mode process. */
+export interface DiagnosticRuntimeDirectories {
+  readonly root: string
+  readonly sessions: string
+  readonly storages: string
+}
+
+/**
+ * Create an empty, invocation-owned data root for diagnostic safe mode.
+ *
+ * The recovery composition must not enumerate the active Session store: one
+ * corrupt append-only artifact would otherwise crash both ordinary startup
+ * and the fallback that is supposed to let the user repair it. Storage is
+ * isolated with Sessions so Workspace bootstrap cannot persist an empty view
+ * over the user's real metadata. The launcher removes the returned root after
+ * the diagnostic process settles.
+ * @param home - Selected Harness home.
+ * @returns Empty owner-only runtime directories.
+ */
+export function prepareDiagnosticRuntimeDirectories(
+  home: string = resolveDshHome(),
+): DiagnosticRuntimeDirectories {
+  const parent = join(home, PROFILE_HEALTH_DIRECTORY, 'safe-mode-runtime')
+  mkdirSync(parent, { recursive: true, mode: 0o700 })
+  const root = mkdtempSync(join(parent, 'run-'))
+  const sessions = join(root, 'sessions')
+  const storages = join(root, 'storages')
+  mkdirSync(sessions, { mode: 0o700 })
+  mkdirSync(storages, { mode: 0o700 })
+  return { root, sessions, storages }
 }
 
 /** Paths retained after replacing an invalid user settings document. */

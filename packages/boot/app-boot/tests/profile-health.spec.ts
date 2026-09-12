@@ -16,6 +16,7 @@ import {
   initProfile,
   inspectProfileDependencies,
   inspectProfileHostCompatibility,
+  inspectProfileLoaderEntryCollisions,
   inspectOrphanedProfileBundles,
   inspectProfileBundleEntryOwnership,
   inspectUnresolvableProfileBundleEntries,
@@ -329,6 +330,78 @@ describe('profile plugin Host compatibility inspection', () => {
 })
 
 describe('profile composition inspection', () => {
+  it('attributes and quarantines an external Bundle that reuses a shipped Loader entry id', () => {
+    const { anchor } = stageHarness()
+    const home = temporaryDirectory('dsh-health-home-')
+    const profileDir = resolveProfileDir('web', home)
+    initProfile(profileDir, [])
+    const shippedPackage = '@deepseek-ai/dsh-web-app'
+    const shippedDir = join(dirname(anchor), 'node_modules', shippedPackage)
+    writeManifest(join(shippedDir, 'package.json'), {
+      name: shippedPackage,
+      version: '1.0.0',
+      dsh: { bundle: { patch: './cordis.patch.yml' } },
+    })
+    writeFileSync(join(shippedDir, 'cordis.patch.yml'), [
+      '- insert:',
+      '  - id: file-upload',
+      "    name: '@deepseek-ai/dsh-client-file-upload'",
+      '',
+    ].join('\n'))
+    const pluginName = 'dsh-file-upload'
+    const pluginDir = join(profileDir, 'node_modules', pluginName)
+    writeManifest(join(pluginDir, 'package.json'), {
+      name: pluginName,
+      version: '0.4.3',
+      dsh: { bundle: { patch: './cordis.patch.yml' } },
+    })
+    writeFileSync(join(pluginDir, 'cordis.patch.yml'), [
+      '- insert:',
+      '  - id: file-upload',
+      `    name: '${pluginName}'`,
+      '',
+    ].join('\n'))
+    writeProfileManifest(profileDir, {
+      name: 'dsh-profile-web',
+      dependencies: { [pluginName]: '^0.4.3' },
+      dsh: { profile: { bundles: [shippedPackage, pluginName] } },
+    })
+
+    expect(inspectProfileLoaderEntryCollisions({
+      binName: 'test', profile: 'web', installAnchor: anchor, home,
+    })).toEqual([expect.objectContaining({
+      rootPackage: pluginName,
+      entryId: 'file-upload',
+      moduleName: pluginName,
+      installationPackage: shippedPackage,
+      installationModuleName: '@deepseek-ai/dsh-client-file-upload',
+    })])
+
+    const result = repairProfileDependencies({
+      binName: 'test',
+      profile: 'web',
+      installAnchor: anchor,
+      home,
+      runPackageManager: () => {
+        if (readProfileManifest('test', profileDir).dependencies?.[pluginName] === undefined) {
+          rmSync(pluginDir, { recursive: true, force: true })
+        }
+        return { exitCode: 0 }
+      },
+    })
+
+    expect(result).toMatchObject({
+      status: 'quarantined',
+      quarantined: [{ packageName: pluginName, reason: 'loader-entry-collision' }],
+      issues: [{
+        code: 'loader.duplicate-entry',
+        attribution: { rootPackage: pluginName, entryId: 'file-upload', moduleName: pluginName },
+      }],
+    })
+    expect(readProfileManifest('test', profileDir).dependencies?.[pluginName]).toBeUndefined()
+    expect(readProfileManifest('test', profileDir).dsh?.profile?.bundles).not.toContain(pluginName)
+  })
+
   it('does not isolate comment text or a dynamic optional import during static preflight', () => {
     const { anchor } = stageHarness()
     const home = temporaryDirectory('dsh-health-home-')

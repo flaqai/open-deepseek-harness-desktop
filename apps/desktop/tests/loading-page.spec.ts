@@ -123,4 +123,30 @@ describe('desktop loading page', () => {
     expect(loadingPage).toContain('当前仅开放诊断与恢复工具')
     expect(loadingPage).toContain("'#retry': ['重新尝试启动', 'Retry startup']")
   })
+
+  it('shows classified startup causes instead of repeating one generic process-exit message', async () => {
+    const html = await readFile(new URL('../src/loading.html', import.meta.url), 'utf8')
+    const loadingPage = await readFile(new URL('../src/loading-page.ts', import.meta.url), 'utf8')
+    const main = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8')
+    const diagnostics = await readFile(new URL('../../../packages/boot/app-boot/src/profile-diagnostics.ts', import.meta.url), 'utf8')
+
+    expect(html).toContain('id="failure-title"')
+    expect(html).toContain('id="failure-context"')
+    expect(loadingPage).toContain("'session.persistence-corrupt'")
+    expect(loadingPage).toContain("'loader.duplicate-entry'")
+    expect(loadingPage).toContain("'profile.immutable-agent-input-mutation'")
+    expect(loadingPage).toContain("'config.settings-invalid'")
+    expect(loadingPage).toContain("'runtime.launch-invalid'")
+    expect(loadingPage).toContain('progressTask.textContent = diagnostic.title')
+    expect(main).toContain('readRecoveryFailureSummary(dshHome)')
+    expect(main).toContain('diagnosticCode: failure.diagnosticCode')
+    expect(main).toContain('latestRecoveryDiagnostic.evidence')
+    const codeUnion = diagnostics.slice(
+      diagnostics.indexOf('export type ProfileDiagnosticCode'),
+      diagnostics.indexOf('/** Client-safe attribution'),
+    )
+    const diagnosticCodes = [...codeUnion.matchAll(/\| '([^']+)'/gu)].map(match => match[1])
+    expect(diagnosticCodes.length).toBeGreaterThan(20)
+    for (const code of diagnosticCodes) expect(loadingPage).toContain(`'${code}'`)
+  })
 })

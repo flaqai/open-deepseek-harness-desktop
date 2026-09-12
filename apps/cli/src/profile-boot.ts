@@ -49,6 +49,7 @@ import {
   type ProfileBundleEntryOwnership,
   type ProfileDiagnostic,
   type UnresolvableProfileBundleEntry,
+  prepareDiagnosticRuntimeDirectories,
   prepareDiagnosticSettingsDocument,
 } from '@deepseek-ai/dsh-app-boot'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
@@ -327,6 +328,8 @@ interface ComposedProfile {
   homePatches: PatchOptions[]
   /** Layers above the user layers on a live reload: `--patch` overlays and the telemetry switch. */
   overlays: PatchOptions[]
+  /** Invocation-owned data root removed when diagnostic safe mode settles. */
+  diagnosticRuntimeRoot?: string
 }
 
 /** The full patch stack of one composed profile, in application order. */
@@ -359,9 +362,16 @@ async function composeProfile(
   const profile = safeMode ? prepareDiagnosticProfile(name) : prepareProfile(name, true, fromDefaultProfile)
   await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR, profile })
   const homePatches = safeMode ? [] : loadOptionalPatches(NAME, homePatchPath()) ?? []
-  const overlays: PatchOptions[] = safeMode
-    ? [{ id: 'settings', config: { path: prepareDiagnosticSettingsDocument(), watch: false } }]
-    : patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
+  const diagnosticSettings = safeMode ? prepareDiagnosticSettingsDocument() : undefined
+  const diagnosticRuntime = safeMode ? prepareDiagnosticRuntimeDirectories() : undefined
+  const overlays: PatchOptions[] = diagnosticRuntime === undefined
+    ? patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
+    : [
+      { id: 'settings', config: { path: diagnosticSettings, watch: false } },
+      { id: 'session-persistence-jsonl', config: { root: diagnosticRuntime.sessions } },
+      { id: 'storage-json', config: { root: diagnosticRuntime.storages } },
+      { id: 'attachment-local', config: { dshHome: diagnosticRuntime.root } },
+    ]
   const bundlePatches = profile.layers.flatMap(layer => layer.patches)
   const staleLoaderQuarantine = safeMode
     ? []
@@ -389,7 +399,13 @@ async function composeProfile(
   const composedOverlays = [...overlays, ...staleLoaderQuarantine, ...duplicateSingletonQuarantine]
   const telemetryPatch = resolveTelemetryPatch(process.env.DSH_TELEMETRY_DISABLED, rows.has(TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) composedOverlays.push(telemetryPatch)
-  return { profile, bundlePatches, homePatches, overlays: composedOverlays }
+  return {
+    profile,
+    bundlePatches,
+    homePatches,
+    overlays: composedOverlays,
+    ...(diagnosticRuntime === undefined ? {} : { diagnosticRuntimeRoot: diagnosticRuntime.root }),
+  }
 }
 
 /** Options for {@link runProfile}. */
@@ -624,8 +640,17 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
   const app: { current?: Context } = {}
   const appReady = createAppReady()
   const shutdown = createProcessShutdown(async () => {
-    await app.current?.fiber.dispose()
-    await disposeProxy()
+    try {
+      await app.current?.fiber.dispose()
+    } finally {
+      try {
+        await disposeProxy()
+      } finally {
+        if (composed.diagnosticRuntimeRoot !== undefined) {
+          rmSync(composed.diagnosticRuntimeRoot, { recursive: true, force: true })
+        }
+      }
+    }
   })
   const signalShutdown = new AbortController()
   const interrupt = (code: number): void => {
@@ -664,19 +689,31 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
   ], process.env))
   // Cloned for the same insert-aliasing reason as composeLive: the boot
   // application must not mutate the objects later reloads recompose from.
-  const ctx = await boot(NAME, rootConfig, structuredClone(allPatches(composed)), (hostCtx) => {
-    app.current = hostCtx
-    // Before any config-tree entry mounts, so plugins resolve all launch-time
-    // environment values from the same immutable provenance snapshot.
-    hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
-    // The command line and bounded exit request are launcher facts available
-    // to every app plugin that injects the argument snapshot.
-    provideCmdline(hostCtx, {
-      args: options.args,
-      exit: code => void shutdown.shutdown(code),
-      ready: appReady.service,
-    })
-  }, safeMode ? diagnosticProfileModuleBaseUrl(composed.profile.dir) : undefined)
+  let ctx: Context
+  try {
+    ctx = await boot(NAME, rootConfig, structuredClone(allPatches(composed)), (hostCtx) => {
+      app.current = hostCtx
+      // Before any config-tree entry mounts, so plugins resolve all launch-time
+      // environment values from the same immutable provenance snapshot.
+      hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
+      // The command line and bounded exit request are launcher facts available
+      // to every app plugin that injects the argument snapshot.
+      provideCmdline(hostCtx, {
+        args: options.args,
+        exit: code => void shutdown.shutdown(code),
+        ready: appReady.service,
+      })
+    }, safeMode ? diagnosticProfileModuleBaseUrl(composed.profile.dir) : undefined)
+  } catch (error) {
+    try {
+      await disposeProxy()
+    } finally {
+      if (composed.diagnosticRuntimeRoot !== undefined) {
+        rmSync(composed.diagnosticRuntimeRoot, { recursive: true, force: true })
+      }
+    }
+    throw error
+  }
   app.current = ctx
   if (safeMode) {
     const current = readProfileDiagnosticReport(options.profile)
@@ -690,6 +727,8 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
           skippedBundles: configuredExternalBundles(options.profile),
           skippedUserLayers: true,
           skippedUserSettings: true,
+          skippedUserSessions: true,
+          skippedUserStorage: true,
         },
       },
     ))

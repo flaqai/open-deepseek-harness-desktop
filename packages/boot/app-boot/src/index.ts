@@ -64,6 +64,7 @@ export {
   inspectProfileHostCompatibility,
   inspectProfileImmutableAgentInputMutation,
   inspectProfileLegacySessionApi,
+  inspectProfileLoaderEntryCollisions,
   inspectOrphanedProfileBundles,
   inspectProfileBundleEntryOwnership,
   inspectUnresolvableProfileBundleEntries,
@@ -81,6 +82,7 @@ export {
   type ProfileHostCompatibilityIssue,
   type OrphanedProfileBundle,
   type ProfileBundleEntryOwnership,
+  type ProfileLoaderEntryCollision,
   type ProfileQuarantineReason,
   type ProfileDependencyOptions,
   type ProfilePackageManagerResult,
@@ -102,6 +104,7 @@ export {
   profileDiagnosticRuleCatalog,
   profileDependencyConflictDiagnostic,
   profileHostCompatibilityDiagnostic,
+  profileLoaderEntryCollisionDiagnostic,
   quarantineRemovalResidueDiagnostic,
   quarantinedPluginDiagnostic,
   readProfileDiagnosticReport,
@@ -121,7 +124,9 @@ export {
 
 export {
   backupAndResetInvalidSettings,
+  prepareDiagnosticRuntimeDirectories,
   prepareDiagnosticSettingsDocument,
+  type DiagnosticRuntimeDirectories,
   type ResetInvalidSettingsResult,
 } from './settings-diagnostics.ts'
 

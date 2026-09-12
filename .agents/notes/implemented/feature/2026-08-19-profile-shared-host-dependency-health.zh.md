@@ -16,6 +16,8 @@ Status: implemented
 
 每次 profile 启动都会在组合前检查。检查依赖图前，修复会把 profile 本地未声明且来自另一套开发版或打包版的受保护包替换为指向当前 Host 的链接；profile 明确声明的依赖保持不变，继续接受普通兼容性检查与隔离。新 profile 会关闭 pnpm 的 peer dependent 去重，修复也会在运行包管理器前迁移现有 workspace 设置。否则，pnpm 11.7.0 会针对带链接 Host provider 的 hoisted 依赖图进入 `inheritedParentPkgBreaksPeerDiamond()`，并可能对缺失的 peer 元数据调用 `Object.keys()`。修复还会裁剪 `pnpm-lock.yaml` 根 importer 中 manifest 已不再声明的条目，避免之前中断的物理隔离把已停用根依赖带入下一次插件改动。除此之外健康的 profile 不运行包管理器；残留重新链接会在不调用 pnpm 的情况下报告为 `repaired`。发现冲突时，修复会通过保留注释的 YAML document 把 Harness 保留的 `link:` override 合并进 `pnpm-workspace.yaml`，运行调用方随附的 pnpm，然后重新检查。无关配置与 override 仍归用户所有。如果根插件的范围拒绝 Host 版本，或收敛失败，该根插件会从依赖和 bundle 顺序中移除，并把可重试记录写入 `$DSH_HOME/quarantine/profile-plugins.json`。只有根插件目录也已经不存在，隔离才算成功。裁剪已安装 lockfile 时若被 minimum-release-age 拒绝，系统会用仅对当前进程生效的 override 重试一次；保留的报告还会恢复 manifest、lockfile importer、软件包目录与持久记录不一致的中断清理。如果 pnpm 在恢复这个已知停用状态时崩溃，Harness 会只直接删除保留记录中的根插件、移除其过期 importer 条目，并把 profile 本地共享 Host 包重新链接到安装目录副本，然后再次检查。如果无法证明最终依赖树干净，启动会失败关闭。
 
+预检还会比较安装方 Profile Bundle 与直接启用的外部 Bundle 所插入的有效 Loader 条目。两个 Patch 使用同一条目 ID 时，安装方 Profile 层保持权威，修复只以 `loader-entry-collision` 原因隔离能够唯一归属的外部根包。停用条目和仅名称相似的情况不构成冲突。只有目标根包不再贡献该冲突，隔离才算成功；其他外部冲突仍可在各自的修复轮次中处理。
+
 成功的 `dsh plugin` 改动后也会运行同一修复策略。`dsh plugin --profile <name> doctor` 只读运行；`--repair` 通过普通策略执行修改，`--retry <quarantine-id>` 则以事务方式恢复记录中的说明符与 bundle 位置。Electron 与 Web Settings 会注册第一方的“诊断”分区，与“插件”清单标签和 `dshmarket` 都保持独立。该页面可以运行一次新的只读 doctor、明确启动修复、投影不含文件系统路径的结构化冲突和失管项结果，并管理保留的修复通知与隔离记录。冲突报告中的活动根插件会在用户明确确认风险后，使用核心结构化 `dsh plugin remove` 后台任务；失管 Loader 条目已不存在可管理依赖，因此不会提供该操作。只有当软件包已同时离开 profile 依赖和 bundle 顺序时，系统才接受残留卸载；第二次明确确认后，系统先删除顶层已安装软件包，再清除记录。这覆盖 Electron、`dsh web`、Web 快捷方式，以及所有通过 `runProfile()` 启动的其他入口。
 
 自定义 profile 可以只有 manifest 和 patch，而没有 `pnpm-workspace.yaml`。兼容性修复仅将 `ENOENT` 视为设置缺失，并以原子写入创建包含 `dedupePeerDependents: false` 的文件，不要求运行包管理器安装。现有注释、无关设置与明确拒绝的构建许可保持不变。YAML 损坏与其他文件系统错误仍会停止修复，而不会触发设置重置。profile-health 回归测试覆盖文件缺失、重复修复、内容保留和无效文件拒绝；构建后的 CLI 冒烟测试通过没有 workspace 设置的自定义 profile 验证启动。
@@ -30,6 +32,6 @@ Status: implemented
 
 ## Consequences
 
-profile 启动增加一次快速依赖图与 real path 检查；只有发现冲突后才安装包。Harness 拥有受保护包集合对应的 override 键，并可能从活动 profile 移除不兼容插件，但会保留足够状态用于重试。修复、隔离和失败都是版本化的结构化结果，UI／包管理器调用方可以将它们与普通安装成功区分开来。
+profile 启动增加快速的依赖图、real path 与 Loader 条目所有权检查；只有发现冲突后才安装包。Harness 拥有受保护包集合对应的 override 键，并可能从活动 profile 移除不兼容或条目冲突的插件，但会保留足够状态用于重试。修复、隔离和失败都是版本化的结构化结果，UI／包管理器调用方可以将它们与普通安装成功区分开来。
 
-测试覆盖直接、传递、可选、peer 和同版本物理冲突、未声明的外来 Host 残留，以及 YAML 保留、收敛、不兼容与修复失败后的隔离、重试回滚、CLI 只读行为、Host 投影与任务、Settings 通知与操作。跨平台执行仍依赖随附的 Node 与 pnpm 边界；可执行文件缺失、锁文件损坏或权限失败会带修复诊断停止启动，而不会允许混合运行时继续运行。
+测试覆盖直接、传递、可选、peer 和同版本物理冲突、未声明的外来 Host 残留、安装方与外部 Bundle 的 Loader ID 冲突，以及 YAML 保留、收敛、不兼容与修复失败后的隔离、重试回滚、CLI 只读行为、Host 投影与任务、Settings 通知与操作。跨平台执行仍依赖随附的 Node 与 pnpm 边界；可执行文件缺失、锁文件损坏或权限失败会带修复诊断停止启动，而不会允许混合运行时继续运行。

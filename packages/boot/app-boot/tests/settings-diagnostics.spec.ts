@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   backupAndResetInvalidSettings,
+  prepareDiagnosticRuntimeDirectories,
   prepareDiagnosticSettingsDocument,
 } from '../src/settings-diagnostics.ts'
 
@@ -27,6 +28,19 @@ describe('settings diagnostic recovery', () => {
     expect(safe).not.toBe(join(root, 'settings.yaml'))
     expect(readFileSync(safe, 'utf8')).toBe('{}\n')
     expect(readFileSync(join(root, 'settings.yaml'), 'utf8')).toContain('duplicate: 2')
+  })
+
+  it('creates per-invocation empty Session and storage roots for safe mode', () => {
+    const root = home()
+    const first = prepareDiagnosticRuntimeDirectories(root)
+    const second = prepareDiagnosticRuntimeDirectories(root)
+    expect(first.root).not.toBe(second.root)
+    expect(first.sessions).toBe(join(first.root, 'sessions'))
+    expect(first.storages).toBe(join(first.root, 'storages'))
+    expect(existsSync(first.sessions)).toBe(true)
+    expect(existsSync(first.storages)).toBe(true)
+    expect(first.root).not.toContain(join(root, 'sessions'))
+    expect(first.root).not.toContain(join(root, 'storages'))
   })
 
   it('preserves exact invalid bytes before resetting the active document', () => {

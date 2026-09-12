@@ -111,6 +111,7 @@ const QUARANTINE_REASON_KEYS = {
   'client-module-unavailable': 'health.quarantine.reason.clientModuleUnavailable',
   'loader-module-unresolvable': 'health.quarantine.reason.loaderModuleUnresolvable',
   'loader-dependency-unavailable': 'health.quarantine.reason.loaderDependencyUnavailable',
+  'loader-entry-collision': 'health.quarantine.reason.loaderEntryCollision',
   'loader-lifecycle-failed': 'health.quarantine.reason.loaderLifecycleFailed',
 } satisfies Record<PluginInventorySnapshot['dependencyHealth']['quarantined'][number]['reason'], PluginInventoryLocaleKey>
 
@@ -123,6 +124,7 @@ const QUARANTINE_SOLUTION_KEYS = {
   'client-module-unavailable': 'health.quarantine.solution.client-module-unavailable',
   'loader-module-unresolvable': 'health.quarantine.solution.loader-module-unresolvable',
   'loader-dependency-unavailable': 'health.quarantine.solution.loader-dependency-unavailable',
+  'loader-entry-collision': 'health.quarantine.solution.loader-entry-collision',
   'loader-lifecycle-failed': 'health.quarantine.solution.loader-lifecycle-failed',
 } satisfies Record<PluginInventorySnapshot['dependencyHealth']['quarantined'][number]['reason'], PluginInventoryLocaleKey>
 
@@ -135,6 +137,7 @@ const QUARANTINE_RETRY_KEYS = {
   'client-module-unavailable': 'health.quarantine.action.findUpdate',
   'loader-module-unresolvable': 'health.quarantine.action.findUpdate',
   'loader-dependency-unavailable': 'health.quarantine.action.findUpdate',
+  'loader-entry-collision': 'health.quarantine.action.findUpdate',
   'loader-lifecycle-failed': 'health.quarantine.action.findUpdate',
 } satisfies Record<PluginInventorySnapshot['dependencyHealth']['quarantined'][number]['reason'], PluginInventoryLocaleKey>
 
@@ -156,6 +159,7 @@ function diagnosticIssueCopy(code: DiagnosticIssue['code']): PluginInventoryLoca
   if (code === 'profile.session-api-incompatible') return 'diagnostics.issue.sessionApi'
   if (code === 'profile.quarantine-removal-residue') return 'diagnostics.issue.quarantineRemovalResidue'
   if (code === 'profile.session-persistence-migration') return 'diagnostics.issue.sessionPersistenceMigration'
+  if (code === 'session.persistence-corrupt') return 'diagnostics.issue.sessionPersistenceCorrupt'
   if (code === 'pnpm.build-script-blocked') return 'diagnostics.issue.buildScript'
   if (code === 'pnpm.minimum-release-age' || code === 'pnpm.supply-chain' || code === 'pnpm.integrity') {
     return 'diagnostics.issue.supplyChain'
@@ -866,6 +870,7 @@ export function PluginDiagnosticsSection({
                     || record.reason === 'client-module-unavailable'
                     || record.reason === 'loader-module-unresolvable'
                     || record.reason === 'loader-dependency-unavailable'
+                    || record.reason === 'loader-entry-collision'
                     || record.reason === 'loader-lifecycle-failed' ? (
                       <Button
                         variant="primary"
