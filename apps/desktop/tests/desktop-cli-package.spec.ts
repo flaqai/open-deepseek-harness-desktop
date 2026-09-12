@@ -30,7 +30,7 @@ describe('packaged desktop CLI inputs', () => {
     expect(installer).toContain('!macro customHeader')
     expect(installer).toContain('Page custom CliPathPageCreate CliPathPageLeave')
     expect(installer).toContain('!macro customUnInit')
-    expect(installer).not.toContain('!macro customUnInstall')
+    expect(installer).toContain('!macro customUnInstall')
     expect(installer).toContain('File /oname=$PLUGINSDIR\\manage-path.ps1')
     expect(installer).toContain('-File "$PLUGINSDIR\\manage-path.ps1" -Action remove -Directory "$2"')
     expect(installer).toContain('ReadRegStr $2 HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_DIRECTORY_VALUE}"')

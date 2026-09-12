@@ -22,8 +22,28 @@ describe('Windows installer process guard', () => {
     const installer = await readFile(`${buildRoot}/installer.nsh`, 'utf8')
     expect(installer).toContain('LangString CliPageTitle 2052 "命令行工具"')
     expect(installer).toContain('LangString CliPageTitle 1033 "Command-line tool"')
+    expect(installer).toContain('LangString UninstallDataPageTitle 2052 "本地配置和数据"')
+    expect(installer).toContain('LangString UninstallDataPageTitle 1033 "Local configuration and data"')
     expect(installer).not.toContain('${LANG_SIMPCHINESE}')
     expect(installer).not.toContain('${LANG_ENGLISH}')
+  })
+
+  it('offers explicit irreversible app-data deletion while preserving it by default', async () => {
+    const installer = await readFile(`${buildRoot}/installer.nsh`, 'utf8')
+
+    expect(installer).toContain('Page custom un.UninstallDataPageCreate un.UninstallDataPageLeave')
+    expect(installer).toContain('StrCpy $DeleteDesktopDataRequested "0"')
+    expect(installer).toContain('${NSD_Uncheck} $UninstallDataCheckboxHandle')
+    expect(installer).toContain('MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION')
+    expect(installer).toContain('LangString UninstallDataWarning 2052 "警告：删除后无法恢复。')
+    expect(installer).toContain('同一应用根目录内的源码开发版数据均不会被删除。')
+    expect(installer).toContain('${AndIfNot} ${isUpdated}')
+    expect(installer).toContain('Function un.RemoveInstalledDesktopData')
+    expect(installer).toContain('StrCmp $2 "development" uninstall_data_scan_continue')
+    expect(installer).not.toContain('RMDir /r "$APPDATA\\open-deepseek-harness-desktop"')
+    expect(installer).toContain('LangString UninstallDataDeleteFailed 2052')
+    expect(installer).not.toContain('RMDir /r "$PROFILE\\.dsh"')
+    expect(installer).not.toContain('data-home-setup.json')
   })
 
   it('matches only the exact app or the resources directory boundary', async () => {

@@ -26,8 +26,27 @@ LangString AppProcessesRemain 2052 "仍有进程无法关闭。它们可能使�
 LangString AppProcessesRemain 1033 "Some processes could not be closed, possibly because they run with higher privileges. Close the listed PIDs and paths, then retry."
 LangString AppProcessInspectionFailed 2052 "安装程序无法安全检查 DeepSeek Harness 进程。为避免损坏安装，本次操作已停止。"
 LangString AppProcessInspectionFailed 1033 "The installer could not safely inspect DeepSeek Harness processes. Installation has stopped to avoid corrupting the application."
+LangString UninstallDataPageTitle 2052 "本地配置和数据"
+LangString UninstallDataPageTitle 1033 "Local configuration and data"
+LangString UninstallDataPageSubtitle 2052 "选择卸载应用后是否保留个人数据"
+LangString UninstallDataPageSubtitle 1033 "Choose whether personal data remains after uninstalling the app"
+LangString UninstallDataCheckbox 2052 "同时删除本应用的本地配置和数据"
+LangString UninstallDataCheckbox 1033 "Also delete this app's local configuration and data"
+LangString UninstallDataDescription 2052 "包括对话历史、模型与凭据设置、插件、插件快照、日志、缓存和桌面偏好。删除可释放磁盘空间，并可能清除由损坏配置引起的错误。"
+LangString UninstallDataDescription 1033 "Includes conversation history, model and credential settings, plugins, plugin snapshots, logs, caches, and desktop preferences. Deleting can free disk space and may clear errors caused by damaged configuration."
+LangString UninstallDataExternal 2052 "手动选择并直接复用的官方 .dsh、其他外部配置目录，以及同一应用根目录内的源码开发版数据均不会被删除。"
+LangString UninstallDataExternal 1033 "A directly reused official .dsh, another external data directory, and source-development data inside the same app root are all preserved."
+LangString UninstallDataWarning 2052 "警告：删除后无法恢复。请先备份需要保留的历史记录、配置和插件数据。"
+LangString UninstallDataWarning 1033 "Warning: deletion cannot be undone. Back up any history, configuration, and plugin data that you want to keep."
+LangString UninstallDataConfirm 2052 "确定要永久删除本应用的全部本地配置和数据吗？$\r$\n$\r$\n其中包括对话历史、模型与凭据设置、插件和快照。此操作无法撤销。"
+LangString UninstallDataConfirm 1033 "Permanently delete all local configuration and data owned by this app?$\r$\n$\r$\nThis includes conversation history, model and credential settings, plugins, and snapshots. This cannot be undone."
+LangString UninstallDataDeleteFailed 2052 "部分安装版数据无法删除，可能仍被其他进程占用。卸载完成后请关闭相关程序，再清理下列目录中除 development 以外的内容：$\r$\n$APPDATA\open-deepseek-harness-desktop"
+LangString UninstallDataDeleteFailed 1033 "Some installed-app data could not be deleted, possibly because another process is still using it. After uninstalling, close that program and remove the contents below except development:$\r$\n$APPDATA\open-deepseek-harness-desktop"
 
 Var ProcessGuardOutput
+Var DeleteDesktopDataRequested
+Var UninstallDataCheckboxHandle
+Var DeleteDesktopDataFailed
 
 !macro customCheckAppRunning
   # A fresh installation has no files that can be locked. Avoid invoking CIM
@@ -180,6 +199,7 @@ Var ProcessGuardOutput
 !endif
 
 !macro customUnInit
+  StrCpy $DeleteDesktopDataRequested "0"
   # The uninstaller owns its PATH cleanup helper. Extracting it from the
   # uninstaller avoids depending on installed resources during the NSIS
   # self-copy and upgrade lifecycle.
@@ -198,3 +218,103 @@ Var ProcessGuardOutput
     DeleteRegValue HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_DIRECTORY_VALUE}"
   ${EndIf}
 !macroend
+
+!ifdef BUILD_UNINSTALLER
+  !macro customUnWelcomePage
+    !insertmacro MUI_UNPAGE_WELCOME
+    Page custom un.UninstallDataPageCreate un.UninstallDataPageLeave
+  !macroend
+
+  Function un.UninstallDataPageCreate
+    ${If} ${Silent}
+    ${OrIf} ${isUpdated}
+      Abort
+    ${EndIf}
+    !insertmacro MUI_HEADER_TEXT "$(UninstallDataPageTitle)" "$(UninstallDataPageSubtitle)"
+    nsDialogs::Create 1018
+    Pop $0
+    ${If} $0 == error
+      Abort
+    ${EndIf}
+    ${NSD_CreateCheckbox} 0 8u 100% 20u "$(UninstallDataCheckbox)"
+    Pop $UninstallDataCheckboxHandle
+    ${NSD_Uncheck} $UninstallDataCheckboxHandle
+    ${NSD_CreateLabel} 12u 36u 94% 48u "$(UninstallDataDescription)"
+    Pop $0
+    ${NSD_CreateLabel} 12u 86u 94% 38u "$(UninstallDataExternal)"
+    Pop $0
+    ${NSD_CreateLabel} 12u 128u 94% 32u "$(UninstallDataWarning)"
+    Pop $0
+    SetCtlColors $0 0xA7272D transparent
+    nsDialogs::Show
+  FunctionEnd
+
+  Function un.UninstallDataPageLeave
+    ${NSD_GetState} $UninstallDataCheckboxHandle $DeleteDesktopDataRequested
+    ${If} $DeleteDesktopDataRequested == ${BST_CHECKED}
+      MessageBox MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION "$(UninstallDataConfirm)" /SD IDNO IDYES uninstall_data_confirmed
+      ${NSD_Uncheck} $UninstallDataCheckboxHandle
+      StrCpy $DeleteDesktopDataRequested "0"
+      Abort
+      uninstall_data_confirmed:
+      StrCpy $DeleteDesktopDataRequested "1"
+    ${Else}
+      StrCpy $DeleteDesktopDataRequested "0"
+    ${EndIf}
+  FunctionEnd
+
+  Function un.RemoveInstalledDesktopData
+    Push $0
+    Push $1
+    Push $2
+    StrCpy $DeleteDesktopDataFailed "0"
+    StrCpy $0 "$APPDATA\open-deepseek-harness-desktop"
+    ClearErrors
+    FindFirst $1 $2 "$0\*.*"
+    IfErrors uninstall_data_scan_done
+    uninstall_data_scan_next:
+      StrCmp $2 "." uninstall_data_scan_continue
+      StrCmp $2 ".." uninstall_data_scan_continue
+      StrCmp $2 "development" uninstall_data_scan_continue
+      IfFileExists "$0\$2\*.*" 0 uninstall_data_delete_file
+        RMDir /r "$0\$2"
+        IfFileExists "$0\$2\*.*" 0 uninstall_data_scan_continue
+        StrCpy $DeleteDesktopDataFailed "1"
+        Goto uninstall_data_scan_continue
+      uninstall_data_delete_file:
+        Delete "$0\$2"
+        IfFileExists "$0\$2" 0 uninstall_data_scan_continue
+        StrCpy $DeleteDesktopDataFailed "1"
+      uninstall_data_scan_continue:
+        ClearErrors
+        FindNext $1 $2
+        IfErrors uninstall_data_scan_close
+        Goto uninstall_data_scan_next
+    uninstall_data_scan_close:
+      FindClose $1
+    uninstall_data_scan_done:
+      RMDir "$0"
+      Pop $2
+      Pop $1
+      Pop $0
+  FunctionEnd
+
+  !macro customUnInstall
+    ${If} $DeleteDesktopDataRequested == "1"
+    ${AndIfNot} ${isUpdated}
+      DetailPrint "Removing application-owned local configuration and data"
+      ${If} $installMode == "all"
+        SetShellVarContext current
+      ${EndIf}
+      Call un.RemoveInstalledDesktopData
+      StrCmp $DeleteDesktopDataFailed "0" uninstall_data_removed
+        MessageBox MB_OK|MB_ICONEXCLAMATION "$(UninstallDataDeleteFailed)"
+      uninstall_data_removed:
+      ${If} $installMode == "all"
+        SetShellVarContext all
+      ${EndIf}
+    ${Else}
+      DetailPrint "Preserving application-owned local configuration and data"
+    ${EndIf}
+  !macroend
+!endif
