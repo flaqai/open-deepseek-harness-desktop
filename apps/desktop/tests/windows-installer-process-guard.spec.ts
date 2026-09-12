@@ -35,6 +35,7 @@ describe('Windows installer process guard', () => {
     expect(installer).not.toMatch(/^\s*Page custom un\.UninstallDataPageCreate un\.UninstallDataPageLeave$/m)
     expect(installer).toContain('StrCpy $DesktopUninstallMode "preserve"')
     expect(installer).toContain('${NSD_Uncheck} $UninstallDataCheckboxHandle')
+    expect(installer).toContain('EnableWindow $UninstallDataCheckboxHandle 1')
     expect(installer).toContain('MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION')
     expect(installer).toContain('LangString UninstallDataWarning 2052 "警告：删除后无法恢复。')
     expect(installer).toContain('同一应用根目录内的源码开发版数据均不会被删除。')

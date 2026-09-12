@@ -250,6 +250,7 @@ Var DesktopUninstallMode
       ${EndIf}
       ${NSD_CreateCheckbox} 0 8u 100% 20u "$(UninstallDataCheckbox)"
       Pop $UninstallDataCheckboxHandle
+      EnableWindow $UninstallDataCheckboxHandle 1
       ${NSD_Uncheck} $UninstallDataCheckboxHandle
       ${NSD_CreateLabel} 12u 36u 94% 48u "$(UninstallDataDescription)"
       Pop $0
