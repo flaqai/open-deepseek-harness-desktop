@@ -235,43 +235,48 @@ Var IsDesktopUpdateUninstall
     Page custom un.UninstallDataPageCreate un.UninstallDataPageLeave
   !macroend
 
-  Function un.UninstallDataPageCreate
-    ${If} ${Silent}
-    ${OrIf} $IsDesktopUpdateUninstall == "1"
-      Abort
-    ${EndIf}
-    !insertmacro MUI_HEADER_TEXT "$(UninstallDataPageTitle)" "$(UninstallDataPageSubtitle)"
-    nsDialogs::Create 1018
-    Pop $0
-    ${If} $0 == error
-      Abort
-    ${EndIf}
-    ${NSD_CreateCheckbox} 0 8u 100% 20u "$(UninstallDataCheckbox)"
-    Pop $UninstallDataCheckboxHandle
-    ${NSD_Uncheck} $UninstallDataCheckboxHandle
-    ${NSD_CreateLabel} 12u 36u 94% 48u "$(UninstallDataDescription)"
-    Pop $0
-    ${NSD_CreateLabel} 12u 86u 94% 38u "$(UninstallDataExternal)"
-    Pop $0
-    ${NSD_CreateLabel} 12u 128u 94% 32u "$(UninstallDataWarning)"
-    Pop $0
-    SetCtlColors $0 0xA7272D transparent
-    nsDialogs::Show
-  FunctionEnd
-
-  Function un.UninstallDataPageLeave
-    ${NSD_GetState} $UninstallDataCheckboxHandle $DeleteDesktopDataRequested
-    ${If} $DeleteDesktopDataRequested == ${BST_CHECKED}
-      MessageBox MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION "$(UninstallDataConfirm)" /SD IDNO IDYES uninstall_data_confirmed
+  # As with the installer's CLI page, these functions must be emitted after
+  # Electron Builder loads MUI2. The BUILD_UNINSTALLER bootstrap includes this
+  # file before MUI_HEADER_TEXT exists.
+  !macro customHeader
+    Function un.UninstallDataPageCreate
+      ${If} ${Silent}
+      ${OrIf} $IsDesktopUpdateUninstall == "1"
+        Abort
+      ${EndIf}
+      !insertmacro MUI_HEADER_TEXT "$(UninstallDataPageTitle)" "$(UninstallDataPageSubtitle)"
+      nsDialogs::Create 1018
+      Pop $0
+      ${If} $0 == error
+        Abort
+      ${EndIf}
+      ${NSD_CreateCheckbox} 0 8u 100% 20u "$(UninstallDataCheckbox)"
+      Pop $UninstallDataCheckboxHandle
       ${NSD_Uncheck} $UninstallDataCheckboxHandle
-      StrCpy $DeleteDesktopDataRequested "0"
-      Abort
-      uninstall_data_confirmed:
-      StrCpy $DeleteDesktopDataRequested "1"
-    ${Else}
-      StrCpy $DeleteDesktopDataRequested "0"
-    ${EndIf}
-  FunctionEnd
+      ${NSD_CreateLabel} 12u 36u 94% 48u "$(UninstallDataDescription)"
+      Pop $0
+      ${NSD_CreateLabel} 12u 86u 94% 38u "$(UninstallDataExternal)"
+      Pop $0
+      ${NSD_CreateLabel} 12u 128u 94% 32u "$(UninstallDataWarning)"
+      Pop $0
+      SetCtlColors $0 0xA7272D transparent
+      nsDialogs::Show
+    FunctionEnd
+
+    Function un.UninstallDataPageLeave
+      ${NSD_GetState} $UninstallDataCheckboxHandle $DeleteDesktopDataRequested
+      ${If} $DeleteDesktopDataRequested == ${BST_CHECKED}
+        MessageBox MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION "$(UninstallDataConfirm)" /SD IDNO IDYES uninstall_data_confirmed
+        ${NSD_Uncheck} $UninstallDataCheckboxHandle
+        StrCpy $DeleteDesktopDataRequested "0"
+        Abort
+        uninstall_data_confirmed:
+        StrCpy $DeleteDesktopDataRequested "1"
+      ${Else}
+        StrCpy $DeleteDesktopDataRequested "0"
+      ${EndIf}
+    FunctionEnd
+  !macroend
 
   Function un.RemoveInstalledDesktopData
     Push $0
