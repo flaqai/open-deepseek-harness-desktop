@@ -44,7 +44,6 @@ LangString UninstallDataDeleteFailed 2052 "部分安装版数据无法删除，�
 LangString UninstallDataDeleteFailed 1033 "Some installed-app data could not be deleted, possibly because another process is still using it. After uninstalling, close that program and remove the contents below except development:$\r$\n$APPDATA\open-deepseek-harness-desktop"
 
 Var ProcessGuardOutput
-Var UninstallDataCheckboxHandle
 Var DeleteDesktopDataFailed
 Var DesktopUninstallMode
 
@@ -249,9 +248,8 @@ Var DesktopUninstallMode
         Abort
       ${EndIf}
       ${NSD_CreateCheckbox} 0 8u 100% 20u "$(UninstallDataCheckbox)"
-      Pop $UninstallDataCheckboxHandle
-      EnableWindow $UninstallDataCheckboxHandle 1
-      ${NSD_Uncheck} $UninstallDataCheckboxHandle
+      Pop $R9
+      ${NSD_Uncheck} $R9
       ${NSD_CreateLabel} 12u 36u 94% 48u "$(UninstallDataDescription)"
       Pop $0
       ${NSD_CreateLabel} 12u 86u 94% 38u "$(UninstallDataExternal)"
@@ -263,10 +261,10 @@ Var DesktopUninstallMode
     FunctionEnd
 
     Function un.UninstallDataPageLeave
-      ${NSD_GetState} $UninstallDataCheckboxHandle $0
+      ${NSD_GetState} $R9 $0
       ${If} $0 == ${BST_CHECKED}
         MessageBox MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION "$(UninstallDataConfirm)" /SD IDNO IDYES uninstall_data_confirmed
-        ${NSD_Uncheck} $UninstallDataCheckboxHandle
+        ${NSD_Uncheck} $R9
         StrCpy $DesktopUninstallMode "preserve"
         Abort
         uninstall_data_confirmed:
