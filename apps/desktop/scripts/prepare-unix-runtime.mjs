@@ -18,7 +18,7 @@ const { values } = parseArgs({
 const target = values.target ?? `${process.platform}-${process.arch}`
 const targets = {
   'darwin-arm64': {
-    nodeSha256: 'b05aa3a66efe680023f930bd5af3fdbbd542794da5644ca2ad711d68cbd4dc35',
+    nodeSha256: '4fc3266a3702eebc39cc37661cf4eeceeade307e242ab64e4d7ce7949197e11f',
     nativePackages: [
       '@koromix/koffi-darwin-arm64',
       '@img/sharp-darwin-arm64/sharp.node',
@@ -26,7 +26,7 @@ const targets = {
     ],
   },
   'darwin-x64': {
-    nodeSha256: '096081b6d6fcdd3f5ba0f5f1d44a47e83037ad2e78eada26671c252fe64dd111',
+    nodeSha256: '80da552fe037290cb130e9dea590f5eeeb7aa450636f0c89ab41415511c1ec27',
     nativePackages: [
       '@koromix/koffi-darwin-x64',
       '@img/sharp-darwin-x64/sharp.node',
@@ -34,7 +34,7 @@ const targets = {
     ],
   },
   'linux-x64': {
-    nodeSha256: '58a5ff5cc8f2200e458bea22e329d5c1994aa1b111d499ca46ec2411d58239ca',
+    nodeSha256: 'e0472427aa791ad80bdc426ff7cc73cdd28ed0f616d1ff9689a23a7f47f1265f',
     nativePackages: [
       '@koromix/koffi-linux-x64',
       '@img/sharp-linux-x64/sharp.node',
