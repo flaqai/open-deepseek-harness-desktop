@@ -47,6 +47,7 @@ Var ProcessGuardOutput
 Var DeleteDesktopDataRequested
 Var UninstallDataCheckboxHandle
 Var DeleteDesktopDataFailed
+Var IsDesktopUpdateUninstall
 
 !macro customCheckAppRunning
   # A fresh installation has no files that can be locked. Avoid invoking CIM
@@ -200,6 +201,15 @@ Var DeleteDesktopDataFailed
 
 !macro customUnInit
   StrCpy $DeleteDesktopDataRequested "0"
+  StrCpy $IsDesktopUpdateUninstall "0"
+  # BUILD_UNINSTALLER is compiled without electron-builder's StdUtils plug-in
+  # directory. Parse the updater marker with the built-in FileFunc helpers so
+  # the custom data page also works while the temporary uninstaller is built.
+  ${GetParameters} $R0
+  ${GetOptions} $R0 "--updated" $R1
+  ${IfNot} ${Errors}
+    StrCpy $IsDesktopUpdateUninstall "1"
+  ${EndIf}
   # The uninstaller owns its PATH cleanup helper. Extracting it from the
   # uninstaller avoids depending on installed resources during the NSIS
   # self-copy and upgrade lifecycle.
@@ -227,7 +237,7 @@ Var DeleteDesktopDataFailed
 
   Function un.UninstallDataPageCreate
     ${If} ${Silent}
-    ${OrIf} ${isUpdated}
+    ${OrIf} $IsDesktopUpdateUninstall == "1"
       Abort
     ${EndIf}
     !insertmacro MUI_HEADER_TEXT "$(UninstallDataPageTitle)" "$(UninstallDataPageSubtitle)"
@@ -301,7 +311,7 @@ Var DeleteDesktopDataFailed
 
   !macro customUnInstall
     ${If} $DeleteDesktopDataRequested == "1"
-    ${AndIfNot} ${isUpdated}
+    ${AndIf} $IsDesktopUpdateUninstall != "1"
       DetailPrint "Removing application-owned local configuration and data"
       ${If} $installMode == "all"
         SetShellVarContext current
