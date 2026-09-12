@@ -44,7 +44,6 @@ LangString UninstallDataDeleteFailed 2052 "部分安装版数据无法删除，�
 LangString UninstallDataDeleteFailed 1033 "Some installed-app data could not be deleted, possibly because another process is still using it. After uninstalling, close that program and remove the contents below except development:$\r$\n$APPDATA\open-deepseek-harness-desktop"
 
 Var ProcessGuardOutput
-Var DesktopUninstallMode
 
 !macro customCheckAppRunning
   # A fresh installation has no files that can be locked. Avoid invoking CIM
@@ -197,15 +196,6 @@ Var DesktopUninstallMode
 !endif
 
 !macro customUnInit
-  StrCpy $DesktopUninstallMode "preserve"
-  # BUILD_UNINSTALLER is compiled without electron-builder's StdUtils plug-in
-  # directory. Parse the updater marker with the built-in FileFunc helpers so
-  # the custom data page also works while the temporary uninstaller is built.
-  ${GetParameters} $R0
-  ${GetOptions} $R0 "--updated" $R1
-  ${IfNot} ${Errors}
-    StrCpy $DesktopUninstallMode "update"
-  ${EndIf}
   # The uninstaller owns its PATH cleanup helper. Extracting it from the
   # uninstaller avoids depending on installed resources during the NSIS
   # self-copy and upgrade lifecycle.
@@ -237,7 +227,14 @@ Var DesktopUninstallMode
   !macro customHeader
     Function un.UninstallDataPageCreate
       ${If} ${Silent}
-      ${OrIf} $DesktopUninstallMode == "update"
+        Abort
+      ${EndIf}
+      # Updater-driven uninstalls must never offer destructive data removal.
+      # Re-evaluate the marker in each relevant callback instead of carrying
+      # custom NSIS variables through electron-builder's two compile passes.
+      ${GetParameters} $R0
+      ${GetOptions} $R0 "--updated" $R1
+      ${IfNot} ${Errors}
         Abort
       ${EndIf}
       !insertmacro MUI_HEADER_TEXT "$(UninstallDataPageTitle)" "$(UninstallDataPageSubtitle)"
@@ -264,12 +261,12 @@ Var DesktopUninstallMode
       ${If} $0 == ${BST_CHECKED}
         MessageBox MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION "$(UninstallDataConfirm)" /SD IDNO IDYES uninstall_data_confirmed
         ${NSD_Uncheck} $R9
-        StrCpy $DesktopUninstallMode "preserve"
+        WriteINIStr "$PLUGINSDIR\desktop-uninstall.ini" "data" "delete" "0"
         Abort
         uninstall_data_confirmed:
-        StrCpy $DesktopUninstallMode "delete"
+        WriteINIStr "$PLUGINSDIR\desktop-uninstall.ini" "data" "delete" "1"
       ${Else}
-        StrCpy $DesktopUninstallMode "preserve"
+        WriteINIStr "$PLUGINSDIR\desktop-uninstall.ini" "data" "delete" "0"
       ${EndIf}
     FunctionEnd
   !macroend
@@ -311,7 +308,13 @@ Var DesktopUninstallMode
   FunctionEnd
 
   !macro customUnInstall
-    ${If} $DesktopUninstallMode == "delete"
+    ${GetParameters} $R0
+    ${GetOptions} $R0 "--updated" $R1
+    ${IfNot} ${Errors}
+      DetailPrint "Preserving application-owned local configuration and data during update"
+    ${Else}
+      ReadINIStr $R0 "$PLUGINSDIR\desktop-uninstall.ini" "data" "delete"
+      ${If} $R0 == "1"
       DetailPrint "Removing application-owned local configuration and data"
       ${If} $installMode == "all"
         SetShellVarContext current
@@ -323,8 +326,9 @@ Var DesktopUninstallMode
       ${If} $installMode == "all"
         SetShellVarContext all
       ${EndIf}
-    ${Else}
-      DetailPrint "Preserving application-owned local configuration and data"
+      ${Else}
+        DetailPrint "Preserving application-owned local configuration and data"
+      ${EndIf}
     ${EndIf}
   !macroend
 !endif
