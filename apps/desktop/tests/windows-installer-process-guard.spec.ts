@@ -46,6 +46,8 @@ describe('Windows installer process guard', () => {
     const uninstallSection = installer.slice(installer.indexOf('!ifdef BUILD_UNINSTALLER'))
     expect(uninstallSection).toContain('!macro customHeader\n    Function un.UninstallDataPageCreate')
     expect(installer).toContain('Function un.RemoveInstalledDesktopData')
+    expect(installer).toContain('StrCpy $R8 "0"')
+    expect(installer).toContain('StrCmp $R8 "0" uninstall_data_removed')
     expect(installer).toContain('StrCmp $2 "development" uninstall_data_scan_continue')
     expect(installer).not.toContain('RMDir /r "$APPDATA\\open-deepseek-harness-desktop"')
     expect(installer).toContain('LangString UninstallDataDeleteFailed 2052')

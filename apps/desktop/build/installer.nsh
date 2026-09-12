@@ -44,7 +44,6 @@ LangString UninstallDataDeleteFailed 2052 "部分安装版数据无法删除，�
 LangString UninstallDataDeleteFailed 1033 "Some installed-app data could not be deleted, possibly because another process is still using it. After uninstalling, close that program and remove the contents below except development:$\r$\n$APPDATA\open-deepseek-harness-desktop"
 
 Var ProcessGuardOutput
-Var DeleteDesktopDataFailed
 Var DesktopUninstallMode
 
 !macro customCheckAppRunning
@@ -279,7 +278,7 @@ Var DesktopUninstallMode
     Push $0
     Push $1
     Push $2
-    StrCpy $DeleteDesktopDataFailed "0"
+    StrCpy $R8 "0"
     StrCpy $0 "$APPDATA\open-deepseek-harness-desktop"
     ClearErrors
     FindFirst $1 $2 "$0\*.*"
@@ -291,12 +290,12 @@ Var DesktopUninstallMode
       IfFileExists "$0\$2\*.*" 0 uninstall_data_delete_file
         RMDir /r "$0\$2"
         IfFileExists "$0\$2\*.*" 0 uninstall_data_scan_continue
-        StrCpy $DeleteDesktopDataFailed "1"
+        StrCpy $R8 "1"
         Goto uninstall_data_scan_continue
       uninstall_data_delete_file:
         Delete "$0\$2"
         IfFileExists "$0\$2" 0 uninstall_data_scan_continue
-        StrCpy $DeleteDesktopDataFailed "1"
+        StrCpy $R8 "1"
       uninstall_data_scan_continue:
         ClearErrors
         FindNext $1 $2
@@ -318,7 +317,7 @@ Var DesktopUninstallMode
         SetShellVarContext current
       ${EndIf}
       Call un.RemoveInstalledDesktopData
-      StrCmp $DeleteDesktopDataFailed "0" uninstall_data_removed
+      StrCmp $R8 "0" uninstall_data_removed
         MessageBox MB_OK|MB_ICONEXCLAMATION "$(UninstallDataDeleteFailed)"
       uninstall_data_removed:
       ${If} $installMode == "all"
