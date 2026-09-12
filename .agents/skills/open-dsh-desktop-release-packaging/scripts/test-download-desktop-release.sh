@@ -147,6 +147,7 @@ if PATH="$fake_bin:$PATH" \
   ODSH_FIXTURE_FAIL_ONCE_FILE="$fail_once_file" \
   ODSH_RELEASE_DOWNLOAD_STAGING_ROOT="$staging_root" \
   ODSH_RELEASE_OUTPUT_DIRECTORY="$release_directory" \
+  ODSH_ALLOW_RELEASE_OUTPUT_OVERRIDE=1 \
   ODSH_DOWNLOAD_URL_ATTEMPTS=1 \
   ODSH_VERIFY_DMG=0 \
     "$script_directory/download-desktop-release.sh" fixture/repository 101 202 303; then
@@ -162,6 +163,7 @@ PATH="$fake_bin:$PATH" \
 ODSH_FIXTURE_ARTIFACT_STORE="$artifact_store" \
 ODSH_RELEASE_DOWNLOAD_STAGING_ROOT="$staging_root" \
 ODSH_RELEASE_OUTPUT_DIRECTORY="$release_directory" \
+ODSH_ALLOW_RELEASE_OUTPUT_OVERRIDE=1 \
 ODSH_VERIFY_DMG=0 \
   "$script_directory/download-desktop-release.sh" fixture/repository 101 202 303
 
@@ -176,6 +178,7 @@ PATH="$fake_bin:$PATH" \
 ODSH_FIXTURE_ARTIFACT_STORE="$artifact_store" \
 ODSH_RELEASE_DOWNLOAD_STAGING_ROOT="$staging_root" \
 ODSH_RELEASE_OUTPUT_DIRECTORY="$fixture_root/macos-only" \
+ODSH_ALLOW_RELEASE_OUTPUT_OVERRIDE=1 \
 ODSH_VERIFY_DMG=0 \
   "$script_directory/download-desktop-release.sh" --macos-only fixture/repository 202
 ODSH_VERIFY_DMG=0 "$script_directory/verify-release-directory.sh" --macos-only "$fixture_root/macos-only"
@@ -184,3 +187,27 @@ if ODSH_VERIFY_DMG=0 "$script_directory/verify-release-directory.sh" "$fixture_r
   exit 1
 fi
 echo "macOS-only download fixture test passed"
+
+primary_checkout="$fixture_root/primary-checkout"
+linked_checkout="$fixture_root/release-worktree"
+mkdir -p "$primary_checkout/.agents/skills/open-dsh-desktop-release-packaging" "$primary_checkout/apps/desktop"
+cp -R "$script_directory" "$primary_checkout/.agents/skills/open-dsh-desktop-release-packaging/"
+printf '{"version":"%s"}\n' "$version" > "$primary_checkout/apps/desktop/package.json"
+git -C "$primary_checkout" init -q
+git -C "$primary_checkout" add .
+git -C "$primary_checkout" -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm fixture
+git -C "$primary_checkout" worktree add -q -b release-fixture "$linked_checkout"
+
+PATH="$fake_bin:$PATH" \
+ODSH_FIXTURE_ARTIFACT_STORE="$artifact_store" \
+ODSH_RELEASE_DOWNLOAD_STAGING_ROOT="$fixture_root/linked-staging" \
+ODSH_VERIFY_DMG=0 \
+  "$linked_checkout/.agents/skills/open-dsh-desktop-release-packaging/scripts/download-desktop-release.sh" fixture/repository 101 202 303
+
+canonical_release_directory="$primary_checkout/release/$version"
+ODSH_VERIFY_DMG=0 "$script_directory/verify-release-directory.sh" "$canonical_release_directory"
+[[ ! -e "$linked_checkout/release/$version" ]] || {
+  echo "linked worktree incorrectly received the release handoff" >&2
+  exit 1
+}
+echo "linked worktree download used the primary checkout release directory"

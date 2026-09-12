@@ -21,12 +21,26 @@ fi
 script_directory=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repository_root=$(cd "$script_directory/../../../.." && pwd)
 
-for command_name in gh node shasum unzip curl; do
+for command_name in gh git node shasum unzip curl; do
   command -v "$command_name" >/dev/null || { echo "missing command: $command_name" >&2; exit 1; }
 done
 
 version=$(node -p "require('$repository_root/apps/desktop/package.json').version")
-output_directory=${ODSH_RELEASE_OUTPUT_DIRECTORY:-$repository_root/release/$version}
+if [[ -n ${ODSH_RELEASE_OUTPUT_DIRECTORY:-} ]]; then
+  [[ ${ODSH_ALLOW_RELEASE_OUTPUT_OVERRIDE:-} == 1 ]] || {
+    echo "ODSH_RELEASE_OUTPUT_DIRECTORY is reserved for fixture tests" >&2
+    exit 1
+  }
+  output_directory=$ODSH_RELEASE_OUTPUT_DIRECTORY
+else
+  git_common_directory=$(git -C "$repository_root" rev-parse --path-format=absolute --git-common-dir)
+  [[ $(basename "$git_common_directory") == .git && -d "$git_common_directory" ]] || {
+    echo "cannot resolve the primary checkout from Git common directory: $git_common_directory" >&2
+    exit 1
+  }
+  primary_checkout=$(dirname "$git_common_directory")
+  output_directory="$primary_checkout/release/$version"
+fi
 [[ ! -e "$output_directory" ]] || {
   echo "refusing to replace existing release directory: $output_directory" >&2
   exit 1

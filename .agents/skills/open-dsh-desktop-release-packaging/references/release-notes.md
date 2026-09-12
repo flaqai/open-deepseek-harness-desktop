@@ -4,7 +4,7 @@ Use this reference whenever preparing notes or publishing a desktop Release. Fil
 
 ## Derive the identity
 
-Read the version from `apps/desktop/package.json` in the final release worktree and require it to match the verified `release/<version>/` directory.
+Read the version from `apps/desktop/package.json` in the final release worktree and require it to match the verified `<primary-checkout>/release/<version>/` directory.
 
 ```text
 tag: odsh-v<version>

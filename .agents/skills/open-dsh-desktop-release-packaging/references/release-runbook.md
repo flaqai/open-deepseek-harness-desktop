@@ -93,7 +93,7 @@ The download helper computes one complete content digest for each run's `bundled
 
 ## 5. Download one flat release set
 
-After Windows, macOS, and Linux have successful runs, pass all three run IDs to one helper. It derives the version from `apps/desktop/package.json`, verifies the runs in temporary storage, and atomically creates the ignored `release/<version>/` directory:
+After Windows, macOS, and Linux have successful runs, pass all three run IDs to one helper. It derives the version from `apps/desktop/package.json`, verifies the runs in temporary storage, resolves the main checkout through Git's common directory, and atomically creates the ignored `<primary-checkout>/release/<version>/` directory. Running the helper from a release or fix worktree does not change this destination. In this workspace the root is `/Users/6677h/StudioProjects/flaq-deepseek-harness/open-deepseek-harness-desktop/release/`:
 
 ```sh
 skill=.agents/skills/open-dsh-desktop-release-packaging
@@ -131,11 +131,11 @@ Do not delete a retained staging directory just to retry, and do not introduce a
 Run the exact-set check again:
 
 ```sh
-"$skill/scripts/verify-release-directory.sh" "$PWD/release/<version>"
+"$skill/scripts/verify-release-directory.sh" "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/release/<version>"
 ```
 
 The verifier requires exactly seven installers and one checksum file at the directory root. Any nested directory, workflow metadata, bundled-plugin snapshot, source archive, partial download, or unrelated file makes verification fail. Artifact-container ZIPs are transport files, not GitHub Release assets. A successful CI run does not imply that a local download exists.
 
 ## 7. Publication boundary
 
-The packaging workflow does not run on tag pushes and never publishes a Release. Publication uses the eight files already verified in `release/<version>/`; it does not rebuild or replace them. Do not create a tag, create a GitHub Release, or upload assets until the user explicitly selects publication, reviews the notes and asset plan, and gives fresh authorization immediately before the external mutation. Packaging authorization alone is insufficient.
+The packaging workflow does not run on tag pushes and never publishes a Release. Publication uses the eight files already verified in `<primary-checkout>/release/<version>/`; it does not rebuild or replace them. Do not create a tag, create a GitHub Release, or upload assets until the user explicitly selects publication, reviews the notes and asset plan, and gives fresh authorization immediately before the external mutation. Packaging authorization alone is insufficient.
