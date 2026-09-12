@@ -201,6 +201,11 @@ Var IsDesktopUpdateUninstall
 
 !macro customUnInit
   StrCpy $DeleteDesktopDataRequested "0"
+  # The temporary BUILD_UNINSTALLER pass does not expand customUnInstall, so
+  # keep an explicit read here as well. Otherwise NSIS reports this state
+  # variable as write-only and electron-builder promotes warning 6001 to an
+  # error before it can produce the real uninstaller.
+  DetailPrint "Desktop data removal requested: $DeleteDesktopDataRequested"
   StrCpy $IsDesktopUpdateUninstall "0"
   # BUILD_UNINSTALLER is compiled without electron-builder's StdUtils plug-in
   # directory. Parse the updater marker with the built-in FileFunc helpers so

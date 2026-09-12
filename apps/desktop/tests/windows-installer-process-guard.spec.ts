@@ -34,6 +34,9 @@ describe('Windows installer process guard', () => {
     expect(installer).toContain('UninstPage custom un.UninstallDataPageCreate un.UninstallDataPageLeave')
     expect(installer).not.toMatch(/^\s*Page custom un\.UninstallDataPageCreate un\.UninstallDataPageLeave$/m)
     expect(installer).toContain('StrCpy $DeleteDesktopDataRequested "0"')
+    expect(installer).toContain(
+      'DetailPrint "Desktop data removal requested: $DeleteDesktopDataRequested"',
+    )
     expect(installer).toContain('${NSD_Uncheck} $UninstallDataCheckboxHandle')
     expect(installer).toContain('MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION')
     expect(installer).toContain('LangString UninstallDataWarning 2052 "警告：删除后无法恢复。')
