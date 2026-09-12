@@ -37,8 +37,8 @@ export async function runCli(): Promise<void> {
         fromDefaultProfile: invocation.fromDefaultProfile,
         patchFiles: invocation.patches,
         args: invocation.args,
-        safeMode: process.env.DSH_PROFILE_SAFE_MODE === '1',
-        safeModeOnFailure: process.env.DSH_PROFILE_SAFE_MODE_ON_FAILURE === '1',
+        diagnosticMode: process.env.DSH_PROFILE_DIAGNOSTIC_MODE === '1',
+        diagnosticModeOnFailure: process.env.DSH_PROFILE_DIAGNOSTIC_MODE_ON_FAILURE === '1',
       })
       break
     }

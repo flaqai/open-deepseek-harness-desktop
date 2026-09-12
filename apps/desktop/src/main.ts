@@ -1506,7 +1506,7 @@ async function startApplication(): Promise<void> {
     DSH_HOME: dshHome,
     DSH_DESKTOP_APPLICATION_VERSION: app.getVersion(),
     DSH_DESKTOP_PNPM_VERSION: DESKTOP_PNPM_VERSION,
-    DSH_PROFILE_SAFE_MODE_ON_FAILURE: '1',
+    DSH_PROFILE_DIAGNOSTIC_MODE_ON_FAILURE: '1',
     DSH_DESKTOP_PERSISTENT_SERVICES: persistentServicesPath,
     DSH_DESKTOP_PERSISTENT_PROFILE: persistentProfileFingerprint(dshHome),
     DSH_DESKTOP_DOWNLOAD_NETWORK_FILE: downloadNetworkFile,
@@ -3248,7 +3248,7 @@ async function startApplication(): Promise<void> {
       desktopWebAccess?.clear()
       publishStartupProgress({
         stage: 'starting-harness',
-        progress: 100,
+        progress: 92,
         detail: 'profile-diagnostics-ready',
         state: 'degraded',
       })

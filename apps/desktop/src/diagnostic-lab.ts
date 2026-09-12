@@ -167,7 +167,7 @@ const SCENARIOS: readonly DiagnosticLabScenario[] = [
   { id: 'quarantine-removal-residue', title: 'Incomplete quarantine removal', description: 'Recreates a legacy uninstall that removed the plugin and quarantine record but left derived Profile state, then verifies bounded cleanup.', expectedCode: 'profile.quarantine-removal-residue', targets: ['isolated', 'active-profile'] },
   { id: 'loader-package-name-mismatch', title: 'Scoped Loader package-name mismatch', description: 'Installs a safe scoped package whose Bundle Patch names a missing unscoped module, then verifies immediate attribution and quarantine.', expectedCode: 'profile.module-resolution', targets: ['isolated', 'active-profile'] },
   { id: 'loader-dependency-unavailable', title: 'Loader dependency unavailable', description: 'Installs a resolvable aggregate Loader whose published entry imports a missing internal Host dependency, then verifies root attribution and quarantine.', expectedCode: 'loader.dependency-unavailable', targets: ['isolated', 'active-profile'] },
-  { id: 'loader-export-unavailable', title: 'Loader dependency export unavailable', description: 'Installs a Loader that expects an API export absent from the installed DSH generation, then verifies runtime attribution and quarantine before safe-mode fallback.', expectedCode: 'loader.dependency-unavailable', targets: ['active-profile'] },
+  { id: 'loader-export-unavailable', title: 'Loader dependency export unavailable', description: 'Installs a Loader that expects an API export absent from the installed DSH generation, then verifies runtime attribution and quarantine before diagnostic-mode fallback.', expectedCode: 'loader.dependency-unavailable', targets: ['active-profile'] },
   { id: 'legacy-session-api', title: 'Legacy Session API usage', description: 'Installs an inert offline plugin carrying the reproduced session.events pattern, then verifies advisory attribution without automatic quarantine.', expectedCode: 'profile.session-api-incompatible', targets: ['isolated', 'active-profile'] },
   { id: 'immutable-agent-input-mutation', title: 'Frozen agent input mutation', description: 'Installs an offline plugin that rewrites a frozen agent/pre-step text block, then verifies attribution and recovery guidance without automatic quarantine.', expectedCode: 'profile.immutable-agent-input-mutation', targets: ['isolated', 'active-profile'] },
   { id: 'settings-invalid', title: 'Invalid settings document', description: 'Writes a duplicate-key settings.yaml and verifies that Diagnostics skips it without modifying the original document.', expectedCode: 'config.settings-invalid', targets: ['isolated', 'active-profile'] },
@@ -202,7 +202,7 @@ const MANAGED_PROFILE_FILES = [
   'quarantine/profile-plugins.json',
   'profile-health/web.json',
   'profile-health/web.diagnostics.json',
-  'profile-health/safe-mode-settings.yaml',
+  'profile-health/diagnostic-mode-settings.yaml',
 ] as const
 const MAX_DIAGNOSTIC_BYTES = 8 * 1024
 
@@ -901,7 +901,7 @@ export class DiagnosticLabManager {
     }
   }
 
-  /** Exercise duplicate-key settings detection and the isolated safe-mode document. */
+  /** Exercise duplicate-key settings detection and the isolated diagnostic-mode document. */
   async #runSettingsInvalidScenario(runRoot: string, resumeHarness: () => void): Promise<void> {
     const scenarioId = 'settings-invalid' as const
     const fixture = FIXTURES[scenarioId]
@@ -918,7 +918,7 @@ export class DiagnosticLabManager {
     assertInside(boundary, scenarioRoot)
     const fixturePath = join(scenarioRoot, 'profile', 'settings-invalid.json')
     const settingsPath = join(home, 'settings.yaml')
-    const safeSettingsPath = join(home, 'profile-health', 'safe-mode-settings.yaml')
+    const diagnosticSettingsPath = join(home, 'profile-health', 'diagnostic-mode-settings.yaml')
     const started = Date.now()
     let actualCode: string | undefined
     try {
@@ -939,12 +939,12 @@ export class DiagnosticLabManager {
       await this.#step(scenarioId, 'detect')
       if (active.target === 'active-profile') {
         resumeHarness()
-        await this.#waitForSettingsSafeMode(home)
+        await this.#waitForSettingsDiagnosticMode(home)
         actualCode = fixture.code
       } else {
         const invalid = parseDocument(await readFile(settingsPath, 'utf8'))
         actualCode = invalid.errors.length > 0 ? fixture.code : undefined
-        await atomicWrite(safeSettingsPath, '{}\n')
+        await atomicWrite(diagnosticSettingsPath, '{}\n')
       }
       if (actualCode !== fixture.code) throw new Error(`expected ${fixture.code}, received ${actualCode}`)
 
@@ -953,9 +953,9 @@ export class DiagnosticLabManager {
       if (sha256(await readFile(settingsPath)) !== fixture.checksum) {
         throw new Error('diagnostic startup modified the invalid user settings document')
       }
-      const safe = parseDocument(await readFile(safeSettingsPath, 'utf8'))
-      if (safe.errors.length > 0 || safe.toJS() === null || typeof safe.toJS() !== 'object') {
-        throw new Error('diagnostic safe-mode settings document is not a valid map')
+      const diagnosticSettings = parseDocument(await readFile(diagnosticSettingsPath, 'utf8'))
+      if (diagnosticSettings.errors.length > 0 || diagnosticSettings.toJS() === null || typeof diagnosticSettings.toJS() !== 'object') {
+        throw new Error('diagnostic-mode settings document is not a valid map')
       }
 
       await this.#step(scenarioId, 'retain')
@@ -1153,17 +1153,19 @@ export class DiagnosticLabManager {
     throw new Error(`timed out waiting for runtime recovery to quarantine ${packageName}`)
   }
 
-  async #waitForSettingsSafeMode(home: string): Promise<void> {
+  async #waitForSettingsDiagnosticMode(home: string): Promise<void> {
     const deadline = Date.now() + (this.#options.clientRecoveryTimeoutMs ?? 45_000)
     while (Date.now() <= deadline) {
       try {
         const report = JSON.parse(await readFile(join(home, 'profile-health', 'web.diagnostics.json'), 'utf8')) as {
           issues?: Array<{ code?: unknown }>
+          diagnosticMode?: { skippedUserSettings?: unknown }
           safeMode?: { skippedUserSettings?: unknown }
         }
         if (report.issues?.some(issue => issue.code === 'config.settings-invalid') === true
-          && report.safeMode?.skippedUserSettings === true
-          && existsSync(join(home, 'profile-health', 'safe-mode-settings.yaml'))) return
+          && (report.diagnosticMode?.skippedUserSettings === true
+            || report.safeMode?.skippedUserSettings === true)
+          && existsSync(join(home, 'profile-health', 'diagnostic-mode-settings.yaml'))) return
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       }

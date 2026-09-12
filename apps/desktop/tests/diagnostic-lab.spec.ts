@@ -449,13 +449,13 @@ describe('DiagnosticLabManager', () => {
       void (async () => {
         await new Promise((resolve) => { setTimeout(resolve, 15) })
         await mkdir(join(b.home, 'profile-health'), { recursive: true })
-        await writeFile(join(b.home, 'profile-health', 'safe-mode-settings.yaml'), '{}\n')
+        await writeFile(join(b.home, 'profile-health', 'diagnostic-mode-settings.yaml'), '{}\n')
         await writeFile(join(b.home, 'profile-health', 'web.diagnostics.json'), JSON.stringify({
           schema: 'dsh/profile-diagnostic/v2',
           profile: 'web',
           status: 'issues',
           issues: [{ code: 'config.settings-invalid' }],
-          safeMode: { skippedUserSettings: true },
+          diagnosticMode: { skippedUserSettings: true },
         }))
       })()
     })
@@ -488,7 +488,7 @@ describe('DiagnosticLabManager', () => {
 
     await expect(manager.restoreAll(initial.runId)).resolves.toMatchObject({ phase: 'restored' })
     expect(await readFile(settingsPath, 'utf8')).toBe(original)
-    expect(existsSync(join(b.home, 'profile-health', 'safe-mode-settings.yaml'))).toBe(false)
+    expect(existsSync(join(b.home, 'profile-health', 'diagnostic-mode-settings.yaml'))).toBe(false)
     expect(existsSync(join(b.home, 'profile-health', 'web.diagnostics.json'))).toBe(false)
   })
 

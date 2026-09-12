@@ -328,7 +328,7 @@ interface ComposedProfile {
   homePatches: PatchOptions[]
   /** Layers above the user layers on a live reload: `--patch` overlays and the telemetry switch. */
   overlays: PatchOptions[]
-  /** Invocation-owned data root removed when diagnostic safe mode settles. */
+  /** Invocation-owned data root removed when diagnostic mode settles. */
   diagnosticRuntimeRoot?: string
 }
 
@@ -356,14 +356,14 @@ function allPatches(composed: ComposedProfile): PatchOptions[] {
 async function composeProfile(
   name: string,
   patchFiles: readonly string[],
-  safeMode: boolean,
+  diagnosticMode: boolean,
   fromDefaultProfile?: string,
 ): Promise<ComposedProfile> {
-  const profile = safeMode ? prepareDiagnosticProfile(name) : prepareProfile(name, true, fromDefaultProfile)
+  const profile = diagnosticMode ? prepareDiagnosticProfile(name) : prepareProfile(name, true, fromDefaultProfile)
   await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR, profile })
-  const homePatches = safeMode ? [] : loadOptionalPatches(NAME, homePatchPath()) ?? []
-  const diagnosticSettings = safeMode ? prepareDiagnosticSettingsDocument() : undefined
-  const diagnosticRuntime = safeMode ? prepareDiagnosticRuntimeDirectories() : undefined
+  const homePatches = diagnosticMode ? [] : loadOptionalPatches(NAME, homePatchPath()) ?? []
+  const diagnosticSettings = diagnosticMode ? prepareDiagnosticSettingsDocument() : undefined
+  const diagnosticRuntime = diagnosticMode ? prepareDiagnosticRuntimeDirectories() : undefined
   const overlays: PatchOptions[] = diagnosticRuntime === undefined
     ? patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
     : [
@@ -373,10 +373,10 @@ async function composeProfile(
       { id: 'attachment-local', config: { dshHome: diagnosticRuntime.root } },
     ]
   const bundlePatches = profile.layers.flatMap(layer => layer.patches)
-  const staleLoaderQuarantine = safeMode
+  const staleLoaderQuarantine = diagnosticMode
     ? []
     : quarantineStaleInBoxLoaderEntries(bundlePatches, [...profile.patches, ...homePatches], profile.dir)
-  const duplicateSingletonQuarantine = safeMode
+  const duplicateSingletonQuarantine = diagnosticMode
     ? []
     : quarantineDuplicateSingletonLoaderEntries([
       bundlePatches,
@@ -421,9 +421,9 @@ export interface RunProfileOptions {
   /** The invocation's inner arguments, handed to the tree through `ctx.cmdlineArgs`. */
   args: readonly string[]
   /** Start only installation-owned bundles and omit every user-owned layer. */
-  safeMode?: boolean
+  diagnosticMode?: boolean
   /** Emit a stable desktop-supervisor marker when ordinary startup fails. */
-  safeModeOnFailure?: boolean
+  diagnosticModeOnFailure?: boolean
 }
 
 function startupFailurePhase(error: unknown) {
@@ -559,7 +559,7 @@ function deduplicateStartupIssues(issues: readonly ProfileDiagnostic[]): Profile
 }
 
 /** Decide whether a failed normal Profile can improve by omitting user-owned layers. */
-export function isDeterministicSafeModeFailure(issue: ProfileDiagnostic): boolean {
+export function isDeterministicDiagnosticModeFailure(issue: ProfileDiagnostic): boolean {
   return issue.code !== 'pnpm.network'
     && issue.code !== 'pnpm.registry-auth'
     && issue.code !== 'pnpm.minimum-release-age'
@@ -601,9 +601,9 @@ function suppressShutdownError(ctx: Context, signal: AbortSignal, error: unknown
  * @returns the settled root context and the shutdown controller.
  */
 async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown }> {
-  const safeMode = options.safeMode === true
+  const diagnosticMode = options.diagnosticMode === true
   const profileDir = resolveProfileDir(options.profile)
-  if (!safeMode && existsSync(join(profileDir, 'package.json'))) {
+  if (!diagnosticMode && existsSync(join(profileDir, 'package.json'))) {
     await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR })
     const dependencyHealth = repairProfileDependencies({
       binName: NAME,
@@ -632,7 +632,7 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
 
   let composed: ComposedProfile
   try {
-    composed = await composeProfile(options.profile, options.patchFiles, safeMode, options.fromDefaultProfile)
+    composed = await composeProfile(options.profile, options.patchFiles, diagnosticMode, options.fromDefaultProfile)
   } catch (error) {
     await disposeProxy()
     throw error
@@ -703,7 +703,7 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
         exit: code => void shutdown.shutdown(code),
         ready: appReady.service,
       })
-    }, safeMode ? diagnosticProfileModuleBaseUrl(composed.profile.dir) : undefined)
+    }, diagnosticMode ? diagnosticProfileModuleBaseUrl(composed.profile.dir) : undefined)
   } catch (error) {
     try {
       await disposeProxy()
@@ -715,14 +715,14 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
     throw error
   }
   app.current = ctx
-  if (safeMode) {
+  if (diagnosticMode) {
     const current = readProfileDiagnosticReport(options.profile)
     const enteredAt = new Date().toISOString()
     writeProfileDiagnosticReport(createProfileDiagnosticReport(
       options.profile,
       current?.issues ?? [],
       {
-        safeMode: {
+        diagnosticMode: {
           enteredAt,
           skippedBundles: configuredExternalBundles(options.profile),
           skippedUserLayers: true,
@@ -732,7 +732,7 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
         },
       },
     ))
-    process.stderr.write(`${NAME}: diagnostic safe mode active for profile ${JSON.stringify(options.profile)}\n`)
+    process.stderr.write(`${NAME}: diagnostic mode active for profile ${JSON.stringify(options.profile)}\n`)
   }
   // A surface can dispose the whole tree while boot or this post-boot watcher
   // setup is still in flight — a signal, or a fast one-shot's appExit. Loader
@@ -741,7 +741,7 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
   // landed mid-setup. Watching is unconditional: a one-shot surface exits
   // through its bounded shutdown, which disposes the watchers before the
   // loop drains.
-  if (!safeMode && composed.profile.patchReload === 'live'
+  if (!diagnosticMode && composed.profile.patchReload === 'live'
     && !signalShutdown.signal.aborted
     && ctx.fiber.state === FiberState.ACTIVE
     && ctx.get('loader') !== undefined) {
@@ -781,7 +781,7 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
 }
 
 /**
- * Boot one Profile and retain a structured failure for desktop safe-mode recovery.
+ * Boot one Profile and retain a structured failure for desktop diagnostic recovery.
  * @param options - Profile composition, application arguments, and optional recovery policy.
  * @returns Settled root context and shutdown controller.
  */
@@ -789,9 +789,9 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   try {
     return await runProfileAttempt(options)
   } catch (error) {
-    const entryFailures = options.safeMode === true ? [] : loaderEntryFailures(error)
+    const entryFailures = options.diagnosticMode === true ? [] : loaderEntryFailures(error)
     const entryFailure = entryFailures.at(-1)
-    const loaderFailure = options.safeMode === true ? undefined : loaderClientModuleFailure(error)
+    const loaderFailure = options.diagnosticMode === true ? undefined : loaderClientModuleFailure(error)
     let ownedFailure: UnresolvableProfileBundleEntry | undefined
     let ownedEntry: ProfileBundleEntryOwnership | undefined
     try {
@@ -870,7 +870,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       )
       : error
     const issue = classifyProfileDiagnostic({
-      source: options.safeMode === true ? 'runtime' : 'profile',
+      source: options.diagnosticMode === true ? 'runtime' : 'profile',
       phase: startupFailurePhase(error),
       value: issueValue,
       home: resolveDshHome(),
@@ -890,7 +890,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     })
     let quarantined = false
     const pendingActivation = existsSync(join(resolveDshHome(), 'plugin-transactions', options.profile, 'pending.json'))
-    if (options.safeModeOnFailure === true && externalBundle !== undefined && !pendingActivation) {
+    if (options.diagnosticModeOnFailure === true && externalBundle !== undefined && !pendingActivation) {
       const profileDir = resolveProfileDir(options.profile)
       let release: (() => void) | undefined
       try {
@@ -953,10 +953,10 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       ))
     }
     if (!quarantined
-      && options.safeMode !== true
-      && options.safeModeOnFailure === true
-      && isDeterministicSafeModeFailure(issue)) {
-      process.stderr.write(`${NAME}: profile safe mode eligible ${JSON.stringify({
+      && options.diagnosticMode !== true
+      && options.diagnosticModeOnFailure === true
+      && isDeterministicDiagnosticModeFailure(issue)) {
+      process.stderr.write(`${NAME}: profile diagnostic mode eligible ${JSON.stringify({
         schema: 'dsh/profile-diagnostic/v2',
         code: issue.code,
       })}\n`)

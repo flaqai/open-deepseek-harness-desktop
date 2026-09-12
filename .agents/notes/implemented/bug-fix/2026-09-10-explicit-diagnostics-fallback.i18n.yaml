@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-10-explicit-diagnostics-fallback.md
-2026-09-10-explicit-diagnostics-fallback.md: aff61b54a7ed813e5fb291edd997504bd4502691
-2026-09-10-explicit-diagnostics-fallback.zh.md: 8878ea14b4d169d9be6b29c7f7917479d9330766
+2026-09-10-explicit-diagnostics-fallback.md: b00b7c64d6d4555f06a7ae1d79649579262488e4
+2026-09-10-explicit-diagnostics-fallback.zh.md: c546fb725890003355ae22e88f424b0e1ca4396b

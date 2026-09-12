@@ -16,7 +16,7 @@
 
 用户选择重新尝试时，客户端先停止诊断进程，再正常启动当前 Profile。诊断进程本身若也失败，只作为有界的次要失败记录。诊断进程就绪不能证明当前 Profile 或恢复后的插件快照健康。
 
-本决策取代[Profile 诊断与安全启动](../feature/2026-08-25-profile-diagnostic-safe-mode.zh.md)中面向用户展示安全模式工作区的做法。内部的 `DSH_PROFILE_SAFE_MODE` 启动原语和诊断设置文件仍然保留，因为它们负责为恢复页面提供隔离进程。
+本决策取代[Profile 诊断与安全启动](../feature/2026-08-25-profile-diagnostic-safe-mode.zh.md)中面向用户展示安全模式工作区的做法。隔离进程现在统一称为诊断模式，并通过 `DSH_PROFILE_DIAGNOSTIC_MODE` 启动。它的 URL 和内部就绪状态只用于提供恢复工具：监督器会保持应用失败状态，不发送普通就绪事件，也不会把失败的正常 Profile 标记为健康。
 
 ## 考虑过的替代方案
 

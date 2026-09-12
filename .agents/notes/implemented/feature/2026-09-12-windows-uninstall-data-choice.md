@@ -1,4 +1,4 @@
-# Windows uninstall data choice
+# Agent Note: Windows uninstall data choice
 
 Status: implemented
 
@@ -15,6 +15,14 @@ The assisted NSIS uninstaller now presents an optional, unchecked data-removal c
 Only entries owned by the installed application under `%APPDATA%\open-deepseek-harness-desktop` are eligible. The cleanup explicitly preserves the `development` child used by source runs. The uninstaller does not parse `data-home-setup.json`, follow the active `DSH_HOME`, or remove an official `.dsh` or another directly reused external directory. The page is skipped for silent uninstall and installer-driven upgrades, which preserve data.
 
 macOS trash removal and Linux package managers do not provide an equivalent dependable interactive page. Those platforms continue to retain data rather than adding post-removal scripts that could delete user state without the same explicit confirmation.
+
+## Alternatives considered
+
+**Always delete application data.** Rejected because upgrades and ordinary reinstalls must preserve user history, settings, and plugins unless the user explicitly chooses destructive cleanup.
+
+**Delete the currently selected DSH home.** Rejected because that directory may be an official `.dsh` home or another external directory shared with a different installation and therefore is not owned by this uninstaller.
+
+**Add equivalent package-removal scripts on every platform.** Rejected because macOS trash removal and Linux package managers cannot provide the same dependable, explicit two-step confirmation before deleting user data.
 
 ## Consequences
 

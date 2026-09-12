@@ -181,7 +181,7 @@
   overflow-wrap: anywhere;
 }
 
-.safeModeNotice {
+.diagnosticModeNotice {
   display: flex;
   align-items: flex-start;
   gap: 9px;
@@ -192,20 +192,20 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
-.safeModeNotice > div {
+.diagnosticModeNotice > div {
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 4px;
 }
 
-.safeModeNotice strong {
+.diagnosticModeNotice strong {
   color: var(--dsw-alias-label-primary);
   font-size: 13px;
 }
 
-.safeModeNotice p,
-.safeModeNotice code {
+.diagnosticModeNotice p,
+.diagnosticModeNotice code {
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;

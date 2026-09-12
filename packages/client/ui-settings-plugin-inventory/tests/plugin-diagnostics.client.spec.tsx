@@ -36,7 +36,7 @@ describe('PluginDiagnosticsSection', () => {
     render(<PluginDiagnosticsSection {...props({
       entries: [],
       dependencyHealth: {
-        lastRepair: null, safeMode: null, quarantined: [],
+        lastRepair: null, diagnosticMode: null, quarantined: [],
         issues: [{
           diagnosticId: '00000000-0000-4000-8000-000000000016',
           code: 'profile.session-api-incompatible', source: 'profile', phase: 'preflight', severity: 'warning',
@@ -52,7 +52,7 @@ describe('PluginDiagnosticsSection', () => {
     render(<PluginDiagnosticsSection {...props({
       entries: [],
       dependencyHealth: {
-        lastRepair: null, safeMode: null, quarantined: [],
+        lastRepair: null, diagnosticMode: null, quarantined: [],
         issues: [{
           diagnosticId: '00000000-0000-4000-8000-000000000017',
           code: 'profile.immutable-agent-input-mutation', source: 'profile', phase: 'preflight', severity: 'warning',
@@ -69,7 +69,7 @@ describe('PluginDiagnosticsSection', () => {
       entries: [],
       dependencyHealth: {
         lastRepair: null,
-        safeMode: null,
+        diagnosticMode: null,
         quarantined: [{
           quarantineId: '00000000-0000-4000-8000-000000000012',
           profile: 'web',
@@ -103,7 +103,7 @@ describe('PluginDiagnosticsSection', () => {
       entries: [],
       dependencyHealth: {
         lastRepair: null,
-        safeMode: null,
+        diagnosticMode: null,
         quarantined: [{
           quarantineId: '00000000-0000-4000-8000-000000000014',
           profile: 'web',
@@ -147,7 +147,7 @@ describe('PluginDiagnosticsSection', () => {
       entries: [],
       dependencyHealth: {
         lastRepair: null,
-        safeMode: null,
+        diagnosticMode: null,
         quarantined: [{
           quarantineId: '00000000-0000-4000-8000-000000000018',
           profile: 'web',

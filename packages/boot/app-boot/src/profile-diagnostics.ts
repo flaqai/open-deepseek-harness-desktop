@@ -104,21 +104,26 @@ export interface ProfileDiagnostic {
   readonly evidence: readonly string[]
 }
 
-/** Durable collection consumed by safe-mode startup and trusted diagnostics clients. */
+/** Facts about the isolated process that serves recovery tools after normal startup fails. */
+export interface ProfileDiagnosticModeState {
+  readonly enteredAt: string
+  readonly skippedBundles: readonly string[]
+  readonly skippedUserLayers: boolean
+  readonly skippedUserSettings?: boolean
+  readonly skippedUserSessions?: boolean
+  readonly skippedUserStorage?: boolean
+}
+
+/** Durable collection consumed by diagnostic-mode startup and trusted diagnostics clients. */
 export interface ProfileDiagnosticReport {
   readonly schema: typeof PROFILE_DIAGNOSTIC_SCHEMA
   readonly profile: string
   readonly generatedAt: string
-  readonly status: 'issues' | 'safe-mode'
+  readonly status: 'issues' | 'diagnostic-mode' | 'safe-mode'
   readonly issues: readonly ProfileDiagnostic[]
-  readonly safeMode?: {
-    readonly enteredAt: string
-    readonly skippedBundles: readonly string[]
-    readonly skippedUserLayers: boolean
-    readonly skippedUserSettings?: boolean
-    readonly skippedUserSessions?: boolean
-    readonly skippedUserStorage?: boolean
-  }
+  readonly diagnosticMode?: ProfileDiagnosticModeState
+  /** Legacy v2 field accepted only while reading reports created by older desktop builds. */
+  readonly safeMode?: ProfileDiagnosticModeState
 }
 
 /** Inputs used to classify a thrown error or subprocess diagnostic. */
@@ -656,10 +661,10 @@ function atomicWrite(path: string, content: string): void {
 }
 
 /**
- * Construct one versioned report for current issues or a safe-mode startup.
+ * Construct one versioned report for current issues or diagnostic-mode availability.
  * @param profile - Profile whose startup or package operation failed.
  * @param issues - Current client-safe issues.
- * @param options - Optional safe-mode facts and deterministic test clock.
+ * @param options - Optional diagnostic-mode facts and deterministic test clock.
  * @returns Complete durable report.
  */
 export function createProfileDiagnosticReport(
@@ -667,16 +672,16 @@ export function createProfileDiagnosticReport(
   issues: readonly ProfileDiagnostic[],
   options: {
     readonly now?: () => Date
-    readonly safeMode?: ProfileDiagnosticReport['safeMode']
+    readonly diagnosticMode?: ProfileDiagnosticModeState
   } = {},
 ): ProfileDiagnosticReport {
   return {
     schema: PROFILE_DIAGNOSTIC_SCHEMA,
     profile,
     generatedAt: (options.now ?? (() => new Date()))().toISOString(),
-    status: options.safeMode === undefined ? 'issues' : 'safe-mode',
+    status: options.diagnosticMode === undefined ? 'issues' : 'diagnostic-mode',
     issues,
-    ...(options.safeMode === undefined ? {} : { safeMode: options.safeMode }),
+    ...(options.diagnosticMode === undefined ? {} : { diagnosticMode: options.diagnosticMode }),
   }
 }
 

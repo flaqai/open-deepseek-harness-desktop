@@ -12,13 +12,13 @@ import { join } from 'node:path'
 import { INSTALL_ANCHOR } from '../src/install-anchor.ts'
 import {
   diagnosticProfileModuleBaseUrl,
-  isDeterministicSafeModeFailure,
+  isDeterministicDiagnosticModeFailure,
   loaderClientModuleFailure,
   loaderEntryFailure,
 } from '../src/profile-boot.ts'
 
 describe('Profile diagnostic recovery policy', () => {
-  it('anchors safe-mode imports at the installation-maintained profiles fallback', () => {
+  it('anchors diagnostic-mode imports at the installation-maintained profiles fallback', () => {
     const profileDir = join('/fixture', 'dsh-home', 'profiles', 'web')
     const baseUrl = diagnosticProfileModuleBaseUrl(profileDir)
     expect(new URL(baseUrl).protocol).toBe('file:')
@@ -26,7 +26,7 @@ describe('Profile diagnostic recovery policy', () => {
   })
 
   it('resolves installation transitive modules from the healed diagnostic fallback', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'dsh-safe-mode-modules-'))
+    const home = mkdtempSync(join(tmpdir(), 'dsh-diagnostic-mode-modules-'))
     try {
       const profile = loadDiagnosticProfile('test', 'web', INSTALL_ANCHOR, home)
       await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR, profile, home })
@@ -38,7 +38,7 @@ describe('Profile diagnostic recovery policy', () => {
     }
   })
 
-  it('does not divert transient, waiting-period, unknown, or broken-runtime failures into safe mode', () => {
+  it('does not divert transient, waiting-period, unknown, or broken-runtime failures into diagnostic mode', () => {
     for (const value of [
       'ECONNRESET while fetching registry',
       'ERR_PNPM_FETCH_401 registry unauthorized',
@@ -47,11 +47,11 @@ describe('Profile diagnostic recovery policy', () => {
       'Harness exited before becoming ready',
     ]) {
       const issue = classifyProfileDiagnostic({ source: 'profile', phase: 'preflight', value })
-      expect(isDeterministicSafeModeFailure(issue), issue.code).toBe(false)
+      expect(isDeterministicDiagnosticModeFailure(issue), issue.code).toBe(false)
     }
   })
 
-  it('enters safe mode for user configuration and external Loader failures', () => {
+  it('opens diagnostic mode for user configuration and external Loader failures', () => {
     for (const value of [
       'credentials-local: the value for "version" must be a string',
       'failed to apply loader entry fixture (@fixture/broken): activation failed',
@@ -59,7 +59,7 @@ describe('Profile diagnostic recovery policy', () => {
       'corrupt Zstandard session log: first frame is not exactly one header line',
     ]) {
       const issue = classifyProfileDiagnostic({ source: 'loader', phase: 'apply', value })
-      expect(isDeterministicSafeModeFailure(issue), issue.code).toBe(true)
+      expect(isDeterministicDiagnosticModeFailure(issue), issue.code).toBe(true)
     }
   })
 

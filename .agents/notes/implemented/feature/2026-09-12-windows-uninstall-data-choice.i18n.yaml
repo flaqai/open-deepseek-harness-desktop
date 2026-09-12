@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-windows-uninstall-data-choice.md
-2026-09-12-windows-uninstall-data-choice.md: 392db7fcfeaf138df5defa32e049959cc8670c0c
-2026-09-12-windows-uninstall-data-choice.zh.md: 39e373e5c6c582a4c26261d61c1f6f7f8d8b396b
+2026-09-12-windows-uninstall-data-choice.md: 6296f56eca12b31cc006d2cc20d5a9fcced505a1
+2026-09-12-windows-uninstall-data-choice.zh.md: 0b05d5ed0e5d194ada2ba8203765791f49e5ea62

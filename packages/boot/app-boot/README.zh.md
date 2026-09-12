@@ -55,7 +55,7 @@ Profile 预检会在组合前收敛依赖身份与隔离状态。如果旧版或
 
 执行活动外部 bundle 之前，预检还会读取插件包根目录中固定的 `compatibility.json`。有效的 schema-v1 文档通过 `supportedHosts` 列出精确支持的 Harness 版本；如果列表排除了当前 Harness，插件会以 `incompatible-host-version` 隔离，诊断页在提供市场更新查找前展示当前版本、支持版本与可选推荐版本。声明缺失、损坏、超限、使用符号链接或 schema 未知时均保持“未知”，不会阻止激活；宽泛的 `peerDependencies` 不会被当成兼容性证据。
 
-对于每个能唯一归属的外部 Loader 行，预检会在不执行模块的情况下解析声明模块，并检查入口文件中的静态裸导入。Loader 模块缺失时以 `loader-module-unresolvable` 隔离；Loader 模块可用但其导入依赖缺失时以 `loader-dependency-unavailable` 隔离，并在诊断中保留外层 Bundle、Loader entry、导入方与缺失包。如果 Node 在运行时证明已安装依赖缺少插件要求的命名导出，也会遵守同一唯一归属边界，保留依赖名和导出名后隔离不兼容插件。用户改写或来源有歧义的行绝不自动移除。诊断安全模式还会把 settings provider 指向应用维护的空文档，因此无效用户设置保持不动，也无法继续阻止诊断 UI 加载。
+对于每个能唯一归属的外部 Loader 行，预检会在不执行模块的情况下解析声明模块，并检查入口文件中的静态裸导入。Loader 模块缺失时以 `loader-module-unresolvable` 隔离；Loader 模块可用但其导入依赖缺失时以 `loader-dependency-unavailable` 隔离，并在诊断中保留外层 Bundle、Loader entry、导入方与缺失包。如果 Node 在运行时证明已安装依赖缺少插件要求的命名导出，也会遵守同一唯一归属边界，保留依赖名和导出名后隔离不兼容插件。用户改写或来源有歧义的行绝不自动移除。诊断模式还会把 settings provider 指向应用维护的空文档，因此无效用户设置保持不动，也无法继续阻止诊断 UI 加载。该进程只提供恢复工具，不会把正常 Profile 的启动失败算作应用启动成功。
 
 提示性源码检查会标记这样的已启用外部 Bundle：其发布的 JavaScript 同时订阅 `agent/pre-step` 并直接给消息字段赋值。该事件发布深度冻结输入，因此真实出现的只读属性异常会分类为 `profile.immutable-agent-input-mutation`；仅靠源码得到的证据只会标出直接 Bundle，绝不会执行、修改或隔离插件。
 

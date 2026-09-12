@@ -114,7 +114,7 @@ export interface PluginDependencyHealthSnapshot {
   readonly lastRepair: PluginDependencyRepairNotice | null
   readonly quarantined: readonly PluginQuarantineRecord[]
   readonly issues: readonly ProfileDiagnostic[]
-  readonly safeMode: {
+  readonly diagnosticMode: {
     readonly enteredAt: string
     readonly skippedBundles: readonly string[]
     readonly skippedUserLayers: boolean
@@ -213,7 +213,7 @@ export interface PluginDiagnosticExport {
     readonly node: string
   }
   readonly profile: string
-  readonly safeMode: PluginDependencyHealthSnapshot['safeMode']
+  readonly diagnosticMode: PluginDependencyHealthSnapshot['diagnosticMode']
   readonly issues: readonly ProfileDiagnostic[]
   readonly quarantined: readonly PluginQuarantineRecord[]
   readonly entries: readonly PluginInventoryEntry[]

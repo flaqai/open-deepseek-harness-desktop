@@ -12,7 +12,7 @@ const RESTART_BASE_DELAY_MS = 500
 const RESTART_MAX_DELAY_MS = 15_000
 const PRE_READY_EXIT_LIMIT = 3
 const STOP_TIMEOUT_MS = 10_000
-const SAFE_MODE_ELIGIBLE_MARKER = 'dsh: profile safe mode eligible '
+const DIAGNOSTIC_MODE_ELIGIBLE_MARKER = 'dsh: profile diagnostic mode eligible '
 
 /** Observable lifecycle states for the desktop chrome. */
 export type HarnessState = 'starting' | 'ready' | 'restarting' | 'failed' | 'stopped'
@@ -97,12 +97,14 @@ export class HarnessSupervisor {
     if (this.#child !== undefined || this.#stopping || this.#failed) return
     mkdirSync(dirname(this.#options.logPath), { recursive: true })
     this.#log ??= createWriteStream(this.#options.logPath, { flags: 'a' })
-    this.#options.onState(this.#restartCount === 0 ? 'starting' : 'restarting')
+    this.#options.onState(this.#diagnosticMode
+      ? 'failed'
+      : this.#restartCount === 0 ? 'starting' : 'restarting')
 
     const environment = {
       ...this.#options.environment,
       ...this.#options.launch.environment,
-      ...(this.#diagnosticMode ? { DSH_PROFILE_SAFE_MODE: '1' } : {}),
+      ...(this.#diagnosticMode ? { DSH_PROFILE_DIAGNOSTIC_MODE: '1' } : {}),
     } as Record<string, string>
     let child: RunningHarness
     try {
@@ -117,7 +119,7 @@ export class HarnessSupervisor {
     this.#child = child
     let ready = false
     let spawnError: Error | undefined
-    let safeModeEligible = false
+    let diagnosticModeEligible = false
     const stdoutLines = new LineBuffer()
     const stderrLines = new LineBuffer()
 
@@ -127,14 +129,14 @@ export class HarnessSupervisor {
         const url = parseHarnessReadyLine(line)
         if (url === undefined || ready) continue
         ready = true
-        this.#restartCount = 0
-        this.#preReadyExitCount = 0
-        this.#options.onState('ready')
         if (this.#diagnosticMode) {
           this.#options.onDiagnosticReady(url, {
             message: this.#primaryStartupFailure ?? 'The active Profile could not start.',
           })
         } else {
+          this.#restartCount = 0
+          this.#preReadyExitCount = 0
+          this.#options.onState('ready')
           this.#options.onReady(url)
         }
       }
@@ -142,7 +144,7 @@ export class HarnessSupervisor {
     child.stderr.on('data', (chunk: Buffer) => {
       this.#log?.write(chunk)
       for (const line of stderrLines.push(chunk.toString('utf8'))) {
-        if (line.includes(SAFE_MODE_ELIGIBLE_MARKER)) safeModeEligible = true
+        if (line.includes(DIAGNOSTIC_MODE_ELIGIBLE_MARKER)) diagnosticModeEligible = true
       }
     })
     void child.done.then(async ({ exitCode: code, signal, error }) => {
@@ -157,7 +159,7 @@ export class HarnessSupervisor {
       }
       stdoutLines.flush()
       const stderrTail = stderrLines.flush()
-      if (stderrTail?.includes(SAFE_MODE_ELIGIBLE_MARKER) === true) safeModeEligible = true
+      if (stderrTail?.includes(DIAGNOSTIC_MODE_ELIGIBLE_MARKER) === true) diagnosticModeEligible = true
       this.#log?.write(`[desktop] Harness exited code=${String(code)} signal=${String(signal)}\n`)
       if (this.#child?.token === child.token) this.#child = undefined
       if (this.#stopping) {
@@ -165,13 +167,13 @@ export class HarnessSupervisor {
         return
       }
       if (!ready) {
-        if (safeModeEligible && !this.#diagnosticMode) {
+        if (diagnosticModeEligible && !this.#diagnosticMode) {
           this.#primaryStartupFailure = spawnError === undefined
             ? `Harness exited before becoming ready (code ${String(code)}, signal ${String(signal)}).`
             : `Harness could not start: ${spawnError.message}`
           this.#diagnosticMode = true
           this.#log?.write('[desktop] Opening Diagnostics with the installation-owned diagnostic profile.\n')
-          this.#options.onState('restarting')
+          this.#options.onState('failed')
           this.#restartTimer = setTimeout(() => {
             this.#restartTimer = undefined
             this.start()

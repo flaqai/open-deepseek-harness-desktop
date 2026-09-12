@@ -16,18 +16,18 @@ function atomicWrite(path: string, content: string): void {
 }
 
 /**
- * Materialize the empty settings document used only by diagnostic safe mode.
+ * Materialize the empty settings document used only by diagnostic mode.
  * @param home - Selected Harness home.
  * @returns Absolute app-maintained diagnostic settings path.
  */
 export function prepareDiagnosticSettingsDocument(home: string = resolveDshHome()): string {
-  const path = join(home, PROFILE_HEALTH_DIRECTORY, 'safe-mode-settings.yaml')
+  const path = join(home, PROFILE_HEALTH_DIRECTORY, 'diagnostic-mode-settings.yaml')
   if (existsSync(path)) unlinkSync(path)
   atomicWrite(path, '{}\n')
   return path
 }
 
-/** Isolated writable roots used by one diagnostic-safe-mode process. */
+/** Isolated writable roots used by one diagnostic-mode process. */
 export interface DiagnosticRuntimeDirectories {
   readonly root: string
   readonly sessions: string
@@ -35,7 +35,7 @@ export interface DiagnosticRuntimeDirectories {
 }
 
 /**
- * Create an empty, invocation-owned data root for diagnostic safe mode.
+ * Create an empty, invocation-owned data root for diagnostic mode.
  *
  * The recovery composition must not enumerate the active Session store: one
  * corrupt append-only artifact would otherwise crash both ordinary startup
@@ -49,7 +49,7 @@ export interface DiagnosticRuntimeDirectories {
 export function prepareDiagnosticRuntimeDirectories(
   home: string = resolveDshHome(),
 ): DiagnosticRuntimeDirectories {
-  const parent = join(home, PROFILE_HEALTH_DIRECTORY, 'safe-mode-runtime')
+  const parent = join(home, PROFILE_HEALTH_DIRECTORY, 'diagnostic-mode-runtime')
   mkdirSync(parent, { recursive: true, mode: 0o700 })
   const root = mkdtempSync(join(parent, 'run-'))
   const sessions = join(root, 'sessions')

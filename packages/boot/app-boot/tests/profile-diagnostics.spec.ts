@@ -167,7 +167,7 @@ describe('profile diagnostic v2', () => {
       .toBe('fixture@git+https://example.invalid/repo.git#commit')
   })
 
-  it('persists and clears a safe-mode incident with the v2 schema', () => {
+  it('persists and clears diagnostic-mode availability with the v2 schema', () => {
     const home = mkdtempSync(join(tmpdir(), 'dsh-profile-diagnostics-'))
     roots.push(home)
     const issue = classifyProfileDiagnostic({
@@ -177,13 +177,15 @@ describe('profile diagnostic v2', () => {
     })
     const report = createProfileDiagnosticReport('web', [issue], {
       now: () => new Date('2026-08-25T00:00:00.000Z'),
-      safeMode: {
+      diagnosticMode: {
         enteredAt: '2026-08-25T00:00:01.000Z',
         skippedBundles: ['@fixture/broken'],
         skippedUserLayers: true,
       },
     })
     writeProfileDiagnosticReport(report, home)
+    expect(report.status).toBe('diagnostic-mode')
+    expect(report).not.toHaveProperty('safeMode')
     expect(readProfileDiagnosticReport('web', home)).toEqual(report)
     expect(clearProfileDiagnosticReport('web', home)).toBe(true)
     expect(readProfileDiagnosticReport('web', home)).toBeUndefined()

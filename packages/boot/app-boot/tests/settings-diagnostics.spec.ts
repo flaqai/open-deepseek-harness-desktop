@@ -21,16 +21,16 @@ function home(): string {
 }
 
 describe('settings diagnostic recovery', () => {
-  it('uses an isolated empty settings document in safe mode', () => {
+  it('uses an isolated empty settings document in diagnostic mode', () => {
     const root = home()
     writeFileSync(join(root, 'settings.yaml'), 'duplicate: 1\nduplicate: 2\n')
-    const safe = prepareDiagnosticSettingsDocument(root)
-    expect(safe).not.toBe(join(root, 'settings.yaml'))
-    expect(readFileSync(safe, 'utf8')).toBe('{}\n')
+    const diagnostic = prepareDiagnosticSettingsDocument(root)
+    expect(diagnostic).not.toBe(join(root, 'settings.yaml'))
+    expect(readFileSync(diagnostic, 'utf8')).toBe('{}\n')
     expect(readFileSync(join(root, 'settings.yaml'), 'utf8')).toContain('duplicate: 2')
   })
 
-  it('creates per-invocation empty Session and storage roots for safe mode', () => {
+  it('creates per-invocation empty Session and storage roots for diagnostic mode', () => {
     const root = home()
     const first = prepareDiagnosticRuntimeDirectories(root)
     const second = prepareDiagnosticRuntimeDirectories(root)

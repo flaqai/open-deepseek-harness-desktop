@@ -19,7 +19,7 @@ const HEALTHY_DEPENDENCIES = {
   lastRepair: null,
   quarantined: [],
   issues: [],
-  safeMode: null,
+  diagnosticMode: null,
 } as const
 const t = ((key: PluginInventoryLocaleKey, params?: Record<string, string>): string =>
   Object.entries(params ?? {}).reduce(

@@ -472,7 +472,7 @@ export class PluginInventoryGateway extends TypertRemoteService {
           .filter(record => record.profile === this.profile)
           .map(projectQuarantine),
         issues,
-        safeMode: currentDiagnostics?.safeMode ?? null,
+        diagnosticMode: currentDiagnostics?.diagnosticMode ?? currentDiagnostics?.safeMode ?? null,
       },
     }
   }
@@ -702,7 +702,7 @@ export class PluginInventoryGateway extends TypertRemoteService {
         node: process.version,
       },
       profile: this.profile,
-      safeMode: snapshot.dependencyHealth.safeMode,
+      diagnosticMode: snapshot.dependencyHealth.diagnosticMode,
       issues: snapshot.dependencyHealth.issues,
       quarantined: snapshot.dependencyHealth.quarantined,
       entries: snapshot.entries,

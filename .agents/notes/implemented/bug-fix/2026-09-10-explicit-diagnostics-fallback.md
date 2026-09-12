@@ -16,7 +16,7 @@ The Desktop reads the bounded `web.diagnostics.json` report and projects its hig
 
 Retry first stops the diagnostic process and then starts the active Profile normally. A diagnostic process that also fails remains a bounded secondary failure. Desktop does not treat diagnostic readiness as proof that the active Profile or a restored plugin snapshot is healthy.
 
-This decision supersedes the user-facing safe-mode workspace described by [Profile diagnostics and safe startup](../feature/2026-08-25-profile-diagnostic-safe-mode.md). The internal `DSH_PROFILE_SAFE_MODE` boot primitive and diagnostic settings file remain implementation details because they provide the isolated process used by the recovery page.
+This decision supersedes the user-facing safe-mode workspace described by [Profile diagnostics and safe startup](../feature/2026-08-25-profile-diagnostic-safe-mode.md). The isolated process is now explicitly called diagnostic mode and is launched through `DSH_PROFILE_DIAGNOSTIC_MODE`. Its URL and internal readiness exist only to provide recovery tools: the supervisor keeps the application state failed, never emits ordinary readiness, and never treats the failed normal Profile as healthy.
 
 ## Alternatives considered
 

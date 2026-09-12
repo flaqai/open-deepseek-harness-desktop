@@ -17,7 +17,7 @@ afterEach(() => {
 
 const HEALTHY = {
   entries: [],
-  dependencyHealth: { lastRepair: null, quarantined: [], issues: [], safeMode: null },
+  dependencyHealth: { lastRepair: null, quarantined: [], issues: [], diagnosticMode: null },
 } as unknown as PluginInventorySnapshot
 
 const QUARANTINED = {
@@ -35,7 +35,7 @@ const QUARANTINED = {
       conflicts: [],
     }],
     issues: [],
-    safeMode: null,
+    diagnosticMode: null,
   },
 } as unknown as PluginInventorySnapshot
 

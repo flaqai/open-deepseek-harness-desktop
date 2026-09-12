@@ -443,7 +443,7 @@ export function PluginDiagnosticsSection({
   const retained = inventory.status === 'ready' ? inventory.snapshot.dependencyHealth.lastRepair : null
   const quarantined = inventory.status === 'ready' ? inventory.snapshot.dependencyHealth.quarantined : []
   const retainedIssues = inventory.status === 'ready' ? inventory.snapshot.dependencyHealth.issues : []
-  const safeMode = inventory.status === 'ready' ? inventory.snapshot.dependencyHealth.safeMode ?? null : null
+  const diagnosticMode = inventory.status === 'ready' ? inventory.snapshot.dependencyHealth.diagnosticMode ?? null : null
   const currentIssues = report?.issues ?? retainedIssues
   const failedEntries = inventory.status === 'ready'
     ? inventory.snapshot.entries.filter(entry => entry.enabled && entry.fiberPhase === 'failed')
@@ -536,13 +536,13 @@ export function PluginDiagnosticsSection({
         ) : null}
       </div>
 
-      {safeMode !== null ? (
-        <article className={css.safeModeNotice} role="status">
+      {diagnosticMode !== null ? (
+        <article className={css.diagnosticModeNotice} role="status">
           <IconWarningOutline16 size={16} />
           <div>
-            <strong>{t('diagnostics.safeMode.title')}</strong>
-            <p>{t('diagnostics.safeMode.description')}</p>
-            {safeMode.skippedBundles.length > 0 ? <code>{safeMode.skippedBundles.join(', ')}</code> : null}
+            <strong>{t('diagnostics.diagnosticMode.title')}</strong>
+            <p>{t('diagnostics.diagnosticMode.description')}</p>
+            {diagnosticMode.skippedBundles.length > 0 ? <code>{diagnosticMode.skippedBundles.join(', ')}</code> : null}
           </div>
         </article>
       ) : null}
