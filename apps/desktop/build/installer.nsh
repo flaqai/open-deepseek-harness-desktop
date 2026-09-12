@@ -232,7 +232,7 @@ Var IsDesktopUpdateUninstall
 !ifdef BUILD_UNINSTALLER
   !macro customUnWelcomePage
     !insertmacro MUI_UNPAGE_WELCOME
-    Page custom un.UninstallDataPageCreate un.UninstallDataPageLeave
+    UninstPage custom un.UninstallDataPageCreate un.UninstallDataPageLeave
   !macroend
 
   # As with the installer's CLI page, these functions must be emitted after

@@ -31,7 +31,8 @@ describe('Windows installer process guard', () => {
   it('offers explicit irreversible app-data deletion while preserving it by default', async () => {
     const installer = await readFile(`${buildRoot}/installer.nsh`, 'utf8')
 
-    expect(installer).toContain('Page custom un.UninstallDataPageCreate un.UninstallDataPageLeave')
+    expect(installer).toContain('UninstPage custom un.UninstallDataPageCreate un.UninstallDataPageLeave')
+    expect(installer).not.toMatch(/^\s*Page custom un\.UninstallDataPageCreate un\.UninstallDataPageLeave$/m)
     expect(installer).toContain('StrCpy $DeleteDesktopDataRequested "0"')
     expect(installer).toContain('${NSD_Uncheck} $UninstallDataCheckboxHandle')
     expect(installer).toContain('MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION')
