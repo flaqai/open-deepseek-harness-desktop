@@ -44,10 +44,9 @@ LangString UninstallDataDeleteFailed 2052 "部分安装版数据无法删除，�
 LangString UninstallDataDeleteFailed 1033 "Some installed-app data could not be deleted, possibly because another process is still using it. After uninstalling, close that program and remove the contents below except development:$\r$\n$APPDATA\open-deepseek-harness-desktop"
 
 Var ProcessGuardOutput
-Var DeleteDesktopDataRequested
 Var UninstallDataCheckboxHandle
 Var DeleteDesktopDataFailed
-Var IsDesktopUpdateUninstall
+Var DesktopUninstallMode
 
 !macro customCheckAppRunning
   # A fresh installation has no files that can be locked. Avoid invoking CIM
@@ -200,20 +199,14 @@ Var IsDesktopUpdateUninstall
 !endif
 
 !macro customUnInit
-  StrCpy $DeleteDesktopDataRequested "0"
-  # The temporary BUILD_UNINSTALLER pass does not expand customUnInstall, so
-  # keep an explicit read here as well. Otherwise NSIS reports this state
-  # variable as write-only and electron-builder promotes warning 6001 to an
-  # error before it can produce the real uninstaller.
-  DetailPrint "Desktop data removal requested: $DeleteDesktopDataRequested"
-  StrCpy $IsDesktopUpdateUninstall "0"
+  StrCpy $DesktopUninstallMode "preserve"
   # BUILD_UNINSTALLER is compiled without electron-builder's StdUtils plug-in
   # directory. Parse the updater marker with the built-in FileFunc helpers so
   # the custom data page also works while the temporary uninstaller is built.
   ${GetParameters} $R0
   ${GetOptions} $R0 "--updated" $R1
   ${IfNot} ${Errors}
-    StrCpy $IsDesktopUpdateUninstall "1"
+    StrCpy $DesktopUninstallMode "update"
   ${EndIf}
   # The uninstaller owns its PATH cleanup helper. Extracting it from the
   # uninstaller avoids depending on installed resources during the NSIS
@@ -246,7 +239,7 @@ Var IsDesktopUpdateUninstall
   !macro customHeader
     Function un.UninstallDataPageCreate
       ${If} ${Silent}
-      ${OrIf} $IsDesktopUpdateUninstall == "1"
+      ${OrIf} $DesktopUninstallMode == "update"
         Abort
       ${EndIf}
       !insertmacro MUI_HEADER_TEXT "$(UninstallDataPageTitle)" "$(UninstallDataPageSubtitle)"
@@ -269,16 +262,16 @@ Var IsDesktopUpdateUninstall
     FunctionEnd
 
     Function un.UninstallDataPageLeave
-      ${NSD_GetState} $UninstallDataCheckboxHandle $DeleteDesktopDataRequested
-      ${If} $DeleteDesktopDataRequested == ${BST_CHECKED}
+      ${NSD_GetState} $UninstallDataCheckboxHandle $0
+      ${If} $0 == ${BST_CHECKED}
         MessageBox MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION "$(UninstallDataConfirm)" /SD IDNO IDYES uninstall_data_confirmed
         ${NSD_Uncheck} $UninstallDataCheckboxHandle
-        StrCpy $DeleteDesktopDataRequested "0"
+        StrCpy $DesktopUninstallMode "preserve"
         Abort
         uninstall_data_confirmed:
-        StrCpy $DeleteDesktopDataRequested "1"
+        StrCpy $DesktopUninstallMode "delete"
       ${Else}
-        StrCpy $DeleteDesktopDataRequested "0"
+        StrCpy $DesktopUninstallMode "preserve"
       ${EndIf}
     FunctionEnd
   !macroend
@@ -320,8 +313,7 @@ Var IsDesktopUpdateUninstall
   FunctionEnd
 
   !macro customUnInstall
-    ${If} $DeleteDesktopDataRequested == "1"
-    ${AndIf} $IsDesktopUpdateUninstall != "1"
+    ${If} $DesktopUninstallMode == "delete"
       DetailPrint "Removing application-owned local configuration and data"
       ${If} $installMode == "all"
         SetShellVarContext current

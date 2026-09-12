@@ -33,17 +33,14 @@ describe('Windows installer process guard', () => {
 
     expect(installer).toContain('UninstPage custom un.UninstallDataPageCreate un.UninstallDataPageLeave')
     expect(installer).not.toMatch(/^\s*Page custom un\.UninstallDataPageCreate un\.UninstallDataPageLeave$/m)
-    expect(installer).toContain('StrCpy $DeleteDesktopDataRequested "0"')
-    expect(installer).toContain(
-      'DetailPrint "Desktop data removal requested: $DeleteDesktopDataRequested"',
-    )
+    expect(installer).toContain('StrCpy $DesktopUninstallMode "preserve"')
     expect(installer).toContain('${NSD_Uncheck} $UninstallDataCheckboxHandle')
     expect(installer).toContain('MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION')
     expect(installer).toContain('LangString UninstallDataWarning 2052 "警告：删除后无法恢复。')
     expect(installer).toContain('同一应用根目录内的源码开发版数据均不会被删除。')
     expect(installer).toContain('${GetOptions} $R0 "--updated" $R1')
-    expect(installer).toContain('${OrIf} $IsDesktopUpdateUninstall == "1"')
-    expect(installer).toContain('${AndIf} $IsDesktopUpdateUninstall != "1"')
+    expect(installer).toContain('${OrIf} $DesktopUninstallMode == "update"')
+    expect(installer).toContain('${If} $DesktopUninstallMode == "delete"')
     expect(installer).not.toContain('${isUpdated}')
     const uninstallSection = installer.slice(installer.indexOf('!ifdef BUILD_UNINSTALLER'))
     expect(uninstallSection).toContain('!macro customHeader\n    Function un.UninstallDataPageCreate')
