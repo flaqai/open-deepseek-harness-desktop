@@ -229,6 +229,8 @@ export function profilePackageDownloadEnvironment(environment: NodeJS.ProcessEnv
 
 /**
  * Run pnpm in one profile and retain bounded diagnostics for automatic repair.
+ * Package-manager subprocesses stay hidden on Windows because desktop callers
+ * invoke this path without an attached terminal.
  * @param profileDir - profile working directory.
  * @param args - exact pnpm arguments.
  * @returns exit code and combined output; an absent executable reports code 127.
@@ -250,7 +252,7 @@ export function runProfilePackageManager(
     const probe = resolvePnpmInvocation(environment, ['--store-dir', storeDir, 'store', 'path', '--silent'])
     const result = spawnSync(probe.command, probe.args, {
       cwd: profileDir, env: environment, encoding: 'utf8', maxBuffer: 64 * 1024,
-      timeout: 15_000, shell: probe.shell,
+      timeout: 15_000, shell: probe.shell, windowsHide: true,
     })
     if (result.error !== undefined || result.status !== 0) {
       return { exitCode: result.status || 1, diagnostic: 'dsh: could not resolve the configuration-local pnpm store; existing dependencies were preserved' }
@@ -271,6 +273,7 @@ export function runProfilePackageManager(
       encoding: 'utf8',
       maxBuffer: 1024 * 1024,
       shell: invocation.shell,
+      windowsHide: true,
     })
     if (result.error !== undefined) {
       const code = (result.error as NodeJS.ErrnoException).code

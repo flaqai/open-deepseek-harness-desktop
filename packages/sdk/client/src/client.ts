@@ -206,7 +206,8 @@ export class HarnessClient {
 
   /**
    * Spawn the runtime subprocess and start reading frames. Idempotent while
-   * the process is live; rejects reuse after {@link close}.
+   * the process is live; rejects reuse after {@link close}. On Windows the
+   * background runtime never receives a visible console window.
    */
   start(): void {
     if (this.closeTask !== undefined) throw new TransportClosedError('DeepSeek Harness runtime client is closed')
@@ -215,6 +216,7 @@ export class HarnessClient {
       cwd: this.runtime.cwd,
       env: this.runtime.environment(),
       stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
     })
     this.child = child
     child.once('error', (error) => {

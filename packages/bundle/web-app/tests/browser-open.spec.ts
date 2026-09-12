@@ -1,6 +1,6 @@
 /** Default-browser startup over a real Loader tree and listening Web server. */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -33,6 +33,11 @@ afterEach(async () => {
 })
 
 describe('web app browser startup', () => {
+  it('hides the browser launcher helper console on Windows', () => {
+    const source = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8')
+    expect(source).toMatch(/spawn\(process\.execPath,[\s\S]*?windowsHide: true,[\s\S]*?\}\)/u)
+  })
+
   it('opens the canonical URL only after the complete page is reachable', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-web-browser-open-'))
     tempRoots.push(root)

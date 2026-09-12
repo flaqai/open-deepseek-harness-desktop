@@ -64,6 +64,11 @@ async function tempDir(prefix: string): Promise<string> {
 }
 
 describe('DeepSeekHarness', () => {
+  it('hides its background runtime console on Windows', async () => {
+    const source = await readFile(new URL('../src/client.ts', import.meta.url), 'utf8')
+    expect(source).toMatch(/spawn\(this\.runtime\.command,[\s\S]*?windowsHide: true,[\s\S]*?\}\)/u)
+  })
+
   it('ignores notifications that precede the submitted message receipt', async () => {
     const notifications = [
       { method: 'session.status', params: { sessionId: 'owned', status: 'running' } },

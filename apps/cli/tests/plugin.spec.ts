@@ -26,6 +26,11 @@ afterEach(() => {
 })
 
 describe('profile plugin package manager', () => {
+  it('hides both pnpm subprocess windows', () => {
+    const source = readFileSync(new URL('../src/profile-package-manager.ts', import.meta.url), 'utf8')
+    expect(source.match(/windowsHide: true/gu)).toHaveLength(2)
+  })
+
   it('restores an absent bundled version locally while leaving explicit updates online', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-bundled-plugin-'))
     const resources = join(root, 'bundled-plugins')

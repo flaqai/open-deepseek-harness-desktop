@@ -169,7 +169,10 @@ function resolveDistIndex(): string {
   }
 }
 
-/** Start the maintained platform opener without forwarding Harness credentials. */
+/**
+ * Start the maintained platform opener without forwarding Harness credentials
+ * or showing its short-lived helper console on Windows.
+ */
 function spawnBrowserLauncher(url: string): ChildProcess {
   return spawn(process.execPath, [
     '--input-type=module',
@@ -178,6 +181,7 @@ function spawnBrowserLauncher(url: string): ChildProcess {
   ], {
     env: scrubbedParentEnv(),
     stdio: ['ignore', 'inherit', 'pipe'],
+    windowsHide: true,
   })
 }
 
