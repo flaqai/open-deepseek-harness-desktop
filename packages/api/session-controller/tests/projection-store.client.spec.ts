@@ -7,7 +7,7 @@
  * seeding, control-stream projection routing pre- and post-instantiation, the
  * list rows' title projection).
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
 import { SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { ProjectionValueStore } from '../src/client/sessions/projection-store.ts'
@@ -25,6 +25,10 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
 }
 
 const SID = 'fk-s1' as SessionId
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('Session projection value semantics', () => {
   it('reads undefined until a value lands (capability absence)', () => {
@@ -68,20 +72,50 @@ describe('Session projection value semantics', () => {
     expect(store.get('other')).toBeUndefined()
   })
 
-  it('notifies the key face on change (batched) and not on dropped applications', async () => {
+  it('coalesces pushed frames into one animation-frame notification and drops stale applications', () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback)
+      return frames.length
+    })
     const store = new ProjectionValueStore()
     let keyTicks = 0
     let anyTicks = 0
     store.faceOf('test/marks').subscribe(() => { keyTicks += 1 })
     store.subscribeAny(() => { anyTicks += 1 })
     store.apply('test/marks', { marks: ['a'] }, SessionSeq(5))
-    await Promise.resolve()
+    store.apply('test/marks', { marks: ['a', 'b'] }, SessionSeq(6))
+    expect(keyTicks).toBe(0)
+    expect(anyTicks).toBe(0)
+    expect(frames).toHaveLength(2)
+    frames.splice(0).forEach((frame) => { frame(0) })
     expect(keyTicks).toBe(1)
     expect(anyTicks).toBe(1)
     store.apply('test/marks', { marks: ['replay'] }, SessionSeq(3))
-    await Promise.resolve()
+    expect(frames).toHaveLength(0)
     expect(keyTicks).toBe(1)
     expect(anyTicks).toBe(1)
+  })
+
+  it('publishes baseline and truncation changes in a structural microtask', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    const store = new ProjectionValueStore()
+    let ticks = 0
+    store.faceOf('test/marks').subscribe(() => { ticks += 1 })
+    store.seed({ asOfSeq: SessionSeq(5), values: { 'test/marks': { marks: ['seed'] } } })
+    await Promise.resolve()
+    expect(ticks).toBe(1)
+    expect(frames).toHaveLength(0)
+    store.apply('test/marks', { marks: ['live'] }, SessionSeq(10))
+    store.truncate(SessionSeq(5))
+    await Promise.resolve()
+    expect(ticks).toBe(2)
+    frames.splice(0).forEach((frame) => { frame(0) })
+    expect(ticks).toBe(2)
   })
 
   it('faces are identity-stable per key (the React binding cache premise)', () => {

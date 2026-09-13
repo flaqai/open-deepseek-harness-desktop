@@ -116,8 +116,8 @@ export class ProjectionValueStore {
   }
 
   /**
-   * Subscribe to any-key changes (microtask-batched) — the manager's list
-   * rebuild channel.
+   * Subscribe to any-key changes. Live frames publish at most once per
+   * animation frame; baselines and truncation publish in a microtask.
    * @param listener - change callback.
    * @returns the unsubscribe function.
    */
@@ -132,10 +132,19 @@ export class ProjectionValueStore {
    * @param seq - the unit's watermark at emission.
    */
   apply(key: string, value: unknown, seq: SessionSeqCursor): void {
+    this.set(key, value, seq, 'frame')
+  }
+
+  private set(
+    key: string,
+    value: unknown,
+    seq: SessionSeqCursor,
+    publication: 'frame' | 'structural',
+  ): void {
     const row = this.rows.get(key)
     if (row !== undefined && seq <= row.seq) return // higher seq wins; replays and stale frames drop
     this.rows.set(key, { value, seq })
-    this.changed(key)
+    this.changed(key, publication)
   }
 
   /**
@@ -150,12 +159,12 @@ export class ProjectionValueStore {
     // Erased walk: the framework crosses the open key space; per-key typing
     // is re-established at the consumer (useProjection's map lookup).
     const values = baseline.values as Record<string, unknown>
-    for (const key of Object.keys(values)) this.apply(key, values[key], baseline.asOfSeq)
+    for (const key of Object.keys(values)) this.set(key, values[key], baseline.asOfSeq, 'structural')
     for (const [key, row] of this.rows) {
       if (Object.hasOwn(values, key)) continue
       if (row.seq > baseline.asOfSeq) continue
       this.rows.delete(key)
-      this.changed(key)
+      this.changed(key, 'structural')
     }
   }
 
@@ -170,14 +179,20 @@ export class ProjectionValueStore {
     for (const [key, row] of this.rows) {
       if (row.seq <= lastSeq) continue
       this.rows.delete(key)
-      this.changed(key)
+      this.changed(key, 'structural')
     }
   }
 
-  private changed(key: string): void {
+  private changed(key: string, publication: 'frame' | 'structural'): void {
     this.valuesCache = undefined
-    this.channels.get(key)?.notifier.markDirty()
-    this.anyNotifier.markDirty()
+    const keyNotifier = this.channels.get(key)?.notifier
+    if (publication === 'frame') {
+      keyNotifier?.markFrameDirty()
+      this.anyNotifier.markFrameDirty()
+    } else {
+      keyNotifier?.markDirty()
+      this.anyNotifier.markDirty()
+    }
   }
 
   private channel(key: string): Channel {

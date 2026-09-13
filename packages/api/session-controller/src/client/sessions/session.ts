@@ -697,7 +697,7 @@ export class Session implements SessionFace {
       this.notifier.markDirty()
     } else if (result?.type === 'transient') {
       this.eventSource.append(result.entry)
-      this.notifier.markDirty()
+      this.notifier.markFrameDirty()
     }
   }
 

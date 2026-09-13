@@ -208,6 +208,48 @@ describe('scope tree', () => {
     dispose()
   })
 
+  it('coalesces bursty Assistant chunks into one Session notification per animation frame', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    const b = bench()
+    await feedList(b, [{ id: 's1' }])
+    b.svc.open(sid('s1'))
+    const binding = b.svc.binding(sid('s1'))
+    if (binding === undefined) throw new Error('expected Session binding')
+    await vi.waitFor(() => {
+      expect(binding.session.getSnapshot().openState).toBe('open')
+    })
+    const notifications = vi.fn()
+    binding.session.subscribe(notifications)
+    const attemptId = LlmAttemptId('frame-batched-attempt')
+
+    await b.api.pushFollow(sid('s1'), {
+      type: 'assistant-stream',
+      frame: {
+        type: 'start', attemptId, revision: 1, startedAfterSeq: -1,
+        turn: 1, step: 1,
+      },
+    })
+    for (let index = 0; index < 100; index++) {
+      await b.api.pushFollow(sid('s1'), {
+        type: 'assistant-stream',
+        frame: {
+          type: 'chunk', attemptId, revision: index + 2, index,
+          time: index,
+          chunk: { type: 'text-delta', index: 0, text: 'x' },
+        },
+      })
+    }
+
+    expect(notifications).not.toHaveBeenCalled()
+    expect(frames).toHaveLength(1)
+    frames.shift()!(0)
+    expect(notifications).toHaveBeenCalledOnce()
+  })
+
   it('replaces an active assistant baseline on reconnect without duplicate chunks', async () => {
     const b = bench()
     const attemptId = LlmAttemptId('reconnect-attempt')
