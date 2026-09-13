@@ -26,6 +26,8 @@ LangString AppProcessesRemain 2052 "仍有进程无法关闭。它们可能使�
 LangString AppProcessesRemain 1033 "Some processes could not be closed, possibly because they run with higher privileges. Close the listed PIDs and paths, then retry."
 LangString AppProcessInspectionFailed 2052 "安装程序无法安全检查 DeepSeek Harness 进程。为避免损坏安装，本次操作已停止。"
 LangString AppProcessInspectionFailed 1033 "The installer could not safely inspect DeepSeek Harness processes. Installation has stopped to avoid corrupting the application."
+LangString UpgradeCleanupFailed 2052 "安装程序已额外等待并重试，但仍无法完整移除旧版本文件。Windows 安全软件、资源管理器或其他程序可能仍在占用安装目录。请暂时关闭这些程序后重新运行安装包。安装程序没有跳过卸载，也没有混合新旧文件。"
+LangString UpgradeCleanupFailed 1033 "The installer waited and retried, but Windows still could not completely remove the previous version. Security software, File Explorer, or another program may still be using the installation directory. Close those programs and run the installer again. The installer did not skip uninstall or mix old and new files."
 LangString UninstallDataPageTitle 2052 "本地配置和数据"
 LangString UninstallDataPageTitle 1033 "Local configuration and data"
 LangString UninstallDataPageSubtitle 2052 "选择卸载应用后是否保留个人数据"
@@ -98,6 +100,22 @@ Var ProcessGuardOutput
 !ifndef BUILD_UNINSTALLER
   Var CliPathCheckboxHandle
   Var CliPathRequested
+  Var UpgradeRetryInstallDir
+  Var UpgradeRetryMode
+
+  # Electron Builder gives atomic update cleanup five attempts separated by
+  # one-second waits before returning exit code 2. Large packaged runtimes and
+  # transient antivirus/indexer locks can outlive that window even when no
+  # desktop-owned process is running. Keep the atomic old-version uninstaller
+  # contract and grant it one bounded recovery window; never continue on a
+  # non-zero result.
+  !macro customUnInstallCheck
+    Call DesktopHandleOldUninstallResult
+  !macroend
+
+  !macro customUnInstallCheckCurrentUser
+    Call DesktopHandleOldCurrentUserUninstallResult
+  !macroend
 
   !macro customInit
     StrCpy $CliPathRequested "0"
@@ -120,6 +138,101 @@ Var ProcessGuardOutput
   # Electron Builder inserts customHeader after MUI2 and the selected languages.
   # Emit the page functions there so their MUI macros are available.
   !macro customHeader
+    Function DesktopRetryOldUninstall
+      StrCpy $R4 0
+      InitPluginsDir
+      Delete "$PLUGINSDIR\desktop-old-uninstaller-retry.exe"
+      ClearErrors
+      CopyFiles /SILENT "$UpgradeRetryInstallDir\${UNINSTALL_FILENAME}" "$PLUGINSDIR\desktop-old-uninstaller-retry.exe"
+      IfErrors desktop_upgrade_retry_copy_failed
+
+      desktop_upgrade_retry_loop:
+      IntOp $R4 $R4 + 1
+      Sleep 5000
+      DetailPrint "Retrying atomic old-version cleanup ($R4/12) after exit code 2."
+      FileOpen $3 "$TEMP\DeepSeek-Harness-upgrade-cleanup.log" a
+      FileWrite $3 "atomic-cleanup-retry=$R4 previous-exit=$R0$\r$\n"
+      FileClose $3
+
+      # --updated keeps electron-builder's rollback-capable atomic removal;
+      # /KEEP_APP_DATA additionally protects data created by older installers.
+      ClearErrors
+      ExecWait '"$PLUGINSDIR\desktop-old-uninstaller-retry.exe" /S /KEEP_APP_DATA $UpgradeRetryMode --updated _?=$UpgradeRetryInstallDir' $R0
+      IfErrors desktop_upgrade_retry_launch_failed desktop_upgrade_retry_result
+
+      desktop_upgrade_retry_copy_failed:
+      desktop_upgrade_retry_launch_failed:
+      StrCpy $R0 2
+      ClearErrors
+      Return
+
+      desktop_upgrade_retry_result:
+      ${If} $R0 == 0
+        Delete "$TEMP\DeepSeek-Harness-upgrade-cleanup.log"
+        Return
+      ${EndIf}
+      ${If} $R0 != 2
+        Return
+      ${EndIf}
+      ${If} $R4 < 12
+        Goto desktop_upgrade_retry_loop
+      ${EndIf}
+    FunctionEnd
+
+    Function DesktopHandleOldUninstallResult
+      IfErrors desktop_uninstall_launch_failed desktop_uninstall_has_result
+
+      desktop_uninstall_launch_failed:
+      DetailPrint "Uninstall was not successful. Not able to launch uninstaller."
+      Return
+
+      desktop_uninstall_has_result:
+      ${If} $R0 == 2
+        StrCpy $UpgradeRetryInstallDir "$INSTDIR"
+        ${If} $installMode == "CurrentUser"
+          StrCpy $UpgradeRetryMode "/currentuser"
+        ${Else}
+          StrCpy $UpgradeRetryMode "/allusers"
+        ${EndIf}
+        Call DesktopRetryOldUninstall
+      ${EndIf}
+      ${If} $R0 != 0
+        FileOpen $3 "$TEMP\DeepSeek-Harness-upgrade-cleanup.log" a
+        FileWrite $3 "atomic-cleanup-final-exit=$R0$\r$\n"
+        FileClose $3
+        MessageBox MB_OK|MB_ICONEXCLAMATION "$(UpgradeCleanupFailed)$\r$\n$\r$\n$TEMP\DeepSeek-Harness-upgrade-cleanup.log" /SD IDOK
+        DetailPrint "Atomic old-version cleanup failed with exit code $R0."
+        SetErrorLevel 2
+        Quit
+      ${EndIf}
+    FunctionEnd
+
+    Function DesktopHandleOldCurrentUserUninstallResult
+      IfErrors desktop_current_user_uninstall_launch_failed desktop_current_user_uninstall_has_result
+
+      desktop_current_user_uninstall_launch_failed:
+      DetailPrint "Uninstall was not successful. Not able to launch current-user uninstaller."
+      Return
+
+      desktop_current_user_uninstall_has_result:
+      ${If} $R0 == 2
+        ReadRegStr $UpgradeRetryInstallDir HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation
+        StrCpy $UpgradeRetryMode "/currentuser"
+        ${If} $UpgradeRetryInstallDir != ""
+          Call DesktopRetryOldUninstall
+        ${EndIf}
+      ${EndIf}
+      ${If} $R0 != 0
+        FileOpen $3 "$TEMP\DeepSeek-Harness-upgrade-cleanup.log" a
+        FileWrite $3 "atomic-current-user-cleanup-final-exit=$R0$\r$\n"
+        FileClose $3
+        MessageBox MB_OK|MB_ICONEXCLAMATION "$(UpgradeCleanupFailed)$\r$\n$\r$\n$TEMP\DeepSeek-Harness-upgrade-cleanup.log" /SD IDOK
+        DetailPrint "Atomic current-user cleanup failed with exit code $R0."
+        SetErrorLevel 2
+        Quit
+      ${EndIf}
+    FunctionEnd
+
     Function CliPathPageCreate
       ${If} ${Silent}
         Abort

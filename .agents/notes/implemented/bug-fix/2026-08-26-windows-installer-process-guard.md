@@ -20,6 +20,8 @@ The custom installer include is expanded before Electron Builder inserts MUI2 an
 
 The uninstaller embeds its PATH-management helper and extracts it into the NSIS plugin directory during `customUnInit`. It reads the exact CLI directory recorded at installation and removes that entry before installed resources are moved or deleted. PATH cleanup therefore does not depend on `resources/cli-bin/manage-path.ps1` remaining available during an upgrade or uninstall.
 
+An old uninstaller can return exit code 2 after Electron Builder's five attempts separated by one-second waits when Windows security software, File Explorer, or an indexer transiently locks an installed file even though the process guard finds no desktop-owned executable. The new installer handles only that result with twelve additional five-second retries of the same `/KEEP_APP_DATA --updated` atomic uninstaller path. Installation continues only after the old uninstaller returns zero; exhaustion retains the old installation, records a local cleanup log, and reports file contention instead of claiming that the application is running.
+
 ## Alternatives considered
 
 **Match only `DeepSeek Harness.exe`.** This avoids false positives but misses embedded Node and native plugin processes that can still lock files replaced by an upgrade.
@@ -28,8 +30,10 @@ The uninstaller embeds its PATH-management helper and extracts it into the NSIS 
 
 **Always force-close matches without confirmation.** This can interrupt an active desktop-managed `dsh` command. Interactive installation therefore asks first, while explicit silent mode remains non-interactive.
 
+**Bypass the old uninstaller and overwrite its files.** Rejected because stale JavaScript, native modules, or runtime files can survive beside the new version and create an installation that neither release produced.
+
 ## Consequences
 
-An installer or unrelated process in a prefix-similar directory no longer blocks an upgrade or gets terminated. Real application, embedded Node, Harness, and native plugin processes remain protected from in-place replacement. Windows package validation now upgrades a running installation from a prefix-similar sibling, cleans an orphan embedded Node process, keeps an unrelated sibling process alive, and proves post-upgrade Harness readiness.
+An installer or unrelated process in a prefix-similar directory no longer blocks an upgrade or gets terminated. Real application, embedded Node, Harness, and native plugin processes remain protected from in-place replacement. Windows package validation now cleans an orphan embedded Node process, keeps an unrelated sibling process alive, holds an installed executable through the original cleanup window, completes a same-directory atomic upgrade after the lock releases, and proves post-upgrade Harness readiness.
 
 The Windows installer also keeps reviewed Simplified Chinese and English strings without depending on NSIS macro declaration order. Electron Builder's installed uninstaller completes through a temporary self-copy after its launcher can exit, so native package validation waits for the installation directory, current-user PATH entry, and desktop CLI ownership markers to reach their final removed state. Packaging rejects either lifecycle regression before an installer is published.

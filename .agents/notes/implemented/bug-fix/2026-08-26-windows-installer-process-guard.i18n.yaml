@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-26-windows-installer-process-guard.md
-2026-08-26-windows-installer-process-guard.md: 10b2b6293c441b0d0ab926d4c7fb8f94309b1dab
-2026-08-26-windows-installer-process-guard.zh.md: 58be5d41a898d6ded43d34cd70ca45d4aa6036fe
+2026-08-26-windows-installer-process-guard.md: 593b269395fc82647ff7afa7952a0b8e506e89b7
+2026-08-26-windows-installer-process-guard.zh.md: bb3ddebbfa0d7d38d5636cf729b8b312305cd02c

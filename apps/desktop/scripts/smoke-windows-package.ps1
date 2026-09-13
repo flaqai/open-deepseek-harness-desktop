@@ -144,6 +144,50 @@ try {
   $decoy.Refresh()
   if ($decoy.HasExited) { throw 'Process guard incorrectly closed an unrelated process from a prefix-similar directory' }
 
+  # Reproduce the user-visible upgrade failure without launching the installed
+  # app. An external process briefly holds the top-level executable, just as a
+  # virus scanner or indexer can after reboot. The installer's bounded recovery
+  # must wait for release and complete the same-directory atomic upgrade.
+  $lockedExecutable = Join-Path $installRoot 'DeepSeek Harness.exe'
+  $lockReady = Join-Path $env:RUNNER_TEMP 'dsh-upgrade-lock-ready.txt'
+  Remove-Item -LiteralPath $lockReady -Force -ErrorAction SilentlyContinue
+  $lockStart = [System.Diagnostics.ProcessStartInfo]::new()
+  $lockStart.FileName = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+  $lockStart.UseShellExecute = $false
+  $lockStart.ArgumentList.Add('-NoLogo')
+  $lockStart.ArgumentList.Add('-NoProfile')
+  $lockStart.ArgumentList.Add('-NonInteractive')
+  $lockStart.ArgumentList.Add('-File')
+  $lockStart.ArgumentList.Add((Join-Path $PSScriptRoot 'hold-file-lock.ps1'))
+  $lockStart.ArgumentList.Add('-Path')
+  $lockStart.ArgumentList.Add($lockedExecutable)
+  $lockStart.ArgumentList.Add('-ReadyPath')
+  $lockStart.ArgumentList.Add($lockReady)
+  $lockStart.ArgumentList.Add('-Seconds')
+  $lockStart.ArgumentList.Add('20')
+  $fileLocker = [System.Diagnostics.Process]::Start($lockStart)
+  $lockDeadline = (Get-Date).AddSeconds(15)
+  while (-not (Test-Path -LiteralPath $lockReady) -and (Get-Date) -lt $lockDeadline) {
+    Start-Sleep -Milliseconds 100
+    $fileLocker.Refresh()
+    if ($fileLocker.HasExited) { throw "Upgrade lock fixture exited with $($fileLocker.ExitCode)" }
+  }
+  if (-not (Test-Path -LiteralPath $lockReady)) { throw 'Upgrade lock fixture did not acquire the installed executable' }
+
+  $upgrade = [System.Diagnostics.Process]::Start($installStart)
+  if (-not $upgrade.WaitForExit(900000)) {
+    $upgrade.Kill($true)
+    throw 'Same-directory Windows upgrade did not exit within 15 minutes'
+  }
+  if ($upgrade.ExitCode -ne 0) { throw "Same-directory Windows upgrade exited with $($upgrade.ExitCode)" }
+  if (-not $fileLocker.WaitForExit(30000)) {
+    $fileLocker.Kill($true)
+    throw 'Upgrade lock fixture did not release the installed executable'
+  }
+  if (-not (Test-Path -LiteralPath $lockedExecutable)) { throw 'Same-directory Windows upgrade did not restore the application executable' }
+  $decoy.Refresh()
+  if ($decoy.HasExited) { throw 'Same-directory Windows upgrade closed the prefix-similar decoy process' }
+
   Remove-Item -LiteralPath $harnessLog -Force -ErrorAction SilentlyContinue
   $app = [System.Diagnostics.Process]::Start($appStart)
   $deadline = (Get-Date).AddSeconds(300)

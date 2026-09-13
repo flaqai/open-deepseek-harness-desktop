@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const buildRoot = fileURLToPath(new URL('../build/', import.meta.url))
+const scriptsRoot = fileURLToPath(new URL('../scripts/', import.meta.url))
 
 describe('Windows installer process guard', () => {
   it('overrides the broad electron-builder process check', async () => {
@@ -78,5 +79,35 @@ describe('Windows installer process guard', () => {
     expect(guard).toContain('DshInstallerWindow')
     expect(guard).toContain('PostMessage($liveProcess.MainWindowHandle, 0x0010')
     expect(guard).toContain('DeepSeek-Harness-process-guard.log')
+  })
+
+  it('retries exit-code-2 atomic upgrade cleanup without bypassing the old uninstaller', async () => {
+    const installer = await readFile(`${buildRoot}/installer.nsh`, 'utf8')
+
+    expect(installer).toContain('!macro customUnInstallCheck')
+    expect(installer).toContain('!macro customUnInstallCheckCurrentUser')
+    expect(installer).toContain('Function DesktopRetryOldUninstall')
+    expect(installer).toContain('Function DesktopHandleOldCurrentUserUninstallResult')
+    expect(installer.match(/Call DesktopRetryOldUninstall/g)).toHaveLength(2)
+    expect(installer).toContain('${If} $R4 < 12')
+    expect(installer).toContain('Sleep 5000')
+    expect(installer).toContain('CopyFiles /SILENT "$UpgradeRetryInstallDir\\${UNINSTALL_FILENAME}"')
+    expect(installer).toContain('/S /KEEP_APP_DATA $UpgradeRetryMode --updated _?=$UpgradeRetryInstallDir')
+    expect(installer).toContain('DeepSeek-Harness-upgrade-cleanup.log')
+    expect(installer).toContain('SetErrorLevel 2\n        Quit')
+    expect(installer).not.toContain('DeleteRegValue HKCU "${UNINSTALL_REGISTRY_KEY}" "UninstallString"')
+    expect(installer).not.toContain('SetOverwrite on')
+  })
+
+  it('exercises a same-directory upgrade after an external file lock outlives the default retry', async () => {
+    const smoke = await readFile(`${scriptsRoot}/smoke-windows-package.ps1`, 'utf8')
+    const lockFixture = await readFile(`${scriptsRoot}/hold-file-lock.ps1`, 'utf8')
+
+    expect(smoke).toContain("Join-Path $PSScriptRoot 'hold-file-lock.ps1'")
+    expect(smoke).toContain("$lockStart.ArgumentList.Add('20')")
+    expect(smoke).toContain('$upgrade = [System.Diagnostics.Process]::Start($installStart)')
+    expect(smoke).toContain('if ($upgrade.ExitCode -ne 0)')
+    expect(lockFixture).toContain('[System.IO.FileShare]::None')
+    expect(lockFixture).toContain('$stream.Dispose()')
   })
 })
