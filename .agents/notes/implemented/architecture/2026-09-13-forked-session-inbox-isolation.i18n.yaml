@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-13-forked-session-inbox-isolation.md
+2026-09-13-forked-session-inbox-isolation.md: 83104263fb4202360da137b9d678a1cb5180f70b
+2026-09-13-forked-session-inbox-isolation.zh.md: 5af81fb0836910aaf386600a462683293ec5506a

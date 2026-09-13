@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { agentEvents } from '@deepseek-ai/dsh-agent'
 import type { Agent, AgentHandle, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
+import {
+  mountAgentLoopTestDependencies,
+  mountAgentLoopTestHarness,
+} from '@deepseek-ai/dsh-agent-loop-testkit'
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SESSION_FORMAT_VERSION, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
@@ -100,6 +104,48 @@ describe('sessions.fork', () => {
     ])
     expect(child?.header.parentSession).toBe(source.id)
     expect(child?.header.cwd).toBe('/proj')
+    await ctx.fiber.dispose()
+  })
+
+  it('does not schedule a parent queued prompt in the forked session', async () => {
+    const ctx = new Context()
+    await mountAgentLoopTestDependencies(ctx)
+    const loop = await mountAgentLoopTestHarness(ctx)
+    installSessionReadTestServices(ctx)
+    ctx.provide('workspaceRegistry', { list: () => [] } as never)
+    const source = await loop.create(
+      sid('session-source-pending'),
+      {},
+      { cwd: '/proj' },
+    )
+    source.session.append('turn/start', { turn: 1 })
+    source.session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'prompt 1' }],
+      source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    source.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+    const parentPending = createUserMessage({
+      content: [{ type: 'text', text: 'parent queued prompt' }],
+      source: { kind: 'user' },
+    })
+    source.inbox.append('next-turn', parentPending)
+
+    const response = await remote(ctx).fork(request({ sessionId: source.session.id }))
+
+    expect(response.ok).toBe(true)
+    if (!response.ok) return
+    const child = ctx.sessions.get(response.value.sessionId)
+    const childAgent = ctx.agents.get(response.value.sessionId)
+    expect(child?.snapshotEvents().some(event => event.type === 'agent/inbox/spliced')).toBe(true)
+    expect(child).toBeDefined()
+    expect(childAgent).toBeDefined()
+    if (child === undefined || childAgent === undefined) return
+    const childPrompt = createUserMessage({
+      content: [{ type: 'text', text: 'child prompt' }],
+      source: { kind: 'user' },
+    })
+    childAgent.inbox.append('next-turn', childPrompt)
+    expect(childAgent.inbox.nextTurn).toEqual([childPrompt])
     await ctx.fiber.dispose()
   })
 

@@ -1,7 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { agentEvents, type Agent } from '@deepseek-ai/dsh-agent'
 import { createUserMessage, freezeMessage } from '@deepseek-ai/dsh-llm'
-import SessionStore, { Session, SessionId } from '@deepseek-ai/dsh-session'
+import SessionStore, { Session, SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
 import type { UserMessage } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { describe, expect, it } from 'vitest'
@@ -126,7 +126,7 @@ describe('ReactLoopInbox', () => {
     expect((duplicate.cause as Error).message).toBe(`message "${pending.id}" is already pending`)
   })
 
-  it('projects inherited inbox events in a forked session', async () => {
+  it('keeps inherited pending input out of forked and restored child inboxes', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
     await ctx.plugin(SessionProjectionRegistry)
@@ -143,15 +143,48 @@ describe('ReactLoopInbox', () => {
     const childInbox = new ReactLoopInbox(ctx.sessionProjections, child, agentEvents(ctx, childAgent))
 
     expect(child.inheritedEventCount).toBe(parent.snapshotEvents().length)
-    expect(childInbox.nextTurn).toEqual([inherited])
+    expect(childInbox.nextTurn).toEqual([])
 
     const own = createUserMessage({
       content: [{ type: 'text', text: 'child pending' }],
       source: { kind: 'user' },
     })
     childInbox.append('next-turn', own)
-    expect(childInbox.nextTurn).toEqual([inherited, own])
+    expect(childInbox.nextTurn).toEqual([own])
 
+    const grandchild = ctx.sessions.fork(child, undefined, SessionId('inbox-fork-grandchild'))
+    const grandchildAgent = stubAgent('inbox-fork-grandchild', { ctx, session: grandchild })
+    const grandchildInbox = new ReactLoopInbox(
+      ctx.sessionProjections,
+      grandchild,
+      agentEvents(ctx, grandchildAgent),
+    )
+    expect(grandchildInbox.nextTurn).toEqual([])
+    const stale = ctx.sessionProjections.restore({
+      inbox: {
+        ver: 1,
+        seq: grandchild.snapshotEvents().at(-1)?.seq ?? -1,
+        val: { 'next-turn': [own], 'next-step': [] },
+      },
+    }, grandchild.snapshotEvents(), SessionLogOffset(0), grandchild.header, grandchild.inheritedEventCount)
+    expect(stale.snapshot.values.inbox).toEqual({ 'next-turn': [], 'next-step': [] })
+    expect(stale.checkpoint.inbox?.ver).toBe(2)
+
+    const restored = Session.fromRestore(
+      child.id,
+      structuredClone(child.snapshotEvents()),
+      structuredClone(child.header),
+      child.inheritedEventCount,
+      'detached',
+    )
+    const restoredAgent = stubAgent('inbox-fork-child', { ctx, session: restored })
+    const restoredInbox = new ReactLoopInbox(
+      ctx.sessionProjections,
+      restored,
+      agentEvents(ctx, restoredAgent),
+    )
+    expect(restoredInbox.nextTurn).toEqual([own])
+    expect(ctx.sessionProjections.checkpoint(restored).inbox?.ver).toBe(2)
   })
 
   it('updates the projection cell before session observers run', async () => {

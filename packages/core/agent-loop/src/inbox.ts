@@ -7,6 +7,7 @@
 import type { MessageId } from '@deepseek-ai/dsh-llm'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
 import type SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import { SessionLogOffset } from '@deepseek-ai/dsh-session'
 import type { Session, SessionEventMap, UserMessage } from '@deepseek-ai/dsh-session'
 import type {
   AgentEventDispatch,
@@ -17,19 +18,36 @@ import type {
 } from '@deepseek-ai/dsh-agent'
 import { z } from 'zod'
 
-/** Wire validation for pending agent input reconstructed from durable inbox splices. */
-export const inboxProjectionSchema = z.object({
+interface InboxProjectionState extends InboxState {
+  /** Events before this offset belong to a fork parent and cannot schedule child work. */
+  readonly inheritedEventCount: SessionLogOffset
+}
+
+const inboxFields = {
   'next-turn': z.array(z.custom<UserMessage>()).readonly(),
   'next-step': z.array(z.custom<UserMessage>()).readonly(),
-}).readonly()
+}
+
+/** Validation for pending agent input and its fork-owned replay boundary. */
+export const inboxProjectionSchema = z.object({
+  ...inboxFields,
+  inheritedEventCount: z.number().int().nonnegative().transform(SessionLogOffset),
+}).readonly() satisfies z.ZodType<InboxProjectionState>
+
+const inboxWireSchema = z.object(inboxFields).readonly()
 
 /** Standard fold that reconstructs pending input and rejects invalid durable splice history. */
 export const inboxProjectionDefinition = {
   key: 'inbox',
   stateSchema: inboxProjectionSchema,
-  init: (): InboxState => ({ 'next-turn': [], 'next-step': [] }),
-  apply(state: InboxState, event) {
+  init: (_header, inheritedEventCount): InboxProjectionState => ({
+    'next-turn': [],
+    'next-step': [],
+    inheritedEventCount,
+  }),
+  apply(state: InboxProjectionState, event) {
     if (event.type !== 'agent/inbox/spliced') return state
+    if (event.seq < state.inheritedEventCount) return state
     const splice = event.data
     try {
       const inbox = state[splice.target]
@@ -48,21 +66,23 @@ export const inboxProjectionDefinition = {
         ids.add(message.id)
       }
       return splice.target === 'next-turn'
-        ? { 'next-turn': next, 'next-step': state['next-step'] }
-        : { 'next-turn': state['next-turn'], 'next-step': next }
+        ? { ...state, 'next-turn': next }
+        : { ...state, 'next-step': next }
     } catch (error: unknown) {
       throw new Error(`invalid persisted inbox splice at session seq ${event.seq}`, { cause: error })
     }
   },
   wire: {
-    // The wire value is the fold state itself: every pending message already
-    // round-trips the session log as lossless JSON. Only the static type
-    // narrows to the JSON-safe projection table entry.
-    viewSchema: inboxProjectionSchema as unknown as z.ZodType<InboxWireState>,
-    view: (state: InboxState) => state as unknown as InboxWireState,
+    // The client sees only pending messages; the inherited-event cut remains
+    // internal state used to prevent parent work from becoming child work.
+    viewSchema: inboxWireSchema as unknown as z.ZodType<InboxWireState>,
+    view: (state: InboxProjectionState): InboxWireState => ({
+      'next-turn': state['next-turn'] as unknown as InboxWireState['next-turn'],
+      'next-step': state['next-step'] as unknown as InboxWireState['next-step'],
+    }),
   },
-  stateVersion: 1,
-} satisfies ProjectionDefinition<'inbox', InboxState>
+  stateVersion: 2,
+} satisfies ProjectionDefinition<'inbox', InboxProjectionState>
 
 /**
  * Driver-owned durable Inbox implementation used by ReactLoopAgent and focused
