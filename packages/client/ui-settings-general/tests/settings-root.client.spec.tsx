@@ -557,7 +557,7 @@ describe('SettingsPanel navigation', () => {
     })
 
     expect(screen.getByRole('status').textContent).toContain(en['onboarding.sectionUnavailable.title'])
-    expect((screen.getByRole('button', { name: en['onboarding.done'] }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en['onboarding.done'] }).disabled).toBe(true)
     expect(renderSlot).not.toHaveBeenCalledWith('settings.section', expect.anything(), { only: 'pocket' })
 
     bump([
@@ -567,7 +567,7 @@ describe('SettingsPanel navigation', () => {
     ])
     expect(screen.queryByRole('status')).toBeNull()
     expect(screen.getByTestId('section-pocket')).toBeTruthy()
-    expect((screen.getByRole('button', { name: en['onboarding.done'] }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en['onboarding.done'] }).disabled).toBe(false)
   })
 
   it('paints no takeover chrome of its own around the mounted step', () => {

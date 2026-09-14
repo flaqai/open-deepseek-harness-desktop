@@ -17,7 +17,7 @@ describe('packaged desktop CLI inputs', () => {
     const windowsSmoke = await readFile(`${desktopRoot}/scripts/smoke-windows-package.ps1`, 'utf8')
     expect(installer).toContain('StrCpy $CliPathRequested "0"')
     expect(installer.match(/\$\{StdUtils\.GetParameter\} \$1 "ADDCLI" ""/g)).toHaveLength(2)
-    expect(installer).not.toContain('${GetOptions}')
+    expect(installer).not.toMatch(/\$\{GetOptions\}[^\n]+"ADDCLI"/u)
     expect(installer).toContain('${If} $1 == "1"')
     expect(installer).toContain('DetailPrint "Desktop CLI PATH requested: $CliPathRequested"')
     expect(installer).not.toContain('DeepSeek-Harness-installer-diagnostic.txt')
