@@ -1820,9 +1820,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'dialog.commandFailed': 'Не удалось запустить экспорт сессии.'
   },
   'desktop-shell': {
-    'logs.openDirectory': 'Открыть папку журналов',
+    'logs.openDirectory': 'Открыть журнал диагностики',
     'logs.openDirectory.opening': 'Открываем…',
-    'logs.openDirectory.error': 'Не удалось открыть папку журналов',
+    'logs.openDirectory.error': 'Не удалось открыть журнал диагностики',
     'menu.unavailable': 'Эта страница настроек недоступна или её плагин не установлен. Проверьте плагины в настройках; ничего не устанавливалось автоматически.',
     'close.linux': 'Видимость значка в трее Linux зависит от окружения рабочего стола и его расширений. Если значка нет — выберите «Полностью выйти».',
     'web.title': 'Использовать в браузере',

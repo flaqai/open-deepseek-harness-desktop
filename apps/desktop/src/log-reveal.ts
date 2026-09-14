@@ -11,15 +11,13 @@ export interface OpenLogResult {
 
 /** Minimal Electron shell operations used to reveal a known log path. */
 export interface LogRevealShell {
-  showItemInFolder(path: string): void
   openPath(path: string): Promise<string>
 }
 
-/** Reveal the fixed Harness log, falling back to its parent directory. */
+/** Open the fixed Harness log, falling back to its parent directory when it does not exist. */
 export async function revealHarnessLog(logPath: string, shell: LogRevealShell): Promise<OpenLogResult> {
   if (existsSync(logPath)) {
-    shell.showItemInFolder(logPath)
-    return { kind: 'file', error: '' }
+    return { kind: 'file', error: await shell.openPath(logPath) }
   }
   return { kind: 'directory', error: await shell.openPath(dirname(logPath)) }
 }

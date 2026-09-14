@@ -93,7 +93,7 @@ export function apply(ctx: Context): void {
   }, DesktopPreferencesRow))
   ctx.slots.inject('settings.action', () => ctx.slots.register({
     name: 'settings.action', id: 'desktop-log-directory', order: -10, locale: NS,
-    inject: () => ({ openLogDirectory: () => bridge.shell.openLogDirectory() }),
+    inject: () => ({ openLog: () => bridge.shell.openLog() }),
   }, DesktopLogDirectoryAction))
   ctx.inject(['settingsNavigation'], (inner) => {
     const openUpdates = (): void => {

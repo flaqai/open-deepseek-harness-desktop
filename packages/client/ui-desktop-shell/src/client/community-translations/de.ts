@@ -1817,9 +1817,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'dialog.commandFailed': 'Konnte den Sitzungsexport nicht starten.'
   },
   'desktop-shell': {
-    'logs.openDirectory': 'Protokollordner öffnen',
+    'logs.openDirectory': 'Diagnoseprotokoll öffnen',
     'logs.openDirectory.opening': 'Wird geöffnet…',
-    'logs.openDirectory.error': 'Der Protokollordner konnte nicht geöffnet werden',
+    'logs.openDirectory.error': 'Das Diagnoseprotokoll konnte nicht geöffnet werden',
     'menu.unavailable': 'Diese Einstellungsseite ist nicht verfügbar oder ihr Plugin ist nicht installiert. Überprüfen Sie die Plugins in den Einstellungen; es wurde nichts automatisch installiert.',
     'close.linux': 'Die Sichtbarkeit des Trays unter Linux hängt von Ihrer Desktop-Umgebung und den Erweiterungen ab. Wählen Sie Client beenden, wenn das Symbol nicht sichtbar ist.',
     'web.title': 'Im Browser verwenden',

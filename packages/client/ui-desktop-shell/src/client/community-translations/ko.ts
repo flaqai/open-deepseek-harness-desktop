@@ -1817,9 +1817,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'dialog.commandFailed': '세션 내보내기를 시작할 수 없었습니다.'
   },
   'desktop-shell': {
-    'logs.openDirectory': '로그 폴더 열기',
+    'logs.openDirectory': '진단 로그 열기',
     'logs.openDirectory.opening': '여는 중…',
-    'logs.openDirectory.error': '로그 폴더를 열 수 없습니다',
+    'logs.openDirectory.error': '진단 로그를 열 수 없습니다',
     'menu.unavailable': '이 설정 페이지는 사용할 수 없거나 플러그인이 설치되어 있지 않습니다. 설정에서 플러그인을 확인하세요; 아무것도 자동으로 설치되지 않았습니다.',
     'close.linux': '리눅스에서 트레이 가시성은 데스크톱 환경과 확장 프로그램에 따라 다릅니다. 아이콘이 보이지 않으면 클라이언트 종료를 선택하세요.',
     'web.title': '브라우저에서의 사용',

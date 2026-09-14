@@ -1817,9 +1817,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'dialog.commandFailed': 'No se pudo iniciar la exportación de la sesión.'
   },
   'desktop-shell': {
-    'logs.openDirectory': 'Abrir carpeta de registros',
+    'logs.openDirectory': 'Abrir registro de diagnóstico',
     'logs.openDirectory.opening': 'Abriendo…',
-    'logs.openDirectory.error': 'No se pudo abrir la carpeta de registros',
+    'logs.openDirectory.error': 'No se pudo abrir el registro de diagnóstico',
     'menu.unavailable': 'Esta página de configuración no está disponible o su complemento no está instalado. Verifica los complementos en Configuración; nada se instaló automáticamente.',
     'close.linux': 'La visibilidad en la bandeja en Linux depende de tu entorno de escritorio y extensiones. Elige Salir del cliente si el ícono no es visible.',
     'web.title': 'Usar en un navegador',

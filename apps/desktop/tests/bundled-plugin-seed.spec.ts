@@ -83,7 +83,9 @@ describe('bundled plugin seed', () => {
     roots.push(root)
     const logPath = join(root, 'missing', 'logs', 'harness.log')
     await appendBundledPluginFailure(logPath, new Error('pnpm failed'))
-    await expect(readFile(logPath, 'utf8')).resolves.toContain('[bundled-plugin] Error: pnpm failed')
+    await expect(readFile(logPath, 'utf8')).resolves.toMatch(
+      /^\[[^\]]+\] \[bundled-plugin\] \[error\] Error: pnpm failed/mu,
+    )
   })
 
   it('ships the pinned preset archives with matching integrity', async () => {

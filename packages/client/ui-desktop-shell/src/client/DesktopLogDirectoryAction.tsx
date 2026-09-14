@@ -6,15 +6,15 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import css from './DesktopLogDirectoryAction.module.css'
 
 export interface DesktopLogDirectoryActionInjected {
-  openLogDirectory: () => Promise<{ error: string }>
+  openLog: () => Promise<{ error: string }>
 }
 
 export type DesktopLogDirectoryActionProps = PropsRuntime<'settings.action'>
   & PropsLocale<'desktop-shell'>
   & InjectFace<DesktopLogDirectoryActionInjected>
 
-/** Open only the main-process-owned log directory; the renderer never receives its path. */
-export function DesktopLogDirectoryAction({ openLogDirectory, t }: DesktopLogDirectoryActionProps) {
+/** Open the main-process-owned diagnostic log; the renderer never receives its path. */
+export function DesktopLogDirectoryAction({ openLog, t }: DesktopLogDirectoryActionProps) {
   const [opening, setOpening] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -23,7 +23,7 @@ export function DesktopLogDirectoryAction({ openLogDirectory, t }: DesktopLogDir
     setOpening(true)
     setFailed(false)
     try {
-      const result = await openLogDirectory()
+      const result = await openLog()
       setFailed(result.error !== '')
     } catch {
       setFailed(true)

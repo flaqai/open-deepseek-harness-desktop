@@ -1817,9 +1817,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'dialog.commandFailed': 'セッションのエクスポートを開始できませんでした。'
   },
   'desktop-shell': {
-    'logs.openDirectory': 'ログフォルダーを開く',
+    'logs.openDirectory': '診断ログを開く',
     'logs.openDirectory.opening': '開いています…',
-    'logs.openDirectory.error': 'ログフォルダーを開けませんでした',
+    'logs.openDirectory.error': '診断ログを開けませんでした',
     'menu.unavailable': 'この設定ページは利用できないか、プラグインがインストールされていません。設定でプラグインを確認してください；自動的にインストールされたものはありません。',
     'close.linux': 'Linuxでのトレイの表示は、デスクトップ環境と拡張機能によります。アイコンが見えない場合はクライアントを終了を選択してください。',
     'web.title': 'ブラウザで使用',

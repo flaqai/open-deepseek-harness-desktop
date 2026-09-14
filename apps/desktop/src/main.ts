@@ -6,7 +6,7 @@ import {
   quarantineProcessRecoveryJournal,
   type DesktopProcessObserver,
 } from './process-observer.ts'
-import { appendFile, lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir, userInfo } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -52,6 +52,7 @@ import { readRecoveryFailureSummary, type RecoveryFailureSummary } from './recov
 import { ProfileTransactionManager } from './profile-transaction-manager.ts'
 import { terminateWindowsProcessTree } from './windows-process-tree.ts'
 import { revealHarnessLog, type OpenLogResult } from './log-reveal.ts'
+import { startDesktopLogSession } from './persistent-log.ts'
 import { createNotificationThrottle, desktopNotificationDictionary } from './notifications.ts'
 import {
   createDesktopPreferencesStore, DEFAULT_DESKTOP_PREFERENCES, parseDesktopPreferencesPatch,
@@ -213,6 +214,18 @@ process.title = DESKTOP_PRODUCT_NAME
 app.setPath('userData', DESKTOP_DATA_HOME.desktopRoot)
 app.setPath('sessionData', DESKTOP_DATA_HOME.sessionData)
 app.setAppLogsPath(DESKTOP_DATA_HOME.logs)
+const harnessLogPath = join(DESKTOP_DATA_HOME.logs, 'harness.log')
+const desktopLogSession = startDesktopLogSession(harnessLogPath, {
+  sessionId: randomUUID(),
+  version: app.getVersion(),
+  platform: process.platform,
+  architecture: process.arch,
+  packaged: app.isPackaged,
+  pid: process.pid,
+})
+process.on('uncaughtExceptionMonitor', (error, origin) => {
+  desktopLogSession.append('desktop-process', 'error', `uncaught exception origin=${origin}: ${error.stack ?? error.message}`)
+})
 
 let mainWindow: BrowserWindow | undefined
 let iconManager: DesktopIconManager | undefined
@@ -441,7 +454,6 @@ let preferences: DesktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES }
 let tray: Tray | undefined
 let quitReleased = false
 let hiddenLaunch = false
-let harnessLogPath = ''
 let releaseChecker: DesktopReleaseChecker | undefined
 let releaseDownloader: DesktopReleaseDownloader | undefined
 let stopReleaseChecks: (() => void) | undefined
@@ -469,10 +481,9 @@ const pendingDataHomeSelections = new Map<string, {
   readonly expiresAt: number
 }>()
 
-async function appendDesktopStartupLog(message: string): Promise<void> {
-  if (harnessLogPath === '') return
-  await mkdir(dirname(harnessLogPath), { recursive: true })
-  await appendFile(harnessLogPath, `[desktop] ${new Date().toISOString()} ${message}\n`)
+function appendDesktopStartupLog(message: string): Promise<void> {
+  desktopLogSession.append('desktop-startup', 'info', message)
+  return Promise.resolve()
 }
 
 type DataHomeSelection = 'copied' | 'reused' | 'fresh'
@@ -1533,7 +1544,6 @@ async function startApplication(): Promise<void> {
   let launchOptions: DesktopLaunchOptions = app.isPackaged
     ? {}
     : resolveDevelopmentLaunchOptions(DEFAULT_SOURCE_ROOT)
-  harnessLogPath = join(app.getPath('logs'), 'harness.log')
   preferencesStore = createDesktopPreferencesStore(
     join(app.getPath('userData'), 'desktop-preferences.json'),
     (error) => { console.error('desktop: could not read preferences; using defaults', error) },
@@ -3147,7 +3157,7 @@ async function startApplication(): Promise<void> {
     launchOptions,
   )
   if (profileRepairDiagnostic.trim() !== '') {
-    await appendFile(harnessLogPath, `[desktop] Profile startup repair:\n${profileRepairDiagnostic.trim()}\n`)
+    desktopLogSession.append('desktop-startup', 'warn', `Profile startup repair:\n${profileRepairDiagnostic.trim()}`)
   }
   publishStartupProgress({ stage: 'checking-profile', progress: 34 })
   // Descendant `dsh plugin add` processes (including the plugin market) can
@@ -3330,7 +3340,6 @@ async function startApplication(): Promise<void> {
     )
   } catch (error) {
     console.warn('desktop: imported plugin restore metadata is unavailable; startup will continue', error)
-    await appendFile(harnessLogPath, `[desktop] Imported plugin restore unavailable: ${error instanceof Error ? error.message : String(error)}\n`)
   }
   try {
     if (startupSafety.rollbackFailed) {
@@ -3678,7 +3687,10 @@ if (!app.requestSingleInstanceLock()) {
     event.preventDefault()
     void lifecycle?.requestQuit()
   })
-  app.on('will-quit', () => { stopReleaseChecks?.() })
+  app.on('will-quit', () => {
+    stopReleaseChecks?.()
+    desktopLogSession.close('application-quit')
+  })
   void startApplication().catch((error: unknown) => {
     if (!(error instanceof DesktopDataHomeSelectionCancelledError)) console.error(error)
     if (lifecycle === undefined) {

@@ -5,6 +5,7 @@ import { appendFile, copyFile, mkdir, readFile, rename, unlink, writeFile } from
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { gt, valid, validRange } from 'semver'
 import { isMap, parseDocument } from 'yaml'
+import { formatPersistentLogLine } from './persistent-log.ts'
 
 export interface BundledPluginManifestEntry {
   readonly seedId: string
@@ -55,7 +56,7 @@ export interface BundledPluginSeedProgress {
 export async function appendBundledPluginFailure(logPath: string, error: unknown): Promise<void> {
   const message = error instanceof Error ? error.stack ?? error.message : String(error)
   await mkdir(dirname(logPath), { recursive: true })
-  await appendFile(logPath, `[bundled-plugin] ${message}\n`)
+  await appendFile(logPath, formatPersistentLogLine('bundled-plugin', 'error', message))
 }
 
 /** Reject malformed packaged metadata before it can become an install allowlist. */

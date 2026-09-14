@@ -7,6 +7,7 @@ import type { Readable, Writable } from 'node:stream'
 import { LineBuffer, parseHarnessReadyLine } from './readiness.ts'
 import type { HarnessLaunch } from './launch.ts'
 import type { DesktopProcessObserver } from './process-observer.ts'
+import { formatPersistentLogLine, TimestampedLogWriter } from './persistent-log.ts'
 
 const RESTART_BASE_DELAY_MS = 500
 const RESTART_MAX_DELAY_MS = 15_000
@@ -80,7 +81,7 @@ export class HarnessSupervisor {
     return this.#diagnosticMode
   }
 
-  #reportStartupFailure(message: string, logLine: string): void {
+  #reportStartupFailure(message: string, logMessage: string): void {
     const notify = (): void => {
       this.#options.onState('failed')
       this.#options.onFailure({ message })
@@ -89,7 +90,11 @@ export class HarnessSupervisor {
       notify()
       return
     }
-    this.#log.write(logLine, () => { notify() })
+    this.#log.write(formatPersistentLogLine('desktop-supervisor', 'error', logMessage), () => { notify() })
+  }
+
+  #writeLog(level: string, message: string): void {
+    this.#log?.write(formatPersistentLogLine('desktop-supervisor', level, message))
   }
 
   /** Start the child process; repeated calls while it is running are ignored. */
@@ -113,18 +118,21 @@ export class HarnessSupervisor {
       this.#failed = true
       const failure = error instanceof Error ? error : new Error(String(error))
       const message = `Harness process owner could not start: ${failure.message}`
-      this.#reportStartupFailure(message, `[desktop] ${message}\n`)
+      this.#reportStartupFailure(message, message)
       return
     }
     this.#child = child
+    this.#writeLog('info', `Harness started pid=${String(child.pid ?? 'managed')} diagnosticMode=${String(this.#diagnosticMode)}`)
     let ready = false
     let spawnError: Error | undefined
     let diagnosticModeEligible = false
     const stdoutLines = new LineBuffer()
     const stderrLines = new LineBuffer()
+    const stdoutLog = new TimestampedLogWriter((line) => { this.#log?.write(line) }, 'harness-stdout')
+    const stderrLog = new TimestampedLogWriter((line) => { this.#log?.write(line) }, 'harness-stderr', 'error')
 
     child.stdout.on('data', (chunk: Buffer) => {
-      this.#log?.write(chunk)
+      stdoutLog.write(chunk)
       for (const line of stdoutLines.push(chunk.toString('utf8'))) {
         const url = parseHarnessReadyLine(line)
         if (url === undefined || ready) continue
@@ -142,25 +150,27 @@ export class HarnessSupervisor {
       }
     })
     child.stderr.on('data', (chunk: Buffer) => {
-      this.#log?.write(chunk)
+      stderrLog.write(chunk)
       for (const line of stderrLines.push(chunk.toString('utf8'))) {
         if (line.includes(DIAGNOSTIC_MODE_ELIGIBLE_MARKER)) diagnosticModeEligible = true
       }
     })
     void child.done.then(async ({ exitCode: code, signal, error }) => {
       spawnError = error
-      if (error !== undefined) this.#log?.write(`[desktop] failed to start Harness: ${error.message}\n`)
+      if (error !== undefined) this.#writeLog('error', `failed to start Harness: ${error.message}`)
+      stdoutLog.flush()
+      stderrLog.flush()
+      stdoutLines.flush()
+      const stderrTail = stderrLines.flush()
+      if (stderrTail?.includes(DIAGNOSTIC_MODE_ELIGIBLE_MARKER) === true) diagnosticModeEligible = true
       const rangeStopped = await child.waitForExit()
       if (!rangeStopped) {
         this.#failed = true
         const message = 'Harness process range did not become idle; automatic restart is blocked.'
-        this.#reportStartupFailure(message, `[desktop] ${message}\n`)
+        this.#reportStartupFailure(message, message)
         return
       }
-      stdoutLines.flush()
-      const stderrTail = stderrLines.flush()
-      if (stderrTail?.includes(DIAGNOSTIC_MODE_ELIGIBLE_MARKER) === true) diagnosticModeEligible = true
-      this.#log?.write(`[desktop] Harness exited code=${String(code)} signal=${String(signal)}\n`)
+      this.#writeLog('info', `Harness exited code=${String(code)} signal=${String(signal)}`)
       if (this.#child?.token === child.token) this.#child = undefined
       if (this.#stopping) {
         this.#options.onState('stopped')
@@ -172,7 +182,7 @@ export class HarnessSupervisor {
             ? `Harness exited before becoming ready (code ${String(code)}, signal ${String(signal)}).`
             : `Harness could not start: ${spawnError.message}`
           this.#diagnosticMode = true
-          this.#log?.write('[desktop] Opening Diagnostics with the installation-owned diagnostic profile.\n')
+          this.#writeLog('warn', 'Opening Diagnostics with the installation-owned diagnostic profile.')
           this.#options.onState('failed')
           this.#restartTimer = setTimeout(() => {
             this.#restartTimer = undefined
@@ -188,7 +198,7 @@ export class HarnessSupervisor {
           const message = `${this.#primaryStartupFailure ?? 'The active Profile could not start'} ${secondary}.`
           this.#reportStartupFailure(
             message,
-            `[desktop] Harness startup failed after one normal and one diagnostic attempt: ${message}\n`,
+            `Harness startup failed after one normal and one diagnostic attempt: ${message}`,
           )
           return
         }
@@ -200,7 +210,7 @@ export class HarnessSupervisor {
             : `Harness could not start: ${spawnError.message}`
           this.#reportStartupFailure(
             message,
-            `[desktop] Harness startup failed after ${PRE_READY_EXIT_LIMIT} attempts: ${message}\n`,
+            `Harness startup failed after ${PRE_READY_EXIT_LIMIT} attempts: ${message}`,
           )
           return
         }
@@ -220,7 +230,7 @@ export class HarnessSupervisor {
         const message = rangeStopped
           ? `Harness process owner failed: ${failure.message}`
           : `Harness process owner failed and cleanup is unconfirmed: ${failure.message}`
-        this.#reportStartupFailure(message, `[desktop] ${message}\n`)
+        this.#reportStartupFailure(message, message)
       })
     })
   }
@@ -312,7 +322,7 @@ export class HarnessSupervisor {
             if (!await child.waitForExit()) throw new Error('desktop: Harness process range remains active')
             finish()
           } catch (error) {
-            this.#log?.write(`[desktop] failed to force-stop Harness process tree: ${error instanceof Error ? error.message : String(error)}\n`)
+            this.#writeLog('error', `failed to force-stop Harness process tree: ${error instanceof Error ? error.message : String(error)}`)
             finish(error)
           }
         }
@@ -321,7 +331,7 @@ export class HarnessSupervisor {
           if (await child.waitForExit()) finish()
         }, () => {})
         void child.terminate(false).catch((error: unknown) => {
-          this.#log?.write(`[desktop] failed to request Harness process-tree shutdown: ${error instanceof Error ? error.message : String(error)}\n`)
+          this.#writeLog('error', `failed to request Harness process-tree shutdown: ${error instanceof Error ? error.message : String(error)}`)
         })
       })
     }

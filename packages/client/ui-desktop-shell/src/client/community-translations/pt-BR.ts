@@ -1817,9 +1817,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'dialog.commandFailed': 'Não foi possível iniciar a exportação da Sessão.'
   },
   'desktop-shell': {
-    'logs.openDirectory': 'Abrir pasta de logs',
+    'logs.openDirectory': 'Abrir log de diagnóstico',
     'logs.openDirectory.opening': 'Abrindo…',
-    'logs.openDirectory.error': 'Não foi possível abrir a pasta de logs',
+    'logs.openDirectory.error': 'Não foi possível abrir o log de diagnóstico',
     'menu.unavailable': 'Esta página de configurações está indisponível ou seu plugin não está instalado. Verifique os plugins em Configurações; nada foi instalado automaticamente.',
     'close.linux': 'A visibilidade da bandeja no Linux depende do seu ambiente de área de trabalho e extensões. Escolha Sair do cliente se o ícone não estiver visível.',
     'web.title': 'Usar em um navegador',

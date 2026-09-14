@@ -138,18 +138,18 @@ function setup(releaseStatus: DesktopReleaseStatus = {
 }
 
 describe('desktop shell components', () => {
-  it('opens the fixed desktop log directory and permits retry after an error', async () => {
-    const openLogDirectory = vi.fn()
+  it('opens the fixed persistent diagnostic log and permits retry after an error', async () => {
+    const openLog = vi.fn()
       .mockResolvedValueOnce({ error: 'permission denied' })
       .mockResolvedValueOnce({ error: '' })
-    render(<DesktopLogDirectoryAction {...({ openLogDirectory, t } as DesktopLogDirectoryActionProps)} />)
+    render(<DesktopLogDirectoryAction {...({ openLog, t } as DesktopLogDirectoryActionProps)} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open log folder' }))
-    expect((await screen.findByRole('alert')).textContent).toBe('Could not open the log folder')
+    fireEvent.click(screen.getByRole('button', { name: 'Open diagnostic log' }))
+    expect((await screen.findByRole('alert')).textContent).toBe('Could not open the diagnostic log')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open log folder' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open diagnostic log' }))
     await waitFor(() => { expect(screen.queryByRole('alert')).toBeNull() })
-    expect(openLogDirectory).toHaveBeenCalledTimes(2)
+    expect(openLog).toHaveBeenCalledTimes(2)
   })
 
   it('shows the desktop-owned npm registry choices while market-owned GitHub policy is unavailable', async () => {

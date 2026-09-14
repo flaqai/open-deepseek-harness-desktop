@@ -13,9 +13,9 @@ export const desktopLanguageTitles = {
 
 /** Simplified Chinese copy owned by the desktop shell. */
 export const zh = {
-  'logs.openDirectory': '打开日志文件目录',
+  'logs.openDirectory': '打开诊断日志',
   'logs.openDirectory.opening': '正在打开…',
-  'logs.openDirectory.error': '无法打开日志目录',
+  'logs.openDirectory.error': '无法打开诊断日志',
   'network.loading': '正在读取下载设置…',
   'network.title': '下载与代理',
   'network.description': '管理应用更新及由桌面端执行的 npm 包下载；插件市场的目录、README、源码归档和 Git 操作仍使用市场原有网络配置。',
@@ -231,9 +231,9 @@ export type DesktopShellKey = keyof typeof zh
 
 /** English dictionary checked against the Chinese key source. */
 export const en = {
-  'logs.openDirectory': 'Open log folder',
+  'logs.openDirectory': 'Open diagnostic log',
   'logs.openDirectory.opening': 'Opening…',
-  'logs.openDirectory.error': 'Could not open the log folder',
+  'logs.openDirectory.error': 'Could not open the diagnostic log',
   'network.loading': 'Loading download settings…',
   'network.title': 'Downloads and proxies',
   'network.description': 'Manages application updates and npm package downloads run by Desktop. Marketplace catalogs, READMEs, source archives, and Git operations keep using the market’s existing network configuration.',
@@ -446,9 +446,9 @@ export const en = {
 
 /** Russian dictionary checked against the English key source. */
 export const ru = {
-  'logs.openDirectory': 'Открыть папку журналов',
+  'logs.openDirectory': 'Открыть журнал диагностики',
   'logs.openDirectory.opening': 'Открываем…',
-  'logs.openDirectory.error': 'Не удалось открыть папку журналов',
+  'logs.openDirectory.error': 'Не удалось открыть журнал диагностики',
   'network.loading': 'Загружаем настройки скачивания…',
   'network.title': 'Загрузки и прокси',
   'network.description': 'Управляет обновлениями приложения и загрузками npm-пакетов, которые запускает Desktop. Каталоги, README, архивы исходников и Git-операции магазина используют его текущие сетевые настройки.',
