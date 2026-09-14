@@ -20,7 +20,11 @@ export async function createPackagedArchive(source, archive) {
   await mkdir(dirname(archive), { recursive: true })
   await rm(archive, { force: true })
   await rm(`${archive}.sha256`, { force: true })
-  await create({ cwd: dirname(source), file: archive, portable: true, noMtime: true, strict: true }, [root])
+  // tar@7 can leave its async file promise unsettled after traversing large
+  // deployed node_modules trees even though no event-loop handles remain.
+  // The synchronous writer uses the same portable archive format and makes
+  // completion explicit before hashing or deleting the expanded source.
+  create.syncFile({ cwd: dirname(source), file: archive, portable: true, noMtime: true, strict: true }, [root])
   const digest = await sha256File(archive)
   await writeFile(`${archive}.sha256`, `${digest}  ${basename(archive)}\n`, { mode: 0o644 })
   console.log(`desktop archive: ${basename(archive)} ${digest}`)
