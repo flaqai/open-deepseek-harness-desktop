@@ -7,7 +7,7 @@ interface WorkflowJob {
   readonly if?: string
   readonly needs?: string
   readonly env?: Record<string, string>
-  readonly steps?: Array<{ uses?: string; with?: Record<string, string>; run?: string }>
+  readonly steps?: Array<{ name?: string; uses?: string; with?: Record<string, string>; run?: string }>
 }
 
 describe('desktop package workflow bundled plugins', () => {
@@ -48,6 +48,14 @@ describe('desktop package workflow bundled plugins', () => {
     expect(workflow.jobs.linux?.if).toContain("inputs.target == 'linux-x64'")
     expect(workflow.jobs.checksums?.if).toContain("inputs.target == 'macos'")
     expect(workflow.jobs.checksums?.if).toContain("inputs.target == 'linux-x64'")
+  })
+
+  it('raises the macOS packaging file limit before electron-builder signs the expanded runtime', () => {
+    const source = readFileSync(resolve(import.meta.dirname, '../../../.github/workflows/desktop-packages.yml'), 'utf8')
+    const workflow = parse(source) as { jobs: Record<string, WorkflowJob> }
+    const build = workflow.jobs.macos?.steps?.find(step => step.name === 'Build macOS package')
+    expect(build?.run).toContain('ulimit -n 65536')
+    expect(build?.run).toContain('pnpm run package:desktop:macos:${{ matrix.arch }}')
   })
 
   it('keeps packaging manual and leaves GitHub Release publication to the explicit local workflow', () => {
