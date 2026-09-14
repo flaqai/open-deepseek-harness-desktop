@@ -49,6 +49,7 @@ describe('packaged desktop CLI inputs', () => {
 
   it('retains both installed startup logs and quarantine evidence before plugin assertions', async () => {
     const source = await readFile(`${desktopRoot}/scripts/smoke-windows-package.ps1`, 'utf8')
+    expect(source).toContain('\\[harness-stdout\\] \\[info\\] dsh web:')
     expect(source.indexOf('First installed startup log:')).toBeLessThan(
       source.lastIndexOf('Remove-Item -LiteralPath $harnessLog'),
     )
@@ -56,5 +57,10 @@ describe('packaged desktop CLI inputs', () => {
     expect(source.indexOf('Installed smoke quarantine evidence:')).toBeLessThan(
       source.indexOf('Bundled plugin dependency $($plugin.PackageName) is absent'),
     )
+  })
+
+  it('allows the native macOS Profile verification enough time for Intel runners', async () => {
+    const source = await readFile(`${desktopRoot}/scripts/smoke-macos-package.mjs`, 'utf8')
+    expect(source).toContain("verify-prebuilt-profile.mjs', import.meta.url)), join(app, 'Contents/Resources')], { timeout: 300000")
   })
 })
