@@ -1,7 +1,10 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { create } from 'tar'
 import { ensurePackagedRuntime, isPackagedRuntimeReady, packagedRuntimeArchiveRoot } from '../src/packaged-runtime.ts'
 
 const roots: string[] = []
@@ -54,5 +57,44 @@ describe('packaged desktop runtime', () => {
     const runtime = await createRuntime()
     await writeFile(join(runtime, '.desktop-runtime-v3'), '@deepseek-ai/dsh@0.1.0-rc.5\n')
     expect(await isPackagedRuntimeReady(runtime)).toBe(true)
+  })
+
+  it('extracts a checksummed single-root runtime archive into the versioned cache', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'dsh-packaged-archive-'))
+    roots.push(parent)
+    const source = join(parent, 'desktop-runtime-darwin-arm64')
+    await mkdir(source)
+    const staged = await createRuntime()
+    await rm(source, { recursive: true })
+    await cp(staged, source, { recursive: true })
+    await writeFile(join(source, '.desktop-runtime-v3'), 'runtime')
+    const archive = join(parent, 'runtime.tar')
+    await create({ cwd: parent, file: archive }, ['desktop-runtime-darwin-arm64'])
+    const checksum = createHash('sha256').update(readFileSync(archive)).digest('hex')
+    await writeFile(`${archive}.sha256`, `${checksum}  runtime.tar\n`)
+    const destination = join(parent, 'cache', 'runtime')
+    expect(await ensurePackagedRuntime({ archivePath: archive, checksumPath: `${archive}.sha256`, destination, archiveRoot: 'desktop-runtime-darwin-arm64' })).toBe(destination)
+    expect(await isPackagedRuntimeReady(destination)).toBe(true)
+  })
+
+  it('rejects a packaged archive when its detached checksum is wrong', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'dsh-packaged-checksum-'))
+    roots.push(parent)
+    const archive = join(parent, 'runtime.tar')
+    await writeFile(archive, 'not an archive')
+    await writeFile(`${archive}.sha256`, `${'0'.repeat(64)}  runtime.tar\n`)
+    await expect(ensurePackagedRuntime({ archivePath: archive, checksumPath: `${archive}.sha256`, destination: join(parent, 'cache'), archiveRoot: 'desktop-runtime-darwin-arm64' })).rejects.toThrow('checksum mismatch')
+  })
+
+  it('rejects a checksummed archive whose root differs from the expected platform root', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'dsh-packaged-root-'))
+    roots.push(parent)
+    await mkdir(join(parent, 'desktop-runtime-linux-x64'))
+    await writeFile(join(parent, 'desktop-runtime-linux-x64', 'payload'), 'unexpected platform')
+    const archive = join(parent, 'runtime.tar')
+    await create({ cwd: parent, file: archive }, ['desktop-runtime-linux-x64'])
+    const checksum = createHash('sha256').update(readFileSync(archive)).digest('hex')
+    await writeFile(`${archive}.sha256`, `${checksum}  runtime.tar\n`)
+    await expect(ensurePackagedRuntime({ archivePath: archive, checksumPath: `${archive}.sha256`, destination: join(parent, 'cache'), archiveRoot: 'desktop-runtime-darwin-arm64' })).rejects.toThrow('unsafe packaged archive path')
   })
 })

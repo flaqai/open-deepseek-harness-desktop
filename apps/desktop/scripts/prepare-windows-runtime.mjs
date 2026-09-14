@@ -8,10 +8,13 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { preparePrebuiltProfile } from './prepare-prebuilt-profile.mjs'
+import { createPackagedArchive } from './create-packaged-archive.mjs'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
 const outputRoot = join(repositoryRoot, '.artifacts', 'desktop-runtime-win-x64')
+const prebuilt = join(repositoryRoot, '.artifacts', 'desktop-prebuilt-win32-x64')
+const prebuiltArchive = join(repositoryRoot, '.artifacts', 'desktop-prebuilt-win32-x64.tar')
 const harnessRoot = join(outputRoot, 'harness')
 const runtimeRoot = join(outputRoot, 'runtime', 'win32-x64')
 const downloads = join(repositoryRoot, '.artifacts', 'downloads')
@@ -345,11 +348,13 @@ async function smokeHarness() {
 
 async function smokeBundledPlugins() {
   await preparePrebuiltProfile({
-    destination: join(repositoryRoot, '.artifacts', 'desktop-prebuilt-win32-x64'),
+    destination: prebuilt,
     harnessRoot, node: nodeExecutable, pnpm: stagedPnpmEntry,
     resources: join(desktopRoot, 'bundled-plugins'),
     target: 'win32-x64', nodeVersion, pnpmVersion, run,
   })
+  await createPackagedArchive(prebuilt, prebuiltArchive)
+  await rm(prebuilt, { recursive: true, force: true })
 }
 
 async function verifyRuntime() {

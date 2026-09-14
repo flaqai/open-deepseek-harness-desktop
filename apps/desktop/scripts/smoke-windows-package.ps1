@@ -78,7 +78,9 @@ $required = @(
   (Join-Path $installRoot 'resources/cli/desktop-cli.mjs'),
   (Join-Path $cliDirectory 'dsh.cmd'),
   (Join-Path $cliDirectory 'manage-path.ps1'),
-  (Join-Path $installRoot 'resources/bundled-plugins/manifest.json')
+  (Join-Path $installRoot 'resources/bundled-plugins/manifest.json'),
+  (Join-Path $installRoot 'resources/prebuilt-profile.tar'),
+  (Join-Path $installRoot 'resources/prebuilt-profile.tar.sha256')
 )
 foreach ($path in $required) {
   if (-not (Test-Path $path)) { throw "Installed package is missing $path" }

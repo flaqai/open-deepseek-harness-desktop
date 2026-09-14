@@ -9,6 +9,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { preparePrebuiltProfile } from './prepare-prebuilt-profile.mjs'
+import { createPackagedArchive } from './create-packaged-archive.mjs'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
@@ -50,7 +51,9 @@ if (targetConfig === undefined) {
 }
 const runtimeName = `desktop-runtime-${target}`
 const staging = join(repositoryRoot, '.artifacts', runtimeName)
-const archive = join(repositoryRoot, '.artifacts', `${runtimeName}.tar.gz`)
+const archive = join(repositoryRoot, '.artifacts', `${runtimeName}.tar`)
+const prebuilt = join(repositoryRoot, '.artifacts', `desktop-prebuilt-${target}`)
+const prebuiltArchive = join(repositoryRoot, '.artifacts', `desktop-prebuilt-${target}.tar`)
 const runtimeMarker = '.desktop-runtime-v3'
 const nodeVersion = '24.17.0'
 const pnpmVersion = '11.7.0'
@@ -223,11 +226,15 @@ await injectWorkspaceClosure()
 await stagePackageRuntime()
 await verifyRuntime()
 await preparePrebuiltProfile({
-  destination: join(repositoryRoot, '.artifacts', `desktop-prebuilt-${target}`),
+  destination: prebuilt,
   harnessRoot: staging,
   node: join(staging, 'package-runtime/bin/node'),
   pnpm: join(staging, 'package-runtime/bin/pnpm'),
   resources: join(desktopRoot, 'bundled-plugins'),
   target, nodeVersion, pnpmVersion, run,
 })
-console.log(`prepare-unix-runtime: expanded resources ready in ${staging}`)
+await createPackagedArchive(staging, archive)
+await createPackagedArchive(prebuilt, prebuiltArchive)
+await rm(staging, { recursive: true, force: true })
+await rm(prebuilt, { recursive: true, force: true })
+console.log(`prepare-unix-runtime: packaged runtime and Profile archives ready for ${target}`)

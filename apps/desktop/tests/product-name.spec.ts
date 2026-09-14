@@ -7,6 +7,7 @@ import { DESKTOP_PRODUCT_NAME } from '../src/product-name.ts'
 interface BuilderIdentity {
   appId?: string
   afterPack?: string
+  extraResources?: Array<{ from?: string; to?: string }>
   productName?: string
   linux?: { executableName?: string }
   deb?: { packageName?: string }
@@ -21,9 +22,11 @@ describe('desktop product identity', () => {
     const config = readBuilder(name)
     expect(config.productName).toBe(DESKTOP_PRODUCT_NAME)
     expect(config.appId).toBe('ai.flaq.deepseek-harness')
-    const afterPack = config.afterPack
-    expect(afterPack).toBe('apps/desktop/scripts/copy-prebuilt-profile.cjs')
-    expect(afterPack === undefined ? false : existsSync(resolve(import.meta.dirname, '../../..', afterPack))).toBe(true)
+    expect(config.afterPack).toBeUndefined()
+    expect(config.extraResources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ to: 'prebuilt-profile.tar' }),
+      expect.objectContaining({ to: 'prebuilt-profile.tar.sha256' }),
+    ]))
   })
 
   it('uses a matching Linux executable while preserving the upgrade package identity', () => {
@@ -31,14 +34,34 @@ describe('desktop product identity', () => {
     expect(config.linux?.executableName).toBe('open-deepseek-harness-desktop')
     expect(config.deb?.packageName).toBe('deepseek-harness')
     expect(config.rpm?.packageName).toBe('deepseek-harness')
+    expect(config.extraResources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ to: 'harness-runtime.tar' }),
+      expect.objectContaining({ to: 'harness-runtime.tar.sha256' }),
+    ]))
   })
 
   it('uses the canonical macOS bundle display name', () => {
-    const mac = readBuilder('electron-builder.macos.yml').mac
+    const config = readBuilder('electron-builder.macos.yml')
+    const mac = config.mac
     expect(mac?.extendInfo?.CFBundleDisplayName).toBe(DESKTOP_PRODUCT_NAME)
     expect(mac?.identity).toBe('-')
     expect(mac?.sign).toBe('./apps/desktop/scripts/sign-macos-adhoc.cjs')
     expect(existsSync(resolve(import.meta.dirname, '../../..', mac?.sign ?? ''))).toBe(true)
+    expect(config.extraResources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ to: 'harness-runtime.tar' }),
+      expect.objectContaining({ to: 'harness-runtime.tar.sha256' }),
+    ]))
+  })
+
+  it('keeps the Windows runtime expanded while archiving only its prebuilt Profile', () => {
+    const config = readBuilder('electron-builder.yml')
+    expect(config.extraResources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ to: 'runtime' }),
+      expect.objectContaining({ to: 'harness' }),
+    ]))
+    expect(config.extraResources).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ to: 'harness-runtime.tar' }),
+    ]))
   })
 
   it('keeps the macOS source launcher recognizable as Electron while setting the runtime title', () => {

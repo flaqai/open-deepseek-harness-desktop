@@ -8,31 +8,22 @@ directories:
 files:
   - lib/**/*
   - package.json
-afterPack: apps/desktop/scripts/copy-prebuilt-profile.cjs
 extraResources:
   - from: bundled-plugins
     to: bundled-plugins
     filter:
       - "**/*"
-  - from: ../../.artifacts/desktop-runtime-darwin-${arch}
-    to: harness
-    filter:
-      - "**/*"
-      - "!node_modules{,/**/*}"
-  - from: ../../.artifacts/desktop-runtime-darwin-${arch}/node_modules
-    to: harness/node_modules
-    filter:
-      - "**/*"
+  - from: ../../.artifacts/desktop-runtime-darwin-${arch}.tar
+    to: harness-runtime.tar
+  - from: ../../.artifacts/desktop-runtime-darwin-${arch}.tar.sha256
+    to: harness-runtime.tar.sha256
+  - from: ../../.artifacts/desktop-prebuilt-darwin-${arch}.tar
+    to: prebuilt-profile.tar
+  - from: ../../.artifacts/desktop-prebuilt-darwin-${arch}.tar.sha256
+    to: prebuilt-profile.tar.sha256
   - from: lib/desktop-cli-launcher.js
     to: cli/desktop-cli.mjs
-  - from: ../../.artifacts/desktop-runtime-darwin-${arch}/package-runtime/lib/node_modules
-    to: harness/package-runtime/lib/node_modules
-    filter:
-      - "**/*"
 mac:
-  # These native files are signed and verified before the prebuilt inventory is sealed.
-  signIgnore:
-    - "prebuilt-profile/"
   minimumSystemVersion: "13.5"
   extendInfo:
     CFBundleDisplayName: Open DeepSeek Harness Desktop
@@ -43,9 +34,7 @@ mac:
   # Open-source release baseline: keep Apple Silicon code structurally signed
   # without binding artifacts to a short-lived development certificate.
   identity: "-"
-  # electron/osx-sign walks every expanded Profile resource concurrently before
-  # applying signIgnore. Use one native codesign process instead, so the 15k+
-  # data files cannot exhaust the runner's descriptor table.
+  # Keep signing bounded to one native process and independent from archive size.
   sign: ./apps/desktop/scripts/sign-macos-adhoc.cjs
   hardenedRuntime: false
   timestamp: none

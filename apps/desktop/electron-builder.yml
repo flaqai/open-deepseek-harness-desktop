@@ -8,7 +8,6 @@ directories:
 files:
   - lib/**/*
   - package.json
-afterPack: apps/desktop/scripts/copy-prebuilt-profile.cjs
 extraResources:
   - from: bundled-plugins
     to: bundled-plugins
@@ -35,6 +34,10 @@ extraResources:
       - "**/*"
   - from: lib/desktop-cli-launcher.js
     to: cli/desktop-cli.mjs
+  - from: ../../.artifacts/desktop-prebuilt-win32-x64.tar
+    to: prebuilt-profile.tar
+  - from: ../../.artifacts/desktop-prebuilt-win32-x64.tar.sha256
+    to: prebuilt-profile.tar.sha256
 win:
   icon: build/icon.ico
   target:

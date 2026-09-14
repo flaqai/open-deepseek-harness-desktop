@@ -46,7 +46,7 @@ import {
   isTrustedHarnessPermissionRequest,
   type HarnessPermissionDetails,
 } from './permissions.ts'
-import { ensurePackagedRuntime, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
+import { ensurePackagedPrebuiltProfile, ensurePackagedRuntime, packagedPrebuiltProfileArchiveRoot, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
 import { HarnessSupervisor, type HarnessFailure, type HarnessState } from './supervisor.ts'
 import { readRecoveryFailureSummary, type RecoveryFailureSummary } from './recovery-failure.ts'
 import { ProfileTransactionManager } from './profile-transaction-manager.ts'
@@ -2603,7 +2603,8 @@ async function startApplication(): Promise<void> {
   const packagedRuntime = packagedRuntimeRoot !== undefined
     ? await ensurePackagedRuntime({
       expandedPath: join(process.resourcesPath, 'harness'),
-      archivePath: join(process.resourcesPath, 'harness-runtime.tar.gz'),
+      archivePath: join(process.resourcesPath, 'harness-runtime.tar'),
+      checksumPath: join(process.resourcesPath, 'harness-runtime.tar.sha256'),
       destination: join(app.getPath('userData'), 'runtime', app.getVersion()),
       archiveRoot: packagedRuntimeRoot,
     })
@@ -2725,7 +2726,21 @@ async function startApplication(): Promise<void> {
   const bundledDirectory = resolveBundledPluginResourcesDirectory(app.isPackaged, process.resourcesPath, DEFAULT_SOURCE_ROOT)
   const bundledManifestSource = await readFile(join(bundledDirectory, 'manifest.json'), 'utf8')
   const manifest = parseBundledPluginManifest(JSON.parse(bundledManifestSource) as unknown)
-  const prebuiltDirectory = app.isPackaged ? join(process.resourcesPath, 'prebuilt-profile') : undefined
+  let prebuiltDirectory: string | undefined
+  if (app.isPackaged && firstStartPending) {
+    const prebuiltRoot = packagedPrebuiltProfileArchiveRoot(process.platform, process.arch)
+    try {
+      prebuiltDirectory = await ensurePackagedPrebuiltProfile({
+        archivePath: join(process.resourcesPath, 'prebuilt-profile.tar'),
+        checksumPath: join(process.resourcesPath, 'prebuilt-profile.tar.sha256'),
+        destination: join(app.getPath('userData'), 'prebuilt-profile', app.getVersion(), prebuiltRoot),
+        archiveRoot: prebuiltRoot,
+      })
+    } catch (error) {
+      showIncompletePreparation(error instanceof Error ? error.message : String(error))
+      return
+    }
+  }
   const importedBuildPlan = firstStartPending ? await readImportedPluginRestorePlan(dshHome) : undefined
   const startupBuildRules = firstStartPending && !inspectProfileMutationLock(dshHome).active ? await readProfileBuildApprovals(dshHome) : {}
   for (const [name, allowed] of Object.entries(importedBuildPlan?.allowBuilds ?? {})) {
