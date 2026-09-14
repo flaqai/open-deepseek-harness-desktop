@@ -11,7 +11,7 @@ interface BuilderIdentity {
   linux?: { executableName?: string }
   deb?: { packageName?: string }
   rpm?: { packageName?: string }
-  mac?: { extendInfo?: { CFBundleDisplayName?: string } }
+  mac?: { extendInfo?: { CFBundleDisplayName?: string }; identity?: string; sign?: string }
 }
 
 const readBuilder = (name: string): BuilderIdentity => parse(readFileSync(resolve(import.meta.dirname, `../${name}`), 'utf8')) as BuilderIdentity
@@ -34,7 +34,11 @@ describe('desktop product identity', () => {
   })
 
   it('uses the canonical macOS bundle display name', () => {
-    expect(readBuilder('electron-builder.macos.yml').mac?.extendInfo?.CFBundleDisplayName).toBe(DESKTOP_PRODUCT_NAME)
+    const mac = readBuilder('electron-builder.macos.yml').mac
+    expect(mac?.extendInfo?.CFBundleDisplayName).toBe(DESKTOP_PRODUCT_NAME)
+    expect(mac?.identity).toBe('-')
+    expect(mac?.sign).toBe('./apps/desktop/scripts/sign-macos-adhoc.cjs')
+    expect(existsSync(resolve(import.meta.dirname, '../../..', mac?.sign ?? ''))).toBe(true)
   })
 
   it('keeps the macOS source launcher recognizable as Electron while setting the runtime title', () => {

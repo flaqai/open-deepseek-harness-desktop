@@ -43,6 +43,10 @@ mac:
   # Open-source release baseline: keep Apple Silicon code structurally signed
   # without binding artifacts to a short-lived development certificate.
   identity: "-"
+  # electron/osx-sign walks every expanded Profile resource concurrently before
+  # applying signIgnore. Use one native codesign process instead, so the 15k+
+  # data files cannot exhaust the runner's descriptor table.
+  sign: ./apps/desktop/scripts/sign-macos-adhoc.cjs
   hardenedRuntime: false
   timestamp: none
   target:
