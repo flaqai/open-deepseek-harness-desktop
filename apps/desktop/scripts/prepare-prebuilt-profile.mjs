@@ -1,6 +1,6 @@
 /** Build preset dependencies with the packaged runtime; retain only portable, reviewed application state. */
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, open, readFile, readdir, rename, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, open, readFile, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { basename, delimiter, dirname, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { parseBundledPluginManifest } from '../lib/bundled-plugin-installer.js'
@@ -59,6 +59,24 @@ async function signNativeResources(root, run) {
   }
 }
 
+/** Keep the native terminal payload that can execute on the packaged target. */
+export async function pruneForeignNodePtyPrebuilds(home, target) {
+  if (!/^(?:darwin-(?:arm64|x64)|linux-x64|win32-x64)$/u.test(target)) {
+    throw new Error(`invalid prebuilt target ${target}`)
+  }
+  const packageRoot = join(home, 'profiles/web/node_modules/node-pty')
+  let prebuilds
+  try { prebuilds = join(await realpath(packageRoot), 'prebuilds') } catch (error) {
+    if (error?.code === 'ENOENT') return
+    throw error
+  }
+  for (const entry of await readdir(prebuilds, { withFileTypes: true })) {
+    if (entry.isDirectory() && entry.name !== target) {
+      await rm(join(prebuilds, entry.name), { recursive: true, force: true })
+    }
+  }
+}
+
 /** Build scripts provide a bounded child runner and the platform's packaged executables. */
 export async function preparePrebuiltProfile({ destination: published, harnessRoot, node, pnpm, resources, target, nodeVersion, pnpmVersion, run }) {
   if (!/^desktop-prebuilt-(?:darwin-(?:arm64|x64)|linux-x64|win32-x64)$/u.test(basename(published))) throw new Error('invalid prebuilt output directory')
@@ -79,6 +97,7 @@ export async function preparePrebuiltProfile({ destination: published, harnessRo
       install: archive => command(destination, ['add', '--save-exact', archive]),
     })
   }
+  await pruneForeignNodePtyPrebuilds(destination, target)
   const workspace = parseYaml(await readFile(join(destination, 'profiles/web/pnpm-workspace.yaml'), 'utf8'))
   // Never deliver package-manager stores, logs, locks, snapshots, or user settings.
   for (const name of await readdir(destination)) {
