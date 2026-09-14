@@ -233,8 +233,8 @@ await preparePrebuiltProfile({
   resources: join(desktopRoot, 'bundled-plugins'),
   target, nodeVersion, pnpmVersion, run,
 })
-await createPackagedArchive(staging, archive)
-await createPackagedArchive(prebuilt, prebuiltArchive)
+await createPackagedArchive(staging, archive, 'harness-runtime.tar')
+await createPackagedArchive(prebuilt, prebuiltArchive, 'prebuilt-profile.tar')
 await rm(staging, { recursive: true, force: true })
 await rm(prebuilt, { recursive: true, force: true })
 console.log(`prepare-unix-runtime: packaged runtime and Profile archives ready for ${target}`)

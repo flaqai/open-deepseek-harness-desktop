@@ -353,7 +353,7 @@ async function smokeBundledPlugins() {
     resources: join(desktopRoot, 'bundled-plugins'),
     target: 'win32-x64', nodeVersion, pnpmVersion, run,
   })
-  await createPackagedArchive(prebuilt, prebuiltArchive)
+  await createPackagedArchive(prebuilt, prebuiltArchive, 'prebuilt-profile.tar')
   await rm(prebuilt, { recursive: true, force: true })
 }
 

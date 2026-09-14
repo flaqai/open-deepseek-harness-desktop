@@ -13,9 +13,9 @@ test('creates one portable root and its detached checksum', async () => {
     const archive = join(temporary, 'profile.tar')
     await mkdir(source)
     await writeFile(join(source, 'prebuilt-profile.json'), '{}\n')
-    const result = await createPackagedArchive(source, archive)
+    const result = await createPackagedArchive(source, archive, 'prebuilt-profile.tar')
     assert.equal(result.digest, await sha256File(archive))
-    assert.equal(await readFile(`${archive}.sha256`, 'utf8'), `${result.digest}  profile.tar\n`)
+    assert.equal(await readFile(`${archive}.sha256`, 'utf8'), `${result.digest}  prebuilt-profile.tar\n`)
     const paths = []
     await list({ file: archive, onReadEntry: entry => paths.push(entry.path) })
     assert.deepEqual(paths, ['desktop-prebuilt-darwin-arm64/', 'desktop-prebuilt-darwin-arm64/prebuilt-profile.json'])
@@ -26,4 +26,8 @@ test('creates one portable root and its detached checksum', async () => {
 
 test('rejects an unrecognized archive source root', async () => {
   await assert.rejects(createPackagedArchive('/tmp/unowned-profile', '/tmp/unowned-profile.tar'), /invalid source root/u)
+})
+
+test('rejects an unsafe installed resource name', async () => {
+  await assert.rejects(createPackagedArchive('/tmp/desktop-prebuilt-linux-x64', '/tmp/profile.tar', '../profile.tar'), /invalid installed name/u)
 })
