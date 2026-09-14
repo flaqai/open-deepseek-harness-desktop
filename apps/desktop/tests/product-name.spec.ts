@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
@@ -6,6 +6,7 @@ import { DESKTOP_PRODUCT_NAME } from '../src/product-name.ts'
 
 interface BuilderIdentity {
   appId?: string
+  afterPack?: string
   productName?: string
   linux?: { executableName?: string }
   deb?: { packageName?: string }
@@ -20,6 +21,9 @@ describe('desktop product identity', () => {
     const config = readBuilder(name)
     expect(config.productName).toBe(DESKTOP_PRODUCT_NAME)
     expect(config.appId).toBe('ai.flaq.deepseek-harness')
+    const afterPack = config.afterPack
+    expect(afterPack).toBe('apps/desktop/scripts/copy-prebuilt-profile.cjs')
+    expect(afterPack === undefined ? false : existsSync(resolve(import.meta.dirname, '../../..', afterPack))).toBe(true)
   })
 
   it('uses a matching Linux executable while preserving the upgrade package identity', () => {

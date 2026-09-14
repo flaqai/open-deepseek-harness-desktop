@@ -8,7 +8,7 @@ directories:
 files:
   - lib/**/*
   - package.json
-afterPack: scripts/copy-prebuilt-profile.cjs
+afterPack: apps/desktop/scripts/copy-prebuilt-profile.cjs
 extraResources:
   - from: bundled-plugins
     to: bundled-plugins
