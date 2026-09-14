@@ -200,7 +200,7 @@ try {
     Start-Sleep -Milliseconds 500
     $app.Refresh()
     if ($app.HasExited) { throw "Restarted application exited before Harness readiness with $($app.ExitCode)" }
-    if ((Test-Path -LiteralPath $harnessLog) -and ((Get-Content -LiteralPath $harnessLog -Raw) -match '(?m)^dsh web: http://127\.0\.0\.1:\d+(?:/[^\r\n]*)?\r?$')) {
+    if ((Test-Path -LiteralPath $harnessLog) -and ((Get-Content -LiteralPath $harnessLog -Raw) -match '(?m)^\[[^\r\n]+\] \[harness-stdout\] \[info\] dsh web: http://127\.0\.0\.1:\d+(?:/[^\r\n]*)?\r?$')) {
       $ready = $true
       break
     }

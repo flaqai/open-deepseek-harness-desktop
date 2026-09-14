@@ -49,7 +49,7 @@ describe('packaged desktop CLI inputs', () => {
 
   it('retains both installed startup logs and quarantine evidence before plugin assertions', async () => {
     const source = await readFile(`${desktopRoot}/scripts/smoke-windows-package.ps1`, 'utf8')
-    expect(source).toContain('\\[harness-stdout\\] \\[info\\] dsh web:')
+    expect(source.match(/\\\[harness-stdout\\\] \\\[info\\\] dsh web:/gu)).toHaveLength(2)
     expect(source.indexOf('First installed startup log:')).toBeLessThan(
       source.lastIndexOf('Remove-Item -LiteralPath $harnessLog'),
     )
