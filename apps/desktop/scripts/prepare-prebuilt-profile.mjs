@@ -75,6 +75,26 @@ export async function pruneForeignNodePtyPrebuilds(home, target) {
       await rm(join(prebuilds, entry.name), { recursive: true, force: true })
     }
   }
+  const conpty = join(await realpath(packageRoot), 'third_party/conpty')
+  if (!target.startsWith('win32-')) {
+    await rm(conpty, { recursive: true, force: true })
+    return
+  }
+  const windowsTarget = `win10-${target.slice('win32-'.length)}`
+  let versions
+  try { versions = await readdir(conpty, { withFileTypes: true }) } catch (error) {
+    if (error?.code === 'ENOENT') return
+    throw error
+  }
+  for (const version of versions) {
+    if (!version.isDirectory()) continue
+    const directory = join(conpty, version.name)
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (entry.isDirectory() && entry.name !== windowsTarget) {
+        await rm(join(directory, entry.name), { recursive: true, force: true })
+      }
+    }
+  }
 }
 
 /** Build scripts provide a bounded child runner and the platform's packaged executables. */
