@@ -9,12 +9,22 @@
  */
 
 import { existsSync, globSync, readFileSync } from 'node:fs'
-import { resolve, sep } from 'node:path'
+import { dirname, resolve, sep } from 'node:path'
 import { JSON_SCHEMA, load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 import { readCurrentSessionFormatVersion } from './gen-session-format-catalog.ts'
 
 const root = resolve(import.meta.dirname, '..')
+const README_LOCALES = [
+  ['简体中文', 'README.md'],
+  ['English', '.github/readme/README.en.md'],
+  ['日本語', '.github/readme/README.ja.md'],
+  ['한국어', '.github/readme/README.ko.md'],
+  ['Español', '.github/readme/README.es.md'],
+  ['Français', '.github/readme/README.fr.md'],
+  ['Deutsch', '.github/readme/README.de.md'],
+  ['Português', '.github/readme/README.pt-BR.md'],
+] as const
 const PACKAGE_README_GLOBS = [
   'packages/README.md',
   'packages/README.zh.md',
@@ -205,6 +215,47 @@ function sessionFormatReleaseFixture(): { record: SessionFormatRelease; body: st
 function releaseDocument(body: string, links: string): string {
   return `\`\`\`yaml session-format-release\n${body}\n\`\`\`\n\n${links}\n`
 }
+
+describe('localized repository READMEs', () => {
+  const files = ['README.md', 'README.zh.md', ...README_LOCALES.slice(1).map(([, file]) => file)]
+
+  it('links every README to the other seven locales and leaves its own locale unlinked', () => {
+    for (const file of files) {
+      const source = readFileSync(resolve(root, file), 'utf8')
+      const nested = file.startsWith('.github/readme/')
+      const current = file === 'README.md' || file === 'README.zh.md'
+        ? '简体中文'
+        : README_LOCALES.find(([, candidate]) => candidate === file)?.[0]
+      expect(current, `${file}: current locale`).toBeDefined()
+      const switcher = source.split('\n').find(line => (
+        README_LOCALES.filter(([label]) => line.includes(label)).length === README_LOCALES.length
+      ))
+      expect(switcher, `${file}: language switcher`).toBeDefined()
+      const links = new Map([...switcher!.matchAll(/\[([^\]]+)\]\(([^)]+)\)/gu)].map(match => [match[1], match[2]]))
+      expect(links.has(current), `${file}: current locale must be plain text`).toBe(false)
+      for (const [label, target] of README_LOCALES) {
+        if (label === current) continue
+        const expected = label === '简体中文'
+          ? '../../README.md'
+          : nested ? target.replace('.github/readme/', '') : target
+        expect(links.get(label), `${file}: ${label}`).toBe(expected)
+      }
+      expect(links.size, `${file}: locale link count`).toBe(README_LOCALES.length - 1)
+    }
+  })
+
+  it('keeps every relative HTML image source resolvable after relocation', () => {
+    for (const file of files) {
+      const abs = resolve(root, file)
+      const source = readFileSync(abs, 'utf8')
+      for (const match of source.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/gu)) {
+        const target = match[1]!
+        if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(target)) continue
+        expect(existsSync(resolve(dirname(abs), target)), `${file}: ${target}`).toBe(true)
+      }
+    }
+  })
+})
 
 describe('Session format release authority', () => {
   it('keeps the bilingual release records equal and consistent with the writer and evidence links', () => {

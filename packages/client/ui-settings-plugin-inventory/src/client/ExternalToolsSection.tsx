@@ -1,25 +1,29 @@
 /** Desktop connection center for official and planned coding-product providers. */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type {
   ExternalToolId,
   ExternalToolsSnapshot,
   PluginInstallId,
+  PluginInstallOutputRead,
+  PluginInstallProgress,
   PluginInstallSnapshot,
 } from '@deepseek-ai/dsh-host-plugin-inventory/types'
-import { Button, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconRefreshOutline16, Modal, TerminalBlock } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { PluginInventoryLocaleKey } from './locales.ts'
 import css from './ExternalToolsSection.module.css'
 import type { InstallableExternalToolId } from './external-tool-compatibility-bridge.ts'
+import { ExternalToolIcon, type ExternalToolIconId } from './ExternalToolIcon.tsx'
 
 interface ToolDefinition {
-  readonly id: 'codex' | 'claude-code' | 'hermes' | 'trae'
+  readonly id: ExternalToolIconId
   readonly name: string
-  readonly mark: string
   readonly installable?: true
   readonly moduleName?: string
+  readonly managedToggle?: true
+  readonly community?: true
   readonly descriptionKey: PluginInventoryLocaleKey
 }
 
@@ -27,29 +31,35 @@ const TOOLS: readonly ToolDefinition[] = [
   {
     id: 'codex',
     name: 'Codex',
-    mark: 'CX',
     installable: true,
     moduleName: '@deepseek-ai/dsh-subagent-codex',
+    managedToggle: true,
     descriptionKey: 'external.codex.description',
   },
   {
     id: 'claude-code',
     name: 'Claude Code',
-    mark: 'CC',
     installable: true,
     moduleName: '@deepseek-ai/dsh-subagent-claude-code',
+    managedToggle: true,
     descriptionKey: 'external.claude.description',
+  },
+  {
+    id: 'workbuddy',
+    name: 'WorkBuddy',
+    installable: true,
+    moduleName: 'dsh-workbuddy-connect',
+    community: true,
+    descriptionKey: 'external.workbuddy.description',
   },
   {
     id: 'hermes',
     name: 'Hermes',
-    mark: 'H',
     descriptionKey: 'external.hermes.description',
   },
   {
     id: 'trae',
     name: 'Trae',
-    mark: 'T',
     descriptionKey: 'external.trae.description',
   },
 ]
@@ -61,6 +71,10 @@ export interface ExternalToolsSectionInjected {
   setExternalTool: (tool: ExternalToolId, enabled: boolean) => Promise<ExternalToolsSnapshot>
   installExternalTool: (toolId: InstallableExternalToolId) => Promise<PluginInstallSnapshot>
   getInstall: (installId: PluginInstallId) => Promise<PluginInstallSnapshot>
+  getInstallOutput: (installId: PluginInstallId, offset: number) => Promise<PluginInstallOutputRead>
+  pauseInstall: (installId: PluginInstallId) => Promise<PluginInstallSnapshot>
+  cancelInstall: (installId: PluginInstallId) => Promise<PluginInstallSnapshot>
+  restart: () => Promise<boolean>
 }
 
 /** Full props assembled by the Settings section slot. */
@@ -82,14 +96,44 @@ function isEnabled(snapshot: ExternalToolsSnapshot, id: ExternalToolId): boolean
   return id === 'codex' ? snapshot.codex : snapshot.claudeCode
 }
 
+interface TranscriptState {
+  readonly text: string
+  readonly offset: number
+  readonly lossy: boolean
+  readonly settled: boolean
+}
+
+function progressCopy(progress: PluginInstallProgress | undefined, t: ExternalToolsSectionProps['t']): string {
+  if (progress?.stage === 'resolving') return t('external.progress.resolving')
+  if (progress?.stage === 'downloading' && progress.percent !== undefined) {
+    return t('external.progress.downloading').replace('{percent}', String(progress.percent))
+  }
+  if (progress?.stage === 'downloading') return t('external.progress.downloadingUnknown')
+  if (progress?.stage === 'installing' && progress.percent !== undefined) {
+    return t('external.progress.installingPercent').replace('{percent}', String(progress.percent))
+  }
+  if (progress?.stage === 'installing') return t('external.progress.installing')
+  if (progress?.stage === 'verifying') return t('external.progress.verifying')
+  return t('external.progress.preparing')
+}
+
 /** Render the dedicated connection center in Settings navigation. */
 export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNode {
-  const { list, externalTools, setExternalTool, installExternalTool, getInstall, t } = props
+  const { list, externalTools, setExternalTool, installExternalTool, getInstall, getInstallOutput, restart, t } = props
   const [request, setRequest] = useState(0)
   const [state, setState] = useState<PageState>({ phase: 'loading' })
   const [installs, setInstalls] = useState<Readonly<Record<string, PluginInstallSnapshot>>>({})
   const [busyTool, setBusyTool] = useState<ExternalToolId | null>(null)
+  const [restartingTool, setRestartingTool] = useState<ToolDefinition['id'] | null>(null)
+  const [controllingInstall, setControllingInstall] = useState<{
+    readonly toolId: ToolDefinition['id']
+    readonly action: 'pause' | 'cancel'
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [progressTool, setProgressTool] = useState<ToolDefinition['id'] | null>(null)
+  const [transcripts, setTranscripts] = useState<Readonly<Record<string, TranscriptState>>>({})
+  const terminalScrollRef = useRef<HTMLDivElement>(null)
+  const followTerminalRef = useRef(true)
 
   useEffect(() => {
     let current = true
@@ -127,11 +171,50 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
     }
   }, [getInstall, running, t])
 
+  const progressInstall = progressTool === null ? undefined : installs[progressTool]
+  const progressTranscript = progressTool === null ? undefined : transcripts[progressTool]
+  useEffect(() => {
+    if (progressTool === null || progressInstall === undefined) return
+    if (progressTranscript?.settled === true) return
+    let current = true
+    const offset = progressTranscript?.offset ?? 0
+    const timer = window.setTimeout(() => {
+      void getInstallOutput(progressInstall.installId, offset).then(
+        (read) => {
+          if (!current) return
+          setTranscripts(previous => ({
+            ...previous,
+            [progressTool]: {
+              text: `${previous[progressTool]?.text ?? ''}${read.text}`,
+              offset: read.nextOffset,
+              lossy: (previous[progressTool]?.lossy ?? false) || read.lossy,
+              settled: read.settled,
+            },
+          }))
+        },
+        () => { if (current) setError(t('external.install.pollFailed')) },
+      )
+    }, progressTranscript === undefined ? 0 : 500)
+    return () => {
+      current = false
+      window.clearTimeout(timer)
+    }
+  }, [getInstallOutput, progressInstall, progressTool, progressTranscript, t])
+
+  useEffect(() => {
+    const element = terminalScrollRef.current
+    if (element !== null && followTerminalRef.current) element.scrollTop = element.scrollHeight
+  }, [progressTranscript?.text])
+
   const install = async (tool: ToolDefinition): Promise<void> => {
     if (tool.installable !== true) return
     setError(null)
     try {
       const snapshot = await installExternalTool(tool.id as InstallableExternalToolId)
+      setTranscripts(previous => ({
+        ...previous,
+        [tool.id]: { text: '', offset: 0, lossy: false, settled: false },
+      }))
       setInstalls(previous => ({ ...previous, [tool.id]: snapshot }))
     } catch {
       setError(t('external.install.failed'))
@@ -149,6 +232,37 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
       setError(t('external.toggle.failed'))
     } finally {
       setBusyTool(null)
+    }
+  }
+
+  const restartToEnable = async (tool: ToolDefinition): Promise<void> => {
+    setRestartingTool(tool.id)
+    setError(null)
+    try {
+      if (!(await restart())) setError(t('external.restart.failed'))
+    } catch {
+      setError(t('external.restart.failed'))
+    } finally {
+      setRestartingTool(null)
+    }
+  }
+
+  const controlInstall = async (
+    tool: ToolDefinition,
+    installId: PluginInstallId,
+    action: 'pause' | 'cancel',
+  ): Promise<void> => {
+    setControllingInstall({ toolId: tool.id, action })
+    setError(null)
+    try {
+      const snapshot = action === 'pause'
+        ? await props.pauseInstall(installId)
+        : await props.cancelInstall(installId)
+      setInstalls(previous => ({ ...previous, [tool.id]: snapshot }))
+    } catch {
+      setError(t('external.install.controlFailed'))
+    } finally {
+      setControllingInstall(null)
     }
   }
 
@@ -184,45 +298,127 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
           const active = supported && state.inventory.entries.some(entry =>
             entry.moduleName === tool.moduleName && entry.enabled && entry.fiberPhase === 'active')
           const installState = installs[tool.id]
-          const enabled = supported && isEnabled(state.managed, tool.id as ExternalToolId)
+          const enabled = supported && (tool.managedToggle === true
+            ? isEnabled(state.managed, tool.id as ExternalToolId)
+            : active)
           const restarting = installState?.phase === 'succeeded'
             || installState?.phase === 'repaired'
           const installing = installState?.phase === 'running'
+          const paused = installState?.phase === 'paused'
+          const cancelled = installState?.phase === 'cancelled'
           return (
             <li key={tool.id} className={css.card} data-connected={active && enabled ? 'true' : undefined}>
               <div className={css.cardTop}>
-                <span className={css.toolMark} data-tool={tool.id}>{tool.mark}</span>
+                <span className={css.toolMark} data-tool={tool.id} data-testid={`external-tool-icon-${tool.id}`}>
+                  <ExternalToolIcon tool={tool.id} />
+                </span>
                 <span className={css.status} data-state={!supported ? 'planned' : active && enabled ? 'connected' : 'idle'}>
                   {!supported
                     ? t('external.status.planned')
-                    : active && enabled
-                      ? t('external.status.connected')
-                      : restarting
-                        ? t('external.status.restart')
-                        : active
-                          ? t('external.status.ready')
-                          : t('external.status.notInstalled')}
+                    : tool.community === true && active
+                      ? t('external.status.pluginReady')
+                      : active && enabled
+                        ? t('external.status.connected')
+                        : restarting
+                          ? t('external.status.restart')
+                          : paused
+                            ? t('external.status.paused')
+                            : cancelled
+                              ? t('external.status.cancelled')
+                              : active
+                                ? t('external.status.ready')
+                                : t('external.status.notInstalled')}
                 </span>
               </div>
               <div className={css.cardBody}>
-                <h3>{tool.name}</h3>
+                <div className={css.toolTitle}>
+                  <h3>{tool.name}</h3>
+                  {tool.community === true
+                    ? <span className={css.communityBadge}>{t('external.badge.community')}</span>
+                    : null}
+                </div>
                 <p>{t(tool.descriptionKey)}</p>
               </div>
               <div className={css.cardAction}>
                 {!supported ? (
                   <Button variant="outline" disabled>{t('external.action.planned')}</Button>
                 ) : !active ? (
-                  <Button
-                    variant="primary"
-                    disabled={installing || restarting || running !== undefined}
-                    onClick={() => { void install(tool) }}
-                  >
-                    {installing
-                      ? t('external.action.installing')
-                      : restarting
-                        ? t('external.action.restart')
-                        : t('external.action.install')}
-                  </Button>
+                  <>
+                    <Button
+                      variant="toolbar"
+                      disabled={installState === undefined}
+                      onClick={() => { followTerminalRef.current = true; setProgressTool(tool.id) }}
+                    >
+                      {t('external.action.viewProgress')}
+                    </Button>
+                    {installing ? (
+                      <div
+                        className={css.installSplit}
+                        role="group"
+                        aria-label={t('external.action.downloadControls')}
+                      >
+                        <span
+                          className={css.installFill}
+                          style={{ '--install-progress': `${String(installState.installProgress?.percent ?? 100)}%` } as CSSProperties}
+                          data-indeterminate={installState.installProgress?.percent === undefined ? 'true' : undefined}
+                          aria-hidden="true"
+                        />
+                        <button
+                          type="button"
+                          className={css.pauseButton}
+                          disabled={controllingInstall !== null}
+                          onClick={() => { void controlInstall(tool, installState.installId, 'pause') }}
+                        >
+                          <span>{controllingInstall?.toolId === tool.id && controllingInstall.action === 'pause'
+                            ? t('external.action.pausing')
+                            : t('external.action.pause')}</span>
+                          <span className={css.progressCopy}>{progressCopy(installState.installProgress, t)}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={css.stopButton}
+                          disabled={controllingInstall !== null}
+                          onClick={() => { void controlInstall(tool, installState.installId, 'cancel') }}
+                        >
+                          {controllingInstall?.toolId === tool.id && controllingInstall.action === 'cancel'
+                            ? t('external.action.stopping')
+                            : t('external.action.stop')}
+                        </button>
+                        <span
+                          className={css.visualProgress}
+                          role="progressbar"
+                          aria-label={progressCopy(installState.installProgress, t)}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={installState.installProgress?.percent}
+                        />
+                      </div>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        className={css.installButton}
+                        disabled={restartingTool !== null || running !== undefined}
+                        onClick={() => {
+                          if (restarting) void restartToEnable(tool)
+                          else void install(tool)
+                        }}
+                      >
+                        {restarting
+                          ? restartingTool === tool.id
+                            ? t('external.action.restarting')
+                            : t('external.action.restart')
+                          : paused
+                            ? t('external.action.resume')
+                            : cancelled
+                              ? t('external.action.retryDownload')
+                              : tool.community === true
+                                ? t('external.action.installCommunity')
+                                : t('external.action.install')}
+                      </Button>
+                    )}
+                  </>
+                ) : tool.community === true ? (
+                  <Button variant="outline" disabled>{t('external.action.pluginInstalled')}</Button>
                 ) : (
                   <Button
                     variant={enabled ? 'outline' : 'primary'}
@@ -247,6 +443,52 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
       </ul>
       <p className={css.footnote}>{t('external.footnote')}</p>
       {error === null ? null : <p className={css.error} role="alert">{error}</p>}
+      <Modal
+        open={progressInstall !== undefined}
+        onClose={() => { setProgressTool(null) }}
+        closeLabel={t('external.progress.close')}
+        title={progressTool === null
+          ? t('external.progress.title')
+          : t('external.progress.titleFor').replace('{tool}', TOOLS.find(tool => tool.id === progressTool)?.name ?? progressTool)}
+        description={progressCopy(progressInstall?.installProgress, t)}
+        {...(css.progressDialog === undefined ? {} : { className: css.progressDialog })}
+      >
+        {progressTranscript?.lossy === true
+          ? <p className={css.truncated} role="status">{t('external.progress.truncated')}</p>
+          : null}
+        <div
+          ref={terminalScrollRef}
+          className={css.terminalScroll}
+          onScroll={(event) => {
+            const element = event.currentTarget
+            followTerminalRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 24
+          }}
+        >
+          <TerminalBlock
+            command={progressInstall?.command ?? ''}
+            output={progressTranscript?.text}
+            running={progressInstall?.phase === 'running'}
+            {...(progressInstall?.exitCode === undefined || progressInstall.exitCode === null
+              ? {}
+              : { exitCode: progressInstall.exitCode })}
+            maxLines={Infinity}
+            labels={{
+              signal: signal => t('external.terminal.signal').replace('{signal}', signal),
+              exitCode: code => t('external.terminal.exitCode').replace('{code}', String(code)),
+              running: t('external.terminal.running'),
+              failed: t('external.terminal.failed'),
+              done: t('external.terminal.done'),
+              copy: t('external.terminal.copy'),
+              copied: t('external.terminal.copied'),
+              noOutput: t('external.terminal.noOutput'),
+              collapseAria: t('external.terminal.collapseAria'),
+              collapse: t('external.terminal.collapse'),
+              expandAria: hidden => t('external.terminal.expandAria').replace('{count}', String(hidden)),
+              expand: hidden => t('external.terminal.expand').replace('{count}', String(hidden)),
+            }}
+          />
+        </div>
+      </Modal>
     </section>
   )
 }

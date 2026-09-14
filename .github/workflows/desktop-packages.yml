@@ -204,6 +204,9 @@ jobs:
       - name: Build Linux packages
         run: pnpm run package:desktop:linux:x64
 
+      - name: Verify packaged preset resources
+        run: node apps/desktop/scripts/verify-prebuilt-profile.mjs .artifacts/desktop-linux/linux-unpacked/resources
+
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-linux-x64

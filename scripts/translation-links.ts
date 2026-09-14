@@ -78,11 +78,11 @@ export function languageSwitcherLinkOffset(
     if (start === undefined || end === undefined) continue
     const authored = markdown.slice(start, end)
     const canonical = /^(?:English \| \[中文\]\([^\n]+\)|\[English\]\([^\n]+\) \| 中文)$/.test(authored)
-    const chineseDefault = authored.startsWith('语言：简体中文（默认） · [English](README.en.md) · ')
+    const chineseDefault = authored.startsWith('语言：简体中文（默认） · ')
     if (!canonical && !chineseDefault) continue
     const links = node.children.filter((child): child is Extract<Nodes, { type: 'link' }> => child.type === 'link')
     if (chineseDefault) {
-      const englishLink = links.find(link => link.url === 'README.en.md')
+      const englishLink = links.find(link => posix.basename(splitMarkdownUrlTarget(link.url).path) === 'README.en.md')
       if (englishLink !== undefined) return englishLink.position?.start.offset
       continue
     }

@@ -972,4 +972,21 @@ describe('registry-global session archive', () => {
     const upgraded = await harness({ pool: legacy })
     expect(upgraded.registry.archivedSessionIds).toEqual([])
   })
+
+  it('unarchives durably without changing Workspace accounting and skips active ids', async () => {
+    const dir = await makeDir('unarchive-home')
+    const result = await harness({ sessions: [header('kept', dir, 100), header('gone', dir, 200)] })
+    const workspace = result.registry.list()[0]!
+    await result.registry.archiveSession(SessionId('kept'))
+    await result.registry.archiveSession(SessionId('gone'))
+
+    await result.registry.unarchiveSession(SessionId('kept'))
+    expect(result.registry.archivedSessionIds).toEqual(['gone'])
+    expect(workspace.sessionIds).toEqual(['gone', 'kept'])
+    expect(storedState(result.pool).archivedSessionIds).toEqual(['gone'])
+    const changesAfterRestore = result.changes.filter(change => change.table === '').length
+
+    await result.registry.unarchiveSession(SessionId('kept'))
+    expect(result.changes.filter(change => change.table === '').length).toBe(changesAfterRestore)
+  })
 })

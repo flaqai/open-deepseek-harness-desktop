@@ -28,4 +28,17 @@ describe('external tool compatibility bridge', () => {
       packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.1.5-rc.2',
     })
   })
+
+  it('keeps the reviewed WorkBuddy community connector on the network Host path', async () => {
+    const resolve = vi.fn()
+    ;(globalThis as typeof globalThis & { deepSeekHarnessDesktop?: unknown }).deepSeekHarnessDesktop = {
+      externalTools: { resolve },
+    }
+
+    await expect(resolveExternalToolInstallRequest('workbuddy')).resolves.toEqual({
+      profile: 'web',
+      packageSpec: 'dsh-workbuddy-connect@0.5.0',
+    })
+    expect(resolve).not.toHaveBeenCalled()
+  })
 })

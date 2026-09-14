@@ -85,7 +85,7 @@ export function updateIconShortcuts(options: IconShortcutOptions, icon: string, 
     }
   }
   if (create) {
-    const path = join(options.desktop, 'DeepSeek Harness.lnk')
+    const path = join(options.desktop, 'Open DeepSeek Harness Desktop.lnk')
     try {
       const parent = lstatSync(options.desktop)
       if (!parent.isDirectory() || parent.isSymbolicLink()) throw new Error('icon.shortcut-directory')
@@ -98,11 +98,11 @@ export function updateIconShortcuts(options: IconShortcutOptions, icon: string, 
       } else {
         const success = options.write(path, 'create', {
           target: options.executable, cwd: win32.dirname(options.executable),
-          icon, iconIndex: 0, appUserModelId: options.appId, description: 'DeepSeek Harness',
+          icon, iconIndex: 0, appUserModelId: options.appId, description: 'Open DeepSeek Harness Desktop',
         })
         const missing = results.findIndex(result => result.surface === 'desktop' && result.status === 'missing')
         if (missing >= 0) results.splice(missing, 1)
-        results.push({ surface: 'desktop', name: 'DeepSeek Harness.lnk', status: success ? 'applied' : 'unavailable' })
+        results.push({ surface: 'desktop', name: 'Open DeepSeek Harness Desktop.lnk', status: success ? 'applied' : 'unavailable' })
       }
     } catch { results.push({ surface: 'desktop', status: 'unavailable' }) }
   }

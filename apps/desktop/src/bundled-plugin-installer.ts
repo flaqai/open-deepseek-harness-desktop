@@ -58,9 +58,14 @@ export interface BundledPluginInstallerOptions {
     operation: () => Promise<T>,
   ) => Promise<T>
   readonly startupBudgetMs?: number
+  /** First start attempts every entry; per-command deadlines still apply. */
+  readonly requireCompleteStartup?: boolean
+  readonly isStartupCancelled?: () => boolean
   readonly now?: () => number
   readonly shouldAttemptStartup?: (entry: BundledPluginManifestEntry) => Promise<boolean>
   readonly onStartupSuccess?: (entry: BundledPluginManifestEntry) => Promise<void>
+  /** Report unattempted entries without treating them as failed installs or starting cooldown. */
+  readonly onStartupDeferred?: (entry: BundledPluginManifestEntry, reason: 'budget' | 'cooldown') => Promise<void>
   readonly onManagedMutationStart?: (entry: BundledPluginManifestEntry) => void
   readonly onManagedMutationSettled?: (entry: BundledPluginManifestEntry) => void
   readonly createId?: () => string
@@ -167,6 +172,7 @@ export class BundledPluginInstaller {
     const entries = this.options.manifest.plugins.filter(entry => entry.installPolicy === 'startup')
     const deadline = (this.options.now?.() ?? Date.now()) + (this.options.startupBudgetMs ?? 120_000)
     for (const [index, entry] of entries.entries()) {
+      if (this.options.isStartupCancelled?.()) throw new Error('desktop: startup preparation cancelled')
       const report = (progress: BundledPluginSeedProgress): void => {
         try {
           onProgress?.({ ...progress, entry, index, total: entries.length })
@@ -175,7 +181,7 @@ export class BundledPluginInstaller {
         }
       }
       try {
-        if (await bundledPluginSeedIsSettled(
+        if (!this.options.requireCompleteStartup && await bundledPluginSeedIsSettled(
           this.options.dshHome,
           entry,
           this.options.repairLegacyMarkers ?? false,
@@ -185,25 +191,28 @@ export class BundledPluginInstaller {
           await this.options.onStartupSuccess?.(entry)
           continue
         }
-        if (this.options.shouldAttemptStartup !== undefined
+        if (!this.options.requireCompleteStartup && this.options.shouldAttemptStartup !== undefined
           && !await this.options.shouldAttemptStartup(entry)) {
           report({ stage: 'configuring', progress: 100 })
           results.push({ entry })
+          await this.options.onStartupDeferred?.(entry, 'cooldown')
           continue
         }
-        if ((this.options.now?.() ?? Date.now()) >= deadline) {
+        if (!this.options.requireCompleteStartup && (this.options.now?.() ?? Date.now()) >= deadline) {
           report({ stage: 'configuring', progress: 100 })
           results.push({ entry })
+          await this.options.onStartupDeferred?.(entry, 'budget')
           continue
         }
         report({ stage: 'verifying', progress: 0 })
         const result = this.options.withStartupTransaction === undefined
-          ? await this.seed(entry, false, report)
-          : await this.options.withStartupTransaction(entry, () => this.seed(entry, false, report))
+          ? await this.seed(entry, this.options.requireCompleteStartup ?? false, report)
+          : await this.options.withStartupTransaction(entry, () => this.seed(entry, this.options.requireCompleteStartup ?? false, report))
         if (result === 'already-seeded') report({ stage: 'configuring', progress: 100 })
         results.push({ entry, result })
         await this.options.onStartupSuccess?.(entry)
       } catch (error) {
+        if (this.options.isStartupCancelled?.()) throw error
         results.push({ entry })
         try {
           await this.options.onFailure?.(error, entry)

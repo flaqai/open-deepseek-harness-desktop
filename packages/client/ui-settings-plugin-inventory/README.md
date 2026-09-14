@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The **Plugin list** tab presents agent presets first and collapses the global inventory until needed. Cards identify instances by stable entry id and expose enablement, provenance, runtime status, disabled conditions, and discovery failures; search covers both groups and points to matches in other presets. The package also presents diagnostics, imported-plugin recovery, external tools, and Plugin Market discovery. Its new-session Explore plugins control uses market-owned recommendations and Profile state for guarded installation and links to the full market without maintaining a duplicate catalog or fallback statistics. Loading, empty, failure, and retry states remain local to each mounted surface.
+Use **Plugin list** to inspect agent-preset and global plugins by stable entry id, enablement, provenance, runtime state, and disabled condition. Diagnostics and recovery surfaces explain guarded Profile actions. Explore plugins uses the market catalog and current Profile state for installation without maintaining duplicate rankings. External tools installs official subagent providers or the community WorkBuddy connector. Installs show pnpm progress, offer sanitized live output, and provide explicit pause and stop controls without replacing failure diagnostics.
 
 ## Table of Contents
 
@@ -26,6 +26,8 @@ The **Plugin list** tab presents agent presets first and collapses the global in
 ## Use this package
 
 Open the Plugins section in Settings and select the **Plugin list** tab to inspect the Host's plugin inventory. The tab reads no Remote during plugin activation — selecting it for the first time mounts the component and lazily calls `ctx.remote.pluginInventory.list()` through `api-remotes`.
+
+Open **External tools** to install the supported Codex or Claude Code provider, or the community-maintained WorkBuddy connector. WorkBuddy installation downloads the reviewed `dsh-workbuddy-connect@0.5.0` package and expects a signed-in WorkBuddy or WorkBuddy AI desktop app; the package is not bundled. During a running install, the progress action splits into **Pause** and **Stop**. Pause safely ends the current package-manager transaction and offers **Resume download**, which starts the same request again and reuses pnpm's cache; Stop leaves an explicit stopped state and offers a fresh download. **View download progress** becomes available once an install has an id and remains available for that Settings-page lifetime after success, failure, pause, or stop. Closing the terminal itself does not cancel the operation. The view pauses auto-follow when the reader scrolls away from the end and declares when older bounded output was truncated.
 
 Open **Diagnostics** to inspect Profile dependency, Loader, quarantine, and removal consistency. A `profile.quarantine-removal-residue` card means the plugin is already inactive and absent, but derived lockfile or diagnostic state still names it; **Clean removal residue** invokes the guarded Profile doctor and never reinstalls or re-isolates that plugin.
 
@@ -60,6 +62,8 @@ A failed read renders a generic failure state inside the tab; retrying re-runs t
 <summary>Implementation internals — click to expand</summary>
 
 The inventory tab is a read-only projection of a Host-owned snapshot; it performs no Remote read during plugin activation and takes the snapshot on first selection. Discovery lazily reads the Plugin Market's standard `dsh-market/registry` and `dsh-market/installed` resources, then ranks and composes four-card recommended and category views in this desktop-owned package. The compact ranking cache lasts 24 hours while installed state is refreshed on every open; manual refresh bypasses the catalog cache. A settings-domain navigation request carries the target market tab and package without coupling this package to the settings shell. Direct installation accepts only the market's explicit npm package identity and delegates the structured request to the existing guarded installer; it never executes the catalog's free-form command string.
+
+The external-tools terminal polls `getInstallOutput` with the previous opaque byte offset rather than retransmitting the complete log through every status snapshot. The visual percentage comes only from `installProgress.percent`: after resolution fixes the total, acquired packages drive download progress and imported packages drive installation progress, while other stages remain indeterminate. Pause and stop submit only the Host-issued install id; the renderer cannot signal a PID or select another process. Official provider requests use the desktop compatibility manifest, while the WorkBuddy card maps only its signed client action to the reviewed community package specification and keeps it on the same guarded network installer.
 
 ### Registration
 

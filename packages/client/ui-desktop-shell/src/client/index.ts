@@ -8,6 +8,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { DesktopPreferencesRow } from './DesktopPreferencesRow.tsx'
 import { DesktopBrowserReturnButton } from './DesktopBrowserReturnButton.tsx'
+import { DesktopLogDirectoryAction } from './DesktopLogDirectoryAction.tsx'
 import { DesktopSidebarUpdateButton } from './DesktopSidebarUpdateButton.tsx'
 import { DesktopUpdateBadge } from './DesktopUpdateBadge.tsx'
 import { readDesktopBridge } from './bridge.ts'
@@ -90,6 +91,10 @@ export function apply(ctx: Context): void {
       openLog: () => bridge.shell.openLog(),
     }),
   }, DesktopPreferencesRow))
+  ctx.slots.inject('settings.action', () => ctx.slots.register({
+    name: 'settings.action', id: 'desktop-log-directory', order: -10, locale: NS,
+    inject: () => ({ openLogDirectory: () => bridge.shell.openLogDirectory() }),
+  }, DesktopLogDirectoryAction))
   ctx.inject(['settingsNavigation'], (inner) => {
     const openUpdates = (): void => {
       inner.settingsNavigation.open({ sectionId: 'general' })

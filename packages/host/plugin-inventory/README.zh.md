@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-客户端可调用 `pluginInventory/list` 检查当前 Loader 条目与 agent（智能体）预设组合，而不改变配置。每次响应都是未缓存的即时快照，包含启用状态、来源与运行健康状态。同一个受限 Remote 另行提供持久化 Profile 诊断，以及固定的 doctor、隔离、恢复、卸载和导出操作；调用方不能提交任意命令或路径。客户端包通过显式的 `api-remotes` 组合使用它。
+客户端可以检查当前 Loader 条目与 Agent 预设组合，而不改变配置。结果展示请求当下的启用状态、来源与运行健康状态。受控操作提供固定的 Profile 诊断、隔离、恢复、卸载和导出动作，且不接受任意命令或路径。安装期间，客户端可凭 Host 签发的安装 id 读取有容量上限的进度与经过清理的增量输出；私有 pnpm 路径不会越过边界。客户端可暂停或取消这个准确的 id：Host 会终止其受管进程范围，并在确认完全退出后才发布终态。进度观察不会改变重试、超时、诊断或恢复结果。
 
 ## 目录
 
@@ -26,6 +26,8 @@ kind: "package-reference"
 ## 使用本包
 
 当客户端或设置页需要展示宿主当前组合了什么——哪些插件已加载、已启用、是否存活，以及每个 Agent 预设会给会话什么——时调用 `pluginInventory/list`。Remote 是唯一入口：该服务仅供 Remote 使用，刻意不声明同进程 Cordis `Context` merge。
+
+对于通过固定请求方法启动的安装，可轮询 `getInstall()` 读取阶段与可选的 `installProgress`。使用 `getInstallOutput({ installId, offset })` 只读取上次返回的不透明游标之后新增的字节。`pauseInstall(id)` 与 `cancelInstall(id)` 只接受 Host 签发的 id，并在受管进程范围退出后才完成。暂停采用跨平台的“停止后续传”语义：之后对同一请求启动新的受控事务，并复用 pnpm 缓存，而不是挂起操作系统进程。较早输出超过容量上限后可能被淘汰，此时 `lossy` 为 true。未知或伪造的安装 id 会直接失败，不能借此选择文件或进程。
 
 ### 快照包含什么
 
@@ -60,6 +62,7 @@ Fiber 状态映射到公共阶段词汇，其中 `disposed` 折叠为 `null`—�
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `PluginInventoryGateway`：`pluginInventory` Remote 服务与 Loader 投影 |
+| [`src/install-progress.ts`](src/install-progress.ts) | 增量解析 pnpm NDJSON、计算进度、清理敏感信息并限制终端输出容量 |
 | [`src/types.ts`](src/types.ts) | 公共 payload 类型：`PluginInventoryEntry`、`PluginInventorySnapshot`、`PluginFiberPhase` |
 | — | 不发布运行时不变式伴生入口；每个快照都投影 Loader 持有的状态。 |
 

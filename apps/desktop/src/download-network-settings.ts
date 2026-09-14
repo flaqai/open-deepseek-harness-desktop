@@ -5,7 +5,7 @@ import { dirname } from 'node:path'
 
 export type DownloadProxyMode = 'existing' | 'system' | 'direct' | 'custom'
 export type ApplicationUpdateSource = 'github' | 'cnb'
-export type NpmRegistryMode = 'existing' | 'npmjs' | 'npmmirror' | 'custom'
+export type NpmRegistryMode = 'npmjs' | 'npmmirror' | 'custom'
 export type GithubDownloadMode = 'original' | 'custom'
 export type DownloadNetworkTarget = 'application' | 'npm' | 'github'
 export type DownloadNetworkTestStage = 'metadata' | 'download'
@@ -62,7 +62,7 @@ interface PersistedSettings {
 export const DEFAULT_DOWNLOAD_NETWORK_SETTINGS: DownloadNetworkSettings = Object.freeze({
   schema: 'open-dsh-desktop/download-network/v1', revision: 0,
   application: { source: 'github', proxy: { mode: 'system', passwordSet: false } },
-  npm: { registry: 'existing', proxy: { mode: 'existing', passwordSet: false } },
+  npm: { registry: 'npmmirror', proxy: { mode: 'existing', passwordSet: false } },
   github: { download: 'original', proxy: { mode: 'existing', passwordSet: false } },
 } satisfies DownloadNetworkSettings)
 
@@ -198,7 +198,7 @@ export class DownloadNetworkSettingsStore {
       return {
         schema: source.schema, revision: Number.isSafeInteger(source.revision) ? Number(source.revision) : 0,
         application: { source: appSource, proxy: normalizeProxy(application.proxy, ['system', 'direct', 'custom']) },
-        npm: { registry: registry as NpmRegistryMode,
+        npm: { registry: registry === 'existing' ? 'npmmirror' : registry as NpmRegistryMode,
           ...(registryUrl === undefined ? {} : { registryUrl }),
           proxy: normalizeProxy(npm.proxy, ['existing', 'direct', 'custom']) },
         github: { download,
@@ -262,7 +262,7 @@ export class DownloadNetworkSettingsStore {
       if (value.source !== 'github' && value.source !== 'cnb') throw new TypeError('Application update source is invalid')
       next.application = { source: value.source, proxy: normalizeProxy(value.proxy, ['system', 'direct', 'custom']) }
     } else if (patch.target === 'npm') {
-      if (!['existing', 'npmjs', 'npmmirror', 'custom'].includes(String(value.registry))) throw new TypeError('npm registry is invalid')
+      if (!['npmjs', 'npmmirror', 'custom'].includes(String(value.registry))) throw new TypeError('npm registry is invalid')
       const registryUrl = value.registry === 'custom' ? normalizeHttpsUrl(value.registryUrl, 'npm registry URL') : undefined
       next.npm = { registry: value.registry as NpmRegistryMode,
         ...(registryUrl === undefined ? {} : { registryUrl }),
@@ -313,9 +313,8 @@ export class DownloadNetworkSettingsStore {
   }
 }
 
-/** Resolve a selected npm registry without changing an existing user configuration. */
+/** Resolve the selected npm registry. */
 export function npmRegistryUrl(settings: DownloadNetworkSettings['npm']): string | undefined {
-  if (settings.registry === 'existing') return undefined
   if (settings.registry === 'npmjs') return 'https://registry.npmjs.org'
   if (settings.registry === 'npmmirror') return 'https://registry.npmmirror.com'
   return settings.registryUrl

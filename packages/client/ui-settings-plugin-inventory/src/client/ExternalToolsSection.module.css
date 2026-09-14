@@ -96,29 +96,36 @@
 }
 
 .toolMark {
+  --tool-accent: var(--dsw-alias-state-business-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, var(--dsw-alias-bg-layer-2));
-  color: var(--dsw-alias-state-business-primary);
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  background: color-mix(in srgb, var(--tool-accent) 13%, var(--dsw-alias-bg-layer-2));
+  color: var(--tool-accent);
+}
+
+.toolMark svg {
+  width: 24px;
+  height: 24px;
 }
 
 .toolMark[data-tool='claude-code'] {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+  --tool-accent: #d97757;
 }
 
-.toolMark[data-tool='hermes'],
+.toolMark[data-tool='workbuddy'] {
+  --tool-accent: #5b6ff5;
+}
+
+.toolMark[data-tool='hermes'] {
+  --tool-accent: #b7791f;
+}
+
 .toolMark[data-tool='trae'] {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-secondary);
+  --tool-accent: #20c981;
 }
 
 .status[data-state='planned'] {
@@ -130,11 +137,30 @@
   padding: 15px 0 12px;
 }
 
-.cardBody h3 {
-  margin: 0 0 5px;
+.toolTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+.toolTitle h3 {
+  margin: 0;
   font-size: 16px;
   line-height: 24px;
   font-weight: 600;
+}
+
+.communityBadge {
+  padding: 1px 7px;
+  border: 0.5px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 30%, transparent);
+  border-radius: 999px;
+  corner-shape: round;
+  color: var(--dsw-alias-state-business-primary);
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 500;
 }
 
 .cardBody p,
@@ -150,7 +176,137 @@
 
 .cardAction {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 8px;
+}
+
+.installButton {
+  position: relative;
+  min-width: 154px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.installSplit {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 210px;
+  min-height: 32px;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 8px;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.pauseButton,
+.stopButton {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.pauseButton {
+  flex-direction: column;
+  padding: 4px 10px;
+}
+
+.stopButton {
+  padding: 6px 10px;
+  border-left: 0.5px solid color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.pauseButton:hover:not(:disabled),
+.pauseButton:focus-visible,
+.stopButton:hover:not(:disabled),
+.stopButton:focus-visible {
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-hover) 34%, transparent);
+}
+
+.pauseButton:disabled,
+.stopButton:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.progressCopy {
+  font-size: 10px;
+  line-height: 13px;
+  opacity: 0.82;
+}
+
+.installFill {
+  position: absolute;
+  z-index: 0;
+  inset: 0 auto 0 0;
+  width: var(--install-progress);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 48%, transparent);
+  transition: width 180ms ease-out;
+}
+
+.installFill[data-indeterminate='true'] {
+  width: 42%;
+  animation: install-progress-scan 1.25s ease-in-out infinite;
+}
+
+.visualProgress {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.progressDialog {
+  width: min(720px, 100%);
+}
+
+.terminalScroll {
+  max-height: min(460px, 58vh);
+  overflow: auto;
+  border-radius: 12px;
+}
+
+.truncated {
+  margin: 0 0 10px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+@keyframes install-progress-scan {
+  from {
+    transform: translateX(-110%);
+  }
+
+  to {
+    transform: translateX(345%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .installFill {
+    transition: none;
+  }
+
+  .installFill[data-indeterminate='true'] {
+    width: 100%;
+    animation: none;
+    opacity: 0.45;
+  }
 }
 
 .diagnostic {

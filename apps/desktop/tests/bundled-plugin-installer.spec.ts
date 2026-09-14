@@ -129,9 +129,10 @@ describe('BundledPluginInstaller', () => {
     let now = 0
     const install = vi.fn(async () => { now = 101 })
     const onFailure = vi.fn(async () => {})
+    const onStartupDeferred = vi.fn(async () => {})
     const installer = new BundledPluginInstaller({
       manifest, resourcesDirectory: f.resourcesDirectory, dshHome: join(f.root, 'home'),
-      install, onFailure, now: () => now, startupBudgetMs: 100,
+      install, onFailure, onStartupDeferred, now: () => now, startupBudgetMs: 100,
     })
 
     const results = await installer.seedStartup()
@@ -139,6 +140,7 @@ describe('BundledPluginInstaller', () => {
     expect(results.map(item => item.result)).toEqual(['installed', undefined])
     expect(install).toHaveBeenCalledOnce()
     expect(onFailure).not.toHaveBeenCalled()
+    expect(onStartupDeferred).toHaveBeenCalledWith(manifest.plugins[1], 'budget')
   })
 
   it('reports the current startup plugin and its real seed milestones', async () => {
@@ -178,6 +180,36 @@ describe('BundledPluginInstaller', () => {
     expect(progress).toEqual([
       { packageName: 'startup', index: 0, total: 1, stage: 'configuring', progress: 100 },
     ])
+  })
+
+  it('attempts every first-start plugin past the total budget and ignores retry cooldown', async () => {
+    const f = await fixture()
+    let now = 0
+    const install = vi.fn(async () => { now += 180_000 })
+    const shouldAttemptStartup = vi.fn(async () => false)
+    const installer = new BundledPluginInstaller({
+      manifest: twoStartupPlugins(f.manifest), resourcesDirectory: f.resourcesDirectory,
+      dshHome: join(f.root, 'home'), install, requireCompleteStartup: true,
+      startupBudgetMs: 120_000, now: () => now, shouldAttemptStartup,
+    })
+    expect((await installer.seedStartup()).map(item => item.result)).toEqual(['installed', 'installed'])
+    expect(install).toHaveBeenCalledTimes(2)
+    expect(shouldAttemptStartup).not.toHaveBeenCalled()
+  })
+
+  it('does not start another plugin or record a failure after shutdown cancellation', async () => {
+    const f = await fixture()
+    let cancelled = false
+    const onFailure = vi.fn()
+    const install = vi.fn(async () => { cancelled = true; throw new Error('cancelled child') })
+    const installer = new BundledPluginInstaller({
+      manifest: twoStartupPlugins(f.manifest), resourcesDirectory: f.resourcesDirectory,
+      dshHome: join(f.root, 'home'), install, requireCompleteStartup: true,
+      isStartupCancelled: () => cancelled, onFailure,
+    })
+    await expect(installer.seedStartup()).rejects.toThrow('cancelled child')
+    expect(install).toHaveBeenCalledOnce()
+    expect(onFailure).not.toHaveBeenCalled()
   })
 
   it('does not let a startup progress observer interrupt plugin installation', async () => {

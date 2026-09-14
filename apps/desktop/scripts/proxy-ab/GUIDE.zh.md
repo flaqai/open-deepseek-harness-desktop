@@ -29,7 +29,7 @@ node apps/desktop/scripts/proxy-ab/benchmark.mjs --rounds 10 --output .local-use
 
 解压便携 ZIP 后，双击 [run-macos.command](run-macos.command)，并将 [benchmark.mjs](benchmark.mjs) 保留在旁边。启动脚本根据 `/Applications` 或 `~/Applications` 中的应用版本匹配已解压运行时，请事先启动过一次安装版。脚本不下载运行时，也不会选择不相关的缓存版本。默认执行离线隔离场景、十轮及冷/热缓存测试，完成后打开报告文件夹，按回车关闭终端。
 
-报告保存在脚本旁的 `proxy-ab-reports/run-*`。自定义应用位置使用 `--app '/path/DeepSeek Harness.app'`；已解压运行时使用 `--runtime '/path/containing-package-runtime'`。脚本将 `--mode`、`--rounds`、`--cache` 和 `--system-proxy` 传给测试程序。`--output` 指定报告目录；自动执行时可用 `--no-open --no-pause` 禁止打开 Finder 和终端等待。含空格或非 ASCII 字符的路径必须加引号。若 macOS 阻止运行，请检查脚本后使用系统针对单个文件的“打开”操作，不要关闭系统安全保护。
+报告保存在脚本旁的 `proxy-ab-reports/run-*`。自定义应用位置使用 `--app '/path/Open DeepSeek Harness Desktop.app'`；已解压运行时使用 `--runtime '/path/containing-package-runtime'`。脚本将 `--mode`、`--rounds`、`--cache` 和 `--system-proxy` 传给测试程序。`--output` 指定报告目录；自动执行时可用 `--no-open --no-pause` 禁止打开 Finder 和终端等待。含空格或非 ASCII 字符的路径必须加引号。若 macOS 阻止运行，请检查脚本后使用系统针对单个文件的“打开”操作，不要关闭系统安全保护。
 
 ## Windows
 

@@ -201,7 +201,7 @@ export function pluginDownloadEnvironment(settingsStore: DownloadNetworkSettings
   const settings = settingsStore.read()
   const registry = settings.npm.registry === 'npmjs' ? 'https://registry.npmjs.org'
     : settings.npm.registry === 'npmmirror' ? 'https://registry.npmmirror.com'
-      : settings.npm.registry === 'custom' ? settings.npm.registryUrl : undefined
+      : settings.npm.registryUrl
   return {
     DSH_DESKTOP_PACKAGE_PROXY_URL: proxyUrl,
     ...(registry === undefined ? {} : { npm_config_registry: registry }),

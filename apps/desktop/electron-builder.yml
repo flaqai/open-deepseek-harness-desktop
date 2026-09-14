@@ -1,5 +1,5 @@
 appId: ai.flaq.deepseek-harness
-productName: DeepSeek Harness
+productName: Open DeepSeek Harness Desktop
 asar: true
 npmRebuild: false
 directories:
@@ -8,6 +8,7 @@ directories:
 files:
   - lib/**/*
   - package.json
+afterPack: scripts/copy-prebuilt-profile.cjs
 extraResources:
   - from: bundled-plugins
     to: bundled-plugins

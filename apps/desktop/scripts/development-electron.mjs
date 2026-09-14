@@ -6,6 +6,8 @@ import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+const productName = 'Open DeepSeek Harness Desktop'
+
 /** Return a launchable development binary with the product's menu identity. */
 export function developmentElectron() {
   const require = createRequire(import.meta.url)
@@ -13,22 +15,23 @@ export function developmentElectron() {
   if (process.platform !== 'darwin') return binary
   const source = resolve(dirname(binary), '../..')
   const version = require('electron/package.json').version
-  const key = createHash('sha256').update(`${source}:${version}:menu-v1`).digest('hex').slice(0, 16)
+  const key = createHash('sha256').update(`${source}:${version}:${productName}:identity-v3`).digest('hex').slice(0, 16)
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../.artifacts/desktop-dev', key)
-  const target = join(root, 'Open DSH Desktop.app')
+  const target = join(root, `${productName}.app`)
   if (!existsSync(join(root, 'ready'))) {
     mkdirSync(root, { recursive: true })
     const staging = mkdtempSync(join(root, 'preparing-'))
     try {
-      const bundle = join(staging, 'Open DSH Desktop.app')
+      const bundle = join(staging, `${productName}.app`)
       cpSync(source, bundle, { recursive: true, verbatimSymlinks: true })
       const plist = join(bundle, 'Contents', 'Info.plist')
       for (const name of ['CFBundleName', 'CFBundleDisplayName']) {
-        try { execFileSync('/usr/libexec/PlistBuddy', ['-c', `Set :${name} Open DSH Desktop`, plist], { stdio: 'pipe' }) }
-        catch { execFileSync('/usr/libexec/PlistBuddy', ['-c', `Add :${name} string Open DSH Desktop`, plist], { stdio: 'pipe' }) }
+        try { execFileSync('/usr/libexec/PlistBuddy', ['-c', `Set :${name} ${productName}`, plist], { stdio: 'pipe' }) }
+        catch { execFileSync('/usr/libexec/PlistBuddy', ['-c', `Add :${name} string ${productName}`, plist], { stdio: 'pipe' }) }
       }
       execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', bundle], { stdio: 'pipe' })
-      // The bundle identifier and executable name are deliberately unchanged.
+      // Keep the development executable named Electron so process.defaultApp remains true.
+      // The app bundle and runtime process title still use the canonical product name.
       renameSync(bundle, target)
       writeFileSync(join(root, 'ready'), version)
     } finally { rmSync(staging, { recursive: true, force: true }) }

@@ -78,6 +78,7 @@ export interface DesktopShellBridge {
   updatePreferences(patch: DesktopPreferencesPatch): Promise<DesktopPreferences>
   onPreferences(callback: (preferences: DesktopPreferences) => void): () => void
   openLog(): Promise<OpenLogResult>
+  openLogDirectory(): Promise<{ error: string }>
   openSettingsDocument(): Promise<{ error: string }>
   backupAndResetSettings(): Promise<{ backupName?: string; restarting: true }>
   restart(): Promise<{ restarting: true }>
@@ -208,6 +209,7 @@ const shellBridge: DesktopShellBridge = {
     return () => { ipcRenderer.removeListener('dsh:desktop:preferences', listener) }
   },
   openLog: () => ipcRenderer.invoke('dsh:desktop:log:open') as Promise<OpenLogResult>,
+  openLogDirectory: () => ipcRenderer.invoke('dsh:desktop:log-directory:open') as Promise<{ error: string }>,
   openSettingsDocument: () => ipcRenderer.invoke('dsh:desktop:settings:open') as Promise<{ error: string }>,
   backupAndResetSettings: () => ipcRenderer.invoke(
     'dsh:desktop:settings:reset',

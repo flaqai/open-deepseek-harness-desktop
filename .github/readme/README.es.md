@@ -1,10 +1,10 @@
-<p align="center"><img src="./apps/desktop/src/icon.png" width="112" alt="Icono de Open DeepSeek Harness Desktop"></p>
+<p align="center"><img src="../../apps/desktop/src/icon.png" width="112" alt="Icono de Open DeepSeek Harness Desktop"></p>
 
 # Open DeepSeek Harness Desktop
 
 <p align="center"><strong>La edición comunitaria de escritorio de DeepSeek Harness, lista para usar y con dependencias más seguras</strong></p>
 
-Idiomas: [简体中文](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · Español · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+Idiomas: [简体中文](../../README.md) · [English](README.en.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · Español · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
 > [!IMPORTANT]
 >
@@ -41,31 +41,31 @@ En el primer inicio, el cliente comprueba el directorio oficial predeterminado ~
 
 Copia configuración, credenciales, sesiones, información de espacios de trabajo, presets de Agent, Skills y estado de conexiones sin modificar el origen. No copia Profiles, node_modules, archivos de bloqueo, runtimes de plugins, registros de cuarentena o salud ni identificadores anónimos. Los plugins se reinstalan en el Profile de Desktop y los cambios posteriores quedan separados del CLI/Web oficial.
 
-<p align="center"><img src="./assets/readme/data-home-import-en.png" width="900" alt="Importar una configuración oficial de DSH a un entorno independiente"><br><sub>Se copian los datos compatibles y se conserva intacto el origen</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-import-en.png" width="900" alt="Importar una configuración oficial de DSH a un entorno independiente"><br><sub>Se copian los datos compatibles y se conserva intacto el origen</sub></p>
 
 ### Usar esta configuración directamente
 
 Usa el directorio oficial ~/.dsh u otro directorio compatible sin crear una copia. La configuración, las credenciales, las sesiones, los presets, las Skills, los Profiles y los plugins quedan compartidos; Desktop y CLI/Web modifican los mismos datos.
 
-<p align="center"><img src="./assets/readme/data-home-reuse-en.png" width="900" alt="Usar directamente una configuración DSH existente"><br><sub>Desktop comparte los datos del directorio seleccionado</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-reuse-en.png" width="900" alt="Usar directamente una configuración DSH existente"><br><sub>Desktop comparte los datos del directorio seleccionado</sub></p>
 
 ### Empezar desde cero
 
 Crea un directorio independiente y vacío sin leer ni importar configuración, sesiones o plugins existentes.
 
-<p align="center"><img src="./assets/readme/data-home-fresh-en.png" width="900" alt="Crear un entorno DSH independiente y limpio"><br><sub>No se lee ni modifica ninguna configuración DSH existente</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-fresh-en.png" width="900" alt="Crear un entorno DSH independiente y limpio"><br><sub>No se lee ni modifica ninguna configuración DSH existente</sub></p>
 
 ### Elegir un directorio de datos independiente
 
 Tanto **Importar a un entorno independiente** como **Empezar desde cero** permiten elegir antes de continuar entre la ubicación administrada predeterminada y una carpeta vacía personalizada. Esa carpeta se convierte en la raíz de datos independiente del cliente; el origen no se modifica ni se sincroniza. En Windows, las sesiones, los Profiles de plugins y otros datos crecientes pueden guardarse en D: u otra unidad no perteneciente al sistema para reducir la presión sobre C:.
 
-<p align="center"><img src="./assets/readme/data-home-import-custom-location-zh.png" width="900" alt="Elegir un directorio vacío al importar configuración"><br><sub>Importación independiente: elegir la ubicación predeterminada o una carpeta vacía antes de copiar</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-import-custom-location-zh.png" width="900" alt="Elegir un directorio vacío al importar configuración"><br><sub>Importación independiente: elegir la ubicación predeterminada o una carpeta vacía antes de copiar</sub></p>
 
-<p align="center"><img src="./assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="Elegir un directorio vacío al empezar desde cero"><br><sub>Empezar desde cero: guardar los nuevos datos independientes donde elija el usuario</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="Elegir un directorio vacío al empezar desde cero"><br><sub>Empezar desde cero: guardar los nuevos datos independientes donde elija el usuario</sub></p>
 
 Después de completar la configuración inicial, el directorio de datos todavía se puede cambiar desde **Ajustes → Ajustes generales**. Se puede volver al directorio independiente del cliente, usar directamente el `~/.dsh` oficial, elegir otro directorio DSH existente o crear una configuración nueva en una carpeta vacía. El cambio solo selecciona el directorio que se usará tras reiniciar; no copia, mueve, combina ni elimina los datos originales. Una carpeta vacía vuelve a iniciar el proceso de primera instalación después del reinicio.
 
-<p align="center"><img src="./assets/readme/data-home-switch-after-start-zh.png" width="900" alt="Cambiar el directorio de datos desde Ajustes generales después de entrar"><br><sub>Cambiar de forma segura a una configuración existente o crear otra independiente en una carpeta vacía</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-switch-after-start-zh.png" width="900" alt="Cambiar el directorio de datos desde Ajustes generales después de entrar"><br><sub>Cambiar de forma segura a una configuración existente o crear otra independiente en una carpeta vacía</sub></p>
 
 Después, el asistente permite configurar la API Key del modelo, conectar el acceso desde el teléfono, preparar bots IM como WeChat o Feishu y conectar Codex opcionalmente. Todos los pasos se pueden omitir y completar más tarde en Ajustes.
 
@@ -87,7 +87,7 @@ La importación independiente copia la configuración y una lista de restauraci�
 
 Si el origen en línea no está disponible, el usuario puede elegir un directorio fuente o un .tgz. El cliente valida nombre del paquete, rutas del archivo, manifest y tamaño; los directorios se vuelven a empaquetar con scripts de ciclo de vida desactivados. Toda restauración pasa por permisos de compilación, diagnóstico de dependencias compartidas y cuarentena cuando sea necesaria. Nunca se copia el node_modules antiguo ni se ejecutan directamente direcciones con credenciales o especificaciones desconocidas.
 
-<p align="center"><img src="./assets/readme/imported-plugin-restore-zh.png" width="900" alt="Comprobación de origen y restauración local de plugins importados"><br><sub>Estado del origen, restauración en línea y restauración local protegida</sub></p>
+<p align="center"><img src="../../assets/readme/imported-plugin-restore-zh.png" width="900" alt="Comprobación de origen y restauración local de plugins importados"><br><sub>Estado del origen, restauración en línea y restauración local protegida</sub></p>
 
 ## Diagnóstico superreforzado
 
@@ -99,11 +99,11 @@ Por eso el diagnóstico vive en la composición del Profile y en el arranque, no
 
 La protección abarca el arranque y la interfaz principal: primero identifica y retira el plugin incompatible, después informa con claridad de lo aislado y finalmente muestra la causa, la versión original y acciones concretas para actualizar o desinstalar.
 
-<p align="center"><img src="./assets/readme/diagnostics-startup-quarantine-zh.png" width="900" alt="Aislamiento de dsh-font incompatible durante el arranque"><br><sub>Detectar y aislar un plugin incompatible durante el arranque</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-startup-quarantine-zh.png" width="900" alt="Aislamiento de dsh-font incompatible durante el arranque"><br><sub>Detectar y aislar un plugin incompatible durante el arranque</sub></p>
 
-<p align="center"><img src="./assets/readme/diagnostics-quarantine-notice-zh.png" width="900" alt="Aviso de plugins aislados tras el arranque"><br><sub>Entrar con seguridad y mostrar exactamente qué se aisló</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-quarantine-notice-zh.png" width="900" alt="Aviso de plugins aislados tras el arranque"><br><sub>Entrar con seguridad y mostrar exactamente qué se aisló</sub></p>
 
-<p align="center"><img src="./assets/readme/diagnostics-repair-guidance-zh.png" width="900" alt="Causa y acciones de reparación en Diagnóstico"><br><sub>Mostrar causa, versión, origen anterior y opciones de recuperación</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-repair-guidance-zh.png" width="900" alt="Causa y acciones de reparación en Diagnóstico"><br><sub>Mostrar causa, versión, origen anterior y opciones de recuperación</sub></p>
 
 Los Context, Service y Symbol de Cordis dependen de la identidad física del módulo, no solo de su versión. Dos copias de @deepseek-ai/cordis o dsh-tools con la misma versión pero distinto real path siguen siendo instancias JavaScript diferentes. La inspección recorre cada plugin raíz, sus dependencias directas y transitivas, rangos declarados y rutas finales; los peerDependencies válidos no se marcan como error.
 
@@ -119,9 +119,9 @@ Diagnóstico muestra el plugin responsable, su versión, el motivo de la cuarent
 
 Las versiones de desarrollo e instalada incluyen muestras sin conexión que reproducen copias Host duplicadas, Bundles huérfanos, módulos ausentes, Patch inválidos, Loader duplicados, fallos de ciclo de vida, permisos de build bloqueados y reparaciones interrumpidas. Los escenarios seleccionados se ejecutan en orden y muestran el escenario y la fase actuales, los escenarios restantes, el resultado y la duración. El destino aislado no modifica el Profile del usuario; el modo avanzado con Profile real restaura y reinspecciona al terminar. Si no puede demostrar una recuperación limpia, no reinicia los plugins; guarda resúmenes JSON y de texto anonimizados y permite exportar el informe JSON.
 
-<p align="center"><img src="./assets/readme/diagnostics-lab-sandbox-zh.png" width="900" alt="Escenarios del entorno aislado de Diagnóstico"><br><sub>Entorno aislado: ensayar fallos sin modificar el Profile del usuario</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-lab-sandbox-zh.png" width="900" alt="Escenarios del entorno aislado de Diagnóstico"><br><sub>Entorno aislado: ensayar fallos sin modificar el Profile del usuario</sub></p>
 
-<p align="center"><img src="./assets/readme/diagnostics-lab-live-profile-zh.png" width="900" alt="Modo avanzado con Profile real"><br><sub>Profile real avanzado: verificar cuarentena, recuperación y reinspección</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-lab-live-profile-zh.png" width="900" alt="Modo avanzado con Profile real"><br><sub>Profile real avanzado: verificar cuarentena, recuperación y reinspección</sub></p>
 
 > [!CAUTION]
 >
@@ -139,12 +139,12 @@ Si la sesión espera una elección, confirmación o respuesta, o el editor está
 
 <p align="center">
   <strong>Barra de selección</strong><br>
-  <img src="./assets/readme/selection-toolbar-zh.png" width="900" alt="Barra horizontal tras seleccionar texto">
+  <img src="../../assets/readme/selection-toolbar-zh.png" width="900" alt="Barra horizontal tras seleccionar texto">
 </p>
 
 <p align="center">
   <strong>Menú contextual</strong><br>
-  <img src="./assets/readme/selection-context-menu-zh.png" width="900" alt="Menú vertical al hacer clic derecho">
+  <img src="../../assets/readme/selection-context-menu-zh.png" width="900" alt="Menú vertical al hacer clic derecho">
 </p>
 
 ## Experiencia de escritorio
@@ -164,25 +164,25 @@ El instalador incluye siete presets de inicio como archivos locales con integrid
 
 Gracias a los autores y mantenedores de [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats) y [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream). Este proyecto se encarga de la integración de escritorio y de distribuir archivos con integridad verificada; los derechos de autor, las licencias y el mantenimiento continuo corresponden a cada proyecto de plugin.
 
-<p align="center"><img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="Conectar un teléfono mediante el QR o la dirección LAN de Pocket"><br><sub>Acceso móvil: escanear en la misma red y habilitar acceso público solo cuando sea necesario</sub></p>
+<p align="center"><img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Conectar un teléfono mediante el QR o la dirección LAN de Pocket"><br><sub>Acceso móvil: escanear en la misma red y habilitar acceso público solo cuando sea necesario</sub></p>
 
-<p align="center"><img src="./assets/readme/preset-im-robot-zh.png" width="900" alt="Conectar bots de WeChat y otros servicios mediante dsh-im"><br><sub>Bots IM: WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord y WhatsApp</sub></p>
+<p align="center"><img src="../../assets/readme/preset-im-robot-zh.png" width="900" alt="Conectar bots de WeChat y otros servicios mediante dsh-im"><br><sub>Bots IM: WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord y WhatsApp</sub></p>
 
 La versión local incluida facilita la preparación sin conexión, pero no sigue directamente las actualizaciones del mercado. Al conectarse, se recomienda abrir **Mercado de plugins → Instalados** y pulsar **Restaurar** en cada preset para sustituirlo por la versión en línea. La restauración no puede deshacerse automáticamente; se puede conservar la versión local si se prefiere un paquete fijo sin conexión.
 
-<p align="center"><img src="./assets/readme/preset-plugin-restore-online-zh.png" width="900" alt="Restaurar presets locales como versiones en línea"><br><sub>Recomendado: restaurar al conectarse para participar en las comprobaciones normales de actualización</sub></p>
+<p align="center"><img src="../../assets/readme/preset-plugin-restore-online-zh.png" width="900" alt="Restaurar presets locales como versiones en línea"><br><sub>Recomendado: restaurar al conectarse para participar en las comprobaciones normales de actualización</sub></p>
 
 ### Navegación de Ajustes personalizable
 
 La navegación izquierda de Ajustes tiene desplazamiento propio para que las secciones añadidas por plugins no queden recortadas. Las secciones se pueden arrastrar y su orden se guarda localmente, conservándose de forma estable al instalar o quitar plugins. En Windows y Linux, la barra de título y el contenido de Harness usan vistas nativas separadas, por lo que un plugin a pantalla completa no puede cubrir los controles de la ventana.
 
-<p align="center"><img src="./assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Reordenar Ajustes con los tiradores de tres líneas"><br><sub>Arrastra libremente las secciones; las demás filas dejan espacio con suavidad y se guarda el orden final</sub></p>
+<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Reordenar Ajustes con los tiradores de tres líneas"><br><sub>Arrastra libremente las secciones; las demás filas dejan espacio con suavidad y se guarda el orden final</sub></p>
 
 ## Temas y fondos
 
 Admite sistema, claro, oscuro y ocho temas de producto, ocho ilustraciones incluidas y fondos PNG/JPEG/WebP locales. Las imágenes personalizadas permanecen en el almacenamiento local del navegador y no se envían al modelo.
 
-<table><tr><th width="50%">Temas</th><th width="50%">Fondos</th></tr><tr><td align="center"><img src="./assets/readme/theme-settings-en.png" alt="Ajustes de temas"></td><td align="center"><img src="./assets/readme/background-settings-en.png" alt="Ajustes de fondos"></td></tr></table>
+<table><tr><th width="50%">Temas</th><th width="50%">Fondos</th></tr><tr><td align="center"><img src="../../assets/readme/theme-settings-en.png" alt="Ajustes de temas"></td><td align="center"><img src="../../assets/readme/background-settings-en.png" alt="Ajustes de fondos"></td></tr></table>
 
 ## Descargar e instalar
 
@@ -214,11 +214,11 @@ Para Web usa pnpm dsh web. Web desde código usa el DSH_HOME actual (normalmente
 
 El renderer desactiva la integración de Node y activa context isolation y el sandbox de Chromium. La navegación se limita al origen loopback exacto de Harness y no existe un bridge genérico para comandos, archivos o URL arbitrarias. Guarda las API Key mediante el servicio de credenciales de Harness.
 
-- [Guía de usuario](docs/user/guide/index.md), [guía de plugins](docs/user/develop/framework/index.md), [guía de Skills](docs/subsystems/skills.md)
+- [Guía de usuario](../../docs/user/guide/index.md), [guía de plugins](../../docs/user/develop/framework/index.md), [guía de Skills](../../docs/subsystems/skills.md)
 - Errores y propuestas: [GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues)
 - Proyecto original: [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
-Open DeepSeek Harness Desktop se publica bajo la [Licencia MIT](LICENSE). Consulta [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) para las licencias de terceros.
+Open DeepSeek Harness Desktop se publica bajo la [Licencia MIT](../../LICENSE). Consulta [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) para las licencias de terceros.
 
 ## Friends
 

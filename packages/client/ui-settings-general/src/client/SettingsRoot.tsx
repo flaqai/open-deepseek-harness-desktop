@@ -15,7 +15,7 @@ import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
   ConnectionIndicator,
-  IconAgentPresetOutline16, IconCheckOutline16, IconCloseOutline16, IconDataOutline16,
+  IconAgentPresetOutline16, IconArchiveOutline20, IconCheckOutline16, IconCloseOutline16, IconDataOutline16,
   IconReorderOutline16,
   IconLinkOutline16, IconPersonalizationOutline16, IconSettingsOutline16, IconWarningOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -39,6 +39,7 @@ function navIcon(id: string) {
   if (id === 'plugin-restore') return <IconPersonalizationOutline16 className={css.navIcon} size={16} />
   if (id === 'plugins') return <IconPersonalizationOutline16 className={css.navIcon} size={16} />
   if (id === 'diagnostics') return <IconWarningOutline16 className={css.navIcon} size={16} />
+  if (id === 'archived-sessions') return <IconArchiveOutline20 className={css.navIcon} size={16} />
   return <IconSettingsOutline16 className={css.navIcon} size={16} />
 }
 

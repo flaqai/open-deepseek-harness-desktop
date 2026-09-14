@@ -57,6 +57,9 @@
       "path": "../ui-session"
     },
     {
+      "path": "../ui-settings"
+    },
+    {
       "path": "../../util/workspace-path"
     }
   ]

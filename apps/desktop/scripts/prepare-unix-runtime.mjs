@@ -1,13 +1,14 @@
-/** Prepare a self-contained macOS or Linux Harness production runtime archive. */
+/** Prepare expanded macOS or Linux runtime resources and a portable preset Profile. */
 
 import { chmod, cp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { basename, delimiter, dirname, join, relative, resolve, sep } from 'node:path'
+import { delimiter, dirname, join, relative, resolve, sep } from 'node:path'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
+import { preparePrebuiltProfile } from './prepare-prebuilt-profile.mjs'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
@@ -16,6 +17,7 @@ const { values } = parseArgs({
   allowPositionals: false,
 })
 const target = values.target ?? `${process.platform}-${process.arch}`
+if (target !== `${process.platform}-${process.arch}`) throw new Error('prepare-unix-runtime: prebuilt Profiles require a native platform/architecture runner')
 const targets = {
   'darwin-arm64': {
     nodeSha256: '4fc3266a3702eebc39cc37661cf4eeceeade307e242ab64e4d7ce7949197e11f',
@@ -57,9 +59,9 @@ const nodeArchiveSha256 = targetConfig.nodeSha256
 const downloads = join(repositoryRoot, '.artifacts', 'downloads')
 const nodeArchive = join(downloads, nodeArchiveName)
 
-function run(command, args) {
+function run(command, args, options = {}) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(command, args, { cwd: repositoryRoot, env: process.env, stdio: 'inherit' })
+    const child = spawn(command, args, { cwd: repositoryRoot, env: options.env ?? process.env, stdio: 'inherit' })
     child.once('error', reject)
     child.once('close', (code, signal) => {
       if (code === 0) resolvePromise()
@@ -220,5 +222,12 @@ await run('pnpm', [
 await injectWorkspaceClosure()
 await stagePackageRuntime()
 await verifyRuntime()
-await run('tar', ['-czf', archive, '-C', dirname(staging), basename(staging)])
-console.log(`prepare-unix-runtime: wrote ${archive}`)
+await preparePrebuiltProfile({
+  destination: join(repositoryRoot, '.artifacts', `desktop-prebuilt-${target}`),
+  harnessRoot: staging,
+  node: join(staging, 'package-runtime/bin/node'),
+  pnpm: join(staging, 'package-runtime/bin/pnpm'),
+  resources: join(desktopRoot, 'bundled-plugins'),
+  target, nodeVersion, pnpmVersion, run,
+})
+console.log(`prepare-unix-runtime: expanded resources ready in ${staging}`)

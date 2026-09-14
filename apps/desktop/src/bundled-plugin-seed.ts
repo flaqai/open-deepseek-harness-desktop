@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto'
 import { appendFile, copyFile, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve } from 'node:path'
+import { gt, valid, validRange } from 'semver'
 import { isMap, parseDocument } from 'yaml'
 
 export interface BundledPluginManifestEntry {
@@ -126,6 +127,8 @@ function dependencyMatchesBundledEntry(
 interface BundledDependencyState {
   readonly present: boolean
   readonly desktopOwned: boolean
+  readonly registryManaged: boolean
+  readonly installedVersion?: string
 }
 
 function pathIsWithin(parent: string, candidate: string): boolean {
@@ -147,20 +150,55 @@ async function bundledDependencyState(
       .find(([dependencyName, dependencySpec]) => (
         dependencyMatchesBundledEntry(dependencyName, dependencySpec, entry)
       ))
-    if (dependency === undefined) return { present: false, desktopOwned: false }
+    if (dependency === undefined) return { present: false, desktopOwned: false, registryManaged: false }
     const [dependencyName, dependencySpec] = dependency
     const filePath = typeof dependencySpec === 'string' && dependencySpec.startsWith('file:')
       ? resolve(dirname(packagePath), dependencySpec.slice('file:'.length))
       : undefined
+    const registrySpecifier = typeof dependencySpec === 'string'
+      ? dependencyName === entry.packageName
+        ? dependencySpec
+        : dependencySpec.startsWith(`npm:${entry.packageName}@`)
+          ? dependencySpec.slice(`npm:${entry.packageName}@`.length)
+          : undefined
+      : undefined
+    const registryRange = registrySpecifier === undefined ? undefined : validRange(registrySpecifier)
+    const registryManaged = registryRange !== undefined && registryRange !== null
+    let installedVersion: string | undefined
+    try {
+      const nodeModules = join(dirname(packagePath), 'node_modules')
+      const installedPackagePath = resolve(nodeModules, ...dependencyName.split('/'), 'package.json')
+      if (pathIsWithin(nodeModules, installedPackagePath)) {
+        const installed = JSON.parse(await readFile(installedPackagePath, 'utf8')) as {
+          name?: unknown
+          version?: unknown
+        }
+        if (installed.name === entry.packageName
+          && typeof installed.version === 'string'
+          && valid(installed.version) !== null) {
+          installedVersion = installed.version
+        }
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error
+    }
+    if (installedVersion === undefined
+      && registryManaged
+      && registrySpecifier !== undefined
+      && valid(registrySpecifier) !== null) {
+      installedVersion = registrySpecifier
+    }
     return {
       present: true,
       desktopOwned: dependencyName === entry.packageName
         && filePath !== undefined
         && pathIsWithin(stateDirectory, filePath),
+      registryManaged,
+      ...(installedVersion === undefined ? {} : { installedVersion }),
     }
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT') return { present: false, desktopOwned: false }
+    if (code === 'ENOENT') return { present: false, desktopOwned: false, registryManaged: false }
     throw error
   }
 }
@@ -178,15 +216,24 @@ async function markerExists(path: string): Promise<boolean> {
 interface BundledPluginSeedMarker {
   readonly schema: number
   readonly version?: string
+  readonly ownership?: 'desktop' | 'external'
 }
 
 async function readSeedMarker(path: string): Promise<BundledPluginSeedMarker | undefined> {
   try {
-    const value = JSON.parse(await readFile(path, 'utf8')) as { schema?: unknown; version?: unknown }
+    const value = JSON.parse(await readFile(path, 'utf8')) as {
+      schema?: unknown
+      version?: unknown
+      ownership?: unknown
+    }
     const version = typeof value.version === 'string' ? value.version : undefined
+    const ownership = value.ownership === 'desktop' || value.ownership === 'external'
+      ? value.ownership
+      : undefined
     return {
       schema: typeof value.schema === 'number' ? value.schema : 0,
       ...(version === undefined ? {} : { version }),
+      ...(ownership === undefined ? {} : { ownership }),
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
@@ -256,6 +303,14 @@ export async function bundledPluginSeedIsSettled(
   if (repairLegacyMarker && marker.schema < 2) return false
   if (await snapshotVersionHeld(dshHome, entry, marker)) return true
   if (marker.schema < 2 || marker.version !== entry.version) return false
+  if (marker.schema === 2) {
+    const dependency = await bundledDependencyState(
+      join(dshHome, 'profiles', entry.profile, 'package.json'),
+      join(dshHome, 'bundled-plugins'),
+      entry,
+    )
+    if (dependency.present) return false
+  }
   const approvedBuilds = entry.approvedBuilds ?? []
   if (approvedBuilds.length === 0) return true
   try {
@@ -302,17 +357,57 @@ export async function hasBundledPluginQuarantineRecord(
   }
 }
 
-async function writeMarker(path: string, entry: BundledPluginManifestEntry): Promise<void> {
+async function writeMarker(
+  path: string,
+  entry: BundledPluginManifestEntry,
+  ownership: 'desktop' | 'external',
+): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
   const temporary = `${path}.${process.pid}.tmp`
   await writeFile(temporary, `${JSON.stringify({
-    schema: 2,
+    schema: 3,
     seedId: entry.seedId,
     packageName: entry.packageName,
     version: entry.version,
+    ownership,
     seededAt: new Date().toISOString(),
   }, null, 2)}\n`, { flag: 'wx' })
   await rename(temporary, path)
+}
+
+/**
+ * Install a complete first-start preset set in one package-manager invocation.
+ * Caller owns the candidate transaction; markers are written only after all installed versions match.
+ * @param entries - Startup-only, validated preset entries.
+ * @param resources - Packaged archive directory.
+ * @param home - Exclusively owned candidate home.
+ * @param prepare - Merge build approvals without overriding an explicit denial.
+ * @param install - One bounded local-archive install operation.
+ */
+export async function seedBundledPluginsBatch(
+  entries: readonly BundledPluginManifestEntry[], resources: string, home: string,
+  prepare: (entry: BundledPluginManifestEntry) => Promise<void>,
+  install: (archives: readonly string[]) => Promise<void>,
+): Promise<void> {
+  const state = join(home, 'bundled-plugins')
+  await mkdir(state, { recursive: true })
+  const archives: string[] = []
+  for (const entry of entries) {
+    const source = await verifyBundledPluginArchive(resources, entry)
+    const destination = join(state, entry.archive)
+    await copyFile(source, destination)
+    archives.push(destination)
+    await prepare(entry)
+  }
+  if (archives.length === 0) return
+  await install(archives)
+  for (const entry of entries) {
+    const dependency = await bundledDependencyState(join(home, 'profiles', entry.profile, 'package.json'), state, entry)
+    if (!dependency.present || dependency.installedVersion !== entry.version) {
+      throw new Error(`desktop: bundled batch did not materialize ${entry.packageName}@${entry.version}`)
+    }
+  }
+  for (const entry of entries) await writeMarker(join(state, `${entry.seedId}.seeded.json`), entry, 'desktop')
 }
 
 /**
@@ -334,7 +429,7 @@ export async function verifyBundledPluginArchive(
   return source
 }
 
-/** Seed once. The durable marker intentionally survives a later user uninstall. */
+/** Seed or advance a desktop-owned preset; the durable marker survives a later user uninstall. */
 export async function seedBundledPlugin(options: SeedBundledPluginOptions): Promise<SeedBundledPluginResult> {
   const {
     entry, resourcesDirectory, dshHome, install, prepare,
@@ -349,30 +444,48 @@ export async function seedBundledPlugin(options: SeedBundledPluginOptions): Prom
   )
   // An explicit user restore hands ownership back to the current packaged
   // archive even when a snapshot hold preserved an older desktop-owned file.
-  let replaceDesktopOwnedDependency = force && dependency.desktopOwned
+  let replaceBundledDependency = force && dependency.desktopOwned
   if (!force) {
     const marker = await readSeedMarker(markerPath)
     if (marker !== undefined) {
       if (await snapshotVersionHeld(dshHome, entry, marker)) {
         return 'already-seeded'
       }
-      const bundledVersionChanged = marker.schema >= 2
-        && marker.version !== undefined
-        && marker.version !== entry.version
-      replaceDesktopOwnedDependency = bundledVersionChanged && dependency.desktopOwned
-      if (!replaceDesktopOwnedDependency
+      const packagedVersion = valid(entry.version)
+      const markerVersion = marker.version === undefined ? null : valid(marker.version)
+      const installedVersion = dependency.installedVersion === undefined
+        ? null
+        : valid(dependency.installedVersion)
+      const packagedVersionIncreased = marker.schema >= 2
+        && packagedVersion !== null
+        && markerVersion !== null
+        && gt(packagedVersion, markerVersion)
+      const packagedVersionAheadOfInstall = marker.schema === 2
+        && packagedVersion !== null
+        && markerVersion !== null
+        && installedVersion !== null
+        && gt(packagedVersion, installedVersion)
+      const markerAllowsReplacement = marker.ownership !== 'external'
+      replaceBundledDependency = markerAllowsReplacement
+        && ((dependency.desktopOwned && (packagedVersionIncreased || packagedVersionAheadOfInstall))
+          || (dependency.registryManaged && packagedVersionAheadOfInstall))
+      if (!replaceBundledDependency
         && (!repairLegacyMarker || marker.schema >= 2 || dependency.present)) {
         if (dependency.present) await prepare?.(entry)
+        if (dependency.present && (packagedVersionIncreased || marker.schema === 2)) {
+          await unlink(markerPath)
+          await writeMarker(markerPath, entry, dependency.desktopOwned ? 'desktop' : 'external')
+        }
         return 'already-seeded'
       }
       await unlink(markerPath)
     }
   }
 
-  if (dependency.present && !replaceDesktopOwnedDependency) {
+  if (dependency.present && !replaceBundledDependency) {
     await prepare?.(entry)
     onProgress?.({ stage: 'configuring', progress: 90 })
-    await writeMarker(markerPath, entry)
+    await writeMarker(markerPath, entry, 'external')
     onProgress?.({ stage: 'configuring', progress: 100 })
     return 'already-installed'
   }
@@ -386,7 +499,7 @@ export async function seedBundledPlugin(options: SeedBundledPluginOptions): Prom
   onProgress?.({ stage: 'extracting', progress: 46 })
   await install(stableArchive, entry)
   onProgress?.({ stage: 'configuring', progress: 90 })
-  await writeMarker(markerPath, entry)
+  await writeMarker(markerPath, entry, 'desktop')
   onProgress?.({ stage: 'configuring', progress: 100 })
   return 'installed'
 }

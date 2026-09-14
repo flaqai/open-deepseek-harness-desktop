@@ -1,12 +1,12 @@
 /** Electron application host for the existing DeepSeek Harness Web GUI. */
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
   loadProcessObserver,
   quarantineProcessRecoveryJournal,
   type DesktopProcessObserver,
 } from './process-observer.ts'
-import { appendFile, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { appendFile, lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir, userInfo } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,8 +15,10 @@ import {
   type Session,
   type MenuItemConstructorOptions, type MessageBoxOptions, type WebContents, type WebPreferences,
 } from 'electron'
-import { appendBundledPluginFailure, verifyBundledPluginArchive } from './bundled-plugin-seed.ts'
+import { appendBundledPluginFailure, seedBundledPluginsBatch, verifyBundledPluginArchive } from './bundled-plugin-seed.ts'
 import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
+import { FirstStartPreparation } from './first-start-preparation.ts'
+import { deployPrebuiltProfile, readPrebuiltProfile, readProfileBuildApprovals, type PrebuiltProfileManifest } from './prebuilt-profile.ts'
 import {
   BundledPluginInstaller,
   installBundledPluginSource,
@@ -138,6 +140,7 @@ import {
   classifyImportedPluginSourceFailure,
   ImportedPluginRestoreManager,
   mergeImportedAllowBuilds,
+  readImportedPluginRestorePlan,
   type ImportedPluginRestoreSnapshot,
 } from './imported-plugin-restore.ts'
 import {
@@ -164,6 +167,7 @@ import { shellMessages, trayMessages, dataHomeMessages } from './locales/shell.t
 import { DesktopReturnControl } from './desktop-return-control.ts'
 import { createDesktopLocaleStore, type DesktopLocaleStore } from './desktop-locale-store.ts'
 import { resolveDesktopLocale } from './desktop-locale.ts'
+import { DESKTOP_PRODUCT_NAME, desktopWindowTitle } from './product-name.ts'
 import {
   FilePersistentServiceAuthorizer,
   FilePersistentServiceRuntimeRegistry,
@@ -171,7 +175,7 @@ import {
   type PersistentServiceSummary,
 } from '@deepseek-ai/dsh-subprocess/persistent'
 
-const APP_NAME = 'DeepSeek Harness'
+const APP_NAME = DESKTOP_PRODUCT_NAME
 const DESKTOP_WEB_SUPPORTED = process.platform === 'darwin' || process.platform === 'win32'
 const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
 const WINDOW_ICON = fileURLToPath(new URL('./icon.png', import.meta.url))
@@ -204,7 +208,8 @@ const DESKTOP_DATA_HOME = resolveDesktopDataHomeLayout(
   process.env,
 )
 
-app.setName('Open DSH Desktop')
+app.setName(DESKTOP_PRODUCT_NAME)
+process.title = DESKTOP_PRODUCT_NAME
 app.setPath('userData', DESKTOP_DATA_HOME.desktopRoot)
 app.setPath('sessionData', DESKTOP_DATA_HOME.sessionData)
 app.setAppLogsPath(DESKTOP_DATA_HOME.logs)
@@ -271,6 +276,9 @@ function observeProcess(pid: number, label: string): void {
   try { processObserver?.register(pid, label) } catch (error) { processObservationFailure = error }
 }
 const oneShotOperations = new DesktopOperationSupervisor(observeProcess, () => processObserver)
+const prebuiltDeploymentAbort = new AbortController()
+let prebuiltDeploymentTask: Promise<void> | undefined
+let preparingFirstStart = false
 let bootableSnapshotTimer: NodeJS.Timeout | undefined
 const startupWarnings: string[] = []
 let trayUnavailable = false
@@ -1383,13 +1391,13 @@ function createWindow(): BrowserWindow {
   const { window } = surface
   configureNavigation(surface.renderer)
   surface.renderer.on('page-title-updated', (_event, title) => {
-    if (title !== '') surface.sendTitlebar('dsh:window:title', title)
+    surface.sendTitlebar('dsh:window:title', desktopWindowTitle(title))
   })
   if (surface.titlebarRenderer !== undefined) {
     const syncTitlebarState = (): void => {
       surface.layout()
       surface.sendTitlebar('dsh:window:maximized', window.isMaximized())
-      surface.sendTitlebar('dsh:window:title', surface.renderer.getTitle() || APP_NAME)
+      surface.sendTitlebar('dsh:window:title', desktopWindowTitle(surface.renderer.getTitle()))
       surface.sendTitlebar('dsh:window:theme', nativeTheme.shouldUseDarkColors)
     }
     window.on('maximize', syncTitlebarState)
@@ -1591,7 +1599,7 @@ async function startApplication(): Promise<void> {
         const settings = downloadNetworkStore?.read()
         const fetcher = await pluginFetch()
         const url = target === 'npm'
-          ? `${settings === undefined ? 'https://registry.npmjs.org' : settings.npm.registry === 'npmmirror'
+          ? `${settings === undefined ? 'https://registry.npmmirror.com' : settings.npm.registry === 'npmmirror'
             ? 'https://registry.npmmirror.com' : settings.npm.registry === 'custom'
               ? settings.npm.registryUrl : 'https://registry.npmjs.org'}/dshmarket/latest`
           : settings?.github.download === 'custom' && settings.github.acceleratorUrl !== undefined
@@ -1932,6 +1940,11 @@ async function startApplication(): Promise<void> {
   ipcMain.handle('dsh:desktop:log:open', (event) => {
     assertMainRenderer(event.sender)
     return openHarnessLog()
+  })
+  ipcMain.handle('dsh:desktop:log-directory:open', async (event): Promise<{ error: string }> => {
+    assertMainRenderer(event.sender)
+    await mkdir(DESKTOP_DATA_HOME.logs, { recursive: true, mode: 0o700 })
+    return { error: await shell.openPath(DESKTOP_DATA_HOME.logs) }
   })
   ipcMain.handle('dsh:desktop:settings:open', async (event): Promise<{ error: string }> => {
     assertMainRenderer(event.sender)
@@ -2488,6 +2501,7 @@ async function startApplication(): Promise<void> {
     createWindow,
     readCloseBehavior: () => preferences.closeBehavior,
     canQuit: () => {
+      if (preparingFirstStart) return true
       if (!menuBusy()) return true
       reportMenuError(new Error(menuCopy(menuLocale).busy))
       return false
@@ -2503,6 +2517,9 @@ async function startApplication(): Promise<void> {
         .finally(() => { trayWarningOpen = false })
     },
     disposeHost: async () => {
+      prebuiltDeploymentAbort.abort()
+      // File deployment settles before transaction disposal can release its lease.
+      await prebuiltDeploymentTask?.catch(() => {})
       cancelBootableSnapshot()
       publishStartupProgress({ stage: 'waiting-background-tasks', progress: 12 })
       showLoading('restarting')
@@ -2585,6 +2602,7 @@ async function startApplication(): Promise<void> {
     : undefined
   const packagedRuntime = packagedRuntimeRoot !== undefined
     ? await ensurePackagedRuntime({
+      expandedPath: join(process.resourcesPath, 'harness'),
       archivePath: join(process.resourcesPath, 'harness-runtime.tar.gz'),
       destination: join(app.getPath('userData'), 'runtime', app.getVersion()),
       archiveRoot: packagedRuntimeRoot,
@@ -2689,6 +2707,47 @@ async function startApplication(): Promise<void> {
     return parsePluginSnapshotJson(output) as T
   }
   const startupSafety = { rollbackFailed: false }
+  const firstStartPreparation = new FirstStartPreparation(dshHome)
+  let firstStartPending = await firstStartPreparation.begin(
+    !await lstat(join(dshHome, 'profiles/web/package.json')).then(stat => stat.isFile(), () => false) && !preserveCopiedPlugins,
+  )
+  preparingFirstStart = firstStartPending
+  const showIncompletePreparation = (detail: string): void => {
+    if (lifecycle?.isQuitting === true) return
+    recoveryRestartRequired = true
+    showLoading('failed', {
+      message: shellMessages(app.getLocale()).bundledPreparationFailed(detail),
+      diagnosticCode: 'desktop.bundled-preparation-incomplete',
+      evidence: detail,
+      logPath: harnessLogPath,
+    })
+  }
+  const bundledDirectory = resolveBundledPluginResourcesDirectory(app.isPackaged, process.resourcesPath, DEFAULT_SOURCE_ROOT)
+  const bundledManifestSource = await readFile(join(bundledDirectory, 'manifest.json'), 'utf8')
+  const manifest = parseBundledPluginManifest(JSON.parse(bundledManifestSource) as unknown)
+  const prebuiltDirectory = app.isPackaged ? join(process.resourcesPath, 'prebuilt-profile') : undefined
+  const importedBuildPlan = firstStartPending ? await readImportedPluginRestorePlan(dshHome) : undefined
+  const startupBuildRules = firstStartPending && !inspectProfileMutationLock(dshHome).active ? await readProfileBuildApprovals(dshHome) : {}
+  for (const [name, allowed] of Object.entries(importedBuildPlan?.allowBuilds ?? {})) {
+    startupBuildRules[name] = startupBuildRules[name] === false || !allowed ? false : true
+  }
+  let prebuilt: PrebuiltProfileManifest | undefined
+  if (firstStartPending && prebuiltDirectory !== undefined) {
+    try {
+      const candidate = await readPrebuiltProfile(prebuiltDirectory)
+      if (launchOptions.harnessBin === undefined) throw new Error('desktop: packaged Harness entry is unavailable')
+      const core = JSON.parse(await readFile(join(dirname(dirname(launchOptions.harnessBin)), 'package.json'), 'utf8')) as { version: string }
+      if (candidate?.identity.target === `${process.platform}-${process.arch}`
+        && candidate.identity.nodeVersion === '24.17.0' && candidate.identity.pnpmVersion === DESKTOP_PNPM_VERSION
+        && candidate.identity.runtimeVersion === core.version
+        && candidate.identity.pluginManifestSha256 === createHash('sha256').update(bundledManifestSource).digest('hex')
+        && !Object.values(startupBuildRules).includes(false)
+        && (importedBuildPlan?.sourceIssues.length ?? 0) === 0) prebuilt = candidate
+    } catch (error) {
+      showIncompletePreparation(error instanceof Error ? error.message : String(error))
+      return
+    }
+  }
   let desktopCandidateId: string | undefined
   const mutationHome = (): string => harnessEnvironment.DSH_HOME ?? dshHome
   const candidateEnvironment = (id: string): NodeJS.ProcessEnv => ({
@@ -2696,6 +2755,13 @@ async function startApplication(): Promise<void> {
     DSH_PLUGIN_TRANSACTION_ORIGIN: undefined,
     DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN: id,
   })
+  const selectCandidate = (id: string): void => {
+    desktopCandidateId = id
+    harnessEnvironment.DSH_HOME = join(dshHome, 'plugin-transactions', 'web', id, 'candidate')
+    harnessEnvironment.DSH_PLUGIN_TRANSACTION_ORIGIN = dshHome
+    harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN = id
+    harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID = String(process.pid)
+  }
   const beginDesktopCandidate = async (): Promise<void> => {
     if (desktopCandidateId !== undefined) return
     cancelBootableSnapshot()
@@ -2707,11 +2773,7 @@ async function startApplication(): Promise<void> {
     if (typeof parsed.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(parsed.id)) {
       throw new Error('desktop: invalid prepared transaction ID')
     }
-    desktopCandidateId = parsed.id
-    harnessEnvironment.DSH_HOME = join(dshHome, 'plugin-transactions', 'web', parsed.id, 'candidate')
-    harnessEnvironment.DSH_PLUGIN_TRANSACTION_ORIGIN = dshHome
-    harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN = parsed.id
-    harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID = String(process.pid)
+    selectCandidate(parsed.id)
   }
   const clearCandidateEnvironment = (): void => {
     desktopCandidateId = undefined
@@ -2749,6 +2811,24 @@ async function startApplication(): Promise<void> {
   }
   profileTransactionManager = new ProfileTransactionManager({
     home: dshHome,
+    resumePreparation: async (id) => {
+      if (!firstStartPending || prebuilt === undefined) return false
+      const progressPath = join(dshHome, 'plugin-transactions/web', id, 'candidate/prebuilt-deployment.json')
+      let progress: { fingerprint?: unknown }
+      try {
+        if (!(await lstat(progressPath)).isFile()) return false
+        progress = JSON.parse(await readFile(progressPath, 'utf8')) as { fingerprint?: unknown }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) return false
+        throw error
+      }
+      if (progress.fingerprint !== prebuilt.fingerprint) return false
+      await runDesktopInvocation(resolveHarnessInvocation({ ...harnessEnvironment,
+        DSH_HOME: dshHome, DSH_DESKTOP_MUTATION_OWNER_PID: String(process.pid),
+      }, ['plugin', '--profile', 'web', 'transaction', 'resume-preparation', id], launchOptions), 'plugin-candidate-resume', 15_000)
+      selectCandidate(id)
+      return true
+    },
     command: async (args, token) => {
       const environment: NodeJS.ProcessEnv = { ...harnessEnvironment, DSH_HOME: dshHome, DSH_PLUGIN_TRANSACTION_ORIGIN: undefined }
       if (token !== undefined) environment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN = token
@@ -2757,13 +2837,22 @@ async function startApplication(): Promise<void> {
       ], launchOptions), 'profile-transaction', 60_000)
     },
     stopHarness: async () => { await supervisor?.stop() },
-    resumeHarness: () => { supervisor?.resume() },
+    resumeHarness: () => { if (!firstStartPending) supervisor?.resume() },
+    onCommit: async () => {
+      if (!firstStartPending) return
+      await firstStartPreparation.complete()
+      firstStartPending = false
+      preparingFirstStart = false
+      await appendDesktopStartupLog('First-start bundled plugin preparation committed after normal readiness.')
+    },
     onActivation: () => {
       cancelBootableSnapshot()
       publishStartupProgress({ stage: 'starting-harness', progress: 88 })
     },
-    onRollback: () => {
-      void appendDesktopStartupLog('Plugin activation failed; the previous Profile was restored and is restarting.')
+    onRollback: (error) => {
+      const detail = error instanceof Error ? error.message : String(error)
+      void appendDesktopStartupLog(`Plugin activation failed; the previous Profile was restored: ${detail}`)
+      if (firstStartPending) showIncompletePreparation(detail)
     },
     onError: (error) => {
       startupSafety.rollbackFailed = true
@@ -2899,8 +2988,10 @@ async function startApplication(): Promise<void> {
   }
   const profileManifestPath = join(dshHome, 'profiles', 'web', 'package.json')
   const profileInitialized = await lstat(profileManifestPath).then(stat => stat.isFile(), () => false)
+  firstStartPending = await firstStartPreparation.begin(!profileInitialized && !preserveCopiedPlugins)
+  preparingFirstStart = firstStartPending
   let profileMutationLock = inspectProfileMutationLock(dshHome)
-  if (profileMutationLock.active) {
+  if (profileMutationLock.active && desktopCandidateId === undefined) {
     const lockWaitStartedAt = Date.now()
     publishStartupProgress({
       stage: 'checking-profile', progress: 28,
@@ -2912,8 +3003,9 @@ async function startApplication(): Promise<void> {
     profileMutationLock = inspectProfileMutationLock(dshHome)
   }
   const profileMutationBlocked = profileMutationLock.active
+    && !(desktopCandidateId !== undefined && profileMutationLock.pid === process.pid && profileMutationLock.workerPid === undefined)
   let startupProfileMutationAllowed = !profileMutationBlocked && !startupSafety.rollbackFailed
-  let profileNeedsRepair = !profileInitialized && startupProfileMutationAllowed
+  let profileNeedsRepair = prebuilt === undefined && !profileInitialized && startupProfileMutationAllowed
   if (profileMutationBlocked) {
     const created = profileMutationLock.createdAt === undefined
       ? undefined
@@ -2940,7 +3032,7 @@ async function startApplication(): Promise<void> {
       detail: 'profile-lock-diagnostics',
       state: 'degraded',
     })
-  } else if (profileInitialized && !startupSafety.rollbackFailed) {
+  } else if (prebuilt === undefined && profileInitialized && !startupSafety.rollbackFailed) {
     try {
       await appendDesktopStartupLog('Checking Web Profile compatibility without modifying it.')
       const inspection = await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
@@ -3043,18 +3135,10 @@ async function startApplication(): Promise<void> {
     await appendFile(harnessLogPath, `[desktop] Profile startup repair:\n${profileRepairDiagnostic.trim()}\n`)
   }
   publishStartupProgress({ stage: 'checking-profile', progress: 34 })
-  const bundledDirectory = resolveBundledPluginResourcesDirectory(
-    app.isPackaged,
-    process.resourcesPath,
-    DEFAULT_SOURCE_ROOT,
-  )
   // Descendant `dsh plugin add` processes (including the plugin market) can
   // restore an absent bundled version without downloading it again. The CLI
   // verifies the manifest and archive before using this directory.
   harnessEnvironment.DSH_DESKTOP_BUNDLED_PLUGINS_DIR = bundledDirectory
-  const manifest = parseBundledPluginManifest(
-    JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8')) as unknown,
-  )
   const startupPluginCooldown = new BundledPluginStartupCooldown(dshHome)
   bundledPluginCooldown = startupPluginCooldown
   const withStartupPluginTransaction = async <T>(
@@ -3072,8 +3156,19 @@ async function startApplication(): Promise<void> {
     get dshHome() { return mutationHome() },
     repairLegacyMarkers: !app.isPackaged,
     startupBudgetMs: 120_000,
+    requireCompleteStartup: firstStartPending,
+    isStartupCancelled: () => lifecycle?.isQuitting === true,
     shouldAttemptStartup: plugin => startupPluginCooldown.shouldAttempt(plugin.packageName, plugin.version),
     onStartupSuccess: plugin => startupPluginCooldown.clear(plugin.packageName),
+    onStartupDeferred: async (plugin, reason) => {
+      await appendDesktopStartupLog(`Bundled plugin ${plugin.packageName}@${plugin.version} was not attempted (${reason}); it remains available for manual installation.`)
+      await retainStartupWarning(
+        'runtime.bundled-plugin-failed',
+        `bundled-plugin-deferred:${reason}`,
+        ['diagnostics', 'open-log', 'retry-plugin'],
+        plugin.packageName,
+      )
+    },
     onManagedMutationStart: () => { cancelBootableSnapshot() },
     onManagedMutationSettled: (plugin) => {
       restartBootableSnapshotStabilityWindow(`bundled plugin ${plugin.packageName} settled`)
@@ -3089,6 +3184,8 @@ async function startApplication(): Promise<void> {
       }
     },
     install: async (archivePath, plugin) => {
+      const startedAt = Date.now()
+      publishStartupProgress({ ...startupProgress, startedAt, deadlineAt: startedAt + BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS })
       await appendDesktopStartupLog(`Installing bundled plugin ${plugin.packageName}@${plugin.version}.`)
       await installBundledPluginSource(plugin, archivePath, async (packageSpec) => {
         await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
@@ -3117,16 +3214,58 @@ async function startApplication(): Promise<void> {
   // client and event dispatcher both prove the resulting Profile can start.
   harnessEnvironment.DSH_PLUGIN_SNAPSHOT_BATCH = '1'
   try {
+    if (firstStartPending && (!startupProfileMutationAllowed || preserveCopiedPlugins)) {
+      showIncompletePreparation('Profile verification or transaction recovery did not complete.')
+      return
+    }
     if (startupProfileMutationAllowed && !preserveCopiedPlugins) {
-      await bundledPluginInstaller.seedStartup((progress) => {
-        publishStartupProgress(mapBundledPluginProgress(
-          progress.entry.packageName,
-          progress.index,
-          progress.total,
-          progress.stage,
-          progress.progress,
-        ))
-      })
+      // Even a retry with settled markers needs a readiness-verified commit before clearing the gate.
+      if (firstStartPending) await beginDesktopCandidate()
+      if (prebuilt !== undefined && prebuiltDirectory !== undefined) {
+        const startedAt = Date.now()
+        const candidate = mutationHome()
+        const receipt = join(candidate, 'prebuilt-deployment.json')
+        await writeFile(`${receipt}.tmp`, JSON.stringify({ fingerprint: prebuilt.fingerprint, stage: 'copying' }))
+        await rename(`${receipt}.tmp`, receipt)
+        let lastProgressAt = 0
+        prebuiltDeploymentTask = deployPrebuiltProfile(prebuiltDirectory, candidate, prebuilt, prebuiltDeploymentAbort.signal,
+          (completed, total) => {
+            const now = Date.now()
+            if (now - lastProgressAt < 100 && completed !== total) return
+            lastProgressAt = now
+            publishStartupProgress({ stage: 'configuring-plugin', progress: 36 + Math.floor(44 * completed / Math.max(1, total)), detail: `${completed}/${total}`, startedAt })
+          })
+        try { await prebuiltDeploymentTask } finally { prebuiltDeploymentTask = undefined }
+        await mergeImportedAllowBuilds(join(candidate, 'profiles/web'), startupBuildRules)
+        await appendDesktopStartupLog(`Prebuilt Profile deployment completed in ${Date.now() - startedAt}ms; fingerprint=${prebuilt.fingerprint}; no package installation invoked.`)
+      } else if (firstStartPending) {
+        await mergeImportedAllowBuilds(join(mutationHome(), 'profiles/web'), startupBuildRules)
+        await seedBundledPluginsBatch(manifest.plugins.filter(entry => entry.installPolicy === 'startup'), bundledDirectory, mutationHome(),
+          async (entry) => {
+            for (const name of entry.approvedBuilds ?? []) {
+              if (Object.values(startupBuildRules).includes(false)) continue
+              await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment,
+                ['plugin', '--profile', 'web', 'approve-build', name], launchOptions), 'bundled-batch-approve', BUILD_APPROVAL_TIMEOUT_MS)
+            }
+          },
+          async (archives) => {
+            await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment,
+              ['plugin', '--profile', 'web', 'add', '--save-exact', ...archives], launchOptions), 'bundled-batch-install', BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS)
+          })
+      } else {
+        const seedResults = await bundledPluginInstaller.seedStartup((progress) => {
+          const mapped = mapBundledPluginProgress(
+            progress.entry.packageName,
+            progress.index,
+            progress.total,
+            progress.stage,
+            progress.progress,
+          )
+          publishStartupProgress({ ...mapped, detail: `${progress.entry.packageName} (${progress.index + 1}/${progress.total})` })
+        })
+        const pending = seedResults.filter(result => result.result === undefined)
+        await appendDesktopStartupLog(`Bundled startup plugin preparation finished: ${seedResults.length - pending.length}/${seedResults.length} settled; ${pending.length} failed or deferred. Activation still requires normal readiness.`)
+      }
     } else {
       await appendDesktopStartupLog(
         preserveCopiedPlugins
@@ -3134,10 +3273,15 @@ async function startApplication(): Promise<void> {
           : 'Skipped bundled startup plugin mutations because Profile health was not proven safe for writes.',
       )
     }
+  } catch (error) {
+    if (lifecycle.isQuitting) return
+    if (!firstStartPending) throw error
+    await appendBundledPluginFailure(harnessLogPath, error)
+    showIncompletePreparation(error instanceof Error ? error.message : String(error))
+    return
   } finally {
     delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_BATCH
   }
-  await appendDesktopStartupLog('Bundled startup plugin seeding completed.')
   const installedProfileDependencies: Record<string, string> = {}
   try {
     const profileManifest = JSON.parse(
@@ -3174,7 +3318,13 @@ async function startApplication(): Promise<void> {
     await appendFile(harnessLogPath, `[desktop] Imported plugin restore unavailable: ${error instanceof Error ? error.message : String(error)}\n`)
   }
   try {
-    if (startupSafety.rollbackFailed) await discardDesktopCandidate()
+    if (startupSafety.rollbackFailed) {
+      await discardDesktopCandidate()
+      if (firstStartPending) {
+        showIncompletePreparation('Profile transaction recovery did not complete.')
+        return
+      }
+    }
     else await activateDesktopCandidate(false)
   } catch (error) {
     try { await discardDesktopCandidate() } catch (rollbackError) {
@@ -3183,6 +3333,10 @@ async function startApplication(): Promise<void> {
     }
     await appendDesktopStartupLog('Startup candidate could not be activated; preserved the prior Profile.')
     console.error('desktop: startup plugin candidate failed', error)
+    if (firstStartPending) {
+      showIncompletePreparation(error instanceof Error ? error.message : String(error))
+      return
+    }
   }
   publishStartupProgress({ stage: 'starting-harness', progress: 88 })
   await appendDesktopStartupLog('Starting Harness supervisor.')
@@ -3215,6 +3369,7 @@ async function startApplication(): Promise<void> {
       : {}),
     ...(process.platform === 'win32' ? { terminateProcessTree: terminateWindowsProcessTree } : {}),
     onReady: (url) => {
+      profileTransactionManager?.serverReady()
       recoveryHarnessSuspended = false
       recoveryRestartRequired = false
       latestRecoveryFailure = undefined
@@ -3268,6 +3423,7 @@ async function startApplication(): Promise<void> {
       showNotification('failed', notificationCopy.failed)
     },
     onState: (state) => {
+      if (state === 'starting') profileTransactionManager?.harnessStarting()
       if (state === 'restarting' || state === 'failed' || state === 'stopped') {
         cancelBootableSnapshot()
         harnessOrigin = undefined

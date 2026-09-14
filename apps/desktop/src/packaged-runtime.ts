@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 
 export interface PackagedRuntimeOptions {
+  /** Expanded installation resources; an incomplete installation must not fall back to a stale cache. */
+  expandedPath?: string
   archivePath: string
   destination: string
   archiveRoot: string
@@ -54,6 +56,12 @@ function extractArchive(archivePath: string, destination: string): Promise<void>
  * so it cannot run directly from Electron Builder's filtered extra resources.
  */
 export async function ensurePackagedRuntime(options: PackagedRuntimeOptions): Promise<string> {
+  if (options.expandedPath !== undefined && await exists(options.expandedPath)) {
+    if (!await isPackagedRuntimeReady(options.expandedPath)) {
+      throw new Error('desktop: installed runtime is incomplete; reinstall the application')
+    }
+    return options.expandedPath
+  }
   if (await isPackagedRuntimeReady(options.destination)) return options.destination
 
   await mkdir(dirname(options.destination), { recursive: true })

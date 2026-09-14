@@ -1658,6 +1658,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'sidebar.settings\' (client-ui-settings-general), so it exists while that entry is mounted',
     occupants: [
+      'client-ui-desktop-shell DesktopLogDirectoryAction id \'desktop-log-directory\'',
       'client-ui-desktop-shell DesktopUpdateBadge id \'desktop-update\'',
       'client-ui-settings-general SettingsDocumentAction id \'open-document\'',
     ],
@@ -2055,6 +2056,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-settings-plugin-inventory ImportedPluginRestoreSection id \'plugin-restore\'',
       'client-ui-settings-plugin-inventory PluginDiagnosticsSection id \'diagnostics\'',
       'client-ui-settings-plugins PluginsSettingsSection id \'plugins\'',
+      'client-ui-workspace ArchivedSessionsSection id \'archived-sessions\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.section\', () => ctx.slots.register(\n      { name: \'settings.section\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',

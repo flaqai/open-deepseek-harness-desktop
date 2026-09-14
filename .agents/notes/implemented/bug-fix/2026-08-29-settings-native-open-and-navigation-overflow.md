@@ -12,6 +12,8 @@ The settings document action used the native path opener, whose Windows adapter 
 
 Native Windows resolves the inbox PowerShell executable from `SystemRoot`, with `WINDIR` and the standard Windows directory as fallbacks. The adapter keeps shell-free argv execution and uses the bare command name only for WSL interop, where the Linux process cannot address a native Windows filesystem path directly.
 
+The settings header places a desktop-owned log-directory action immediately before the settings-document action. Its narrow preload operation creates and opens only the fixed desktop log directory; the renderer cannot read or supply a filesystem path.
+
 The settings rail keeps its title outside a dedicated navigation scrollport. The rail and list may shrink in a bounded flex column, while each contributed row grows to show its complete localized label. The scrollport contains wheel overscroll and reserves a stable themed scrollbar gutter. Settings overlays size themselves against their own renderer viewport.
 
 Agent-preset cards allow names and status tags to wrap within each card instead of forcing neighboring cards apart. Settings sections whose multi-column content depends on the available section width use named inline-size containers; their single-column fallbacks therefore follow the settings content column rather than the complete browser viewport. Text identities retain `min-width: 0` and break unbounded user or provider values inside their owner.
@@ -32,4 +34,4 @@ The shared body-portaled `Modal`, onboarding takeover, connection banner, attach
 
 ## Consequences
 
-Opening the settings document no longer depends on inherited Windows PATH entries. An arbitrary number of plugin-contributed settings sections remains reachable by pointer, wheel, and keyboard focus without moving the settings title, and translated labels remain readable without guessing from ellipses. Preset cards, plugin inventory, external tools, imported-plugin recovery, and snapshot controls reflow within the actual content column. Body-portaled configuration dialogs remain within the available renderer height without desktop-specific offsets.
+Opening the settings document no longer depends on inherited Windows PATH entries, and the adjacent log-directory action provides a direct path to local diagnostics without exposing arbitrary path opening to Web content. An arbitrary number of plugin-contributed settings sections remains reachable by pointer, wheel, and keyboard focus without moving the settings title, and translated labels remain readable without guessing from ellipses. Preset cards, plugin inventory, external tools, imported-plugin recovery, and snapshot controls reflow within the actual content column. Body-portaled configuration dialogs remain within the available renderer height without desktop-specific offsets.

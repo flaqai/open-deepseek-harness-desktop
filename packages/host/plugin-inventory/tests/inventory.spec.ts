@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -131,6 +131,9 @@ describe('PluginInventoryGateway', () => {
       { method: 'startDependencyDoctor', invocation: { kind: 'direct' } },
       { method: 'getDependencyDoctor', invocation: { kind: 'direct' } },
       { method: 'getInstall', invocation: { kind: 'direct' } },
+      { method: 'getInstallOutput', invocation: { kind: 'direct' } },
+      { method: 'pauseInstall', invocation: { kind: 'direct' } },
+      { method: 'cancelInstall', invocation: { kind: 'direct' } },
     ])
   })
 
@@ -529,6 +532,110 @@ describe('PluginInventoryGateway', () => {
     deferred.resolve({ exitCode: 0, signal: null })
     await expect.poll(() => inventory.getInstall(started.installId).phase).toBe('succeeded')
     expect(inventory.getInstall(started.installId).exitCode).toBe(0)
+  })
+
+  it('publishes sanitized incremental pnpm progress and removes its private sidecar', async () => {
+    const home = temporaryDirectory()
+    vi.stubEnv('DSH_HOME', home)
+    const { inventory, subprocess } = await harness()
+    const deferred = Promise.withResolvers<{ exitCode: number | null; signal: null }>()
+    const baseSpawn = subprocess.spawn.bind(subprocess)
+    let progressFile: string | undefined
+    subprocess.spawn = (spec) => {
+      progressFile = spec.env?.DSH_DESKTOP_INSTALL_PROGRESS_FILE
+      if (progressFile !== undefined) {
+        appendFileSync(progressFile, [
+          JSON.stringify({ name: 'pnpm:progress', status: 'resolved' }),
+          JSON.stringify({ name: 'pnpm:progress', status: 'resolved' }),
+          JSON.stringify({ name: 'pnpm:stage', stage: 'resolution_done' }),
+          JSON.stringify({ name: 'pnpm:progress', status: 'found_in_store' }),
+          JSON.stringify({ name: 'pnpm:request-retry', message: 'Authorization: Bearer private-token' }),
+        ].join('\n') + '\n')
+      }
+      return { ...baseSpawn(spec), done: deferred.promise }
+    }
+
+    const started = inventory.startInstall({ profile: 'web', packageSpec: 'safe-plugin' })
+    expect(progressFile).toMatch(/\.desktop-install-progress[/\\][0-9a-f-]{36}\.ndjson$/u)
+    expect(inventory.getInstall(started.installId).installProgress).toEqual({
+      stage: 'downloading', percent: 50, completed: 1, total: 2,
+    })
+    const first = inventory.getInstallOutput({ installId: started.installId, offset: 0 })
+    expect(first.text).toContain('Downloading dependencies')
+    expect(first.text).not.toContain('private-token')
+    expect(first.settled).toBe(false)
+    expect(inventory.getInstallOutput({ installId: started.installId, offset: first.nextOffset }).text).toBe('')
+    expect(() => inventory.getInstallOutput({
+      installId: 'not-real' as typeof started.installId,
+      offset: 0,
+    })).toThrow(/unknown install/u)
+
+    deferred.resolve({ exitCode: 0, signal: null })
+    await expect.poll(() => inventory.getInstall(started.installId).phase).toBe('succeeded')
+    expect(inventory.getInstall(started.installId).installProgress).toEqual({ stage: 'verifying', percent: 100 })
+    expect(inventory.getInstallOutput({ installId: started.installId, offset: first.nextOffset }).settled).toBe(true)
+    expect(progressFile).toBeDefined()
+    expect(existsSync(progressFile!)).toBe(false)
+  })
+
+  it('pauses and stops installs only after their managed process ranges exit', async () => {
+    const { inventory, subprocess } = await harness()
+    const outcomes: Array<ReturnType<typeof Promise.withResolvers<{ exitCode: number | null; signal: 'SIGTERM' }>>> = []
+    const terminated: boolean[] = []
+    const rangeExited: boolean[] = []
+    const baseSpawn = subprocess.spawn.bind(subprocess)
+    subprocess.spawn = (spec) => {
+      const base = baseSpawn(spec)
+      const outcome = Promise.withResolvers<{ exitCode: number | null; signal: 'SIGTERM' }>()
+      const index = outcomes.push(outcome) - 1
+      terminated[index] = false
+      rangeExited[index] = false
+      return {
+        ...base,
+        done: outcome.promise,
+        terminate: () => {
+          terminated[index] = true
+          outcome.resolve({ exitCode: null, signal: 'SIGTERM' })
+        },
+        waitForExit: async () => {
+          expect(terminated[index]).toBe(true)
+          rangeExited[index] = true
+          return true
+        },
+      }
+    }
+
+    const paused = inventory.startInstall({ profile: 'web', packageSpec: 'pause-plugin' })
+    await expect(inventory.pauseInstall(paused.installId)).resolves.toMatchObject({ phase: 'paused' })
+    expect(rangeExited[0]).toBe(true)
+    const resumed = inventory.startInstall({ profile: 'web', packageSpec: 'pause-plugin' })
+    expect(resumed.installId).not.toBe(paused.installId)
+    await inventory.cancelInstall(resumed.installId)
+
+    const stopped = inventory.startInstall({ profile: 'web', packageSpec: 'stop-plugin' })
+    await expect(inventory.cancelInstall(stopped.installId)).resolves.toMatchObject({ phase: 'cancelled' })
+    expect(rangeExited.at(-1)).toBe(true)
+    expect(inventory.getInstallOutput({ installId: stopped.installId, offset: 0 }).text).toContain('stopped by user')
+  })
+
+  it('removes an active install sidecar when the Host service is disposed', async () => {
+    const home = temporaryDirectory()
+    vi.stubEnv('DSH_HOME', home)
+    const { ctx, inventory, subprocess } = await harness()
+    const deferred = Promise.withResolvers<{ exitCode: number | null; signal: null }>()
+    const baseSpawn = subprocess.spawn.bind(subprocess)
+    let progressFile: string | undefined
+    subprocess.spawn = (spec) => {
+      progressFile = spec.env?.DSH_DESKTOP_INSTALL_PROGRESS_FILE
+      return { ...baseSpawn(spec), done: deferred.promise }
+    }
+
+    inventory.startInstall({ profile: 'web', packageSpec: 'safe-plugin' })
+    expect(progressFile).toBeDefined()
+    expect(existsSync(progressFile!)).toBe(true)
+    await ctx.fiber.dispose()
+    expect(existsSync(progressFile!)).toBe(false)
+    deferred.resolve({ exitCode: 1, signal: null })
   })
 
   it('forwards the selected Profile home to doctor subprocesses after DSH environment scrubbing', async () => {

@@ -28,16 +28,24 @@ it('boots every bundled preload before DOM globals are available with only Elect
     for (const name of ['preload', 'data-home-preload', 'titlebar-preload']) {
       const addEventListener = vi.fn()
       const exposeInMainWorld = vi.fn()
+      const invoke = vi.fn(() => Promise.resolve({ error: '' }))
       const require = vi.fn((id: string) => {
         if (id !== 'electron') throw new Error(`Sandbox cannot require ${id}`)
-        return { contextBridge: { exposeInMainWorld }, ipcRenderer: {} }
+        return { contextBridge: { exposeInMainWorld }, ipcRenderer: { invoke } }
       })
       runInNewContext(await readFile(join(outDir, `${name}.cjs`), 'utf8'), {
         require, window: { addEventListener }, process: { platform: 'darwin', argv: [] },
       }, { timeout: 1000 })
       expect(require).toHaveBeenCalledWith('electron')
       expect(addEventListener).toHaveBeenCalledWith('DOMContentLoaded', expect.any(Function), { once: true })
-      if (name === 'preload') expect(exposeInMainWorld).toHaveBeenCalledWith('deepSeekHarnessDesktop', expect.any(Object))
+      if (name === 'preload') {
+        expect(exposeInMainWorld).toHaveBeenCalledWith('deepSeekHarnessDesktop', expect.any(Object))
+        const exposed = exposeInMainWorld.mock.calls[0]?.[1] as {
+          shell: { openLogDirectory(): Promise<{ error: string }> }
+        }
+        await expect(exposed.shell.openLogDirectory()).resolves.toEqual({ error: '' })
+        expect(invoke).toHaveBeenCalledWith('dsh:desktop:log-directory:open')
+      }
     }
   } finally {
     await rm(outDir, { recursive: true, force: true })

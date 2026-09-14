@@ -1,9 +1,19 @@
 /** Host-selected pnpm execution for profile dependency maintenance. */
 
 import { spawnSync } from 'node:child_process'
-import { dirname, extname, isAbsolute, join, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import { existsSync, readFileSync } from 'node:fs'
+import {
+  closeSync,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  constants,
+  readFileSync,
+  readSync,
+  writeSync,
+} from 'node:fs'
 import { rebindProfilePnpmStore } from './profile-pnpm-store.ts'
 import type { ProfilePackageManagerResult } from '@deepseek-ai/dsh-app-boot'
 import { packageNetworkDiagnostic } from './package-network-diagnostic.ts'
@@ -11,6 +21,58 @@ import { profilePackageManagerLeaseEnvironment } from './profile-package-manager
 
 const NAME = 'dsh'
 const WINDOWS_PNPM_RENAME_RETRY_DELAYS_MS = [500, 1_500, 3_000] as const
+const MAX_PROGRESS_DIAGNOSTIC_BYTES = 1024 * 1024
+
+/** Optional observation channel owned by the desktop installer Host. */
+export interface ProfilePackageManagerOptions {
+  readonly progressFile?: string
+}
+
+interface ProgressFile {
+  readonly fd: number
+  readonly startOffset: number
+}
+
+function installProgressHome(profileDir: string, environment: NodeJS.ProcessEnv = process.env): string {
+  const selectedHome = resolveDshHome(undefined, environment)
+  const origin = environment.DSH_PLUGIN_TRANSACTION_ORIGIN?.trim()
+  if (origin === undefined || origin === '') return selectedHome
+  const originHome = resolve(origin)
+  const candidateParts = relative(originHome, selectedHome).split(sep)
+  if (candidateParts.length !== 4 || candidateParts[0] !== 'plugin-transactions'
+    || candidateParts[1] !== basename(profileDir) || !/^[a-f0-9-]{36}$/u.test(candidateParts[2] ?? '')
+    || candidateParts[3] !== 'candidate') {
+    throw new Error(`${NAME}: desktop install progress origin does not own the staged Profile`)
+  }
+  return originHome
+}
+
+function openProgressFile(path: string, profileDir: string): ProgressFile {
+  if (!isAbsolute(path)) throw new Error(`${NAME}: desktop install progress file must be absolute`)
+  const expectedDirectory = resolve(installProgressHome(profileDir), '.desktop-install-progress')
+  if (resolve(dirname(path)) !== expectedDirectory || !/^[0-9a-f-]{36}\.ndjson$/iu.test(path.slice(expectedDirectory.length + 1))) {
+    throw new Error(`${NAME}: desktop install progress file is outside the managed directory`)
+  }
+  const metadata = lstatSync(path)
+  if (!metadata.isFile() || metadata.isSymbolicLink()) {
+    throw new Error(`${NAME}: desktop install progress target must be a regular file`)
+  }
+  const fd = openSync(path, constants.O_RDWR | constants.O_APPEND)
+  return { fd, startOffset: fstatSync(fd).size }
+}
+
+function writeProgressMarker(progress: ProgressFile, value: Record<string, unknown>): void {
+  writeSync(progress.fd, `${JSON.stringify({ name: 'dsh:install-progress', ...value })}\n`)
+}
+
+function readProgressDiagnostic(progress: ProgressFile): string {
+  const end = fstatSync(progress.fd).size
+  const length = Math.min(MAX_PROGRESS_DIAGNOSTIC_BYTES, Math.max(0, end - progress.startOffset))
+  if (length === 0) return ''
+  const buffer = Buffer.allocUnsafe(length)
+  const read = readSync(progress.fd, buffer, 0, length, end - length)
+  return buffer.subarray(0, read).toString('utf8')
+}
 
 function diagnosticStrings(value: unknown, output: string[]): void {
   if (typeof value === 'string') {
@@ -233,16 +295,22 @@ export function profilePackageDownloadEnvironment(environment: NodeJS.ProcessEnv
  * invoke this path without an attached terminal.
  * @param profileDir - profile working directory.
  * @param args - exact pnpm arguments.
+ * @param options - Optional desktop-owned progress observation channel.
  * @returns exit code and combined output; an absent executable reports code 127.
  */
 export function runProfilePackageManager(
   profileDir: string,
   args: readonly string[],
+  options: ProfilePackageManagerOptions = {},
 ): ProfilePackageManagerResult {
   const packageEnvironment = profilePackageDownloadEnvironment(process.env)
+  delete packageEnvironment.DSH_DESKTOP_INSTALL_PROGRESS_FILE
   const tracked = profilePackageManagerLeaseEnvironment(profileDir, packageEnvironment)
   const storeDir = tracked.pnpm_config_store_dir ?? join(resolveDshHome(), '.pnpm-store')
-  const invocation = resolvePnpmInvocation(packageEnvironment, ['--store-dir', storeDir, ...args])
+  const invocation = resolvePnpmInvocation(packageEnvironment, [
+    ...(options.progressFile === undefined ? [] : ['--reporter=ndjson']),
+    '--store-dir', storeDir, ...args,
+  ])
   const inherited = Object.fromEntries(Object.entries(tracked)
     .filter(([key]) => !/^(?:pnpm|npm)_config_store_dir$/iu.test(key)))
   const environment = {
@@ -267,6 +335,8 @@ export function runProfilePackageManager(
   let completedRetries = 0
   while (true) {
     const startedAt = performance.now()
+    const progress = options.progressFile === undefined ? undefined : openProgressFile(options.progressFile, profileDir)
+    if (progress !== undefined) writeProgressMarker(progress, { stage: 'attempt-started', attempt: completedRetries + 1 })
     const result = spawnSync(invocation.command, invocation.args, {
       cwd: profileDir,
       env: environment,
@@ -274,8 +344,10 @@ export function runProfilePackageManager(
       maxBuffer: 1024 * 1024,
       shell: invocation.shell,
       windowsHide: true,
+      ...(progress === undefined ? {} : { stdio: ['ignore', progress.fd, progress.fd] }),
     })
     if (result.error !== undefined) {
+      if (progress !== undefined) closeSync(progress.fd)
       const code = (result.error as NodeJS.ErrnoException).code
       if (code === 'ENOENT') {
         const location = invocation.command === 'pnpm' ? 'on PATH' : `at ${invocation.command}`
@@ -283,7 +355,13 @@ export function runProfilePackageManager(
       }
       throw result.error
     }
-    const diagnostic = normalizePnpmDiagnostic([result.stdout, result.stderr].filter(value => value.trim() !== '').join('\n').trim())
+    const progressDiagnostic = progress === undefined ? '' : readProgressDiagnostic(progress)
+    if (progress !== undefined) closeSync(progress.fd)
+    const diagnostic = normalizePnpmDiagnostic(progress === undefined
+      ? [result.stdout, result.stderr]
+        .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+        .join('\n').trim()
+      : progressDiagnostic.trim())
     const delayMs = result.status === 0
       ? undefined
       : windowsPnpmRenameRetryDelay(diagnostic, completedRetries)
@@ -292,6 +370,17 @@ export function runProfilePackageManager(
       recoveryDiagnostics.push(
         `${NAME}: pnpm hit transient Windows node_modules rename contention; retrying in ${String(delayMs)} ms (${String(completedRetries)}/${String(WINDOWS_PNPM_RENAME_RETRY_DELAYS_MS.length)})`,
       )
+      if (options.progressFile !== undefined) {
+        const retryProgress = openProgressFile(options.progressFile, profileDir)
+        try {
+          writeProgressMarker(retryProgress, {
+            stage: 'retrying',
+            message: recoveryDiagnostics.at(-1),
+          })
+        } finally {
+          closeSync(retryProgress.fd)
+        }
+      }
       waitSynchronously(delayMs)
       continue
     }
@@ -303,7 +392,9 @@ export function runProfilePackageManager(
     const networkHint = result.status === 0
       ? undefined
       : packageNetworkDiagnostic(diagnostic, performance.now() - startedAt, process.env)
-    const retainedDiagnostic = [diagnostic, ...recoveryDiagnostics, networkHint].filter(Boolean).join('\n')
+    const retainedDiagnostic = progress === undefined || result.status !== 0
+      ? [diagnostic, ...recoveryDiagnostics, networkHint].filter(Boolean).join('\n')
+      : recoveryDiagnostics.join('\n')
     return {
       exitCode: result.status ?? 1,
       ...(retainedDiagnostic === '' ? {} : { diagnostic: retainedDiagnostic.slice(-64 * 1024) }),

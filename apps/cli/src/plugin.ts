@@ -66,6 +66,7 @@ import {
   activateProfilePluginTransaction, prepareProfilePluginTransaction, profilePluginCandidateHome,
   readProfilePluginTransaction, readyProfilePluginTransaction, settleProfilePluginTransaction,
   createProfileTransactionInterruptionExercise,
+  resumeProfilePluginPreparation,
 } from './profile-plugin-transaction.ts'
 
 export { resolvePnpmCommand } from './profile-package-manager.ts'
@@ -628,6 +629,11 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
   const result = runProfilePackageManager(
     dir,
     packageManagerArgs.map(argument => anchorPathSpec(argument, process.cwd())),
+    {
+      ...(process.env.DSH_DESKTOP_INSTALL_PROGRESS_FILE === undefined
+        ? {}
+        : { progressFile: process.env.DSH_DESKTOP_INSTALL_PROGRESS_FILE }),
+    },
   )
   if (result.diagnostic !== undefined) process.stderr.write(`${result.diagnostic}\n`)
   const exitCode = result.exitCode ?? 1
@@ -709,6 +715,18 @@ function pluginInvocationMutates(args: readonly string[]): boolean {
 export function runPlugin(profile: string, args: readonly string[]): number {
   if (args[0] === 'transaction') {
     const home = resolveDshHome()
+    if (args.length === 3 && args[1] === 'resume-preparation' && args[2] !== undefined) {
+      const ownerPid = Number(process.env.DSH_DESKTOP_MUTATION_OWNER_PID)
+      const release = acquireProfilePluginMutationLock({ home, profile, waitMs: 5_000 })
+      let handedOff = false
+      try {
+        resumeProfilePluginPreparation(home, profile, args[2], ownerPid)
+        beginProfilePluginMutationLease({ home, profile, ownerPid, token: args[2] })
+        handedOff = true
+        writeSnapshotJson({ id: args[2] })
+        return 0
+      } finally { if (!handedOff) release() }
+    }
     if (args.length === 2 && args[1] === 'prepare') {
       const ownerPid = Number(process.env.DSH_DESKTOP_MUTATION_OWNER_PID)
       if (!Number.isSafeInteger(ownerPid) || ownerPid <= 0) throw new Error('dsh: invalid desktop mutation owner')

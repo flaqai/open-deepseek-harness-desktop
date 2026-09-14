@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./apps/desktop/src/icon.png" width="112" alt="Open DeepSeek Harness Desktop アイコン">
+  <img src="../../apps/desktop/src/icon.png" width="112" alt="Open DeepSeek Harness Desktop アイコン">
 </p>
 
 # Open DeepSeek Harness Desktop
@@ -8,7 +8,7 @@
   <strong>すぐに使えて、依存関係の安全性を強化した DeepSeek Harness コミュニティデスクトップ版</strong>
 </p>
 
-言語：[简体中文](README.md) · [English](README.en.md) · 日本語 · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+言語：[简体中文](../../README.md) · [English](README.en.md) · 日本語 · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
 > [!IMPORTANT]
 >
@@ -46,7 +46,7 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 設定、資格情報、セッション、ワークスペース情報、Agent プリセット、Skill、接続状態をデスクトップ専用ディレクトリへコピーし、元のディレクトリは変更しません。Profile、node_modules、ロックファイル、プラグイン実体、隔離記録、匿名識別子はコピーしません。プラグインはデスクトップ側で再インストールされ、その後の変更は公式 CLI/Web 環境と共有されません。
 
 <p align="center">
-  <img src="./assets/readme/data-home-import-en.png" width="900" alt="公式 DSH 設定を独立したデスクトップ環境へインポート">
+  <img src="../../assets/readme/data-home-import-en.png" width="900" alt="公式 DSH 設定を独立したデスクトップ環境へインポート">
   <br><sub>独立環境へインポート：対応データのみをコピーし、元の環境を維持</sub>
 </p>
 
@@ -55,7 +55,7 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 公式 ~/.dsh または手動で選択した対応ディレクトリをそのまま使用します。設定、資格情報、セッション、Agent プリセット、Skill、Profile、プラグインが共有され、Desktop と公式 CLI/Web の変更は同じデータへ反映されます。
 
 <p align="center">
-  <img src="./assets/readme/data-home-reuse-en.png" width="900" alt="既存 DSH 設定をデスクトップから直接使用">
+  <img src="../../assets/readme/data-home-reuse-en.png" width="900" alt="既存 DSH 設定をデスクトップから直接使用">
   <br><sub>この設定を直接使用：選択したディレクトリとデータを共有</sub>
 </p>
 
@@ -64,7 +64,7 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 既存の設定、セッション、プラグインを読み込まず、完全に独立した空の環境を作成します。
 
 <p align="center">
-  <img src="./assets/readme/data-home-fresh-en.png" width="900" alt="新しい独立 DSH 環境を作成">
+  <img src="../../assets/readme/data-home-fresh-en.png" width="900" alt="新しい独立 DSH 環境を作成">
   <br><sub>新しく開始：既存 DSH 設定を読み取りも変更もしません</sub>
 </p>
 
@@ -72,13 +72,13 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 
 「独立環境へインポート」と「新しく開始」は、続行前に管理された既定位置または空のカスタムフォルダを選択できます。選択した空フォルダがこのクライアント専用のデータルートになり、元の設定は変更も同期もされません。Windows では、増え続けるセッションやプラグイン Profile を D ドライブなどへ置き、C ドライブの負担を減らせます。
 
-<p align="center"><img src="./assets/readme/data-home-import-custom-location-zh.png" width="900" alt="設定のインポート時に空のカスタムディレクトリを選択"><br><sub>独立インポート：コピー前に既定位置または空フォルダを選択</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-import-custom-location-zh.png" width="900" alt="設定のインポート時に空のカスタムディレクトリを選択"><br><sub>独立インポート：コピー前に既定位置または空フォルダを選択</sub></p>
 
-<p align="center"><img src="./assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="新しく開始するときに空のカスタムディレクトリを選択"><br><sub>新しく開始：独立データをユーザーが選んだ場所へ保存</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="新しく開始するときに空のカスタムディレクトリを選択"><br><sub>新しく開始：独立データをユーザーが選んだ場所へ保存</sub></p>
 
 初回設定の完了後も、**設定 → 一般設定** からデータディレクトリを切り替えられます。クライアント専用ディレクトリへ戻る、公式の `~/.dsh` を直接使用する、別の既存 DSH ディレクトリを選ぶ、または空フォルダに新しい設定を作成できます。切り替えは再起動後に使用するディレクトリを選ぶだけで、元のデータをコピー、移動、統合、削除しません。空フォルダを選ぶと、再起動後に初回インストール手順が再び始まります。
 
-<p align="center"><img src="./assets/readme/data-home-switch-after-start-zh.png" width="900" alt="クライアント起動後に一般設定からデータディレクトリを切り替える"><br><sub>既存設定へ安全に切り替えるか、空フォルダに新しい独立設定を作成</sub></p>
+<p align="center"><img src="../../assets/readme/data-home-switch-after-start-zh.png" width="900" alt="クライアント起動後に一般設定からデータディレクトリを切り替える"><br><sub>既存設定へ安全に切り替えるか、空フォルダに新しい独立設定を作成</sub></p>
 
 セットアップウィザードでは、モデル API Key、スマートフォンアクセス、WeChat／Feishu などの IM ボット、任意の Codex 接続を設定できます。すべての手順はスキップでき、後から設定画面で完了できます。
 
@@ -101,7 +101,7 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 オンライン出所が利用できない場合、ユーザーがソースディレクトリまたは .tgz を選択できます。クライアントはパッケージ名、アーカイブパス、manifest とファイルサイズを検証し、ソースはライフサイクルスクリプトを無効化して再パックします。オンライン／ローカルのどちらも、ビルド許可、共有依存関係診断、必要な隔離を通過します。旧 node_modules や資格情報を含む不明な依存 URL は直接実行しません。
 
 <p align="center">
-  <img src="./assets/readme/imported-plugin-restore-zh.png" width="900" alt="インポート後のプラグイン出所確認とローカル復元">
+  <img src="../../assets/readme/imported-plugin-restore-zh.png" width="900" alt="インポート後のプラグイン出所確認とローカル復元">
   <br><sub>プラグインの出所状態、オンライン復元、安全なローカル復元</sub>
 </p>
 
@@ -115,11 +115,11 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 
 保護は起動とメイン画面を通して続きます。起動層が非互換プラグインを検出して外し、クライアントが隔離結果を通知し、診断画面が原因、元のバージョン、更新または削除の操作を提示します。
 
-<p align="center"><img src="./assets/readme/diagnostics-startup-quarantine-zh.png" width="900" alt="起動中に非互換 dsh-font を隔離"><br><sub>起動段階で非互換プラグインを検出して隔離</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-startup-quarantine-zh.png" width="900" alt="起動中に非互換 dsh-font を隔離"><br><sub>起動段階で非互換プラグインを検出して隔離</sub></p>
 
-<p align="center"><img src="./assets/readme/diagnostics-quarantine-notice-zh.png" width="900" alt="起動後に隔離結果を通知"><br><sub>安全にメイン画面へ入り、隔離結果を明示</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-quarantine-notice-zh.png" width="900" alt="起動後に隔離結果を通知"><br><sub>安全にメイン画面へ入り、隔離結果を明示</sub></p>
 
-<p align="center"><img src="./assets/readme/diagnostics-repair-guidance-zh.png" width="900" alt="診断画面に原因と修復操作を表示"><br><sub>原因、バージョン、元の導入元、実行可能な修復を表示</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-repair-guidance-zh.png" width="900" alt="診断画面に原因と修復操作を表示"><br><sub>原因、バージョン、元の導入元、実行可能な修復を表示</sub></p>
 
 Cordis の Context、Service、Symbol はバージョン番号だけでなく物理モジュールの同一性に依存します。同じバージョンでも別 real path にある @deepseek-ai/cordis や dsh-tools は別インスタンスです。診断は各ルートプラグインから直接・間接依存をたどり、宣言範囲と解決先を比較します。正しい peerDependencies は誤検出しません。
 
@@ -135,9 +135,9 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 開発版とインストール版は、オフラインの固定サンプルで Host の別コピー、孤立 Bundle、欠落モジュール、無効 Patch、重複 Loader、ライフサイクル失敗、ビルド許可、修復中断を再現できます。選択したシナリオを順番に実行し、現在のシナリオ、段階、残りのシナリオ、成否、所要時間を表示します。既定の隔離モードはユーザー Profile を変更せず、高度な実 Profile モードは終了時に復元と再検査を行います。安全な復元を確認できない場合は Profile プラグインを再起動せず、匿名化した JSON／テキスト概要を保存し、JSON レポートを出力できます。
 
-<p align="center"><img src="./assets/readme/diagnostics-lab-sandbox-zh.png" width="900" alt="診断演習センターの隔離サンドボックス"><br><sub>隔離サンドボックス：ユーザー Profile を変更せず複数の障害を演習</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-lab-sandbox-zh.png" width="900" alt="診断演習センターの隔離サンドボックス"><br><sub>隔離サンドボックス：ユーザー Profile を変更せず複数の障害を演習</sub></p>
 
-<p align="center"><img src="./assets/readme/diagnostics-lab-live-profile-zh.png" width="900" alt="診断演習センターの実 Profile モード"><br><sub>高度な実 Profile 演習：実際の隔離、復元、再検査を確認</sub></p>
+<p align="center"><img src="../../assets/readme/diagnostics-lab-live-profile-zh.png" width="900" alt="診断演習センターの実 Profile モード"><br><sub>高度な実 Profile 演習：実際の隔離、復元、再検査を確認</sub></p>
 
 > [!CAUTION]
 >
@@ -155,12 +155,12 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 <p align="center">
   <strong>選択ツールバー</strong><br>
-  <img src="./assets/readme/selection-toolbar-zh.png" width="900" alt="選択後の横型ツールバー">
+  <img src="../../assets/readme/selection-toolbar-zh.png" width="900" alt="選択後の横型ツールバー">
 </p>
 
 <p align="center">
   <strong>右クリックメニュー</strong><br>
-  <img src="./assets/readme/selection-context-menu-zh.png" width="900" alt="選択テキストの縦型右クリックメニュー">
+  <img src="../../assets/readme/selection-context-menu-zh.png" width="900" alt="選択テキストの縦型右クリックメニュー">
 </p>
 
 ## デスクトップ体験
@@ -180,19 +180,19 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 [`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream) の作者とメンテナーに感謝します。本プロジェクトはデスクトップ統合と整合性を検証したアーカイブ配布を担当し、各プラグインの著作権、ライセンス、継続的な保守はそれぞれのプロジェクトに帰属します。
 
-<p align="center"><img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="Pocket の QR コードまたは LAN アドレスでスマートフォンを接続"><br><sub>スマートフォンアクセス：同じネットワークでスキャンし、必要に応じて公開アクセスも有効化</sub></p>
+<p align="center"><img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Pocket の QR コードまたは LAN アドレスでスマートフォンを接続"><br><sub>スマートフォンアクセス：同じネットワークでスキャンし、必要に応じて公開アクセスも有効化</sub></p>
 
-<p align="center"><img src="./assets/readme/preset-im-robot-zh.png" width="900" alt="dsh-im で WeChat などの IM ボットを接続"><br><sub>IM ボット：WeChat、Feishu、DingTalk、WeCom、QQ、Slack、Telegram、Discord、WhatsApp に接続</sub></p>
+<p align="center"><img src="../../assets/readme/preset-im-robot-zh.png" width="900" alt="dsh-im で WeChat などの IM ボットを接続"><br><sub>IM ボット：WeChat、Feishu、DingTalk、WeCom、QQ、Slack、Telegram、Discord、WhatsApp に接続</sub></p>
 
 インストーラー内のローカル版はオフライン準備に便利ですが、市場更新には直接追随しません。オンラインになったら **プラグイン市場 → インストール済み** で各プリセットの **復元** を選び、オンライン版へ入れ替えることを推奨します。復元は自動ロールバックできないため、固定されたオフライン版を優先する場合はそのまま維持できます。
 
-<p align="center"><img src="./assets/readme/preset-plugin-restore-online-zh.png" width="900" alt="ローカルのプリセットをオンライン版へ復元"><br><sub>推奨：オンライン時に「復元」を押し、通常の更新確認が可能なオンライン版へ切り替え</sub></p>
+<p align="center"><img src="../../assets/readme/preset-plugin-restore-online-zh.png" width="900" alt="ローカルのプリセットをオンライン版へ復元"><br><sub>推奨：オンライン時に「復元」を押し、通常の更新確認が可能なオンライン版へ切り替え</sub></p>
 
 ### 設定ナビゲーションのカスタマイズ
 
 設定の左側ナビゲーションは独立してスクロールでき、項目が増えても後半が隠れません。項目はドラッグで並べ替えでき、順序はローカルに保存されます。プラグインの追加・削除後もユーザーの並びへ安定して統合されます。Windows／Linux ではタイトルバーと Harness 内容を別のネイティブビューに分けるため、全画面プラグインがウィンドウ操作ボタンを覆いません。
 
-<p align="center"><img src="./assets/readme/settings-navigation-reorder-zh.png" width="900" alt="三本線のハンドルで設定ナビゲーションを並べ替え"><br><sub>設定項目を自由にドラッグし、周囲の行が滑らかに場所を空け、最終順序を保存</sub></p>
+<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="三本線のハンドルで設定ナビゲーションを並べ替え"><br><sub>設定項目を自由にドラッグし、周囲の行が滑らかに場所を空け、最終順序を保存</sub></p>
 
 ## テーマと背景
 
@@ -201,8 +201,8 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 <table>
   <tr><th width="50%">テーマ</th><th width="50%">背景</th></tr>
   <tr>
-    <td align="center"><img src="./assets/readme/theme-settings-en.png" alt="テーマ設定"></td>
-    <td align="center"><img src="./assets/readme/background-settings-en.png" alt="背景設定"></td>
+    <td align="center"><img src="../../assets/readme/theme-settings-en.png" alt="テーマ設定"></td>
+    <td align="center"><img src="../../assets/readme/background-settings-en.png" alt="背景設定"></td>
   </tr>
 </table>
 
@@ -236,11 +236,11 @@ Web のみの場合は pnpm dsh web を使用します。ソース Web は現在
 
 Renderer は Node 統合を無効化し、context isolation と Chromium sandbox を有効化しています。ナビゲーションは Harness の正確な loopback origin に限定され、任意コマンド、ファイル、URL を扱う汎用 bridge は提供しません。API Key は Harness の資格情報サービスで管理してください。
 
-- [ユーザーガイド](docs/user/guide/index.md)、[プラグインガイド](docs/user/develop/framework/index.md)、[Skill ガイド](docs/subsystems/skills.md)
+- [ユーザーガイド](../../docs/user/guide/index.md)、[プラグインガイド](../../docs/user/develop/framework/index.md)、[Skill ガイド](../../docs/subsystems/skills.md)
 - 不具合と提案：[GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues)
 - 上流：[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
-Open DeepSeek Harness Desktop は [MIT License](LICENSE) で公開されています。第三者ライセンスは [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
+Open DeepSeek Harness Desktop は [MIT License](../../LICENSE) で公開されています。第三者ライセンスは [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) を参照してください。
 
 ## Friends
 

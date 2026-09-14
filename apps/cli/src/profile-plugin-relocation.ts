@@ -20,6 +20,10 @@ export function relocateProfilePluginMetadata(
   const physicalActive = existsSync(activeHome) ? realpathSync(activeHome) : activeHome
   const relocate = (text: string): string => {
     if (text === from || text.startsWith(`${from}${sep}`)) return to + text.slice(from.length)
+    if (isAbsolute(text)) {
+      const local = relative(candidateHome, text)
+      if (local !== '..' && !local.startsWith(`..${sep}`) && !isAbsolute(local)) return resolve(activeHome, local)
+    }
     const match = /^(.*?@)?(file|link):(.+)$/u.exec(text)
     if (match?.[3] === undefined || isAbsolute(match[3])) return text
     let path = match[3]

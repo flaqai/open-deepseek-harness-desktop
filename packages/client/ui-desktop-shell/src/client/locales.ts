@@ -13,9 +13,12 @@ export const desktopLanguageTitles = {
 
 /** Simplified Chinese copy owned by the desktop shell. */
 export const zh = {
+  'logs.openDirectory': '打开日志文件目录',
+  'logs.openDirectory.opening': '正在打开…',
+  'logs.openDirectory.error': '无法打开日志目录',
   'network.loading': '正在读取下载设置…',
   'network.title': '下载与代理',
-  'network.description': '当前仅管理应用更新。插件下载设置将在官方市场支持宿主管理的网络策略后开放。',
+  'network.description': '管理应用更新及由桌面端执行的 npm 包下载；插件市场的目录、README、源码归档和 Git 操作仍使用市场原有网络配置。',
   'network.application.title': '应用更新',
   'network.application.description': '选择更新检查和安装包下载来源。来源失败时不会静默切换。',
   'network.application.source.github': 'GitHub',
@@ -30,9 +33,8 @@ export const zh = {
   'network.proxy.username': '用户名（可选）',
   'network.proxy.password': '密码（可选）',
   'network.proxy.password.saved': '已安全保存；留空表示不修改',
-  'network.npm.title': 'npm 插件',
-  'network.npm.description': '用于 npm 版本查询、插件包及传递依赖。私有 scope 和构建拒绝保持不变。',
-  'network.npm.registry.existing': '保持现有 registry',
+  'network.npm.title': 'npm 下载',
+  'network.npm.description': '用于外部工具及其他由桌面端受控的 npm 包安装。默认使用 npmmirror；私有 scope 和构建拒绝保持不变。',
   'network.npm.registry.npmjs': 'npm 官方源',
   'network.npm.registry.npmmirror': 'npmmirror',
   'network.npm.registry.custom': '自定义 registry',
@@ -229,9 +231,12 @@ export type DesktopShellKey = keyof typeof zh
 
 /** English dictionary checked against the Chinese key source. */
 export const en = {
+  'logs.openDirectory': 'Open log folder',
+  'logs.openDirectory.opening': 'Opening…',
+  'logs.openDirectory.error': 'Could not open the log folder',
   'network.loading': 'Loading download settings…',
   'network.title': 'Downloads and proxies',
-  'network.description': 'Currently manages application updates only. Plugin download controls require host-managed network-policy support from the official market.',
+  'network.description': 'Manages application updates and npm package downloads run by Desktop. Marketplace catalogs, READMEs, source archives, and Git operations keep using the market’s existing network configuration.',
   'network.application.title': 'Application updates',
   'network.application.description': 'Choose where update checks and installers come from. A failed source is never changed silently.',
   'network.application.source.github': 'GitHub',
@@ -246,9 +251,8 @@ export const en = {
   'network.proxy.username': 'Username (optional)',
   'network.proxy.password': 'Password (optional)',
   'network.proxy.password.saved': 'Saved securely; leave blank to keep it',
-  'network.npm.title': 'npm plugins',
-  'network.npm.description': 'Used for npm version checks, plugin packages, and transitive dependencies. Private scopes and build denials remain intact.',
-  'network.npm.registry.existing': 'Keep existing registry',
+  'network.npm.title': 'npm downloads',
+  'network.npm.description': 'Used for external tools and other Desktop-managed npm package installs. npmmirror is the default; private scopes and build denials remain intact.',
   'network.npm.registry.npmjs': 'Official npm registry',
   'network.npm.registry.npmmirror': 'npmmirror',
   'network.npm.registry.custom': 'Custom registry',
@@ -442,9 +446,12 @@ export const en = {
 
 /** Russian dictionary checked against the English key source. */
 export const ru = {
+  'logs.openDirectory': 'Открыть папку журналов',
+  'logs.openDirectory.opening': 'Открываем…',
+  'logs.openDirectory.error': 'Не удалось открыть папку журналов',
   'network.loading': 'Загружаем настройки скачивания…',
   'network.title': 'Загрузки и прокси',
-  'network.description': 'Сейчас управляет только обновлениями приложения. Настройки загрузки плагинов появятся после поддержки сетевой политики хоста в официальном магазине.',
+  'network.description': 'Управляет обновлениями приложения и загрузками npm-пакетов, которые запускает Desktop. Каталоги, README, архивы исходников и Git-операции магазина используют его текущие сетевые настройки.',
   'network.application.title': 'Обновления приложения',
   'network.application.description': 'Выберите источник проверки и установщиков. При ошибке источник не меняется автоматически.',
   'network.application.source.github': 'GitHub',
@@ -459,9 +466,8 @@ export const ru = {
   'network.proxy.username': 'Имя пользователя (необязательно)',
   'network.proxy.password': 'Пароль (необязательно)',
   'network.proxy.password.saved': 'Сохранён безопасно; оставьте пустым без изменений',
-  'network.npm.title': 'Плагины npm',
-  'network.npm.description': 'Для версий npm, пакетов и транзитивных зависимостей. Приватные scope и запреты сборки сохраняются.',
-  'network.npm.registry.existing': 'Сохранить текущий registry',
+  'network.npm.title': 'Загрузки npm',
+  'network.npm.description': 'Для внешних инструментов и других установок npm-пакетов под управлением Desktop. По умолчанию используется npmmirror; приватные scope и запреты сборки сохраняются.',
   'network.npm.registry.npmjs': 'Официальный npm',
   'network.npm.registry.npmmirror': 'npmmirror',
   'network.npm.registry.custom': 'Свой registry',

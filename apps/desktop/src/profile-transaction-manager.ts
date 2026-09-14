@@ -18,6 +18,10 @@ export interface ProfileTransactionManagerOptions {
   onError(error: unknown): void
   onRollback(error: unknown): void
   onActivation(): void
+  /** Persist startup completion only after the transaction commit and lease release. */
+  onCommit?(): Promise<void>
+  /** Reclaim a recognized interrupted first-start copy under a new lease; false uses normal rollback. */
+  resumePreparation?(id: string): Promise<boolean>
 }
 
 function alive(pid: number): boolean {
@@ -33,6 +37,7 @@ export class ProfileTransactionManager {
   #deadline: NodeJS.Timeout | undefined
   #operation: Promise<void> | undefined
   #checking: string | undefined
+  #readinessPhase: 'awaiting-launch' | 'server' | 'renderer' | undefined
   #disposed = false
   #settlement: { id: string; promise: Promise<boolean>; resolve(value: boolean): void; reject(error: unknown): void } | undefined
 
@@ -65,6 +70,7 @@ export class ProfileTransactionManager {
     if (record === undefined) return
     const lock = inspectProfileMutationLock(this.#options.home)
     if (lock.active || alive(record.producerPid)) return
+    if (record.phase === 'preparing' && await this.#options.resumePreparation?.(record.id)) return
     await this.#options.command(['transaction', 'rollback', record.id])
   }
 
@@ -102,7 +108,8 @@ export class ProfileTransactionManager {
       if (record?.id !== id || record.phase !== 'prepared' || lock.pid !== process.pid || lock.workerPid !== undefined) {
         throw new Error('desktop: prepared plugin transaction is not owned by this desktop')
       }
-      await this.#activate(id, resume)
+      const failure = await this.#activate(id, resume)
+      if (failure !== undefined) throw failure.error
     })()
     this.#operation = operation
     try { await operation } finally { if (this.#operation === operation) this.#operation = undefined }
@@ -118,7 +125,7 @@ export class ProfileTransactionManager {
     return this.#settlement.promise
   }
 
-  async #activate(id: string, resume: boolean): Promise<void> {
+  async #activate(id: string, resume: boolean): Promise<{ error: unknown } | undefined> {
     const deferred = Promise.withResolvers<boolean>()
     // Startup has no awaiting caller; the failure still reaches onError.
     void deferred.promise.catch(() => {})
@@ -129,12 +136,17 @@ export class ProfileTransactionManager {
     try {
       await this.#options.command(['transaction', 'activate', id], id)
       this.#checking = id
-      this.#deadline = setTimeout(() => { this.failed() }, 30_000)
-      if (resume) this.#options.resumeHarness()
+      this.#readinessPhase = 'awaiting-launch'
+      if (resume) {
+        this.harnessStarting()
+        this.#options.resumeHarness()
+      }
     } catch (error) {
       await this.#rollback(id)
       this.#options.onRollback(error)
+      return { error }
     }
+    return undefined
   }
 
   #run(operation: () => Promise<void>): void {
@@ -158,6 +170,25 @@ export class ProfileTransactionManager {
     this.#deadline = undefined
   }
 
+  /** Start the cold-start budget only when Harness is actually being launched. */
+  harnessStarting(): void {
+    if (this.#checking === undefined || this.#readinessPhase !== 'awaiting-launch') return
+    this.#readinessPhase = 'server'
+    this.#deadline = setTimeout(() => {
+      this.failed(new Error('desktop: plugin activation timed out waiting 180 seconds for the Harness server'))
+    }, 180_000)
+  }
+
+  /** Give the renderer its own bounded window after the server publishes its URL. */
+  serverReady(): void {
+    if (this.#checking === undefined || this.#readinessPhase !== 'server') return
+    this.#clearDeadline()
+    this.#readinessPhase = 'renderer'
+    this.#deadline = setTimeout(() => {
+      this.failed(new Error('desktop: plugin activation timed out waiting 60 seconds for client and event-dispatch readiness'))
+    }, 60_000)
+  }
+
   async #release(id: string): Promise<void> {
     await this.#options.command(['snapshot', 'end-restore-lease'], id)
   }
@@ -168,6 +199,7 @@ export class ProfileTransactionManager {
     await this.#options.command(['transaction', 'rollback', id], id)
     await this.#release(id)
     this.#checking = undefined
+    this.#readinessPhase = undefined
     if (this.#settlement?.id === id) this.#settlement.resolve(false)
     if (!this.#disposed) this.#options.resumeHarness()
   }
@@ -182,15 +214,20 @@ export class ProfileTransactionManager {
       await this.#options.command(['transaction', 'commit', id], id)
       await this.#release(id)
       this.#checking = undefined
+      this.#readinessPhase = undefined
+      await this.#options.onCommit?.()
       if (this.#settlement?.id === id) this.#settlement.resolve(true)
     })
   }
 
   /** Stop a failed candidate and restore its managed files and complete dependency directory. */
-  failed(): void {
-    if (this.#operation !== undefined) { void this.#operation.then(() => { this.failed() }); return }
+  failed(error: unknown = new Error('desktop: activated plugin Profile failed to start')): void {
+    if (this.#operation !== undefined) { void this.#operation.then(() => { this.failed(error) }); return }
     const id = this.#checking
-    if (id !== undefined) this.#run(() => this.#rollback(id))
+    if (id !== undefined) this.#run(async () => {
+      await this.#rollback(id)
+      this.#options.onRollback(error)
+    })
   }
 
   /** Cancel discovery and wait for the supervisor-owned command to finish or be aborted. */

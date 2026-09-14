@@ -3,8 +3,12 @@
 set -u
 
 benchmark_dir=${0:A:h}
-app_bundle='/Applications/DeepSeek Harness.app'
-if [[ ! -d "$app_bundle" && -d "$HOME/Applications/DeepSeek Harness.app" ]]; then
+app_bundle='/Applications/Open DeepSeek Harness Desktop.app'
+if [[ ! -d "$app_bundle" && -d "$HOME/Applications/Open DeepSeek Harness Desktop.app" ]]; then
+  app_bundle="$HOME/Applications/Open DeepSeek Harness Desktop.app"
+elif [[ ! -d "$app_bundle" && -d '/Applications/DeepSeek Harness.app' ]]; then
+  app_bundle='/Applications/DeepSeek Harness.app'
+elif [[ ! -d "$app_bundle" && -d "$HOME/Applications/DeepSeek Harness.app" ]]; then
   app_bundle="$HOME/Applications/DeepSeek Harness.app"
 fi
 runtime_root=''
@@ -60,7 +64,7 @@ pnpm_entry="$runtime_root/package-runtime/lib/node_modules/pnpm/bin/pnpm.mjs"
 [[ -x "$node_bin" && -f "$pnpm_entry" ]] || \
   fail '对应运行时未就绪。请先启动一次安装版，或用 --runtime 指定已解压运行时。 / Runtime missing; launch the installed app once, or supply --runtime.'
 
-printf 'Open DSH Desktop · pnpm 代理 A/B 测试 / Proxy A/B benchmark\n'
+printf 'Open DeepSeek Harness Desktop · pnpm 代理 A/B 测试 / Proxy A/B benchmark\n'
 printf '默认：离线隔离场景，10 轮，冷/热缓存；不修改真实配置。\n'
 printf 'Default: offline fixture, 10 rounds, cold/warm caches; real configuration is untouched.\n'
 printf 'Node: %s\npnpm: %s\n' "$node_bin" "$pnpm_entry"

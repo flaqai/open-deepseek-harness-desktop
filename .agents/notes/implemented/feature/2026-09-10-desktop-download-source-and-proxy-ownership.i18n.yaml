@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-desktop-download-source-and-proxy-ownership.md
-2026-09-10-desktop-download-source-and-proxy-ownership.md: bb672dd3a299cb96f522e6c79cdba0e04e6dde4d
-2026-09-10-desktop-download-source-and-proxy-ownership.zh.md: 854e0c8f9f9cc192660c454cf9a3f53149780cf0
+2026-09-10-desktop-download-source-and-proxy-ownership.md: 4efe40f41356f6277acdd92bd38035978371ab62
+2026-09-10-desktop-download-source-and-proxy-ownership.zh.md: f5a1004c55f8065fceb331ca4e3a0b64f39c8059

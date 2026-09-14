@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $installer = (Resolve-Path (Join-Path $PSScriptRoot '../../../.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe')).Path
-$installRoot = Join-Path $env:RUNNER_TEMP 'DeepSeek Harness 安装测试'
+$installRoot = Join-Path $env:RUNNER_TEMP 'Open DeepSeek Harness Desktop 安装测试'
 $dshHome = Join-Path $env:RUNNER_TEMP 'DeepSeek Harness Home'
 $desktopDataRoot = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'open-deepseek-harness-desktop'
 $harnessLog = Join-Path $desktopDataRoot 'logs/harness.log'
@@ -40,7 +40,7 @@ while (-not $install.HasExited -and (Get-Date) -lt $installDeadline) {
   Start-Sleep -Milliseconds 500
   $install.Refresh()
   if ((Get-Date) -ge $nextInstallProgress) {
-    $installedExecutable = Test-Path (Join-Path $installRoot 'DeepSeek Harness.exe')
+    $installedExecutable = Test-Path (Join-Path $installRoot 'Open DeepSeek Harness Desktop.exe')
     $installedHarness = Test-Path (Join-Path $installRoot 'resources/harness/lib/bin.js')
     $elapsed = [Math]::Round(((Get-Date) - $install.StartTime).TotalSeconds)
     Write-Host "Installer still running after ${elapsed}s (executable=$installedExecutable, harness=$installedHarness)."
@@ -69,7 +69,7 @@ $decoyStart.ArgumentList.Add('127.0.0.1')
 $decoy = [System.Diagnostics.Process]::Start($decoyStart)
 
 $required = @(
-  (Join-Path $installRoot 'DeepSeek Harness.exe'),
+  (Join-Path $installRoot 'Open DeepSeek Harness Desktop.exe'),
   (Join-Path $installRoot 'resources/harness/lib/bin.js'),
   (Join-Path $installRoot 'resources/harness/node_modules'),
   (Join-Path $installRoot 'resources/runtime/win32-x64/node.exe'),
@@ -83,6 +83,8 @@ $required = @(
 foreach ($path in $required) {
   if (-not (Test-Path $path)) { throw "Installed package is missing $path" }
 }
+& node (Join-Path $PSScriptRoot 'verify-prebuilt-profile.mjs') (Join-Path $installRoot 'resources')
+if ($LASTEXITCODE -ne 0) { throw 'Installed prebuilt Profile verification failed' }
 $registeredUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 $registeredEntries = @($registeredUserPath.Split(';') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 if (-not ($registeredEntries | Where-Object { [string]::Equals($_.TrimEnd('\', '/'), $cliDirectory.TrimEnd('\', '/'), [StringComparison]::OrdinalIgnoreCase) })) {
@@ -97,7 +99,7 @@ if ($cliRegistration.CliPathRegistered -ne 1 -or
 $env:DSH_HOME = $dshHome
 Remove-Item -LiteralPath $harnessLog -Force -ErrorAction SilentlyContinue
 $appStart = [System.Diagnostics.ProcessStartInfo]::new()
-$appStart.FileName = Join-Path $installRoot 'DeepSeek Harness.exe'
+$appStart.FileName = Join-Path $installRoot 'Open DeepSeek Harness Desktop.exe'
 $appStart.UseShellExecute = $false
 $app = [System.Diagnostics.Process]::Start($appStart)
 $orphanStart = [System.Diagnostics.ProcessStartInfo]::new()
@@ -133,11 +135,11 @@ try {
   # evidence before the restart clears the log.
   Write-Host "First installed startup log:`n$((Get-Content -LiteralPath $harnessLog -Tail 200) -join "`n")"
   $guardScript = Join-Path $PSScriptRoot '../build/installer-process-guard.ps1'
-  $guardOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $guardScript -Action inspect -InstallDirectory $installRoot -AppExecutable 'DeepSeek Harness.exe' -ExcludeProcessId $PID 2>&1
+  $guardOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $guardScript -Action inspect -InstallDirectory $installRoot -AppExecutable 'Open DeepSeek Harness Desktop.exe' -ExcludeProcessId $PID 2>&1
   $guardExitCode = $LASTEXITCODE
   Write-Host "Pre-upgrade process guard (exit $guardExitCode):`n$($guardOutput -join "`n")"
   if ($guardExitCode -ne 10) { throw "Process guard did not detect the running packaged application (exit $guardExitCode)" }
-  $stopOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $guardScript -Action stop -InstallDirectory $installRoot -AppExecutable 'DeepSeek Harness.exe' -ExcludeProcessId $PID 2>&1
+  $stopOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $guardScript -Action stop -InstallDirectory $installRoot -AppExecutable 'Open DeepSeek Harness Desktop.exe' -ExcludeProcessId $PID 2>&1
   if ($LASTEXITCODE -ne 0) { throw "Process guard failed to close packaged processes:`n$($stopOutput -join "`n")" }
   if (-not $app.WaitForExit(30000)) { throw 'Process guard did not close the installed desktop application' }
   if (-not $orphanNode.WaitForExit(30000)) { throw 'Process guard did not close the installation-owned orphan Node process' }
@@ -148,7 +150,7 @@ try {
   # app. An external process briefly holds the top-level executable, just as a
   # virus scanner or indexer can after reboot. The installer's bounded recovery
   # must wait for release and complete the same-directory atomic upgrade.
-  $lockedExecutable = Join-Path $installRoot 'DeepSeek Harness.exe'
+  $lockedExecutable = Join-Path $installRoot 'Open DeepSeek Harness Desktop.exe'
   $lockReady = Join-Path $env:RUNNER_TEMP 'dsh-upgrade-lock-ready.txt'
   Remove-Item -LiteralPath $lockReady -Force -ErrorAction SilentlyContinue
   $lockStart = [System.Diagnostics.ProcessStartInfo]::new()
@@ -290,7 +292,7 @@ if ($bundledFailure) {
   throw "Bundled plugin failure was written to $harnessLog"
 }
 
-$uninstaller = Join-Path $installRoot 'Uninstall DeepSeek Harness.exe'
+$uninstaller = Join-Path $installRoot 'Uninstall Open DeepSeek Harness Desktop.exe'
 if (-not (Test-Path $uninstaller)) { throw "Installed package is missing $uninstaller" }
 $uninstallStart = [System.Diagnostics.ProcessStartInfo]::new()
 $uninstallStart.FileName = $uninstaller

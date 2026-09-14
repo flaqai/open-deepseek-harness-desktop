@@ -127,21 +127,21 @@ export function DownloadNetworkSettings({
         onPassword={(value) => { setPasswords(values => ({ ...values, application: value })) }} />
       <TestResult target="application" status={test} t={t} />{actions('application')}
     </article>
+    <article className={css.networkCard}>
+      <div className={css.networkHeading}><div><strong>{t('network.npm.title')}</strong><small>{t('network.npm.description')}</small></div><span>{t(`network.npm.registry.${saved.npm.registry}`)}</span></div>
+      <div className={css.networkFields}><label><span>{t('network.registry')}</span><select value={draft.npm.registry} onChange={(event) => {
+        setDraft({ ...draft, npm: { ...draft.npm, registry: event.target.value as Settings['npm']['registry'] } })
+      }}>
+        <option value="npmmirror">{t('network.npm.registry.npmmirror')}</option><option value="npmjs">{t('network.npm.registry.npmjs')}</option><option value="custom">{t('network.npm.registry.custom')}</option>
+      </select></label>{draft.npm.registry === 'custom' && <label><span>{t('network.registry.url')}</span><input value={draft.npm.registryUrl ?? ''} onChange={(event) => {
+        setDraft({ ...draft, npm: { ...draft.npm, registryUrl: event.target.value } })
+      }} /></label>}</div>
+      <ProxyFields target="npm" proxy={draft.npm.proxy} password={passwords.npm} t={t}
+        onProxy={(proxy) => { updateProxy('npm', proxy) }}
+        onPassword={(value) => { setPasswords(values => ({ ...values, npm: value })) }} />
+      <TestResult target="npm" status={test} t={t} />{actions('npm')}
+    </article>
     {marketSettingsAvailable ? <>
-      <article className={css.networkCard}>
-        <div className={css.networkHeading}><div><strong>{t('network.npm.title')}</strong><small>{t('network.npm.description')}</small></div><span>{t(`network.npm.registry.${saved.npm.registry}`)}</span></div>
-        <div className={css.networkFields}><label><span>{t('network.registry')}</span><select value={draft.npm.registry} onChange={(event) => {
-          setDraft({ ...draft, npm: { ...draft.npm, registry: event.target.value as Settings['npm']['registry'] } })
-        }}>
-          <option value="existing">{t('network.npm.registry.existing')}</option><option value="npmjs">{t('network.npm.registry.npmjs')}</option><option value="npmmirror">{t('network.npm.registry.npmmirror')}</option><option value="custom">{t('network.npm.registry.custom')}</option>
-        </select></label>{draft.npm.registry === 'custom' && <label><span>{t('network.registry.url')}</span><input value={draft.npm.registryUrl ?? ''} onChange={(event) => {
-          setDraft({ ...draft, npm: { ...draft.npm, registryUrl: event.target.value } })
-        }} /></label>}</div>
-        <ProxyFields target="npm" proxy={draft.npm.proxy} password={passwords.npm} t={t}
-          onProxy={(proxy) => { updateProxy('npm', proxy) }}
-          onPassword={(value) => { setPasswords(values => ({ ...values, npm: value })) }} />
-        <TestResult target="npm" status={test} t={t} />{actions('npm')}
-      </article>
       <article className={css.networkCard}>
         <div className={css.networkHeading}><div><strong>{t('network.github.title')}</strong><small>{t('network.github.description')}</small></div><span>{t(`network.github.download.${saved.github.download}`)}</span></div>
         <div className={css.networkFields}><label><span>{t('network.github.route')}</span><select value={draft.github.download} onChange={(event) => {

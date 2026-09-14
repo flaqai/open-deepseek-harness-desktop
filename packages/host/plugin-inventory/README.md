@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Clients can call `pluginInventory/list` to inspect current Loader entries and agent-preset compositions without changing their configuration. Each response is an uncached, point-in-time snapshot of enablement, provenance, and runtime health. The same restricted Remote separately exposes durable Profile diagnostics and fixed doctor, quarantine, recovery, uninstall, and export operations; callers cannot submit arbitrary commands or paths. Client packages consume it through the explicit `api-remotes` assembly.
+Clients inspect current Loader entries and agent-preset compositions without changing configuration. Results show enablement, provenance, and runtime health at request time. Guarded operations provide fixed Profile diagnostics, quarantine, recovery, uninstall, and export actions without accepting arbitrary commands or paths. During installation, clients read bounded progress and sanitized incremental output by Host-issued install id; private pnpm paths never cross the boundary. A client may pause or cancel that exact id: the Host terminates its managed process range and waits for quiescence before publishing the terminal state. Progress observation does not change retry, timeout, diagnostic, or recovery outcomes.
 
 ## Table of Contents
 
@@ -26,6 +26,8 @@ Clients can call `pluginInventory/list` to inspect current Loader entries and ag
 ## Use this package
 
 Call `pluginInventory/list` when a client or settings page needs to show what is currently composed in the host — which plugins are loaded, enabled, and alive, and what each agent preset would give a session. The Remote is the only entry point: the service is Remote-only and deliberately declares no same-process Cordis `Context` merge.
+
+For an install started through the fixed request methods, poll `getInstall()` for its phase and optional `installProgress`. Use `getInstallOutput({ installId, offset })` to read only bytes added after the returned opaque cursor. `pauseInstall(id)` and `cancelInstall(id)` accept only a Host-issued id and settle after the managed process range exits. Pause is portable stop-and-resume: a later start of the same request creates a fresh guarded transaction and reuses pnpm's cache rather than suspending an operating-system process. Old output may be evicted under the configured cap, in which case `lossy` is true. Unknown or fabricated install ids fail instead of selecting a file or process.
 
 ### What a snapshot contains
 
@@ -60,6 +62,7 @@ Fiber states map onto the public phase vocabulary, with `disposed` folding into 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `PluginInventoryGateway`: the `pluginInventory` Remote service and the Loader projection |
+| [`src/install-progress.ts`](src/install-progress.ts) | Incremental pnpm NDJSON parsing, progress calculation, redaction, and bounded terminal output |
 | [`src/types.ts`](src/types.ts) | Public payload types: `PluginInventoryEntry`, `PluginInventorySnapshot`, `PluginFiberPhase` |
 | — | No runtime invariant companion is published; every snapshot is projected directly from Loader-owned state. |
 

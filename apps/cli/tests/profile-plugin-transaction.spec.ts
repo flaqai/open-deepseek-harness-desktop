@@ -8,6 +8,7 @@ import { runPlugin } from '../src/plugin.ts'
 import {
   activateProfilePluginTransaction, prepareProfilePluginTransaction, profilePluginCandidateHome,
   readProfilePluginTransaction, readyProfilePluginTransaction, settleProfilePluginTransaction,
+  resumeProfilePluginPreparation,
 } from '../src/profile-plugin-transaction.ts'
 
 const homes: string[] = []
@@ -35,6 +36,41 @@ function dependencies(profile: string): Record<string, string> {
   return (JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8')) as { dependencies: Record<string, string> }).dependencies
 }
 describe('staged Profile activation', () => {
+  it('stages a fresh Profile without initializing the active directory and rolls it back to absent', () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-first-deploy-'))
+    homes.push(home)
+    mkdirSync(join(home, 'profiles/node_modules'), { recursive: true })
+    const record = prepareProfilePluginTransaction(home, 'web')
+    const candidate = profilePluginCandidateHome(home, 'web', record.id)
+    const profile = join(candidate, 'profiles/web')
+    mkdirSync(join(profile, 'node_modules'), { recursive: true })
+    writeFileSync(join(profile, 'package.json'), '{"dependencies":{},"dsh":{"profile":{"bundles":[]}}}')
+    expect(existsSync(join(home, 'profiles/web/package.json'))).toBe(false)
+    readyProfilePluginTransaction(home, 'web', record.id)
+    activateProfilePluginTransaction(home, 'web', record.id)
+    expect(existsSync(join(home, 'profiles/web/package.json'))).toBe(true)
+    settleProfilePluginTransaction(home, 'web', record.id, false)
+    expect(existsSync(join(home, 'profiles/web/package.json'))).toBe(false)
+  })
+  it('resumes only preparation from a dead producer and preserves copied candidate files', () => {
+    const f = fixture()
+    const journal = join(f.home, 'plugin-transactions/web/pending.json')
+    writeFileSync(journal, JSON.stringify({ ...f.record, producerPid: 99999999 }))
+    writeFileSync(join(f.candidateProfile, 'node_modules', 'copied'), 'keep')
+    resumeProfilePluginPreparation(f.home, 'web', f.record.id, process.pid)
+    expect(readProfilePluginTransaction(f.home, 'web')?.producerPid).toBe(process.pid)
+    expect(readFileSync(join(f.candidateProfile, 'node_modules', 'copied'), 'utf8')).toBe('keep')
+    expect(() => { resumeProfilePluginPreparation(f.home, 'web', f.record.id, process.pid) }).toThrow('still alive')
+    writeFileSync(journal, JSON.stringify({ ...f.record, producerPid: 99999999, phase: 'activating' }))
+    expect(() => { resumeProfilePluginPreparation(f.home, 'web', f.record.id, process.pid) }).toThrow('only interrupted preparation')
+  })
+  it('rebases a prebuilt candidate store location to the active configuration directory on activation', () => {
+    const f = fixture()
+    writeFileSync(join(f.candidateProfile, 'node_modules/.modules.yaml'), JSON.stringify({ storeDir: join(f.candidate, '.pnpm-store/v11') }))
+    readyProfilePluginTransaction(f.home, 'web', f.record.id)
+    activateProfilePluginTransaction(f.home, 'web', f.record.id)
+    expect(load(readFileSync(join(f.profile, 'node_modules/.modules.yaml'), 'utf8'))).toEqual({ storeDir: join(f.home, '.pnpm-store/v11') })
+  })
   it('activates new seed markers and retained archives together, then removes the new marker on rollback', () => {
     const f = fixture()
     const bundled = join(f.candidate, 'bundled-plugins')

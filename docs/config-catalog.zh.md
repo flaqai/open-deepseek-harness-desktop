@@ -972,7 +972,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/host/plugin-inventory/src/index.ts:90`](../packages/host/plugin-inventory/src/index.ts)
+来源：[`packages/host/plugin-inventory/src/index.ts:101`](../packages/host/plugin-inventory/src/index.ts)
 
 <a id="deepseek-aidsh-host-webserver"></a>
 

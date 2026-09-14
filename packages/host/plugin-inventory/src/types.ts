@@ -244,7 +244,44 @@ export interface PluginUninstallRequest {
 }
 
 /** Observable lifecycle of one package-manager process. */
-export type PluginInstallPhase = 'running' | 'succeeded' | 'repaired' | 'quarantined' | 'failed'
+export type PluginInstallPhase =
+  | 'running'
+  | 'paused'
+  | 'cancelled'
+  | 'succeeded'
+  | 'repaired'
+  | 'quarantined'
+  | 'failed'
+
+/** User-visible stage within one running package-manager operation. */
+export type PluginInstallProgressStage = 'preparing' | 'resolving' | 'downloading' | 'installing' | 'verifying'
+
+/** Determinate progress is published only after pnpm has established a stable total. */
+export interface PluginInstallProgress {
+  readonly stage: PluginInstallProgressStage
+  /** Integer percentage from 0 through 100; absent means indeterminate. */
+  readonly percent?: number
+  /** Completed dependency units when pnpm exposes a stable total. */
+  readonly completed?: number
+  /** Total dependency units paired with {@link completed}. */
+  readonly total?: number
+}
+
+/** Cursor request for bounded live installer output. */
+export interface PluginInstallOutputRequest {
+  readonly installId: PluginInstallId
+  /** Byte offset returned by the previous read; zero starts at retained output. */
+  readonly offset: number
+}
+
+/** Incremental, sanitized terminal output for one installer job. */
+export interface PluginInstallOutputRead {
+  readonly text: string
+  readonly nextOffset: number
+  /** True when output before the requested offset is no longer retained. */
+  readonly lossy: boolean
+  readonly settled: boolean
+}
 
 /** Point-in-time state returned when starting or polling an installation. */
 export interface PluginInstallSnapshot {
@@ -254,6 +291,8 @@ export interface PluginInstallSnapshot {
   /** Exact CLI command represented by the structured request. */
   readonly command: string
   readonly phase: PluginInstallPhase
+  /** Current package-manager stage and optional determinate dependency progress. */
+  readonly installProgress?: PluginInstallProgress
   /** Exit code when the package-manager process settled normally. */
   readonly exitCode?: number | null
   /** Bounded package-manager output for local troubleshooting after failure. */

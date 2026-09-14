@@ -9,7 +9,7 @@ import { createDesktopWindowSurface } from '../lib/desktop-window-surface.js'
 import { ApplicationMenuController } from '../lib/application-menu-controller.js'
 
 const temporary = mkdtempSync(join(tmpdir(), 'desktop-menu-smoke-'))
-app.setName('Open DSH Desktop')
+app.setName('Open DeepSeek Harness Desktop')
 app.setPath('userData', temporary)
 async function waitFor(check, description) {
   const deadline = Date.now() + 5000
@@ -43,7 +43,7 @@ try {
   controller.refresh()
   controller.attach(surface)
   assert.equal(Menu.getApplicationMenu().getMenuItemById('settings').label, '设置…')
-  assert.equal(app.getName(), 'Open DSH Desktop')
+  assert.equal(app.getName(), 'Open DeepSeek Harness Desktop')
   const [width, height] = surface.window.getContentSize()
   assert.deepEqual(surface.window.contentView.children[0].getBounds(), { x: 0, y: 36, width, height: height - 36 })
   assert.equal(await surface.renderer.executeJavaScript('window.innerHeight'), height - 36)

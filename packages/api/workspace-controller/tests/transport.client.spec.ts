@@ -33,6 +33,7 @@ import type {
   WorkspaceId,
   WorkspaceValue,
   WorkspaceView,
+  WorkspaceUnarchiveSessionRequest,
 } from '../src/types.ts'
 
 const AVAILABLE_CONNECTION = {
@@ -140,6 +141,10 @@ class ScriptedWorkspaceRemote implements WorkspaceRemote {
     throw new Error('unused')
   }
 
+  unarchiveSession(_request: WorkspaceUnarchiveSessionRequest): Promise<RemoteResult<WorkspaceArchiveValue>> {
+    throw new Error('unused')
+  }
+
   async *follow(signal = new AbortController().signal): AsyncIterable<WorkspaceFollowFrame> {
     const generation = this.generations[this.calls++]
     if (generation === undefined) throw new Error('no scripted Workspace generation')
@@ -178,6 +183,10 @@ class CommandWorkspaceRemote implements WorkspaceRemote {
 
   readonly archiveSession = vi.fn<WorkspaceRemote['archiveSession']>(request => Promise.resolve(remoteOk({
     archivedSessionIds: [request.sessionId],
+  })))
+
+  readonly unarchiveSession = vi.fn<WorkspaceRemote['unarchiveSession']>(() => Promise.resolve(remoteOk({
+    archivedSessionIds: [],
   })))
 
   async *follow(_signal?: AbortSignal): AsyncIterable<WorkspaceFollowFrame> {}
@@ -462,6 +471,7 @@ describe('WorkspaceController', () => {
       sessionIds: ['session'],
     })
     await expect(controller.archiveSession(sid('session'))).resolves.toBeUndefined()
+    await expect(controller.unarchiveSession(sid('session'))).resolves.toBeUndefined()
     await expect(controller.delete(wid('one'))).resolves.toBeUndefined()
   })
 
@@ -485,6 +495,9 @@ describe('WorkspaceController', () => {
     remote.archiveSession.mockResolvedValueOnce(remoteFailure(missingSession))
     await expect(controller.archiveSession(sid('session')))
       .rejects.toThrow('workspace session archive failed: session/not-found: missing session')
+    remote.unarchiveSession.mockResolvedValueOnce(remoteFailure(missingSession))
+    await expect(controller.unarchiveSession(sid('session')))
+      .rejects.toThrow('workspace session restore failed: session/not-found: missing session')
     remote.insertSessionBefore.mockResolvedValueOnce(remoteFailure(new RemoteError(
       'workspace/move-invalid', 'invalid move', { workspaceId: wid('missing'), sessionId: sid('session') },
     )))

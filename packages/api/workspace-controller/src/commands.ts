@@ -22,6 +22,7 @@ import type {
   WorkspaceOrderValue,
   WorkspaceRenameRequest,
   WorkspaceValue,
+  WorkspaceUnarchiveSessionRequest,
 } from './types.ts'
 
 /** Implements Workspace mutations against the authoritative registry. */
@@ -157,6 +158,16 @@ export class WorkspaceCommands {
       if (!(error instanceof WorkspaceUnknownSessionError)) throw error
       throw new RemoteError('session/not-found', error.message, { sessionId: request.sessionId }, { cause: error })
     }
+    return { archivedSessionIds: [...this.ctx.workspaceRegistry.archivedSessionIds] }
+  }
+
+  /**
+   * Remove one Session from the registry-global archive set.
+   * @param request - Session identity to restore.
+   * @returns the complete resulting archive set.
+   */
+  async unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue> {
+    await this.ctx.workspaceRegistry.unarchiveSession(request.sessionId)
     return { archivedSessionIds: [...this.ctx.workspaceRegistry.archivedSessionIds] }
   }
 

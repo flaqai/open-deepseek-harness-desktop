@@ -2,6 +2,7 @@
 import type { MenuItemConstructorOptions } from 'electron'
 import { desktopDictionary } from './desktop-locale.ts'
 import { additionalApplicationMenuDictionaries } from './locales/application-menu-extra.ts'
+import { DESKTOP_PRODUCT_NAME } from './product-name.ts'
 
 /** Fixed commands accepted by the desktop host; never executable renderer input. */
 export const DESKTOP_COMMANDS = [
@@ -20,8 +21,8 @@ export const CLIENT_COMMANDS = [
 ] as const satisfies readonly DesktopCommand[]
 
 const en = {
-  app: 'Open DSH Desktop', file: 'File', edit: 'Edit', view: 'View', tools: 'Tools', window: 'Window', help: 'Help', more: 'More',
-  about: 'About Open DSH Desktop', settings: 'Settings…', updates: 'Check for Updates…',
+  app: DESKTOP_PRODUCT_NAME, file: 'File', edit: 'Edit', view: 'View', tools: 'Tools', window: 'Window', help: 'Help', more: 'More',
+  about: `About ${DESKTOP_PRODUCT_NAME}`, settings: 'Settings…', updates: 'Check for Updates…',
   'new-session': 'New Conversation', 'open-config': 'Open Configuration File', 'open-web': 'Open in Browser', close: 'Close Window', quit: 'Quit Completely',
   undo: 'Undo', redo: 'Redo', cut: 'Cut', copy: 'Copy', paste: 'Paste', 'select-all': 'Select All',
   'zoom-in': 'Zoom In', 'zoom-out': 'Zoom Out', 'zoom-reset': 'Actual Size', fullscreen: 'Enter Full Screen',
@@ -30,7 +31,7 @@ const en = {
   phone: 'Phone Access', im: 'IM Bots', 'data-home': 'Switch Data Directory…', restart: 'Quick Restart',
   show: 'Show Main Window', minimize: 'Minimize', maximize: 'Maximize', restore: 'Restore',
   docs: 'Documentation', repository: 'Project Repository', feedback: 'Report an Issue', logs: 'Open Log Directory',
-  devtools: 'Developer Tools', services: 'Services', hide: 'Hide Open DSH Desktop', 'hide-others': 'Hide Others',
+  devtools: 'Developer Tools', services: 'Services', hide: `Hide ${DESKTOP_PRODUCT_NAME}`, 'hide-others': 'Hide Others',
   unhide: 'Show All', emoji: 'Emoji & Symbols', error: 'Unable to Complete Action',
   unavailable: 'This action is unavailable while the client is starting, disconnected, or recovering.',
   busy: 'A plugin operation or recovery is in progress. Wait for it to finish before restarting or quitting.',
@@ -41,15 +42,15 @@ const en = {
 /** Exact copy surface shared by every desktop-owned application menu locale. */
 export type ApplicationMenuCopy = typeof en
 const zh: typeof en = {
-  app: 'Open DSH Desktop', file: '文件', edit: '编辑', view: '视图', tools: '工具', window: '窗口', help: '帮助', more: '更多',
-  about: '关于 Open DSH Desktop', settings: '设置…', updates: '检查更新…', 'new-session': '新对话',
+  app: DESKTOP_PRODUCT_NAME, file: '文件', edit: '编辑', view: '视图', tools: '工具', window: '窗口', help: '帮助', more: '更多',
+  about: `关于 ${DESKTOP_PRODUCT_NAME}`, settings: '设置…', updates: '检查更新…', 'new-session': '新对话',
   'open-config': '打开配置文件', 'open-web': '在浏览器中打开', close: '关闭窗口', quit: '完整退出', undo: '撤销', redo: '重做', cut: '剪切',
   copy: '复制', paste: '粘贴', 'select-all': '全选', 'zoom-in': '放大', 'zoom-out': '缩小', 'zoom-reset': '实际大小',
   fullscreen: '进入全屏', 'leave-fullscreen': '退出全屏', market: '插件市场', 'plugin-restore': '插件恢复',
   diagnostics: '诊断中心', snapshots: '插件快照', 'external-tools': '外部工具', phone: '手机访问', im: 'IM 机器人',
   'data-home': '切换配置目录…', restart: '快速重启', show: '显示主窗口', minimize: '最小化', maximize: '最大化',
   restore: '还原', docs: '使用文档', repository: '项目仓库', feedback: '反馈问题', logs: '打开日志目录',
-  devtools: '开发者工具', services: '服务', hide: '隐藏 Open DSH Desktop', 'hide-others': '隐藏其他应用',
+  devtools: '开发者工具', services: '服务', hide: `隐藏 ${DESKTOP_PRODUCT_NAME}`, 'hide-others': '隐藏其他应用',
   unhide: '显示全部', emoji: '表情与符号', error: '无法完成操作',
   unavailable: '客户端正在启动、已断开连接或正在恢复，暂时无法执行此操作。',
   busy: '插件操作或恢复正在进行，请等待完成后再重启或退出。',
@@ -58,15 +59,15 @@ const zh: typeof en = {
   community: '由 FLAQ AI 维护的社区独立发行版，并非 DeepSeek 官方产品。',
 }
 const ru: typeof en = {
-  app: 'Open DSH Desktop', file: 'Файл', edit: 'Правка', view: 'Вид', tools: 'Инструменты', window: 'Окно', help: 'Справка', more: 'Ещё',
-  about: 'Об Open DSH Desktop', settings: 'Настройки…', updates: 'Проверить обновления…', 'new-session': 'Новый диалог',
+  app: DESKTOP_PRODUCT_NAME, file: 'Файл', edit: 'Правка', view: 'Вид', tools: 'Инструменты', window: 'Окно', help: 'Справка', more: 'Ещё',
+  about: `Об ${DESKTOP_PRODUCT_NAME}`, settings: 'Настройки…', updates: 'Проверить обновления…', 'new-session': 'Новый диалог',
   'open-config': 'Открыть файл конфигурации', 'open-web': 'Открыть в браузере', close: 'Закрыть окно', quit: 'Полностью выйти', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать',
   copy: 'Копировать', paste: 'Вставить', 'select-all': 'Выбрать всё', 'zoom-in': 'Увеличить', 'zoom-out': 'Уменьшить', 'zoom-reset': 'Реальный размер',
   fullscreen: 'Во весь экран', 'leave-fullscreen': 'Выйти из полноэкранного режима', market: 'Плагины', 'plugin-restore': 'Восстановление плагинов',
   diagnostics: 'Диагностика', snapshots: 'Снимки плагинов', 'external-tools': 'Внешние инструменты', phone: 'Доступ с телефона', im: 'IM-боты',
   'data-home': 'Сменить каталог данных…', restart: 'Быстрый перезапуск', show: 'Показать главное окно', minimize: 'Свернуть', maximize: 'Развернуть',
   restore: 'Восстановить', docs: 'Документация', repository: 'Репозиторий проекта', feedback: 'Сообщить о проблеме', logs: 'Открыть каталог журналов',
-  devtools: 'Инструменты разработчика', services: 'Службы', hide: 'Скрыть Open DSH Desktop', 'hide-others': 'Скрыть остальные',
+  devtools: 'Инструменты разработчика', services: 'Службы', hide: `Скрыть ${DESKTOP_PRODUCT_NAME}`, 'hide-others': 'Скрыть остальные',
   unhide: 'Показать все', emoji: 'Эмодзи и символы', error: 'Не удалось выполнить действие',
   unavailable: 'Действие недоступно, пока клиент запускается, отключён или восстанавливается.',
   busy: 'Идёт операция с плагинами или восстановление. Дождитесь завершения перед перезапуском или выходом.',

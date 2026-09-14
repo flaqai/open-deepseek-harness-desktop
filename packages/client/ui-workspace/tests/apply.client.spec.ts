@@ -4,7 +4,10 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type {
+  ArchivedSessionsSectionInjected, WorkspaceBrowserInjected, WorkspacePickerInjected,
+} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import { ArchivedSessionsSection } from '../src/client/ArchivedSessionsSection.tsx'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from '../src/client/WorkspacePicker.tsx'
 import { apply as hostApply } from '../src/index.ts'
@@ -19,6 +22,7 @@ async function bench() {
   }))
   const rename = vi.fn(async () => ({}))
   const insertSessionBefore = vi.fn(async () => ({}))
+  const unarchiveSession = vi.fn(async () => undefined)
   const open = vi.fn()
   const clear = vi.fn()
   const selectPanel = vi.fn()
@@ -43,6 +47,7 @@ async function bench() {
     delete: vi.fn(async () => undefined),
     insertBefore: vi.fn(async () => undefined),
     archiveSession: vi.fn(async () => undefined),
+    unarchiveSession,
     insertSessionBefore,
   } as never)
   ctx.provide('sessions', {
@@ -73,15 +78,21 @@ async function bench() {
   ctx.provide('locale', locale)
   return {
     ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename,
-    insertSessionBefore, open, clear, selectPanel, search, renameSession, binding, fork, pickDirectory,
+    insertSessionBefore, unarchiveSession, open, clear, selectPanel, search, renameSession, binding, fork, pickDirectory,
   }
 }
 
-type HoleName = 'sidebar.workspaces' | 'conversation.hero.workspace' | 'conversation.empty.workspace'
+type HoleName =
+  | 'sidebar.workspaces'
+  | 'conversation.hero.workspace'
+  | 'conversation.empty.workspace'
+  | 'settings.section'
 
 /** Declare any subset of the holes with a single root registration ('root' is a single slot). */
 function declare(slots: SlotRegistry, ...names: HoleName[]): () => void {
-  const children = Object.fromEntries(names.map(name => [name, { kind: 'single', scope: 'root' }]))
+  const children = Object.fromEntries(names.map(name => [name, {
+    kind: name === 'settings.section' ? 'list' : 'single', scope: 'root',
+  }]))
   return slots.register({ name: 'root', children } as never, () => null)
 }
 
@@ -155,6 +166,20 @@ describe('ui-workspace apply', () => {
     expect(b.create).toHaveBeenCalledWith({ path: '/tmp/project' })
   })
 
+  it('registers archived Sessions as a Settings section and restores through the Workspace service', async () => {
+    const b = await bench()
+    declare(b.slots, 'settings.section')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+
+    const section = b.slots.entries('settings.section').find(entry => entry.options.id === 'archived-sessions')
+    expect(section?.component).toBe(ArchivedSessionsSection)
+    expect(section?.options.label).toBeTypeOf('function')
+    expect((section?.options.label as () => string)()).toBe('已归档会话')
+    const injected = (section?.inject as unknown as () => ArchivedSessionsSectionInjected)()
+    await injected.restoreSession('archived' as never)
+    expect(b.unarchiveSession).toHaveBeenCalledWith('archived')
+  })
+
   it('declares the two directory-flow holes and reports their occupancy per surface', async () => {
     const b = await bench()
     declare(b.slots, 'sidebar.workspaces', 'conversation.hero.workspace')
@@ -196,12 +221,13 @@ describe('ui-workspace apply', () => {
 
   it('unregisters every entry on teardown', async () => {
     const b = await bench()
-    declare(b.slots, 'sidebar.workspaces', 'conversation.hero.workspace', 'conversation.empty.workspace')
+    declare(b.slots, 'sidebar.workspaces', 'conversation.hero.workspace', 'conversation.empty.workspace', 'settings.section')
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     await fiber.dispose()
     expect(b.slots.entries('sidebar.workspaces')).toHaveLength(0)
     expect(b.slots.entries('conversation.hero.workspace')).toHaveLength(0)
+    expect(b.slots.entries('settings.section')).toHaveLength(0)
     // expect(b.slots.entries('conversation.empty.workspace')).toHaveLength(0)
   })
 })

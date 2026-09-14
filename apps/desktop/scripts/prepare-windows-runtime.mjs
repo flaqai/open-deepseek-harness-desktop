@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { preparePrebuiltProfile } from './prepare-prebuilt-profile.mjs'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
@@ -343,42 +344,12 @@ async function smokeHarness() {
 }
 
 async function smokeBundledPlugins() {
-  const entry = join(harnessRoot, 'lib', 'bin.js')
-  const smokeHome = join(outputRoot, 'plugin-smoke-home')
-  const bundledDirectory = join(repositoryRoot, 'apps', 'desktop', 'bundled-plugins')
-  const manifest = JSON.parse(await readFile(join(bundledDirectory, 'manifest.json'), 'utf8'))
-  try {
-    for (const plugin of manifest.plugins.filter(plugin => plugin.installPolicy === 'startup')) {
-      for (const packageName of plugin.approvedBuilds ?? []) {
-        await run(nodeExecutable, [
-          entry,
-          'plugin', '--profile', plugin.profile,
-          'approve-build', packageName,
-        ], {
-          env: {
-            ...process.env,
-            DSH_HOME: smokeHome,
-            DSH_PNPM_BIN: stagedPnpmEntry,
-            PATH: `${runtimeRoot};${process.env.PATH ?? ''}`,
-          },
-        })
-      }
-      await run(nodeExecutable, [
-        entry,
-        'plugin', '--profile', plugin.profile,
-        'add', '--save-exact', join(bundledDirectory, plugin.archive),
-      ], {
-        env: {
-          ...process.env,
-          DSH_HOME: smokeHome,
-          DSH_PNPM_BIN: stagedPnpmEntry,
-          PATH: `${runtimeRoot};${process.env.PATH ?? ''}`,
-        },
-      })
-    }
-  } finally {
-    await rm(smokeHome, { recursive: true, force: true })
-  }
+  await preparePrebuiltProfile({
+    destination: join(repositoryRoot, '.artifacts', 'desktop-prebuilt-win32-x64'),
+    harnessRoot, node: nodeExecutable, pnpm: stagedPnpmEntry,
+    resources: join(desktopRoot, 'bundled-plugins'),
+    target: 'win32-x64', nodeVersion, pnpmVersion, run,
+  })
 }
 
 async function verifyRuntime() {

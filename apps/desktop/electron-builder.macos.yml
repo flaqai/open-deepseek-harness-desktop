@@ -1,5 +1,5 @@
 appId: ai.flaq.deepseek-harness
-productName: DeepSeek Harness
+productName: Open DeepSeek Harness Desktop
 asar: true
 npmRebuild: false
 directories:
@@ -8,19 +8,34 @@ directories:
 files:
   - lib/**/*
   - package.json
+afterPack: scripts/copy-prebuilt-profile.cjs
 extraResources:
   - from: bundled-plugins
     to: bundled-plugins
     filter:
       - "**/*"
-  - from: ../../.artifacts/desktop-runtime-darwin-${arch}.tar.gz
-    to: harness-runtime.tar.gz
+  - from: ../../.artifacts/desktop-runtime-darwin-${arch}
+    to: harness
+    filter:
+      - "**/*"
+      - "!node_modules{,/**/*}"
+  - from: ../../.artifacts/desktop-runtime-darwin-${arch}/node_modules
+    to: harness/node_modules
+    filter:
+      - "**/*"
   - from: lib/desktop-cli-launcher.js
     to: cli/desktop-cli.mjs
+  - from: ../../.artifacts/desktop-runtime-darwin-${arch}/package-runtime/lib/node_modules
+    to: harness/package-runtime/lib/node_modules
+    filter:
+      - "**/*"
 mac:
+  # These native files are signed and verified before the prebuilt inventory is sealed.
+  signIgnore:
+    - "prebuilt-profile/"
   minimumSystemVersion: "13.5"
   extendInfo:
-    CFBundleDisplayName: Open DSH Desktop
+    CFBundleDisplayName: Open DeepSeek Harness Desktop
     NSMicrophoneUsageDescription: DeepSeek Harness uses the microphone only after you approve a voice-input or recording request.
     NSCameraUsageDescription: DeepSeek Harness uses the camera only after you approve a camera request.
     NSLocationWhenInUseUsageDescription: DeepSeek Harness uses your location only after you approve a location request.

@@ -12,7 +12,7 @@ function setup() {
   const desktop = join(root, 'Desktop')
   const startMenu = join(root, 'Programs')
   mkdirSync(desktop); mkdirSync(startMenu)
-  const executable = 'C:\\应用 目录\\DeepSeek Harness.exe'
+  const executable = 'C:\\应用 目录\\Open DeepSeek Harness Desktop.exe'
   const links = new Map<string, ShortcutDetails>()
   const read = vi.fn((path: string): ShortcutDetails => {
     const link = links.get(path)
@@ -31,8 +31,8 @@ describe('owned current-user Windows shortcuts', () => {
     const { options, add, write } = setup()
     const original = { target: options.executable, args: '--hidden 中文', cwd: 'C:\\work dir', description: 'custom name', toastActivatorClsid: 'clsid' }
     const path = add(options.desktop, '自定义名称.lnk', original)
-    mkdirSync(join(options.startMenu, 'DeepSeek Harness'))
-    add(join(options.startMenu, 'DeepSeek Harness'), '启动.lnk', { target: options.executable.toLowerCase(), icon: options.executable })
+    mkdirSync(join(options.startMenu, 'Open DeepSeek Harness Desktop'))
+    add(join(options.startMenu, 'Open DeepSeek Harness Desktop'), '启动.lnk', { target: options.executable.toLowerCase(), icon: options.executable })
     expect(updateIconShortcuts(options, 'C:\\icons\\new.ico')).toEqual([
       { surface: 'desktop', name: '自定义名称.lnk', status: 'applied' },
       { surface: 'start-menu', name: '启动.lnk', status: 'applied' },
@@ -44,11 +44,11 @@ describe('owned current-user Windows shortcuts', () => {
     const project = join(options.desktop, 'project', 'node_modules')
     mkdirSync(project, { recursive: true })
     for (let index = 0; index < 2100; index++) writeFileSync(join(project, `entry-${index}.js`), '')
-    const path = add(options.desktop, 'DeepSeek Harness.lnk', { target: options.executable })
+    const path = add(options.desktop, 'Open DeepSeek Harness Desktop.lnk', { target: options.executable })
     add(project, 'nested.lnk', { target: options.executable })
 
     expect(updateIconShortcuts(options, 'C:\\icons\\new.ico')).toContainEqual({
-      surface: 'desktop', name: 'DeepSeek Harness.lnk', status: 'applied',
+      surface: 'desktop', name: 'Open DeepSeek Harness Desktop.lnk', status: 'applied',
     })
     expect(write).toHaveBeenCalledTimes(1)
     expect(write).toHaveBeenCalledWith(path, 'update', expect.objectContaining({ icon: 'C:\\icons\\new.ico' }))
@@ -63,7 +63,7 @@ describe('owned current-user Windows shortcuts', () => {
   })
   it('never modifies another installation, AppID, external icon, or symlink', () => {
     const { options, add, write, root } = setup()
-    add(options.desktop, 'other.lnk', { target: 'C:\\other\\DeepSeek Harness.exe' })
+    add(options.desktop, 'other.lnk', { target: 'C:\\other\\Other Application.exe' })
     add(options.desktop, 'other-id.lnk', { target: options.executable, appUserModelId: 'other' })
     add(options.desktop, 'custom.lnk', { target: options.executable, icon: 'C:\\art\\custom.ico' })
     add(options.desktop, 'resource.lnk', { target: options.executable, icon: options.executable, iconIndex: 2 })
@@ -85,12 +85,12 @@ describe('owned current-user Windows shortcuts', () => {
     expect(updateIconShortcuts(options, options.executable)).toEqual([{ surface: 'desktop', status: 'missing' }, { surface: 'start-menu', status: 'missing' }])
     expect(write).not.toHaveBeenCalled()
     const results = updateIconShortcuts(options, options.executable, true)
-    expect(write).toHaveBeenCalledWith(join(options.desktop, 'DeepSeek Harness.lnk'), 'create', expect.objectContaining({ target: options.executable, appUserModelId: options.appId }))
+    expect(write).toHaveBeenCalledWith(join(options.desktop, 'Open DeepSeek Harness Desktop.lnk'), 'create', expect.objectContaining({ target: options.executable, appUserModelId: options.appId }))
     expect(results).not.toContainEqual({ surface: 'desktop', status: 'missing' })
   })
   it('does not replace a same-named unrelated shortcut', () => {
     const { options, add, write } = setup()
-    add(options.desktop, 'DeepSeek Harness.lnk', { target: 'C:\\other.exe' })
+    add(options.desktop, 'Open DeepSeek Harness Desktop.lnk', { target: 'C:\\other.exe' })
     expect(updateIconShortcuts(options, options.executable, true)).toContainEqual({ surface: 'desktop', status: 'external' })
     expect(write).not.toHaveBeenCalled()
   })

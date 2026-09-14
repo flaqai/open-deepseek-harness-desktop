@@ -79,6 +79,14 @@ Fix the actual failure on the packaging-fix branch. After any source commit chan
 
 ## 4. Bundled plugin consistency
 
+### Prebuilt resource qualification
+
+Each native target builds its complete preset Profile using the packaged Node, pnpm and verified official archives. Retain the resulting `desktop-prebuilt-<platform>-<arch>` resource; do not replace it with a private plugin patch, a build-machine pnpm store, or user configuration. The manifest records the runtime identity, plugin snapshot digest, build approvals and checksummed inventory. Internal links are recipes recreated at deployment; external build-machine links are forbidden.
+
+Copy to a different path containing spaces, run read-only Doctor, start the ordinary Harness, verify its client HTTP response, and perform offline plugin removal before accepting the template. Check `verify-prebuilt-profile.mjs <installed-resources>` after electron-builder resource copying and signing, not only before packaging. The macOS and Windows smoke scripts and Linux workflow include this inventory check. Never bypass a missing-file check by regenerating the manifest from incomplete installed resources.
+
+For full startup qualification, use a newly created private directory with `--dsh-package-smoke-root=<absolute-directory>` and a separate `DSH_HOME`. Record both readiness markers, HTTP reachability, continued Electron survival, and clean exit. Verify a second launch does not repeat template deployment. Test interruption before activation and confirm completed files are reused only after the prior owner has exited. Keep installation time, template deployment time, server/client readiness, package size, installed size and temporary peak space separate. Missing native platform evidence remains unverified; local `.app` qualification does not replace final DMG/ZIP or installer qualification.
+
 ### macOS native startup qualification
 
 Keep `CFBundleName` consistent with `productName` and the packaged Helper executable names. Prefer electron-builder's generated `CFBundleName`; display-only branding belongs in `CFBundleDisplayName`. Electron reads `CFBundleName` before JavaScript starts to locate its Helper, so a mismatch can terminate with `SIGTRAP` and `Unable to find helper app` even after the user approves Gatekeeper and deep signature verification passes.

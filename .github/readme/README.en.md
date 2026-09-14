@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./apps/desktop/src/icon.png" width="112" alt="Open DeepSeek Harness Desktop icon">
+  <img src="../../apps/desktop/src/icon.png" width="112" alt="Open DeepSeek Harness Desktop icon">
 </p>
 
 # Open DeepSeek Harness Desktop
@@ -8,7 +8,7 @@
   <strong>A ready-to-use, dependency-safe desktop edition of DeepSeek Harness</strong>
 </p>
 
-Languages: [简体中文](README.md) · English · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
+Languages: [简体中文](../../README.md) · English · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt-BR.md)
 
 > [!IMPORTANT]
 >
@@ -58,7 +58,7 @@ Supported data is copied into a desktop-owned directory while the source remains
 Profiles, `node_modules`, lockfiles, plugin runtimes, bundled-plugin markers, quarantine and health records, and anonymous identifiers are not copied. Plugin configuration and a restoration list are retained, but plugin packages are installed again into the desktop Profile. After import, later changes in Desktop and the official DSH CLI/Web environment remain independent.
 
 <p align="center">
-  <img src="./assets/readme/data-home-import-en.png" width="900" alt="Import an official DSH configuration into an independent desktop environment">
+  <img src="../../assets/readme/data-home-import-en.png" width="900" alt="Import an official DSH configuration into an independent desktop environment">
   <br>
   <sub>Import into an independent environment: copy supported data and leave the source unchanged</sub>
 </p>
@@ -68,7 +68,7 @@ Profiles, `node_modules`, lockfiles, plugin runtimes, bundled-plugin markers, qu
 Desktop can use the official `~/.dsh` directory, or another supported directory selected manually, without making a second copy. Settings, credentials, sessions, Agent presets, Skills, Profiles, and plugins are shared; later changes from Desktop or the official CLI/Web environment affect the same data.
 
 <p align="center">
-  <img src="./assets/readme/data-home-reuse-en.png" width="900" alt="Use an existing DSH configuration directly from Desktop">
+  <img src="../../assets/readme/data-home-reuse-en.png" width="900" alt="Use an existing DSH configuration directly from Desktop">
   <br>
   <sub>Use this configuration directly: Desktop and the selected directory share data</sub>
 </p>
@@ -78,7 +78,7 @@ Desktop can use the official `~/.dsh` directory, or another supported directory 
 Create an empty, desktop-owned data directory without importing existing settings, sessions, or plugins. This is suitable for first-time DSH users and for testing a clean environment.
 
 <p align="center">
-  <img src="./assets/readme/data-home-fresh-en.png" width="900" alt="Create a clean independent data environment for Desktop">
+  <img src="../../assets/readme/data-home-fresh-en.png" width="900" alt="Create a clean independent data environment for Desktop">
   <br>
   <sub>Start fresh: do not read or modify an existing DSH configuration</sub>
 </p>
@@ -88,13 +88,13 @@ Create an empty, desktop-owned data directory without importing existing setting
 Both **Import into an independent environment** and **Start fresh** offer a choice between the managed default and a custom data directory before continuing. A custom target must be an empty folder and becomes this client's independent data root; the source configuration is not modified or kept in sync. On Windows, sessions, plugin Profiles, and other growing data can live on drive D: or another non-system volume instead of putting continued pressure on drive C:.
 
 <p align="center">
-  <img src="./assets/readme/data-home-import-custom-location-zh.png" width="900" alt="Choose an empty custom data directory while importing official configuration">
+  <img src="../../assets/readme/data-home-import-custom-location-zh.png" width="900" alt="Choose an empty custom data directory while importing official configuration">
   <br>
   <sub>Independent import: choose the managed default or an empty folder before copying data</sub>
 </p>
 
 <p align="center">
-  <img src="./assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="Choose an empty custom data directory when starting fresh">
+  <img src="../../assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="Choose an empty custom data directory when starting fresh">
   <br>
   <sub>Start fresh: place the new independent data root in a user-selected location</sub>
 </p>
@@ -102,7 +102,7 @@ Both **Import into an independent environment** and **Start fresh** offer a choi
 After initial setup, the data directory can still be changed from **Settings → General settings**. Return to the client-managed directory, use the official `~/.dsh`, select another existing DSH directory, or create a new configuration in an empty folder. Switching only selects the directory used after restart; it does not copy, move, merge, or delete data in the original directory. An empty folder starts the first-install flow again after restart.
 
 <p align="center">
-  <img src="./assets/readme/data-home-switch-after-start-zh.png" width="900" alt="Switch the data directory from General settings after entering the client">
+  <img src="../../assets/readme/data-home-switch-after-start-zh.png" width="900" alt="Switch the data directory from General settings after entering the client">
   <br>
   <sub>Switch safely to an existing configuration or create a new independent configuration in an empty folder</sub>
 </p>
@@ -134,7 +134,7 @@ If an online source is unavailable, users may select a local source directory or
 Online and local restoration both continue through build approval, shared-dependency diagnostics, and quarantine when necessary. The client never scans, copies, or adopts the old `node_modules`, and it does not directly execute credential-bearing, local-path, or unrecognized dependency specifications. External tools such as Codex and Claude Code cannot be replaced with local plugin packages and remain available through **Settings → External tools**.
 
 <p align="center">
-  <img src="./assets/readme/imported-plugin-restore-zh.png" width="900" alt="Plugin source status and safe local restoration after importing a DSH configuration">
+  <img src="../../assets/readme/imported-plugin-restore-zh.png" width="900" alt="Plugin source status and safe local restoration after importing a DSH configuration">
   <br>
   <sub>Plugin source checks, online restoration, and guarded local restoration</sub>
 </p>
@@ -150,19 +150,19 @@ Diagnostics therefore live in the Profile composition and boot layer rather than
 Protection spans startup and the main UI: the boot layer first identifies and removes an incompatible plugin, the client clearly reports what was quarantined, and Diagnostics then shows the responsible plugin, cause, original version, and concrete update or uninstall actions. One faulty plugin does not take down the entire client, and the user is not left with an unactionable stack trace.
 
 <p align="center">
-  <img src="./assets/readme/diagnostics-startup-quarantine-zh.png" width="900" alt="Startup isolates an incompatible dsh-font plugin">
+  <img src="../../assets/readme/diagnostics-startup-quarantine-zh.png" width="900" alt="Startup isolates an incompatible dsh-font plugin">
   <br>
   <sub>Detect and quarantine an incompatible plugin during startup</sub>
 </p>
 
 <p align="center">
-  <img src="./assets/readme/diagnostics-quarantine-notice-zh.png" width="900" alt="The client reports quarantined plugins after startup">
+  <img src="../../assets/readme/diagnostics-quarantine-notice-zh.png" width="900" alt="The client reports quarantined plugins after startup">
   <br>
   <sub>Enter the main UI safely, then report exactly what was quarantined</sub>
 </p>
 
 <p align="center">
-  <img src="./assets/readme/diagnostics-repair-guidance-zh.png" width="900" alt="Diagnostics shows the quarantine cause and repair actions">
+  <img src="../../assets/readme/diagnostics-repair-guidance-zh.png" width="900" alt="Diagnostics shows the quarantine cause and repair actions">
   <br>
   <sub>Show the cause, version, original source, and actionable recovery choices</sub>
 </p>
@@ -203,18 +203,18 @@ The boundary is deliberate: **inspect before plugin execution, decide from the r
 
 ### Diagnostics Lab
 
-The interrupted plugin transaction exercise verifies complete dependency rollback after candidate activation in an isolated directory, without changing the active Profile. All scenarios are unchecked by default. See the [diagnostic rules](docs/profile-diagnostics.md#diagnostic-safe-mode).
+The interrupted plugin transaction exercise verifies complete dependency rollback after candidate activation in an isolated directory, without changing the active Profile. All scenarios are unchecked by default. See the [diagnostic rules](../../docs/profile-diagnostics.md#diagnostics-fallback).
 
 Development and installed builds both provide Diagnostics Lab. Its bundled offline fault samples exercise shared-Host shadow copies, orphaned Bundles, scoped-root versus unscoped-Loader name mismatches, missing aggregate-plugin dependencies, installed dependencies that lack an API expected by a plugin, plugins mutating frozen `agent/pre-step` input, invalid `settings.yaml` documents, missing modules, invalid patches, duplicate Loader entries, lifecycle failures, blocked build approval, and interrupted repair while showing the complete inject, detect, repair, verify, and cleanup timeline.
 
 <p align="center">
-  <img src="./assets/readme/diagnostics-lab-sandbox-zh.png" width="900" alt="Select isolated sandbox scenarios in Diagnostics Lab">
+  <img src="../../assets/readme/diagnostics-lab-sandbox-zh.png" width="900" alt="Select isolated sandbox scenarios in Diagnostics Lab">
   <br>
   <sub>Isolated sandbox: exercise multiple offline faults without changing the user Profile</sub>
 </p>
 
 <p align="center">
-  <img src="./assets/readme/diagnostics-lab-live-profile-zh.png" width="900" alt="Run the advanced active-Profile target in Diagnostics Lab">
+  <img src="../../assets/readme/diagnostics-lab-live-profile-zh.png" width="900" alt="Run the advanced active-Profile target in Diagnostics Lab">
   <br>
   <sub>Advanced active-Profile target: verify the real quarantine, recovery, and reinspection path</sub>
 </p>
@@ -237,12 +237,12 @@ When the current session is waiting for a choice, confirmation, or answer, or wh
 
 <p align="center">
   <strong>Selection action bar</strong><br>
-  <img src="./assets/readme/selection-toolbar-zh.png" width="900" alt="Horizontal action bar shown after selecting text">
+  <img src="../../assets/readme/selection-toolbar-zh.png" width="900" alt="Horizontal action bar shown after selecting text">
 </p>
 
 <p align="center">
   <strong>Rounded context menu</strong><br>
-  <img src="./assets/readme/selection-context-menu-zh.png" width="900" alt="Vertical rounded menu shown after right-clicking selected text">
+  <img src="../../assets/readme/selection-context-menu-zh.png" width="900" alt="Vertical rounded menu shown after right-clicking selected text">
 </p>
 
 ## Desktop enhancements to the upstream Web experience
@@ -262,7 +262,7 @@ On Windows and Linux, the native titlebar and Harness content use separate views
 The Settings sidebar has its own scroll region, so plugin-provided sections remain reachable when the list exceeds the dialog height. Users can drag Settings sections into a preferred order with placeholder and automatic-scroll feedback. The order is stored locally and merges predictably when plugins are installed or removed. Configuration files, logs, and other supported paths use the desktop host to open the platform file manager.
 
 <p align="center">
-  <img src="./assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Drag the three-line handles to reorder the Settings sidebar">
+  <img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Drag the three-line handles to reorder the Settings sidebar">
   <br>
   <sub>Drag Settings sections freely; surrounding rows make room smoothly and the final order is saved</sub>
 </p>
@@ -280,13 +280,13 @@ The installer carries integrity-checked archives for seven startup presets: Plug
 Thank you to the authors and maintainers of [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), and [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream). This project provides desktop integration and integrity-checked archive distribution; copyright, licensing, and ongoing maintenance remain with each plugin project.
 
 <p align="center">
-  <img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="Connect a phone through the Pocket QR code or LAN address">
+  <img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Connect a phone through the Pocket QR code or LAN address">
   <br>
   <sub>Mobile access: scan on the same network or explicitly enable public access when needed</sub>
 </p>
 
 <p align="center">
-  <img src="./assets/readme/preset-im-robot-zh.png" width="900" alt="Connect WeChat and other IM bots through dsh-im">
+  <img src="../../assets/readme/preset-im-robot-zh.png" width="900" alt="Connect WeChat and other IM bots through dsh-im">
   <br>
   <sub>IM bots: connect WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord, and WhatsApp</sub>
 </p>
@@ -296,7 +296,7 @@ Thank you to the authors and maintainers of [`dshmarket`](https://github.com/dsh
 > First startup uses the local plugin archives carried by the installer. They are useful for offline preparation, but a local source does not follow marketplace updates directly. Once online, open **Plugin Marketplace → Installed** and choose **Restore** for each preset: the client removes the local version and reinstalls it from the online source, after which normal update checks can deliver new versions promptly. Restore cannot roll back automatically; keep the local version if a fixed offline package is preferable.
 
 <p align="center">
-  <img src="./assets/readme/preset-plugin-restore-online-zh.png" width="900" alt="Restore bundled local plugins as online plugins in the marketplace">
+  <img src="../../assets/readme/preset-plugin-restore-online-zh.png" width="900" alt="Restore bundled local plugins as online plugins in the marketplace">
   <br>
   <sub>Recommended after going online: restore each local preset as an online package that can receive update checks</sub>
 </p>
@@ -314,12 +314,12 @@ This capability must belong to the desktop client's boot layer rather than anoth
 
 ### User-triggered official Codex and Claude Code connections
 
-Platform installers carry neither the official DeepSeek Harness [`@deepseek-ai/dsh-subagent-codex`](packages/subagent/subagent-codex/README.md) nor [`@deepseek-ai/dsh-subagent-claude-code`](packages/subagent/subagent-claude-code/README.md) Bundle. Onboarding and **Settings → External tools** expose explicit install actions; only after the user clicks one does the desktop client download that exact official package and its platform dependencies from npm. The action therefore requires a network connection, while the packaged runtime still supplies Node and pnpm so no system installation is required. Both connectors remain removable, and restart or upgrade never silently restores them.
+Platform installers carry neither the official DeepSeek Harness [`@deepseek-ai/dsh-subagent-codex`](../../packages/subagent/subagent-codex/README.md) nor [`@deepseek-ai/dsh-subagent-claude-code`](../../packages/subagent/subagent-claude-code/README.md) Bundle. Onboarding and **Settings → External tools** expose explicit install actions; only after the user clicks one does the desktop client download that exact official package and its platform dependencies from npm. The action therefore requires a network connection, while the packaged runtime still supplies Node and pnpm so no system installation is required. Both connectors remain removable, and restart or upgrade never silently restores them.
 
 The official connector currently treats every delegation as an independent, ephemeral Codex task. Codex uses the parent session's working directory and the login, model, MCP, and Skill configuration already present under the local `CODEX_HOME`, but it does not inherit the Harness conversation transcript or persist its temporary Codex thread into the Harness session. The parent receives only the final answer or a sanitized failure diagnostic; intermediate reasoning, tool traffic, raw stderr, and the complete workspace diff are not copied back.
 
 <p align="center">
-  <img src="./assets/readme/codex-task-in-session-zh.jpg" width="900" alt="Using Codex from a full-mode DeepSeek Harness session">
+  <img src="../../assets/readme/codex-task-in-session-zh.jpg" width="900" alt="Using Codex from a full-mode DeepSeek Harness session">
   <br>
   <sub>Using the connected Codex capability from a full-mode session</sub>
 </p>
@@ -329,7 +329,7 @@ The official connector currently treats every delegation as an independent, ephe
 **Settings → External tools** brings Codex, Claude Code, and placeholders for future Hermes and Trae Providers into one discoverable surface. After a supported Provider is connected, existing and new full-mode sessions receive its tool at the next safe turn boundary; an already running turn is never rewritten, and minimal mode stays intentionally lean. Disconnecting withdraws the tool without deleting Harness sessions or data owned by the external product.
 
 <p align="center">
-  <img src="./assets/readme/codex-connection-center-zh.png" width="760" alt="Codex connection state in the external coding tools center">
+  <img src="../../assets/readme/codex-connection-center-zh.png" width="760" alt="Codex connection state in the external coding tools center">
   <br>
   <sub>External tools center: Codex is connected and the other Provider states remain visible</sub>
 </p>
@@ -351,7 +351,7 @@ Packaged installations seed `dsh-im`, which lets users connect WeChat, Feishu, D
 
 ### Themes and backgrounds
 
-Switch between system, light, dark, and eight product themes; pair them with eight original built-in illustrations or replace the chat background with your own PNG, JPEG, or WebP image. Custom images remain in local browser storage and are not sent to the model. See the [theme and background reference](packages/client/ui-theme/README.md) for formats and size limits.
+Switch between system, light, dark, and eight product themes; pair them with eight original built-in illustrations or replace the chat background with your own PNG, JPEG, or WebP image. Custom images remain in local browser storage and are not sent to the model. See the [theme and background reference](../../packages/client/ui-theme/README.md) for formats and size limits.
 
 <table>
   <tr>
@@ -359,8 +359,8 @@ Switch between system, light, dark, and eight product themes; pair them with eig
     <th width="50%">Background settings</th>
   </tr>
   <tr>
-    <td align="center"><img src="./assets/readme/theme-settings-en.png" alt="Theme settings in English"></td>
-    <td align="center"><img src="./assets/readme/background-settings-en.png" alt="Background settings in English"></td>
+    <td align="center"><img src="../../assets/readme/theme-settings-en.png" alt="Theme settings in English"></td>
+    <td align="center"><img src="../../assets/readme/background-settings-en.png" alt="Background settings in English"></td>
   </tr>
 </table>
 
@@ -394,11 +394,11 @@ The Release also includes `SHA256SUMS`. Verify downloads before installation; on
 ### macOS
 
 1. Download the package matching your Mac processor and open the `.dmg`.
-2. Drag `DeepSeek Harness.app` into the Applications folder.
+2. Drag `Open DeepSeek Harness Desktop.app` into the Applications folder.
 3. Current open-source builds use ad-hoc signing and are not notarized. If Gatekeeper blocks the first launch, use **System Settings → Privacy & Security → Open Anyway**. Alternatively, after confirming the download came from this repository, run:
 
    ```bash
-   xattr -dr com.apple.quarantine "/Applications/DeepSeek Harness.app"
+   xattr -dr com.apple.quarantine "/Applications/Open DeepSeek Harness Desktop.app"
    ```
 
 > [!CAUTION]
@@ -443,7 +443,7 @@ pnpm dsh web
 
 Source Web uses the current `DSH_HOME`, normally the official `~/.dsh` when unset. Installed Desktop uses the data directory selected at first launch, so whether Web and Desktop share data depends on that choice rather than the interface itself.
 
-See the [desktop application reference](apps/desktop/README.md) for environment overrides, process supervision, update behavior, and current limitations. The [Web UI guide](docs/user/guide/index.md) covers the browser workflow.
+See the [desktop application reference](../../apps/desktop/README.md) for environment overrides, process supervision, update behavior, and current limitations. The [Web UI guide](../../docs/user/guide/index.md) covers the browser workflow.
 
 `pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding. The Web command starts at `http://127.0.0.1:3080` and opens the default browser for a local launch. Pass `--no-open` to keep it server-only; the Electron host always uses this mode.
 
@@ -460,7 +460,7 @@ flowchart LR
     R --> E["Plugins + Skills + workflows"]
 ```
 
-DeepSeek Harness follows an **everything is a plugin** architecture powered by [Cordis](https://github.com/cordiverse/cordis). The desktop window does not become a second runtime: configuration, credentials, sessions, plugins, and Skills remain owned by Harness services. Start with the [architecture documentation](docs/architecture.md) and [development guide](docs/development.md) before changing packages.
+DeepSeek Harness follows an **everything is a plugin** architecture powered by [Cordis](https://github.com/cordiverse/cordis). The desktop window does not become a second runtime: configuration, credentials, sessions, plugins, and Skills remain owned by Harness services. Start with the [architecture documentation](../../docs/architecture.md) and [development guide](../../docs/development.md) before changing packages.
 
 ## Plugins and Skills
 
@@ -491,14 +491,14 @@ Create keys only on the providers' official sites and save them through Harness 
 - Continue strengthening identity mapping, authorization, audit events, rate limits, and revocation for the preset IM bot connections.
 - Pursue macOS Developer ID signing and notarization while continuing real Windows 10/11 and mainstream Linux validation.
 
-These items describe direction, not completed support. See the [desktop release matrix](apps/desktop/README.md#cross-platform-release-matrix) for the current implementation boundary.
+These items describe direction, not completed support. See the [desktop release matrix](../../apps/desktop/README.md#cross-platform-release-matrix) for the current implementation boundary.
 
 ## Documentation and community
 
-- Read the [user guide](docs/user/guide/index.md), [plugin introduction](docs/user/develop/framework/index.md), and [Skill guide](docs/subsystems/skills.md).
+- Read the [user guide](../../docs/user/guide/index.md), [plugin introduction](../../docs/user/develop/framework/index.md), and [Skill guide](../../docs/subsystems/skills.md).
 - Use [GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues) for reproducible bugs and feature requests.
 - Discuss the upstream runtime in [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) or its [Discord community](https://discord.gg/Ycq5dCaS4).
-- See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing and [AGENTS.md](AGENTS.md) when working with coding agents in this repository.
+- See [CONTRIBUTING.md](../../CONTRIBUTING.md) before contributing and [AGENTS.md](../../AGENTS.md) when working with coding agents in this repository.
 
 ## Acknowledgements
 
@@ -524,7 +524,7 @@ FLAQ.AI remains an optional compatible provider or companion platform. It is not
 
 ## License
 
-Open DeepSeek Harness Desktop is available under the [MIT License](LICENSE). Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Open DeepSeek Harness Desktop is available under the [MIT License](../../LICENSE). Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
 
 ## Friends
 

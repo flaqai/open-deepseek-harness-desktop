@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { MenuItemConstructorOptions } from 'electron'
-import { applicationMenuTemplate, commandEnabled, isDesktopCommand, type DesktopMenuState } from '../src/application-menu.ts'
+import { applicationMenuTemplate, commandEnabled, isDesktopCommand, menuCopy, type DesktopMenuState } from '../src/application-menu.ts'
+import { DESKTOP_PRODUCT_NAME, desktopWindowTitle } from '../src/product-name.ts'
 
 const state: DesktopMenuState = { platform: 'win32', locale: 'en', ready: true, busy: false, maximized: false, fullscreen: false, development: false }
 function flatten(items: MenuItemConstructorOptions[]): MenuItemConstructorOptions[] {
@@ -34,6 +35,19 @@ describe('platform application menus', () => {
     const menu = applicationMenuTemplate({ ...state, locale }, vi.fn())
     expect(menu.find(item => item.id === 'file')?.label).toBe(fileLabel)
     expect(menu.find(item => item.id === 'file')?.label).not.toBe('File')
+  })
+  it.each(['en', 'zh-CN', 'ja-JP', 'ko-KR', 'es-ES', 'fr-FR', 'de-DE', 'pt-BR', 'ru-RU'])('uses the canonical product name in %s', (locale) => {
+    const copy = menuCopy(locale)
+    expect(copy.app).toBe(DESKTOP_PRODUCT_NAME)
+    expect(copy.about).toContain(DESKTOP_PRODUCT_NAME)
+    expect(copy.hide).toContain(DESKTOP_PRODUCT_NAME)
+  })
+  it('replaces only generic upstream titles with the desktop product name', () => {
+    expect(desktopWindowTitle('')).toBe(DESKTOP_PRODUCT_NAME)
+    expect(desktopWindowTitle('DeepSeek Harness')).toBe(DESKTOP_PRODUCT_NAME)
+    expect(desktopWindowTitle('Open DSH Desktop')).toBe(DESKTOP_PRODUCT_NAME)
+    expect(desktopWindowTitle('Session title')).toBe('Session title')
+    expect(desktopWindowTitle('  Session title  ')).toBe('  Session title  ')
   })
   it('disables disconnected navigation and guarded mutations but retains recovery help', () => {
     expect(commandEnabled('new-session', { ...state, ready: false })).toBe(false)

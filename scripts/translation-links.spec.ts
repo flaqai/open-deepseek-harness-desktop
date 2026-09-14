@@ -147,7 +147,7 @@ describe('translation link locale validation', () => {
     writeFileSync(join(root, 'docs/README.en.md'), '# English\n')
     const englishContext = { ...linkContext(root, 'docs/guide.md'), isTranslationPairSource: (path: string) => path !== 'docs/README.en.md' }
     const chineseContext = { ...linkContext(root, 'docs/guide.zh.md'), isTranslationPairSource: (path: string) => path !== 'docs/README.en.md' }
-    const markdown = '# 指南\n\n语言：简体中文（默认） · [English](README.en.md) · [日本語](README.ja.md)\n'
+    const markdown = '# 指南\n\n语言：简体中文（默认） · [English](.github/readme/README.en.md) · [日本語](.github/readme/README.ja.md)\n'
 
     expect(translationLinkLocaleViolations(
       markdown,

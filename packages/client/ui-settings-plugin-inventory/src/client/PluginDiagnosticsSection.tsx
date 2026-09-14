@@ -99,6 +99,8 @@ const RETRY_KEYS = {
   succeeded: 'health.retry.succeeded',
   repaired: 'health.retry.repaired',
   quarantined: 'health.retry.quarantined',
+  paused: 'health.retry.paused',
+  cancelled: 'health.retry.cancelled',
   failed: 'health.retry.failed',
 } satisfies Record<Exclude<PluginInstallSnapshot['phase'], 'running'>, PluginInventoryLocaleKey>
 

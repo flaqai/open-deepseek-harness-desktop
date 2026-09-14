@@ -113,6 +113,30 @@ function requireTransaction(home: string, profile: string, id: string): ProfileP
 }
 
 /**
+ * Reclaim preparation only after its producer has died; activation always uses rollback recovery.
+ * Caller must hold the Profile mutation lock before changing ownership.
+ * @param home - Active data directory.
+ * @param profile - Profile identity.
+ * @param id - Existing transaction ID.
+ * @param ownerPid - New live desktop owner.
+ */
+export function resumeProfilePluginPreparation(home: string, profile: string, id: string, ownerPid: number): void {
+  const record = requireTransaction(home, profile, id)
+  if (record.phase !== 'preparing') throw new Error('dsh: only interrupted preparation can be resumed')
+  try {
+    process.kill(record.producerPid, 0)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
+    if (!Number.isSafeInteger(ownerPid) || ownerPid <= 0) throw new Error('dsh: invalid preparation owner')
+    process.kill(ownerPid, 0)
+    profilePluginCandidateHome(home, profile, id)
+    publish(home, { ...record, producerPid: ownerPid })
+    return
+  }
+  throw new Error('dsh: preparation producer is still alive')
+}
+
+/**
  * Resolve the candidate home of an existing transaction.
  * @param home - Active data directory.
  * @param profile - Profile identity.
@@ -233,7 +257,7 @@ export function prepareProfilePluginTransaction(home: string, profile: string, p
   inside(home, paths.profile)
   const modules = join(paths.profile, 'node_modules')
   if (existsSync(modules) && !lstatSync(modules).isDirectory()) throw new Error('dsh: indirect Profile dependencies cannot be staged')
-  const snapshot = createProfilePluginSnapshot({ home, profile, kind: 'safety', trigger: 'restore-safety' })
+  const snapshot = createProfilePluginSnapshot({ home, profile, kind: 'safety', trigger: 'restore-safety', allowUninitialized: true })
   const record: ProfilePluginTransaction = {
     schema: SCHEMA, id: randomUUID(), snapshotId: snapshot.snapshotId, profile,
     producerPid, hadModules: existsSync(modules), files: snapshot.files, phase: 'preparing',
@@ -252,7 +276,10 @@ export function prepareProfilePluginTransaction(home: string, profile: string, p
     if (existsSync(source)) copyRegular(source, join(candidate, 'profiles', profile, name))
   }
   const fallback = join(home, 'profiles', 'node_modules')
-  if (existsSync(fallback)) symlinkSync(fallback, join(candidate, 'profiles', 'node_modules'), 'junction')
+  if (existsSync(fallback)) {
+    mkdirSync(join(candidate, 'profiles'), { recursive: true, mode: 0o700 })
+    symlinkSync(fallback, join(candidate, 'profiles', 'node_modules'), 'junction')
+  }
   const archives = join(home, 'bundled-plugins')
   if (existsSync(archives)) {
     inside(home, archives)
@@ -323,6 +350,7 @@ export function activateProfilePluginTransaction(home: string, profile: string, 
   retainCandidateArchives(candidate, home, profile)
   relocateGeneratedMetadata(candidate, home, profile, true)
   publish(home, { ...record, phase: 'activating' })
+  mkdirSync(paths.profile, { recursive: true, mode: 0o700 })
   if (record.hadModules) renameSync(modules, join(paths.root, id, 'previous-node_modules'))
   renameSync(newModules, modules)
   for (const file of record.files) {
