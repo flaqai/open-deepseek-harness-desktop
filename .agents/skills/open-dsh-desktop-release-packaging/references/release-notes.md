@@ -30,6 +30,8 @@ Select the previous published, non-draft Release that was eligible for normal cl
 
 Group commits by user-visible outcome. Omit refactors, test-only work, generated-file churn, reverted changes, and implementation details unless they materially affect compatibility or recovery. Do not infer a fix from an issue title alone.
 
+Prepare the first complete bilingual draft as part of release-version preparation, before the packaging branch is pushed. Use repository and previous-Release evidence available at that point. If native workflows or the bundled-plugin snapshot have not completed, omit those outcome claims and conditional sections rather than inserting placeholders, guessed versions, or unverified platform statements. After all accepted workflows finish, update the same file with the exact plugin delta and qualification evidence and show the refreshed body to the user.
+
 ## Fill the bilingual body
 
 Use this order, omitting a conditional section only when it has no supported content:
@@ -122,7 +124,7 @@ Choose two to six update themes that describe user outcomes, such as startup and
 
 ## Review the filled result
 
-Before requesting publication authorization, verify:
+Before requesting a packaging-preparation handoff or publication authorization, verify:
 
 - version, tag, title, heading, notes filename, release directory, and source SHA agree;
 - every material claim maps to the selected commit range, accepted plugin snapshot, test, or platform run;
@@ -130,3 +132,5 @@ Before requesting publication authorization, verify:
 - installer names are exact and `SHA256SUMS` belongs to the same seven files;
 - warnings match the reviewed GitHub Release state and CNB eligibility;
 - Markdown links resolve and no credentials, local usernames, private paths, raw logs, or temporary signed URLs appear.
+
+For the early preparation draft, the version, tag, title, heading, source SHA and notes filename must already agree. Asset checksums, bundled-plugin versions and native qualification claims become mandatory only after their workflows complete; until then they must be absent, not marked as completed or left as fill-in prompts.

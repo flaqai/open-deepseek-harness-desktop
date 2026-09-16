@@ -32,6 +32,8 @@ The desktop installer version is owned by `apps/desktop/package.json`. Verify th
 
 Before pushing, run the checks selected by the changed surface. For ordinary release preparation, use focused tests, strict TypeScript or desktop build checks, documentation gates when documentation changed, and `git diff --check`. Do not repeat already-passing unrelated suites merely because a commit was created.
 
+As soon as the version and release-bound compatibility files are prepared, derive `odsh-v<version>`, `v<version>`, and the filled bilingual notes file. Present that draft before asking to commit or push. At this stage omit bundled-plugin changes and native qualification claims that still depend on accepted workflows. Refresh the same file after artifact verification; do not maintain a second divergent notes document.
+
 ## 3. Dispatch native builds
 
 Use the final packaging branch and keep publication disabled:

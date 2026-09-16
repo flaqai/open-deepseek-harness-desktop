@@ -1,5 +1,5 @@
 /** Build-owned, same-version PDF.js resources; all binary assets are decoded locally. */
-import workerSource from 'pdfjs-dist/build/pdf.worker.min.mjs?raw'
+import workerSource from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?raw'
 
 export { workerSource }
 

@@ -1,5 +1,5 @@
 /** One real module Worker and PDF.js loading task per mounted binary document. */
-import { getDocument, PDFWorker } from 'pdfjs-dist'
+import { getDocument, PDFWorker } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { createPdfBinaryDataFactory, workerSource } from './assets.ts'
 import type { PdfSession } from './document.ts'
 import { PdfWorkerFailure } from './errors.ts'

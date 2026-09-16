@@ -10,11 +10,11 @@ Use one of these modes at the beginning of the task:
 - **Prepare notes:** also write the bilingual notes file, then stop for review.
 - **Publish:** prepare and review the notes, then publish the already verified local assets to GitHub and mirror them to CNB after a fresh, explicit authorization naming both destinations.
 
-When the request does not choose a mode, default to download only. Permission to package, push a branch, or prepare notes is not permission to create a tag, upload assets, or publish a Release. Once the final reviewed plan names both providers, an unqualified approval to upload or publish authorizes that exact verified set on GitHub and CNB. Honor a narrower GitHub-only or CNB-only instruction instead of broadening it.
+When the user asks to prepare or start packaging without choosing a mode, default to **Prepare notes** and produce the filled bilingual draft during version preparation. Default to download-only only for an explicit artifact-only request or packaging diagnostic retry. Permission to package, push a branch, or prepare notes is not permission to create a tag, upload assets, or publish a Release. Once the final reviewed plan names both providers, an unqualified approval to upload or publish authorizes that exact verified set on GitHub and CNB. Honor a narrower GitHub-only or CNB-only instruction instead of broadening it.
 
 ## 2. Write evidence-bounded notes
 
-Use [release-notes.md](release-notes.md) to derive and fill the tag, title, and body. Write the reviewable notes to `.artifacts/release-notes/<tag>.md`; never place it inside the exact-set `<primary-checkout>/release/<version>/` directory. The default document contains complete Chinese and English sections and uses this evidence:
+Use [release-notes.md](release-notes.md) to derive and fill the tag, title, and body as soon as the release version is prepared. Write the reviewable notes to `.artifacts/release-notes/<tag>.md`, show the complete Chinese and English draft to the user, and never place it inside the exact-set `<primary-checkout>/release/<version>/` directory. Refresh that same file after native workflows complete. The document uses this evidence:
 
 - the previous published Open DSH Desktop tag and its notes;
 - the commit range from that tag to the final source SHA;

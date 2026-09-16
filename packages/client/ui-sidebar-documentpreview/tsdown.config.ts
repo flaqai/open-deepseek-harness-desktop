@@ -6,7 +6,7 @@ import { clientBundle } from '../tsdown.client.ts'
 
 const bundle = clientBundle('@deepseek-ai/dsh-client-ui-sidebar-documentpreview', ['lib/types/index.js'])
 const require = createRequire(import.meta.url)
-const workerSpecifier = 'pdfjs-dist/build/pdf.worker.min.mjs?raw'
+const workerSpecifier = 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?raw'
 const workerModule = '\0dsh-pdf-worker.mjs'
 
 /** License files for PDF.js and the data embedded beside its runtime. */
@@ -45,7 +45,7 @@ const pdfWorker: NonNullable<UserConfig['plugins']> = [{
   },
   load(id) {
     if (id !== workerModule) return null
-    const path = require.resolve('pdfjs-dist/build/pdf.worker.min.mjs')
+    const path = require.resolve('pdfjs-dist/legacy/build/pdf.worker.min.mjs')
     this.addWatchFile(path)
     return `export default ${JSON.stringify(readFileSync(path, 'utf8'))};`
   },

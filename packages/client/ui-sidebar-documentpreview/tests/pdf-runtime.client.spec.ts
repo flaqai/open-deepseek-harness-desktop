@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PdfDocument, PdfSession } from '../src/client/pdf/document.ts'
 
 const api = vi.hoisted(() => ({ getDocument: vi.fn(), createWorker: vi.fn(), destroyBridge: vi.fn() }))
-vi.mock('pdfjs-dist', () => ({ getDocument: api.getDocument, PDFWorker: { create: api.createWorker } }))
+vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({ getDocument: api.getDocument, PDFWorker: { create: api.createWorker } }))
 vi.mock('../src/client/pdf/assets.ts', () => ({
   workerSource: 'export const WorkerMessageHandler = {}',
   createPdfBinaryDataFactory: () => class { fetch() { return Promise.resolve(new Uint8Array()) } },
