@@ -57,6 +57,9 @@ describe('packaged desktop CLI inputs', () => {
     expect(source.indexOf('Installed smoke quarantine evidence:')).toBeLessThan(
       source.indexOf('Bundled plugin dependency $($plugin.PackageName) is absent'),
     )
+    expect(source).toContain(
+      'Join-Path $profileDirectory "node_modules/$($plugin.PackageName)/package.json"',
+    )
   })
 
   it('allows the native macOS Profile verification enough time for Intel runners', async () => {

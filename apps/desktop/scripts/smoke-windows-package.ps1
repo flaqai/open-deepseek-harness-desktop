@@ -283,7 +283,7 @@ foreach ($plugin in @($bundledPlugins | Where-Object { $_.InstallPolicy -eq 'sta
     -or $marker.state -ne 'installed') {
     throw "Bundled plugin seed marker has unexpected package metadata: $markerPath"
   }
-  $installedManifestPath = Join-Path $profileDir "node_modules/$($plugin.PackageName)/package.json"
+  $installedManifestPath = Join-Path $profileDirectory "node_modules/$($plugin.PackageName)/package.json"
   if (-not (Test-Path $installedManifestPath)) {
     throw "Bundled plugin package metadata is missing: $installedManifestPath"
   }
