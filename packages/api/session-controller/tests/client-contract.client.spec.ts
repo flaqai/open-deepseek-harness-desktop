@@ -102,6 +102,10 @@ describe('Client Session contracts', () => {
       change: { kind: 'prepend', entries: [older] },
     })
 
+    const beforeEmptyBatch = feed.getSnapshot()
+    feed.appendMany([])
+    expect(feed.getSnapshot()).toBe(beforeEmptyBatch)
+
     feed.append(live)
     expect(feed.getSnapshot()).toEqual({
       entries: [older, first, live],

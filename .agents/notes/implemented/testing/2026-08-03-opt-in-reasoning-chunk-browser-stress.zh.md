@@ -12,21 +12,21 @@ Status: implemented
 
 ## 决策
 
-Session Controller 把每个 Client-only live chunk 追加到 event source，Conversation 会立即把它折叠进每个匹配 Definition State。Chat 与 Trajectory Definition 为可见 `block-start`、`text-delta`、`reasoning-delta`、`tool-call-delta` 与 `block-end` chunk 请求 `animation-frame` publication；第一项变化调度一次 `requestAnimationFrame`，后续 chunk 继续更新 State，frame callback 再从最新 State materialize 一个累计 snapshot。`usage` 与 `finish` 不请求 publication。持久 `assistant/message` 或 `assistant/attempt` settlement 会立即发布，并在历史 replay 中复现同一最终 stream。
+Session Controller 在 Host 的持久 Assistant stream 中保留每个提供方 chunk，但会在 Conversation 折叠前合批仅供 Client 展示的路径。同一 attempt、Turn、Step 和内容块中相邻的 `text-delta`、`reasoning-delta` 与 `tool-call-delta` 会被拼接，并在每个动画帧只向 event source 追加一次；内容块边界、usage、finish、结构事件和 settlement 仍是顺序屏障。Conversation 随后把压缩后的批次折叠进每个匹配的 Definition State。Chat 与 Trajectory Definition 为可见 `block-start`、文本、推理、工具调用和 `block-end` 变化请求 `animation-frame` publication，再由 frame callback 从最新 State materialize 一个累计 snapshot。持久 `assistant/message` 或 `assistant/attempt` settlement 会立即发布，并在历史 replay 中复现精确的原始 stream。
 
-`BoundConversation` 为每个 Session 拥有一个 pending frame。普通结构 event 与持久 settlement 请求 immediate publication，flush 最新 assembled State，并让之后的 frame callback 因没有 dirty Context 而不产生影响。没有 `requestAnimationFrame` 的环境会立即发布。Settlement 可以跳过一个尚未显示的中间 partial，但发布的最终 content 与持久嵌入式 stream 保持完整。
+`Session` 为每个会话拥有一个待发布的展示批次，`BoundConversation` 则拥有一个待发布帧。普通结构事件与持久 settlement 会先 flush 展示批次再应用自身变更；替换 baseline、resync、失败与 dispose 会丢弃过期 partial。两层调度器都会使旧回调失效。没有 `requestAnimationFrame` 的环境使用零延时计时器合批展示内容，而 Conversation 保留即时回退。Settlement 可以跳过一个尚未显示的中间 partial，但发布的最终 content 与持久嵌入式 stream 保持完整。
 
 实时 Think 行对累计文本的横向跟尾属于纯视觉对齐，不需要在每次 React 提交中同步读取布局。组件内调度器将连续请求合并为每三帧一次，从最新 DOM 读取 `scrollWidth` 和 `clientWidth` 并将 `scrollLeft` 直接更新到最新位置；固定的视觉节奏让摘要变化可读，又不会积压浏览器平滑滚动动画。该节流只作用于 Think 的横向摘要，不延迟 Chat 正文滚动、历史 prepend 锚定或用户触发的 `scrollIntoView`。
 
 `pnpm run test:web:stress` 保留为无密钥、需显式启用的浏览器性能证据。确定性的 `?fixture` 会话以独立于绘制的节奏发出 100,000 个 `reasoning-delta`，结尾标记证明事件经过生产会话归并并到达实时 Think 行；50 毫秒心跳和预先调度的 DOM 事件分别测量主线程停顿与交互延迟，250 毫秒预算用于识别明显回归。`DSH_WEB_STRESS_HEADFUL=1` 允许开发者在可见浏览器中使用 Performance 面板分析同一场景。该压力车道是手动性能诊断与修复验收的证据，不是默认 CI 门禁，也不替代确定性的调度单元测试。
 
-聚焦测试固定 `Notifier` 的逐帧合并、结构事件抢占、失效回调和无 rAF 回退，并在 `Session` 层证明一帧只发布一次最新累计文本且定稿不会被旧帧回调重复通知。fixture（测试前置数据）的小型单元测试继续固定输入校验、外部到达节奏、并发拒绝、精确事件数和结尾标记交付，无需把 100,000 分片工作负载带入默认测试套件。
+聚焦测试固定展示增量拼接、内容块和所有者屏障、首个有效 token 时间、`Notifier` 的逐帧合并、结构事件抢占、失效回调及无 rAF 回退。Session 层测试证明 100 个同块 chunk 只产生一次 event-source publication 且累计文本完整，并证明 settlement 会 flush 待处理内容而不会被旧帧回调重复通知。fixture（测试前置数据）的小型单元测试继续固定输入校验、外部到达节奏、并发拒绝、精确事件数和结尾标记交付，无需把 100,000 分片工作负载带入默认测试套件。
 
 ## 曾考虑的替代方案
 
 **在 React 内对快照使用 transition、deferred value 或组件节流。** 不予采纳：会话源仍会逐分片通知 `useSyncExternalStore`，React render 在组件决定延后展示之前已经发生，且多个消费同一快照的组件需要重复实现策略。Think 摘要的视觉跟尾节流位于快照发布之后，只减少同步布局频率，不承担数据发布策略。
 
-**在 Definition fold 前丢弃或抽样 live chunk。** 不予采纳：实时累计 State 会与持久嵌入式 stream 分歧，并可能省略可见中间内容。紧凑持久存储与逐 frame 合并 React publication 解决的是不同成本。
+**在 Definition fold 前丢弃或抽样 live chunk。** 不予采纳：实时累计 State 会与持久嵌入式 stream 分歧，并可能省略可见内容。拼接相邻增量会完整保留其字节和顺序语义，抽样则无法做到。
 
 **只使用微任务合批。** 不予采纳：连续异步 `yield` 会在相邻分片间排空微任务队列，使微任务合批近似退化为每个分片通知一次。
 
@@ -36,7 +36,7 @@ Session Controller 把每个 Client-only live chunk 追加到 event source，Con
 
 ## 后果
 
-流式 `ConversationSnapshot` 的发布频率受浏览器绘制频率约束，React 每帧至多处理一个包含全部已接收文本的累计 partial；结构事件仍可更快发布。接收、排序、日志记录、字符串拼接和累积器更新仍按原始分片执行，因此该决策降低的是快照重建与 React 工作，不把原始流解析成本伪装成已解决。
+Event source 与流式 `ConversationSnapshot` 的发布频率都受浏览器绘制频率约束，因此 Conversation 和 React 每帧至多处理一个包含全部已接收文本的同块压缩 partial；结构事件仍可更快发布。传输接收、排序与持久日志记录仍按原始分片执行，而浏览器侧 Definition 折叠及累计字符串／数组复制改为处理压缩后的展示批次。该决策限制长回复中的内存分配增长，但不改变 replay 保真度，也不把原始流解析成本伪装成已消除。
 
 折叠 Think 摘要的横向布局读写最多每三帧执行一次，并直接追上该时刻的最新位置；React 仍按累计快照正常提交，定稿时摘要恢复到首行。该局部视觉策略不会改变正文滚动和用户交互的即时性。
 

@@ -53,6 +53,67 @@ function state(overrides: Partial<ModelDirectoryState> = {}): ModelDirectoryStat
 afterEach(cleanup)
 
 describe('ModelSelect reasoning effort', () => {
+  it('filters the model list by model or provider and can clear the query before selecting', async () => {
+    const groups = [
+      {
+        id: 'deepseek-official',
+        name: 'DeepSeek',
+        models: [
+          { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoning },
+          { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro' },
+        ],
+      },
+      {
+        id: 'openrouter',
+        name: 'OpenRouter',
+        models: [{ id: 'anthropic/claude-sonnet', name: 'Claude Sonnet' }],
+      },
+    ]
+    const directory = createSnapshotStore<ModelDirectoryState>(state({ groups }))
+    const select = vi.fn().mockResolvedValue(true)
+    render(<ModelSelect
+      locked={false}
+      available
+      directory={directory}
+      load={vi.fn()}
+      select={select}
+      t={t}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: /选择模型/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    const search = screen.getByRole('searchbox', { name: '搜索模型' })
+
+    fireEvent.change(search, { target: { value: 'v4-pro' } })
+    expect(screen.getByRole('menuitemradio', { name: 'DeepSeek-V4-Pro' })).toBeTruthy()
+    expect(screen.queryByRole('menuitemradio', { name: 'DeepSeek-V4-Flash' })).toBeNull()
+    expect(screen.queryByText('OpenRouter')).toBeNull()
+
+    fireEvent.change(search, { target: { value: 'openrouter' } })
+    expect(screen.getByRole('menuitemradio', { name: 'Claude Sonnet' })).toBeTruthy()
+    expect(screen.queryByText('DeepSeek')).toBeNull()
+
+    fireEvent.change(search, { target: { value: 'missing-model' } })
+    expect(screen.getByText('没有匹配的模型。')).toBeTruthy()
+    expect(screen.queryByRole('menuitemradio')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '清空模型搜索' }))
+    expect((search as HTMLInputElement).value).toBe('')
+    expect(screen.getAllByRole('menuitemradio')).toHaveLength(3)
+
+    fireEvent.change(search, { target: { value: 'claude' } })
+    const claude = screen.getByRole('menuitemradio', { name: 'Claude Sonnet' })
+    fireEvent.keyDown(search, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(claude)
+    fireEvent.click(claude)
+    await waitFor(() => {
+      expect(select).toHaveBeenCalledWith({
+        provider: 'openrouter',
+        model: 'anthropic/claude-sonnet',
+      })
+    })
+  })
+
   it('renders effort names without descriptions and submits the effort as part of the session selection', async () => {
     const directory = createSnapshotStore<ModelDirectoryState>(state())
     const select = vi.fn(async (selection: ModelSelection) => {

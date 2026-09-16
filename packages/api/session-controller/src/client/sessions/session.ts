@@ -26,7 +26,7 @@ import type {
 } from '../contract/snapshot.ts'
 import { MutableSessionEventSource } from '../contract/events.ts'
 import type {
-  SessionEventLikeEntry, SessionLiveEventEntry,
+  SessionEventLikeEntry, SessionLiveEventEntry, SessionTransientEventEntry,
 } from '../contract/events.ts'
 import { Notifier } from './notifier.ts'
 import { isRemoteFailure } from '@deepseek-ai/dsh-api-gateway/client'
@@ -41,6 +41,7 @@ import {
   ClientAssistantStream,
   type ClientAssistantStreamResult,
 } from './assistant-stream.ts'
+import { coalesceAssistantPresentation } from './assistant-presentation-batch.ts'
 
 function projectionsBaseline(value: SessionProjectionBaseline): ProjectionsBaseline {
   return {
@@ -102,6 +103,11 @@ export class Session implements SessionFace {
   /** Authoritative stream-only inbox snapshot; pending work never hits history. */
   private readonly queueMirror = new SessionQueueMirror()
   private readonly assistantStream = new ClientAssistantStream()
+  /** Browser-presentation-only deltas awaiting one frame-sized fold. Durable
+   * Assistant streams remain byte-for-byte unchanged on the Host. */
+  private assistantPresentation: SessionTransientEventEntry[] = []
+  private assistantPresentationFrame: number | undefined
+  private assistantPresentationTimer: ReturnType<typeof setTimeout> | undefined
   private running = false
   private address: SubagentAddress | undefined
   private parentAvailable: boolean | undefined
@@ -458,6 +464,7 @@ export class Session implements SessionFace {
   async resync(): Promise<void> {
     if (this.openState === 'cold') return // never opened: no window to rebuild (doOpen flips to 'loading' synchronously, so cold implies no in-flight open)
     this.openGeneration++
+    this.discardAssistantPresentation()
     const events = this.events
     this.events = undefined
     await events?.dispose()
@@ -595,6 +602,7 @@ export class Session implements SessionFace {
       this.retireFailedSubmission(requestId)
     }
     this.openGeneration++
+    this.discardAssistantPresentation()
     const events = this.events
     this.events = undefined
     await events?.dispose()
@@ -661,6 +669,7 @@ export class Session implements SessionFace {
     projections?: ProjectionsBaseline,
     assistantStream?: SessionAssistantStreamBaseline,
   ): void {
+    this.discardAssistantPresentation()
     // A durable gap-repair page has no assistant baseline. Clearing transient
     // attempts makes a held notification reopen follow once for an atomic
     // page/baseline pair instead of applying it to an unrelated repair cut.
@@ -676,6 +685,7 @@ export class Session implements SessionFace {
 
   private publishAssistantEntry(result: ClientAssistantStreamResult): void {
     if (result?.type === 'rebaseline') {
+      this.discardAssistantPresentation()
       const events = this.events
       queueMicrotask(() => {
         if (events !== undefined && this.events === events) events.restart()
@@ -683,22 +693,73 @@ export class Session implements SessionFace {
       return
     }
     if (result?.type === 'settlement') {
+      this.flushAssistantPresentation()
       this.eventSource.settleAssistant(result.attemptId, result.entry)
       this.observeSubmissionEvent(result.entry.event)
       this.notifier.markDirty()
       return
     }
     if (result?.type === 'abandonment') {
+      this.flushAssistantPresentation()
       this.eventSource.settleAssistant(result.attemptId)
       this.notifier.markDirty()
       return
     }
-    if (result?.type === 'publish' && this.appendLive(result.entry)) {
-      this.notifier.markDirty()
+    if (result?.type === 'publish') {
+      this.flushAssistantPresentation()
+      if (this.appendLive(result.entry)) this.notifier.markDirty()
     } else if (result?.type === 'transient') {
-      this.eventSource.append(result.entry)
-      this.notifier.markFrameDirty()
+      this.queueAssistantPresentation(result.entry)
     }
+  }
+
+  /** Buffer high-frequency live deltas until the browser's next paint slot. */
+  private queueAssistantPresentation(entry: SessionTransientEventEntry): void {
+    this.assistantPresentation.push(entry)
+    if (this.assistantPresentationFrame !== undefined || this.assistantPresentationTimer !== undefined) return
+    if (typeof globalThis.requestAnimationFrame === 'function') {
+      const frame = globalThis.requestAnimationFrame(() => {
+        if (this.assistantPresentationFrame !== frame) return
+        this.assistantPresentationFrame = undefined
+        this.flushAssistantPresentation()
+      })
+      this.assistantPresentationFrame = frame
+    } else {
+      const timer = setTimeout(() => {
+        if (this.assistantPresentationTimer !== timer) return
+        this.assistantPresentationTimer = undefined
+        this.flushAssistantPresentation()
+      }, 0)
+      this.assistantPresentationTimer = timer
+    }
+  }
+
+  /** Publish one compact presentation batch before any following structural change. */
+  private flushAssistantPresentation(): void {
+    this.cancelAssistantPresentationSchedule()
+    if (this.assistantPresentation.length === 0) return
+    const entries = coalesceAssistantPresentation(this.assistantPresentation)
+    this.assistantPresentation = []
+    this.eventSource.appendMany(entries)
+    // Preserve the Session snapshot's historical stream invalidation signal,
+    // but emit it only after the frame batch entered the Conversation feed.
+    this.notifier.notifyNow()
+  }
+
+  /** Drop an obsolete partial batch when a replacement baseline takes over. */
+  private discardAssistantPresentation(): void {
+    this.cancelAssistantPresentationSchedule()
+    this.assistantPresentation = []
+  }
+
+  private cancelAssistantPresentationSchedule(): void {
+    if (this.assistantPresentationFrame !== undefined
+      && typeof globalThis.cancelAnimationFrame === 'function') {
+      globalThis.cancelAnimationFrame(this.assistantPresentationFrame)
+    }
+    if (this.assistantPresentationTimer !== undefined) clearTimeout(this.assistantPresentationTimer)
+    this.assistantPresentationFrame = undefined
+    this.assistantPresentationTimer = undefined
   }
 
   /** Prepend one stream-validated history page. */
@@ -784,6 +845,7 @@ export class Session implements SessionFace {
     if (generation !== this.openGeneration || this.events !== events) return
     if (!isRemoteFailure(error)) throw error
     this.openGeneration++
+    this.discardAssistantPresentation()
     this.events = undefined
     this.openPromise = null
     this.openState = 'error'

@@ -224,6 +224,8 @@ describe('scope tree', () => {
     })
     const notifications = vi.fn()
     binding.session.subscribe(notifications)
+    const eventPublications = vi.fn()
+    binding.eventSource.subscribe(eventPublications)
     const attemptId = LlmAttemptId('frame-batched-attempt')
 
     await b.api.pushFollow(sid('s1'), {
@@ -245,9 +247,85 @@ describe('scope tree', () => {
     }
 
     expect(notifications).not.toHaveBeenCalled()
+    expect(eventPublications).not.toHaveBeenCalled()
     expect(frames).toHaveLength(1)
     frames.shift()!(0)
     expect(notifications).toHaveBeenCalledOnce()
+    expect(eventPublications).toHaveBeenCalledOnce()
+    const visible = binding.eventSource.getSnapshot().entries
+    expect(visible).toHaveLength(1)
+    expect(visible[0]?.event).toMatchObject({
+      type: 'assistant/live-chunk',
+      data: { chunk: { type: 'text-delta', index: 0, text: 'x'.repeat(100) } },
+    })
+  })
+
+  it('flushes a pending presentation batch before settlement and ignores its stale frame', async () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    const b = bench()
+    await feedList(b, [{ id: 's1' }])
+    b.svc.open(sid('s1'))
+    const binding = b.svc.binding(sid('s1'))
+    if (binding === undefined) throw new Error('expected Session binding')
+    await vi.waitFor(() => {
+      expect(binding.session.getSnapshot().openState).toBe('open')
+    })
+    const attemptId = LlmAttemptId('settle-before-frame-attempt')
+    const durableMessage = {
+      type: 'event' as const,
+      event: {
+        type: 'assistant/message', seq: 0, time: 3,
+        data: {
+          turn: 1,
+          step: 1,
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'ab' }],
+            source: { kind: 'model', provider: 'p', model: 'm' },
+            id: 'settled-before-frame-message',
+          },
+          stream: [{ type: 'text-chunks', time0: 1, index: 0, dt: [], texts: ['ab'] }],
+        },
+        surfaceOp: 'append' as const,
+      },
+    }
+
+    await b.api.pushFollow(sid('s1'), {
+      type: 'assistant-stream',
+      frame: {
+        type: 'start', attemptId, revision: 1, startedAfterSeq: -1,
+        turn: 1, step: 1,
+      },
+    })
+    for (const [index, text] of ['a', 'b'].entries()) {
+      await b.api.pushFollow(sid('s1'), {
+        type: 'assistant-stream',
+        frame: {
+          type: 'chunk', attemptId, revision: index + 2, index,
+          time: index + 1,
+          chunk: { type: 'text-delta', index: 0, text },
+        },
+      })
+    }
+    expect(binding.eventSource.getSnapshot().entries).toHaveLength(0)
+    expect(frames).toHaveLength(1)
+
+    await b.api.pushFollow(sid('s1'), durableMessage)
+    await b.api.pushFollow(sid('s1'), {
+      type: 'assistant-stream',
+      frame: {
+        type: 'end', attemptId, revision: 4, index: 2,
+        outcome: { kind: 'committed', eventType: 'assistant/message', seq: 0 },
+      },
+    })
+
+    expect(binding.eventSource.getSnapshot().entries).toEqual([durableMessage])
+    frames[0]!(0)
+    expect(binding.eventSource.getSnapshot().entries).toEqual([durableMessage])
   })
 
   it('replaces an active assistant baseline on reconnect without duplicate chunks', async () => {

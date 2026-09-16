@@ -20,7 +20,7 @@ import clsx from 'clsx'
 import type { ModelReasoningEffort, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14,
-  IconDataOutline16, IconWarningOutline16, Toast,
+  IconCloseOutline16, IconDataOutline16, IconSearchOutline16, IconWarningOutline16, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
@@ -55,6 +55,7 @@ export function ModelSelect(
   )
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState<Pane>('root')
+  const [query, setQuery] = useState('')
   // The in-menu error strip serves catalog loads (its Retry re-runs the
   // load); a rejected SELECTION announces through the transient toast
   // instead, so the strip renders only while the latest failure-capable
@@ -65,6 +66,7 @@ export function ModelSelect(
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [menuPos, setMenuPos] = useState<CSSProperties | null>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const id = useId()
@@ -81,6 +83,17 @@ export function ModelSelect(
           : { reasoningEffort: model.reasoning.defaultEffort },
       } satisfies ModelSelection,
     }))), [state.groups])
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const filteredGroups = useMemo(() => state.groups.flatMap((group) => {
+    const providerMatches = normalizedQuery.length === 0 || [group.id, group.name]
+      .some(value => value.toLocaleLowerCase().includes(normalizedQuery))
+    const models = providerMatches
+      ? group.models
+      : group.models.filter(model => [model.id, model.name]
+        .some(value => value.toLocaleLowerCase().includes(normalizedQuery)))
+    return models.length === 0 ? [] : [{ ...group, models }]
+  }), [normalizedQuery, state.groups])
+  const filteredChoiceCount = filteredGroups.reduce((count, group) => count + group.models.length, 0)
   const selectedIndex = state.current === null
     ? -1
     : choices.findIndex(c => c.selection.provider === state.current?.provider && c.selection.model === state.current.model)
@@ -123,6 +136,11 @@ export function ModelSelect(
     return () => { document.removeEventListener('mousedown', closeOutside) }
   }, [open])
 
+  useEffect(() => {
+    if (!open || pane !== 'model') return
+    queueMicrotask(() => { searchInputRef.current?.focus() })
+  }, [open, pane])
+
   // Portaled placement (the Menu primitive's portal rules: fixed from the
   // anchor rect, measured before paint, clamped inside the viewport): above
   // the trigger, right edges aligned. Depends on pane and directory state
@@ -154,13 +172,14 @@ export function ModelSelect(
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
     }
-  }, [open, pane, state])
+  }, [open, pane, query, state])
   /* jscpd:ignore-end */
 
   if (!available) return null
 
   const show = (): void => {
     setPane('root')
+    setQuery('')
     setOpen(true)
     reload()
   }
@@ -168,6 +187,7 @@ export function ModelSelect(
   const close = (restoreFocus = false): void => {
     setOpen(false)
     setPane('root')
+    setQuery('')
     if (restoreFocus) queueMicrotask(() => { triggerRef.current?.focus() })
   }
 
@@ -175,7 +195,9 @@ export function ModelSelect(
     const items = itemRefs.current.filter(item => item !== null)
     if (items.length === 0) return
     const active = items.findIndex(item => item === document.activeElement)
-    const next = (Math.max(active, 0) + offset + items.length) % items.length
+    const next = active === -1
+      ? (offset > 0 ? 0 : items.length - 1)
+      : (active + offset + items.length) % items.length
     items[next]?.focus()
   }
 
@@ -316,6 +338,30 @@ export function ModelSelect(
 
           {pane === 'model' && (
             <>
+              <div className={css.search} role="search">
+                <span className={css.searchIcon} aria-hidden="true"><IconSearchOutline16 /></span>
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={query}
+                  placeholder={t('search.placeholder')}
+                  aria-label={t('search.label')}
+                  onChange={(event) => { setQuery(event.currentTarget.value) }}
+                />
+                {query.length > 0 && (
+                  <button
+                    type="button"
+                    className={css.clearSearch}
+                    aria-label={t('search.clear')}
+                    onClick={() => {
+                      setQuery('')
+                      searchInputRef.current?.focus()
+                    }}
+                  >
+                    <IconCloseOutline16 />
+                  </button>
+                )}
+              </div>
               {state.status === 'loading' && (
                 <div className={css.status}>{t('status.loading')}</div>
               )}
@@ -332,7 +378,7 @@ export function ModelSelect(
                 </div>
               ))}
               <div className={clsx(css.groups, 'scrollable')}>
-                {state.groups.map((group) => {
+                {filteredGroups.map((group) => {
                   const headingId = `${id}-${group.id}`
                   return (
                     <section role="group" aria-labelledby={headingId} className={css.group} key={group.id}>
@@ -366,6 +412,9 @@ export function ModelSelect(
               </div>
               {state.status === 'ready' && choices.length === 0 && (
                 <div className={css.empty}>{t('empty.models')}</div>
+              )}
+              {state.status === 'ready' && choices.length > 0 && filteredChoiceCount === 0 && (
+                <div className={css.empty}>{t('empty.search')}</div>
               )}
             </>
           )}

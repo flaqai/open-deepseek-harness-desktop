@@ -165,7 +165,17 @@ export class MutableSessionEventSource implements SessionEventSource {
    * @param entry - live tail entry.
    */
   append(entry: SessionEventLikeEntry): void {
-    const entries = [entry]
+    this.appendMany([entry])
+  }
+
+  /**
+   * Append one already ordered live batch with one publication. This is used
+   * by the browser presentation path to keep token bursts from synchronously
+   * folding the Conversation once per transport frame.
+   * @param entries - ordered live tail entries.
+   */
+  appendMany(entries: readonly SessionEventLikeEntry[]): void {
+    if (entries.length === 0) return
     this.window = concat(this.window, leaf(entries))
     this.publish(this.snapshot.hasMore, {
       kind: 'append',
