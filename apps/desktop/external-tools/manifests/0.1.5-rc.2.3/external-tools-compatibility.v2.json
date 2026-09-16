@@ -1,0 +1,32 @@
+{
+  "schema": "dsh/desktop-external-tool-compatibility/v2",
+  "revision": 7,
+  "desktopVersion": "0.1.5-rc.2.3",
+  "reviewedSourceVersion": "0.1.5-rc.2",
+  "issuedAt": "2026-09-11T00:00:00.000Z",
+  "expiresAt": "2027-03-08T00:00:00.000Z",
+  "tools": {
+    "codex": {
+      "packageName": "@deepseek-ai/dsh-subagent-codex",
+      "version": "0.1.5-rc.2",
+      "integrity": "sha512-oFQf33QSsUTFl5AbUkEUbj/AOqkFqhGUd2L6e/LQnjAE3DjSFzHUeEXI2e0d5mPd/7kWbiHM8w586caMl9M5+g==",
+      "runtimePackage": {
+        "packageName": "@openai/codex",
+        "version": "0.153.4",
+        "integrity": "sha512-wbHDmit7S/YvBGVX1DQmk13xtWblZ2cApeJ/pB7xDZ10Cna+DZc5ij7f0F4OxdsXN4FW1oLT48OpogUI1+8Y2w==",
+        "verifyOptionalPlatformPackages": true
+      }
+    },
+    "claude-code": {
+      "packageName": "@deepseek-ai/dsh-subagent-claude-code",
+      "version": "0.1.5-rc.2",
+      "integrity": "sha512-1NHj4PfzwISGbH30LsigVhxK6Mdz2C1aGqSY6NsGNsI2Fz5+Lq7JR8dfl18dnkrZMjyn4WyjVub8sifsXPyPeA==",
+      "runtimePackage": {
+        "packageName": "@anthropic-ai/claude-agent-sdk",
+        "version": "0.3.263",
+        "integrity": "sha512-0QWoHgWWlSmgXfEqZRbVYRoXT9p4tx/yKaZ4eLJ8l1MR65SIvMGR+cd5ZXUpGYZpj9RzbYiYU9LoFg90mdIjmw==",
+        "verifyOptionalPlatformPackages": true
+      }
+    }
+  }
+}
