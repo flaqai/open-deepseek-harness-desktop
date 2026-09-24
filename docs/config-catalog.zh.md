@@ -3995,7 +3995,7 @@ export interface Config {
 }
 ```
 
-来源： [`packages/typert/loader/src/index.ts:48`](../packages/typert/loader/src/index.ts)
+来源： [`packages/typert/loader/src/index.ts:56`](../packages/typert/loader/src/index.ts)
 
 <a id="deepseek-aidsh-user-approval"></a>
 
