@@ -19,7 +19,6 @@ function evidenceCatalog(runnerTemp) {
     ['desktop-entry', join(runnerTemp, 'DeepSeek Harness AppData', 'desktop-entry.log')],
     ['harness-log', join(runnerTemp, 'DeepSeek Harness AppData', 'open-deepseek-harness-desktop', 'logs', 'harness.log')],
     ['data-home-setup', join(runnerTemp, 'DeepSeek Harness AppData', 'open-deepseek-harness-desktop', 'data-home-setup.json')],
-    ['native-smoke-entry', join(runnerTemp, 'DeepSeek Harness Native Smoke AppData', 'desktop-entry.log')],
     ['profile-manifest', join(runnerTemp, 'DeepSeek Harness Home', 'profiles', 'web', 'package.json')],
     ['profile-lock', join(runnerTemp, 'DeepSeek Harness Home', 'profiles', 'web', 'pnpm-lock.yaml')],
   ]
@@ -175,6 +174,7 @@ async function writeEvidence(destination, evidence) {
 }
 
 /** Collect safe package smoke evidence without reading diagnostic file contents.
+ * The native entry result comes from the smoke journal; native smoke does not write an entry log.
  * @param {{ runnerTemp: string, destination: string, runId?: string, runAttempt?: string, platform?: NodeJS.Platform, environment?: NodeJS.ProcessEnv, now?: () => Date }} options
  * @returns {Promise<object>} the persisted evidence document.
  */
