@@ -93,6 +93,7 @@
     "@deepseek-ai/dsh-tool-web": "workspace:*",
     "@deepseek-ai/dsh-tool-workflow": "workspace:*",
     "@deepseek-ai/dsh-tool-workspace-dependencies": "workspace:*",
+    "@deepseek-ai/dsh-typert-loader": "workspace:*",
     "@deepseek-ai/dsh-web-app": "workspace:*",
     "@deepseek-ai/dsh-webhook": "workspace:*",
     "@deepseek-ai/dsh-webhook-github": "workspace:*",

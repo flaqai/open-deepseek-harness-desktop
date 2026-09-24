@@ -50,6 +50,8 @@ Each qualifying Loader entry contributes its generated host-face reflection and 
 
 Packages without the export are skipped silently. Resolution verdicts and imported manifests are cached for the process lifetime, so adding a `./typert` export requires a restart. A malformed artifact among already-mounted entries fails activation loudly; a later failure is logged per package without preventing unrelated packages from registering. An explicit `packages` entry that cannot be resolved from the config tree, or that lacks the export, fails loudly and names the package.
 
+Failures carry the Loader-verified contributor name and the artifact, manifest, or registration stage. Startup diagnostics use this identity to isolate one directly enabled external bundle when attribution is unique; incidental errors from a context stopped by the same failure are not treated as another faulty plugin. Built-in bundles and ambiguous failures are never automatically quarantined.
+
 -----
 
 <a id="understand-the-implementation"></a>

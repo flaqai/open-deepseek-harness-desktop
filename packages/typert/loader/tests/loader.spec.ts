@@ -9,7 +9,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import { PluginPackages } from '@deepseek-ai/dsh-app-boot'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import * as typertLoader from '@deepseek-ai/dsh-typert-loader'
-import { validateTypertManifest } from '@deepseek-ai/dsh-typert-loader'
+import { TypertContributorFailure, validateTypertManifest } from '@deepseek-ai/dsh-typert-loader'
 import { z } from 'zod'
 
 let root: string | undefined
@@ -338,6 +338,41 @@ describe('typert loader', () => {
     await expect(mountTypertLoader(ctx)).rejects.toThrow(/typert contributor\(s\) failed to register/)
   })
 
+  it('attributes a dsh-mysql-style malformed codec to its Loader owner without changing fail-loud activation', LOADER_TEST_TIMEOUT, async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-typert-loader-'))
+    await linkZod(root)
+    await writePackage(root, '@deepseek-ai/dsh-core-fixture', {
+      typertSource: invocationTypertSource('@deepseek-ai/dsh-core-fixture'),
+    })
+    await writePackage(root, 'dsh-mysql', {
+      typertSource: [
+        "import { z } from 'zod'",
+        "const codec = { mode: 'strict', typeSymbol: 'dsh-mysql#Args', schema: z.record(z.string(), z.unknown()) }",
+        "export const TYPERT = { package: 'dsh-mysql', face: 'host', schemas: [],",
+        '  model: { services: [], events: [], objects: [] },',
+        "  invocations: [{ id: 'mysql/listConnections', service: 'mysql', namespace: 'mysql',",
+        "    method: 'listConnections', invocation: { kind: 'direct' },",
+        "    parameters: [{ name: 'args', wire: 'args', source: 'json', codec }], result: codec }] }",
+      ].join('\n'),
+    })
+    const ctx = await boot()
+    await ctx.loader.create({ name: '@deepseek-ai/dsh-core-fixture' })
+    await ctx.loader.create({ name: 'dsh-mysql' })
+    await ctx.loader.await()
+
+    let failure: unknown
+    try { await mountTypertLoader(ctx) } catch (error) { failure = error }
+    expect(failure).toBeInstanceOf(AggregateError)
+    const errors = (failure as AggregateError).errors as Error[]
+    expect(errors).toContainEqual(expect.objectContaining({
+      entryName: 'dsh-mysql',
+      stage: 'manifest',
+      cause: expect.objectContaining({ message: expect.stringContaining('parameter codec has no create() factory') }),
+    }))
+    expect(errors.find(error => error instanceof TypertContributorFailure && error.entryName === 'dsh-mysql'))
+      .toBeInstanceOf(TypertContributorFailure)
+  })
+
   it('fails loud when the declared typert module cannot be imported', LOADER_TEST_TIMEOUT, async () => {
     root = await mkdtemp(join(tmpdir(), 'dsh-typert-loader-'))
     await linkZod(root)
@@ -430,7 +465,11 @@ describe('typert loader', () => {
     await ctx.loader.await()
     // The failing contributor's error is reported on the post-await flush.
     await vi.waitFor(() => {
-      expect(logged).toHaveBeenCalledWith(expect.objectContaining({ message: 'register failed' }))
+      expect(logged).toHaveBeenCalledWith(expect.objectContaining({
+        entryName: '@fixture/steady-failure',
+        stage: 'registration',
+        cause: expect.objectContaining({ message: 'register failed' }),
+      }))
     }, { timeout: 10_000 })
     expect(ctx.typert.getPackage('@fixture/steady-failure')).toBeUndefined()
   })

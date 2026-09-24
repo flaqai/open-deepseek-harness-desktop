@@ -58,6 +58,7 @@ import {
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
+import { TypertContributorFailure } from '@deepseek-ai/dsh-typert-loader'
 import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 import { INSTALL_ANCHOR } from './install-anchor.ts'
@@ -485,6 +486,25 @@ function loaderEntryFailures(error: unknown): readonly {
   return [...found.values()]
 }
 
+/** Identify a unique Loader-verified Typert contributor, never a name embedded in plugin prose. */
+export function typertContributorFailure(error: unknown): string | undefined {
+  const names = new Set<string>()
+  const seen = new Set<unknown>()
+  const visit = (current: unknown): void => {
+    if (!(current instanceof Error) || seen.has(current)) return
+    seen.add(current)
+    if (current instanceof TypertContributorFailure
+      && !(current.stage === 'registration' && current.cause instanceof Error
+        && 'code' in current.cause && current.cause.code === 'INACTIVE_EFFECT')) {
+      names.add(current.entryName)
+    }
+    if (current instanceof AggregateError) for (const nested of current.errors) visit(nested)
+    visit(current.cause)
+  }
+  visit(error)
+  return names.size === 1 ? [...names][0] : undefined
+}
+
 /**
  * Attribute the deepest Loader import or apply wrapper in a startup failure.
  * The recorded patch owner must still prove the owning bundle before recovery mutates
@@ -737,6 +757,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     const entryFailures = options.diagnosticMode === true ? [] : loaderEntryFailures(error)
     const entryFailure = entryFailures.at(-1)
     const loaderFailure = options.diagnosticMode === true ? undefined : loaderClientModuleFailure(error)
+    const typertFailure = options.diagnosticMode === true ? undefined : typertContributorFailure(error)
     let ownedFailure: UnresolvableProfileBundleEntry | undefined
     let ownedEntry: ProfileBundleEntryOwnership | undefined
     try {
@@ -799,13 +820,22 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       ownedFailure = undefined
       ownedEntry = undefined
     }
-    const externalBundle = ownedFailure?.rootPackage ?? ownedEntry?.rootPackage ?? (
+    const typertExternalBundle = typertFailure !== undefined
+      && configuredExternalBundles(options.profile).includes(typertFailure)
+      ? typertFailure
+      : undefined
+    const loaderExternalBundle = ownedFailure?.rootPackage ?? ownedEntry?.rootPackage ?? (
       loaderFailure !== undefined
         && loaderFailure.missingExport === undefined
         && configuredExternalBundles(options.profile).includes(loaderFailure.moduleName)
         ? loaderFailure.moduleName
         : undefined
     )
+    // A second, different proven owner makes automatic mutation ambiguous.
+    const externalBundle = loaderExternalBundle !== undefined && typertExternalBundle !== undefined
+      && loaderExternalBundle !== typertExternalBundle
+      ? undefined
+      : loaderExternalBundle ?? typertExternalBundle
     const issueValue = ownedFailure?.failureKind === 'loader-dependency'
       ? new Error(
         loaderFailure?.missingExport === undefined
@@ -813,18 +843,21 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
           : `loader dependency unavailable: Loader module ${ownedFailure.moduleName} expects export ${loaderFailure.missingExport} from ${ownedFailure.missingModule ?? '<unknown>'}, but the installed dependency does not provide it`,
         { cause: error instanceof Error ? error : undefined },
       )
-      : error
+      : typertExternalBundle === undefined
+        ? error
+        : new Error('typert-loader activation failed for an installed contributor', { cause: error instanceof Error ? error : undefined })
     const issue = classifyProfileDiagnostic({
       source: options.diagnosticMode === true ? 'runtime' : 'profile',
       phase: startupFailurePhase(error),
       value: issueValue,
       home: resolveDshHome(),
-      ...(entryFailure === undefined
+      ...(entryFailure === undefined && typertExternalBundle === undefined
         ? {}
         : {
           attribution: {
-            entryId: entryFailure.entryId,
-            moduleName: entryFailure.moduleName,
+            ...(typertExternalBundle !== undefined
+              ? { moduleName: typertExternalBundle }
+              : entryFailure === undefined ? {} : { entryId: entryFailure.entryId, moduleName: entryFailure.moduleName }),
             ...(ownedFailure?.missingModule === undefined ? {} : { missingModule: ownedFailure.missingModule }),
             ...(loaderFailure?.missingExport === undefined ? {} : { missingExport: loaderFailure.missingExport }),
             ...(ownedFailure?.importerPackage === undefined ? {} : { importerPackage: ownedFailure.importerPackage }),
@@ -854,7 +887,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
             profile: options.profile,
             installAnchor: INSTALL_ANCHOR,
             runPackageManager: args => runProfilePackageManager(profileDir, args),
-          }, externalBundle, issue, loaderFailure === undefined
+          }, externalBundle, issue, typertExternalBundle !== undefined || loaderFailure === undefined
             ? 'loader-lifecycle-failed'
             : ownedFailure === undefined
               ? 'client-module-unavailable'

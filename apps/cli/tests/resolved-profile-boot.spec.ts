@@ -7,8 +7,11 @@ import { Context } from '@deepseek-ai/cordis'
 import { createLaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import {
   boot, composeEntries, createRuntimeResolution,
+  acquireProfilePluginMutationLock, createProfilePluginSnapshot, finalizeProfilePluginSnapshot,
+  quarantineProfilePluginAfterLoadFailure,
   PluginPackages, type Profile,
 } from '@deepseek-ai/dsh-app-boot'
+import { TypertContributorFailure } from '@deepseek-ai/dsh-typert-loader'
 import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runProfile } from '../src/profile-boot.ts'
@@ -20,6 +23,10 @@ vi.mock('@deepseek-ai/dsh-app-boot', async (importOriginal) => {
     boot: vi.fn(),
     createRuntimeResolution: vi.fn(actual.createRuntimeResolution),
     installFailLoud: vi.fn(),
+    acquireProfilePluginMutationLock: vi.fn(actual.acquireProfilePluginMutationLock),
+    createProfilePluginSnapshot: vi.fn(actual.createProfilePluginSnapshot),
+    finalizeProfilePluginSnapshot: vi.fn(actual.finalizeProfilePluginSnapshot),
+    quarantineProfilePluginAfterLoadFailure: vi.fn(actual.quarantineProfilePluginAfterLoadFailure),
   }
 })
 vi.mock('@deepseek-ai/dsh-http-proxy', () => ({ installProxyFromEnvironment: vi.fn() }))
@@ -33,6 +40,51 @@ afterEach(() => {
 })
 
 describe('runProfile with an application-owned profile', () => {
+  it.each([true, false])('isolates a malformed Typert bundle only when directly enabled (enabled=%s)', async (enabled) => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-typert-startup-'))
+    homes.push(home)
+    const profileDir = join(home, 'profiles', 'web')
+    mkdirSync(profileDir, { recursive: true })
+    mkdirSync(join(home, 'runtime'))
+    writeFileSync(join(home, 'runtime/package.json'), '{"name":"test-runtime","version":"1.0.0"}')
+    writeFileSync(join(profileDir, 'package.json'), JSON.stringify({
+      name: 'dsh-profile-web',
+      dependencies: { 'dsh-mysql': '0.1.11' },
+      dsh: { profile: { bundles: enabled ? ['@deepseek-ai/dsh-base', 'dsh-mysql'] : ['@deepseek-ai/dsh-base'] } },
+    }))
+    vi.stubEnv('DSH_HOME', home)
+    vi.spyOn(process, 'on').mockReturnValue(process)
+    vi.mocked(installProxyFromEnvironment).mockResolvedValue(vi.fn().mockResolvedValue(undefined))
+    const release = vi.fn()
+    vi.mocked(acquireProfilePluginMutationLock).mockReturnValue(release)
+    vi.mocked(createProfilePluginSnapshot).mockReturnValue({ snapshotId: 'test-snapshot' } as ReturnType<typeof createProfilePluginSnapshot>)
+    vi.mocked(finalizeProfilePluginSnapshot).mockReturnValue(undefined)
+    vi.mocked(quarantineProfilePluginAfterLoadFailure).mockReturnValue({ status: 'quarantined' } as ReturnType<typeof quarantineProfilePluginAfterLoadFailure>)
+    const failure = new AggregateError([
+      new TypertContributorFailure('dsh-mysql', 'manifest', new Error('parameter codec has no create() factory')),
+    ], 'plugin tree failed to load')
+    vi.mocked(boot).mockRejectedValue(failure)
+    const profile: Profile = { name: 'web', dir: profileDir, patchPath: join(profileDir, 'cordis.patch.yml'), patches: [], layers: [] }
+
+    await expect(runProfile({
+      environment: createLaunchEnvironmentSnapshot([]), profile: 'web', patchFiles: [], args: [],
+      diagnosticModeOnFailure: true,
+      resolvedProfile: { profile, installAnchor: join(home, 'runtime/package.json') },
+    })).rejects.toBe(failure)
+    if (enabled) {
+      expect(quarantineProfilePluginAfterLoadFailure).toHaveBeenCalledWith(
+        expect.any(Object), 'dsh-mysql', expect.objectContaining({
+          code: 'loader.lifecycle-failed',
+          attribution: expect.objectContaining({ moduleName: 'dsh-mysql', rootPackage: 'dsh-mysql' }),
+        }), 'loader-lifecycle-failed',
+      )
+      expect(release).toHaveBeenCalledOnce()
+    } else {
+      expect(quarantineProfilePluginAfterLoadFailure).not.toHaveBeenCalled()
+      expect(release).not.toHaveBeenCalled()
+    }
+  })
+
   it.each(
     ['composition', 'boot', 'watch', 'cleanup', 'tree-cleanup', 'both-cleanups'] as const,
   )('releases startup resources after a %s failure', async (stage) => {
