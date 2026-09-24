@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import manifestJson from '../external-tools/manifests/0.1.6-alpha.2.1/external-tools-compatibility.v2.json'
+import manifestJson from '../external-tools/manifests/0.1.7-rc.1/external-tools-compatibility.v2.json'
 import { ExternalToolCompatibilityManager } from '../src/external-tool-compatibility.ts'
 import {
   parseExternalToolCompatibilityManifest,
@@ -29,7 +29,7 @@ function manifestBytes(value: unknown = manifestJson): Uint8Array {
 function bundleBytes(
   bytes: Uint8Array,
   digest = createHash('sha256').update(bytes).digest('hex'),
-  subjectName = 'external-tools-compatibility-0.1.6-alpha.2.1.v2.json',
+  subjectName = 'external-tools-compatibility-0.1.7-rc.1.v2.json',
 ): Uint8Array {
   const statement = {
     _type: 'https://in-toto.io/Statement/v1',
@@ -68,7 +68,7 @@ describe('external tool compatibility', () => {
     const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error('offline'))
     const manager = new ExternalToolCompatibilityManager({
       cacheDirectory: await temporaryDirectory(),
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: fetchMock,
       verifyBundle: async () => {},
@@ -95,12 +95,12 @@ describe('external tool compatibility', () => {
       .mockResolvedValueOnce(response(bundleBytes(changed)))
     const manager = new ExternalToolCompatibilityManager({
       cacheDirectory: await temporaryDirectory(),
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: fetchMock,
       verifyBundle: async () => {},
     })
-    await expect(manager.resolve('codex')).resolves.toMatchObject({ version: '0.1.5-rc.2', source: 'embedded' })
+    await expect(manager.resolve('codex')).resolves.toMatchObject({ version: '0.1.7-rc.1', source: 'embedded' })
   })
 
   it('shares an in-flight refresh across concurrent tool requests', async () => {
@@ -118,7 +118,7 @@ describe('external tool compatibility', () => {
     })
     const manager = new ExternalToolCompatibilityManager({
       cacheDirectory: await temporaryDirectory(),
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: fetchMock,
       verifyBundle: async () => {},
@@ -139,7 +139,7 @@ describe('external tool compatibility', () => {
   it('parses exact pins and never creates a floating package spec', () => {
     const manifest = parseExternalToolCompatibilityManifest(manifestJson)
     expect(resolveExternalToolCoordinate(manifest, 'codex', 'embedded')).toMatchObject({
-      packageSpec: '@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2',
+      packageSpec: '@deepseek-ai/dsh-subagent-codex@0.1.7-rc.1',
       source: 'embedded',
     })
   })
@@ -154,33 +154,33 @@ describe('external tool compatibility', () => {
       .mockResolvedValueOnce(response(bundle))
     const manager = new ExternalToolCompatibilityManager({
       cacheDirectory,
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: fetchMock,
       verifyBundle,
     })
 
     await expect(manager.resolve('claude-code')).resolves.toMatchObject({
-      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.1.5-rc.2',
+      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.1.7-rc.1',
       source: 'remote',
     })
     expect(verifyBundle).toHaveBeenCalledOnce()
     expect(fetchMock).toHaveBeenNthCalledWith(1,
-      'https://flaqai.github.io/open-deepseek-harness-desktop/metadata/external-tools/v2/external-tools-compatibility-0.1.6-alpha.2.1.v2.json',
+      'https://flaqai.github.io/open-deepseek-harness-desktop/metadata/external-tools/v2/external-tools-compatibility-0.1.7-rc.1.v2.json',
       expect.objectContaining({ redirect: 'follow' }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(2,
       'https://flaqai.github.io/open-deepseek-harness-desktop/metadata/external-tools/v2/external-tools-compatibility.v2.sigstore.json',
       expect.objectContaining({ redirect: 'follow' }),
     )
-    expect(await readFile(join(cacheDirectory, 'external-tools-compatibility-0.1.6-alpha.2.1.v2.json'))).toEqual(Buffer.from(manifest))
+    expect(await readFile(join(cacheDirectory, 'external-tools-compatibility-0.1.7-rc.1.v2.json'))).toEqual(Buffer.from(manifest))
   })
 
   it('falls back to embedded pins when Pages is unavailable without querying a Release', async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => new Response('Not Found', { status: 404 }))
     const manager = new ExternalToolCompatibilityManager({
       cacheDirectory: await temporaryDirectory(),
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: fetchMock,
     })
@@ -201,7 +201,7 @@ describe('external tool compatibility', () => {
       .mockResolvedValueOnce(response(bundleBytes(manifest, '0'.repeat(64))))
     const manager = new ExternalToolCompatibilityManager({
       cacheDirectory,
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: fetchMock,
       verifyBundle: async () => {},
@@ -215,7 +215,7 @@ describe('external tool compatibility', () => {
     const manifest = manifestBytes()
     const first = new ExternalToolCompatibilityManager({
       cacheDirectory,
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: vi.fn()
         .mockResolvedValueOnce(response(manifest))
@@ -226,7 +226,7 @@ describe('external tool compatibility', () => {
 
     const offline = new ExternalToolCompatibilityManager({
       cacheDirectory,
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: vi.fn(async () => { throw new Error('offline') }),
       verifyBundle: async () => {},
@@ -261,7 +261,7 @@ describe('external tool compatibility', () => {
       .mockResolvedValueOnce(response(bundleBytes(expired)))
     const manager = new ExternalToolCompatibilityManager({
       cacheDirectory,
-      desktopVersion: '0.1.6-alpha.2.1',
+      desktopVersion: '0.1.7-rc.1',
       now: () => new Date(manifestJson.issuedAt),
       fetch: fetchMock,
       verifyBundle: async () => {},

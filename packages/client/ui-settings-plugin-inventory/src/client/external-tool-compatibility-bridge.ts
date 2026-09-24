@@ -5,7 +5,7 @@ import type { ExperimentalCapabilityRecipe, PluginInstallRequest } from '@deepse
 /** Official external-tool connectors the reviewed Desktop manifest may install. */
 export type OfficialExternalToolId = 'codex' | 'claude-code'
 
-/** Experimental 0.1.6 providers installed directly into the Web Profile. */
+/** Experimental providers installed directly into the Web Profile. */
 export type ExperimentalCapabilityInstallId =
   | 'browser-use-playwright'
   | 'browser-use-devtools'
@@ -29,19 +29,19 @@ interface DesktopExternalToolsBridge {
 
 /** Exact non-desktop fallback checked against the desktop source manifest by the release gate. */
 export const BROWSER_FALLBACK_EXTERNAL_TOOL_SPECS: Readonly<Record<OfficialExternalToolId, string>> = {
-  codex: '@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2',
-  'claude-code': '@deepseek-ai/dsh-subagent-claude-code@0.1.5-rc.2',
+  codex: '@deepseek-ai/dsh-subagent-codex@0.1.7-rc.1',
+  'claude-code': '@deepseek-ai/dsh-subagent-claude-code@0.1.7-rc.1',
 }
 
 /** Reviewed direct-install packages. Exact versions remain network-installed, never bundled. */
 export const DIRECT_EXTERNAL_TOOL_SPECS = {
   workbuddy: 'dsh-workbuddy-connect@0.5.0',
-  'auto-review': '@deepseek-ai/dsh-experimental-auto-review@0.1.6-alpha.2',
-  'browser-use-playwright': '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.1.6-alpha.2',
-  'browser-use-devtools': '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.1.6-alpha.2',
-  'browser-use-stagehand': '@deepseek-ai/dsh-experimental-browser-use-stagehand-native@0.1.6-alpha.2',
-  'computer-use-native': '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.1.6-alpha.2',
-  'computer-use-mcp': '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.1.6-alpha.2',
+  'auto-review': '@deepseek-ai/dsh-experimental-auto-review@0.1.7-rc.1',
+  'browser-use-playwright': '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.1.7-rc.1',
+  'browser-use-devtools': '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.1.7-rc.1',
+  'browser-use-stagehand': '@deepseek-ai/dsh-experimental-browser-use-stagehand-native@0.1.7-rc.1',
+  'computer-use-native': '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.1.7-rc.1',
+  'computer-use-mcp': '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.1.7-rc.1',
 } as const satisfies Readonly<Record<Exclude<InstallableExternalToolId, OfficialExternalToolId>, string>>
 
 function readDesktopExternalToolsBridge(): DesktopExternalToolsBridge | undefined {
