@@ -14,6 +14,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   approveQuarantinedProfilePluginHostVersion,
+  createRuntimeResolution,
   initProfile,
   inspectProfileDependencies,
   inspectProfileHostCompatibility,
@@ -548,6 +549,84 @@ describe('profile composition inspection', () => {
         },
       }],
     })
+  })
+
+  it('accepts a static peer supplied by the installation runtime but not the Profile', async () => {
+    const { anchor } = stageHarness()
+    const hostPeers = [
+      '@deepseek-ai/dsh-settings',
+      '@deepseek-ai/dsh-tools',
+      '@deepseek-ai/dsh-llm',
+      '@deepseek-ai/dsh-subagent',
+      '@deepseek-ai/dsh-session',
+    ]
+    const hostManifest = JSON.parse(readFileSync(anchor, 'utf8')) as {
+      dependencies: Record<string, string>
+    }
+    const installationBundle = '@fixture/installation-bundle'
+    hostManifest.dependencies[installationBundle] = '1.0.0'
+    writeManifest(anchor, hostManifest)
+    writeManifest(join(dirname(anchor), 'node_modules', installationBundle, 'package.json'), {
+      name: installationBundle,
+      version: '1.0.0',
+      dependencies: Object.fromEntries(hostPeers.map(hostPeer => [hostPeer, '0.1.0-rc.7'])),
+    })
+    for (const hostPeer of hostPeers) {
+      const hostPeerDir = join(dirname(anchor), 'node_modules', hostPeer)
+      writeManifest(join(hostPeerDir, 'package.json'), {
+        name: hostPeer, version: '0.1.0-rc.7', exports: './index.js',
+      })
+      writeFileSync(join(hostPeerDir, 'index.js'), 'export const available = true\n')
+    }
+
+    const home = temporaryDirectory('dsh-health-home-')
+    const profileDir = resolveProfileDir('web', home)
+    initProfile(profileDir, [])
+    const packageName = 'fixture-installation-peer'
+    const pluginDir = join(profileDir, 'node_modules', packageName)
+    writeManifest(join(pluginDir, 'package.json'), {
+      name: packageName,
+      version: '1.0.0',
+      exports: './index.js',
+      peerDependencies: Object.fromEntries(hostPeers.map(hostPeer => [hostPeer, '^0.1.0-rc.7'])),
+      dsh: { bundle: { patch: './cordis.patch.yml' } },
+    })
+    writeFileSync(join(pluginDir, 'index.js'), `${hostPeers.map(hostPeer => `import '${hostPeer}'`).join('\n')}\nexport function apply() {}\n`)
+    writeFileSync(join(pluginDir, 'cordis.patch.yml'), `- insert:\n  - id: installation-peer\n    name: ${packageName}\n`)
+    writeProfileManifest(profileDir, {
+      dependencies: { [packageName]: '1.0.0' },
+      dsh: { profile: { bundles: [packageName] } },
+    })
+
+    const runtime = await createRuntimeResolution({ installAnchor: anchor, home })
+    for (const hostPeer of hostPeers) {
+      expect(runtime.entries).toContainEqual(expect.objectContaining({ name: hostPeer, scope: 'installation' }))
+    }
+    expect(inspectUnresolvableProfileBundleEntries({
+      binName: 'test', profile: 'web', installAnchor: anchor, home,
+    })).toEqual([])
+
+    const undeclared = '@fixture/undeclared-host'
+    const undeclaredDir = join(dirname(anchor), 'node_modules', undeclared)
+    writeManifest(join(undeclaredDir, 'package.json'), {
+      name: undeclared, version: '1.0.0', exports: './index.js',
+    })
+    writeFileSync(join(undeclaredDir, 'index.js'), 'export const available = true\n')
+    writeFileSync(join(pluginDir, 'index.js'), `import '${undeclared}'\nexport function apply() {}\n`)
+    expect(inspectUnresolvableProfileBundleEntries({
+      binName: 'test', profile: 'web', installAnchor: anchor, home,
+    })).toEqual([expect.objectContaining({ missingModule: undeclared })])
+
+    const brokenExport = '@fixture/broken-host-export'
+    hostManifest.dependencies[brokenExport] = '1.0.0'
+    writeManifest(anchor, hostManifest)
+    writeManifest(join(dirname(anchor), 'node_modules', brokenExport, 'package.json'), {
+      name: brokenExport, version: '1.0.0', exports: './missing.js',
+    })
+    writeFileSync(join(pluginDir, 'index.js'), `import '${brokenExport}'\nexport function apply() {}\n`)
+    expect(inspectUnresolvableProfileBundleEntries({
+      binName: 'test', profile: 'web', installAnchor: anchor, home,
+    })).toEqual([expect.objectContaining({ missingModule: brokenExport })])
   })
 
   it('attributes a scoped bundle whose patch loads a missing unscoped module and quarantines it', () => {

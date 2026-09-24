@@ -390,6 +390,22 @@ function collectInstallationScopePackages(
   return { packageNames: new Set(links.keys()), packageDirs: links, declarers, versions }
 }
 
+/**
+ * Return the packages the installation-scoped runtime resolver will expose to
+ * this Profile. Diagnostics use the same dependency traversal as boot rather
+ * than mistaking an out-of-tree plugin's missing local peer for a missing
+ * runtime module.
+ */
+export function installationRuntimePackageDirs(
+  installAnchor: string,
+  profile: Profile,
+): ReadonlyMap<string, string> {
+  return collectInstallationScopePackages(
+    installAnchor,
+    skippedProfileBundles(profile, readOptionalProfileManifest(profile)),
+  ).packageDirs
+}
+
 /** Inputs for {@link createRuntimeResolution}. */
 export interface RuntimeResolutionOptions {
   /** Absolute package.json path of the running dsh installation. */

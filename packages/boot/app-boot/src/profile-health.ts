@@ -27,6 +27,7 @@ import { loadOverlayPatches } from './index.ts'
 import {
   composeEntries,
   DEFAULT_PROFILE_BUNDLES,
+  installationRuntimePackageDirs,
   loadProfile,
   OPTIONAL_BUNDLES,
   PROFILE_TEMPLATES,
@@ -884,7 +885,11 @@ function packageNameFromSpecifier(specifier: string): string | undefined {
 
 initEsmLexer()
 
-function unavailableStaticLoaderDependency(profileDir: string, entryUrl: string): string | undefined {
+function unavailableStaticLoaderDependency(
+  profileDir: string,
+  installationPackages: ReadonlyMap<string, string>,
+  entryUrl: string,
+): string | undefined {
   let entryPath: string
   try {
     entryPath = fileURLToPath(entryUrl)
@@ -914,6 +919,19 @@ function unavailableStaticLoaderDependency(profileDir: string, entryUrl: string)
       continue
     } catch {
       if (resolveProfileLoaderModule(profileDir, specifier) !== undefined) continue
+      // The profile runs with an installation-scoped module table. A direct
+      // or transitive Host dependency can be available at runtime even when
+      // pnpm deliberately leaves the plugin's peer out of the Profile tree.
+      // Require membership in the runtime table and a resolvable export;
+      // merely finding an unrelated package in Host node_modules is not enough.
+      const packageName = packageNameFromSpecifier(specifier)
+      const installationDir = packageName === undefined ? undefined : installationPackages.get(packageName)
+      if (installationDir !== undefined) {
+        try {
+          createRequire(join(installationDir, 'package.json')).resolve(specifier)
+          continue
+        } catch { /* not exported by the runtime package */ }
+      }
       return specifier
     }
   }
@@ -1013,6 +1031,7 @@ export function inspectUnresolvableProfileBundleEntries(
     return []
   }
   const issues: UnresolvableProfileBundleEntry[] = []
+  const installationPackages = installationRuntimePackageDirs(options.installAnchor, owned.profile)
   for (const entry of owned.ownership) {
     if (entry.moduleName.startsWith('cordis:') || entry.moduleName.startsWith('file:')
       || entry.moduleName.startsWith('.') || entry.moduleName.startsWith('/')) continue
@@ -1021,7 +1040,7 @@ export function inspectUnresolvableProfileBundleEntries(
       issues.push({ ...entry, failureKind: 'loader-module' })
       continue
     }
-    const missingModule = unavailableStaticLoaderDependency(owned.profile.dir, resolved)
+    const missingModule = unavailableStaticLoaderDependency(owned.profile.dir, installationPackages, resolved)
     if (missingModule !== undefined) {
       const importerPackage = packageNameFromSpecifier(entry.moduleName)
       issues.push({
