@@ -1,11 +1,12 @@
 /** Transfer one verified plugin bundle file between desktop installations. */
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { createReadStream } from 'node:fs'
 import { copyFile, lstat, mkdir, mkdtemp, rename, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { create, extract, list } from 'tar'
-import { verifyPreparedPortablePluginBundle } from './portable-plugin-bundle.ts'
+import { verifyPreparedPortablePluginBundle, type PortablePluginTarget } from './portable-plugin-bundle.ts'
 
 const MAX_TRANSFER_BYTES = 5 * 1024 * 1024 * 1024
 const MAX_TRANSFER_FILES = 110_000
@@ -42,6 +43,7 @@ export async function packPortablePluginBundle(bundleDirectory: string, destinat
 
 export interface UnpackedPortablePluginBundle {
   readonly directory: string
+  readonly target: PortablePluginTarget
   cleanup(): Promise<void>
 }
 
@@ -74,10 +76,22 @@ export async function unpackPortablePluginBundle(source: string): Promise<Unpack
     if (invalid !== undefined) throw new Error(`desktop: unsafe portable plugin transfer entry: ${invalid}`)
     await mkdir(directory, { mode: 0o700 })
     await extract({ file: archive, cwd: directory, strict: true, preservePaths: false })
-    await verifyPreparedPortablePluginBundle(directory)
-    return { directory, cleanup: () => rm(staging, { recursive: true, force: true }) }
+    const verified = await verifyPreparedPortablePluginBundle(directory)
+    return { directory, target: verified.target, cleanup: () => rm(staging, { recursive: true, force: true }) }
   } catch (error) {
     await rm(staging, { recursive: true, force: true })
     throw error
+  }
+}
+
+/** Inspect a user-selected transfer before granting a short-lived chooser selection. */
+export async function inspectPortablePluginTransfer(source: string): Promise<{ target: PortablePluginTarget; sha256: string }> {
+  const unpacked = await unpackPortablePluginBundle(source)
+  try {
+    const hash = createHash('sha256')
+    for await (const chunk of createReadStream(source)) hash.update(chunk as Buffer)
+    return { target: unpacked.target, sha256: hash.digest('hex') }
+  } finally {
+    await unpacked.cleanup()
   }
 }

@@ -44,6 +44,11 @@
       operationTitle: '选择使用方式', officialImportTitle: '导入到独立环境',
       officialOperationSummary: '直接使用保留官方目录；导入会转换可兼容数据，并在新目录中创建独立环境。',
       operationSummary: '直接使用保留现有环境；复制会在新目录中创建独立环境。',
+      portableTitle: '选择插件迁移方式', portableSummary: '联网恢复或使用在导出电脑上联网准备的离线包。',
+      portableOnline: '联网迁移', portableOnlineDetail: '导入后按清单联网安装插件。',
+      portableOffline: '离线迁移', portableOfflineDetail: '选择与目标系统匹配的插件迁移包。',
+      portableChoose: '选择离线包', portableMissing: '请先选择离线包。',
+      portableCurrentHost: '本机系统（目标值）',
       importTitle: '复制到独立环境', importSummary: '复制受支持数据，之后与来源分离。',
       reuseTitle: '直接使用此配置', reuseSummary: '直接使用所选配置目录，不创建副本。',
       officialCopySummary: '转换并导入可兼容数据到新目录，原官方配置保持不变。',
@@ -100,6 +105,11 @@
       operationTitle: 'Choose how to use this configuration', officialImportTitle: 'Import into an independent environment',
       officialOperationSummary: 'Direct use keeps the official directory; importing converts compatible data and creates an independent environment in a new directory.',
       operationSummary: 'Direct use keeps the environment; copying creates an independent environment in a new directory.',
+      portableTitle: 'Choose plugin migration', portableSummary: 'Restore online or use a bundle prepared online on the export computer.',
+      portableOnline: 'Online migration', portableOnlineDetail: 'Install plugins from the restore list after import.',
+      portableOffline: 'Offline migration', portableOfflineDetail: 'Choose a plugin bundle matching the target OS.',
+      portableChoose: 'Choose offline bundle', portableMissing: 'Choose an offline bundle first.',
+      portableCurrentHost: 'This computer (target value)',
       importTitle: 'Copy to an independent environment',
       importSummary: 'Copy supported data once; later changes remain separate.',
       reuseTitle: 'Use this configuration directly',
@@ -140,6 +150,8 @@
     locale: 'zh',
     origin: 'official',
     operation: 'imported',
+    migration: 'online',
+    portableChosen: false,
     step: 'details',
     completed: false,
     target: 'default',
@@ -234,9 +246,26 @@
     required('#detail-stage').dataset.step = state.step
     required('#facts').inert = state.step !== 'details'
     required('#operation-panel').inert = state.step !== 'operation'
+    required('#portable-panel').inert = state.step !== 'plugins'
     required('#destination-panel').inert = state.step !== 'destination'
     required('#operation-panel').ariaHidden = String(state.step !== 'operation')
+    required('#portable-panel').ariaHidden = String(state.step !== 'plugins')
     required('#destination-panel').ariaHidden = String(state.step !== 'destination')
+    text('#portable-title', value.portableTitle)
+    text('#portable-summary', value.portableSummary)
+    text('#portable-current-host', `${value.portableCurrentHost}: ${state.locale === 'zh' ? '<系统>/<架构> · <系统版本>' : '<OS>/<architecture> · <OS release>'}`)
+    text('#portable-online-title', value.portableOnline)
+    text('#portable-online-detail', value.portableOnlineDetail)
+    text('#portable-offline-title', value.portableOffline)
+    text('#portable-offline-detail', value.portableOfflineDetail)
+    text('#choose-portable', value.portableChoose)
+    for (const migration of document.querySelectorAll('[data-migration]')) {
+      migration.ariaChecked = String(migration.dataset.migration === state.migration)
+    }
+    required('#portable-selection').hidden = state.migration !== 'offline'
+    text('#portable-target', state.portableChosen ? (state.locale === 'zh' ? '预览：已选择离线包' : 'Preview: bundle selected') : '')
+    text('#portable-error', state.migration === 'offline' && !state.portableChosen ? value.portableMissing : '')
+    required('#portable-error').hidden = state.migration !== 'offline' || state.portableChosen
     textAll('[data-copy="operationTitle"]', value.operationTitle)
     text('.operation-panel .destination-summary', state.origin === 'official'
       ? value.officialOperationSummary : value.operationSummary)
@@ -310,6 +339,16 @@
       render()
     })
   }
+  for (const migration of document.querySelectorAll('[data-migration]')) {
+    migration.addEventListener('click', () => {
+      state.migration = migration.dataset.migration
+      render()
+    })
+  }
+  required('#choose-portable').addEventListener('click', () => {
+    state.portableChosen = true
+    render()
+  })
   for (const target of document.querySelectorAll('[data-target]')) {
     target.addEventListener('click', () => {
       state.target = target.dataset.target
@@ -336,13 +375,15 @@
         state.sources[state.origin] = sourcePaths[state.origin]
         renderSources()
       }
-      state.step = state.origin === 'community' ? 'operation' : 'destination'
-    } else if (state.step === 'operation' && state.operation === 'imported') state.step = 'destination'
+      state.step = state.origin === 'community' ? 'operation' : state.origin === 'official' ? 'plugins' : 'destination'
+    } else if (state.step === 'operation' && state.operation === 'imported') state.step = 'plugins'
+    else if (state.step === 'plugins') state.step = 'destination'
     else if (state.target !== 'custom' || state.customTarget !== null) state.completed = true
     render()
   })
   required('#back').addEventListener('click', () => {
-    state.step = state.step === 'destination' && state.origin === 'community' ? 'operation' : 'details'
+    state.step = state.step === 'destination' && state.origin !== 'fresh' ? 'plugins'
+      : state.step === 'plugins' && state.origin === 'community' ? 'operation' : 'details'
     render()
   })
 
@@ -398,6 +439,12 @@
         [value.locationLabel, value.sharingLabel, value.pluginsLabel, value.buildsLabel, value.suitableLabel], [
           { title: state.origin === 'official' ? value.officialImportTitle : value.importTitle, tone: 'copy', values: [value.importSummary, value.importSharing, value.importPlugins, value.importBuilds, copiedSummary] },
           { title: value.reuseTitle, tone: 'reuse', values: [value.reuseSummary, value.reuseSharing, value.reusePlugins, value.reuseBuilds, reusedSummary] },
+        ], 'option')
+    } else if (state.step === 'plugins') {
+      renderComparisonTable(value.portableTitle, value.portableSummary,
+        [value.pluginsLabel], [
+          { title: value.portableOnline, tone: 'default', values: [value.portableOnlineDetail] },
+          { title: value.portableOffline, tone: 'custom', values: [value.portableOfflineDetail] },
         ], 'option')
     } else {
       renderComparisonTable(value.destinationTitle, value.destinationSummary,

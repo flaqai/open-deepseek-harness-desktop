@@ -319,7 +319,7 @@
       .fact:last-child { border-bottom: 0; }
       .fact dt { font-size: 14px; font-weight: 620; margin-bottom: 6px; }
       .fact dd { color: #696d76; font-size: 13px; line-height: 1.55; margin: 0; }
-      .destination-panel, .operation-panel {
+      .destination-panel, .operation-panel, .portable-panel {
         grid-area: stage;
         margin: 0;
         max-width: 680px;
@@ -330,6 +330,7 @@
         visibility: hidden;
       }
       .detail-stage[data-step="operation"] .operation-panel,
+      .detail-stage[data-step="plugins"] .portable-panel,
       .detail-stage[data-step="destination"] .destination-panel {
         opacity: 1;
         pointer-events: auto;
@@ -337,7 +338,7 @@
         transition: opacity 200ms ease 70ms, transform 280ms cubic-bezier(.22, .8, .24, 1) 50ms, visibility 0s linear 0s;
         visibility: visible;
       }
-      .destination-panel h2, .operation-panel h2 { color: var(--detail-accent); font-size: 16px; margin: 0 0 8px; }
+      .destination-panel h2, .operation-panel h2, .portable-panel h2 { color: var(--detail-accent); font-size: 16px; margin: 0 0 8px; }
       .destination-summary { color: #696d76; line-height: 1.55; margin: 0 0 18px; }
       .target-choices { display: grid; gap: 12px; }
       .target-choice {
@@ -493,7 +494,7 @@
         .action.primary { background: #f4f4f5; border-color: #f4f4f5; color: #191a1e; }
       }
       @media (prefers-reduced-motion: reduce) {
-        .choice, .detail, .detail-heading h1, .development-toggle, .language-trigger, .language-chevron, .target-choice, .facts, .destination-panel, .operation-panel { transition: none; }
+        .choice, .detail, .detail-heading h1, .development-toggle, .language-trigger, .language-chevron, .target-choice, .facts, .destination-panel, .operation-panel, .portable-panel { transition: none; }
       }
       @media (max-width: 860px) {
         .content { grid-template-columns: 1fr; overflow: auto; }
@@ -589,6 +590,26 @@
                 <div class="fact"><dt data-copy="pluginsLabel">已有插件</dt><dd id="operation-plugins"></dd></div>
                 <div class="fact"><dt data-copy="buildsLabel">构建权限</dt><dd id="operation-builds"></dd></div>
               </dl>
+            </section>
+            <section id="portable-panel" class="portable-panel" aria-hidden="true" inert>
+              <h2 id="portable-title">选择插件迁移方式</h2>
+              <p id="portable-summary" class="destination-summary"></p>
+              <p id="portable-current-host" class="destination-summary"></p>
+              <div class="target-choices" role="radiogroup" aria-labelledby="portable-title">
+                <button class="target-choice" type="button" role="radio" aria-checked="true" data-migration="online">
+                  <span class="target-radio" aria-hidden="true"></span>
+                  <span class="target-copy"><strong id="portable-online-title"></strong><span id="portable-online-detail"></span></span>
+                </button>
+                <button class="target-choice" type="button" role="radio" aria-checked="false" data-migration="offline">
+                  <span class="target-radio" aria-hidden="true"></span>
+                  <span class="target-copy"><strong id="portable-offline-title"></strong><span id="portable-offline-detail"></span></span>
+                </button>
+              </div>
+              <div id="portable-selection" class="portable-selection" hidden>
+                <button id="choose-portable" class="target-action" type="button"></button>
+                <p id="portable-target" class="destination-summary"></p>
+                <p id="portable-error" class="target-error" role="alert" hidden></p>
+              </div>
             </section>
             <section id="destination-panel" class="destination-panel" aria-hidden="true">
               <h2 data-copy="destinationTitle">选择配置目录</h2>

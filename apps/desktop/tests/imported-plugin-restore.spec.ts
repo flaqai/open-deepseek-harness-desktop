@@ -7,6 +7,7 @@ import {
   classifyImportedPluginSourceFailure,
   dependencyMatchesImportedRestore,
   ImportedPluginRestoreManager,
+  type ImportedPluginRestoreManagerOptions,
   mergeImportedAllowBuilds,
   readImportedPluginRestorePlan,
   writeImportedPluginRestorePlan,
@@ -324,7 +325,7 @@ describe('imported plugin restore', () => {
       })),
     })
     let finishMutation: (() => void) | undefined
-    const withMutation = async <T>(operation: () => Promise<T>, expectedPackages: readonly string[]): Promise<T> => {
+    const withMutation: ImportedPluginRestoreManagerOptions['withMutation'] = async <T>(operation: () => Promise<T>, expectedPackages: readonly string[]): Promise<T> => {
       expect(expectedPackages).toEqual(['one', 'two'])
       await new Promise<void>((resolve) => { finishMutation = resolve })
       return operation()

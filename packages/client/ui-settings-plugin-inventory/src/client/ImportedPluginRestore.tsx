@@ -9,6 +9,7 @@ import {
 } from './imported-restore-bridge.ts'
 import { restartDesktopApplication } from './bundled-install-bridge.ts'
 import css from './ImportedPluginRestore.module.css'
+import { PortablePluginExport } from './PortablePluginExport.tsx'
 
 export interface ImportedPluginRestoreInjected {
   readonly development?: boolean
@@ -17,6 +18,7 @@ export interface ImportedPluginRestoreInjected {
   readonly startRestore: (restoreIds: readonly string[]) => Promise<ImportedPluginRestoreSnapshot>
   readonly chooseLocalDirectory: (restoreId: string) => Promise<ImportedPluginRestoreSnapshot | undefined>
   readonly chooseLocalArchive: (restoreId: string) => Promise<ImportedPluginRestoreSnapshot | undefined>
+  readonly choosePortableBundle?: () => Promise<ImportedPluginRestoreSnapshot | undefined>
   readonly ignoreRestore: () => Promise<ImportedPluginRestoreSnapshot | undefined>
   readonly restart: () => Promise<boolean>
 }
@@ -30,6 +32,7 @@ export type ImportedPluginRestoreSectionProps = ImportedPluginRestoreProps & Pro
 /** Desktop bridge methods injected into both restore presentations. */
 export function importedPluginRestoreInjected(): ImportedPluginRestoreInjected {
   const bridge = readImportedPluginRestoreBridge()
+  const choosePortableBundle = bridge?.choosePortableBundle?.bind(bridge)
   return {
     development: bridge?.development === true,
     getRestore: () => bridge?.get() ?? Promise.resolve(undefined),
@@ -39,6 +42,9 @@ export function importedPluginRestoreInjected(): ImportedPluginRestoreInjected {
       : bridge.start(ids),
     chooseLocalDirectory: id => bridge?.chooseLocalDirectory(id) ?? Promise.resolve(undefined),
     chooseLocalArchive: id => bridge?.chooseLocalArchive(id) ?? Promise.resolve(undefined),
+    ...(choosePortableBundle === undefined ? {} : {
+      choosePortableBundle: () => choosePortableBundle(),
+    }),
     ignoreRestore: () => bridge?.ignore() ?? Promise.resolve(undefined),
     restart: restartDesktopApplication,
   }
@@ -108,6 +114,7 @@ export function ImportedPluginRestore({
   startRestore,
   chooseLocalDirectory,
   chooseLocalArchive,
+  choosePortableBundle,
   ignoreRestore,
   restart,
   t,
@@ -117,6 +124,8 @@ export function ImportedPluginRestore({
   const [loaded, setLoaded] = useState(false)
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [failed, setFailed] = useState(false)
+  const [portableBusy, setPortableBusy] = useState(false)
+  const [portableError, setPortableError] = useState<string>()
   const [sourceSimulation, setSourceSimulation] = useState<ImportedPluginSourceSimulation>()
   const sourceSimulationRef = useRef<ImportedPluginSourceSimulation>()
   const previousAvailability = useRef(new Map<string, ImportedPluginRestoreEntry['availability']>())
@@ -184,22 +193,25 @@ export function ImportedPluginRestore({
   )) ?? [], [displayedSnapshot])
   if (displayedSnapshot === undefined || displayedSnapshot.entries.length === 0) {
     return (
-      <section className={css.surface} data-mode="section" aria-labelledby={titleId}>
-        <div className={css.heading}>
-          <div>
-            <span className={css.eyebrow}>{t('restore.eyebrow')}</span>
-            <h3 id={titleId}>{t('restore.title')}</h3>
-            <p>{t('restore.description')}</p>
+      <>
+        <section className={css.surface} data-mode="section" aria-labelledby={titleId}>
+          <div className={css.heading}>
+            <div>
+              <span className={css.eyebrow}>{t('restore.eyebrow')}</span>
+              <h3 id={titleId}>{t('restore.title')}</h3>
+              <p>{t('restore.description')}</p>
+            </div>
           </div>
-        </div>
-        <p className={failed ? css.error : css.notice} role={failed ? 'alert' : 'status'}>
-          {failed ? t('restore.operationFailed') : loaded ? t('restore.empty') : t('restore.loading')}
-        </p>
-      </section>
+          <p className={failed ? css.error : css.notice} role={failed ? 'alert' : 'status'}>
+            {failed ? t('restore.operationFailed') : loaded ? t('restore.empty') : t('restore.loading')}
+          </p>
+        </section>
+        <PortablePluginExport t={t} />
+      </>
     )
   }
 
-  const interactionBlocked = displayedSnapshot.active || sourceSimulation !== undefined
+  const interactionBlocked = displayedSnapshot.active || portableBusy || sourceSimulation !== undefined
   const hasRemainingEntries = displayedSnapshot.entries.some(entry => (
     entry.state === 'pending' || entry.state === 'failed'
   ))
@@ -234,11 +246,21 @@ export function ImportedPluginRestore({
     const operation = kind === 'directory' ? chooseLocalDirectory : chooseLocalArchive
     void operation(entry.restoreId).then(applySnapshot, () => { setFailed(true) })
   }
+  const choosePortable = (): void => {
+    if (choosePortableBundle === undefined || interactionBlocked) return
+    setFailed(false)
+    setPortableError(undefined)
+    setPortableBusy(true)
+    void choosePortableBundle().then(applySnapshot, (error: unknown) => {
+      setFailed(true)
+      setPortableError(error instanceof Error ? error.message.slice(0, 300) : undefined)
+    }).finally(() => { setPortableBusy(false) })
+  }
   const body = (
     <section
       className={css.surface}
       data-mode="section"
-      aria-busy={displayedSnapshot.active || displayedSnapshot.sourceCheckActive}
+      aria-busy={displayedSnapshot.active || displayedSnapshot.sourceCheckActive || portableBusy}
       aria-labelledby={titleId}
     >
       <div className={css.heading}>
@@ -253,7 +275,13 @@ export function ImportedPluginRestore({
         <p className={css.notice} role="status">{t('restore.sourceIssue')}</p>
       ) : null}
       <div className={css.sourceCheck}>
-        <span>{displayedSnapshot.sourceCheckActive ? t('restore.checkingSources') : t('restore.sourcesChecked')}</span>
+        <span>{portableBusy ? t('restore.portableBusy') : displayedSnapshot.sourceCheckActive
+          ? t('restore.checkingSources') : t('restore.sourcesChecked')}</span>
+        {choosePortableBundle !== undefined ? (
+          <button type="button" disabled={interactionBlocked} onClick={choosePortable}>
+            {t('restore.portableBundle')}
+          </button>
+        ) : null}
         <button type="button" disabled={interactionBlocked || displayedSnapshot.sourceCheckActive} onClick={() => {
           setFailed(false)
           void checkSources().then(applySnapshot, () => { setFailed(true) })
@@ -356,7 +384,7 @@ export function ImportedPluginRestore({
           )
         })}
       </div>
-      {failed ? <p className={css.error} role="alert">{t('restore.operationFailed')}</p> : null}
+      {failed ? <p className={css.error} role="alert">{portableError ?? t('restore.operationFailed')}</p> : null}
       <div className={css.actions}>
         {displayedSnapshot.restartRequired ? (
           <Button variant="primary" disabled={sourceSimulation !== undefined} onClick={() => { void restart() }}>{t('restore.restart')}</Button>
@@ -373,7 +401,7 @@ export function ImportedPluginRestore({
       </div>
     </section>
   )
-  return body
+  return <>{body}<PortablePluginExport t={t} /></>
 }
 
 /** Dedicated Settings page for imported plugin recovery. */

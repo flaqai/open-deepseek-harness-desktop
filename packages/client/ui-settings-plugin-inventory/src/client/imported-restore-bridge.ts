@@ -43,6 +43,18 @@ export interface ImportedPluginRestoreBridge {
   start(restoreIds: readonly string[]): Promise<ImportedPluginRestoreSnapshot>
   chooseLocalDirectory(restoreId: string): Promise<ImportedPluginRestoreSnapshot | undefined>
   chooseLocalArchive(restoreId: string): Promise<ImportedPluginRestoreSnapshot | undefined>
+  choosePortableBundle?(): Promise<ImportedPluginRestoreSnapshot | undefined>
+  inspectExport?(): Promise<{
+    selectionId: string
+    host: { platform: 'darwin' | 'win32' | 'linux'; architecture: 'arm64' | 'x64'; osVersion: string }
+    candidates: readonly { packageName: string; version: string }[]
+    omitted: readonly { packageName: string; reason: string }[]
+  } | undefined>
+  exportBundle?(request: {
+    selectionId: string
+    target: { platform: 'darwin' | 'win32' | 'linux'; architecture: 'arm64' | 'x64'; osVersion: string }
+    packageNames: readonly string[]
+  }): Promise<{ status: 'saved' | 'cancelled' }>
   dismiss(): Promise<ImportedPluginRestoreSnapshot | undefined>
   ignore(): Promise<ImportedPluginRestoreSnapshot | undefined>
 }
