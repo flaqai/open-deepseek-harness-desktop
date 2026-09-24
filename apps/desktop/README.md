@@ -103,7 +103,7 @@ Desktop resolves the system proxy only for the official Codex Provider; explicit
 Development and package scripts invoke the Desktop and Web apps from their owning directories. Every Unix package command passes an explicit platform and architecture to the runtime and Codex preparation steps, keeping macOS Apple Silicon, macOS Intel, Linux x64, and Windows x64 staging independent.
 
 <a id="custom-application-icons"></a>
-Schema-4 seed state separately records the bundled version already evaluated and the actual version read from the installed package. Startup skips package management only when those fields agree with the Profile declaration and physical package. The reviewed registry migration list initially covers `@xmanrui/dsh-im@3.0.6`, `dsh-better-sidebar@0.16.1`, `dsh-pocket@1.14.5`, and `dsh-skill-picker@0.2.0`; only these exact historical versions can be adopted and upgraded automatically.
+Schema-4 seed state separately records the bundled version already evaluated and the actual version read from the installed package. Startup skips package management only when those fields agree with the Profile declaration and physical package. Managed upgrades cover `@xmanrui/dsh-im@3.0.6`, `dsh-better-sidebar@0.16.1`, and `dsh-pocket@1.14.5`; only these exact historical versions can be adopted and upgraded automatically. Existing `dsh-skill-picker` installations remain in the user's Profile but are no longer seeded or managed as a bundled preset.
 
 ## Custom application icons
 

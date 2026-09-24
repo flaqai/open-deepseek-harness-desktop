@@ -176,11 +176,11 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 ### プリセットプラグイン
 
-インストーラーには、Plugin Marketplace、dsh-im、dsh-skill-picker、Better Sidebar、dsh-pocket、`@ychris12138/dsh-usage-stats`、`dsh-smooth-stream` の 7 つの起動プリセットが、整合性を検証したローカルアーカイブとして含まれます。Usage Stats は Token 使用量、Provider アカウント、セッション費用の見積もり、予算、エクスポート機能を提供し、Smooth Stream は Markdown、コードブロック、表、ツール結果の滑らかなストリーミング表示とスクロールを提供します。`dsh-font` は診断演習用サンプルとしてのみ提供されます。ユーザーがプリセットをアンインストールしても、クライアントが自動で戻すことはありません。
+インストーラーには、Plugin Marketplace、dsh-im、Better Sidebar、dsh-pocket、`@ychris12138/dsh-usage-stats`、`dsh-smooth-stream`、`dsh-mermaid`、`dsh-whale-widget` の 8 つの起動プリセットが、整合性を検証したローカルアーカイブとして含まれます。Usage Stats は Token 使用量、Provider アカウント、セッション費用の見積もり、予算、エクスポート機能を提供し、Smooth Stream は Markdown、コードブロック、表、ツール結果の滑らかなストリーミング表示とスクロールを提供します。`dsh-font` は診断演習用サンプルとしてのみ提供されます。ユーザーがプリセットをアンインストールしても、クライアントが自動で戻すことはありません。
 
 #### プリセットプラグインへの謝辞
 
-[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream) の作者とメンテナーに感謝します。本プロジェクトはデスクトップ統合と整合性を検証したアーカイブ配布を担当し、各プラグインの著作権、ライセンス、継続的な保守はそれぞれのプロジェクトに帰属します。
+[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid)、[`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) の作者とメンテナーに感謝します。本プロジェクトはデスクトップ統合と整合性を検証したアーカイブ配布を担当し、各プラグインの著作権、ライセンス、継続的な保守はそれぞれのプロジェクトに帰属します。
 
 <p align="center"><img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Pocket の QR コードまたは LAN アドレスでスマートフォンを接続"><br><sub>スマートフォンアクセス：同じネットワークでスキャンし、必要に応じて公開アクセスも有効化</sub></p>
 

@@ -25,19 +25,6 @@
       "integrity": "sha512-nuAXCkm/y+J+zNo81rer092COR4jvwAM8yzbAvCJIeIc7um4ZrU0RE9MXy8keMayBp+1q8oLolZoc6mFNvwSnQ=="
     },
     {
-      "seedId": "dsh-skill-picker",
-      "packageName": "dsh-skill-picker",
-      "version": "0.5.11",
-      "profile": "web",
-      "installPolicy": "startup",
-      "registrySpec": "dsh-skill-picker@0.5.11",
-      "managedUpgradeFrom": [
-        "0.2.0"
-      ],
-      "archive": "dsh-skill-picker-0.5.11.tgz",
-      "integrity": "sha512-QPAKk+/de27PMt/5WxQQ4fEgTW2VdLlg1Y4z0UeMtNZQdaulmCRvF1rtIfBjdFTt96/RaSMlCBMd7uc3Pfnhvw=="
-    },
-    {
       "seedId": "dsh-better-sidebar",
       "packageName": "dsh-better-sidebar",
       "version": "0.21.1",

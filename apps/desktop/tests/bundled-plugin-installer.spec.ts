@@ -133,6 +133,32 @@ describe('BundledPluginInstaller', () => {
     expect(onFailure).toHaveBeenCalledOnce()
   })
 
+  it('leaves an installed plugin absent from the bundled manifest in the user Profile', async () => {
+    const f = await fixture()
+    const profile = join(f.root, 'home', 'profiles', 'web')
+    await mkdir(profile, { recursive: true })
+    await writeFile(join(profile, 'package.json'), JSON.stringify({
+      dependencies: { 'dsh-skill-picker': '0.5.11' },
+      dsh: { profile: { bundles: ['dsh-skill-picker'] } },
+    }))
+    const install = successfulInstall(f.root)
+    const installer = new BundledPluginInstaller({
+      manifest: f.manifest, resourcesDirectory: f.resourcesDirectory, dshHome: join(f.root, 'home'),
+      install,
+    })
+
+    await installer.seedStartup()
+
+    const current = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8')) as {
+      dependencies: Record<string, string>
+      dsh: { profile: { bundles: string[] } }
+    }
+    expect(current.dependencies['dsh-skill-picker']).toBe('0.5.11')
+    expect(current.dsh.profile.bundles).toContain('dsh-skill-picker')
+    expect(install).toHaveBeenCalledOnce()
+    expect(install.mock.calls[0]?.[1].packageName).toBe('startup')
+  })
+
   it('wraps each startup plugin in an independent transaction and continues after failure', async () => {
     const f = await fixture()
     const manifest = twoStartupPlugins(f.manifest)

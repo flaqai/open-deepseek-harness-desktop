@@ -159,10 +159,10 @@ describe('bundled plugin seed', () => {
       plugins: BundledPluginManifestEntry[]
     }
     expect(manifest.schema).toBe(2)
+    expect(manifest.plugins.map(entry => entry.packageName)).not.toContain('dsh-skill-picker')
     expect(manifest.plugins.map(entry => [entry.packageName, entry.installPolicy])).toEqual([
       ['dshmarket', 'startup'],
       ['@xmanrui/dsh-im', 'startup'],
-      ['dsh-skill-picker', 'startup'],
       ['dsh-better-sidebar', 'startup'],
       ['dsh-pocket', 'startup'],
       ['@ychris12138/dsh-usage-stats', 'startup'],
@@ -211,7 +211,6 @@ describe('bundled plugin seed', () => {
       '@xmanrui/dsh-im': ['3.0.6'],
       'dsh-better-sidebar': ['0.16.1'],
       'dsh-pocket': ['1.14.5'],
-      'dsh-skill-picker': ['0.2.0'],
     })
     expect(manifest.plugins.map(entry => entry.packageName)).not.toContain('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.plugins.map(entry => entry.packageName)).not.toContain('@deepseek-ai/dsh-subagent-claude-code')
@@ -227,7 +226,7 @@ describe('bundled plugin seed', () => {
     }
     const resourcesDirectory = fileURLToPath(new URL('../bundled-plugins/', import.meta.url))
     const historical = manifest.plugins.filter(entry => entry.managedUpgradeFrom !== undefined)
-    expect(historical).toHaveLength(4)
+    expect(historical).toHaveLength(3)
 
     for (const entry of historical) {
       const root = await mkdtemp(join(tmpdir(), 'dsh-historical-preset-'))

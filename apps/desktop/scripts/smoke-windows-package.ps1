@@ -308,12 +308,15 @@ $bundledManifestPath = Join-Path $installRoot 'resources/bundled-plugins/manifes
 $bundledManifest = Get-Content $bundledManifestPath -Raw | ConvertFrom-Json
 $bundledPlugins = @($bundledManifest.plugins)
 foreach ($packageName in @(
-  'dshmarket', '@xmanrui/dsh-im', 'dsh-skill-picker',
+  'dshmarket', '@xmanrui/dsh-im',
   'dsh-pocket', 'dsh-better-sidebar', 'dsh-whale-widget'
 )) {
   if ($bundledPlugins.PackageName -notcontains $packageName) {
     throw "Bundled plugin manifest is missing required preset $packageName"
   }
+}
+if ($bundledPlugins.PackageName -contains 'dsh-skill-picker') {
+  throw 'Retired dsh-skill-picker must not be bundled'
 }
 foreach ($onlineOnlyPackage in @(
   '@deepseek-ai/dsh-subagent-codex', '@deepseek-ai/dsh-subagent-claude-code'

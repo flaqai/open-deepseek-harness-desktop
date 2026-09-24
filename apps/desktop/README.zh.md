@@ -103,7 +103,7 @@ Windows 辅助卸载向导默认保留本地配置和数据。用户可以主动
 开发与打包脚本会从 Desktop 和 Web 各自的应用目录执行。每个 Unix 打包命令都会把明确的平台与架构同时传给运行时和 Codex 准备步骤，使 macOS Apple 芯片、macOS Intel、Linux x64 与 Windows x64 的 staging 相互独立。
 
 <a id="custom-application-icons"></a>
-schema 4 seed 状态会分别记录已经评估的安装包预设版本，以及从实体安装包读取的实际版本。只有这些字段与 Profile 声明及实体包一致时，启动才会跳过包管理。首批经过核验的 registry 迁移清单覆盖 `@xmanrui/dsh-im@3.0.6`、`dsh-better-sidebar@0.16.1`、`dsh-pocket@1.14.5` 与 `dsh-skill-picker@0.2.0`；只有这些精确历史版本会被自动接管和升级。
+schema 4 seed 状态会分别记录已经评估的安装包预设版本，以及从实体安装包读取的实际版本。只有这些字段与 Profile 声明及实体包一致时，启动才会跳过包管理。受管升级覆盖 `@xmanrui/dsh-im@3.0.6`、`dsh-better-sidebar@0.16.1` 与 `dsh-pocket@1.14.5`；只有这些精确历史版本会被自动接管和升级。已有的 `dsh-skill-picker` 安装仍保留在用户 Profile 中，但不再作为内置预设自动安装或管理。
 
 ## 自定义应用图标
 

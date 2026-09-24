@@ -160,11 +160,11 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 ### 프리셋 플러그인
 
-설치 프로그램에는 무결성을 확인한 로컬 아카이브로 Plugin Marketplace, dsh-im, dsh-skill-picker, Better Sidebar, dsh-pocket, `@ychris12138/dsh-usage-stats`, `dsh-smooth-stream`의 7개 시작 프리셋이 포함됩니다. Usage Stats는 Token 사용량, Provider 계정, 세션 비용 추정, 예산 및 내보내기 기능을 제공하며, Smooth Stream은 Markdown, 코드 블록, 표, 도구 결과의 부드러운 스트리밍 렌더링과 스크롤을 제공합니다. `dsh-font`는 진단 연습 샘플로만 제공됩니다. 사용자가 프리셋을 제거하면 클라이언트가 자동으로 다시 설치하지 않습니다.
+설치 프로그램에는 무결성을 확인한 로컬 아카이브로 Plugin Marketplace, dsh-im, Better Sidebar, dsh-pocket, `@ychris12138/dsh-usage-stats`, `dsh-smooth-stream`, `dsh-mermaid`, `dsh-whale-widget`의 8개 시작 프리셋이 포함됩니다. Usage Stats는 Token 사용량, Provider 계정, 세션 비용 추정, 예산 및 내보내기 기능을 제공하며, Smooth Stream은 Markdown, 코드 블록, 표, 도구 결과의 부드러운 스트리밍 렌더링과 스크롤을 제공합니다. `dsh-font`는 진단 연습 샘플로만 제공됩니다. 사용자가 프리셋을 제거하면 클라이언트가 자동으로 다시 설치하지 않습니다.
 
 #### 프리셋 플러그인 감사
 
-[`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-skill-picker`](https://github.com/a735624258/dsh-skill-picker), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)의 제작자와 유지관리자에게 감사드립니다. 이 프로젝트는 데스크톱 통합과 무결성이 확인된 아카이브 배포를 담당하며, 각 플러그인의 저작권, 라이선스 및 지속적인 유지관리는 해당 프로젝트에 귀속됩니다.
+[`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)의 제작자와 유지관리자에게 감사드립니다. 이 프로젝트는 데스크톱 통합과 무결성이 확인된 아카이브 배포를 담당하며, 각 플러그인의 저작권, 라이선스 및 지속적인 유지관리는 해당 프로젝트에 귀속됩니다.
 
 <p align="center"><img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Pocket QR 코드 또는 LAN 주소로 휴대폰 연결"><br><sub>휴대폰 접속: 같은 네트워크에서 스캔하고 필요할 때만 공용 접속 활성화</sub></p>
 
