@@ -46,6 +46,8 @@ profile 目录包含一个 `package.json`，其中记录树外插件依赖，以
 
 安装和 profile 启动会按声明的 DSH peer 范围，检查与 `dsh --version` 显示值相同的运行时版本。不兼容插件需要用户明确确认精确版本豁免。[插件管理器的兼容性参考](../../packages/boot/plugin-manager/README.zh.md#version-compatibility-and-exemptions)说明 `version-exemptions`、`allow-version`、`revoke-version`、持久化规则与风险。
 
+桌面版监管的启动期间，如果格式错误的 Typert 产物能唯一归属到直接启用的外部组合包，就将其记录为 Loader 生命周期失败，并通过现有 Profile 恢复事务隔离。原始启动错误会保留；内置组合包及归属不明确的失败不会自动隔离。
+
 配置树以空根为起点，依次叠加以下配置层：
 - `dsh.profile.bundles` 中各组合包的 patch
 - profile 自身的 `cordis.patch.yml`，然后是 home 级的 `$DSH_HOME/cordis.patch.yml`

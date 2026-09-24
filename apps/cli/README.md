@@ -46,6 +46,8 @@ A profile directory holds a `package.json` (out-of-tree plugin dependencies plus
 
 Installation and profile startup enforce declared DSH peer ranges against the same runtime version shown by `dsh --version`. Incompatible plugins require an explicitly acknowledged exact-version exemption. The [plugin manager's compatibility reference](../../packages/boot/plugin-manager/README.md#version-compatibility-and-exemptions) documents `version-exemptions`, `allow-version`, `revoke-version`, persistence, and risks.
 
+During Desktop-supervised startup, a malformed Typert artifact from one uniquely identified, directly enabled external bundle is recorded as a Loader lifecycle failure and quarantined through the existing Profile recovery transaction. The original startup error is retained; built-in bundles and ambiguous failures are not automatically quarantined.
+
 The tree composes over an empty root:
 - each bundle's patch in `dsh.profile.bundles` order
 - then the profile's `cordis.patch.yml`, then the home-level `$DSH_HOME/cordis.patch.yml`

@@ -9,14 +9,32 @@ import {
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { INSTALL_ANCHOR } from '../src/install-anchor.ts'
+import { TypertContributorFailure } from '@deepseek-ai/dsh-typert-loader'
 import {
   diagnosticProfileModuleBaseUrl,
   isDeterministicDiagnosticModeFailure,
   loaderClientModuleFailure,
   loaderEntryFailure,
+  typertContributorFailure,
 } from '../src/profile-boot.ts'
 
 describe('Profile diagnostic recovery policy', () => {
+  it('attributes only a unique, Loader-verified Typert contributor', () => {
+    const mysql = new TypertContributorFailure('dsh-mysql', 'manifest', new Error('parameter codec has no create() factory'))
+    expect(typertContributorFailure(new AggregateError([mysql], 'plugin tree failed to load'))).toBe('dsh-mysql')
+    expect(typertContributorFailure(new Error('typert-loader: dsh-mysql failed'))).toBeUndefined()
+    expect(typertContributorFailure(new AggregateError([
+      mysql,
+      new TypertContributorFailure('another-plugin', 'manifest', new Error('broken')),
+    ], 'plugin tree failed to load'))).toBeUndefined()
+    const cancelled = new Error('cannot create effect on inactive context') as Error & { code: string }
+    cancelled.code = 'INACTIVE_EFFECT'
+    expect(typertContributorFailure(new AggregateError([
+      mysql,
+      new TypertContributorFailure('@deepseek-ai/dsh-core', 'registration', cancelled),
+    ], 'plugin tree failed to load'))).toBe('dsh-mysql')
+  })
+
   it('anchors diagnostic-mode imports at the installation-maintained profiles fallback', () => {
     const profileDir = join('/fixture', 'dsh-home', 'profiles', 'web')
     const baseUrl = diagnosticProfileModuleBaseUrl(profileDir)

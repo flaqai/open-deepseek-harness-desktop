@@ -44,6 +44,14 @@ export const name = 'typert-loader'
 /** Services required before registration: the registry this plugin feeds and the Loader it observes. */
 export const inject = ['typert', 'loader']
 
+/** Loader-verified owner of a broken Typert artifact; never inferred from plugin-authored text. */
+export class TypertContributorFailure extends Error {
+  constructor(readonly entryName: string, readonly stage: 'artifact' | 'manifest' | 'registration', cause: Error) {
+    super(`typert-loader: contributor ${entryName} failed: ${cause.message}`, { cause })
+    this.name = 'TypertContributorFailure'
+  }
+}
+
 /** Additional package artifacts whose owning plugins are nested behind another Loader entry. */
 export interface Config {
   /** Exact npm package names that must resolve and export `./typert`. */
@@ -404,10 +412,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     if (registered.has(entryName) || pending.has(entryName)) return undefined
     const artifact = resolveArtifact(entryName)
     if (artifact === null) return undefined
-    const task = loadManifest(artifact.packageName, artifact.path).then((manifest) => {
+    const task = loadManifest(artifact.packageName, artifact.path).catch((error: unknown) => {
+      throw new TypertContributorFailure(entryName, 'manifest', toError(error))
+    }).then((manifest) => {
       // The entry may have unmounted (or already re-registered) while the import was in flight.
       if (!active || !qualifies(entryName) || registered.has(entryName)) return
-      registered.set(entryName, ctx.typert.register(manifest))
+      try {
+        registered.set(entryName, ctx.typert.register(manifest))
+      } catch (error) {
+        throw new TypertContributorFailure(entryName, 'registration', toError(error))
+      }
     })
     pending.set(entryName, task)
     // Two-armed settle: a bare .finally() would mint a second, unhandled rejection.
@@ -426,7 +440,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       } catch (error) {
         // Steady state: one broken package must not poison the others; the
         // activation pass aggregates these into a loud throw instead.
-        onError(toError(error))
+        onError(new TypertContributorFailure(entryName, 'artifact', toError(error)))
       }
     }
     return tasks
