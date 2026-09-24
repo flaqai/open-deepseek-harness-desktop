@@ -19,6 +19,13 @@ export interface StagedImportedPlugin {
   cleanup(): Promise<void>
 }
 
+/** Run a bounded package-manager command in a validated plugin source directory. */
+export type ImportedPluginPack = (
+  args: readonly string[],
+  sourceDirectory: string,
+  timeoutMs: number,
+) => Promise<string>
+
 function parseManifest(source: string, expectedName: string): ImportedPluginPackageManifest {
   let value: unknown
   try {
@@ -119,7 +126,7 @@ export async function stageImportedPluginArchive(
 export async function stageImportedPluginDirectory(
   sourceDirectory: string,
   expectedName: string,
-  pack: (sourceDirectory: string, destination: string) => Promise<void>,
+  pack: ImportedPluginPack,
 ): Promise<StagedImportedPlugin> {
   const source = resolve(sourceDirectory)
   const metadata = await lstat(source)
@@ -134,7 +141,7 @@ export async function stageImportedPluginDirectory(
   parseManifest(await readFile(packagePath, 'utf8'), expectedName)
   const directory = await mkdtemp(join(tmpdir(), 'dsh-imported-plugin-'))
   try {
-    await pack(source, directory)
+    await pack(['--config.ignore-scripts=true', 'pack', '--pack-destination', directory], source, 60_000)
     const archives = (await readdir(directory)).filter(name => name.endsWith('.tgz'))
     if (archives.length !== 1) throw new Error('desktop: pnpm pack did not produce exactly one plugin archive')
     const archivePath = join(directory, archives[0] as string)

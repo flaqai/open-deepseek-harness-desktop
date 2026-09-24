@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/postmortem/0005-openai-compatible-gateway-empty-tool-identity.md
-0005-openai-compatible-gateway-empty-tool-identity.md: e903527e8bc8ec2173f442c58ab745b0e50c1631
-0005-openai-compatible-gateway-empty-tool-identity.zh.md: 6315ab58631ef1650b1bdb5a415000dcf3835fe6
+0005-openai-compatible-gateway-empty-tool-identity.md: f7f321865b20338c7464ceca6011ae3628290ae0
+0005-openai-compatible-gateway-empty-tool-identity.zh.md: 5170fa19bc2609278a91da72c1ef8f1880b760f7

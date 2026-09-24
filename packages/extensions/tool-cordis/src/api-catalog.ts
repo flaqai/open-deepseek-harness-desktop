@@ -5786,7 +5786,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ProductTelemetryRecord',
-    declaration: 'export interface ProductTelemetryRecord {\n    eventName: string;\n    body: string;\n    timestamp: number;\n    severityNumber?: SeverityNumber;\n    attributes?: Record<string, ProductTelemetryScalar | Record<string, ProductTelemetryScalar>>;\n}',
+    declaration: 'export interface ProductTelemetryRecord {\n    eventName: string;\n    body: string;\n    timestamp: number;\n    severityNumber?: number;\n    attributes?: Record<string, ProductTelemetryScalar | Record<string, ProductTelemetryScalar>>;\n}',
   },
   {
     name: 'ProductTelemetryScalar',

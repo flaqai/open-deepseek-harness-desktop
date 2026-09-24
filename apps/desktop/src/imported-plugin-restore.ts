@@ -373,13 +373,13 @@ export async function mergeImportedAllowBuilds(
 export interface ImportedPluginRestoreManagerOptions {
   readonly dshHome: string
   readonly providedDependencies: Readonly<Record<string, string>>
-  readonly install: (packageSpec: string) => Promise<string>
+  readonly install: (packageSpecs: readonly string[]) => Promise<string>
   readonly inspectSource?: (packageSpec: string) => Promise<ImportedPluginSourceCheckResult>
   readonly mergeAllowBuilds?: (profileDir: string, rules: Readonly<Record<string, boolean>>) => Promise<boolean>
-  readonly withMutation?: <T>(operation: () => Promise<T>, expectedPackages: readonly string[]) => Promise<T>
+  readonly withMutation: <T>(operation: () => Promise<T>, expectedPackages: readonly string[]) => Promise<T>
 }
 
-/** Own opaque-id validation and sequential restoration outside the renderer. */
+/** Own opaque-id validation and one candidate activation for each selected batch. */
 export class ImportedPluginRestoreManager {
   private plan: ImportedPluginRestorePlan | undefined
   private active = false
@@ -438,7 +438,7 @@ export class ImportedPluginRestoreManager {
       }),
       active: this.active,
       sourceCheckActive: this.sourceCheckActive,
-      restartRequired: this.plan.entries.some(entry => entry.state === 'succeeded'),
+      restartRequired: false,
     }
   }
 
@@ -534,13 +534,13 @@ export class ImportedPluginRestoreManager {
     this.active = true
     this.plan = { ...this.plan, firstPromptDismissed: true, ignored: false }
     try {
-      await this.mutate(entry.packageName, async () => {
+      const diagnostic = await this.mutate([entry.packageName], async () => {
         await this.update(entry.restoreId, { state: 'installing', diagnostic: null })
-        const diagnostic = await this.options.install(archivePath)
-        await this.update(entry.restoreId, {
-          state: 'succeeded',
-          ...(diagnostic.trim() === '' ? {} : { diagnostic: diagnostic.slice(-2000) }),
-        })
+        return this.options.install([archivePath])
+      })
+      await this.update(entry.restoreId, {
+        state: 'succeeded',
+        ...(diagnostic.trim() === '' ? {} : { diagnostic: diagnostic.slice(-2000) }),
       })
     } catch (error) {
       await this.update(entry.restoreId, { state: 'failed', diagnostic: boundedDiagnostic(error) })
@@ -569,31 +569,41 @@ export class ImportedPluginRestoreManager {
   }
 
   private async run(ids: ReadonlySet<string>): Promise<void> {
+    const selected = (this.plan?.entries ?? []).filter(entry => ids.has(entry.restoreId))
     try {
-      for (const original of this.plan?.entries ?? []) {
-        if (!ids.has(original.restoreId)) continue
-        try {
-          await this.mutate(original.packageName, async () => {
+      let diagnostic = ''
+      try {
+        diagnostic = await this.mutate(selected.map(entry => entry.packageName), async () => {
+          for (const original of selected) {
             await this.update(original.restoreId, { state: 'installing', diagnostic: null })
-            const diagnostic = await this.options.install(original.packageSpec)
-            await this.update(original.restoreId, {
-              state: 'succeeded',
-              ...(diagnostic.trim() === '' ? {} : { diagnostic: diagnostic.slice(-2000) }),
-            })
+          }
+          return this.options.install(selected.map(entry => entry.packageSpec))
+        })
+      } catch (error) {
+        const failure = selected.length > 1
+          ? `Batch rolled back: ${boundedDiagnostic(error)}`
+          : boundedDiagnostic(error)
+        for (const original of selected) {
+          await this.update(original.restoreId, {
+            state: 'failed',
+            diagnostic: failure,
           })
-        } catch (error) {
-          await this.update(original.restoreId, { state: 'failed', diagnostic: boundedDiagnostic(error) })
         }
+        return
+      }
+      for (const original of selected) {
+        await this.update(original.restoreId, {
+          state: 'succeeded',
+          ...(diagnostic.trim() === '' ? {} : { diagnostic: diagnostic.slice(-2000) }),
+        })
       }
     } finally {
       this.active = false
     }
   }
 
-  private mutate<T>(packageName: string, operation: () => Promise<T>): Promise<T> {
-    return this.options.withMutation === undefined
-      ? operation()
-      : this.options.withMutation(operation, [packageName])
+  private mutate<T>(packageNames: readonly string[], operation: () => Promise<T>): Promise<T> {
+    return this.options.withMutation(operation, packageNames)
   }
 
   private async update(

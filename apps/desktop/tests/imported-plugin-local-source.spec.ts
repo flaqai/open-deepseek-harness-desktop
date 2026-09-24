@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process'
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { create } from 'tar'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -80,16 +82,42 @@ describe('imported plugin local source', () => {
     const source = join(root, 'plugin-source')
     await mkdir(source)
     await writeFile(join(source, 'package.json'), JSON.stringify({ name: 'example-plugin', version: '2.0.0' }))
-    const staged = await stageImportedPluginDirectory(source, 'example-plugin', async (directory, destination) => {
+    const staged = await stageImportedPluginDirectory(source, 'example-plugin', async (args, directory, timeoutMs) => {
+      expect(args.slice(0, 3)).toEqual(['--config.ignore-scripts=true', 'pack', '--pack-destination'])
+      expect(args).not.toContain('--ignore-scripts')
+      expect(timeoutMs).toBe(60_000)
+      const destination = args[3] as string
       const packageDirectory = join(destination, 'package')
       await mkdir(packageDirectory)
       await writeFile(join(packageDirectory, 'package.json'), await readFile(join(directory, 'package.json')))
       await create({ cwd: destination, file: join(destination, 'packed.tgz'), gzip: true }, ['package'])
       await rm(packageDirectory, { recursive: true })
+      return ''
     })
     expect(staged.manifest.version).toBe('2.0.0')
     await staged.cleanup()
     await expect(access(staged.archivePath)).rejects.toThrow()
+  })
+
+  it('packs a local plugin with bundled pnpm without running lifecycle scripts', async () => {
+    const root = await fixture()
+    const source = join(root, 'plugin-source')
+    await mkdir(source)
+    await writeFile(join(source, 'package.json'), JSON.stringify({
+      name: 'example-plugin', version: '2.0.0',
+      scripts: { prepack: "node -e \"require('node:fs').writeFileSync('prepack-ran', 'yes')\"" },
+    }))
+    const pnpm = fileURLToPath(new URL('../node_modules/pnpm/bin/pnpm.cjs', import.meta.url))
+    const staged = await stageImportedPluginDirectory(source, 'example-plugin', async (args, cwd) => {
+      const result = spawnSync(process.execPath, [pnpm, ...args], {
+        cwd, encoding: 'utf8', timeout: 20_000,
+      })
+      if (result.status !== 0) throw new Error(result.stderr || result.stdout)
+      return result.stdout
+    })
+    expect(staged.manifest).toEqual({ name: 'example-plugin', version: '2.0.0' })
+    await expect(access(join(source, 'prepack-ran'))).rejects.toThrow()
+    await staged.cleanup()
   })
 
   it('rejects a source directory whose package identity differs before packing', async () => {
@@ -100,6 +128,7 @@ describe('imported plugin local source', () => {
     let packed = false
     await expect(stageImportedPluginDirectory(source, 'example-plugin', async () => {
       packed = true
+      return ''
     })).rejects.toThrow('expected example-plugin')
     expect(packed).toBe(false)
   })

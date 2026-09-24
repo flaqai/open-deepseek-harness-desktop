@@ -2355,12 +2355,7 @@ async function startApplication(): Promise<void> {
     if (importedPluginRestoreManager === undefined) {
       throw new Error('desktop: imported plugin restore manager is unavailable')
     }
-    cancelBootableSnapshot()
-    try {
-      return await importedPluginRestoreManager.start(restoreIds)
-    } finally {
-      restartBootableSnapshotStabilityWindow('imported plugin restore settled')
-    }
+    return importedPluginRestoreManager.start(restoreIds)
   })
   ipcMain.handle(DESKTOP_IPC.importedPluginsDismiss, async (
     event,
@@ -2401,11 +2396,9 @@ async function startApplication(): Promise<void> {
     try {
       staged = kind === 'archive'
         ? await stageImportedPluginArchive(selectedPath, entry.packageName)
-        : await stageImportedPluginDirectory(selectedPath, entry.packageName, async (source, destination) => {
-          await runPackageManagerInvocation([
-            'pack', '--ignore-scripts', '--pack-destination', destination,
-          ], source, harnessEnvironment, launchOptions, 60_000)
-        })
+        : await stageImportedPluginDirectory(selectedPath, entry.packageName, (args, source, timeoutMs) => (
+          runPackageManagerInvocation(args, source, harnessEnvironment, launchOptions, timeoutMs)
+        ))
       if (importedPluginVersionDiffers(entry.declaredSpec, staged.manifest.version)) {
         const confirmation = await showDesktopMessageBox({
           type: 'warning',
@@ -3447,8 +3440,8 @@ async function startApplication(): Promise<void> {
     get dshHome() { return desktopMutations.mutationHome },
     providedDependencies: installedProfileDependencies,
     inspectSource: packageSpec => inspectImportedPluginSource(packageSpec, harnessEnvironment, launchOptions),
-    install: packageSpec => runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
-      'plugin', '--profile', 'web', 'add', packageSpec,
+    install: packageSpecs => runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
+      'plugin', '--profile', 'web', 'add', ...packageSpecs,
     ], launchOptions), 'imported-plugin-install', IMPORTED_PLUGIN_INSTALL_TIMEOUT_MS),
     mergeAllowBuilds: (_profileDir, rules) => desktopMutations.applyAtStartup({
       operation: 'imported-plugin-allow-builds',

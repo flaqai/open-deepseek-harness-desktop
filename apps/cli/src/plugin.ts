@@ -212,11 +212,14 @@ function addedPackageSpec(args: readonly string[]): string | undefined {
   return candidate
 }
 
-/** Resolve the package identity for a registry add that can be verified locally. */
-function addedRegistryPackageName(args: readonly string[]): string | undefined {
-  const packageSpec = addedPackageSpec(args)
-  if (packageSpec === undefined) return undefined
-  return REGISTRY_ADD_SPEC.exec(packageSpec)?.groups?.name
+/** Resolve every registry identity in an add, including multi-package imports. */
+function addedRegistryPackageNames(args: readonly string[]): readonly string[] {
+  if (args[0] !== 'add') return []
+  return args.slice(1).flatMap((argument) => {
+    if (argument.startsWith('-')) return []
+    const name = REGISTRY_ADD_SPEC.exec(argument)?.groups?.name
+    return name === undefined ? [] : [name]
+  })
 }
 
 /**
@@ -668,12 +671,10 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
     if (dependencyHealth.status === 'repaired' || dependencyHealth.status === 'quarantined') {
       process.stderr.write(`${NAME}: profile dependency health ${JSON.stringify(dependencyHealth)}\n`)
     }
-    const packageName = addedRegistryPackageName(args)
-    const quarantinedAfterInstall = packageName !== undefined
-      && dependencyHealth.quarantined.some(record => record.packageName === packageName)
-    const verificationFailure = packageName === undefined || quarantinedAfterInstall
-      ? undefined
-      : verifyRegistryPackageInstall(dir, packageName)
+    const verificationFailure = addedRegistryPackageNames(args)
+      .filter(packageName => !dependencyHealth.quarantined.some(record => record.packageName === packageName))
+      .map(packageName => verifyRegistryPackageInstall(dir, packageName))
+      .find(failure => failure !== undefined)
     if (verificationFailure !== undefined) {
       process.stderr.write(`${NAME}: plugin install verification failed: ${verificationFailure}\n`)
       return 1

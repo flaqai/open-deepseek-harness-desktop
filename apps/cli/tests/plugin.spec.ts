@@ -668,6 +668,23 @@ describe('profile plugin package manager', () => {
     }
   })
 
+  it('verifies every registry plugin in a successful batch add', () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-plugin-batch-empty-success-'))
+    const pnpmEntry = join(home, 'pnpm-empty-success.mjs')
+    writeFileSync(pnpmEntry, 'process.exit(0)\n')
+    vi.stubEnv('DSH_HOME', home)
+    vi.stubEnv('DSH_PNPM_BIN', pnpmEntry)
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try {
+      expect(runPlugin('web', ['add', '@fixture/first@1.2.3', '@fixture/second@1.2.3'])).toBe(1)
+      expect(stderr).toHaveBeenCalledWith(expect.stringContaining(
+        'plugin install verification failed: dependency "@fixture/first" was not written',
+      ))
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
   it('creates a renderer-safe manual snapshot with desktop runtime metadata', () => {
     const home = mkdtempSync(join(tmpdir(), 'dsh-plugin-snapshot-cli-'))
     const profileDir = join(home, 'profiles', 'web')

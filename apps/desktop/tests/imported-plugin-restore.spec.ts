@@ -149,7 +149,7 @@ describe('imported plugin restore', () => {
     })).toBe(false)
   })
 
-  it('restores opaque selected ids serially, marks provided entries, and retains failures', async () => {
+  it('rolls back a selected batch when one install fails and retains the cause', async () => {
     const root = await fixture()
     await mkdir(join(root, 'profiles', 'web'), { recursive: true })
     await writeFile(join(root, 'profiles', 'web', 'pnpm-workspace.yaml'), 'packages:\n  - .\n')
@@ -162,20 +162,28 @@ describe('imported plugin restore', () => {
         { restoreId: 'three', packageName: 'bad', packageSpec: 'bad@^1', declaredSpec: '^1', category: 'plugin', defaultSelected: true, recoverable: true, state: 'pending' },
       ],
     })
-    const install = vi.fn(async (spec: string) => {
-      if (spec.startsWith('bad@')) throw new Error('registry unavailable')
+    const install = vi.fn(async (specs: readonly string[]) => {
+      if (specs.includes('bad@^1')) throw new Error('registry unavailable')
       return 'installed'
     })
+    const mutationCalls: string[][] = []
+    const withMutation = async <T>(operation: () => Promise<T>, expectedPackages: readonly string[]): Promise<T> => {
+      mutationCalls.push([...expectedPackages])
+      return operation()
+    }
     const manager = new ImportedPluginRestoreManager({
-      dshHome: root, providedDependencies: { provided: '^2' }, install,
+      dshHome: root, providedDependencies: { provided: '^2' }, install, withMutation,
     })
     await manager.prepare()
     expect(manager.snapshot()?.entries[0]?.state).toBe('provided')
     await expect(manager.start(['unknown'])).rejects.toThrow('not selectable')
     await manager.start(['two', 'three'])
     await vi.waitFor(() => { expect(manager.snapshot()?.active).toBe(false) })
-    expect(install.mock.calls.map(call => call[0])).toEqual(['good@^1', 'bad@^1'])
-    expect(manager.snapshot()?.entries.map(entry => entry.state)).toEqual(['provided', 'succeeded', 'failed'])
+    expect(install).toHaveBeenCalledOnce()
+    expect(install).toHaveBeenCalledWith(['good@^1', 'bad@^1'])
+    expect(mutationCalls).toEqual([['good', 'bad']])
+    expect(manager.snapshot()?.entries.map(entry => entry.state)).toEqual(['provided', 'failed', 'failed'])
+    expect((await readImportedPluginRestorePlan(root))?.entries[1]?.diagnostic).toContain('rolled back')
     expect((await readImportedPluginRestorePlan(root))?.entries[2]?.diagnostic).toContain('registry unavailable')
   })
 
@@ -203,6 +211,36 @@ describe('imported plugin restore', () => {
     expect(manager.snapshot()?.entries[0]).toMatchObject({ state: 'failed', diagnostic: 'candidate startup rolled back' })
   })
 
+  it('activates one managed candidate for a selected plugin batch', async () => {
+    const root = await fixture()
+    await mkdir(join(root, 'profiles', 'web'), { recursive: true })
+    const base = await extractImportedPluginRestorePlan(root)
+    await writeImportedPluginRestorePlan(root, {
+      ...base,
+      entries: ['first', 'second'].map(name => ({
+        restoreId: name, packageName: name, packageSpec: `${name}@1`, declaredSpec: '1',
+        category: 'plugin' as const, defaultSelected: true, recoverable: true, state: 'pending' as const,
+      })),
+    })
+    const install = vi.fn(async () => '')
+    const mutationCalls: string[][] = []
+    const withMutation = async <T>(operation: () => Promise<T>, expectedPackages: readonly string[]): Promise<T> => {
+      mutationCalls.push([...expectedPackages])
+      return operation()
+    }
+    const manager = new ImportedPluginRestoreManager({
+      dshHome: root, providedDependencies: {}, install, withMutation,
+    })
+    await manager.prepare()
+    await manager.start(['first', 'second'])
+    await vi.waitFor(() => { expect(manager.snapshot()?.active).toBe(false) })
+    expect(install).toHaveBeenCalledOnce()
+    expect(install).toHaveBeenCalledWith(['first@1', 'second@1'])
+    expect(mutationCalls).toEqual([['first', 'second']])
+    expect(manager.snapshot()?.entries.map(entry => entry.state)).toEqual(['succeeded', 'succeeded'])
+    expect(manager.snapshot()?.restartRequired).toBe(false)
+  })
+
   it('checks at most three sources concurrently and blocks only confirmed unavailable sources', async () => {
     const root = await fixture()
     await mkdir(join(root, 'profiles', 'web'), { recursive: true })
@@ -222,6 +260,7 @@ describe('imported plugin restore', () => {
       dshHome: root,
       providedDependencies: {},
       install: vi.fn(async () => ''),
+      withMutation: operation => operation(),
       inspectSource: async (spec) => {
         running += 1
         maximum = Math.max(maximum, running)
@@ -260,10 +299,12 @@ describe('imported plugin restore', () => {
       }],
     })
     const install = vi.fn(async () => { throw new Error('local install failed safely') })
-    const manager = new ImportedPluginRestoreManager({ dshHome: root, providedDependencies: {}, install })
+    const manager = new ImportedPluginRestoreManager({
+      dshHome: root, providedDependencies: {}, install, withMutation: operation => operation(),
+    })
     await manager.prepare()
     await expect(manager.installLocal('local-id', '/staged/plugin.tgz')).resolves.toMatchObject({ active: false })
-    expect(install).toHaveBeenCalledWith('/staged/plugin.tgz')
+    expect(install).toHaveBeenCalledWith(['/staged/plugin.tgz'])
     expect((await readImportedPluginRestorePlan(root))?.entries[0]).toMatchObject({
       state: 'failed', diagnostic: 'local install failed safely',
     })

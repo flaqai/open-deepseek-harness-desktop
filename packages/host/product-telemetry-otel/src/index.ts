@@ -27,8 +27,8 @@ export interface ProductTelemetryRecord {
   body: string
   /** Event occurrence time in Unix milliseconds. Observation time is assigned on enqueue. */
   timestamp: number
-  /** OTel severity; omitted values use INFO. */
-  severityNumber?: SeverityNumber
+  /** Numeric OTel severity; omitted values use INFO. */
+  severityNumber?: number
   /** Business fields selected by the caller; no automatic device or account identity. */
   attributes?: Record<string, ProductTelemetryScalar | Record<string, ProductTelemetryScalar>>
 }
@@ -161,11 +161,14 @@ export default class ProductTelemetry extends Service {
    */
   emit(record: ProductTelemetryRecord): void {
     const severityNumber = record.severityNumber ?? SeverityNumber.INFO
+    const severityText = Object.hasOwn(SeverityNumber, severityNumber)
+      ? SeverityNumber[severityNumber as SeverityNumber]
+      : String(severityNumber)
     this.logger.emit({
       ...record,
       observedTimestamp: Date.now(),
       severityNumber,
-      severityText: SeverityNumber[severityNumber],
+      severityText,
     })
   }
 }
