@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-community-data-home-identity.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-15-community-data-home-identity.md
-2026-09-15-community-data-home-identity.md: b77157675a238f02e56c3e4a35ae55c4c13b62c2
-2026-09-15-community-data-home-identity.zh.md: 31f643438405b8c7b5319a73b1ad705498651500
+/agent-note-community-data-home-identity:
+  en: 33167c0ff6bf12ba
+  zh: 6f28fd687f76da92
+/agent-note-community-data-home-identity/problem:
+  en: 0afb9d83005440ec
+  zh: 9c5eaba0c9ef98b2
+/agent-note-community-data-home-identity/decision:
+  en: b4fe76fd339925b6
+  zh: 7f16df5a456f4921
+/agent-note-community-data-home-identity/alternatives-considered:
+  en: c5de62b4037e5ddd
+  zh: 026a097a0d8d67e5
+/agent-note-community-data-home-identity/consequences:
+  en: 58debde77a3fd9dd
+  zh: 1c7f164f7c2e1c25

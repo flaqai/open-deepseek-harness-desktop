@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-module-fallback-writer-lock-recovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-15-module-fallback-writer-lock-recovery.md
-2026-09-15-module-fallback-writer-lock-recovery.md: 7d303334b2825660bf484c993b05533a159987e3
-2026-09-15-module-fallback-writer-lock-recovery.zh.md: 193d233a8468614b0899b82dfb061e6e1a2bf7ab
+/agent-note-module-fallback-writer-lock-recovery:
+  en: 716c147216c33507
+  zh: 38c2afbeba6e4de8
+/agent-note-module-fallback-writer-lock-recovery/problem:
+  en: 37e19c1bd761b99d
+  zh: 10c7c533a1cd3247
+/agent-note-module-fallback-writer-lock-recovery/decision:
+  en: cb60f41a5bc2bec1
+  zh: 6503fcedd82091d2
+/agent-note-module-fallback-writer-lock-recovery/alternatives-considered:
+  en: bb7fc1b65e348918
+  zh: fce35826b9fdd085
+/agent-note-module-fallback-writer-lock-recovery/consequences:
+  en: b2f1db824bd80186
+  zh: f5eff53ca8517d5a

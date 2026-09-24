@@ -13,7 +13,7 @@ import {
 } from '@deepseek-ai/dsh-app-boot'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import { parseInstallSpec } from './install-spec.ts'
-import { awaitTreeGone, leadsOwnGroup } from './run-tree.ts'
+import { awaitTreeGone, leadsOwnGroup, treeAlive, type RunTree } from './run-tree.ts'
 import { incompatiblePlugin } from './failure.ts'
 import type { IncompatiblePlugin, PackageResult, Registry } from './types.ts'
 export { setProfileVersionExemption, readProfileVersionExemptions } from '@deepseek-ai/dsh-app-boot'
@@ -195,6 +195,50 @@ function optionalFile(path: string): string | undefined {
   }
 }
 
+/** Where an operation records the pnpm run it started, for a successor when the operation's own process ends first. */
+function runRecordPath(dir: string): string {
+  return join(dir, '.plugin-manager', 'run.json')
+}
+
+/** Record a started run; a successor that takes over the profile lock from an exited process waits for it. */
+async function recordRun(dir: string, tree: RunTree): Promise<void> {
+  if (tree.pid === undefined) return
+  await writeFileAtomic(runRecordPath(dir), `${JSON.stringify(tree)}\n`, { mode: 0o600, dirMode: 0o700 })
+}
+
+/**
+ * Why this operation must not run: a record left by an operation whose process
+ * ended mid-run names a run that is still writing the profile. The profile
+ * lock is taken over once its holder exits, but its pnpm tree can outlive it.
+ * A recorded run that stopped, within a bounded wait, has its record removed.
+ * @param dir Profile directory.
+ * @returns The diagnostic, or undefined when no recorded run is active.
+ */
+async function activeRecordedRun(dir: string): Promise<string | undefined> {
+  const path = runRecordPath(dir)
+  const text = optionalFile(path)
+  if (text === undefined) return undefined
+  let tree: RunTree | undefined
+  try {
+    const value: unknown = JSON.parse(text)
+    const { pid, grouped } = (typeof value === 'object' && value !== null ? value : {}) as { pid?: unknown; grouped?: unknown }
+    if (Number.isSafeInteger(pid) && (pid as number) > 0 && typeof grouped === 'boolean') tree = { pid: pid as number, grouped }
+  } catch (error) {
+    // Records are replaced atomically, so an unparsable one was written by something else and is reported below.
+    void error
+  }
+  if (tree === undefined) {
+    return `dsh: ${path} does not name a package run; delete it once no earlier package operation is still running in this profile\n`
+  }
+  await awaitTreeGone(tree)
+  if (treeAlive(tree)) {
+    return `dsh: process ${String(tree.pid)}, started by an earlier package operation whose own process ended, is still running in this profile; `
+      + `wait for it or stop it, then retry. If process ${String(tree.pid)} is not that package run, delete ${path}.\n`
+  }
+  await rm(path, { force: true })
+  return undefined
+}
+
 /** pnpm can install plugins through any direct-dependency field. */
 function directDependencies(manifest: ProfileManifest): Record<string, string> {
   const extra = manifest as ProfileManifest & { devDependencies?: Record<string, string>; optionalDependencies?: Record<string, string> }
@@ -241,15 +285,24 @@ export async function runProfilePnpm(
   context: PackageOperationContext, args: readonly string[], options: PackageOperationOptions,
 ): Promise<PackageResult> {
   const dir = context.dir ?? resolveProfileDir(context.profile, context.home)
-  const before = readProfileManifest('dsh', dir)
-  const savedFiles = ['package.json', 'pnpm-lock.yaml'].map(name => ({ path: join(dir, name), text: optionalFile(join(dir, name)) }))
-  const beforeDependencies = directDependencies(before)
-  const installedBefore = new Map(Object.keys(beforeDependencies).map(name => [name, optionalFile(join(dir, 'node_modules', name, 'package.json'))]))
+  // Before any profile file is read: a recorded run that is still active may be rewriting them.
+  const active = await activeRecordedRun(dir)
   const logRoot = join(dir, '.plugin-manager', 'logs')
   await mkdir(logRoot, { recursive: true, mode: 0o700 })
   const logDir = await mkdtemp(join(logRoot, 'operation-'))
   const logPath = join(logDir, 'pnpm.log')
   const log = await open(logPath, 'wx', 0o600)
+  if (active !== undefined) {
+    await log.write(active)
+    await log.close()
+    options.onOutput?.(active, 'stderr')
+    const bytes = Buffer.from(active)
+    return { exitCode: 1, output: bytes.subarray(Math.max(0, bytes.length - options.outputBytes)).toString('utf8'), truncated: bytes.length > options.outputBytes, logPath }
+  }
+  const before = readProfileManifest('dsh', dir)
+  const savedFiles = ['package.json', 'pnpm-lock.yaml'].map(name => ({ path: join(dir, name), text: optionalFile(join(dir, name)) }))
+  const beforeDependencies = directDependencies(before)
+  const installedBefore = new Map(Object.keys(beforeDependencies).map(name => [name, optionalFile(join(dir, 'node_modules', name, 'package.json'))]))
   let output = Buffer.alloc(0)
   let truncated = false
   const append = (bytes: Buffer): void => {
@@ -309,6 +362,8 @@ export async function runProfilePnpm(
     buffer: false, stdin: options.execution === 'cli' ? 'inherit' : 'ignore', cancelSignal: options.signal === undefined
       ? cancellation.signal : AbortSignal.any([cancellation.signal, options.signal]),
   })
+  // Listened for before the record is written, so an exit during that write is not missed.
+  const exited = once(child.nodeChildProcess, 'exit').catch(() => undefined)
   let writes = Promise.resolve()
   /** `settled` records that the process outcome is known; `stalled` that the silence bound stopped the run. */
   const control = { settled: false, stalled: false }
@@ -359,11 +414,12 @@ export async function runProfilePnpm(
   if (collectors.length > 0) armIdle()
   let exitCode: number
   try {
+    await recordRun(dir, { pid: child.pid, grouped })
     // execa resolves its promise only once the piped stdio has ended, so the
     // process's own exit — the run's completion — is read from the raw child. A
     // spawn failure settles without one.
     const settled = Promise.allSettled([child])
-    await Promise.race([once(child.nodeChildProcess, 'exit').catch(() => undefined), settled])
+    await Promise.race([exited, settled])
     control.settled = true
     clearTimeout(idleTimer)
     // A stalled run stops its whole tree first, so the caller's rollback and lock
@@ -448,10 +504,12 @@ export async function runProfilePnpm(
         await restore()
         const hadLockfile = savedFiles.some(file => file.path.endsWith('pnpm-lock.yaml') && file.text !== undefined)
         const repair = ['install', hadLockfile ? '--frozen-lockfile' : '--config.lockfile=false']
-        const repaired = await execa(options.command ?? 'pnpm', [...options.args ?? [], ...repair], {
+        const repairing = execa(options.command ?? 'pnpm', [...options.args ?? [], ...repair], {
           cwd: dir, env: environment, extendEnv: false, reject: false, stdin: 'ignore',
           ...options.idleTimeoutMs === undefined ? {} : { timeout: options.idleTimeoutMs },
         })
+        await recordRun(dir, { pid: repairing.pid, grouped: false })
+        const repaired = await repairing
         exitCode = 1
         const restoration = repaired.exitCode === 0
           ? 'restored package.json, pnpm-lock.yaml, and node_modules'
@@ -467,6 +525,8 @@ export async function runProfilePnpm(
   } finally {
     control.settled = true
     clearTimeout(idleTimer)
+    // This process saw the run end, so no successor has to wait for it.
+    await rm(runRecordPath(dir), { force: true })
     await log.close()
   }
   return {

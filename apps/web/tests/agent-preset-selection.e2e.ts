@@ -251,7 +251,7 @@ describe('web e2e: agent-preset selection', () => {
     await rm(fixtureRoot, { recursive: true, force: true })
   })
 
-  it('starts with mode selection shown on the Standard default', async () => {
+  it('starts on the Standard default with the roster editable in Settings', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-agent-preset-hero'))
     await connectFreshWorkspace(page, scaffold.workspaceCwd)
     await page.getByRole('button', { name: 'Standard mode', exact: true }).waitFor({ timeout: 10_000 })
@@ -259,9 +259,9 @@ describe('web e2e: agent-preset selection', () => {
     await openSettings(page, 'en')
     const dialog = page.getByRole('dialog', { name: 'Settings' })
     await dialog.getByRole('button', { name: 'Agent presets' }).click()
-    const toggle = dialog.getByRole('switch', { name: 'Choose a mode for new tasks' })
     await dialog.getByRole('button', { name: 'New task default: Standard mode' }).waitFor({ timeout: 10_000 })
-    expect(await toggle.getAttribute('aria-checked')).toBe('true')
+    expect(await dialog.getByRole('switch').count()).toBe(0)
+    await dialog.getByRole('button', { name: 'Set as new task default: Minimal mode' }).waitFor({ timeout: 10_000 })
     await dialog.getByRole('button', { name: 'Close' }).last().click()
 
     const snapshot = await captureStableAria(page, '[class*="heroWorkspaceRow"]', scaffold.workspaceCwd)
@@ -375,7 +375,7 @@ describe('web e2e: agent-preset selection', () => {
     await writeComposerDraft(page, composer, '')
   }, 90_000)
 
-  it('aligns the current blank task and restores its saved default when re-enabled', async () => {
+  it('keeps the saved default composing sessions while Developer tools only gate the choice', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-agent-preset-disabled'))
     await expect.poll(() => livePreset(scaffold), { timeout: 15_000 }).toBe('standard')
 
@@ -385,23 +385,23 @@ describe('web e2e: agent-preset selection', () => {
     await dialog.getByRole('button', { name: 'Set as new task default: Minimal mode' }).click()
     await dialog.getByRole('button', { name: 'New task default: Minimal mode' }).waitFor({ timeout: 10_000 })
     await expect.poll(() => livePreset(scaffold), { timeout: 15_000 }).toBe('minimal')
-    const toggle = dialog.getByRole('switch', { name: 'Choose a mode for new tasks' })
-    await toggle.click()
-    await expect.poll(() => toggle.getAttribute('aria-checked')).toBe('false')
-    await dialog.getByRole('button', { name: 'Application default: Standard mode' }).waitFor({ timeout: 10_000 })
+    await dialog.getByRole('button', { name: 'General', exact: true }).click()
+    const developerTools = dialog.getByRole('switch', { name: 'Coding Tools' })
+    await developerTools.click()
+    await expect.poll(() => developerTools.getAttribute('aria-checked')).toBe('false')
     await dialog.getByRole('button', { name: 'Close' }).last().click()
 
+    // The gate hides the choice; the blank task keeps its saved composition.
     await expect.poll(() => page.getByRole('button', { name: / mode$/ }).count()).toBe(0)
-    await expect.poll(() => livePreset(scaffold), { timeout: 15_000 }).toBe('standard')
+    await expect.poll(() => livePreset(scaffold), { timeout: 15_000 }).toBe('minimal')
 
-    // The switch controls availability only: re-enabling restores the saved
-    // default and aligns this same still-blank task with it.
     await openSettings(page, 'en')
     const reopened = page.getByRole('dialog', { name: 'Settings' })
+    await reopened.getByRole('button', { name: 'General', exact: true }).click()
+    const reopenedDeveloperTools = reopened.getByRole('switch', { name: 'Coding Tools' })
+    await reopenedDeveloperTools.click()
+    await expect.poll(() => reopenedDeveloperTools.getAttribute('aria-checked')).toBe('true')
     await reopened.getByRole('button', { name: 'Agent presets' }).click()
-    const reopenedToggle = reopened.getByRole('switch', { name: 'Choose a mode for new tasks' })
-    await reopenedToggle.click()
-    await expect.poll(() => reopenedToggle.getAttribute('aria-checked')).toBe('true')
     await reopened.getByRole('button', { name: 'New task default: Minimal mode' }).waitFor({ timeout: 10_000 })
     await reopened.getByRole('button', { name: 'Close' }).last().click()
     await expect.poll(() => livePreset(scaffold), { timeout: 15_000 }).toBe('minimal')

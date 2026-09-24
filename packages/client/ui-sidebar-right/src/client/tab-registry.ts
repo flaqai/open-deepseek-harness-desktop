@@ -24,6 +24,7 @@
  * Thunked copy (`title`, `guide[].title`, `guide[].description`) is read again
  * on every use, so a language change needs no re-registration.
  */
+import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { ComponentType } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import type { IconProps } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -59,6 +60,8 @@ const DEFAULT_BAND: SidebarRightTabPriority = 'extension'
 
 /** One entry capsule the guide page offers, contributed by the type it opens (picking it opens that type as a page). */
 export interface SidebarRightGuideEntry {
+  /** Effective shortcut shown on this entry, when the provider registers one. */
+  readonly commandId?: ShortcutCommandId
   /** Stable entry identity within its provider. */
   readonly id: string
   /** Ascending position among every registered type's entries. */

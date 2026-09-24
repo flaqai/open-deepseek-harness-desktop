@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-20-windows-desktop-uses-native-node-runtime.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-20-windows-desktop-uses-native-node-runtime.md
-2026-08-20-windows-desktop-uses-native-node-runtime.md: 295c066dd70d063ad93dd74fc0a17db371320997
-2026-08-20-windows-desktop-uses-native-node-runtime.zh.md: f5ad1b68bdb48d050f219feac85e5acdc1a811c7
+/agent-note-use-a-native-node-runtime-in-the-windows-desktop-package:
+  en: 2ce06a19db420790
+  zh: 9580cebb1b85d41d
+/agent-note-use-a-native-node-runtime-in-the-windows-desktop-package/problem:
+  en: 6770aa68a9b0a970
+  zh: 2038f19ded07f380
+/agent-note-use-a-native-node-runtime-in-the-windows-desktop-package/decision:
+  en: 3398ab1642ccb696
+  zh: 67f486167324a48d
+/agent-note-use-a-native-node-runtime-in-the-windows-desktop-package/verification:
+  en: 256550316d062705
+  zh: e7656394f6d79b85
+/agent-note-use-a-native-node-runtime-in-the-windows-desktop-package/alternatives-considered:
+  en: 84ad69b62f9e2242
+  zh: 3701dee9514274d5
+/agent-note-use-a-native-node-runtime-in-the-windows-desktop-package/consequences:
+  en: fbdf30aadedc8f93
+  zh: 701746b18591672b

@@ -3,17 +3,20 @@
 import { cloneElement, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { FocusEventHandler, MouseEventHandler, MutableRefObject, ReactElement, Ref } from 'react'
 import { createPortal } from 'react-dom'
+import { ShortcutKeys } from './ShortcutKeys.tsx'
 import css from './Tooltip.module.css'
+// Tooltips take the wide answer — any key returns to the keyboard. Focus rings read the
+// narrower `data-input-modality` attribute the same module publishes.
+import { pointerModality } from './input-modality.ts'
 
 /** Bubble placement relative to the anchor. */
 export type TooltipSide = 'right' | 'bottom' | 'top'
 
 /**
- * Suppression channel from a tooltip to the tooltips above it: a tooltip hands
- * this setter to its own descendants, and a visible descendant bubble calls it
- * so the ancestor withdraws its bubble for as long as the descendant shows one.
+ * Suppression channel for enclosing tooltip and hover-card anchors: a visible
+ * tooltip within an anchor withdraws the enclosing preview while its bubble is shown.
  */
-const TooltipSuppression = createContext<((suppressed: boolean) => void) | null>(null)
+export const TooltipSuppression = createContext<((suppressed: boolean) => void) | null>(null)
 
 /** Props Tooltip injects into its anchor child; the child's own handlers are chained ahead of the tooltip's. */
 interface AnchorProps {
@@ -27,21 +30,10 @@ interface AnchorProps {
 
 type TooltipLabel = string | (() => string)
 
-// Focus alone cannot reveal how it arrived: a closing menu hands focus back to
-// its trigger, and after a mouse selection that programmatic return must not
-// raise the trigger's bubble, while keyboard focus must. Capture-phase window
-// listeners record the last input modality for every Tooltip. The guard keeps
-// the module loadable where no window exists (node-side imports of the
-// package's pure helpers).
-let pointerModality = false
-if (typeof window !== 'undefined') {
-  window.addEventListener('pointerdown', () => { pointerModality = true }, true)
-  window.addEventListener('keydown', () => { pointerModality = false }, true)
-}
-
 /**
  * Attach a hover/focus tooltip to an anchor element.
- * @param props.label - bubble text, or a resolver evaluated only while the bubble is visible.
+ * @param props.label - bubble text, or a resolver evaluated only while visible; an empty string shows only shortcut keys.
+ * @param props.shortcutKeys - effective key labels rendered as platform-formatted keycaps after optional text.
  * @param props.side - placement relative to the anchor (default 'right').
  * @param props.align - horizontal anchor-edge alignment for 'bottom'/'top' bubbles: 'end' pins
  * the bubble's right edge to the anchor's (for anchors beside other hover surfaces the centered
@@ -61,7 +53,7 @@ if (typeof window !== 'undefined') {
  * anchor dismisses the bubble until the next trigger, and focus arriving after a pointer
  * interaction (a closing menu refocusing its trigger) never raises it.
  */
-export function Tooltip({ label, side = 'right', align = 'center', delayMs = 0, gap = 8, disabled = false, portal = false, maxWidth, children }: { label: TooltipLabel; side?: TooltipSide; align?: 'center' | 'end'; delayMs?: number; gap?: number; disabled?: boolean; portal?: boolean; maxWidth?: number; children: ReactElement<AnchorProps> }) {
+export function Tooltip({ label, shortcutKeys, side = 'right', align = 'center', delayMs = 0, gap = 8, disabled = false, portal = false, maxWidth, children }: { label: TooltipLabel; shortcutKeys?: readonly string[] | undefined; side?: TooltipSide; align?: 'center' | 'end'; delayMs?: number; gap?: number; disabled?: boolean; portal?: boolean; maxWidth?: number; children: ReactElement<AnchorProps> }) {
   const anchor = useRef<HTMLElement | null>(null)
   // React 18 keeps the element's ref outside props; forward it so wrapping an
   // anchor in Tooltip never silently severs the owner's ref.
@@ -192,10 +184,13 @@ export function Tooltip({ label, side = 'right', align = 'center', delayMs = 0, 
       data-side={side}
       data-portal={portal || undefined}
       data-align={align}
+      data-has-shortcut={shortcutKeys?.length ? true : undefined}
       style={{ left: pos.x, top: y, visibility: 'hidden', ...maxWidth === undefined ? {} : { maxWidth } }}
       role="tooltip"
+      aria-label={shortcutKeys?.length ? [resolvedLabel, shortcutKeys.join(' ')].filter(Boolean).join(' ') : undefined}
     >
-      {resolvedLabel}
+      {resolvedLabel && <span className={css.label}>{resolvedLabel}</span>}
+      {shortcutKeys !== undefined && shortcutKeys.length > 0 && <ShortcutKeys keys={shortcutKeys} variant="tooltip" />}
     </span>
   )
 
@@ -209,7 +204,7 @@ export function Tooltip({ label, side = 'right', align = 'center', delayMs = 0, 
         // what the anchor now does (pin → unpin), and the click leaves the
         // anchor focused, which would otherwise pin the relabelled bubble up.
         onClick: (e) => { children.props.onClick?.(e); triggers.current.focus = false; cancelShow(); withdraw() },
-        onFocus: (e) => { children.props.onFocus?.(e); if (pointerModality) return; triggers.current.focus = true; cancelShow(); show() },
+        onFocus: (e) => { children.props.onFocus?.(e); if (pointerModality()) return; triggers.current.focus = true; cancelShow(); show() },
         onBlur: (e) => { children.props.onBlur?.(e); triggers.current.focus = false; hide() },
       })}
       {portal ? (content !== false && createPortal(content, document.body)) : content}

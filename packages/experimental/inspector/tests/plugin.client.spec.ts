@@ -440,7 +440,7 @@ describe('experimental Inspector Client plugin', () => {
     globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket
     const ctx = new Context()
     const fiber = ctx.plugin({ apply })
-    await expect(fiber).rejects.toThrow('Host bootstrap is missing')
+    await expect(fiber).rejects.toThrow('Host bootstrap is missing; reload the page after enabling the Inspector')
     await fiber.dispose()
   })
 

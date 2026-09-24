@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-streaming-client-frame-publication.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-13-streaming-client-frame-publication.md
-2026-09-13-streaming-client-frame-publication.md: 286e095e13d4d15a82cabf43e756af66a98a2b62
-2026-09-13-streaming-client-frame-publication.zh.md: 397592d06c5634311e730d8a98604ba6e20fcab4
+/agent-note-frame-batched-streaming-publications:
+  en: 7ca4ce014387f0bd
+  zh: 093b5181e3e58e97
+/agent-note-frame-batched-streaming-publications/problem:
+  en: 0e51cc62ff6c6059
+  zh: df9111f5d88780f8
+/agent-note-frame-batched-streaming-publications/decision:
+  en: 6b93fd54236586c9
+  zh: 65c28bcf815c4575
+/agent-note-frame-batched-streaming-publications/alternatives-considered:
+  en: dc7f7586eeaabbe3
+  zh: 4c0d08f705273cf6
+/agent-note-frame-batched-streaming-publications/consequences:
+  en: 122c6d3f9e0e6d34
+  zh: e2d9cfcc5fd0cd56

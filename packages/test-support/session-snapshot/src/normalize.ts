@@ -518,7 +518,9 @@ export function scrubSystemPrompts(rawLog: string): string {
 
 /**
  * Replace tool schemas in full request-header snapshots with `{{tools}}`
- * tokens while retaining field presence. System-prompt text stays verbatim so
+ * tokens while retaining field presence. Logs containing developer messages
+ * retain tool names so historical addition references remain verifiable.
+ * System-prompt text stays verbatim so
  * pinning fixtures can move only schema bulk into their dedicated JSON
  * sidecar. Lines without a tool payload pass through byte-for-byte; the
  * transform is idempotent.
@@ -602,9 +604,11 @@ function systemPromptBlock(data: Record<string, unknown>): Record<string, unknow
 /** Transform the selected model-request payloads. */
 function scrubModelRequestContent(rawLog: string, options: ModelRequestScrubOptions): string {
   const lines = rawLog.split('\n')
-  const out = lines.map((line) => {
-    if (line.trim().length === 0) return line
-    const record = JSON.parse(line) as Record<string, unknown>
+  const records = lines.map(line => line.trim().length === 0 ? undefined : JSON.parse(line) as Record<string, unknown>)
+  const retainToolNames = records.some(record => record?.type === 'developer/message')
+  const out = lines.map((line, index) => {
+    const record = records[index]
+    if (record === undefined) return line
     const data = record.data as Record<string, unknown> | null | undefined
     if (data === null || typeof data !== 'object') return line
     if (options.system === true && record.type === 'system/message') {
@@ -616,7 +620,9 @@ function scrubModelRequestContent(rawLog: string, options: ModelRequestScrubOpti
     if (options.tools === true && record.type === 'request/header') {
       const header = data.header as Record<string, unknown> | null | undefined
       if (header === null || typeof header !== 'object' || !('tools' in header)) return line
-      header.tools = TOOLS
+      header.tools = retainToolNames && Array.isArray(header.tools)
+        ? header.tools.map((tool: string | { name: string }) => typeof tool === 'string' ? tool : tool.name)
+        : TOOLS
       return JSON.stringify(record)
     }
     return line

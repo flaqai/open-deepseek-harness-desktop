@@ -599,17 +599,15 @@ describe('dsh-tool-workflow', () => {
       const { ctx, parent } = await setupBackground({ enableRunInBackground: false })
       const tool = ctx.tools.get('workflow')!
       expect(JSON.stringify(tool.parameters)).not.toContain('run_in_background')
-      expect(tool.description).toContain('The run executes in the foreground:')
       expect(tool.description).not.toContain('run_in_background')
       const result = await execute(ctx, { script: SCRIPT, meta: META, run_in_background: true }, { agent: parent })
       expect(result.isError).toBe(true)
       expect((result.content[0] as { text: string }).text).toContain('run_in_background is disabled')
     })
 
-    it('advertises the background semantics in the description and the parameter', async () => {
+    it('advertises the background semantics in the parameter', async () => {
       const { ctx } = await setupBackground()
       const tool = ctx.tools.get('workflow')!
-      expect(tool.description).toContain('Set `run_in_background: true` for a long run')
       expect(JSON.stringify(tool.parameters)).toContain('return a job id immediately instead of waiting')
     })
   })

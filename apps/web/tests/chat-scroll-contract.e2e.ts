@@ -717,7 +717,7 @@ describe('web e2e: long Chat scroll contract', () => {
         await world.page.getByRole('button', { name: 'Send message', exact: true }).click()
         const group = world.page.locator('[data-step-process]:has([data-variant="think"][data-state="running"])')
         await group.locator('[data-process-activity]').click()
-        await group.locator('[data-disclosure-row]').click()
+        await group.locator('[data-variant="think"][data-state="running"] [data-disclosure-row]').click()
         const body = group.locator('[data-step-process-body]')
         await nextPaint(world.page)
         expect(await body.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true)

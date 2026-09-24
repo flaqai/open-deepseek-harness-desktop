@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-selected-text-actions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-selected-text-actions.md
-2026-08-26-selected-text-actions.md: ddbcfb76bb4370007de5757644f872baa2165362
-2026-08-26-selected-text-actions.zh.md: ac5f7300c3b04e070cf9419f0e42b2038294dcaa
+/agent-note-selected-text-actions-remain-draft-only:
+  en: e8982d9769b8b8f7
+  zh: c8ef85212d7fc5b9
+/agent-note-selected-text-actions-remain-draft-only/problem:
+  en: 449fe9b72408517d
+  zh: 077d72b5b0954061
+/agent-note-selected-text-actions-remain-draft-only/decision:
+  en: 0ff8e50b7869634c
+  zh: 189f30fa67201542
+/agent-note-selected-text-actions-remain-draft-only/alternatives-considered:
+  en: 0e419bb3c4dbe292
+  zh: 7747c747c8f20b8e
+/agent-note-selected-text-actions-remain-draft-only/consequences:
+  en: 3bdfcbb3a837edf5
+  zh: 296d2e644852d36a

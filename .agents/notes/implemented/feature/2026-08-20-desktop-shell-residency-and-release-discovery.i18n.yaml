@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-20-desktop-shell-residency-and-release-discovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-20-desktop-shell-residency-and-release-discovery.md
-2026-08-20-desktop-shell-residency-and-release-discovery.md: d63285ca978f83e4ac042d968840922e7c904a80
-2026-08-20-desktop-shell-residency-and-release-discovery.zh.md: 9697c51758c93b7512bc96b7b3c4e229f3c527a2
+/agent-note-desktop-shell-residency-and-release-discovery:
+  en: 08f3f4e4cd0a9d71
+  zh: f4489d208643c6a5
+/agent-note-desktop-shell-residency-and-release-discovery/problem:
+  en: 05dd289907b0b7bc
+  zh: 8561f7c656e3282b
+/agent-note-desktop-shell-residency-and-release-discovery/decision:
+  en: fd37cac96ebbf2de
+  zh: 2033c561b981e634
+/agent-note-desktop-shell-residency-and-release-discovery/alternatives-considered:
+  en: c0a3a4503504ca3b
+  zh: 1f9948b30ebbed63
+/agent-note-desktop-shell-residency-and-release-discovery/consequences:
+  en: f721918120881904
+  zh: 7ead8181d42f3f23

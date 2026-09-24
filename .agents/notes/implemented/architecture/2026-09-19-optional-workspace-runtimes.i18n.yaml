@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-optional-workspace-runtimes.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-19-optional-workspace-runtimes.md
-2026-09-19-optional-workspace-runtimes.md: 972a4ecd271752443fde584e224269c2083da644
-2026-09-19-optional-workspace-runtimes.zh.md: 5e0b4ceeab3345633cf878f29c684cb91c776102
+/agent-note-optional-workspace-runtime-ownership:
+  en: eae1dc787f70f251
+  zh: 02e29379bf85ae1a
+/agent-note-optional-workspace-runtime-ownership/problem:
+  en: 27ca2834dfc0510a
+  zh: 66c04063aa2d5ad6
+/agent-note-optional-workspace-runtime-ownership/decision:
+  en: 242a158185be52d2
+  zh: 07b5fec2ed148e2e
+/agent-note-optional-workspace-runtime-ownership/alternatives-considered:
+  en: 869c151b28d3e9a2
+  zh: d4ad6019052f3342
+/agent-note-optional-workspace-runtime-ownership/consequences:
+  en: 1ce5712da301737b
+  zh: 9beadaa4c8d70bb4

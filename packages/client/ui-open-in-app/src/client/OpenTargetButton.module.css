@@ -14,7 +14,7 @@
   height: 24px;
   overflow: hidden;
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 9px;
+  border-radius: var(--dsw-radius-sm);
   font-family: var(--dsw-font-family);
 }
 
@@ -63,7 +63,7 @@
 /* The unavailable preview emphasizes the same actions with a labeled button. */
 .split[data-size='large'] {
   height: 36px;
-  border-radius: 14px;
+  border-radius: var(--dsw-radius-md);
   border-color: var(--dsw-alias-border-l2);
 }
 
@@ -77,4 +77,4 @@
   padding: 6px 10px;
 }
 
-.skeleton { display: inline-block; flex: none; border-radius: 3px; background: var(--dsw-alias-interactive-bg-hover); }
+.skeleton { display: inline-block; flex: none; border-radius: var(--dsw-radius-xs); background: var(--dsw-alias-interactive-bg-hover); }

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-16-whale-skins-and-chat-backgrounds.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-16-whale-skins-and-chat-backgrounds.md
-2026-08-16-whale-skins-and-chat-backgrounds.md: 78f2a3a9b18c9c1ede6e588fd8648031e58439b6
-2026-08-16-whale-skins-and-chat-backgrounds.zh.md: cf3e897008a602c22c3348303f59f73af9ba94ee
+/agent-note-whale-skins-and-browser-local-chat-backgrounds:
+  en: 5636fbeb11e3d2bf
+  zh: 33fe34f41a12b9fd
+/agent-note-whale-skins-and-browser-local-chat-backgrounds/problem:
+  en: 39b7033f394fd229
+  zh: c402f8f14de9c388
+/agent-note-whale-skins-and-browser-local-chat-backgrounds/decision:
+  en: 41101c8a5177afdf
+  zh: fe19631af3ac6f0f
+/agent-note-whale-skins-and-browser-local-chat-backgrounds/alternatives-considered:
+  en: 27619e1090fc4cdd
+  zh: ee51a402c9fab236
+/agent-note-whale-skins-and-browser-local-chat-backgrounds/consequences:
+  en: 19a033cdd1ddbc78
+  zh: 1f56f5cc3ef9526d

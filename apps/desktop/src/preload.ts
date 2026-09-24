@@ -3,6 +3,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CLIENT_COMMANDS } from './application-menu.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
+import type {
+  DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutDefinition, ShortcutEdit, ShortcutRevision, ShortcutSaveResult,
+} from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import type { DesktopIconsBridge, DesktopIconStatus, IconSelection } from './icon-protocol.ts'
 import type { OpenLogResult } from './log-reveal.ts'
 import type { DesktopPreferences, DesktopPreferencesPatch } from './preferences.ts'
@@ -509,6 +512,13 @@ const chatBackgroundBridge: DesktopChatBackgroundBridge = {
 const sourceMode = process.argv.includes('--dsh-source')
 const nasMode = process.argv.includes('--dsh-nas-runtime')
 
+// Shared Client shortcuts must identify the visiting Desktop device, including macOS
+// where the Harness URL has no desktop-mode query parameters.
+const markDesktopPlatform = (): void => { document.documentElement.dataset.platform = process.platform }
+const documentRoot = typeof document === 'undefined' ? null : document.documentElement as HTMLElement | null
+if (documentRoot === null) window.addEventListener('DOMContentLoaded', markDesktopPlatform, { once: true })
+else markDesktopPlatform()
+
 if (!nasMode && location.protocol === 'dsh-app:' && location.hostname === 'app') {
   contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', Object.freeze({
     pick: () => ipcRenderer.invoke(DESKTOP_IPC.directoryPick) as Promise<string | null>,
@@ -589,6 +599,30 @@ const commonDesktopBridge = {
   desktopWeb: Object.freeze(nasMode ? remoteDesktopWebBridge : desktopWebBridge),
   workspaceRuntimes: Object.freeze(nasMode ? remoteWorkspaceRuntimesBridge : workspaceRuntimesBridge),
 }
+const shortcutBridge = Object.freeze({
+  protocolVersion: 1,
+  keyboard: Object.freeze({
+    closeWindow: (revision: ShortcutRevision) => ipcRenderer.invoke(DESKTOP_IPC.shortcutsCloseWindow, revision) as Promise<void>,
+    subscribe(listener: (input: DesktopShortcutInput) => void): () => void {
+      const handle = (_event: Electron.IpcRendererEvent, input: DesktopShortcutInput): void => { listener(input) }
+      ipcRenderer.on(DESKTOP_IPC.shortcutsInput, handle)
+      return () => { ipcRenderer.removeListener(DESKTOP_IPC.shortcutsInput, handle) }
+    },
+  }),
+  shortcuts: Object.freeze({
+    get: (definitions: readonly ShortcutDefinition[]) =>
+      ipcRenderer.invoke(DESKTOP_IPC.shortcutsGet, definitions) as Promise<ShortcutConfigSnapshot>,
+    edit: (edit: ShortcutEdit, revision: ShortcutRevision) =>
+      ipcRenderer.invoke(DESKTOP_IPC.shortcutsEdit, edit, revision) as Promise<ShortcutSaveResult>,
+    recording: (active: boolean) => ipcRenderer.invoke(DESKTOP_IPC.shortcutsRecording, active) as Promise<void>,
+    subscribe(listener: (snapshot: ShortcutConfigSnapshot) => void): () => void {
+      const handle = (_event: Electron.IpcRendererEvent, snapshot: ShortcutConfigSnapshot): void => { listener(snapshot) }
+      ipcRenderer.on(DESKTOP_IPC.shortcutsChanged, handle)
+      return () => { ipcRenderer.removeListener(DESKTOP_IPC.shortcutsChanged, handle) }
+    },
+  }),
+})
+contextBridge.exposeInMainWorld('dshDesktop', shortcutBridge)
 contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({
   ...commonDesktopBridge,
   ...(nasMode ? {} : {

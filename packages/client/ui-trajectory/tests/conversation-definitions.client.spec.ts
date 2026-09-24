@@ -176,11 +176,29 @@ describe('Trajectory conversation Definitions', () => {
     expect(trajectoryViewDefinition.toolCallFocus?.('call-1')).toBe('call-1')
   })
 
-  it('rejects developer history until presentation is implemented', () => {
-    expect(() => assembler([at(0, 'developer/message', { turn: 1, step: 1, message: {
+  it('preserves developer tool-change content', () => {
+    const value = assembler([
+      at(0, 'request/header', { reason: 'initial', header: {
+        config: { provider: 'test', model: 'test' },
+        tools: ['search', 'read_file'].map(name => ({ name, description: '', parameters: {} })),
+      } }),
+      at(1, 'developer/message', { turn: 1, step: 1, message: {
+        id: 'developer', role: 'developer', source: { kind: 'tool-registry' },
+        content: [{ type: 'tool-addition', toolName: 'search' }, { type: 'tool-removal', toolName: 'old_search' }],
+      } }, { surfaceOp: 'append' }),
+      at(2, 'request/header', { reason: 'change', header: { config: { provider: 'test', model: 'test' }, tools: [] } }),
+    ])
+    expect(snapshot(value).eventNodes.find(node => node.kind === 'context')).toMatchObject({
+      kind: 'context', content: [{ type: 'tool-addition', toolName: 'search' }, { type: 'tool-removal', toolName: 'old_search' }],
+    })
+  })
+
+  it('preserves tool removals without a loaded header', () => {
+    const value = assembler([at(1, 'developer/message', { turn: 1, step: 1, message: {
       id: 'developer', role: 'developer', source: { kind: 'tool-registry' },
-      content: [{ type: 'tool-addition', toolName: 'search' }],
-    } }, { surfaceOp: 'append' })])).toThrow('developer messages are not supported yet')
+      content: [{ type: 'tool-removal', toolName: 'old_search' }],
+    } }, { surfaceOp: 'append' })], true)
+    expect(snapshot(value).eventNodes.find(node => node.kind === 'context')).toMatchObject({ content: [{ type: 'tool-removal', toolName: 'old_search' }] })
   })
 
   it('assembles streaming usage, preserves retry facts, and materializes interruption', () => {

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-nas-remote-bridge-projection.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-nas-remote-bridge-projection.md
-2026-09-17-nas-remote-bridge-projection.md: 801dc4a895d44fbfcd55915621962552b6223576
-2026-09-17-nas-remote-bridge-projection.zh.md: 56ac5af21d3c6f43a24be0858a8f17cd1fe96395
+/agent-note-nas-remote-bridge-projection:
+  en: 53e947e0a8f39466
+  zh: 5ad51e00a07480f6
+/agent-note-nas-remote-bridge-projection/problem:
+  en: d1c82239a9a5d2ba
+  zh: cf53f694cac60d39
+/agent-note-nas-remote-bridge-projection/decision:
+  en: df1abbed4a77a161
+  zh: e6c60b01d9090d12
+/agent-note-nas-remote-bridge-projection/alternatives-considered:
+  en: 44fbd02f509c1e48
+  zh: 7f8af758f07f1db1
+/agent-note-nas-remote-bridge-projection/relationship-to-existing-decisions:
+  en: 5c69c9605a8b9dba
+  zh: 27d44c0c0e88a672
+/agent-note-nas-remote-bridge-projection/consequences:
+  en: 2e042616a93d96c4
+  zh: 3e4e82cfd9c874ea

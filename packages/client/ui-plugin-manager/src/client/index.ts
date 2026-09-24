@@ -25,7 +25,22 @@ import { PluginsPanelIcon } from './PluginsPanelIcon.tsx'
 import { configLedgerSource } from './config-ledger.ts'
 import { PluginManagerController } from './manager-store.ts'
 import { en, zh, type PluginManagerLocaleKey } from './locales.ts'
+import { createNavigationStore } from './navigation-store.ts'
 import type {} from './slot-contract.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Cross-plugin navigation to the Plugins panel. */
+    pluginNavigation: {
+      /**
+       * Open a bundle's details without changing the current Session.
+       * An absent bundle displays the plugin list after loading.
+       * @param packageName - npm package name of the bundle.
+       */
+      openBundle(packageName: string): void
+    }
+  }
+}
 
 export type { PluginManagerPageProps } from './PluginManagerPage.tsx'
 export type { ConfigLedger, OfficialItem } from './config-ledger.ts'
@@ -50,7 +65,7 @@ export const NS = 'pluginManager'
 export const PANEL_ID = 'plugins' as MainPanelId
 
 /** Services required by the sidebar registration and the Remote methods; the inventory says whether the Host manages a profile. */
-export const inject = ['slots', 'locale', 'remote', 'remote.pluginManager', 'remote.pluginInventory', 'remote.pluginRegistryProbe', 'configForms']
+export const inject = ['slots', 'locale', 'remote', 'remote.pluginManager', 'remote.pluginInventory', 'remote.pluginRegistryProbe', 'configForms', 'layout']
 
 /**
  * Contribute the Plugins entry to the sidebar with the management page it
@@ -83,22 +98,37 @@ export function apply(ctx: ClientContext): void {
   // the page's own; a plugin's configuration arrives through the slots the
   // page declares here, so the page never names a configurable plugin.
   const configLedger = configLedgerSource(ctx)
-  ctx.slots.inject('main', () => ctx.slots.register({
-    name: 'main',
-    key: PANEL_ID,
-    locale: NS,
-    inject: () => controller.inject(configLedger, text => ctx.locale.resolveText(text)),
-    children: {
-      'plugins.item': { kind: 'list', scope: 'root' },
-      'plugins.bundle.action': { kind: 'keyed', scope: 'root' },
-      'plugins.bundle.activation': { kind: 'keyed', scope: 'root' },
-      'plugins.bundle.config': { kind: 'keyed', scope: 'root' },
-      'plugins.row.config': { kind: 'keyed', scope: 'root' },
-      'plugins.detail.actions': { kind: 'list', scope: 'root' },
-      'plugins.detail.badge': { kind: 'list', scope: 'root' },
-      'plugins.detail.section': { kind: 'list', scope: 'root' },
-    },
-  }, PluginManagerPage))
+  ctx.slots.inject('main', function* () {
+    const handle = createNavigationStore(), instance = handle.create()
+    const store: typeof handle = { ...handle, create: () => instance }
+    yield ctx.slots.register({
+      name: 'main',
+      key: PANEL_ID,
+      locale: NS,
+      store,
+      inject: () => controller.inject(configLedger, text => ctx.locale.resolveText(text)),
+      children: {
+        'plugins.item': { kind: 'list', scope: 'root' },
+        'plugins.bundle.action': { kind: 'keyed', scope: 'root' },
+        'plugins.bundle.activation': { kind: 'keyed', scope: 'root' },
+        'plugins.bundle.config': { kind: 'keyed', scope: 'root' },
+        'plugins.row.config': { kind: 'keyed', scope: 'root' },
+        'plugins.detail.actions': { kind: 'list', scope: 'root' },
+        'plugins.detail.badge': { kind: 'list', scope: 'root' },
+        'plugins.detail.section': { kind: 'list', scope: 'root' },
+      },
+    }, PluginManagerPage)
+    yield ctx.layout.panelInfo.subscribe(() => {
+      if (ctx.layout.panelInfo.getSnapshot().activePanelId !== PANEL_ID) instance.actions.setView({ kind: 'list' })
+    })
+    const disposeNavigation = ctx.reflect.provide('pluginNavigation', {
+      openBundle: (packageName: string) => {
+        ctx.layout.selectPanel(PANEL_ID)
+        instance.actions.setView({ kind: 'package', name: packageName })
+      },
+    })
+    yield () => { void disposeNavigation() }
+  })
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
     name: 'sidebar.panellist',
     id: PANEL_ID,

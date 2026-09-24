@@ -16,6 +16,7 @@ describe('platform application menus', () => {
       expect(items.filter(item => item.id === id)).toHaveLength(1)
     }
     expect(items.some(item => item.id === 'open-web')).toBe(platform !== 'linux')
+    expect(items.find(item => item.id === 'close')?.accelerator).toBeUndefined()
     expect(items.some(item => item.id === 'devtools')).toBe(false)
     expect(items.some(item => item.role === 'services')).toBe(platform === 'darwin')
   })

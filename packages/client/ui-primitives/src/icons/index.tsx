@@ -2,10 +2,11 @@
  * Shared current-color product icons. Names identify the glyph and weight;
  * rendered size remains a prop instead of part of the component name.
  */
+import { useId } from 'react'
 import type { IconProps } from './props.ts'
 import {
-  BrowseOutlineArtwork, CodeBracketsArtwork, FolderCloseArtwork, GlobeOutlineArtwork,
-  NewChatOutlineArtwork,
+  BrowseOutlineArtwork, ChatLinesOutlineArtwork, CodeBracketsArtwork, FolderCloseArtwork,
+  GlobeOutlineArtwork, NewChatOutlineArtwork,
 } from './shared-artwork.tsx'
 
 export type { IconProps } from './props.ts'
@@ -1059,8 +1060,8 @@ export const IconDatabaseOutlineMedium = (props: IconProps) => (
 
 const IconClockOutlineArtwork = ({ size = 16, className, strokeWidth }: WeightedIconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" strokeWidth={strokeWidth}>
-    <path d="M8 14.5C11.5899 14.5 14.5 11.5899 14.5 8C14.5 4.41015 11.5899 1.5 8 1.5C4.41015 1.5 1.5 4.41015 1.5 8C1.5 11.5899 4.41015 14.5 8 14.5Z" stroke="currentColor" />
-    <path d="M8 4V8.5L11.25 10.25" stroke="currentColor" />
+    <path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="currentColor" />
+    <path d="M8 4.31V8.46L11 10.08" stroke="currentColor" />
   </svg>
 )
 
@@ -1109,12 +1110,8 @@ export const IconSendOutlineMedium = (props: IconProps) => (
   <IconSendOutlineArtwork {...props} strokeWidth={ICON_MEDIUM_STROKE} />
 )
 
-const IconQueueOutlineArtwork = ({ size = 14, className, strokeWidth }: WeightedIconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" strokeWidth={strokeWidth}>
-    <path d="M5 6.75H11" stroke="currentColor" />
-    <path d="M5 9H8" stroke="currentColor" />
-    <path d="M2.37067 11.2497C1.5872 9.89252 1.32042 8.29798 1.61945 6.7597C1.91847 5.22141 2.76317 3.84293 3.99801 2.87809C5.23285 1.91325 6.7747 1.427 8.33964 1.50888C9.90458 1.59076 11.3873 2.23526 12.5147 3.32369C13.6422 4.41232 14.3384 5.8717 14.4751 7.43304C14.6118 8.99438 14.1797 10.5525 13.2585 11.8205C12.3372 13.0885 10.9889 13.9809 9.4617 14.3334C8.18666 14.6277 6.8587 14.529 5.64964 14.0601C5.17095 13.8745 4.76937 13.4929 4.26509 13.3963C3.67389 13.2832 2.95232 13.5595 2.0377 14.3334" stroke="currentColor" />
-  </svg>
+const IconQueueOutlineArtwork = ({ size = 14, ...rest }: WeightedIconProps) => (
+  <ChatLinesOutlineArtwork size={size} {...rest} />
 )
 
 /** Regular one-pixel IconQueueOutline artwork. */
@@ -1572,6 +1569,36 @@ export const IconChevronsUpDownOutlineRegular = (props: IconProps) => (
 /** Medium IconChevronsUpDownOutline artwork with a 1.3px stroke. */
 export const IconChevronsUpDownOutlineMedium = (props: IconProps) => (
   <IconChevronsUpDownOutlineArtwork {...props} strokeWidth={ICON_MEDIUM_STROKE} />
+)
+
+const IconArchiveOffOutlineArtwork = ({ size = 16, className, strokeWidth }: WeightedIconProps) => {
+  // The mask carves whitespace along the slash out of the box strokes, so the
+  // id must stay unique per rendered instance.
+  const maskId = `dsh-archive-off-${useId().replaceAll(':', '')}`
+  return (
+    <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" strokeWidth={strokeWidth}>
+      <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+        <rect x="0" y="0" width="16" height="16" fill="white" stroke="none" />
+        <path d="m2.2 1.3 11.6 12.8" stroke="black" strokeWidth={strokeWidth + 3} />
+      </mask>
+      <g mask={`url(#${maskId})`}>
+        <rect x="1.9" y="2.1" width="12.2" height="3.4" rx="1.1" />
+        <path d="M2.95 5.7v4.8a2.9 2.9 0 0 0 2.9 2.9h4.3a2.9 2.9 0 0 0 2.9-2.9V5.7" />
+      </g>
+      <path d="m2.2 1.3 11.6 12.8" />
+    </svg>
+  )
+}
+
+/** Regular one-pixel IconArchiveOffOutline artwork. */
+export const IconArchiveOffOutlineRegular = (props: IconProps) => (
+  <IconArchiveOffOutlineArtwork {...props} strokeWidth={ICON_REGULAR_STROKE} />
+)
+
+/** Medium IconArchiveOffOutline artwork with a 1.3px stroke. */
+export const IconArchiveOffOutlineMedium = (props: IconProps) => (
+  <IconArchiveOffOutlineArtwork {...props} strokeWidth={ICON_MEDIUM_STROKE} />
 )
 
 const IconArchiveCheckOutlineArtwork = ({ size = 16, className, strokeWidth }: WeightedIconProps) => (

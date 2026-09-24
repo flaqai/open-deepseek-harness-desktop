@@ -66,6 +66,12 @@ function goalDetail(value: unknown, t: Translate): ToolDetailsModel | null {
   return { items: [{ title: goal.objective, fields }] }
 }
 
+/** ISO-weekday keys, Monday first: a stored weekly rule names days 1 through 7. */
+const WEEKDAY_KEYS = [
+  'detail.weekday.1', 'detail.weekday.2', 'detail.weekday.3', 'detail.weekday.4',
+  'detail.weekday.5', 'detail.weekday.6', 'detail.weekday.7',
+] as const
+
 function interval(seconds: number, t: Translate): string {
   if (seconds % 86400 === 0) return t('detail.days', { count: seconds / 86400 })
   if (seconds % 3600 === 0) return t('detail.hours', { count: seconds / 3600 })
@@ -73,9 +79,31 @@ function interval(seconds: number, t: Translate): string {
   return t('detail.seconds', { count: seconds })
 }
 
+/** A stored wall clock without its zero seconds, the figure the schedule surfaces state. */
+function shortTime(time: string): string {
+  return time.replace(/:00\.000$/, '').replace(/\.000$/, '')
+}
+
+/** Localized weekday list of a stored weekly rule, or undefined when the set is empty or out of range. */
+function weekdayText(days: unknown, t: Translate): string | undefined {
+  if (!Array.isArray(days) || days.length === 0) return undefined
+  const labels: string[] = []
+  for (const day of days) {
+    if (typeof day !== 'number' || !Number.isInteger(day)) return undefined
+    const key = WEEKDAY_KEYS[day - 1]
+    if (key === undefined) return undefined
+    labels.push(t(key))
+  }
+  // The reader's own enumeration separator, the one the Web detail states.
+  return labels.join(t('detail.weekday.join'))
+}
+
 function scheduleItem(value: unknown, t: Translate, locale: string): DetailItem | null {
   if (!detailRecord(value) || !nonempty(value.id) || !nonempty(value.prompt)
-    || typeof value.scheduledAt !== 'string' || value.deliveryMode !== 'session-local'
+    || typeof value.scheduledAt !== 'string'
+    // `host` is the current Host-delivered view; `session-local` stays readable
+    // for results recorded before the Host storage domain owned delivery.
+    || (value.deliveryMode !== 'host' && value.deliveryMode !== 'session-local')
     || (value.state !== 'scheduled' && value.state !== 'overdue')) return null
   const date = new Date(value.scheduledAt)
   if (!Number.isFinite(date.getTime()) || date.toISOString() !== value.scheduledAt) return null
@@ -90,11 +118,26 @@ function scheduleItem(value: unknown, t: Translate, locale: string): DetailItem 
       if (!count(value.everySeconds) || value.everySeconds === 0) return null
       frequency = t('detail.schedule.every', { interval: interval(value.everySeconds, t) })
       break
+    case 'daily':
+      if (!nonempty(value.time) || !nonempty(value.timeZone)) return null
+      frequency = t('detail.schedule.daily', { time: shortTime(value.time), zone: value.timeZone })
+      break
+    case 'weekly': {
+      const days = weekdayText(value.weekdays, t)
+      if (!nonempty(value.time) || !nonempty(value.timeZone) || days === undefined) return null
+      frequency = t('detail.schedule.weekly', { days, time: shortTime(value.time), zone: value.timeZone })
+      break
+    }
+    case 'cron':
+      if (!nonempty(value.expression) || !nonempty(value.timeZone)) return null
+      frequency = t('detail.schedule.cron', { expression: value.expression, zone: value.timeZone })
+      break
     default: return null
   }
   const dateText = formatDate(date, locale, value.scheduledAt)
   return {
-    title: value.prompt,
+    // Every Host view carries a title; a recorded result without one keeps its instruction.
+    title: nonempty(value.title) ? value.title : value.prompt,
     fields: [
       { label: t('detail.schedule.when'), value: dateText },
       { label: t('detail.schedule.frequency'), value: frequency },
@@ -124,7 +167,8 @@ export function detailsCardModel(block: ToolCallBlock, t: Translate, locale: str
     case 'create_goal':
     case 'get_goal':
     case 'update_goal': return goalDetail(value, t)
-    case 'schedule_create': {
+    case 'schedule_create':
+    case 'schedule_update': {
       const item = scheduleItem(value, t, locale)
       return item === null ? null : { items: [item] }
     }

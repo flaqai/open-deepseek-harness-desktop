@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-10-desktop-download-source-and-proxy-ownership.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-10-desktop-download-source-and-proxy-ownership.md
-2026-09-10-desktop-download-source-and-proxy-ownership.md: 4efe40f41356f6277acdd92bd38035978371ab62
-2026-09-10-desktop-download-source-and-proxy-ownership.zh.md: f5a1004c55f8065fceb331ca4e3a0b64f39c8059
+/agent-note-desktop-download-source-and-proxy-ownership:
+  en: 17e249a4383c6d92
+  zh: 6cd64879bb152d08
+/agent-note-desktop-download-source-and-proxy-ownership/problem:
+  en: af52e1b1fba585ed
+  zh: b69bb3722b24bda2
+/agent-note-desktop-download-source-and-proxy-ownership/decision:
+  en: 76e286d42bf1b4a5
+  zh: 96851c60de9baa51
+/agent-note-desktop-download-source-and-proxy-ownership/alternatives-considered:
+  en: 617b23392addc009
+  zh: 0bf2925f12fc2c3f
+/agent-note-desktop-download-source-and-proxy-ownership/consequences:
+  en: e4ab318b9e7e69f8
+  zh: 43ba48308e810251

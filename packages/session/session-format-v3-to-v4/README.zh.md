@@ -259,7 +259,7 @@ System image 接纳要求非空 attachment id、PNG／JPEG／WebP／GIF MIME 类
 
 普通消息、inbox／title 输入、compaction summary／raw output 以及内嵌 assistant block-start／block-end 记录中的工具变更块均被拒绝。存在的 `request/header.header.tools[].deferLoading` 必须恰好为 true；它与是否存在 developer 添加事件无关。空 developer 节点保留表面位置，不产生模型消息，也不能替换 protected system head。未知 ignorable developer 载荷推迟到读取器知道该事件类型时校验。
 
-原生格式支持不启用自动发出、提供方工具加载或 UI 渲染。当前提供方与 UI 消费者会明确拒绝不能表示的 developer 历史。为已经接受的表示增加向后兼容的消费者支持，与新增格式是不同的变更。
+原生格式支持校验并保留 developer 历史。[LLM 运行时](../../llm/llm/README.zh.md) 按路由投影工具更新，并在不支持的路由上省略 developer 消息；Chat 和 Trajectory 渲染工具变更通知。这些消费者使用已接受的表示，不新增格式。
 
 <a id="fork-results"></a>
 ### Fork 生成的结果

@@ -102,7 +102,12 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(declarations('.searchExpanded')?.get('height')).toBe('30px')
     expect(rowDeclarations('.projectRow')?.get('height')).toBe('34px')
     expect(rowDeclarations('.sessionRow')?.get('height')).toBe('32px')
-    expect(rowDeclarations('.flatSessionRowWithoutStatus .title')?.get('margin-left')).toBe('0')
+    // One leading status cell for every session row, grouped or flat: the cell
+    // hosts either the row's status dot or the leading seat, and it reserves its
+    // own box, so the title's one shared margin below needs no per-view override.
+    expect(rowDeclarations('.slot')?.get('width')).toBe('16px')
+    expect(rowDeclarations('.slot')?.get('height')).toBe('20px')
+    expect(rowDeclarations('.sessionRow .title')?.get('margin')).toBe('0 6px 0 4px')
     expect(rowDeclarations('.searchResultRow')?.get('min-height')).toBe('48px')
     expect(rowDeclarations('.sessionRow.selected')?.get('background'))
       .toBe('color-mix(in srgb, var(--dsw-alias-state-business-primary) 11%, transparent)')

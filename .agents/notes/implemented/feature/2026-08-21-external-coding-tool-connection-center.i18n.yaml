@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-21-external-coding-tool-connection-center.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-21-external-coding-tool-connection-center.md
-2026-08-21-external-coding-tool-connection-center.md: f82496c63a9e2c59a6e9f757aea3087f95013302
-2026-08-21-external-coding-tool-connection-center.zh.md: 444e64db9139eed66fc54a442fac44573692db63
+/agent-note-external-coding-tool-connection-center:
+  en: 7f3a5de945b6fc42
+  zh: b635f14ac646f886
+/agent-note-external-coding-tool-connection-center/problem:
+  en: 4198bcecb2208fdd
+  zh: 933b0c2cdd98a966
+/agent-note-external-coding-tool-connection-center/decision:
+  en: 990cd0f4dfe6474b
+  zh: d585adfc9e9b854f
+/agent-note-external-coding-tool-connection-center/alternatives-considered:
+  en: a00026bc7933ea13
+  zh: c2206ddea6d33f29
+/agent-note-external-coding-tool-connection-center/consequences:
+  en: 7666199d9cac6c90
+  zh: a0980fd2b68415be
+/agent-note-external-coding-tool-connection-center/verification:
+  en: 98c0380a47a24935
+  zh: bc4c097457e01177

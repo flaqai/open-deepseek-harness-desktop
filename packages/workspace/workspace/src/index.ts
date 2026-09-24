@@ -245,13 +245,15 @@ export class WorkspaceRegistry extends Service {
    * Initialize the default Workspace only while both the registry and Session
    * history are empty. Repeated requests reuse its durable identity; deleting
    * that registration permanently disables automatic creation.
-   * @param resolveDirectory - resolve the absolute directory and initial title;
-   * called only for eligible creation, inside the registry mutation queue.
-   * Missing directories are created recursively before registration.
+   * @param resolveDirectory - resolve the absolute directory; called only for
+   * eligible creation, inside the registry mutation queue. Missing directories
+   * are created recursively before registration, and the initial title is the
+   * requested directory's own final segment — not the canonical one, so a
+   * symlink at that path does not retitle the Workspace after its target.
    * After resolution, caller cancellation does not roll back creation or registration.
    * @returns the initialized Workspace, or undefined when automatic creation is ineligible.
    */
-  initializeDefault(resolveDirectory: () => Promise<{ path: string; title: string }>): Promise<Workspace | undefined> {
+  initializeDefault(resolveDirectory: () => Promise<string>): Promise<Workspace | undefined> {
     return this.enqueueOperation(async () => {
       const state = this.requireState()
       if (state.defaultWorkspaceId !== undefined) return this.entities.get(state.defaultWorkspaceId)
@@ -260,13 +262,13 @@ export class WorkspaceRegistry extends Service {
       if (state.workspaceIds.length > 0 || state.archivedSessionIds.length > 0
         || sessions.list().length > 0 || (await this.listStoredHeaders()).length > 0) return undefined
 
-      const { path, title } = await resolveDirectory()
+      const path = await resolveDirectory()
       if (!fullyQualifiedWorkspacePath(path)) throw new TypeError(`Workspace path is not fully qualified: '${path}'`)
       await mkdir(path, { recursive: true })
       const canonical = await realpathNormalize(path)
       // A Session can start outside the registry queue while directory preparation awaits I/O.
       if ((await this.listStoredHeaders()).length > 0 || sessions.list().length > 0) return undefined
-      return this.createCanonical(canonical, title, true)
+      return this.createCanonical(canonical, defaultWorkspaceTitle(path), true)
     })
   }
 

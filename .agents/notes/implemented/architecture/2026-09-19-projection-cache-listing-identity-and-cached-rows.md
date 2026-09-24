@@ -14,13 +14,12 @@ This is neither cache corruption nor a version mismatch. The projcache record's 
 
 A cache record (record format and predecessor recovery: [Projection-cache predecessor recovery and Session-format binding](2026-09-02-projcache-cross-version-read-compat.md)) is bound to a lifecycle identity: `formatVersion + createdAt + cwd + isSeeded + inheritedEventCount`, matched by `identityMatches` on full equality. Since #3346, `inheritedEventCount` (the length of the event prefix a fork inherits, the cut below) no longer appears in the logical header: the header keeps only the `isSeeded` bit and the exact cut follows the body. Since Session format v2 (#3398) the physical header line no longer stores `seedLength` either; the reader derives the cut from the seq of the `session/end-seed {inherited: true}` marker in the body.
 
-A header-only read therefore cannot obtain the cut: the JSONL backend's `fromHeaderLine` hard-codes `inheritedEventCount: 0` for header-only reads, and `SessionPersistenceSnapshot` carries only the header, the revision, and an optional eventCount. All three header-only cache consumers grew the same guard:
+A header-only read therefore cannot obtain the cut: the JSONL backend's `fromHeaderLine` hard-codes `inheritedEventCount: 0` for header-only reads, and `SessionPersistenceSnapshot` carries only the header, the revision, and an optional eventCount. The Session-list and reference consumers grew the same guard:
 
 | Consumer | Guard | Fallback | Consequence |
 |---|---|---|---|
 | `packages/api/session-controller/src/list.ts` `projectionsFor` | `header.isSeeded ? undefined : cachedSnapshot(header, 0) ?? cachedPredecessorTitle(header, 0)` | none | no title, no `sessionListMetadata`; blank falls back to `false`, ordering falls back to `createdAt` |
 | `packages/context/session-reference/src/index.ts` `projectedLabels` | same | none | `@` completion labels by id; the title cannot be searched |
-| `packages/subagent/subagent/src/list-children.ts` `resolveColdIdentity` | same | `observeSession` reads the body | correct result, one body read per seeded child |
 
 When the guard landed (#3346, 2026-09-01), `list.ts` still had `probeSmallCold`: on a cache miss it read the body when the log file was at most `DEFAULT_COLD_BLANK_PROBE_MAX_BYTES = 1024` bytes. Its purpose was blank-session detection; it covered only logs under 1KB and never applied to an ordinary fork. #3400 (2026-09-03) removed it and the list returned to metadata plus cache only. #4320 (2026-09-19) made forking a first-class feature (`packages/core/session/src/fork.ts`, fork at any seq); every fork is `isSeeded: true` with an exact cut, seeded sessions went from a handful to dozens, all of them cold after a restart, and the gap became visible at once.
 
@@ -33,7 +32,7 @@ The read and write faces of `SessionProjectionCache` and their callers:
 | `write(session)` | writes the checkpoint at three mandatory points plus a throttle | yes | the cache's own listeners |
 | `hydratePrepared(session, events)` | uses `rows` as the fold starting point and applies events from `row.seq + 1`; the result lands in live cells | the next checkpoint | `session-query/src/observation.ts` |
 | `coldSnapshot(meta, cut, events)` | fold starting point plus write-back | yes | no production caller |
-| `cachedSnapshot(meta, cut, keys?)` | `viewCheckpoint`: each row passes `ver` and `stateSchema`, is `view`ed, and returned | no | `list.ts`, `session-reference`, `list-children` |
+| `cachedSnapshot(meta, cut, keys?)` | `viewCheckpoint`: each row passes `ver` and `stateSchema`, is `view`ed, and returned | no | `list.ts`, `session-reference` |
 | `cachedPredecessorTitle(meta, cut)` | the same, `title` only, allowing an older `formatVersion` | no | `list.ts` |
 
 Identity validation lives entirely inside the cache (`recordFor` → `identityMatches`; `viewCheckpoint` checks `ver` and schema per row). `list.ts` validates nothing itself; it merely declines to call when it cannot supply a cut.
@@ -70,7 +69,6 @@ In the block the read-only face returns, `asOfSeq` is the lowest watermark among
 |---|---|
 | `list.ts` `projectionsFor` | drop the `isSeeded` branch and `SessionLogOffset(0)`; every cold row reads `cachedSnapshot(header) ?? cachedPredecessorTitle(header)` |
 | `session-reference` `projectedLabels` | same symptom, same change |
-| `list-children.ts` `resolveColdIdentity` | follows the signature only; the `!header.isSeeded` guard and the body fallback stay, because it needs the cut to classify a seq as inherited or owned, which is fold semantics |
 
 ### The client store separates cached and sequenced rows
 
@@ -147,7 +145,7 @@ Bought:
 
 Paid:
 
-- `cachedSnapshot` and `cachedPredecessorTitle` change signature; three callers change with them.
+- `cachedSnapshot` and `cachedPredecessorTitle` change signature; the Session-list and reference callers use the header-only signatures.
 - `SessionProjectionHints` gains the required field `kind`; every producer of a list summary and every test fixture that builds one carries it.
 - A hand-crafted record with the same four fields and a different cut is displayed in the list until the session is opened.
 - Keys the baseline omits clear together with their hints: when a Host does not mount `schedule`, the schedule mark the list hinted disappears after the session opens. Under "connected data is the truth" this is the correct behavior.
@@ -163,4 +161,3 @@ Paid:
 - `api/session-controller/tests/manager.client.spec.ts`: a `cached` `api-session/added` block is replaced by a control baseline at the same cursor; a `cached` list block does not displace an existing sequenced title.
 - `api/session-controller/tests/inbox-projection.client.spec.ts`: unchanged; a live session's `sequenced` list block still outranks a delayed control baseline at a lower cut.
 - `context/session-reference/tests/session-reference.spec.ts`: a seeded cold session is labeled and searchable by its cached title, a session without a cache record is still labeled by id, and neither reads a log.
-- `subagent/subagent/tests/list-children.spec.ts`: unchanged; seeded children still go through body observation.

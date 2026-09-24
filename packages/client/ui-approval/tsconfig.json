@@ -40,6 +40,9 @@
     },
     {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../shortcuts/tsconfig.client.json"
     }
   ]
 }

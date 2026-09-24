@@ -128,7 +128,8 @@ export function PreparationCard({ provider, connected, prepare, cancelPreparatio
 }
 
 /** Recognition preferences and preparation cards shared by plugin details and Settings. */
-export function VoicePreparation({ useSpeechReadiness, ...props }: InjectFace<VoiceInputInjected> & PropsLocale<typeof NS>) {
+export function VoicePreparation({ useSpeechReadiness, ...props }: Pick<InjectFace<VoiceInputInjected>,
+  'useSpeechReadiness' | 'configure' | 'prepare' | 'cancelPreparation'> & PropsLocale<typeof NS>) {
   const readiness = useSpeechReadiness(value => value), catalog = readiness.catalog
   const [saving, setSaving] = useState(false), [error, setError] = useState('')
   const configure = async (patch: SpeechSelectionPatch): Promise<void> => {

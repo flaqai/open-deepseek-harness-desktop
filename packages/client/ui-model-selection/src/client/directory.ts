@@ -15,15 +15,11 @@ import type { ModelCatalogDirectory } from './catalog.ts'
 
 /** Directory snapshot both entries render from. */
 export interface ModelDirectoryState {
-  /** Effective selection: durable next-request projection, then Host default. */
+  /** Saved selection, retained even when its provider or model leaves the catalog. */
   current: ModelSelection | null
-  /**
-   * Whether an adapter serves the current selection's provider, as the host reports
-   * it — null before the first load, which is NOT the same as blocked. Read
-   * this rather than "current matches no group": catalog membership is
-   * advisory, so a route serving a model it stopped advertising is missing
-   * from the groups yet perfectly usable.
-   */
+  /** Saved effort caption retained when the selected model is unavailable. */
+  retainedEffort?: string
+  /** Whether the current selection is present in the available catalog; null while unresolved. */
   routable: boolean | null
   /** Successfully loaded provider groups (last good load). */
   groups: readonly ModelProviderGroup[]
@@ -31,6 +27,8 @@ export interface ModelDirectoryState {
   failures: readonly ModelCatalogFailure[]
   /** Lifecycle of the in-flight operation. */
   status: 'idle' | 'loading' | 'ready' | 'selecting' | 'error'
+  /** Selection submitted by the latest `select` until it settles; null otherwise. */
+  pending: ModelSelection | null
   /** Whole-request or selection failure text; null when none. */
   error: string | null
 }
@@ -39,13 +37,12 @@ export interface ModelDirectoryState {
 export class ModelDirectory {
   /** The shared snapshot both entries render from (uSES-safe store). */
   readonly store: SnapshotStore<ModelDirectoryState> = createSnapshotStore<ModelDirectoryState>({
-    current: null, routable: null, groups: [], failures: [], status: 'idle', error: null,
+    current: null, routable: null, groups: [], failures: [], status: 'idle', pending: null, error: null,
   })
 
   /** Latest selection operation wins; an older response never overwrites a newer one. */
   private generation = 0
   private disposed = false
-  private resolved = false
   private readonly unsubscribeCatalog: () => void
   private readonly unsubscribeSelection: () => void
 
@@ -69,7 +66,7 @@ export class ModelDirectory {
   }
 
   /**
-   * Ensure the Host generation's shared advisory catalog is loaded.
+   * Ensure the Host generation's shared available catalog is loaded.
    * @returns the fresh directory value.
    */
   async load(): Promise<ModelDirectoryState> {
@@ -89,7 +86,7 @@ export class ModelDirectory {
   async select(selection: ModelSelection): Promise<RemoteResult<void>> {
     this.assertAvailable()
     const generation = ++this.generation
-    this.store.update((s) => { s.status = 'selecting'; s.error = null })
+    this.store.update((s) => { s.status = 'selecting'; s.pending = selection; s.error = null })
     const result = await this.sessions.selectModel({
       sessionId: this.sessionId,
       provider: selection.provider,
@@ -104,11 +101,12 @@ export class ModelDirectory {
     if (!result.ok) {
       this.store.update((s) => {
         s.status = 'error'
+        s.pending = null
         s.error = `${result.error.code}: ${result.error.message}`
       })
       return result
     }
-    this.store.update((s) => { s.status = 'ready'; s.error = null })
+    this.store.update((s) => { s.status = 'ready'; s.pending = null; s.error = null })
     this.syncInputs()
     return { ok: true, value: undefined }
   }
@@ -121,6 +119,7 @@ export class ModelDirectory {
     ++this.generation
     this.store.update((state) => {
       if (state.status === 'selecting') state.status = 'idle'
+      state.pending = null
       state.error = null
     })
     this.syncInputs()
@@ -143,36 +142,37 @@ export class ModelDirectory {
     if (this.disposed) return
     const catalog = this.catalog.store.getSnapshot()
     const projected = modelSelectionProjection(this.projected.getSnapshot())
+    const intended = projected?.next ?? catalog.value?.default
+    const reasoning = intended === undefined ? undefined : this.catalog.reasoningFor(intended)
+    const effort = intended?.reasoningEffort ?? reasoning?.defaultEffort
+    const retainedEffort = effort === undefined ? undefined
+      : reasoning?.efforts.find(level => level.id === effort)?.name ?? effort
     if (catalog.status !== 'ready' || catalog.value === null || projected === undefined) {
-      if (this.resolved) {
-        if (catalog.status === 'error') {
-          this.store.update((state) => {
-            state.status = 'error'
-            state.error = catalog.error
-          })
-        }
-        return
-      }
       this.store.set({
-        current: null,
+        current: catalog.value === null ? null : this.store.getSnapshot().current,
+        ...retainedEffort === undefined ? {} : { retainedEffort },
         routable: null,
-        groups: [],
-        failures: [],
+        groups: catalog.value?.groups ?? [],
+        failures: catalog.value?.failures ?? [],
         status: catalog.status === 'error' ? 'error' : 'loading',
+        pending: this.store.getSnapshot().pending,
         error: catalog.error,
       })
       return
     }
-    const current = projected.next ?? catalog.value.default
-    this.resolved = true
+    const selection = projected.next ?? catalog.value.default
+    const routable = catalog.value.groups.some(group => group.id === selection.provider
+      && group.models.some(model => model.id === selection.model))
     this.store.set({
-      current,
-      routable: catalog.value.routableProviders.includes(current.provider),
+      current: selection,
+      ...retainedEffort === undefined ? {} : { retainedEffort },
+      routable,
       groups: catalog.value.groups,
       failures: catalog.value.failures,
       status: this.store.getSnapshot().status === 'selecting'
         ? 'selecting'
         : 'ready',
+      pending: this.store.getSnapshot().pending,
       error: null,
     })
   }

@@ -39,6 +39,9 @@
       "path": "../../goal/goal"
     },
     {
+      "path": "../../schedule/schedule"
+    },
+    {
       "path": "../../feedback/message-feedback"
     },
     {
@@ -100,6 +103,9 @@
     },
     {
       "path": "../account-controller"
+    },
+    {
+      "path": "../../credentials/deepseek-account"
     }
   ]
 }

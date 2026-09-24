@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render } from '@testing-library/react'
 import type { StartedToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { ToolCallOwnerProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import { IconGlobeOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
-import { webCardModel } from '../src/client/tool/models/web-card-model.ts'
+import { webCardModel, webFetchHref } from '../src/client/tool/models/web-card-model.ts'
 import { GenericToolCard } from '../src/client/tool/toolviews/GenericToolCard.tsx'
 import { WebRow, webToolview } from '../src/client/tool/toolviews/web-row.tsx'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
@@ -123,6 +123,20 @@ describe('webCardModel', () => {
   })
 })
 
+describe('webFetchHref', () => {
+  it('returns only an http(s) web_fetch URL', () => {
+    expect(webFetchHref(settledFetch())).toBe('https://example.com/page')
+    expect(webFetchHref(settledFetch({ call: { name: 'web_fetch', argsRaw: '{"url":"http://a.test/"}' } })))
+      .toBe('http://a.test/')
+    expect(webFetchHref(settledFetch({ call: { name: 'web_fetch', argsRaw: '{"url":"javascript:alert(1)"}' } })))
+      .toBeUndefined()
+    expect(webFetchHref(settledFetch({ call: { name: 'web_fetch', argsRaw: '{"url":"not a url"}' } }))).toBeUndefined()
+    expect(webFetchHref(settledFetch({ call: { name: 'web_fetch', argsRaw: '{"url":1}' } }))).toBeUndefined()
+    expect(webFetchHref(settledFetch({ call: null }))).toBeUndefined()
+    expect(webFetchHref(settledSearch())).toBeUndefined()
+  })
+})
+
 describe('chat row web body', () => {
   const ownerProps = (block: StartedToolCall | ToolResultNode, toolName: string): ToolCallOwnerProps => ({
     useDisclosure, callId: block.callId, toolName, ...('kind' in block ? { phase: 'result' as const, block: block } : { phase: block.phase, block: block }), openFile: vi.fn(), loadImage: vi.fn(() => Promise.reject(new Error('not used'))),
@@ -163,6 +177,24 @@ describe('chat row web body', () => {
     const card = view.container.querySelector('[data-web="fetch"]')
     expect(card?.querySelector('a')?.getAttribute('href')).toBe('https://example.com/page')
     expect(view.getByText('HTTP 200')).toBeTruthy()
+  })
+
+  it('the collapsed WebRow summary opens the fetch URL in a new tab without expanding', () => {
+    const view = render(<WebRow {...rowProps(settledFetch(), 'web_fetch')} />)
+    const link = view.getByRole('link', { name: 'https://example.com/page' })
+    expect(link.getAttribute('href')).toBe('https://example.com/page')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer')
+    // jsdom does not implement navigation; cancel it after the row's handlers run.
+    link.addEventListener('click', (event) => { event.preventDefault() })
+    fireEvent.click(link)
+    fireEvent.keyDown(link, { key: 'Enter' })
+    expect(view.container.querySelector('[data-web]')).toBeNull()
+  })
+
+  it('a failed web fetch keeps its plain error summary', () => {
+    const view = render(<WebRow {...rowProps(settledFetch({ isError: true }), 'web_fetch')} />)
+    expect(view.queryByRole('link')).toBeNull()
   })
 
   it('a running web call is the summary row alone, with nothing to expand', () => {

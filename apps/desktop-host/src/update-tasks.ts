@@ -6,6 +6,21 @@ import type {} from '@deepseek-ai/dsh-jobs'
 import type {} from '@deepseek-ai/dsh-client-connection'
 
 /**
+ * Whether stopping the Host now would interrupt work: a generating or tool-running
+ * agent (including subagents and turns waiting for approval), queued inbox
+ * messages, or a running or stopping background job.
+ * @param liveAgents - Current agent roster.
+ * @param jobs - Job registry queried for the global roster and each agent's own jobs.
+ * @returns true when any of those conditions holds.
+ */
+export function hasDesktopActiveTasks(liveAgents: ReturnType<Context['agents']['list']>, jobs: Context['jobs']): boolean {
+  return liveAgents.some(agent => agent.status === 'running'
+    || agent.inbox.nextTurn.length > 0 || agent.inbox.nextStep.length > 0)
+    || [undefined, ...liveAgents].some(agent => jobs.list(agent?.id)
+      .some(job => job.status === 'running' || job.status === 'stopping'))
+}
+
+/**
  * Register update admission on the owning Host context.
  * @param ctx - Booted Desktop profile context; disposal removes the request listener.
  * @returns Task inspector whose lock refuses new API requests, drains admitted requests, and rechecks work.
@@ -42,10 +57,6 @@ export function installDesktopUpdateTaskControl(ctx: Context): (action: 'inspect
       if (stopped) throw new Error('desktop update: Host is stopping')
       if (generation !== lockGeneration) throw new Error('desktop update: admission lock was superseded')
     }
-    const liveAgents = agents.list()
-    return liveAgents.some(agent => agent.status === 'running'
-      || agent.inbox.nextTurn.length > 0 || agent.inbox.nextStep.length > 0)
-      || [undefined, ...liveAgents].some(agent => jobs.list(agent?.id)
-        .some(job => job.status === 'running' || job.status === 'stopping'))
+    return hasDesktopActiveTasks(agents.list(), jobs)
   }
 }

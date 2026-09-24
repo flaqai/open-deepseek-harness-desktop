@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-community-upstream-alpha2-session-migration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-08-community-upstream-alpha2-session-migration.md
-2026-09-08-community-upstream-alpha2-session-migration.md: 379483ccd0462b908b044cd56d0034a5150c038a
-2026-09-08-community-upstream-alpha2-session-migration.zh.md: 91afdebe98eb6a97537586995e6e67d203451459
+/agent-note-community-desktop-integration-of-upstream-0-1-3-alpha-2:
+  en: 5882a1a6acf038cb
+  zh: 5338bb40c0779c86
+/agent-note-community-desktop-integration-of-upstream-0-1-3-alpha-2/problem:
+  en: 3d6857aba946b483
+  zh: 90dbfa69d164826d
+/agent-note-community-desktop-integration-of-upstream-0-1-3-alpha-2/decision:
+  en: c6a1becaec3bbb54
+  zh: ada7b4db9f4cdda9
+/agent-note-community-desktop-integration-of-upstream-0-1-3-alpha-2/alternatives-considered:
+  en: d40a0c69be7687a4
+  zh: ca0eecfbf331e6a1
+/agent-note-community-desktop-integration-of-upstream-0-1-3-alpha-2/consequences:
+  en: 254a2a88df4b6778
+  zh: 1ebd521d9bb13e28
+/agent-note-community-desktop-integration-of-upstream-0-1-3-alpha-2/verification:
+  en: a006e7c32e74b8ae
+  zh: 95990cc36e73d1c8

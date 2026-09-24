@@ -28,7 +28,7 @@ async function jsonlFiles(dir: string): Promise<string[]> {
 }
 
 describe('time-context through the production headless profile', () => {
-  it('uses the process zone and persists one ordered context event per request', async () => {
+  it('uses the process zone and throttles context across turns by default', async () => {
     let events: SessionEvent[] = []
     const { stderr } = await runLoaderSmoke({
       label: 'time-context headless smoke',
@@ -52,7 +52,7 @@ describe('time-context through the production headless profile', () => {
       (event): event is SessionEvent<'user/message'> => event.type === 'user/message'
         && event.data.source.kind === 'time-context')
     const starts = events.filter(event => event.type === 'step/start')
-    expect(contexts).toHaveLength(2)
+    expect(contexts).toHaveLength(1)
     expect(starts).toHaveLength(2)
     for (let index = 0; index < contexts.length; index += 1) {
       expect(contexts[index]!.seq).toBeGreaterThan(starts[index]!.seq)
@@ -73,10 +73,6 @@ describe('time-context through the production headless profile', () => {
       /Time sampled while preparing turn 1, step 1: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00\[Asia\/Shanghai\]/,
     )
     expect(contextText[0]).toContain('Elapsed since the preceding model-visible message: unavailable.')
-    expect(contextText[1]).toMatch(/Time sampled while preparing turn 2, step 1:/)
-    expect(contextText[1]).toMatch(
-      /Elapsed since the preceding model-visible message: (?:\d+d )?(?:\d+h )?(?:\d+m )?\d+s\./,
-    )
 
     const headers = events.filter(event => event.type === 'request/header')
     expect(JSON.stringify(headers)).not.toContain('Time sampled while preparing')

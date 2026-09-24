@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-issue-25-desktop-recovery-hardening.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-15-issue-25-desktop-recovery-hardening.md
-2026-09-15-issue-25-desktop-recovery-hardening.md: 317783fe9c77631753ca01f5a6ccd962d5a1872a
-2026-09-15-issue-25-desktop-recovery-hardening.zh.md: a37dbe5baca065ccd01feed3c7fc633473253ea8
+/agent-note-issue-25-desktop-recovery-hardening:
+  en: dfb9e61b05e8c306
+  zh: 05ff03a603d1a355
+/agent-note-issue-25-desktop-recovery-hardening/problem:
+  en: 96e25472a6c82012
+  zh: f763dd112dd9b806
+/agent-note-issue-25-desktop-recovery-hardening/decision:
+  en: baa871821370b49b
+  zh: adb5df703d3659cf
+/agent-note-issue-25-desktop-recovery-hardening/alternatives-considered:
+  en: 17804c7a4c8e9c13
+  zh: e4734837ecbb0249
+/agent-note-issue-25-desktop-recovery-hardening/consequences:
+  en: bb826f5389d6b235
+  zh: 07253dec8966ece4

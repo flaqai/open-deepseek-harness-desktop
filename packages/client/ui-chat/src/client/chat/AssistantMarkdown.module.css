@@ -92,7 +92,7 @@
 .stopped {
   align-self: flex-start;
   padding: 0 6px;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;

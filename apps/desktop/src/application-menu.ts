@@ -122,7 +122,7 @@ export function applicationMenuTemplate(
   const t = menuCopy(state.locale)
   const mac = state.platform === 'darwin'
   const shortcuts: Partial<Record<DesktopCommand, string>> = {
-    'new-session': 'CmdOrCtrl+N', settings: 'CmdOrCtrl+,', close: 'CmdOrCtrl+W', quit: mac ? 'Command+Q' : 'Ctrl+Q',
+    'new-session': 'CmdOrCtrl+N', settings: 'CmdOrCtrl+,', quit: mac ? 'Command+Q' : 'Ctrl+Q',
     undo: 'CmdOrCtrl+Z', redo: mac ? 'Command+Shift+Z' : 'Ctrl+Y', cut: 'CmdOrCtrl+X', copy: 'CmdOrCtrl+C',
     paste: 'CmdOrCtrl+V', 'select-all': 'CmdOrCtrl+A', 'zoom-in': 'CmdOrCtrl+Plus',
     'zoom-out': 'CmdOrCtrl+-', 'zoom-reset': 'CmdOrCtrl+0', fullscreen: mac ? 'Control+Command+F' : 'F11',

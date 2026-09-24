@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-20-macos-tray-template-icon.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-20-macos-tray-template-icon.md
-2026-08-20-macos-tray-template-icon.md: 7c8c9c402cad22b105f8e5b6d4422d895bf3754b
-2026-08-20-macos-tray-template-icon.zh.md: 3d6f1d830c796c79bafadd2aad822da4fa9c7206
+/agent-note-give-the-macos-tray-a-dedicated-template-icon:
+  en: f63bc7e82a1d48f1
+  zh: bd015e1d10f71dea
+/agent-note-give-the-macos-tray-a-dedicated-template-icon/problem:
+  en: 1e0ee436dfc17322
+  zh: 9f6aaa47dfd2537b
+/agent-note-give-the-macos-tray-a-dedicated-template-icon/decision:
+  en: 1d2c2c6cc378901a
+  zh: a27960508424b26d
+/agent-note-give-the-macos-tray-a-dedicated-template-icon/alternatives-considered:
+  en: b6b12f6fcd5196f5
+  zh: 19c46fec05f5e065
+/agent-note-give-the-macos-tray-a-dedicated-template-icon/verification:
+  en: db3e1656f603206a
+  zh: dbdcdea554efda84
+/agent-note-give-the-macos-tray-a-dedicated-template-icon/consequences:
+  en: c98b93f752d42d91
+  zh: b26195be5dce9c5b

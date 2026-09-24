@@ -61,7 +61,10 @@ function harness() {
     const surface = instance.getSnapshot().bySession[SESSION]
     if (surface !== undefined) controller.tabDomain.sync(SESSION, surface.layout)
     return controller.bind({
-      sessionId: SESSION, actions: instance.actions, surfaces: instance.getSnapshot().bySession, canSplitPane: () => room.allowed,
+      sessionId: SESSION, actions: instance.actions, surfaces: instance.getSnapshot().bySession,
+      closeWithFocus: (_paneId, close) => { close() },
+      openWithFocus: (open) => { open() },
+      canSplitPane: () => room.allowed,
     })
   }
   const titles = (): string[] => {
@@ -523,7 +526,8 @@ describe('SidebarRightController — a tab\'s own actions', () => {
       sessionId: OTHER,
       actions: other.actions,
       surfaces: other.getSnapshot().bySession,
-      canSplitPane: () => true,
+      closeWithFocus: (_paneId, close) => { close() },
+      openWithFocus: (open) => { open() }, canSplitPane: () => true,
     })
     controller.openResourceIn(SESSION, A_TXT)
     expect(titles()).toContain('a.txt')
@@ -550,7 +554,12 @@ describe('SidebarRightController — a tab\'s own actions', () => {
     other.actions.setExpanded(OTHER, true)
     const otherSurface = other.getSnapshot().bySession[OTHER]
     if (otherSurface === undefined) throw new Error('expected the other surface')
-    controller.bind({ sessionId: OTHER, actions: other.actions, surfaces: other.getSnapshot().bySession, canSplitPane: () => true })
+    controller.bind({
+      sessionId: OTHER, actions: other.actions, surfaces: other.getSnapshot().bySession,
+      closeWithFocus: (_paneId, close) => { close() },
+      openWithFocus: (open) => { open() },
+      canSplitPane: () => true,
+    })
     fromOwn.openResource(B_TXT)
     fromOwn.openTab('guide', { revealIfOpened: false })
     expect(Object.values(layout().tabs).map(tab => tab.title)).toContain('b.txt')

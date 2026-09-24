@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-imported-plugin-source-recovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-imported-plugin-source-recovery.md
-2026-08-26-imported-plugin-source-recovery.md: 0da6fab71c56077dd39c2e1bf25bad8f2d34d556
-2026-08-26-imported-plugin-source-recovery.zh.md: 2cd07bc3f6ef4434c4c6576360bc0ff7a7e7fc23
+/agent-note-imported-plugin-source-checks-and-local-recovery:
+  en: a4230ac4ae90ee38
+  zh: 0a6748b57394cbc0
+/agent-note-imported-plugin-source-checks-and-local-recovery/problem:
+  en: 570563fd2ab43b2a
+  zh: 786fb90ba4d0f9e7
+/agent-note-imported-plugin-source-checks-and-local-recovery/decision:
+  en: 06e97763178c4d0b
+  zh: f60563840f553c36
+/agent-note-imported-plugin-source-checks-and-local-recovery/alternatives-considered:
+  en: 7453c9c58c5d7f15
+  zh: d42fbc2c396f2b24
+/agent-note-imported-plugin-source-checks-and-local-recovery/consequences:
+  en: 0c1e30ae482aa37b
+  zh: e4b690d3b12983cc

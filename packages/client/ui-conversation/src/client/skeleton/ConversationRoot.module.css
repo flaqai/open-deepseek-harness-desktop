@@ -110,13 +110,13 @@
   min-height: 0;
 }
 
-/* macOS hiddenInset titlebar: window dragging comes from ui-layout's
-   .leadingBand (the frame's first child), never from this header. Electron
-   composes app-regions in document order ignoring stacking, so a drag rule
-   here would keep eating clicks through overlays mounted earlier in the DOM
-   (the settings modal lives in the sidebar column). The title-row clusters
-   overlap the band and subtract their whole boxes; individual controls are
-   covered by the base.css interactive-element rule. */
+/* macOS hiddenInset titlebar: the header block owns the window drag over its
+   own box — title row plus the view tab strip, so the draggable geometry is the
+   header's geometry and no frame band has to match its height. The header marks
+   itself `data-window-drag` (ConversationHeader); below it the title-row clusters
+   subtract their whole boxes, and individual controls are covered by the base.css
+   interactive-element rule. A covering overlay lives beside #root
+   (ui-settings-general), which puts it after this row in document order. */
 :global([data-platform='darwin']) .headerLeading,
 :global([data-platform='darwin']) .headerActions,
 :global([data-platform='darwin']) .headerUtilities,
@@ -191,7 +191,7 @@
   overflow: hidden;
   padding: 4px 8px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-md);
   background: transparent;
   font-size: 14px;
   line-height: 20px;

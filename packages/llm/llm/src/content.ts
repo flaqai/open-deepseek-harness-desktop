@@ -1,6 +1,6 @@
 /** Content-block structure helpers. @module @deepseek-ai/dsh-llm/content */
 
-import type { ContentBlock, ImageBlock, LlmImageRequestBudget } from './types.ts'
+import type { ContentBlock, ImageBlock, LlmImageRequestBudget, ToolSchema, ToolUpdate, ToolHistory } from './types.ts'
 import type { RequestMessage } from './types.ts'
 import type { Message } from './message.ts'
 import type {
@@ -363,4 +363,130 @@ export function projectImagesForTextModel(messages: readonly RequestMessage[]): 
     const content = replaceImagesForTextModel(message.content)
     return content === message.content ? message : { ...message, content }
   })
+}
+
+/** Request messages and tools after one route's tool update projection. */
+export interface ProjectedToolUpdates {
+  /** History with only the developer updates supported by this route and declaration series. */
+  readonly messages: readonly RequestMessage[]
+  /** Provider declarations, including deferred and retained definitions when supported. */
+  readonly tools: readonly ToolSchema[] | undefined
+}
+
+function withoutDeveloperMessages(messages: readonly RequestMessage[]): readonly RequestMessage[] {
+  const retained = messages.filter(message => message.role !== 'developer')
+  return retained.length === messages.length ? messages : retained
+}
+
+function toolDeclarations(
+  tools: readonly ToolSchema[] | undefined,
+  mode: ToolUpdate,
+  history: ToolHistory,
+): Map<string, ToolSchema> {
+  const declarations = new Map(history.tools.map(tool => [tool.name, tool]))
+  for (const update of history.updates) {
+    for (const tool of update.additions) {
+      if (!declarations.has(tool.name)) {
+        // Later additions activate these definitions at their recorded position.
+        declarations.set(tool.name, { ...tool, deferLoading: true })
+      }
+    }
+  }
+
+  switch (mode) {
+    case 'in-history':
+      // Removal blocks disable tools without discarding their historical definitions.
+      return declarations
+    case 'addition-only': {
+      // Without removal support, the declaration list must omit inactive tools.
+      const activeNames = new Set(tools?.map(tool => tool.name))
+      for (const name of declarations.keys()) {
+        if (!activeNames.has(name)) declarations.delete(name)
+      }
+      return declarations
+    }
+    /* v8 ignore next 2 -- closed-union exhaustiveness guard */
+    default:
+      return assertNever(mode)
+  }
+}
+
+/**
+ * Construct provider declarations from session-folded history without changing logged active tools.
+ * Unsupported routes and incomplete history use current declarations without developer updates.
+ * Explicitly deferred baseline tools become available only after their first retained addition.
+ * @param messages - complete request inputs, or the prefix selected for an auxiliary call.
+ * @param tools - currently active tool schemas.
+ * @param toolUpdate - the resolved route's update mode.
+ * @param history - immutable state folded from committed headers and developer messages.
+ * @returns provider declarations and the corresponding filtered history.
+ */
+export function projectToolUpdates(
+  messages: readonly RequestMessage[],
+  tools: readonly ToolSchema[] | undefined,
+  toolUpdate: ToolUpdate | undefined,
+  history?: ToolHistory,
+): ProjectedToolUpdates {
+  if (toolUpdate === undefined) {
+    // Unsupported routes need immediately available tools and no update messages.
+    let immediateTools = tools
+    if (tools?.some(tool => tool.deferLoading === true)) {
+      immediateTools = tools.map(({ deferLoading: _loading, ...tool }) => tool)
+    }
+    return { messages: withoutDeveloperMessages(messages), tools: immediateTools }
+  }
+
+  if (history === undefined) {
+    // Current schemas alone cannot resolve definitions referenced by past updates.
+    return { messages: withoutDeveloperMessages(messages), tools }
+  }
+  const messageIds = new Set(messages.flatMap(message => message.role === 'developer' ? [message.id] : []))
+  if (history.updates.some(update => !messageIds.has(update.messageId))) {
+    // An auxiliary prefix may omit updates needed to activate historical declarations.
+    return { messages: withoutDeveloperMessages(messages), tools }
+  }
+
+  const declarations = toolDeclarations(tools, toolUpdate, history)
+  const updateIds = new Set(history.updates.map(update => update.messageId))
+  // Deferred baseline tools still need their first addition to become available.
+  const offered = new Set(history.tools.filter(tool => !tool.deferLoading).map(tool => tool.name))
+  const projectedMessages: RequestMessage[] = []
+  for (const message of messages) {
+    if (message.role !== 'developer') {
+      projectedMessages.push(message)
+      continue
+    }
+    // Earlier declaration series do not govern the current tool set.
+    if (!updateIds.has(message.id)) continue
+
+    const content = message.content.filter((block) => {
+      switch (block.type) {
+        case 'tool-addition':
+          // Only declared tools that are not already available need activation.
+          if (!declarations.has(block.toolName) || offered.has(block.toolName)) return false
+          offered.add(block.toolName)
+          return true
+        case 'tool-removal':
+          // Addition-only routes cannot deactivate a tool through history.
+          if (toolUpdate !== 'in-history') return false
+          return offered.delete(block.toolName)
+        default:
+          // Other core and plugin-defined blocks retain their content and order.
+          return true
+      }
+    })
+    if (content.length === 0) continue
+    if (content.length === message.content.length) {
+      projectedMessages.push(message)
+    } else {
+      projectedMessages.push({ ...message, content })
+    }
+  }
+
+  const unchanged = projectedMessages.length === messages.length
+    && projectedMessages.every((message, index) => message === messages[index])
+  return {
+    messages: unchanged ? messages : projectedMessages,
+    tools: [...declarations.values()],
+  }
 }

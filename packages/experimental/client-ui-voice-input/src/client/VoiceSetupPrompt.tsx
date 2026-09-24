@@ -1,6 +1,6 @@
-/** First-use guidance after explicit enablement, once the Host finishes inspecting its cache. */
+/** Activation guidance after the Host inspects local recognition resources. */
 import { useEffect } from 'react'
-import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { VoiceSetupDialog } from './VoiceSetupDialog.tsx'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type { VoiceInputInjected } from './VoiceInput.tsx'
@@ -23,11 +23,5 @@ export function VoiceSetupPrompt({ useSpeechReadiness, onDismiss, onOpenDetails,
   useEffect(() => {
     if (phase !== undefined && phase !== 'checking' && !needsSetup) onDismiss()
   }, [phase, needsSetup, onDismiss])
-  return <Modal open={needsSetup} title={t('setupPrompt.title')} closeLabel={t('cancel')} onClose={onDismiss}
-    footer={<>
-      <Button variant="ghost" onClick={onDismiss}>{t('setupPrompt.later')}</Button>
-      <Button variant="primary" onClick={onOpenDetails}>{t('setupPrompt.open')}</Button>
-    </>}>
-    <p>{t('setupPrompt.body')}</p>
-  </Modal>
+  return <VoiceSetupDialog open={needsSetup} needsInstallation onDismiss={onDismiss} onOpenDetails={onOpenDetails} t={t} />
 }

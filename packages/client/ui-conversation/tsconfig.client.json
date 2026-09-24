@@ -98,6 +98,9 @@
     },
     {
       "path": "../../context/file-reference"
+    },
+    {
+      "path": "../shortcuts/tsconfig.client.json"
     }
   ],
   "exclude": [

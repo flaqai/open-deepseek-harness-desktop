@@ -50,7 +50,7 @@ function props(text = '<p>hello</p>'): HtmlBodyProps {
     content: { kind: 'bytes', data: utf8(text) },
     wrap: false,
     sessionId: 'html' as SessionId,
-    useTabInfo: () => ({ tab: { signal } }),
+    useTabInfo: () => ({ tab: { id: TAB_ID, signal } }),
     readRelated: vi.fn(),
     addResource: vi.fn(),
     setResources: vi.fn(),
@@ -139,6 +139,7 @@ describe('HtmlBody', () => {
     const basic = { ...initial, useInteractivePreview: ((select: (enabled: boolean) => unknown) => select(false)) as HtmlBodyProps['useInteractivePreview'] }
     const view = render(<HtmlBody {...basic} />)
     const frame = screen.getByTitle(en.frame)
+    expect(frame.getAttribute('name')).toBe(`dsh-sidebar-html-${TAB_ID}`)
     expect(frame.getAttribute('sandbox')).toBe('')
     expect(frame.getAttribute('srcdoc')).toContain("default-src 'none'")
     expect(frame.getAttribute('srcdoc')).not.toContain('<script')
@@ -148,6 +149,7 @@ describe('HtmlBody', () => {
     view.rerender(<HtmlBody {...scripted} />)
     const advanced = await screen.findByTitle(en.frame)
     expect(advanced).not.toBe(frame)
+    expect(advanced.getAttribute('name')).toBe(`dsh-sidebar-html-${TAB_ID}`)
     expect(advanced.getAttribute('sandbox')).toBe('allow-scripts')
     view.rerender(<HtmlBody {...basic} />)
     expect(advanced.isConnected).toBe(false)

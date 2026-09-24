@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-14-external-tool-download-progress.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-14-external-tool-download-progress.md
-2026-09-14-external-tool-download-progress.md: 3449cd86344d512f0ad20b1a71d01d1f21814961
-2026-09-14-external-tool-download-progress.zh.md: a5dfa11598e61b5ccce52f1197c672a30c396318
+/agent-note-external-tool-download-progress-stays-observational:
+  en: 4e8ae34976be0391
+  zh: 0be3ba806c02b4d2
+/agent-note-external-tool-download-progress-stays-observational/problem:
+  en: efbcb9b598214713
+  zh: 2b05541b9d4fd3bb
+/agent-note-external-tool-download-progress-stays-observational/decision:
+  en: a12617ede7a40dcc
+  zh: 15024e8cd8fe4011
+/agent-note-external-tool-download-progress-stays-observational/alternatives-considered:
+  en: 76f61fd370207b93
+  zh: 4b2e183761f499f3
+/agent-note-external-tool-download-progress-stays-observational/consequences:
+  en: c7aed1c06fc92195
+  zh: 05a10a051f8494ec

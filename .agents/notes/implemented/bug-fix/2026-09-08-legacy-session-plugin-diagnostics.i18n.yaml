@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-legacy-session-plugin-diagnostics.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-08-legacy-session-plugin-diagnostics.md
-2026-09-08-legacy-session-plugin-diagnostics.md: 3c511762802538b73c8d03663713345800aaf5e8
-2026-09-08-legacy-session-plugin-diagnostics.zh.md: de6ff2b330e097946089c71627ae02790deadad8
+/agent-note-legacy-session-plugin-diagnostics:
+  en: c4991fd622f927db
+  zh: 3bc08a8e84658c74
+/agent-note-legacy-session-plugin-diagnostics/problem:
+  en: 2a9fc073623e6a04
+  zh: 56773dda11efb417
+/agent-note-legacy-session-plugin-diagnostics/decision:
+  en: ca3ce6296d5e83ef
+  zh: c792ad47c1e2b589
+/agent-note-legacy-session-plugin-diagnostics/alternatives-considered:
+  en: 0f9da735fe6ac1f7
+  zh: 858cf2df138c80ea
+/agent-note-legacy-session-plugin-diagnostics/consequences:
+  en: d91750a8af3c5939
+  zh: 6cbacae8fd089ec1

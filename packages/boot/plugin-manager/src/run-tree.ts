@@ -44,6 +44,24 @@ function targetOf(pid: number, grouped: boolean, platform: NodeJS.Platform): num
 }
 
 /**
+ * Whether any member of a run's tree is still alive.
+ * @param tree The run's process id and whether it leads its own group.
+ * @param internals Injectable process operations.
+ * @returns True while the probe finds the process or a group member.
+ */
+export function treeAlive(tree: RunTree, internals: RunTreeInternals = {}): boolean {
+  const pid = tree.pid
+  if (pid === undefined) return false
+  const platform = internals.platform ?? process.platform
+  const alive = internals.alive ?? ((target: number) => { process.kill(target, 0); return true })
+  try {
+    return alive(targetOf(pid, tree.grouped, platform))
+  } catch {
+    return false
+  }
+}
+
+/**
  * Wait until a terminated run's tree is gone, so the caller restores and
  * unlocks the profile only after the scripts it started stopped writing.
  * @param tree The run's process id and whether it leads its own group.
@@ -51,19 +69,8 @@ function targetOf(pid: number, grouped: boolean, platform: NodeJS.Platform): num
  * @returns Fulfillment once no member remains, or the wait bound elapsed.
  */
 export async function awaitTreeGone(tree: RunTree, internals: RunTreeInternals = {}): Promise<void> {
-  const pid = tree.pid
-  if (pid === undefined) return
-  const platform = internals.platform ?? process.platform
-  const alive = internals.alive ?? ((target: number) => { process.kill(target, 0); return true })
-  const remaining = (): boolean => {
-    try {
-      return alive(targetOf(pid, tree.grouped, platform))
-    } catch {
-      return false
-    }
-  }
   const deadline = Date.now() + (internals.waitMs ?? TREE_WAIT_MS)
-  while (remaining()) {
+  while (treeAlive(tree, internals)) {
     if (Date.now() >= deadline) return
     await new Promise(resolve => setTimeout(resolve, TREE_POLL_MS))
   }

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-29-market-owned-plugin-discovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-29-market-owned-plugin-discovery.md
-2026-08-29-market-owned-plugin-discovery.md: 1c398214ac2fa2865e3ebc6d0cf9661efbdc9c9f
-2026-08-29-market-owned-plugin-discovery.zh.md: db225009cf2611b8acbcb6b333e180e65672abbd
+/agent-note-desktop-owned-plugin-discovery-preview:
+  en: 831944d87b773ca4
+  zh: aec75fd628f54b4c
+/agent-note-desktop-owned-plugin-discovery-preview/problem:
+  en: 8ec650dfb81c6b83
+  zh: cb2a69318008604b
+/agent-note-desktop-owned-plugin-discovery-preview/decision:
+  en: e7f79296d8c92841
+  zh: c1d9c233e1c3f942
+/agent-note-desktop-owned-plugin-discovery-preview/alternatives-considered:
+  en: 372a0bab96aaab37
+  zh: 652dddfb83f443dd
+/agent-note-desktop-owned-plugin-discovery-preview/consequences:
+  en: d91f6da47a66e2c2
+  zh: 6c9029c8ccb42c40

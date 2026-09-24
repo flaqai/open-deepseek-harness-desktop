@@ -24,6 +24,7 @@ it('waits for a mounted container and observes native history, titles and new-ta
   expect(h.bridge.acquire).not.toHaveBeenCalled()
   h.mount()
   const guest = await h.guest()
+  expect(guest.element.getAttribute('name')).toBe(h.reservation.lease)
   expect(guest.element.getAttribute('partition')).toBe(h.reservation.partition)
   expect(guest.element.getAttribute('src')).toBe(`about:blank#${h.reservation.lease}`)
   guest.emit('dom-ready')

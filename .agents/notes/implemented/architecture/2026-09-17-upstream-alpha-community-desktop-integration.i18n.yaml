@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-upstream-alpha-community-desktop-integration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-upstream-alpha-community-desktop-integration.md
-2026-09-17-upstream-alpha-community-desktop-integration.md: 8405962c52175d7239bd48fff63d8d9456d380e7
-2026-09-17-upstream-alpha-community-desktop-integration.zh.md: f1c24ff9568f271096ea35b30350f0fc88dd8120
+/agent-note-integrate-the-upstream-alpha-runtime-with-community-desktop-ownership:
+  en: d897e7e7ce25e7b2
+  zh: defad8898ee43698
+/agent-note-integrate-the-upstream-alpha-runtime-with-community-desktop-ownership/problem:
+  en: f9c36cc58ae9cf97
+  zh: 28082f0c4040f558
+/agent-note-integrate-the-upstream-alpha-runtime-with-community-desktop-ownership/decision:
+  en: a3ac9e216c833fda
+  zh: 84b0e81c8affb09b
+/agent-note-integrate-the-upstream-alpha-runtime-with-community-desktop-ownership/alternatives-considered:
+  en: 2b58ed8959c6bf8c
+  zh: 4e9ae12aa7213983
+/agent-note-integrate-the-upstream-alpha-runtime-with-community-desktop-ownership/consequences:
+  en: f80f2ba711237cb8
+  zh: b4aafa519fa1b4c2

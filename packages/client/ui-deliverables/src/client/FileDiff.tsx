@@ -134,6 +134,7 @@ function noteOf(diff: Extract<ChangesDiff, { kind: 'text' }>): 'diff.created' | 
 
 /**
  * Render a file comparison with the same states and highlighting in previews and review tabs.
+ * Addition-only and deletion-only comparisons use one column without changing the requested layout.
  * @param props - comparison state, layout choices, retry action, and localized copy.
  * @returns the comparison or its loading, unavailable, or error state.
  */
@@ -150,7 +151,10 @@ export function FileDiff({ state, split, wrap, retry, t }: {
   }
   if (state.kind === 'binary') return <p className={css.status}>{t('diff.binary')}</p>
   if (state.kind === 'oversized') return <p className={css.status}>{t('diff.oversized')}</p>
-  return <TextDiff diff={state} split={split} wrap={wrap} t={t} />
+  const hasAdditions = state.hunks.some(hunk => hunk.lines.some(line => line.startsWith('+')))
+  const hasDeletions = state.hunks.some(hunk => hunk.lines.some(line => line.startsWith('-')))
+  const oneSided = hasAdditions !== hasDeletions
+  return <TextDiff diff={state} split={split && !oneSided} wrap={wrap} t={t} />
 }
 
 /** The kind a paired row carries: a deletion or addition on either side, otherwise context. */

@@ -197,42 +197,18 @@
   left: 12px;
 }
 
-/* The full-width window drag band (macOS desktop, always mounted): the
-   window's top strip stays draggable over every panel in both sidebar states.
-   Pointer events pass through (Electron app-regions are geometry, not hit
-   testing), and it renders as the frame's first child — before all column
-   content and overlays — so app-regions composing in document order let every
-   later no-drag (base.css's interactive-element rule, overlay boxes) subtract
-   from this band. That ordering is the drag mechanism's single invariant:
-   drag regions live only on early chrome bands like this one, never on
-   content containers, which would override earlier-mounted overlays. 52px
-   matches the sidebar top strip's height. */
-.leadingBand {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 52px;
-  pointer-events: none;
-  -webkit-app-region: drag;
-}
-
-/* While the Conversation is the selected main panel AND its header shows the
-   view tab strip (data-conversation-tabs, ui-conversation), the band deepens
-   to the full 76px header block — title row plus tab strip, also the right
-   panel's strip-plus-toolbar header — so blank header space drags while its
-   controls stay clickable through the base.css no-drag rules. Without the
-   strip the header compacts to the title row, which the 52px band already
-   covers; entry pages keep the 52px strip too. */
-.frame[data-panel-conversation]:has([data-conversation-tabs]) .leadingBand {
-  height: 76px;
-}
+/* The frame declares no window drag of its own: every chrome row owns the drag
+   over its own box (ui-web base.css holds the one rule; the ui-theme app-region
+   gate lists the rows). The ordering rule that replaces the old "band first"
+   invariant: a surface that covers the window and must stay clickable portals
+   beside #root, which puts it after every drag row in document order. The Windows
+   caption row above is the other platform's chrome and stays. */
 
 /* The seat itself: the two 28px controls centered on the conversation title
    row (10px header inset + 30px row → centre y 25) and level with the traffic
    lights (centre y ≈ 24). Sits above column content, below frame overlays
    (20) and the fullscreen right panel (40). The box subtracts itself from any
-   window drag band beneath (Electron app-regions are geometry, not stacking). */
+   window drag row beneath (Electron app-regions are geometry, not stacking). */
 .leadingSeat {
   position: absolute;
   top: 11px;

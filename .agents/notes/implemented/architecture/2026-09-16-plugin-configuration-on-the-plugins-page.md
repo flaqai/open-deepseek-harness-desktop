@@ -20,7 +20,7 @@ The page passes `view: 'page'` for each form. Official plugin cards and details 
 
 **The four host-plane pages register while the Host serves their namespaces.** Each page's package registers it through `ctx.slots.inject` when the shared settings mirror shows the namespace and disposes it when the namespace goes, so a deployment that does not compose the owning plugin shows no trace of it; since [settings pages as companion packages](2026-09-17-settings-pages-as-companion-packages.md) that is one companion package per page, and `ui-settings-plugins` keeps the Settings section as the **Built-in plugins** shell around the inventory tab. The `settings.plugin.item` slot is retired.
 
-**The Official group.** The optional bundles the installation ships open the group, tagged **Beta** where the feature is one (Agent Teams), with no official tag; the configuration pages follow. Auto review is a published experimental package used as the install guide's example, not an `OPTIONAL_BUNDLES` entry or a CLI dependency.
+**The Official group.** The optional bundles the installation ships open the group, tagged **Beta** where the package is experimental, with no official tag; the configuration pages follow. The [optional-bundle decision for experimental capabilities](2026-09-21-experimental-capabilities-as-optional-bundles.md) names the entries.
 
 ## Consequences
 

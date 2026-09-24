@@ -137,13 +137,23 @@ const trajectoryMessageDefinition: ConversationNodeDefinition<MessageNode> = {
   kind: 'trajectory-input-message',
   target: 'trajectory',
   match: (event) => {
-    // Developer history is persisted for V4; presentation is intentionally deferred.
-    if (event.type === 'developer/message') throw new Error('Trajectory developer messages are not supported yet')
-    return event.type === 'user/message'
+    return event.type === 'user/message' || event.type === 'developer/message'
       ? { id: String(event.seq), role: 'start' }
       : null
   },
   start: (_context, match, reader) => {
+    if (match.event.type === 'developer/message') {
+      const { seq, time, data: { message } } = match.event
+      return {
+        kind: 'context',
+        seq,
+        time,
+        content: message.content,
+        source: message.source,
+        producer: contextProducer(message.source),
+        form: contextForm(message.source),
+      }
+    }
     if (match.event.type !== 'user/message') {
       throw new Error('trajectory-input-message start requires user/message')
     }

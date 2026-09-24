@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-desktop-ipc-protocol-module.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-desktop-ipc-protocol-module.md
-2026-09-17-desktop-ipc-protocol-module.md: c298f23097f1965d434b6c54da2e3d160f26cb6c
-2026-09-17-desktop-ipc-protocol-module.zh.md: df99de95bd25a6d0f50195bd21aef42a055625dd
+/agent-note-centralize-the-privileged-desktop-ipc-protocol:
+  en: 6a36c99a4d70232e
+  zh: e6b636ddfa7c1e2e
+/agent-note-centralize-the-privileged-desktop-ipc-protocol/problem:
+  en: ecf8329513c2f0c5
+  zh: 73cbdef321d09ee8
+/agent-note-centralize-the-privileged-desktop-ipc-protocol/decision:
+  en: 6e8a1e579c77a7ac
+  zh: 1748e521710e6d75
+/agent-note-centralize-the-privileged-desktop-ipc-protocol/alternatives-considered:
+  en: 0c5b12e94f48fc02
+  zh: 63ddf70339e68cf9
+/agent-note-centralize-the-privileged-desktop-ipc-protocol/consequences:
+  en: 01152b3aa5b714cb
+  zh: e27b7d91807cf03f

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-11-immutable-agent-input-diagnostics.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-11-immutable-agent-input-diagnostics.md
-2026-09-11-immutable-agent-input-diagnostics.md: 34399f737d4a1f116e2ac4cd6f0f317135555571
-2026-09-11-immutable-agent-input-diagnostics.zh.md: 7e633a33c1603a6789226766672bc883f1955e22
+/agent-note-immutable-agent-input-diagnostics:
+  en: fbefe292da163234
+  zh: d590c98b9adbc732
+/agent-note-immutable-agent-input-diagnostics/problem:
+  en: 4dc55ec3d97f2c26
+  zh: ec687242cec98614
+/agent-note-immutable-agent-input-diagnostics/decision:
+  en: 08b2f763be8c6b44
+  zh: 9f71531f8c9c6374
+/agent-note-immutable-agent-input-diagnostics/alternatives-considered:
+  en: 940effdae792ffbb
+  zh: 3806d5d154e71112
+/agent-note-immutable-agent-input-diagnostics/consequences:
+  en: 4b79ba3e0aac43d0
+  zh: fde5028a99032375

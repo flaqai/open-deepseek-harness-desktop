@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-14-desktop-product-name-unification.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-14-desktop-product-name-unification.md
-2026-09-14-desktop-product-name-unification.md: ed12e339d18e1275f4b8062f237d16e4fc63ba18
-2026-09-14-desktop-product-name-unification.zh.md: 34900d24bee3ba4a6b18724e044e2dbbed8424b1
+/agent-note-unify-the-desktop-product-name-without-changing-application-identity:
+  en: 4556d323ac50ac47
+  zh: 508c9ff59ea34c79
+/agent-note-unify-the-desktop-product-name-without-changing-application-identity/problem:
+  en: 8d8f44ccc865b760
+  zh: 84ae3d44119da030
+/agent-note-unify-the-desktop-product-name-without-changing-application-identity/decision:
+  en: cc45d918247f4f1d
+  zh: 1f9786a2a256d553
+/agent-note-unify-the-desktop-product-name-without-changing-application-identity/alternatives-considered:
+  en: 3f375bd91b3ba556
+  zh: 2848d6e150dc330f
+/agent-note-unify-the-desktop-product-name-without-changing-application-identity/consequences:
+  en: a5ad9fd95fb2f5ff
+  zh: f9e1def234615a9b
+/agent-note-unify-the-desktop-product-name-without-changing-application-identity/verification:
+  en: 63b6bca2e9e3627c
+  zh: f7bd4827f7e08481

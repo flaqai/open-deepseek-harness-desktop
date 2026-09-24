@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-custom-instructions",
   "description": "Global and Workspace-scoped user-authored model instructions",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",

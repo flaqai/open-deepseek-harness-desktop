@@ -17,7 +17,7 @@ Sidebar 负责活 Body 的保留，不依赖 Browser 导航和 Workspace 存储�
 - `DockLayout` 用稳定的 Tab 兄弟节点渲染 Sidebar 的一个或两个水平 Pane。现有递归 `DockSurface` 和独立 `FloatLayer` 仍可用于通用分割树渲染；布局引擎和序列化格式不变。
 - 每个 Tab 都有稳定的 Grid cell、frame、Header 容器和 Body 容器。显式 Grid 列决定停靠归属，Flex 分配 Header 与 Body 的高度。浮动只把同一个 frame 改为 `position: fixed`，不改父节点或替换 Body。
 - 浮动 frame 的零尺寸 Grid cell 在浮窗层建立层叠上下文。CSS `order` 表达该层内的浮窗深度，DOM 顺序始终按 Tab 身份排序。大量浮窗置顶不会把层级递增到菜单之上；选中项和 Tab 条排序均不重排内容节点列表。
-- 共同祖先不设置 transform、裁剪或包住全部内容的层叠上下文。停靠 cell 负责收起 transform 和显隐，各 frame 裁剪自身内容。Fullscreen 修改同一个根的宽度和停靠层级。窗口拖动区域的既有脉冲仍保留，但没有 RAF 复制内容位置。
+- 共同祖先不设置 transform、裁剪或包住全部内容的层叠上下文。停靠 cell 负责收起 transform 和显隐，各 frame 裁剪自身内容。Fullscreen 修改同一个根的宽度和停靠层级。右栏不再自带窗口拖拽脉冲：由外壳唯一那个 watcher 在表面可能移动时逐帧测量被打标行并自行脉冲 recall 标记，因此没有布局代码复制内容位置。
 - 分栏与浮窗手势沿用原有测量和操作状态，更新用户选择的分栏比例与浮窗矩形，而非维护第二份 Browser 矩形。窗口缩放和内容尺寸变化由普通 CSS 布局处理。
 
 ### 会话与 Tab 生命周期

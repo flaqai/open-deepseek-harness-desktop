@@ -61,33 +61,15 @@
   transition: transform var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
-/* One-frame app-region pulse at each open/close edge (RightbarSeat): changing
-   this computed value is what makes Electron recollect the window's drag
-   rects, which the slide's transform/visibility flips alone never dirty
-   (electron#32341). The panel's steady state sets no app-region in either
-   presentation, so this write is a real change at both edges — including a
-   hidden panel opening straight into fullscreen (a narrow window's first
-   open), whose rects were skipped while hidden. While set, the whole panel is
-   out of the drag band for that frame; the removal frame recollects the
-   steady-state geometry below. */
-:global(html[data-platform='darwin']) .panel[data-sidebar-right-region-nudge] {
-  -webkit-app-region: no-drag;
-}
-
 .panel[data-sidebar-right-panel='fullscreen'] {
   --dsh-dockkit-dock-layer: 40;
 }
 
 /* No whole-box subtraction here: Electron drag regions are window geometry,
-   not stacking, so the frame's leading band does keep acting through this
-   fullscreen content — but the kit already subtracts every box that must stay
-   usable (tabs, strip-end chrome, pane bodies, dividers; ui-dockkit), and
-   ui-web base.css subtracts interactive elements and portalled overlays.
-   What remains of the band under the strips' blank runs is the window drag
-   affordance, the same native-tab-bar reading as the push presentation. A
-   panel-wide no-drag would trade it away and, worse, make no-drag the
-   steady state, turning the open/close pulse above into a computed-value
-   no-op exactly when a hidden panel opens straight into fullscreen. */
+   not stacking, so a strip row inside this fullscreen content that marks itself
+   `data-window-drag` (ui-dockkit) still owns the drag over its own box, and
+   ui-web base.css subtracts interactive elements and portalled overlays. A
+   panel-wide no-drag would trade that drag affordance away. */
 
 /* Windows keeps caption controls above fullscreen file and terminal panels. */
 :global([data-windows-titlebar]) .panel[data-sidebar-right-panel='fullscreen'] {
@@ -141,7 +123,7 @@
   line-height: 1;
   background: transparent;
   border: none;
-  border-radius: 28px;
+  border-radius: var(--dsw-radius-sm);
   cursor: pointer;
 }
 
@@ -199,4 +181,18 @@
     height: 44px;
     padding: 14px;
   }
+}
+
+/* Keep the title's icon and text in dockkit's flex row while retaining occurrence markers. */
+.tabTitle {
+  display: contents;
+}
+
+.tabBody {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }

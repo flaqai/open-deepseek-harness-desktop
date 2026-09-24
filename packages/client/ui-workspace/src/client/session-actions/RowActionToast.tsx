@@ -15,14 +15,16 @@ const LONG_TOAST_HOLD_MS = 6000
 
 /**
  * Render the current notice: the archived and stopped-and-archived notices
- * with their undo and show-archived actions on a 6 s hold, a refused Session
- * creation with the Host's reason on the same hold, or a plain warning for a
- * failed pin, an archived row that was clicked, or default Workspace creation.
- * @param props - the notice hook, its dismissal, the two archived-notice actions, and the locale seat.
+ * with their undo action — plus the show-archived action while archived rows
+ * are hidden — on a 6 s hold, a refused Session creation with the Host's
+ * reason on the same hold, or a plain warning for a failed pin, an archived
+ * row that was clicked, or default Workspace creation.
+ * @param props - the notice hook, the shared viewing store, the notice dismissal, the two archived-notice actions, and the locale seat.
  * @returns the notice on display, or null.
  */
-export function RowActionToast({ useToast, dismissToast, undoArchive, showArchived, t }: RowToastProps) {
+export function RowActionToast({ useToast, useStore, dismissToast, undoArchive, showArchived, t }: RowToastProps) {
   const toast = useToast(current => current)
+  const archivedRowsVisible = useStore(state => (state.archivedFilter ?? 'default') !== 'default')
   if (toast === null) return null
   if (toast.kind === 'archived' || toast.kind === 'stoppedAndArchived') {
     const { sessionId } = toast
@@ -34,7 +36,9 @@ export function RowActionToast({ useToast, dismissToast, undoArchive, showArchiv
         holdMs={LONG_TOAST_HOLD_MS}
         actions={[
           { label: t('toast.archivedUndo'), onClick: () => { dismissToast(); undoArchive(sessionId) } },
-          { prefix: t('toast.archivedOr'), label: t('toast.archivedFilter'), onClick: () => { dismissToast(); showArchived() } },
+          ...archivedRowsVisible ? [] : [
+            { prefix: t('toast.archivedOr'), label: t('toast.archivedFilter'), onClick: () => { dismissToast(); showArchived() } },
+          ],
         ]}
         onDone={dismissToast}
       />

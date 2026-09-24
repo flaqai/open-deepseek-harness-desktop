@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-04-desktop-release-sidebar-action.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-04-desktop-release-sidebar-action.md
-2026-09-04-desktop-release-sidebar-action.md: 496c655c620c6d152d3c2340c0c071ef8d01f019
-2026-09-04-desktop-release-sidebar-action.zh.md: 1b36bb0295d03800129a41346c9d44e3071c4ba3
+/agent-note-desktop-release-sidebar-action:
+  en: 4f7118085627788c
+  zh: 7feb9e5022c79fcc
+/agent-note-desktop-release-sidebar-action/problem:
+  en: 5b659737a190bb20
+  zh: 6042958b2645198a
+/agent-note-desktop-release-sidebar-action/decision:
+  en: e84ceba72fb19e60
+  zh: 58c8d179398c476f
+/agent-note-desktop-release-sidebar-action/alternatives-considered:
+  en: 784ed0a53c59ac25
+  zh: b433264674fed6d8
+/agent-note-desktop-release-sidebar-action/consequences:
+  en: 0bdeb8b1e51fd405
+  zh: fd5f5f9555c2b1a0

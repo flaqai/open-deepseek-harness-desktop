@@ -249,7 +249,7 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
       expect(planStyle.height).toBe('28px')
       // Half the 28px height, the compact Button geometry, under the theme's
       // corner curvature; a 999px pill would need the circular opt-out.
-      expect(planStyle.borderRadius).toBe('14px')
+      expect(planStyle.borderRadius).toBe('8px')
       expect(planStyle.siblingCornerShape).not.toBeNull()
       expect(planStyle.cornerShape).toBe(planStyle.siblingCornerShape)
       expect(planStyle.fontSize).toBe('13px')

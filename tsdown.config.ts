@@ -16,7 +16,9 @@ function isBuildFaceClient(value: unknown): boolean {
  * The ordinary workspace build consumes JavaScript emitted by the Host
  * TypeScript project and runs Typert. The Client pass selects packages that
  * declare a browser bundle and lets their package-local configs emit both
- * their Node loader entry and browser artifact.
+ * their Node loader entry and browser artifact. The community Desktop bundles
+ * after the library passes through `build:desktop`; tsdown builds workspace
+ * members concurrently without ordering them.
  */
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-present-workspace-source-files.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-08-present-workspace-source-files.md
-2026-09-08-present-workspace-source-files.md: 52cc3e9cdbcd30d378117a327b86062523a2cb3e
-2026-09-08-present-workspace-source-files.zh.md: 99b7b9df1d9ca2da2175df1ae7e9d8acbb5c5fdd
+/agent-note-present-declares-workspace-source-files:
+  en: 8e9f703ce074f949
+  zh: 37e27d1591d31b9d
+/agent-note-present-declares-workspace-source-files/problem:
+  en: 8598b8d2e92bcfa1
+  zh: e3ae5fc294711095
+/agent-note-present-declares-workspace-source-files/decision:
+  en: 481549ced705b010
+  zh: 8cad3ea14f84decf
+/agent-note-present-declares-workspace-source-files/alternatives-considered:
+  en: b959eae9786351da
+  zh: 030c06051d6ac4be
+/agent-note-present-declares-workspace-source-files/consequences:
+  en: 98cd6d2356003a58
+  zh: 6e0b46c4ec6ba4b5

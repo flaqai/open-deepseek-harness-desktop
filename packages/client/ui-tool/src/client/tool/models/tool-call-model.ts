@@ -87,6 +87,7 @@ const TOOL_TITLE_KEYS: Record<string, ToolTitleKey> = {
   schedule_create: 'tool.title.createSchedule',
   schedule_list: 'tool.title.listSchedules',
   schedule_delete: 'tool.title.deleteSchedule',
+  schedule_update: 'tool.title.updateSchedule',
   cordis_inspect_list: 'tool.title.inspectProviders',
   cordis_inspect_query: 'tool.title.queryRuntime',
   cordis_inspect_self: 'tool.title.inspectPlugins',

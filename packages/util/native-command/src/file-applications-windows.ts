@@ -1,4 +1,7 @@
 /** Windows Shell association queries and invocation; paths are encoded data, never PowerShell expressions. */
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { NativeCommandRunner } from './runner.ts'
 
 /** Shell interfaces are declared in their native vtable order; Invoke preserves packaged-app and DDE handling. */
@@ -41,6 +44,8 @@ public static class DshFileAssociations {
   static extern int SHDefExtractIcon(string path, int index, uint flags, out IntPtr large, out IntPtr small, uint size);
   [DllImport("user32.dll")]
   static extern bool DestroyIcon(IntPtr icon);
+  [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
+  static extern int SHLoadIndirectString(string source, StringBuilder output, uint size, IntPtr reserved);
 
   [DllImport("shlwapi.dll", PreserveSig = false)]
   static extern void SHCreateThreadRef(IntPtr count, out IntPtr reference);
@@ -118,12 +123,18 @@ public static class DshFileAssociations {
     var text = new StringBuilder((int)size);
     return AssocQueryString(0, kind, extension, null, text, ref size) == 0 ? text.ToString() : null;
   }
-  static string IconData(IHandler handler) {
+  // Resolve a packaged application's indirect icon reference, for example
+  // @{Microsoft.WindowsNotepad_...?ms-resource://.../NotepadAppList.png}, to
+  // the resource file the Shell would draw; an unresolved reference is null.
+  static string ResolveIndirectIcon(string source) {
+    var output = new StringBuilder(1024);
+    return SHLoadIndirectString(source, output, (uint)output.Capacity, IntPtr.Zero) == 0 ? output.ToString() : null;
+  }
+  // Read one icon source into a 32px PNG: an image file directly, otherwise the
+  // resource the Shell extracts at the given index. A missing resource is null.
+  static string PngFromIconSource(string source, int index) {
     IntPtr large = IntPtr.Zero, small = IntPtr.Zero;
     try {
-      string source; int index;
-      handler.GetIconLocation(out source, out index);
-      source = Environment.ExpandEnvironmentVariables(source);
       if (Path.GetExtension(source).Equals(".png", StringComparison.OrdinalIgnoreCase)) {
         using (var original = Image.FromFile(source))
         using (var resized = new Bitmap(original, new Size(32, 32)))
@@ -146,6 +157,26 @@ public static class DshFileAssociations {
       if (large != IntPtr.Zero) DestroyIcon(large);
       if (small != IntPtr.Zero) DestroyIcon(small);
     }
+  }
+  // Best-effort fallback: some handlers return their executable path from GetName, but a
+  // packaged handler's name may be an AUMID or family name, which extracts no icon.
+  static string IconData(IHandler handler, string id) {
+    string source = null; int index = 0;
+    try { handler.GetIconLocation(out source, out index); } catch (Exception) {
+      // A handler without a drawable icon location falls back to its name.
+    }
+    if (!String.IsNullOrEmpty(source)) {
+      source = Environment.ExpandEnvironmentVariables(source);
+      if (source.StartsWith("@{", StringComparison.Ordinal) && source.EndsWith("}", StringComparison.Ordinal)) {
+        var resolved = ResolveIndirectIcon(source);
+        if (!String.IsNullOrEmpty(resolved)) source = resolved;
+      }
+      var icon = PngFromIconSource(source, index);
+      if (icon != null) return icon;
+    }
+    return String.IsNullOrEmpty(id) || String.Equals(id, source, StringComparison.OrdinalIgnoreCase)
+      ? null
+      : PngFromIconSource(id, 0);
   }
   static void Visit(string path, Action<IHandler> visit) {
     var extension = Path.GetExtension(path);
@@ -172,7 +203,7 @@ public static class DshFileAssociations {
       string id, name;
       handler.GetName(out id); handler.GetUIName(out name);
       if (!seen.Add(id)) return;
-      apps.Add(new Application { id = id, name = name, icon = IconData(handler),
+      apps.Add(new Application { id = id, name = name, icon = IconData(handler, id),
         @default = String.Equals(id, executable, StringComparison.OrdinalIgnoreCase) || String.Equals(id, appId, StringComparison.OrdinalIgnoreCase) });
     });
     return apps.ToArray();
@@ -205,7 +236,8 @@ public static class DshFileAssociations {
 }`
 
 /**
- * Execute the Windows Shell adapter in a Unicode STA PowerShell process.
+ * Execute the Windows Shell adapter in a Unicode STA PowerShell process; the adapter
+ * source is a private temporary script file, removed once the call settles.
  * @param path - Windows file path, translated by the caller for WSL.
  * @param application - registered handler to invoke; null requests the application list.
  * @param signal - caller cancellation.
@@ -226,8 +258,19 @@ $path = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedPa
 $application = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedApplication}'))
 ${application === null ? 'ConvertTo-Json -InputObject @([DshFileAssociations]::List($path)) -Depth 4 -Compress' : '[DshFileAssociations]::Open($path, $application)'}
 `
-  const result = await run('powershell.exe', [
-    '-NoProfile', '-NonInteractive', '-STA', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64'),
-  ], signal)
-  return result.stdout
+  // The script travels as a file, not as command-line data: -EncodedCommand grew with the
+  // embedded C# and overflowed the 32767-character CreateProcess limit for long paths.
+  // PowerShell 5.1 decodes a -File script as ANSI unless it carries a BOM; the BOM keeps
+  // the embedded UTF-8 source intact.
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-native-command-'))
+  const scriptPath = join(directory, 'associations.ps1')
+  try {
+    await writeFile(scriptPath, `\uFEFF${script}`, 'utf8')
+    const result = await run('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-File', scriptPath,
+    ], signal)
+    return result.stdout
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
 }

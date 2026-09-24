@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  Button, IconBrowseOutlineRegular, IconPlusOutlineRegular, Modal, Switch, Tag, Tooltip,
+  Button, IconBrowseOutlineRegular, IconPlusOutlineRegular, Modal, Tag, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -15,7 +15,7 @@ import css from './AgentPresetSection.module.css'
 export interface AgentPresetSectionInjected {
   hooks: {
     agentPresetSection: SnapshotStore<AgentPresetSectionState>
-    /** Shared preference controlling the picker-policy row. */
+    /** Shared Developer tools preference; off hides every selection action. */
     developerTools: ObservableSnapshot<boolean>
   }
   /** Stage the `cordis` preset and start a Creator-mode task; absent without a conversation flow. */
@@ -26,7 +26,6 @@ export interface AgentPresetSectionInjected {
   /** Close the read-only viewer. */
   closeView: () => void
   makeDefault: (id: string) => Promise<void>
-  setPickerVisible: (visible: boolean) => Promise<void>
 }
 /** Props assembled by the settings renderer. */
 export type AgentPresetSectionProps = PropsRuntime<'settings.section'> & PropsLocale<'settings.agentPreset'> & InjectFace<AgentPresetSectionInjected>
@@ -62,7 +61,7 @@ function CardDescription({ text }: { text: string }): ReactNode {
  * @returns The preset settings section.
  */
 export function AgentPresetSection({
-  useAgentPresetSection, load, view, closeView, makeDefault, setPickerVisible, startCreatorDraft,
+  useAgentPresetSection, load, view, closeView, makeDefault, startCreatorDraft,
   close: closeSettings, useDeveloperTools, t,
 }: AgentPresetSectionProps) {
   const state = useAgentPresetSection(value => value)
@@ -91,8 +90,8 @@ export function AgentPresetSection({
       <button
         type="button"
         className={css.creatorButton}
-        disabled={!state.showPicker || state.policySaving}
-        title={state.showPicker ? undefined : t('enablePickerToCreate')}
+        disabled={!developerTools || state.saving}
+        title={developerTools ? undefined : t('enableDevToolsToCreate')}
         onClick={() => { creator(); closeSettings() }}
       >
         <IconPlusOutlineRegular size={14} />
@@ -102,19 +101,6 @@ export function AgentPresetSection({
   return <section className={css.section}>
     <h2 className={css.title}>{t('nav')}</h2>
     <p className={css.intro}>{t('sectionIntro')}</p>
-    {developerTools && (
-      <div className={css.pickerPreference}>
-        <div className={css.pickerPreferenceCopy}>
-          <span className={css.pickerPreferenceTitleRow}>
-            <span className={css.pickerPreferenceTitle}>{t('showPicker')}</span>
-            <Tag>{t('showPickerBeta')}</Tag>
-          </span>
-          <p className={css.pickerPreferenceDescription}>{t('showPickerDescription')}</p>
-        </div>
-        <Switch checked={state.showPicker} disabled={state.status !== 'ready' || state.policySaving}
-          onChange={(value) => { void setPickerVisible(value) }} label={t('showPicker')} />
-      </div>
-    )}
     {state.error === null ? null : <p className={css.error} role="alert">{state.error}</p>}
     {([true, false] as const).map((builtIn) => {
       const rows = state.rows.filter(row => isBuiltInPreset(row) === builtIn)
@@ -127,15 +113,15 @@ export function AgentPresetSection({
             const display = presetDisplayText(row, t)
             const help = presetGuide(row.id, builtIn ? 'system' : 'user')
             const selectionAction = row.broken !== undefined ? t('brokenBadge')
-              : row.isDefault ? t(state.showPicker ? 'inUse' : 'selectionOffDefault')
-                : t(state.showPicker ? 'setDefault' : 'enablePickerToSetDefault')
+              : row.isDefault ? t('inUse')
+                : t(developerTools ? 'setDefault' : 'enableDevToolsToSetDefault')
             return <li key={row.id} data-agent-preset-id={row.id} className={[
               css.card, row.broken === undefined ? undefined : css.cardBroken,
               row.isDefault ? css.cardActive : undefined,
-              !state.showPicker && row.broken === undefined && !row.isDefault ? css.cardSelectionDisabled : undefined,
+              !developerTools && row.broken === undefined && !row.isDefault ? css.cardSelectionDisabled : undefined,
             ].filter(Boolean).join(' ')}>
               <button type="button" className={css.cardMain} aria-pressed={row.isDefault}
-                disabled={row.isDefault || (row.broken === undefined && (!state.showPicker || state.policySaving))}
+                disabled={row.isDefault || (row.broken === undefined && (!developerTools || state.saving))}
                 aria-disabled={row.broken !== undefined} aria-label={`${selectionAction}: ${display.name}`} title={selectionAction}
                 onClick={() => { if (row.broken === undefined) void makeDefault(row.id) }}>
                 <span className={css.cardHead}>
@@ -145,7 +131,7 @@ export function AgentPresetSection({
                       {t('brokenBadge')}<span className={css.brokenTip} aria-hidden="true">{row.broken}</span>
                     </span>}
                     <Tag tone={row.isDefault ? 'solid' : 'outline'}>
-                      {row.isDefault ? t(state.showPicker ? 'inUse' : 'selectionOffDefault') : t(builtIn ? 'builtInGroup' : 'customGroup')}
+                      {row.isDefault ? t('inUse') : t(builtIn ? 'builtInGroup' : 'customGroup')}
                     </Tag>
                   </span>
                   <code className={css.cardId} title={row.id}>{row.id}</code>

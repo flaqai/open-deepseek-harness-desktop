@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-14-packaged-prebuilt-profile-archives.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-14-packaged-prebuilt-profile-archives.md
-2026-09-14-packaged-prebuilt-profile-archives.md: 8f8b3c7310fd52700f3b9352138f669b72a60b95
-2026-09-14-packaged-prebuilt-profile-archives.zh.md: 0bb5da39bccecc0ca4918d7f5e86dba909511931
+/agent-note-package-prebuilt-desktop-profiles-as-verified-archives:
+  en: 5b147e6d1eec4c98
+  zh: e874ee7db60c9fbb
+/agent-note-package-prebuilt-desktop-profiles-as-verified-archives/problem:
+  en: cbc3d437b674daec
+  zh: cc0797b7df65e442
+/agent-note-package-prebuilt-desktop-profiles-as-verified-archives/decision:
+  en: 63751bd5b48a01cf
+  zh: de8af6d8b4edd9c1
+/agent-note-package-prebuilt-desktop-profiles-as-verified-archives/verification:
+  en: cc67f58db74fb952
+  zh: 196a7083856d7ffd
+/agent-note-package-prebuilt-desktop-profiles-as-verified-archives/alternatives-considered:
+  en: 2697a67d9102452a
+  zh: a8a7099f4a2227c5
+/agent-note-package-prebuilt-desktop-profiles-as-verified-archives/consequences:
+  en: c268ef7ce500a40d
+  zh: ded54f26606e2c12

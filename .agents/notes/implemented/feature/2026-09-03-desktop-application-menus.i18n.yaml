@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-03-desktop-application-menus.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-03-desktop-application-menus.md
-2026-09-03-desktop-application-menus.md: 6f099a99aa1d6e9dc84ee8d1abe7da232d3ce351
-2026-09-03-desktop-application-menus.zh.md: fc2cc5f4631f66cdc39bb5388d6eb6a16dae3262
+/agent-note-shared-desktop-commands-with-platform-native-application-menus:
+  en: 851e2857c9c29a56
+  zh: 3e4cb1f73efff8ea
+/agent-note-shared-desktop-commands-with-platform-native-application-menus/problem:
+  en: ec5a0f6d2b1bc8aa
+  zh: b0d60c66365df859
+/agent-note-shared-desktop-commands-with-platform-native-application-menus/decision:
+  en: 796b872cb38e5eb5
+  zh: d08071c89103fd63
+/agent-note-shared-desktop-commands-with-platform-native-application-menus/alternatives-considered:
+  en: f26de8605fa0b284
+  zh: e105c55f4632da57
+/agent-note-shared-desktop-commands-with-platform-native-application-menus/consequences:
+  en: 951391eeda83f486
+  zh: 521b135392611549
+/agent-note-shared-desktop-commands-with-platform-native-application-menus/verification:
+  en: 7946a67f3d9eb109
+  zh: f140f664bfc7ec4a

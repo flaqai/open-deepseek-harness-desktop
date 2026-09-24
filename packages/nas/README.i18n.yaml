@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/nas/README.md
-README.md: 33f8eb84922b106cd6ee03d7f8627e6419e824e6
-README.zh.md: 080c1d17d354d91a30ac674f704d98276d043916
+/:
+  en: 85e4b548eb6cc17d
+  zh: be01ed50d16de244
+/nas-connect-desktop-to-a-nas-runtime:
+  en: edd2b91b269c3a46
+  zh: 6459c0a289daf00d
+/nas-connect-desktop-to-a-nas-runtime/summary:
+  en: 25ec2bb285f50713
+  zh: 541bd872dee3d5c5
+/nas-connect-desktop-to-a-nas-runtime/packages:
+  en: 8ac56e722e1dea8b
+  zh: 12622d06e4bfc740
+/nas-connect-desktop-to-a-nas-runtime/related-documentation:
+  en: eced6f005cf43b35
+  zh: 1c036b415b8d5f9b
+/nas-connect-desktop-to-a-nas-runtime/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

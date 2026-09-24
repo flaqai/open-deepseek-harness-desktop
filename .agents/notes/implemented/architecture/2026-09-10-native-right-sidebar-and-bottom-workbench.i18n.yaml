@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-10-native-right-sidebar-and-bottom-workbench.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-10-native-right-sidebar-and-bottom-workbench.md
-2026-09-10-native-right-sidebar-and-bottom-workbench.md: 4ea23fb0876b2eedb850d537b98b61bb76a40963
-2026-09-10-native-right-sidebar-and-bottom-workbench.zh.md: 8d3a43177d42416d20410504a4e62226c6ae267d
+/agent-note-native-right-sidebar-with-a-separate-bottom-workbench:
+  en: be9761eb428e64e4
+  zh: cc1f40932b400d21
+/agent-note-native-right-sidebar-with-a-separate-bottom-workbench/problem:
+  en: de48e49d5f8c40a1
+  zh: c85bde12c54a5f3b
+/agent-note-native-right-sidebar-with-a-separate-bottom-workbench/decision:
+  en: 58c0113de05f9c3c
+  zh: c098359f7b69c792
+/agent-note-native-right-sidebar-with-a-separate-bottom-workbench/alternatives-considered:
+  en: 51f0acb20c4c69de
+  zh: b80602efca5b3d5c
+/agent-note-native-right-sidebar-with-a-separate-bottom-workbench/consequences:
+  en: 6a881c82a923823e
+  zh: 6de4b32a80e8942d

@@ -9,7 +9,7 @@
   - text: 失败 $ pnpm add mirrored-package --registry=https://registry.npmmirror.com/ 退出码 1
   - button "复制"
   - text: "ERR_PNPM_META_FETCH_FAIL GET https://registry.npmmirror.com/mirrored-package: socket hang up"
-  - paragraph: 第 2 次 · 默认安装源
+  - paragraph: 第 2 次 · npm 官方源
   - text: 已完成 $ pnpm add mirrored-package
   - button "复制"
   - text: Installed from the registry pnpm names

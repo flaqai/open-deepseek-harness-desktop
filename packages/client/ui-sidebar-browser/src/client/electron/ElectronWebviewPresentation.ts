@@ -53,6 +53,7 @@ export class ElectronWebviewPresentation implements BrowserPresentation {
     const element = document.createElement('webview') as WebviewElement
     element.className = css.webview as string
     element.dataset.sidebarBrowserFrame = 'webview'
+    element.setAttribute('name', reservation.lease)
     element.setAttribute('partition', reservation.partition)
     element.setAttribute('allowpopups', '')
     element.setAttribute('src', 'about:blank#' + reservation.lease)

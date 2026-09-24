@@ -10,6 +10,7 @@
  * it draws (`FilesBody.tsx`, `FilesTitle.tsx`), what it says (`locales.ts`),
  * and this module, which only wires them together.
  */
+import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -34,7 +35,7 @@ const NS = 'sidebarFiles'
  * Required browser services: the tab registry, the keyed seat, the Remote
  * carrier and its namespace, and copy.
  */
-export const inject = ['slots', 'locale', 'sidebarRightTabs', 'remote', 'remote.workspaceFiles']
+export const inject = ['slots', 'locale', 'sidebarRightTabs', 'sidebarRight', 'remote', 'remote.workspaceFiles']
 
 /**
  * Client plugin body: register the type, its dictionaries, its body, and its chip title.
@@ -42,6 +43,27 @@ export const inject = ['slots', 'locale', 'sidebarRightTabs', 'remote', 'remote.
  */
 export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
+  ctx.inject(['shortcuts'], (ctx) => {
+    ctx.effect(() => ctx.shortcuts.register({
+      id: 'workspace.files' as ShortcutCommandId, label: () => t('guide.title'), aliases: ['workspace files', 'files'],
+      defaults: {
+        'desktop:macos': { code: 'KeyP', modifiers: ['primary'] },
+        'desktop:windows': { code: 'KeyP', modifiers: ['primary'] },
+        'desktop:linux': { code: 'KeyP', modifiers: ['primary'] },
+        'web:macos': { code: 'KeyP', modifiers: ['primary', 'alt'] },
+        'web:windows': { code: 'KeyP', modifiers: ['primary', 'alt'] },
+      },
+      // Each tab plugin owns its command's availability, localized refusal, and tab kind.
+      /* jscpd:ignore-start */
+      regions: ['page', 'editable', 'terminal'], modals: [],
+      resolve: ({ target: element }) => {
+        const target = ctx.sidebarRight.commandTarget(element)
+        if (target === undefined) return { status: 'blocked', reason: t('shortcut.noSession') }
+        return { status: 'handled', run: () => { ctx.sidebarRight.openTabFromTarget('files', target) } }
+      },
+      /* jscpd:ignore-end */
+    }), 'ui-sidebar-files: shortcut')
+  })
   ctx.effect(() => ctx.sidebarRightTabs.register(filesDefinition(t)), 'ui-sidebar-files: files type')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-files: dictionaries')
 

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-07-atomic-profile-lock-publication.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-07-atomic-profile-lock-publication.md
-2026-09-07-atomic-profile-lock-publication.md: 73eea58214209ca9092fed85978ac1cea9223cb0
-2026-09-07-atomic-profile-lock-publication.zh.md: 027e4114925fe8358d89257c3f53b1908a11d4b1
+/agent-note-atomic-profile-lock-publication:
+  en: 072942e0c2f40c28
+  zh: 6877fb89cdb0934f
+/agent-note-atomic-profile-lock-publication/problem:
+  en: d5f0476d4cb50684
+  zh: 269b337d2c9f33c0
+/agent-note-atomic-profile-lock-publication/decision:
+  en: efc8eb9e4a505fbd
+  zh: 2dbde640b07c7615
+/agent-note-atomic-profile-lock-publication/alternatives-considered:
+  en: eeaa579e5dff0e79
+  zh: cecfb6ddf8cb935d
+/agent-note-atomic-profile-lock-publication/consequences:
+  en: 0666d1cb1d051dd6
+  zh: 10a542aa13121a96

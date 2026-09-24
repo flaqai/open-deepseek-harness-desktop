@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-30-windows-pnpm-rename-contention.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-30-windows-pnpm-rename-contention.md
-2026-08-30-windows-pnpm-rename-contention.md: d8f49386ae6dacd76cabf8f6f8a87167452377d3
-2026-08-30-windows-pnpm-rename-contention.zh.md: f6f4ae4694246db0194ded7582240995aac99f17
+/agent-note-retry-transient-windows-pnpm-directory-swaps:
+  en: 55eee612f59809ae
+  zh: ea67c231543180a2
+/agent-note-retry-transient-windows-pnpm-directory-swaps/problem:
+  en: f62deb4f3a09f6fa
+  zh: 54303b6a265c17f7
+/agent-note-retry-transient-windows-pnpm-directory-swaps/decision:
+  en: d244d92ebb5efe89
+  zh: d3d5a26ea08a6290
+/agent-note-retry-transient-windows-pnpm-directory-swaps/verification:
+  en: 94ff0f3211c1098e
+  zh: a5e84c890592d75a
+/agent-note-retry-transient-windows-pnpm-directory-swaps/alternatives-considered:
+  en: 7036353e722178f5
+  zh: 40a6a809860025c8
+/agent-note-retry-transient-windows-pnpm-directory-swaps/consequences:
+  en: ab7b7f355f91c01c
+  zh: b8e18ec2cef263a6

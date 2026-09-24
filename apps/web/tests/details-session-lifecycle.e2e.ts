@@ -186,15 +186,23 @@ describe.skipIf(MODE === 'record')('web e2e: details panel follows the current S
     const blankViewport = page.viewportSize()!
     try {
       await blankColumn.locator('[data-sidebar-right-toggle]').click()
+      await blankColumn.locator('[data-dockkit-pane]').first().waitFor({ state: 'hidden' })
       await page.setViewportSize({ width: 767, height: blankViewport.height })
+      await expect.poll(() => columns(page)).toEqual([56, 711, 0])
       await page.locator('[data-sidebar-right-expand]').click()
+      // The fullscreen shell keeps its viewport box while its docked content closes.
+      await expect.poll(() => blankColumn.locator('[data-sidebar-right-open]').count()).toBe(1)
+      await expect.poll(() => blankColumn.locator('[data-dockkit-host="dock"]:not([hidden])').evaluate(element => getComputedStyle(element).transform))
+        .toBe('none')
       await expect.poll(() => blankColumn.locator('[data-sidebar-right-panel]').boundingBox())
         .toEqual({ x: 0, y: 0, width: 767, height: blankViewport.height })
       await blankColumn.getByText('Workspace preview is available.', { exact: true }).waitFor()
       await blankColumn.locator('[data-sidebar-right-toggle]').click()
+      await blankColumn.locator('[data-dockkit-pane]').first().waitFor({ state: 'hidden' })
     } finally {
       await page.setViewportSize(blankViewport)
     }
+    await expect.poll(() => columns(page)).toEqual([280, blankViewport.width - 280, 0])
     await page.locator('[data-sidebar-right-expand]').click()
     await blankColumn.locator('[data-dockkit-add-tab]').click()
     await blankColumn.locator('[data-sidebar-right-guide-entry="terminal"]')

@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-selection-actions/README.md
-README.md: 407ba3d771f27cb9d11c3db92c3784dd1fe560f4
-README.zh.md: 85c099da6b582ba875fae1556445e3b9d416a8e7
+/:
+  en: d97ff7ac58650d03
+  zh: 206513ec689354b3
+/deepseek-ai-dsh-client-ui-selection-actions:
+  en: 7a98a6eb1b4ca155
+  zh: 0cce72eec0a873d3
+/deepseek-ai-dsh-client-ui-selection-actions/summary:
+  en: fc795fd44480136a
+  zh: 5e628f21bfbaf883
+/deepseek-ai-dsh-client-ui-selection-actions/table-of-contents:
+  en: 4263310ac16503cc
+  zh: 47071eeb7f7cf342
+/deepseek-ai-dsh-client-ui-selection-actions/use-the-selection-actions:
+  en: ea29fb66698d91d5
+  zh: dc40bceb8498e104
+/deepseek-ai-dsh-client-ui-selection-actions/understand-the-safety-boundary:
+  en: 3a6345d4b330efd3
+  zh: 4e9cb907d8eda855
+/deepseek-ai-dsh-client-ui-selection-actions/model-experience:
+  en: 9dee37f4d5071100
+  zh: 5677fd644dc491cb
+/deepseek-ai-dsh-client-ui-selection-actions/model-experience/kv-cache-effect:
+  en: 7593cf5d0d2cedd6
+  zh: f57cc48a1b5cbfa9
+/deepseek-ai-dsh-client-ui-selection-actions/known-limitations-and-deferred-work:
+  en: b1db9aad3b6e710e
+  zh: a9c3fca183f2a1d2
+/deepseek-ai-dsh-client-ui-selection-actions/known-limitations-and-deferred-work/dev-note:
+  en: 9c9fff8659af2667
+  zh: 46138c87815dc0f7

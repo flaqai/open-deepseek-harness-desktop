@@ -92,7 +92,7 @@ describe('web e2e: requested SVG is explicitly delivered', () => {
     if (MODE === 'record') await recordFixture(scaffold, sessionId, FIXTURE)
 
     const svg = await readFile(join(cwd, FILE), 'utf8')
-    const document = await page.evaluate((source) => {
+    const parsedSvg = await page.evaluate((source) => {
       const parsed = new DOMParser().parseFromString(source, 'image/svg+xml')
       return {
         root: parsed.documentElement.localName,
@@ -100,7 +100,7 @@ describe('web e2e: requested SVG is explicitly delivered', () => {
         errors: parsed.querySelectorAll('parsererror').length,
       }
     }, svg)
-    expect(document).toEqual({ root: 'svg', namespace: 'http://www.w3.org/2000/svg', errors: 0 })
+    expect(parsedSvg).toEqual({ root: 'svg', namespace: 'http://www.w3.org/2000/svg', errors: 0 })
 
     const events = session.snapshotEvents()
     const declarations = events.filter(event => event.type === 'deliverables/presented')
@@ -120,8 +120,37 @@ describe('web e2e: requested SVG is explicitly delivered', () => {
     await card.waitFor({ state: 'visible' })
     expect(await card.count()).toBe(1)
     expect(await page.getByText('产物', { exact: true }).count()).toBe(0)
-    // The scaffold workspace is not a git repository, so the changed-files card lists the written SVG from the write call alone.
-    expect(await page.locator('[data-changed-files]').count()).toBe(1)
+    // The scaffold workspace is not a git repository; the write call supplies its single changed file.
+    const changes = page.locator('[data-changed-files]')
+    expect(await changes.count()).toBe(1)
+    expect(await changes.getByText(`已编辑 ${FILE}`, { exact: true }).count()).toBe(1)
+    expect(await changes.getByRole('list').count()).toBe(0)
+    expect(await changes.locator('svg').evaluate(icon => icon.innerHTML))
+      .toBe(await card.locator('svg').evaluate(icon => icon.innerHTML))
+    expect(await changes.evaluate(element => element.getBoundingClientRect().height)).toBe(62)
+    const appearance = await page.evaluate(() => {
+      const previous = document.body.getAttribute('data-ds-dark-theme')
+      try {
+        return [false, true].map((dark) => {
+          document.body.toggleAttribute('data-ds-dark-theme', dark)
+          const cards = ['[data-presented-file]', '[data-changed-files]'].map((selector) => {
+            const card = document.querySelector(selector)!
+            const tile = card.querySelector('svg')!.parentElement!
+            return { fill: getComputedStyle(tile).backgroundColor, tileBorder: getComputedStyle(tile).border,
+              cardBorder: getComputedStyle(card).border }
+          })
+          return { fills: cards.map(card => card.fill), matchingTiles: cards[0]!.tileBorder === cards[1]!.tileBorder,
+            matchingCards: cards[0]!.cardBorder === cards[1]!.cardBorder }
+        })
+      } finally {
+        if (previous === null) document.body.removeAttribute('data-ds-dark-theme')
+        else document.body.setAttribute('data-ds-dark-theme', previous)
+      }
+    })
+    expect(appearance).toEqual([
+      { fills: ['color(srgb 1 1 1 / 0.5)', 'color(srgb 1 1 1 / 0.5)'], matchingTiles: true, matchingCards: true },
+      { fills: ['color(srgb 1 1 1 / 0.05)', 'color(srgb 1 1 1 / 0.05)'], matchingTiles: true, matchingCards: true },
+    ])
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings, connectionDiagnostics.join('\n')).toEqual([])
   })
@@ -132,5 +161,13 @@ describe('web e2e: requested SVG is explicitly delivered', () => {
     // Delivery owns the transcript; navigation and composer chrome have separate scenarios.
     const aria = await captureExpandedTurnProcessAria(page, '[data-chat-flow]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(join(DIR, 'ui.expected.md'), aria, MODE)
+  })
+
+  it('opens the single edited file from its compact card', async () => {
+    await page.locator('[data-changed-files]').getByRole('button', { name: `查看 ${FILE} 的改动` }).click()
+    const review = page.locator('[data-changes-review]')
+    await review.waitFor({ state: 'visible' })
+    expect(await review.getByRole('button', { name: '选择要查看的文件' }).innerText()).toContain(FILE)
+    expect(tripwire.pageErrors).toEqual([])
   })
 })

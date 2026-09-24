@@ -8,7 +8,7 @@ import type { BundleInfo, ChangeResult, ManagementError, PluginEntryId, PluginIn
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ConfigLedger } from '../src/client/config-ledger.ts'
-import { packageView, PluginManagerController, rowKey, sortPackages } from '../src/client/manager-store.ts'
+import { offeredRegistries, packageView, PluginManagerController, rowKey, sortPackages } from '../src/client/manager-store.ts'
 
 const INCOMPATIBLE = { name: 'dsh-late', version: '2.0.0', runtimeVersion: '0.1.0', peers: { '@deepseek-ai/dsh': '^0.2.0' } }
 const ROW_ENTRY = 'include:sidebar' as PluginEntryId
@@ -1139,6 +1139,50 @@ describe('PluginManagerController', () => {
     expect(state().install.attempts).toEqual({ registries: [MIRROR, null], total: 2 })
   })
 
+  it('compares a registry that does not parse as written', () => {
+    // A remembered or configured address that no longer parses still stands for itself, so only an exact repeat folds.
+    expect(offeredRegistries({ registry: null, fallbackRegistries: ['garbage'], resolved: 'garbage' })).toEqual([null])
+    expect(offeredRegistries({ registry: 'garbage', fallbackRegistries: [], resolved: null })).toEqual(['garbage', null])
+  })
+
+  it('lists pnpm\'s own configuration once when it names the registry the Host also offers', async () => {
+    const shared = { registry: null, fallbackRegistries: [MIRROR], resolved: MIRROR }
+    const storage = new Map([['dsh.plugin-manager.install-registry', JSON.stringify({ kind: 'offered', registry: MIRROR })]])
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => { storage.set(key, value) },
+      removeItem: (key: string) => { storage.delete(key) },
+    })
+    try {
+      const { face, state } = bench({ registries: vi.fn(() => Promise.resolve(ok(shared))) })
+      face.openInstall()
+      await vi.waitFor(() => { expect(state().install.registries).toEqual(shared) })
+      // The mirror the Host offers is the registry pnpm's own configuration names, so the dialog lists one entry for it.
+      expect(offeredRegistries(shared)).toEqual([null])
+      // The remembered mirror takes the entry that still asks the same registry.
+      expect(state().install.registry).toEqual({ kind: 'offered', registry: null })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('keeps a remembered pnpm configuration that names its own registry', async () => {
+    const storage = new Map([['dsh.plugin-manager.install-registry', JSON.stringify({ kind: 'offered', registry: null })]])
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => { storage.set(key, value) },
+      removeItem: (key: string) => { storage.delete(key) },
+    })
+    try {
+      const { face, state } = bench()
+      face.openInstall()
+      await vi.waitFor(() => { expect(state().install.registries).toEqual(REGISTRIES) })
+      expect(state().install.registry).toEqual({ kind: 'offered', registry: null })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('starts from the registry the Host configured first while nothing is remembered', async () => {
     const corporate = { registry: CORP, fallbackRegistries: [MIRROR], resolved: OFFICIAL }
     const { plugins, face, state } = bench({
@@ -1265,6 +1309,34 @@ describe('PluginManagerController', () => {
     face.openInstall()
     await vi.waitFor(() => { expect(state().install.registries).toEqual(REGISTRIES) })
     expect(state().install.registry).toEqual({ kind: 'offered', registry: MIRROR })
+  })
+
+  it.each([
+    ['typed as an address', { kind: 'custom', url: 'https://registry.npmmirror.com' }, REGISTRIES],
+    ['named by pnpm\'s own configuration', { kind: 'offered', registry: null }, { ...REGISTRIES, resolved: MIRROR }],
+  ] as const)('clears the GitHub address and keeps the registry when the install already asked the mirror %s', async (_how, choice, registries) => {
+    const { face, state, plugins } = bench({
+      registries: vi.fn(() => Promise.resolve(ok(registries))),
+      inspect: vi.fn(() => Promise.resolve(ok({ status: 'accepted', kind: 'git', bundle: null, registry: MIRROR, host: 'github.com' }))),
+      installBundle: vi.fn(() => Promise.resolve(ok({
+        ...failed(undefined, { exitCode: 1, output: 'Could not resolve host: github.com', truncated: false, logPath: '/l', kind: 'timeout' }),
+        failedAt: 'spec-host',
+      }))),
+    })
+    face.openInstall()
+    await vi.waitFor(() => { expect(state().install.registries).toEqual(registries) })
+    face.chooseRegistry(choice)
+    face.editInstallSpec('https://github.com/example/dsh-plugin.git')
+    face.runInstall()
+    await vi.waitFor(() => { expect(state().install.phase).toBe('failed') })
+    face.useGithubMirror()
+    expect(state().install).toMatchObject({ phase: 'idle', spec: '', mirrorRecovery: true, registry: choice, failure: null })
+    // The choice stays as made, so the next dialog starts from it too.
+    face.closeInstall()
+    face.openInstall()
+    await vi.waitFor(() => { expect(state().install.registries).toEqual(registries) })
+    expect(state().install.registry).toEqual(choice)
+    expect(plugins.installBundle).toHaveBeenCalledTimes(1)
   })
 })
 

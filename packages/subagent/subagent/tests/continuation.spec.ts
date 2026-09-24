@@ -10,7 +10,10 @@ import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-test
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionEvent, SessionEventMap } from '@deepseek-ai/dsh-session'
 import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
-import * as toolSchedule from '@deepseek-ai/dsh-schedule'
+import ScheduleService from '@deepseek-ai/dsh-schedule'
+import Storage from '@deepseek-ai/dsh-storage'
+import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
+import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
 import * as SubagentFork from '@deepseek-ai/dsh-subagent-fork-in-process'
 import type { ContentBlock, GenerateOptions, MessageId, StreamChunk } from '@deepseek-ai/dsh-llm'
@@ -76,6 +79,25 @@ afterEach(async () => {
   if (errors.length > 1) throw new AggregateError(errors, 'temp-root cleanup failed')
 })
 
+/** Mount the real Schedule service for root-only tool-registration assertions. */
+async function mountScheduleForOwnership(ctx: Context): Promise<void> {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-subagent-schedule-'))
+  const fibers: Array<{ dispose(): Promise<void> }> = []
+  cleanups.unshift(async () => {
+    for (const fiber of fibers.toReversed()) await fiber.dispose()
+    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  })
+  fibers.push(await ctx.plugin(Storage))
+  fibers.push(await ctx.plugin(StorageJson, { root }))
+  fibers.push(await ctx.plugin(StorageDomain, { backend: 'json' }))
+  // This ownership test creates no reminders and invokes no Remote methods.
+  // Unexpected delivery must fail instead of activating an unrelated Session.
+  ctx.provide('sessionController', {
+    resolveAgent: async () => { throw new Error('ownership test must not dispatch reminders') },
+  } as never)
+  fibers.push(await ctx.plugin(ScheduleService))
+}
+
 /** Boot the full continuable stack: loop, persistence, providers, and subagents. */
 async function setupWith(
   adapter: LlmAdapter,
@@ -96,7 +118,7 @@ async function setupWith(
     })
   }
   await ctx.plugin(AgentLoop, { agents: [] })
-  if (options.schedule) await ctx.plugin(toolSchedule)
+  if (options.schedule) await mountScheduleForOwnership(ctx)
   if (options.sessionQuery !== false) await ctx.plugin(TestSessionQuery)
   subagentConfigs.set(ctx, await liveConfig(ctx, SubagentRuntime,
     options.maxActiveSubagents === undefined ? {} : { maxActiveSubagents: options.maxActiveSubagents }))

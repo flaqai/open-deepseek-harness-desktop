@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-19-first-run-setup-wizard.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-19-first-run-setup-wizard.md
-2026-08-19-first-run-setup-wizard.md: 78358724403e126d4b9037b847bc61bbc6008d0b
-2026-08-19-first-run-setup-wizard.zh.md: 243e78d396e9569dd701beabb0f9aef2804c60aa
+/agent-note-first-run-setup-wizard:
+  en: 31982f21639a0b00
+  zh: a98ad51a3bca75bf
+/agent-note-first-run-setup-wizard/problem:
+  en: c61baae728082239
+  zh: a7d3eb2ffe349623
+/agent-note-first-run-setup-wizard/decision:
+  en: 59f1fffd4f2ea09e
+  zh: fe9179abf628f319
+/agent-note-first-run-setup-wizard/alternatives-considered:
+  en: 8fb8189fd9d6e6f7
+  zh: 8d2e7b5c5cb1a9d7
+/agent-note-first-run-setup-wizard/consequences:
+  en: 84734bab284d103f
+  zh: 9e8c62d068d0800d

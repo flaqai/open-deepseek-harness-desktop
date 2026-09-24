@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for issue-tracker.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/agents/issue-tracker.md
-issue-tracker.md: 7aa2816d0f53894db0febcf3eaa6e565cef4ca60
-issue-tracker.zh.md: 4bcd72f7e53b4af694daaddfc7a8e0624552154a
+/issue-tracker-local-markdown:
+  en: 161963296fb2b9df
+  zh: 0d0cd6fe2c2cbf1b
+/issue-tracker-local-markdown/conventions:
+  en: 30952865a5475046
+  zh: a9f5780fc656c028
+/issue-tracker-local-markdown/remote-tracker-boundary:
+  en: e92ed760e4204872
+  zh: 23fa9e45a9c9dd51
+/issue-tracker-local-markdown/skill-operations:
+  en: aaeaabb8297c025b
+  zh: 811313709e51f0bc
+/issue-tracker-local-markdown/wayfinding-operations:
+  en: 3e3fa24599236fd9
+  zh: e8891037b5b9be25

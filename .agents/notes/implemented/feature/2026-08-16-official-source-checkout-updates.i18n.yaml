@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-16-official-source-checkout-updates.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-16-official-source-checkout-updates.md
-2026-08-16-official-source-checkout-updates.md: ebd8ed6b7b13fe919673a47f867218d24b3d8ddd
-2026-08-16-official-source-checkout-updates.zh.md: bdd59892523c0e29b64268613a7af3b6bd04f88d
+/agent-note-official-source-checkout-updates:
+  en: bba87e5a18f03c36
+  zh: 967b5705f72158d5
+/agent-note-official-source-checkout-updates/problem:
+  en: db7b12faf922e446
+  zh: e52c3596ab9f5363
+/agent-note-official-source-checkout-updates/decision:
+  en: a556d7ee88b31847
+  zh: ff4f3ca7e35cf953
+/agent-note-official-source-checkout-updates/alternatives-considered:
+  en: 03c96954b892a0b7
+  zh: a5e1ca9cfa4f133d
+/agent-note-official-source-checkout-updates/consequences:
+  en: f7d2c1ea0634f5a2
+  zh: 33570b1e1b862b4c

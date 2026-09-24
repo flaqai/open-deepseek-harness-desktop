@@ -1,5 +1,5 @@
 /**
- * Client-safe complete-descendant rows and browser continuation requests,
+ * Client-safe recursive catalog rows and browser continuation requests,
  * receipts, and failures.
  *
  * @module @deepseek-ai/dsh-subagent/control-types
@@ -21,13 +21,13 @@ import type {} from '@deepseek-ai/dsh-workspace/types'
  */
 export type SubagentPromptRequestId = Branded<'session-request-id'>
 
-/** Shared child fields for complete-descendant listing. */
+/** Shared child fields for recursive catalog listing. */
 export type SubagentCatalogRow =
   & {
     /** The durable child session id, stable across Activations. */
     readonly id: SessionId
     /**
-     * Whether complete-descendant listing observed a resident Session. This
+     * Whether recursive catalog listing observed a resident Session. This
      * does not encode a durable outcome or guarantee continuation delivery.
      */
     readonly activity: 'running' | 'inactive'
@@ -35,25 +35,25 @@ export type SubagentCatalogRow =
     | {
       /** A terminal one-shot child. */
       readonly mode: 'one-shot'
-      /** Optional durable creation label from the owning catalog or child descriptor. */
+      /** Optional durable creation label from the parent catalog. */
       readonly label?: string
     }
     | {
       /** A resumable conversation. */
       readonly mode: 'continuable'
-      /** Durable creation label from the owning catalog or child descriptor. */
+      /** Durable creation label from the parent catalog. */
       readonly label: string
     }
   )
 
 /**
- * One complete-descendant row. Enumeration may also return diagnostics for
- * child identity observations from the complete Session corpus.
+ * One recursive catalog row. Traversal may also return diagnostics for
+ * unknown catalog modes or unreadable child catalogs.
  */
 export type SubagentListEntry =
   | SubagentCatalogRow & {
     readonly kind: 'child'
-    /** Whether complete-corpus enumeration observed a direct child. */
+    /** Whether the child catalog contains a direct child. */
     readonly hasChildren: boolean
   }
   | {
@@ -61,14 +61,10 @@ export type SubagentListEntry =
     /** The candidate's session id. */
     readonly id: SessionId
     /**
-     * Why the candidate has no `child` row: `corrupt` for a settled candidate
-     * whose projection fold served no identity (a missing, malformed, or
-     * unrecognized-version descriptor — deliberately undistinguished), and
-     * for any candidate whose log makes a registered unit's fold or schema
-     * throw (deterministic data damage, contained per child); `unavailable`
-     * when the candidate's Session observation was absent or transiently
-     * unreadable (retried on the next listing). `unsupported` is never produced; it remains in the
-     * union for consumers that route on it.
+     * `corrupt` means the child catalog read found invalid or conflicting
+     * Session data; `unavailable` means it could not be read. Either failure
+     * stops that branch. `unsupported` means the parent catalog records an
+     * unknown child mode; its readable catalog is still traversed.
      */
     readonly reason: 'corrupt' | 'unsupported' | 'unavailable'
   }

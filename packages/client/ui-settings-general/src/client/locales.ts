@@ -3,6 +3,7 @@
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'trigger': '设置',
+  'shortcut.open': '打开设置',
   'desktop.update.available': '新版本',
   'desktop.update.checking': '正在检查更新…',
   'desktop.update.progress': '{percent}%',
@@ -39,9 +40,9 @@ export const zh = {
   'onboarding.sectionUnavailable.title': '设置页面尚未就绪',
   'onboarding.sectionUnavailable.description': '对应插件尚未加载或当前不可用。请返回后稍后重试；如果一直无法打开，请在插件恢复或诊断中检查该插件。',
   'general.currentVersion': '当前版本：{version}',
-  'developerTools.title': '开发者工具',
+  'developerTools.title': '代码工作工具',
   'developerTools.error': '保存失败，请重试',
-  'developerTools.description': '显示用于调试和排查问题的工具与信息',
+  'developerTools.description': '开启后显示轨迹、本轮代码差异，新对话中的 Agent 预设切换',
   'connection.error': '连接异常，刷新重试',
   'connection.retry': '立即重连',
   'connection.connecting': '重新连接中',
@@ -56,6 +57,7 @@ export type SettingsKey = keyof typeof zh
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'trigger': 'Settings',
+  'shortcut.open': 'Open settings',
   'desktop.update.available': 'Update',
   'desktop.update.checking': 'Checking for updates…',
   'desktop.update.progress': '{percent}%',
@@ -92,9 +94,9 @@ export const en = {
   'onboarding.sectionUnavailable.title': 'Settings page is not ready',
   'onboarding.sectionUnavailable.description': 'The corresponding plugin has not loaded or is unavailable. Go back and retry shortly. If it remains unavailable, check the plugin in Plugin Recovery or Diagnostics.',
   'general.currentVersion': 'Current version: {version}',
-  'developerTools.title': 'Developer tools',
+  'developerTools.title': 'Coding Tools',
   'developerTools.error': 'Could not save. Please try again.',
-  'developerTools.description': 'Show tools and information for debugging and troubleshooting',
+  'developerTools.description': 'Shows trajectory, code diffs, and Agent preset switching in new chats',
   'connection.error': 'Disconnected',
   'connection.retry': 'Reconnect now',
   'connection.connecting': 'Reconnecting',

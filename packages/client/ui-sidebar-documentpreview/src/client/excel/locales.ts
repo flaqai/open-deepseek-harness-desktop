@@ -1,6 +1,6 @@
 /** Locale-owned Excel preview controls and parser feedback. */
 export const zh = {
-  title: '表格', language: 'zh', loading: '正在打开表格…',
+  title: '表格', language: 'zh', loading: '文档渲染中...',
   invalid: '无法打开此表格。请检查文件格式、内容或密码保护。',
   tooLarge: '此表格超过预览大小限制。', timeout: '打开表格超时。请缩小文件后重试。',
   encoding: '无法识别此文本文件的编码。请另存为 UTF-8 或带 BOM 的 UTF-16 后重试。',
@@ -15,7 +15,7 @@ export type ExcelPreviewKey = keyof typeof zh
 
 /** English Excel preview copy. */
 export const en = {
-  title: 'Spreadsheet', language: 'en', loading: 'Opening spreadsheet…',
+  title: 'Spreadsheet', language: 'en', loading: 'Rendering document...',
   invalid: 'This spreadsheet could not be opened. Check its format, contents, or password protection.',
   tooLarge: 'This workbook exceeds the preview size limit.', timeout: 'Opening this workbook timed out. Try a smaller file.',
   encoding: 'This text encoding could not be read. Save the file as UTF-8 or UTF-16 with a BOM and retry.',

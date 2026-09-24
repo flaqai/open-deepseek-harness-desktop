@@ -13,21 +13,24 @@ const REGISTRY_COPY = new Map<string, PluginManagerLocaleKey>([
   ['registry.npmmirror.com', 'registryNpmmirror'],
 ])
 
-/** npm's own registry, which pnpm names without any configuration. */
+/** npm's own registry, which reads by name rather than by host. */
 const OFFICIAL_NPM_HOST = 'registry.npmjs.org'
 
 /**
- * What a registry reads as: pnpm's own as the default registry, a known mirror by its name, any other registry by
- * its host; and the host each names, for where the name alone would leave it unsaid.
+ * What a registry reads as: npm's own by its name, a known mirror by its name, any other registry by its host;
+ * and the host each names, for where the name alone would leave it unsaid. The registry pnpm's own configuration
+ * names reads by the registry it names, so the label never claims npm's own for another one.
  * @param registry - the registry, null for the one pnpm's own configuration names.
  * @param t - the manager's translate seat.
- * @param resolved - the URL pnpm's own configuration names, null while unknown, when it reads as npm's own.
+ * @param resolved - the URL pnpm's own configuration names, null while the Host could not read it.
  * @returns the name and the host.
  */
 export function registryText(registry: Registry, t: Translate, resolved: string | null): { name: string; host: string } {
-  if (registry === null) return { name: t('registryDefault'), host: resolved === null ? OFFICIAL_NPM_HOST : registryHost(resolved) }
-  const host = registryHost(registry)
-  const key = REGISTRY_COPY.get(host)
+  const url = registry ?? resolved
+  // A configuration the Host could not read names no registry: the entry keeps the neutral default name.
+  if (url === null) return { name: t('registryDefault'), host: OFFICIAL_NPM_HOST }
+  const host = registryHost(url)
+  const key = host === OFFICIAL_NPM_HOST ? 'registryOfficial' : REGISTRY_COPY.get(host)
   return { name: key === undefined ? host : t(key), host }
 }
 

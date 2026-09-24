@@ -86,11 +86,18 @@ export interface ToolRowProps {
   filePathLine?: number | undefined
   /** Open the path (already cwd-resolved), landing on `filePathLine` when given. */
   onOpenFile?: ((path: string, options?: OpenFileOptions) => void) | undefined
+  /** Safe http(s) URL from tool args; when set, the summary renders as a link that opens it in a new tab. */
+  href?: string | undefined
   /**
    * Jump to this call in the trajectory view: a hover-revealed Inspect pill
    * over the expanded body. Absent = no affordance.
    */
   inspect?: (() => void) | undefined
+}
+
+/** Keep a summary link click from toggling the row; the browser still follows the link. */
+function stopLinkClick(event: MouseEvent<HTMLAnchorElement>): void {
+  event.stopPropagation()
 }
 
 /** Visually hidden run-state label for color-only running and settlement cues. */
@@ -135,6 +142,7 @@ export const ToolRow = memo(function ToolRow({
   filePath,
   filePathLine,
   onOpenFile,
+  href,
   inspect,
   useDisclosure,
 }: ToolRowProps) {
@@ -189,11 +197,13 @@ export const ToolRow = memo(function ToolRow({
       else onOpenFile(filePath, { line: filePathLine })
     }
     : undefined, [filePath, filePathLine, onOpenFile, settledWithCue])
-  // Keep Enter/Space on the focused path link from bubbling to the row's
+  const linkHref = settledWithCue ? undefined : href
+  // Keep Enter/Space on the focused path or URL link from bubbling to the row's
   // keydown handler, which would preventDefault() the key and toggle expand
-  // instead of activating the link — the keyboard analogue of openFile's
-  // stopPropagation. The native button still fires its own onClick from the key.
-  const fileLinkKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>) => {
+  // instead of activating the link — the keyboard analogue of the click
+  // handlers' stopPropagation. Enter activates both links and Space activates
+  // the path button; Space on a URL link does nothing.
+  const summaryLinkKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
   }, [])
   // The code variant's program renders through CodeBlock (shiki), so only its
@@ -209,10 +219,21 @@ export const ToolRow = memo(function ToolRow({
           type="button"
           className={css.fileLink}
           onClick={openFile}
-          onKeyDown={fileLinkKeyDown}
+          onKeyDown={summaryLinkKeyDown}
         >
           <TextShimmer active={running}>{summaryText}</TextShimmer>
         </button>
+      ) : linkHref !== undefined ? (
+        <a
+          className={css.fileLink}
+          href={linkHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={stopLinkClick}
+          onKeyDown={summaryLinkKeyDown}
+        >
+          <TextShimmer active={running}>{summaryText}</TextShimmer>
+        </a>
       ) : (
         <span
           className={clsx(
@@ -228,7 +249,7 @@ export const ToolRow = memo(function ToolRow({
         <TextShimmer className={clsx(css.summarySuffix, suffix === diffStat && css.diffStat)} active={running}>{suffix}</TextShimmer>
       )}
     </>
-  ), [diffStat, fileLinkKeyDown, openFile, running, state, suffix, summaryText])
+  ), [diffStat, summaryLinkKeyDown, linkHref, openFile, running, state, suffix, summaryText])
   const expandedContent = useMemo(() => open ? (
     <div className={clsx(css.bodyWrap, detailsBody !== null && css.detailsBodyWrap)}>
       {askQuestionBody !== null

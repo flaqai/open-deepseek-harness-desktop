@@ -75,7 +75,7 @@
 }
 
 .historyLoadButton:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -2px;
 }
 
@@ -206,7 +206,7 @@
 }
 
 .table tbody tr:not([data-collapsed-summary]):focus-visible {
-  box-shadow: inset 0 0 0 1px var(--dsw-alias-state-business-primary);
+  box-shadow: inset 0 0 0 1px var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
 }
 
 .table tbody tr[data-selected='true'] {
@@ -282,7 +282,7 @@
     var(--dsw-alias-brand-primary-new-colorprimary-new-color) 18%,
     var(--dsw-alias-bg-layer-1)
   );
-  box-shadow: 0 0 0 1.5px var(--dsw-alias-brand-primary-new-colorprimary-new-color);
+  box-shadow: 0 0 0 1.5px var(--dsw-alias-state-business-primary);
 }
 
 .requestBoundaryControl[data-request-status='error']::before,
@@ -455,7 +455,7 @@
   height: 19px;
   padding: 0 5px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--dsw-radius-xs);
   font-size: 10px;
   line-height: 16px;
   font-weight: 650;
@@ -734,7 +734,7 @@
 }
 
 .table tbody tr[data-collapsed-summary]:focus-visible {
-  box-shadow: inset 0 0 0 1px var(--dsw-alias-state-business-primary);
+  box-shadow: inset 0 0 0 1px var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
 }
 
 .collapsedTurnContent {
@@ -933,7 +933,7 @@
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   background: transparent;
   cursor: pointer;
@@ -1001,7 +1001,7 @@
 
 .close:focus-visible,
 .detailTab:focus-visible {
-  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -1px;
 }
 
@@ -1089,7 +1089,7 @@
 
 .overviewHierarchyNavLink:focus-visible {
   color: var(--dsw-alias-label-primary);
-  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -1147,7 +1147,7 @@
 }
 
 .timestampToggle:focus-visible {
-  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -1215,7 +1215,7 @@
 }
 
 .overviewTitle:focus-visible {
-  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -1316,7 +1316,7 @@
 }
 
 .programAction:focus-visible {
-  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -1px;
 }
 
@@ -1521,7 +1521,7 @@
 }
 
 .thinkingToggle:focus-visible {
-  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -1710,7 +1710,7 @@
   padding: 8px;
   gap: 10px;
   border: 0.5px solid var(--dsw-alias-border-l2-darkmode-thin);
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-lg);
 }
 
 .attachmentIcon {
@@ -1750,7 +1750,7 @@
 .attachmentDisclosure {
   margin-block: 8px;
   border: 0.5px solid var(--dsw-alias-border-l2-darkmode-thin);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-md);
 }
 
 .attachmentDisclosure > summary {
@@ -1763,7 +1763,7 @@
 }
 
 .attachmentDisclosure > summary:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -1800,7 +1800,7 @@
   align-items: center;
   margin-left: -4px;
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: var(--dsw-radius-xs);
   cursor: pointer;
 }
 
@@ -1810,7 +1810,7 @@
 
 .assistantToolCallButton:focus-visible {
   background: var(--dsw-alias-interactive-bg-hover);
-  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -1px;
 }
 
@@ -1884,7 +1884,7 @@
 
 .toolCatalogSummary:focus-visible {
   background: var(--dsw-alias-interactive-bg-hover);
-  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -1px;
 }
 
@@ -1981,4 +1981,9 @@
     border-left-color: var(--dsw-alias-border-l3);
     box-shadow: -12px 0 32px rgba(0, 0, 0, 0.14);
   }
+}
+
+.toolUpdatePayload {
+  white-space: pre;
+  overflow-x: auto;
 }

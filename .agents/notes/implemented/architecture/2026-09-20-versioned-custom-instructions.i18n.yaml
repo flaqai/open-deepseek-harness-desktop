@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-versioned-custom-instructions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-20-versioned-custom-instructions.md
-2026-09-20-versioned-custom-instructions.md: 057833f901ce0090e1c761b5c67d2bd6513d584f
-2026-09-20-versioned-custom-instructions.zh.md: 05c95d43ed2c0cb6e1d949b989e1c191818bc6d2
+/agent-note-versioned-custom-instructions:
+  en: 83aaf7038dda1c0e
+  zh: b17935b0fcda4be1
+/agent-note-versioned-custom-instructions/problem:
+  en: be444843a214f7a4
+  zh: 93a824bf7cce8095
+/agent-note-versioned-custom-instructions/decision:
+  en: 3300f654db93e51d
+  zh: 4a794207faf363b9
+/agent-note-versioned-custom-instructions/alternatives-considered:
+  en: 4d1f707fae42b785
+  zh: d3a1fccdbe9a027d
+/agent-note-versioned-custom-instructions/consequences:
+  en: b54569cffb2703e2
+  zh: 1dffca4d43df6198

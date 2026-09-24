@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/context/custom-instructions/README.md
-README.md: 3362df9e614280d9c65d5db1d8862561b5efff6a
-README.zh.md: ad7db896bf1482a5c8eaa97d746640a05739b4fb
+/:
+  en: d25ff7f709372d21
+  zh: 7ac572995847b1d0
+/deepseek-ai-dsh-custom-instructions:
+  en: 466faaec8acc2863
+  zh: 5e6b2833fb010c8b
+/deepseek-ai-dsh-custom-instructions/summary:
+  en: b07146656cd11870
+  zh: 7997ca313871f49c
+/deepseek-ai-dsh-custom-instructions/table-of-contents:
+  en: 984fd6c47d99a2ed
+  zh: 88b17ceec2864c78
+/deepseek-ai-dsh-custom-instructions/use-this-package:
+  en: 2020e05953ada6ee
+  zh: 082d1742065b5dc9
+/deepseek-ai-dsh-custom-instructions/persistence-and-diagnostics:
+  en: 910357419cd048af
+  zh: c72f4522a09287f5
+/deepseek-ai-dsh-custom-instructions/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-custom-instructions/model-experience/active-custom-instruction-context:
+  en: 6be32803f10b9df1
+  zh: 3f080a7174bb9937
+/deepseek-ai-dsh-custom-instructions/model-experience/active-custom-instruction-context/what-the-model-sees:
+  en: fd2f74d6027b4a7b
+  zh: 8a3db369366e1bc0
+/deepseek-ai-dsh-custom-instructions/model-experience/active-custom-instruction-context/what-the-model-sees/runtime-context-template:
+  en: 6e3ab77891adddc5
+  zh: b3ddc0847321cbca
+/deepseek-ai-dsh-custom-instructions/model-experience/active-custom-instruction-context/token-effect:
+  en: db6d75be5a3032e1
+  zh: f75177edcb443d46
+/deepseek-ai-dsh-custom-instructions/model-experience/active-custom-instruction-context/kv-cache-effect:
+  en: ca03eaddab6e2260
+  zh: 40ecdf13aa1b60ea
+/deepseek-ai-dsh-custom-instructions/known-limitations-and-deferred-work:
+  en: 27c513656edd19e4
+  zh: b3b8adacadefa751
+/deepseek-ai-dsh-custom-instructions/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

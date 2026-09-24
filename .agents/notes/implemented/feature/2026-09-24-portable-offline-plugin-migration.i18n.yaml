@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-24-portable-offline-plugin-migration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-24-portable-offline-plugin-migration.md
-2026-09-24-portable-offline-plugin-migration.md: f29c7a311791fb119e2f2721a0ec03fda85660e4
-2026-09-24-portable-offline-plugin-migration.zh.md: 46ef05182f7290d7d03e1172975b7fcac881469c
+/agent-note-target-specific-offline-plugin-migration:
+  en: 741f2294fba2e08f
+  zh: 693cd0ce422d3352
+/agent-note-target-specific-offline-plugin-migration/problem:
+  en: d28e52fda1c69a8c
+  zh: 9296b3fb91e1b122
+/agent-note-target-specific-offline-plugin-migration/decision:
+  en: e9d359918743c49c
+  zh: db202c1828adf145
+/agent-note-target-specific-offline-plugin-migration/alternatives-considered:
+  en: 8de36f0935715a29
+  zh: 8d79a8faf7ee946e
+/agent-note-target-specific-offline-plugin-migration/consequences:
+  en: b9907b8991489420
+  zh: 234582bb8e151c3d

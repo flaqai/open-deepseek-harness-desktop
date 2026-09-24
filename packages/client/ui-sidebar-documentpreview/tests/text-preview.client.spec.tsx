@@ -591,6 +591,16 @@ describe('TextPreview — navigation and view', () => {
 })
 
 describe('TextPreview — header controls', () => {
+  it('displays the document refresh binding supplied by its tab owner', async () => {
+    const h = harness({ 0: page(0, ['hello'], true) })
+    const props = h.props(), info = props.useTabInfo()
+    const view = render(<TextPreview {...props} useTabInfo={() => ({ ...info, tab: { ...info.tab,
+      refreshShortcut: { id: 'page.refresh' as never, label: 'Refresh', aliases: [], binding: null,
+        keys: ['Ctrl', 'R'], aria: 'Control+R', modified: true, conflicts: [], issue: null },
+    } })} />)
+    await settle()
+    expect(view.container.querySelector('[data-textpreview-tool="reload"]')?.getAttribute('aria-keyshortcuts')).toBe('Control+R')
+  })
   it('toggles wrap off from the header, reporting the pressed state', async () => {
     const h = harness({ 1: page(1, ['a'], true) })
     const view = render(<TextPreview {...h.props()} />)

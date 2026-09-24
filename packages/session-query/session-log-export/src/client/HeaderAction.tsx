@@ -4,7 +4,7 @@ import type { ConversationHeaderMenuContribution } from '@deepseek-ai/dsh-client
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import { SessionLogDownloadDialog, type SessionLogDownloadDialogProps } from './Dialog.tsx'
 import type { SessionLogDownloadDialogInjected } from './Dialog.tsx'
 import css from './HeaderAction.module.css'
@@ -93,8 +93,8 @@ export function SessionLogDownloadHeaderAction(props: SessionLogDownloadHeaderPr
           if (matches.length === 1) matches[0]?.onSelect(id)
         }}
         anchor={(
-          <button
-            type="button"
+          <Button
+            size="sm"
             className={css.moreButton}
             aria-label={t('header.more')}
             aria-haspopup="menu"
@@ -103,7 +103,7 @@ export function SessionLogDownloadHeaderAction(props: SessionLogDownloadHeaderPr
             onClick={() => { setOpen(value => !value) }}
           >
             <IconEllipsisOutlineRegular />
-          </button>
+          </Button>
         )}
       />
       {renderSlot('conversation.session.header.menu.item', { registerMenuItem })}

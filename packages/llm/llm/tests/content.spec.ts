@@ -4,6 +4,7 @@ import type { AttachmentStore, ImageMediaType } from '@deepseek-ai/dsh-attachmen
 import {
   ToolCallId,
   contentHasFile,
+  createDeveloperMessage,
   createToolResultMessage,
   createUserMessage,
   fileHandleText,
@@ -11,11 +12,12 @@ import {
   offloadedImageText,
   projectImagesForTextModel,
   projectOffloadedImages,
+  projectToolUpdates,
   requiredImageOffload,
   resolveImageAttachmentAccess,
   requestImageHandleText,
 } from '../src/index.ts'
-import type { ContentBlock, RequestUserInput } from '../src/index.ts'
+import type { ContentBlock, RequestMessage, RequestUserInput, ToolHistory, ToolSchema } from '../src/index.ts'
 
 const source = { kind: 'test' as const }
 
@@ -397,5 +399,146 @@ describe('file projection', () => {
     // The durable message is untouched: projection returns shallow copies.
     expect(messages[1]!.content[0]!.type).toBe('file')
     expect(messages[2]!.content[0]!.type).toBe('file')
+  })
+})
+
+describe('projectToolUpdates', () => {
+  const search: ToolSchema = { name: 'search', description: 'Search', parameters: {} }
+  const fetch: ToolSchema = { name: 'fetch', description: 'Fetch', parameters: {} }
+  const developer = (content: ContentBlock[]) => createDeveloperMessage({ source, content })
+  const prompt = createUserMessage({ source, content: [{ type: 'text', text: 'hi' }] })
+  const roles = (messages: readonly RequestMessage[]) => messages.filter(message => message.role === 'developer').map(message => message.content)
+
+  it('returns the input history and tools by identity when nothing is projected', () => {
+    const messages = [prompt]
+    const tools = [search]
+    const projected = projectToolUpdates(messages, tools, 'in-history', { tools, updates: [] })
+    expect(projected.messages).toBe(messages)
+    expect(projected.tools).toEqual(tools)
+    expect(projectToolUpdates(messages, tools, undefined).messages).toBe(messages)
+  })
+
+  it('strips deferred loading and developer updates when the route declares no mode', () => {
+    const added = developer([{ type: 'tool-addition', toolName: 'fetch' }])
+    const history: ToolHistory = { tools: [search], updates: [{ messageId: added.id, additions: [fetch] }] }
+    const deferred = [search, { ...fetch, deferLoading: true as const }]
+    const projected = projectToolUpdates([prompt, added, prompt], deferred, undefined, history)
+    expect(projected.tools).toEqual([search, fetch])
+    expect(projected.messages).toEqual([prompt, prompt])
+    const plain = [search, fetch]
+    expect(projectToolUpdates([prompt], plain, undefined, history).tools).toBe(plain)
+    expect(projectToolUpdates([prompt], undefined, undefined, history).tools).toBeUndefined()
+  })
+
+  it.each(['addition-only', 'in-history'] as const)('activates explicitly deferred baseline tools on %s routes', (mode) => {
+    const deferred = { ...search, deferLoading: true as const }
+    const added = developer([{ type: 'tool-addition', toolName: 'search' }])
+    const duplicate = developer([{ type: 'tool-addition', toolName: 'search' }])
+    const removed = developer([{ type: 'tool-removal', toolName: 'search' }])
+    const restored = developer([{ type: 'tool-addition', toolName: 'search' }])
+    const history: ToolHistory = { tools: [deferred], updates: [
+      { messageId: added.id, additions: [deferred] },
+      { messageId: duplicate.id, additions: [deferred] },
+      { messageId: removed.id, additions: [] },
+      { messageId: restored.id, additions: [deferred] },
+    ] }
+
+    const projected = projectToolUpdates([prompt, added, duplicate, removed, restored], [deferred], mode, history)
+
+    expect(projected.tools).toEqual([deferred])
+    expect(projected.messages).toEqual(mode === 'in-history'
+      ? [prompt, added, removed, restored]
+      : [prompt, added])
+  })
+
+  it('uses current declarations without updates when history is missing or the prefix omits an update', () => {
+    const added = developer([{ type: 'tool-addition', toolName: 'fetch' }])
+    const history: ToolHistory = { tools: [search], updates: [{ messageId: added.id, additions: [fetch] }] }
+    const tools = [search, fetch]
+    const missing = projectToolUpdates([prompt, added], tools, 'in-history')
+    expect(missing.tools).toBe(tools)
+    expect(missing.messages).toEqual([prompt])
+    const prefix = projectToolUpdates([prompt], tools, 'in-history', history)
+    expect(prefix.tools).toBe(tools)
+    expect(prefix.messages).toEqual([prompt])
+  })
+
+  it('omits updates from an earlier declaration series', () => {
+    const earlier = developer([{ type: 'tool-addition', toolName: 'search' }])
+    const current = developer([{ type: 'tool-addition', toolName: 'fetch' }])
+    const history: ToolHistory = { tools: [search], updates: [{ messageId: current.id, additions: [fetch] }] }
+
+    const projected = projectToolUpdates([prompt, earlier, current], [search, fetch], 'in-history', history)
+
+    expect(projected.messages).toEqual([prompt, current])
+    expect(projected.tools).toEqual([search, { ...fetch, deferLoading: true }])
+  })
+
+  it('defers historical additions and retains removed definitions for in-history routes', () => {
+    const added = developer([{ type: 'tool-addition', toolName: 'fetch' }, { type: 'text', text: 'fetch is available' }])
+    const removed = developer([{ type: 'tool-removal', toolName: 'search' }])
+    const history: ToolHistory = { tools: [search], updates: [
+      { messageId: added.id, additions: [fetch] },
+      { messageId: removed.id, additions: [] },
+    ] }
+    const projected = projectToolUpdates([prompt, added, prompt, removed, prompt], [fetch], 'in-history', history)
+    expect(projected.tools).toEqual([search, { ...fetch, deferLoading: true }])
+    expect(projected.messages[1]).toBe(added)
+    expect(roles(projected.messages)).toEqual([
+      [{ type: 'tool-addition', toolName: 'fetch' }, { type: 'text', text: 'fetch is available' }],
+      [{ type: 'tool-removal', toolName: 'search' }],
+    ])
+  })
+
+  it('omits removed definitions and removal blocks for addition-only routes', () => {
+    const swapped = developer([{ type: 'tool-addition', toolName: 'fetch' }, { type: 'tool-removal', toolName: 'search' }])
+    const removed = developer([{ type: 'tool-removal', toolName: 'fetch' }])
+    const history: ToolHistory = { tools: [search], updates: [
+      { messageId: swapped.id, additions: [fetch] },
+      { messageId: removed.id, additions: [] },
+    ] }
+    const projected = projectToolUpdates([prompt, swapped, prompt, removed, prompt], [], 'addition-only', history)
+    expect(projected.tools).toEqual([])
+    expect(projected.messages).toEqual([prompt, prompt, prompt])
+    const partial = projectToolUpdates([prompt, swapped, prompt], [fetch], 'addition-only', { tools: [search], updates: [history.updates[0]!] })
+    expect(partial.tools).toEqual([{ ...fetch, deferLoading: true }])
+    expect(partial.messages[1]).not.toBe(swapped)
+    expect(roles(partial.messages)).toEqual([[{ type: 'tool-addition', toolName: 'fetch' }]])
+  })
+
+  it('re-offers an unchanged restored tool through its recorded blocks', () => {
+    const removed = developer([{ type: 'tool-removal', toolName: 'search' }])
+    const restored = developer([{ type: 'tool-addition', toolName: 'search' }])
+    const history: ToolHistory = { tools: [search, fetch], updates: [
+      { messageId: removed.id, additions: [] },
+      { messageId: restored.id, additions: [search] },
+    ] }
+    const messages = [prompt, removed, prompt, restored, prompt]
+    const inHistory = projectToolUpdates(messages, [search, fetch], 'in-history', history)
+    expect(inHistory.tools).toEqual([search, fetch])
+    expect(roles(inHistory.messages)).toEqual([
+      [{ type: 'tool-removal', toolName: 'search' }],
+      [{ type: 'tool-addition', toolName: 'search' }],
+    ])
+    const additionOnly = projectToolUpdates(messages, [search, fetch], 'addition-only', history)
+    expect(additionOnly.tools).toEqual([search, fetch])
+    expect(roles(additionOnly.messages)).toEqual([])
+  })
+
+  it('declares a deferred tool once across removal and re-addition', () => {
+    const added = developer([{ type: 'tool-addition', toolName: 'fetch' }])
+    const removed = developer([{ type: 'tool-removal', toolName: 'fetch' }])
+    const restored = developer([{ type: 'tool-addition', toolName: 'fetch' }])
+    const history: ToolHistory = { tools: [search], updates: [
+      { messageId: added.id, additions: [fetch] },
+      { messageId: removed.id, additions: [] },
+      { messageId: restored.id, additions: [fetch] },
+    ] }
+    const messages = [prompt, added, prompt, removed, prompt, restored, prompt]
+    const inHistory = projectToolUpdates(messages, [search, fetch], 'in-history', history)
+    expect(inHistory.tools).toEqual([search, { ...fetch, deferLoading: true }])
+    expect(roles(inHistory.messages)).toHaveLength(3)
+    const additionOnly = projectToolUpdates(messages, [search, fetch], 'addition-only', history)
+    expect(roles(additionOnly.messages)).toEqual([[{ type: 'tool-addition', toolName: 'fetch' }]])
   })
 })

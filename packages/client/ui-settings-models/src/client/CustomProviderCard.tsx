@@ -271,7 +271,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         <input
           className={styles['input']}
           type="password"
-          autoComplete="off"
+          autoComplete="new-password"
           value={keyDraft}
           placeholder={t('keyPlaceholder')}
           aria-label={t('keyInput')}

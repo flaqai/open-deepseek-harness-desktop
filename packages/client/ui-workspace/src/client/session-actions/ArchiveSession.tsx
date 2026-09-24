@@ -29,12 +29,14 @@ import browserCss from '../rows/WorkspaceBrowser.module.css'
  * @returns the row.
  */
 export function ArchiveSessionMenuItem({
-  sessionId, useArchived, useMenuOpenState, archiveSession, unarchiveSession, t,
+  sessionId, useArchived, useMenuOpenState, useShortcuts, archiveSession, unarchiveSession, t,
 }: SessionMenuItemProps<ArchiveSessionInjected>) {
   const [, setMenuOpen] = useMenuOpenState()
+  const shortcut = useShortcuts(rows => rows.find(row => row.id === 'session.archive'))
   const archived = useArchived(set => set.has(sessionId))
   return (
     <MenuItemButton
+      shortcut={archived ? undefined : shortcut}
       icon={archived ? <IconUnarchiveOutlineRegular size={14} /> : <IconArchiveOutlineRegular size={14} />}
       onSelect={() => {
         setMenuOpen(false)

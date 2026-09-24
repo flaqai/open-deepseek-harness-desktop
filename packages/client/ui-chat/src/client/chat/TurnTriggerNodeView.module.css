@@ -1,7 +1,7 @@
 .root {
   min-width: 0;
   border: 0.5px solid var(--dsw-alias-border-l1);
-  border-radius: 16px;
+  border-radius: var(--dsw-radius-xl);
   background: var(--dsw-alias-markdown-code-block);
   transition: background-color 100ms ease;
 }

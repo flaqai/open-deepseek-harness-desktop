@@ -1,5 +1,5 @@
 /** Feishu questionnaire context follows the Platform Web ticket fields. */
-import type { Config } from '../contact-config.ts'
+import type { ContactConfig } from '../contact-config.ts'
 
 /**
  * Build an external questionnaire URL without authentication credentials.
@@ -7,7 +7,7 @@ import type { Config } from '../contact-config.ts'
  * @param context - currently available build and browser environment.
  * @returns questionnaire URL with hidden, optionally prefilled context fields.
  */
-export function contactUrl(config: Config, context: {
+export function contactUrl(config: ContactConfig, context: {
   version: string | undefined
   locale: string
   width: number

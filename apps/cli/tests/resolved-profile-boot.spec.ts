@@ -64,7 +64,7 @@ describe('runProfile with an application-owned profile', () => {
       new TypertContributorFailure('dsh-mysql', 'manifest', new Error('parameter codec has no create() factory')),
     ], 'plugin tree failed to load')
     vi.mocked(boot).mockRejectedValue(failure)
-    const profile: Profile = { name: 'web', dir: profileDir, patchPath: join(profileDir, 'cordis.patch.yml'), patches: [], layers: [] }
+    const profile: Profile = { name: 'web', dir: profileDir, patchPath: join(profileDir, 'cordis.patch.yml'), patches: [], layers: [], skippedBundles: [] }
 
     await expect(runProfile({
       environment: createLaunchEnvironmentSnapshot([]), profile: 'web', patchFiles: [], args: [],
@@ -112,7 +112,7 @@ describe('runProfile with an application-owned profile', () => {
       throw failure
     })
     if (stage === 'composition') vi.mocked(createRuntimeResolution).mockRejectedValueOnce(failure)
-    const profile: Profile = {
+    const profile: Profile = { skippedBundles: [],
       name: 'desktop', dir: home, patchPath: join(home, 'cordis.patch.yml'),
       patches: [], layers: [],
     }
@@ -173,7 +173,7 @@ describe('runProfile with an application-owned profile', () => {
     writeFileSync(profilePatch, '- id: target\n  config: { profile: true, priority: profile }\n')
     writeFileSync(overlay, '- id: target\n  config: { overlay: true, priority: overlay }\n')
     writeFileSync(join(home, 'cordis.yml'), '- id: stale\n')
-    const profile: Profile = {
+    const profile: Profile = { skippedBundles: [],
       name: 'desktop', dir: home, patchPath: profilePatch,
       patches: [{ id: 'target', config: { profile: true, priority: 'profile' } }],
       layers: [{

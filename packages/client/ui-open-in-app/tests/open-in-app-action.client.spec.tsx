@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
+import { useSyncExternalStore } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, act } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { OpenInAppAction, type OpenInAppActionProps } from '../src/client/OpenInAppAction.tsx'
+import { OpenInAppController } from '../src/client/controller.ts'
 import { zh } from '../src/client/locales.ts'
 
 afterEach(() => {
@@ -27,6 +30,7 @@ function bench(over: {
   apps?: readonly string[] | null
   choice?: string
   cwd?: string
+  shortcuts?: readonly ShortcutCatalogEntry[]
   launch?: (appId: string, path: string) => Promise<void>
 } = {}): Bench {
   const state: SessionListState = {
@@ -37,19 +41,26 @@ function bench(over: {
   }
   const apps = createSnapshotStore<readonly string[] | null>(over.apps ?? null)
   const choice = createSnapshotStore<string>(over.choice ?? '')
-  const launch = vi.fn(over.launch ?? (async () => {}))
+  const controller = new OpenInAppController(async (_input, init) => {
+    const request = JSON.parse(init?.body as string) as { app: string; path: string }
+    await over.launch?.(request.app, request.path)
+    return new Response('', { status: 200 })
+  })
+  const launch = vi.fn((appId: string, path: string) => controller.launch(appId, path))
   const choose = vi.fn()
   function useSessions<T>(select: (snapshot: SessionListState) => T): T {
     return select(state)
   }
-  function useSelector<T, R>(source: { getSnapshot(): T }): (select: (value: T) => R) => R {
-    return select => select(source.getSnapshot())
+  function useSelector<T, R>(source: { getSnapshot(): T; subscribe(listener: () => void): () => void }): (select: (value: T) => R) => R {
+    return select => select(useSyncExternalStore(listener => source.subscribe(listener), () => source.getSnapshot()))
   }
   const props = {
     sessionId: SESSION,
     useSessions,
     useOpenInAppApps: useSelector(apps),
     useOpenInAppChoice: useSelector(choice),
+    useOpenInAppLaunch: useSelector(controller.operation),
+    useShortcuts: useSelector(createSnapshotStore(over.shortcuts ?? [])),
     launch,
     choose,
     iconUrl: (appId: string) => `open-in-app/icon/${appId}`,
@@ -59,6 +70,13 @@ function bench(over: {
 }
 
 describe('OpenInAppAction visibility', () => {
+  it('advertises the configured workspace accelerator', () => {
+    render(<OpenInAppAction {...bench({ apps: ['finder'], cwd: '/w', shortcuts: [{
+      id: 'workspace.openLocal' as ShortcutCommandId, label: 'Open', aliases: [], binding: null,
+      keys: ['Ctrl', 'O'], aria: 'Control+O', modified: true, conflicts: [], issue: null,
+    }] }).props} />)
+    expect(screen.getByRole('button', { name: t('open.title', { app: zh['app.finder'] }) }).getAttribute('aria-keyshortcuts')).toBe('Control+O')
+  })
   it('renders nothing before availability arrives, with no apps, without a cwd, and for unnameable ids', () => {
     for (const over of [
       { apps: null, cwd: '/w' },

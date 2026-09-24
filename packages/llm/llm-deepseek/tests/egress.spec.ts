@@ -38,7 +38,7 @@ import { vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import DeepSeekLlmApiExtensionRegistry from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
-import * as LlmDeepSeek from '../src/index.ts'
+import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
 
 let home: string
 beforeAll(() => {

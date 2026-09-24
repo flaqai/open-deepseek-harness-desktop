@@ -118,6 +118,8 @@ function markdownImageFixture(remoteUrl: string, outsidePath: string): string {
           '',
           '![Encoded path]({{cwd}}/test%20workspace/测试图.png)',
           '',
+          '![Encoded filename]({{cwd}}/test%20workspace/测试%23100%25.png)',
+          '',
           '![Oversized image]({{cwd}}/oversized.png)',
           '',
           `![Outside workspace image](${outsidePath})`,
@@ -173,6 +175,7 @@ describe('web e2e: Markdown image rendering', () => {
     await writeFile(join(scaffold.workspaceCwd, 'local-image.png'), PNG)
     await mkdir(join(scaffold.workspaceCwd, 'test workspace'))
     await writeFile(join(scaffold.workspaceCwd, 'test workspace/测试图.png'), PNG)
+    await writeFile(join(scaffold.workspaceCwd, 'test workspace/测试#100%.png'), PNG)
     await writeFile(join(scaffold.workspaceCwd, 'corrupt.png'), 'invalid image')
     const oversized = await open(join(scaffold.workspaceCwd, 'oversized.png'), 'w')
     try {
@@ -243,14 +246,14 @@ describe('web e2e: Markdown image rendering', () => {
         referrerPolicy: element.getAttribute('referrerpolicy'),
       }
     })).toEqual({
-      borderRadius: '8px',
+      borderRadius: '12px',
       decoding: 'async',
       loading: 'lazy',
       maxWidth: 'min(100%, 640px)',
       referrerPolicy: 'no-referrer',
     })
     await expect.poll(() => page.getByRole('img', { name: LOCAL_ALT }).evaluate(element => (element as HTMLImageElement).naturalWidth)).toBe(1)
-    for (const name of ['Space path', 'Encoded path']) {
+    for (const name of ['Space path', 'Encoded path', 'Encoded filename']) {
       await expect.poll(() => page.getByRole('img', { name, exact: true }).evaluate(element => (element as HTMLImageElement).naturalWidth)).toBe(1)
     }
     expect(imageOrigin.requests).toEqual([{ path: '/image.png', referer: undefined }])
@@ -272,6 +275,7 @@ describe('web e2e: Markdown image rendering', () => {
       [join(scaffold.workspaceCwd, 'valid.png'), 200],
       [`${scaffold.workspaceCwd}/./local-image.png`, 200],
       [join(scaffold.workspaceCwd, 'test workspace/测试图.png'), 200],
+      [join(scaffold.workspaceCwd, 'test workspace/测试#100%.png'), 200],
       [join(scaffold.workspaceCwd, 'oversized.png'), 413],
       [join(scaffold.persistenceRoot, 'outside.png'), 200],
       [join(scaffold.workspaceCwd, 'missing.png'), 404],

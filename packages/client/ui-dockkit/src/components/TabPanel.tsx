@@ -238,7 +238,12 @@ export function TabStrip({ state, pane, callbacks }: TabPanelProps): ReactNode {
   }
 
   return (
-    <div className={css.tabStrip} role="tablist" data-dockkit-strip={pane.id}>
+    // The window drag claim is withdrawn while any pane floats: a floating pane
+    // renders among this surface's cells in tab-id order, so one sorted before this
+    // row would sit earlier in the document, where this row's drag box overrides the
+    // float's own subtraction and swallows the panel's header and controls.
+    <div className={css.tabStrip} role="tablist" data-dockkit-strip={pane.id}
+      data-window-drag={state.floats.length === 0 ? true : undefined}>
       <div ref={stripTabs} className={css.stripTabs} role="presentation" data-dockkit-strip-tabs={pane.id}>
         {pane.tabs.map((tabId, index) => {
           const tab = getTab(state, tabId)
@@ -288,6 +293,7 @@ export function TabStrip({ state, pane, callbacks }: TabPanelProps): ReactNode {
                 onKeyDown={(event) => {
                   // Keys on the chip's nested close control are that control's.
                   if (event.target !== event.currentTarget) return
+                  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.nativeEvent.isComposing) return
                   const next = chipToFocus(event.key, pane.tabs, tabId)
                   if (next !== undefined) {
                     event.preventDefault()
@@ -307,21 +313,24 @@ export function TabStrip({ state, pane, callbacks }: TabPanelProps): ReactNode {
               >
                 <TabTitle>{callbacks.renderTabTitle?.(tab) ?? tab.title}</TabTitle>
                 {closable && (
-                  <button
-                    type="button"
-                    className={css.tabClose}
-                    aria-label={callbacks.labels.closeTab}
-                    data-dockkit-tab-close={tabId}
-                    // A nested control stops its own press: otherwise the press
-                    // starts a drag, captures the pointer, and this click never lands.
-                    onPointerDown={(event) => { event.stopPropagation() }}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      callbacks.onCloseTab(tabId)
-                    }}
-                  >
-                    <IconCloseFillRegular size={14} />
-                  </button>
+                  <Tooltip disabled={menu !== undefined} label={callbacks.labels.closeTab} shortcutKeys={callbacks.labels.closeTabKeys} side="bottom" delayMs={500}>
+                    <button
+                      type="button"
+                      className={css.tabClose}
+                      aria-label={callbacks.labels.closeTab}
+                      aria-keyshortcuts={callbacks.labels.closeTabShortcut}
+                      data-dockkit-tab-close={tabId}
+                      // A nested control stops its own press: otherwise the press
+                      // starts a drag, captures the pointer, and this click never lands.
+                      onPointerDown={(event) => { event.stopPropagation() }}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        callbacks.onCloseTab(tabId)
+                      }}
+                    >
+                      <IconCloseFillRegular size={14} />
+                    </button>
+                  </Tooltip>
                 )}
                 {menu?.tabId === tabId && (
                   <TabMenu
@@ -356,24 +365,27 @@ export function TabStrip({ state, pane, callbacks }: TabPanelProps): ReactNode {
       )}
       <div className={css.stripFill} data-dockkit-strip-fill />
       {!(callbacks.hideSplitWhenBlocked && block !== undefined) && (
-        <Tooltip label={callbacks.labels.splitPane} side="bottom" delayMs={500} disabled={block !== undefined}>
-          <button
-            type="button"
-            className={css.iconButton}
-            aria-label={callbacks.labels.splitPane}
-            // Disabled buttons fire no hover events, so the blocked reason
-            // stays a native title.
-            title={block === undefined ? undefined : splitBlockedTitle(callbacks.labels, block)}
-            disabled={block !== undefined}
-            data-dockkit-split-button={pane.id}
-            data-dockkit-split-blocked={block}
-            onClick={(event) => {
-              event.stopPropagation()
-              callbacks.onSplitPane(pane.id)
-            }}
+        <Tooltip label={block === undefined ? callbacks.labels.splitPane : splitBlockedTitle(callbacks.labels, block)} shortcutKeys={callbacks.labels.splitPaneKeys} side="bottom" delayMs={500}>
+          <span
+            tabIndex={block === undefined ? undefined : 0}
+            aria-label={block === undefined ? undefined : splitBlockedTitle(callbacks.labels, block)}
           >
-            <SplitGlyph />
-          </button>
+            <button
+              type="button"
+              className={css.iconButton}
+              aria-label={callbacks.labels.splitPane}
+              aria-keyshortcuts={callbacks.labels.splitPaneShortcut}
+              disabled={block !== undefined}
+              data-dockkit-split-button={pane.id}
+              data-dockkit-split-blocked={block}
+              onClick={(event) => {
+                event.stopPropagation()
+                callbacks.onSplitPane(pane.id)
+              }}
+            >
+              <SplitGlyph />
+            </button>
+          </span>
         </Tooltip>
       )}
       {/* The embedder's surface-wide controls, in the top-right pane only: the
@@ -416,6 +428,7 @@ export function TabPanel({ state, pane, callbacks }: TabPanelProps): ReactNode {
     <section
       className={css.pane}
       data-dockkit-pane={pane.id}
+      tabIndex={-1}
       data-dockkit-pane-active={state.activePaneId === pane.id || undefined}
       onClick={() => {
         if (state.activePaneId !== pane.id) callbacks.onFocusPane(pane.id)

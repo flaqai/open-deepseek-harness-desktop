@@ -11,9 +11,10 @@ import type { RemoteErrorCode } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import {
   AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController,
-  writeDefaultPreset, writeModeSelectionEnabled,
+  writeDefaultPreset,
 } from '../src/client/settings-store.ts'
 
 /** The roster store over a scripted context. */
@@ -33,10 +34,9 @@ function fakeRoster(
     failList?: string
     failListCode?: RemoteErrorCode
     settings?: object
-    showPicker?: boolean
   } = {},
 ): ClientContext {
-  return {
+  const partial = {
     remote: {
       ...options.settings === undefined ? {} : { settings: options.settings },
       agentPresets: {
@@ -44,9 +44,7 @@ function fakeRoster(
           return Promise.resolve(options.failList === undefined
             ? {
               ok: true as const,
-              value: {
-                presets, modeSelectionEnabled: options.showPicker ?? true,
-              },
+              value: { presets },
             }
             : {
               ok: false as const,
@@ -55,7 +53,8 @@ function fakeRoster(
         },
       },
     },
-  } as unknown as ClientContext
+  }
+  return partial as ClientContext
 }
 
 /** A context whose roster and settings write outcome the test controls. */
@@ -68,7 +67,7 @@ function fakeApi(
   } = {},
 ): ClientContext {
   const settings = {
-    update: (ns: string, patch: { selectedDefault?: unknown; modeSelectionEnabled?: unknown }) => {
+    update: (ns: string, patch: { selectedDefault?: unknown }) => {
       options.writes?.push({ ns, ops: patch })
       if (options.failWrite !== undefined) {
         return Promise.resolve({ ok: false as const, error: new RemoteError('gateway/internal', options.failWrite, {}) })
@@ -175,16 +174,6 @@ describe('the agent-preset roster store', () => {
     expect(await writeDefaultPreset(ctx, 'minimal')).toBe('read-only settings')
   })
 
-  it('writeModeSelectionEnabled writes only the picker policy field', async () => {
-    const writes: Recorded[] = []
-
-    expect(await writeModeSelectionEnabled(fakeApi([], { writes }), false)).toBeUndefined()
-    expect(writes).toEqual([{
-      ns: AGENT_PRESET_SETTINGS_NS,
-      ops: { modeSelectionEnabled: false },
-    }])
-  })
-
   it('surfaces a roster failure without claiming the deployment has no presets', async () => {
     const controller = derivedController(fakeApi([], { failList: 'host down' }))
 
@@ -217,20 +206,19 @@ describe('the new-session chip controller', () => {
       failSelect?: string
       failList?: string
       failListCode?: RemoteErrorCode
-      showPicker?: boolean
+      developerTools?: ObservableSnapshot<boolean>
       list?: () => Promise<ReturnType<typeof remoteRoster>>
     } = {},
   ): AgentPresetSeatController {
-    const ctx = {
+    const partial = {
+      configForms: { developerTools: { enabled: options.developerTools ?? createSnapshotStore(true) } },
       remote: {
         agentPresets: {
           list: options.list ?? (() => {
             return Promise.resolve(options.failList === undefined
               ? {
                 ok: true as const,
-                value: {
-                  presets, modeSelectionEnabled: options.showPicker ?? true,
-                },
+                value: { presets },
               }
               : {
                 ok: false as const,
@@ -250,7 +238,8 @@ describe('the new-session chip controller', () => {
           },
         },
       },
-    } as unknown as ClientContext
+    }
+    const ctx = partial as ClientContext
     return new AgentPresetSeatController(
       ctx,
       typeof current === 'function' ? current : () => current,
@@ -276,7 +265,7 @@ describe('the new-session chip controller', () => {
     ])
   })
 
-  it('takes picker visibility from the newest Host roster truth', async () => {
+  it('publishes only the newest overlapping roster read', async () => {
     const first = Promise.withResolvers<ReturnType<typeof remoteRoster>>()
     const second = Promise.withResolvers<ReturnType<typeof remoteRoster>>()
     const replies = [first.promise, second.promise]
@@ -284,13 +273,13 @@ describe('the new-session chip controller', () => {
 
     const older = controller.load()
     const newer = controller.load()
-    second.resolve(remoteRoster(false))
+    second.resolve(remoteRoster('mine'))
     await newer
-    first.resolve(remoteRoster(true))
+    first.resolve(remoteRoster('standard'))
     await older
 
     expect(controller.store.getSnapshot()).toMatchObject({
-      showPicker: false, current: 'standard', error: null,
+      current: 'mine', error: null,
     })
   })
 
@@ -477,13 +466,14 @@ describe('the new-session chip controller', () => {
     expect(controller.store.getSnapshot().current).toBe('minimal')
   })
 
-  it('clears an unconsumed stage when the Host hides the picker', async () => {
+  it('clears an unconsumed stage when Developer tools are off', async () => {
     const writes: Recorded[] = []
+    const developerTools = createSnapshotStore(false)
     const controller = chip(ROSTER, {
       id: 's1' as SessionId,
       blank: false,
       projectionValues: { agentPreset: 'standard' },
-    }, { writes, showPicker: false })
+    }, { writes, developerTools })
     controller.stage('minimal', true)
 
     await controller.load()
@@ -491,10 +481,54 @@ describe('the new-session chip controller', () => {
 
     expect(writes).toEqual([])
     expect(controller.store.getSnapshot()).toMatchObject({
-      showPicker: false,
       current: 'standard',
       introduce: false,
     })
+  })
+
+  it('drops a stage made while Developer tools were on once they turn off', async () => {
+    const writes: Recorded[] = []
+    const developerTools = createSnapshotStore(true)
+    const session = {
+      id: 's1' as SessionId,
+      blank: true,
+      projectionValues: { agentPreset: 'standard' },
+    }
+    const controller = chip(ROSTER, session, { writes, developerTools })
+    await controller.load()
+    // The blank session keeps the composition its own screen already names.
+    controller.stage('minimal', true)
+    developerTools.set(false)
+
+    await controller.apply()
+
+    expect(writes).toEqual([])
+    expect(controller.store.getSnapshot()).toMatchObject({
+      current: 'standard',
+      introduce: false,
+    })
+  })
+
+  it('leaves the introduction cue to the chip while Developer tools stay on', async () => {
+    const developerTools = createSnapshotStore(true)
+    const session = {
+      id: 's1' as SessionId,
+      blank: true,
+      // Already composed from the staged preset, so applying the stage is a
+      // no-op that leaves the cue for the chip to play.
+      projectionValues: { agentPreset: 'minimal' },
+    }
+    const controller = chip(ROSTER, session, { developerTools })
+    await controller.load()
+    controller.stage('minimal', true)
+
+    await controller.apply()
+    await controller.apply()
+
+    expect(controller.store.getSnapshot().introduce).toBe(true)
+    expect(controller.store.getSnapshot().current).toBe('minimal')
+    controller.introduced()
+    expect(controller.store.getSnapshot().introduce).toBe(false)
   })
 
   it('reports a refused roster read without emptying the chip', async () => {
@@ -507,12 +541,14 @@ describe('the new-session chip controller', () => {
 
 })
 
-function remoteRoster(modeSelectionEnabled: boolean) {
+function remoteRoster(defaultId: string) {
   return {
     ok: true as const,
     value: {
-      presets: [{ id: 'standard', isDefault: true }],
-      modeSelectionEnabled,
+      presets: [
+        { id: 'standard', isDefault: defaultId === 'standard' },
+        { id: 'mine', isDefault: defaultId === 'mine' },
+      ],
     },
   }
 }

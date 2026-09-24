@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-10-explicit-diagnostics-fallback.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-10-explicit-diagnostics-fallback.md
-2026-09-10-explicit-diagnostics-fallback.md: b00b7c64d6d4555f06a7ae1d79649579262488e4
-2026-09-10-explicit-diagnostics-fallback.zh.md: c546fb725890003355ae22e88f424b0e1ca4396b
+/agent-note-explicit-diagnostics-fallback:
+  en: f04be75c35e17801
+  zh: ac1b33d6f81b1720
+/agent-note-explicit-diagnostics-fallback/problem:
+  en: b791ec7cf10a44ac
+  zh: 84ff8ec3fdc1dd14
+/agent-note-explicit-diagnostics-fallback/decision:
+  en: 08b4957d6da357cc
+  zh: c466ac71a987a26e
+/agent-note-explicit-diagnostics-fallback/alternatives-considered:
+  en: 02a8a7f2600acbc9
+  zh: abb84fe5556e2972
+/agent-note-explicit-diagnostics-fallback/consequences:
+  en: ca66526377f06f6f
+  zh: 53e8ce77298dfe9a

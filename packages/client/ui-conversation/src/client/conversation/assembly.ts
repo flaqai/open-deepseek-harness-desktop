@@ -29,6 +29,11 @@ import { ConversationGroupRegistry } from './group-registry.ts'
 export interface ConversationBinding {
   readonly snapshot: ObservableSnapshot<ConversationSnapshot>
   /**
+   * Identity-stable source of the latest turn number, undefined unless its start is loaded and it remains open.
+   * Turn changes publish synchronously, including without an active View.
+   */
+  readonly openTurn: ObservableSnapshot<number | undefined>
+  /**
    * Add one selected target to the Session's monotonic active set.
    * @param target - registered or subsequently registered Conversation target.
    */
@@ -47,6 +52,7 @@ export interface ConversationBinding {
 
 class BoundConversation implements ConversationBinding {
   readonly snapshot: SnapshotStore<ConversationSnapshot>
+  readonly openTurn: SnapshotStore<number | undefined>
   private readonly viewStore: ConversationViewSnapshotStore
   private readonly targetSources = new Map<string, ObservableSnapshot<unknown>>()
   private revision = -1
@@ -59,6 +65,7 @@ class BoundConversation implements ConversationBinding {
   ) {
     this.viewStore = assembler
     this.snapshot = createSnapshotStore(this.currentSnapshot())
+    this.openTurn = createSnapshotStore(assembler.openTurn())
     this.replace(feed.getSnapshot())
     this.disposeFeed = feed.subscribe(() => {
       this.accept(feed.getSnapshot())
@@ -86,6 +93,7 @@ class BoundConversation implements ConversationBinding {
 
   activate(target: string): void {
     if (this.assembler.activateTarget(target)) this.snapshot.set(this.currentSnapshot())
+    this.openTurn.set(this.assembler.openTurn())
   }
 
   rebuild(): void { this.publish(this.assembler.rebuildRegistry()) }
@@ -157,6 +165,7 @@ class BoundConversation implements ConversationBinding {
 
   private flush(): void {
     if (this.assembler.flush()) this.snapshot.set(this.currentSnapshot())
+    this.openTurn.set(this.assembler.openTurn())
   }
 
   private currentSnapshot(): ConversationSnapshot {
@@ -223,6 +232,7 @@ export class UiConversation extends Service {
    * Resolve the Conversation binding for one Controller binding or Session id.
    * @param source - Session binding or identity.
    * @returns stable Conversation binding.
+   * @throws if the Session is unknown or its binding is no longer current.
    */
   binding(source: SessionBinding | SessionId): ConversationBinding {
     const sessionId = typeof source === 'string' ? source : source.sessionId

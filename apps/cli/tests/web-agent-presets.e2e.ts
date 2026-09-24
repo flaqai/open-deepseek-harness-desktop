@@ -133,7 +133,7 @@ async function bootWeb(
     await mkdir(dirname(link), { recursive: true })
     await symlink(packageDir, link, 'junction')
   }
-  let profile: Profile = {
+  let profile: Profile = { skippedBundles: [],
     name: 'spec',
     dir: profileDir,
     layers: [],
@@ -263,7 +263,8 @@ describe('the shipped Web composition', () => {
       // depend on ripgrep being present on the machine.
       expect(toolNames(ctx, handle.agent).filter(name => name !== 'glob' && name !== 'grep')).toEqual([
         'ask_user_question', 'bash', 'create_goal', 'edit', 'exit_plan_mode',
-        'get_goal', 'interrupt_agent', 'job_kill', 'job_list', 'job_output', 'list_agents', 'present', 'read', 'read_image', 'send_message', 'skill',
+        'get_goal', 'interrupt_agent', 'job_kill', 'job_list', 'job_output', 'list_agents', 'present', 'read', 'read_image',
+        'send_message', 'skill',
         'subagent', 'subagent_fork', 'todo_write', 'update_goal', 'web_fetch', 'web_search',
         'workflow', 'write',
       ])
@@ -681,10 +682,14 @@ describe('a user preset declared from the shipped cordis rows', () => {
           agent: copied.agent,
         })
         expect(queried.isError).toBe(false)
-        const tools = (JSON.parse(resultText(queried)) as { data: { tools: Array<{ name: string }> } }).data.tools
-        expect(tools.map(tool => tool.name)).toEqual(expect.arrayContaining([
-          'bash', 'cordis_inspect_list', 'cordis_inspect_query', 'plugin_manager',
-        ]))
+        // The whole-table answer can pass the inline token budget once the
+        // preset's tool table grows, and the spill policy then replaces its
+        // middle with a gap plus a spill footer. What this case proves is the
+        // provider's answer, so assert the names it must carry.
+        const queriedText = resultText(queried)
+        for (const toolName of ['bash', 'cordis_inspect_list', 'cordis_inspect_query', 'plugin_manager']) {
+          expect(queriedText).toContain(`"name": "${toolName}"`)
+        }
 
         // The `Config` provider reads the booted profile tree: the shipped `tools` row declares a Config,
         // and the bootstrap include row is a carrier. The name filter keeps each page small.
@@ -845,7 +850,6 @@ describe('a delegated child', () => {
 
 describe('the default preset as a user setting', () => {
   it('composes an unnamed session from the stored default, not the composed one', async () => {
-    expect((await ctx.agentPresets.remoteExportList()).modeSelectionEnabled).toBe(true)
     expect(ctx.agentPresets.defaultId).toBe('standard')
 
     await ctx.settings.update(SETTINGS_NAMESPACE, { selectedDefault: 'minimal' })
@@ -871,6 +875,44 @@ describe('the default preset as a user setting', () => {
     }
 
     expect(ctx.agentPresets.defaultId).toBe('standard')
+  })
+})
+
+describe('a profile patch stored before Developer tools owned preset selection', () => {
+  let legacy: Context
+  let legacyHome: string
+  beforeAll(async () => {
+    legacyHome = await mkdtemp(join(tmpdir(), 'dsh-web-presets-legacy-'))
+    // A stored configuration from before the switch moved to Developer tools:
+    // it carries the retired key beside the default the user had saved. The
+    // Loader resolves the declared fields and leaves the extra one alone.
+    legacy = await bootWeb(legacyHome, [{
+      id: SETTINGS_NAMESPACE,
+      config: { default: 'standard', selectedDefault: 'minimal', modeSelectionEnabled: false },
+    }])
+  }, 120_000)
+  afterAll(async () => {
+    await legacy?.fiber.dispose()
+    await rm(legacyHome, { recursive: true, force: true })
+  })
+
+  it('starts, keeps the retired key inert and composes new sessions from the saved default', async () => {
+    expect(legacy.agentPresets.defaultId).toBe('minimal')
+    expect((await legacy.agentPresets.remoteExportList()).presets.find(row => row.id === 'minimal')?.isDefault).toBe(true)
+    // Settings projects the declared fields, so the retired key is neither
+    // shown nor rewritten; the user's saved default is.
+    expect(legacy.settings.describe().find(row => row.ns === SETTINGS_NAMESPACE)?.value)
+      .toEqual({ selectedDefault: 'minimal' })
+
+    const handle = await legacy.agents.create({
+      sessionId: SessionId('preset-legacy-patch'),
+      setup: agentCtx => legacy.agentPresets.mount(agentCtx).then(() => undefined),
+    })
+    try {
+      expect(toolNames(legacy, handle.agent)).toEqual(['bash'])
+    } finally {
+      await handle.dispose()
+    }
   })
 })
 

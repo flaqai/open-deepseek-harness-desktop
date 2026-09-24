@@ -13,6 +13,8 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+// Type-only: pulls the Developer tools preference (ctx.configForms) into this program.
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
@@ -21,8 +23,6 @@ import type { AgentPresetOption } from './settings-store.ts'
 
 /** Hero-chip snapshot. */
 export interface AgentPresetSeatState {
-  /** Whether the new-session surface exposes preset selection. */
-  showPicker: boolean
   /** Presets the deployment supplies; empty means the chip renders nothing. */
   options: readonly AgentPresetOption[]
   /** The staged choice, empty until the roster loads. */
@@ -39,7 +39,7 @@ export interface AgentPresetSeatState {
 }
 
 const INITIAL: AgentPresetSeatState = {
-  showPicker: false, options: [], current: '', error: null, busy: false, introduce: false,
+  options: [], current: '', error: null, busy: false, introduce: false,
 }
 
 /** Mutable one-shot preset choice shared across Provider-bound seat controllers. */
@@ -85,6 +85,11 @@ export class AgentPresetSeatController {
     this.staged.introduce = false
   }
 
+  /** Developer tools are the single gate over preset selection. */
+  private selectionAvailable(): boolean {
+    return this.ctx.configForms.developerTools.enabled.getSnapshot()
+  }
+
   /**
    * Read the roster and open the chip on the Host-effective default.
   * @returns once the snapshot reflects the host.
@@ -97,14 +102,12 @@ export class AgentPresetSeatController {
       this.set({ error: roster.error })
       return
     }
-    const { presets, modeSelectionEnabled } = roster.value
-    if (!modeSelectionEnabled) {
-      this.clearStage()
-    }
+    const { presets } = roster.value
+    // A stage outlives the screen that made it; Developer tools may have gone off since.
+    if (!this.selectionAvailable()) this.clearStage()
     this.fallback = presets.find(preset => preset.isDefault)?.id ?? presets[0]?.id ?? ''
     const session = this.currentSession()
     this.set({
-      showPicker: modeSelectionEnabled,
       options: presetOptions(presets),
       // Staged pick first, then the composition the current session
       // already carries, then the Host-effective default. The middle term is
@@ -114,7 +117,7 @@ export class AgentPresetSeatController {
       // apply() already composed it.
       current: this.staged.id ?? (session === undefined ? this.fallback : presetOf(session) ?? ''),
       error: null,
-      introduce: modeSelectionEnabled && this.staged.introduce,
+      introduce: this.staged.introduce,
     })
     await this.apply()
   }
@@ -198,11 +201,18 @@ export class AgentPresetSeatController {
    */
   async apply(): Promise<string | undefined> {
     if (this.store.getSnapshot().busy) return
+    const available = this.selectionAvailable()
+    // A stage made while Developer tools were on must not outlive them.
+    if (!available) this.clearStage()
     const staged = this.staged.id
     const session = this.currentSession()
     if (staged === undefined) {
       const current = session === undefined ? this.fallback : presetOf(session) ?? ''
-      if (current !== this.store.getSnapshot().current) this.set({ current })
+      const shown = this.store.getSnapshot()
+      // Hiding the chip also withdraws the introduction cue armed for it;
+      // ordinary list movement leaves that cue to the chip that plays it.
+      if (!available && shown.introduce) this.set({ current, introduce: false })
+      else if (current !== shown.current) this.set({ current })
       return
     }
     if (session === undefined) return

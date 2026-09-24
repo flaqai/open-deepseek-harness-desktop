@@ -70,7 +70,7 @@ it.each(['https://registry.npmjs.org/', MIRROR])('selects the fastest responding
       const dialog = page.getByRole('dialog')
       // Folded, the registry control names pnpm's own registry; unfolded, its options float from it and offer the configured
       // mirror and a typed address.
-      const registryToggle = dialog.getByRole('button', { name: winner === MIRROR ? '安装源 中国大陆镜像源' : '安装源 默认安装源', exact: true })
+      const registryToggle = dialog.getByRole('button', { name: winner === MIRROR ? '安装源 中国大陆镜像源' : '安装源 npm 官方源', exact: true })
       await registryToggle.waitFor()
       expect(await page.getByRole('radio').count()).toBe(0)
       await registryToggle.click()
@@ -84,7 +84,7 @@ it.each(['https://registry.npmjs.org/', MIRROR])('selects the fastest responding
         await compareOrRefreshGolden(fileURLToPath(new URL('./expected/plugin-install-registry/fastest-default.expected.md', import.meta.url)),
           await captureStableAria(page, '[data-install-registry]', scaffold.workspaceCwd), webSnapshotMode())
       } else {
-        expect(await options.getByRole('radio', { name: '默认安装源（registry.npmjs.org）', exact: true }).isChecked()).toBe(true)
+        expect(await options.getByRole('radio', { name: 'npm 官方源（registry.npmjs.org）', exact: true }).isChecked()).toBe(true)
         await compareOrRefreshGolden(fileURLToPath(new URL('./expected/plugin-install-registry/official-default.expected.md', import.meta.url)),
           await captureStableAria(page, '[data-install-registry]', scaffold.workspaceCwd), webSnapshotMode())
         await mirror.click()
@@ -116,7 +116,7 @@ it.each(['https://registry.npmjs.org/', MIRROR])('selects the fastest responding
       await dialog.getByRole('button', { name: '查看安装详情', exact: true }).click()
       await dialog.getByText('Installed from the registry pnpm names', { exact: true }).waitFor()
       await dialog.getByText('第 1 次 · 中国大陆镜像源', { exact: true }).waitFor()
-      await dialog.getByText('第 2 次 · 默认安装源', { exact: true }).waitFor()
+      await dialog.getByText('第 2 次 · npm 官方源', { exact: true }).waitFor()
       expect(JSON.parse(await readFile(manifestPath, 'utf8'))).toMatchObject({ dependencies: { 'mirrored-package': '2.0.0' } })
       const installed = (await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd))
         .split(process.execPath).join('{{node}}')

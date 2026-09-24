@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-02-custom-desktop-icons.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-02-custom-desktop-icons.md
-2026-09-02-custom-desktop-icons.md: 63c22e83a1b05400c056c3e30fef49d8ea00275c
-2026-09-02-custom-desktop-icons.zh.md: 848c0df6493fc60036f29188664af2669a1d493c
+/agent-note-keep-custom-desktop-icons-local-to-the-application-host:
+  en: ced50dcac8a7bdf3
+  zh: b28571027f93a206
+/agent-note-keep-custom-desktop-icons-local-to-the-application-host/problem:
+  en: a229eb8e70f1c258
+  zh: 63a7536450d45f17
+/agent-note-keep-custom-desktop-icons-local-to-the-application-host/decision:
+  en: 766a0fa5fe6a9d77
+  zh: 40db193c36974403
+/agent-note-keep-custom-desktop-icons-local-to-the-application-host/alternatives-considered:
+  en: 4d1994359bdd80cc
+  zh: 649d52e7a0460a8a
+/agent-note-keep-custom-desktop-icons-local-to-the-application-host/verification:
+  en: 7bfb367084ebdb85
+  zh: 9319c8a0269ef3fd
+/agent-note-keep-custom-desktop-icons-local-to-the-application-host/consequences:
+  en: bee033744f0892a7
+  zh: a56efb6384b1d9b6

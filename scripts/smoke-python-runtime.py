@@ -36,6 +36,8 @@ WORKFLOW_PROMPT = "Use workflow to compute the packaged worker smoke value witho
 WORKFLOW_WORKER_TEXT = "workflow worker smoke ok"
 MINIMAL_PROMPT = "Exercise the packaged minimal agent's persistent shell."
 MINIMAL_TEXT = "minimal agent smoke ok"
+DYNAMIC_TOOLS_PROMPT = "Read dynamic-tool-task.txt, call the newly available snapshot_ping tool once, then reply DYNAMIC_TOOLS_OK."
+DYNAMIC_TOOLS_TEXT = "DYNAMIC_TOOLS_OK"
 FS_SEARCH_PROMPT = "Exercise the packaged filesystem search tools."
 FS_SEARCH_TEXT = "filesystem search smoke ok"
 FS_SEARCH_MARKER = "PACKAGED_FS_SEARCH_OK"
@@ -124,6 +126,10 @@ IN_HISTORY_SNAPSHOT_DIRECTORY = (
     Path(__file__).resolve().parent / "snapshots" / "python-sdk-single-exe" / "minimal-in-history"
 )
 IN_HISTORY_SNAPSHOT_FILENAMES = ("prompt-history.json",)
+DYNAMIC_TOOLS_SNAPSHOT_DIRECTORY = (
+    Path(__file__).resolve().parent / "snapshots" / "python-sdk-single-exe" / "dynamic-tools"
+)
+DYNAMIC_TOOLS_SNAPSHOT_FILENAMES = ("tool-history.json",)
 RESTART_SNAPSHOT_DIRECTORY = (
     Path(__file__).resolve().parent / "snapshots" / "python-sdk-single-exe" / "restart"
 )
@@ -334,6 +340,17 @@ def completion_chunks(body: dict[str, object]) -> list[dict[str, object]]:
         minimal = minimal_tool_followup(call_id, tool_name, tool_text)
         if minimal is not None:
             return minimal
+        if call_id == "python-dynamic-read" and tool_name == "read":
+            if "Call snapshot_ping once." not in tool_text or result.get("is_error"):
+                raise AssertionError(f"dynamic tool scenario could not read its task: {tool_text}")
+            assert_advertised_tool(body, "snapshot_ping")
+            return tool_call_chunks("python-dynamic-ping", "snapshot_ping", {})
+        if call_id == "python-dynamic-ping" and tool_name == "snapshot_ping":
+            if tool_text != "pong" or result.get("is_error"):
+                raise AssertionError(f"dynamically added tool did not execute: {tool_text}")
+            if "snapshot_ping" in advertised_tool_names(body):
+                raise AssertionError("addition-only request retained the removed tool")
+            return text_chunks(DYNAMIC_TOOLS_TEXT)
         advanced = advanced_tool_followup(body, call_id, tool_name, tool_text)
         if advanced is not None:
             return advanced
@@ -374,6 +391,7 @@ def completion_chunks(body: dict[str, object]) -> list[dict[str, object]]:
         RESTART_SECOND_PROMPT,
         PROFILE_PLUGIN_PROMPT,
         AUTHORING_PROMPT,
+        DYNAMIC_TOOLS_PROMPT,
     }
     prompt = next(
         (candidate for candidate in user_prompts if candidate in scenario_prompts),
@@ -396,6 +414,11 @@ def completion_chunks(body: dict[str, object]) -> list[dict[str, object]]:
         )
     if prompt == RESTART_FIRST_PROMPT:
         return text_chunks(RESTART_FIRST_TEXT)
+    if prompt == DYNAMIC_TOOLS_PROMPT:
+        assert_advertised_tool(body, "read")
+        if "snapshot_ping" in advertised_tool_names(body):
+            raise AssertionError("dynamic tool was registered before its enabling read")
+        return tool_call_chunks("python-dynamic-read", "read", {"file_path": "dynamic-tool-task.txt"})
     if prompt == RESTART_SECOND_PROMPT:
         if any(
             isinstance(message, dict)
@@ -720,7 +743,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--scenario",
-        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-restart", "sdk-profile-plugin", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
+        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-restart", "sdk-profile-plugin", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
         default="all",
     )
     parser.add_argument("--exe", type=Path)
@@ -739,10 +762,10 @@ def main() -> None:
         parser.error("--scenario sdk-profile-plugin requires --installed-wheel")
     if args.installed_wheel:
         args.exe = assert_installed_wheel_environment()
-    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-restart", "sdk-office", "sdk-authoring", "runner", "direct"} and args.exe is None:
-        parser.error("--exe is required for custom, minimal, fs-search, spawn-node, snapshot, restart, office, runner, and direct scenarios")
-    if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-snapshot", "sdk-restart", "sdk-authoring"}:
-        parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-snapshot, sdk-restart, sdk-authoring, or all")
+    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-restart", "sdk-office", "sdk-authoring", "runner", "direct"} and args.exe is None:
+        parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, restart, office, runner, and direct scenarios")
+    if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-restart", "sdk-authoring"}:
+        parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-dynamic-tools, sdk-snapshot, sdk-restart, sdk-authoring, or all")
     if args.exe is not None and not args.exe.is_file():
         parser.error(f"runtime executable does not exist: {args.exe}")
 
@@ -780,6 +803,9 @@ def main() -> None:
         if args.scenario in {"all", "sdk-minimal-in-history"}:
             assert args.exe is not None
             smoke_sdk_minimal(model.url, args.exe.resolve(), args.update_snapshots, in_history=True)
+        if args.scenario in {"all", "sdk-dynamic-tools"}:
+            assert args.exe is not None
+            smoke_sdk_dynamic_tools(model.url, args.exe.resolve(), args.update_snapshots)
         if args.scenario in {"all", "sdk-fs-search"}:
             assert args.exe is not None
             smoke_sdk_fs_search(model.url, args.exe.resolve())
@@ -1219,6 +1245,48 @@ def smoke_sdk_minimal(
             compare_snapshot_files(
                 files, update_snapshots, MINIMAL_SNAPSHOT_DIRECTORY, MINIMAL_SNAPSHOT_FILENAMES,
             )
+
+
+def smoke_sdk_dynamic_tools(base_url: str, executable: Path, update_snapshots: bool) -> None:
+    """Observe native tool changes through the shipped SDK profile and its durable log."""
+    from deepseek_harness import DeepSeekHarness
+
+    first_request = len(MockModelHandler.requests)
+    with tempfile.TemporaryDirectory(prefix="dsh-sdk-dynamic-tools-") as temporary:
+        root = Path(temporary).resolve()
+        dsh_home = root / "home"
+        sessions = dsh_home / "sessions"
+        task = root / "dynamic-tool-task.txt"
+        task.write_text("Call snapshot_ping once.\n", encoding="utf-8")
+        patch = write_profile_patch(root, "dynamic-tools.patch.yml", sessions, [
+            {"id": "llm-deepseek", "config": {"models": [
+                {"id": "smoke-model", "toolUpdate": "addition-only"},
+            ]}},
+            {"id": "tool-bash", "disabled": True},
+            {"id": "tool-pwsh", "disabled": True},
+            {"id": "session-title-llm", "disabled": True},
+            {"insert": [{
+                "id": "dynamic-tools",
+                "name": (Path(__file__).resolve().parent / "fixtures/python-sdk-dynamic-tools.mjs").as_uri(),
+            }]},
+        ])
+        with DeepSeekHarness(
+            provider="deepseek-official", model="smoke-model", cwd=str(root),
+            dsh_bin=str(executable), dsh_home=str(dsh_home), patches=(str(patch),),
+            env={"DSH_PERMISSION_MODE": "danger-full-access", "DSH_TELEMETRY_DISABLED": "1"},
+            api_key="sk-keyless-smoke", base_url=base_url, request_timeout_seconds=60,
+        ) as harness:
+            result = harness.run(DYNAMIC_TOOLS_PROMPT, session_id="dynamic-tools-smoke")
+        assert result.final_response == DYNAMIC_TOOLS_TEXT, result.final_response
+        assert task.read_text(encoding="utf-8") == "Call snapshot_ping once.\n"
+        logs = read_session_logs(sessions)
+        assert set(logs) == {result.session_id}, sorted(logs)
+        files = build_dynamic_tools_snapshot_files(
+            result, MockModelHandler.requests[first_request:], logs[result.session_id], root,
+        )
+        compare_snapshot_files(
+            files, update_snapshots, DYNAMIC_TOOLS_SNAPSHOT_DIRECTORY, DYNAMIC_TOOLS_SNAPSHOT_FILENAMES,
+        )
 
 
 def smoke_sdk_fs_search(base_url: str, executable: Path) -> None:
@@ -2016,6 +2084,62 @@ def build_in_history_snapshot_files(
         "requestContexts": contexts,
     }
     return {"prompt-history.json": json.dumps(evidence, indent=2, ensure_ascii=False) + "\n"}
+
+
+def build_dynamic_tools_snapshot_files(
+    result: "RunResult",
+    requests: list[dict[str, object]],
+    log: list[dict[str, object]],
+    cwd: Path,
+) -> dict[str, str]:
+    """Pin tool declarations, historical schema references, and Python SDK event delivery."""
+    selected_types = {"request/header", "request/context", "developer/message", "tool/call", "tool/result"}
+    events = [event for event in result.events if event.get("type") in selected_types]
+    subscribed = [notification.payload["event"] for notification in result.notifications
+                  if notification.method == "session.event"
+                  and notification.payload.get("event", {}).get("type") in selected_types]
+    assert subscribed == events, "SDK notifications differ from RunResult.events"
+    assert [event for event in log if event.get("type") in selected_types] == events, "SDK events differ from persistence"
+    headers = [event for event in events if event["type"] == "request/header"]
+    assert len(headers) == 3, headers
+    names = [[tool["name"] for tool in event["data"]["header"]["tools"]] for event in headers]
+    assert ["snapshot_ping" in tools for tools in names] == [False, True, False], names
+    assert names[1] == sorted([*names[0], "snapshot_ping"]), names
+    assert names[2] == names[0], names
+    updates = [event for event in events if event["type"] == "developer/message"]
+    assert len(updates) == 2, updates
+    assert [event["data"]["message"]["content"] for event in updates] == [
+        [{"type": "tool-addition", "toolName": "snapshot_ping"}],
+        [{"type": "tool-removal", "toolName": "snapshot_ping"}],
+    ], updates
+    assert updates[0]["data"]["headerSeq"] == headers[1]["seq"], updates
+    assert "headerSeq" not in updates[1]["data"], updates[1]
+    assert all(event.get("surfaceOp") == "append" for event in updates), updates
+    calls = [event["data"]["name"] for event in events if event["type"] == "tool/call"]
+    assert calls == ["read", "snapshot_ping"], calls
+    ping = next(event["data"]["message"] for event in events
+                if event["type"] == "tool/result" and event["data"]["message"]["toolCallId"] == "python-dynamic-ping")
+    assert ping["isError"] is False and ping["content"] == [{"type": "text", "text": "pong"}], ping
+    assert len(requests) == 3, requests
+    assert all(request["system"] == requests[0]["system"] for request in requests), "tool changes altered the prompt"
+    declarations = [next((tool for tool in request["tools"] if tool["name"] == "snapshot_ping"), None)
+                    for request in requests]
+    assert declarations[0] is None and declarations[2] is None, declarations
+    assert declarations[1]["defer_loading"] is True, declarations[1]
+    changes = [[block for message in request["messages"] for block in message["content"]
+                if block.get("type") in ("tool_addition", "tool_removal")] for request in requests]
+    assert changes == [[], [{"type": "tool_addition", "tool": {"type": "tool_reference", "name": "snapshot_ping"}}], []], changes
+    assert requests[1]["messages"][:len(requests[0]["messages"])] == requests[0]["messages"], "tool addition changed earlier messages"
+    replacements = [(str(cwd), "{{cwd}}"), (result.session_id, "{{session}}")]
+    evidence = {
+        "finalResponse": result.final_response,
+        "declarations": declarations,
+        "requestToolChanges": changes,
+        "events": [event for event in events if event["type"] in {"request/header", "request/context", "developer/message"}],
+        "toolCalls": calls,
+        "pingResult": ping,
+    }
+    return {"tool-history.json": json.dumps(normalize_snapshot_value(evidence, replacements), indent=2, ensure_ascii=False) + "\n"}
 
 
 def build_minimal_snapshot_files(

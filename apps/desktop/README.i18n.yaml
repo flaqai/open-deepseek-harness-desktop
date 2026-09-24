@@ -1,6 +1,58 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/desktop/README.md
-README.md: 885051df37194b1d6f33fa0093707995807536d8
-README.zh.md: 0ef10bf6bab632f898a6aebfe3623d19f9bfe065
+/open-deepseek-harness-desktop:
+  en: b921af829a0b2959
+  zh: ab9dc330aa922b8c
+/open-deepseek-harness-desktop/runtime-and-session-compatibility:
+  en: 75237f6476b555e7
+  zh: a74aff6c33b57347
+/open-deepseek-harness-desktop/run-from-this-checkout:
+  en: b8951b1aa6d49dd8
+  zh: d6a02406daad174e
+/open-deepseek-harness-desktop/plugin-changes:
+  en: 64e0e7c4908253d4
+  zh: f2c7354bb8646ae6
+/open-deepseek-harness-desktop/application-menus:
+  en: 956464a35d97a1f6
+  zh: 2e8f96bf72e73a44
+/open-deepseek-harness-desktop/independent-data-home-and-copying:
+  en: 391d23719919de96
+  zh: 5dca724c4d6469cf
+/open-deepseek-harness-desktop/custom-application-icons:
+  en: 26ae4f68ef5435e8
+  zh: 9d01c4111121758d
+/open-deepseek-harness-desktop/optional-terminal-command:
+  en: 2b9eb28340fb1051
+  zh: 3ba8d85a69901ba3
+/open-deepseek-harness-desktop/desktop-packages:
+  en: 16d9909b6a02201a
+  zh: 166ec4ad8e41a8ee
+/open-deepseek-harness-desktop/nas-runtime-mode:
+  en: a3a13f1535b735f7
+  zh: e7e8fa989bf14f83
+/open-deepseek-harness-desktop/process-lifecycle:
+  en: 5e9838268076e541
+  zh: 8d835f1b19c80732
+/open-deepseek-harness-desktop/official-source-updates:
+  en: 1530c91b32915597
+  zh: b0b8838ef6560d99
+/open-deepseek-harness-desktop/download-sources-and-proxies:
+  en: 7df791c7e4f02d94
+  zh: b2146c4f614634bc
+/open-deepseek-harness-desktop/packaged-release-discovery:
+  en: 5b5c10b44fd16fe5
+  zh: d5e9658c346a5e59
+/open-deepseek-harness-desktop/security:
+  en: 7cea102b9b65168f
+  zh: 4fe387f1ef241279
+/open-deepseek-harness-desktop/cross-platform-release-matrix:
+  en: b172eae948cd8eb3
+  zh: d93501aab69ef8fb
+/open-deepseek-harness-desktop/extension-direction:
+  en: 134aa1521dbfc597
+  zh: 90c1f277264eb182
+/open-deepseek-harness-desktop/limitations:
+  en: 3af613d67ac8748e
+  zh: 71b3f78d8c6a0a13

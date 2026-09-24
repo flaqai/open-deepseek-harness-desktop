@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-nas-runtime-selection.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-17-nas-runtime-selection.md
-2026-09-17-nas-runtime-selection.md: 96fcdee48bc51b4f12387380c1fbc4433c4d48f7
-2026-09-17-nas-runtime-selection.zh.md: 9f247f8179665216601438c16f69512300fab2ef
+/agent-note-nas-runtime-selection:
+  en: fd415d81ce091a74
+  zh: d674a0ac74590260
+/agent-note-nas-runtime-selection/problem:
+  en: 9e35076e510dcaff
+  zh: fef63a12acef71e4
+/agent-note-nas-runtime-selection/decision:
+  en: 2a4906bb0236f428
+  zh: 3d4709007a1b28fe
+/agent-note-nas-runtime-selection/alternatives-considered:
+  en: 805cdc0cabf08b94
+  zh: dd14e33decd0d2c7
+/agent-note-nas-runtime-selection/consequences:
+  en: 52043f2b73cc32b0
+  zh: b5868f8ae736574f

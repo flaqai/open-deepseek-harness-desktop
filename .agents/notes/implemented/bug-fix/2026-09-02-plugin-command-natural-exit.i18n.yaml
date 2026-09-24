@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-02-plugin-command-natural-exit.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-02-plugin-command-natural-exit.md
-2026-09-02-plugin-command-natural-exit.md: a155044c299762c08f184dca53d39cb6720715c9
-2026-09-02-plugin-command-natural-exit.zh.md: 54be6bd003fadfa213778fcb24a8756e36d422ac
+/agent-note-plugin-command-natural-exit:
+  en: f8b6ac5ad14d300d
+  zh: 5785ee276900b52a
+/agent-note-plugin-command-natural-exit/problem:
+  en: c4e68e9fcc49a596
+  zh: 5526523ee4c6641a
+/agent-note-plugin-command-natural-exit/decision:
+  en: be41cff94b282f66
+  zh: e49f3a6eff24c39d
+/agent-note-plugin-command-natural-exit/alternatives-considered:
+  en: 9407ba37824555f8
+  zh: a25e271f51696cf0
+/agent-note-plugin-command-natural-exit/consequences:
+  en: 0963e4cb2071ab25
+  zh: 2bab74b5fc126ab5

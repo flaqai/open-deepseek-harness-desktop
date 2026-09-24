@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-17-inspiration-collage-paired-skin.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-17-inspiration-collage-paired-skin.md
-2026-08-17-inspiration-collage-paired-skin.md: 117b3be00e87af45aebecd29d0c60074807d80b8
-2026-08-17-inspiration-collage-paired-skin.zh.md: 4142ff1cee188ac3865798326ef95dc92725a059
+/agent-note-inspiration-collage-paired-skin:
+  en: e03308bbf0615118
+  zh: 929e0247daa03be8
+/agent-note-inspiration-collage-paired-skin/problem:
+  en: 39a0db1a9c1f8cf3
+  zh: ebea9e6d63ebbe4d
+/agent-note-inspiration-collage-paired-skin/decision:
+  en: 3faa5e1d285ef6af
+  zh: dc9da680ffbfe377
+/agent-note-inspiration-collage-paired-skin/alternatives-considered:
+  en: 05175e5be616cab0
+  zh: 89358741008326b5
+/agent-note-inspiration-collage-paired-skin/consequences:
+  en: 17b056988b67f22c
+  zh: 40cc3eca323d6613

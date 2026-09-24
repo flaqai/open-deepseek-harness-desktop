@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-25-independent-desktop-data-home.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-25-independent-desktop-data-home.md
-2026-08-25-independent-desktop-data-home.md: 850838e16d01e96897752e30a495d68a5cf480aa
-2026-08-25-independent-desktop-data-home.zh.md: 5d68238cca907fa07c80c51f2f8ef7bd941af861
+/agent-note-independent-desktop-data-home-and-official-data-import:
+  en: 7deaa41137e580b4
+  zh: 5e7b251221fda5ec
+/agent-note-independent-desktop-data-home-and-official-data-import/problem:
+  en: 74492e4d3549af6f
+  zh: b5704909f889fa9a
+/agent-note-independent-desktop-data-home-and-official-data-import/decision:
+  en: 12864d50218c9294
+  zh: 023477acd9d516d4
+/agent-note-independent-desktop-data-home-and-official-data-import/alternatives-considered:
+  en: 314374c6f40d4bb3
+  zh: 1cc4b24aace395ae
+/agent-note-independent-desktop-data-home-and-official-data-import/consequences:
+  en: e8af74e64a0b5804
+  zh: 93ed8953b5269e39

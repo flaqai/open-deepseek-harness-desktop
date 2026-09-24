@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-provider-only-instruction-reads.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/simplification/2026-09-19-provider-only-instruction-reads.md
-2026-09-19-provider-only-instruction-reads.md: 26d004c136cff8deb155007cf8d7743bc8bba95a
-2026-09-19-provider-only-instruction-reads.zh.md: 82f3451f96578f1ee596bf9291a1a3c935d5f698
+/agent-note-read-instruction-files-only-through-a-filesystem-provider:
+  en: 522a0143262cd96a
+  zh: 667e48df6cd37c61
+/agent-note-read-instruction-files-only-through-a-filesystem-provider/problem:
+  en: 5426489eed9b447e
+  zh: 97132891bfff4b41
+/agent-note-read-instruction-files-only-through-a-filesystem-provider/proposal:
+  en: 1f6d8ce78f5ab682
+  zh: c71c97c0268ac165
+/agent-note-read-instruction-files-only-through-a-filesystem-provider/alternatives-considered:
+  en: c942573554ef1d63
+  zh: 7af89ae9434f7521
+/agent-note-read-instruction-files-only-through-a-filesystem-provider/acceptance-criteria:
+  en: ea8f9800cfbea9e6
+  zh: a3c07d3a09d0fff4
+/agent-note-read-instruction-files-only-through-a-filesystem-provider/risks:
+  en: f8b63ab7c6a924ab
+  zh: 753472b8491105f0

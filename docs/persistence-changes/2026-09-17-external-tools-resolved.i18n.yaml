@@ -1,6 +1,28 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-external-tools-resolved.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-09-17-external-tools-resolved.md
-2026-09-17-external-tools-resolved.md: 9869ea063f4b84192f7e0c4501f6889865c25ccf
-2026-09-17-external-tools-resolved.zh.md: ea19b9356dd1cb16fb1b134ea1c6399edd0d2fe7
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-09-17-external-tools-resolved:
+  en: fa84340460b0bf7e
+  zh: 398a5b3f57b54ad9
+/2026-09-17-external-tools-resolved/summary:
+  en: 038ac13e02a5883b
+  zh: 2cf999985ac1fa46
+/2026-09-17-external-tools-resolved/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-09-17-external-tools-resolved/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-09-17-external-tools-resolved/compatibility:
+  en: ba2214e6f80db248
+  zh: 56814cbe3ab19242
+/2026-09-17-external-tools-resolved/verification:
+  en: 33be4397df90362a
+  zh: 22292f087a84f894
+/2026-09-17-external-tools-resolved/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

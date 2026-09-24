@@ -375,3 +375,16 @@ it('requires the local speech worker and locked runtime in the published payload
       .toEqual([expect.stringContaining('package.json files must be')])
   }
 })
+
+it('requires the standalone shortcut protocol and rejects unrelated runtime files', () => {
+  const dir = 'packages/client/shortcuts'
+  const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+  expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+  for (const files of [
+    ['lib/index.js', 'lib/client.js', 'lib/types/**/*.d.ts'],
+    ['lib/index.js', 'lib/client.js', 'lib/protocol.js', 'lib/extra.js', 'lib/types/**/*.d.ts'],
+  ]) {
+    expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files } }))
+      .toEqual([expect.stringContaining('package.json files must be')])
+  }
+})

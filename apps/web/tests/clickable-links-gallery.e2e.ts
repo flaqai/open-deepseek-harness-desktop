@@ -372,10 +372,24 @@ describe('web e2e: clickable links gallery', () => {
     // — TOOL_VARIANTS has no entry for it, so it falls to the generic row with
     // no openable path even though its create still joins the produced chips.
     expect(await page.locator('button[class*="fileLink"]').count()).toBe(7)
+    // The collapsed web-fetch row's summary is its URL, opened in a new tab.
+    const fetchSummaryLink = page.locator(`a[class*="fileLink"][href="${FETCH_URL}"]`)
+    expect(await fetchSummaryLink.count()).toBe(1)
+    expect(await fetchSummaryLink.getAttribute('target')).toBe('_blank')
 
-    // A row-center click can hit the nested fileLink button and invoke the
-    // Host opener; right-edge clicks expand the card itself.
     await expandTurnProcesses(page)
+    // Clicking the collapsed summary link opens the page without expanding the row.
+    const fetchPopupPromise = page.waitForEvent('popup')
+    await fetchSummaryLink.click()
+    const fetchPopup = await fetchPopupPromise
+    try {
+      await fetchPopup.waitForURL(FETCH_URL)
+    } finally {
+      await fetchPopup.close()
+    }
+    expect(await page.locator('[data-web="fetch"]').count()).toBe(0)
+    // A row-center click can hit a nested summary link and invoke its opener;
+    // right-edge clicks expand the card itself.
     for (const row of [
       /^Search clickable link styles/,
       /^Fetch /,
@@ -400,7 +414,7 @@ describe('web e2e: clickable links gallery', () => {
     const sourceLink = page.locator(`a[href="${SOURCE_URL}"]`)
     await expect.poll(() => sourceLink.count(), { timeout: 10_000 }).toBe(1)
     expect(await page.locator('a[href^="ftp:"]').count()).toBe(0)
-    expect(await page.locator(`a[href="${FETCH_URL}"]`).count()).toBe(1)
+    expect(await page.locator(`a[href="${FETCH_URL}"]`).count()).toBe(2)
     expect(await page.locator(`a[href="${GUIDE_URL}"]`).count()).toBe(2)
 
     const snapshot = (await captureStableAria(page, '[class*="centerCol"]', scaffold.workspaceCwd))
@@ -423,7 +437,7 @@ describe('web e2e: clickable links gallery', () => {
       ['markdown anchor', guideLink],
       ['file mention', mentions.first()],
       ['search source', sourceLink.first()],
-      ['fetch url', page.locator(`a[href="${FETCH_URL}"]`).first()],
+      ['fetch url', page.locator(`[data-web="fetch"] a[href="${FETCH_URL}"]`)],
     ] as const) {
       expect.soft(await styleOf(link, 'color'), `${name} color`).toBe(LINK_BLUE)
       expect.soft(await styleOf(link, 'font-weight'), `${name} weight`).toBe('500')

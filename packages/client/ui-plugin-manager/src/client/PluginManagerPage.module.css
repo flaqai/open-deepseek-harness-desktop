@@ -8,7 +8,10 @@
   box-sizing: border-box;
   height: 100%;
   overflow: auto;
-  padding: 28px clamp(24px, 4vw, 48px) 48px;
+  /* Inline and bottom insets only: the 28px top inset belongs to the head row
+     (`.pageHead`, `.detailTop`). macOS window dragging is owned by a row's own box,
+     so an inset above that box leaves a top strip no drag region covers. */
+  padding: 0 clamp(24px, 4vw, 48px) 48px;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -23,12 +26,17 @@
   justify-content: space-between;
   gap: 16px;
   box-sizing: border-box;
+  /* The page's former top inset: the row starts at the window's top edge, so the whole
+     strip above the page content drags the window. */
+  padding-top: 28px;
 }
 
 /* macOS hiddenInset titlebar: the frame's top clearance keeps the head below
-   the window's top strip in both sidebar states so it never jumps. */
+   the window's top strip in both sidebar states so it never jumps, and the head
+   owns the window drag over its own box — clearance included — so this page's
+   top strip drags without a frame band. */
 :global([data-platform='darwin']) .pageHead {
-  padding-top: var(--dsh-frame-top-clearance, 0px);
+  padding-top: calc(28px + var(--dsh-frame-top-clearance, 0px));
 }
 
 .pageTitle {
@@ -77,7 +85,7 @@
 .banner {
   margin: 0;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   font-size: 12px;
   line-height: 18px;
   background: color-mix(in srgb, var(--dsw-alias-state-warning-primary, var(--dsw-alias-state-business-primary)) 12%, transparent);
@@ -154,7 +162,7 @@
 }
 
 .iconButton:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -175,7 +183,7 @@
   /* The hover surface reaches 8px past the content on both sides while the
      row's content stays aligned with the page header. */
   margin: 0 -8px;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-xl);
   /* The page itself scrolls on the base surface. Anything that scrolls inside
      a card draws the l2 thumb (ui-theme styles/scrollbar.css rebinding contract). */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
@@ -198,7 +206,7 @@
   height: 48px;
   /* The same hairline frame as the component rows below. */
   border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-lg);
   color: var(--dsw-alias-label-secondary);
 }
 
@@ -263,7 +271,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 12px;
+  border-radius: inherit;
 }
 
 .cardOpen:focus-visible {
@@ -271,7 +279,7 @@
 }
 
 .cardOpen:focus-visible::after {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -302,7 +310,7 @@
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 28px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-caption);
   cursor: pointer;
@@ -324,7 +332,7 @@
   font-size: 13px;
   line-height: 20px;
   padding: 0 12px;
-  border-radius: 16px;
+  border-radius: var(--dsw-radius-md);
 }
 
 .iconWrap {
@@ -361,7 +369,7 @@
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-state-error-primary);
   cursor: pointer;
@@ -377,7 +385,7 @@
 }
 
 .deleteButton:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -401,7 +409,7 @@
 }
 
 .partsFilter:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -446,7 +454,7 @@
   height: 40px;
   padding: 0 14px;
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 14px;
+  border-radius: var(--dsw-radius-md);
   outline: none;
   background: var(--dsw-alias-bg-layer-3);
   font: inherit;
@@ -455,8 +463,8 @@
 }
 
 .installField input[type='text']:focus {
-  border-color: var(--dsw-alias-brand-primary);
-  box-shadow: inset 0 0 0 0.5px var(--dsw-alias-brand-primary);
+  border-color: var(--dsw-alias-state-business-primary);
+  box-shadow: inset 0 0 0 0.5px var(--dsw-alias-state-business-primary);
 }
 
 .installField input[aria-invalid='true'] {
@@ -497,7 +505,7 @@
   gap: 10px;
   padding: 8px 14px 14px;
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 14px;
+  border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-bg-layer-1);
 }
 
@@ -515,7 +523,7 @@
   gap: 8px;
   margin: 0;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   background: color-mix(in srgb, var(--dsw-alias-state-warning-primary, var(--dsw-alias-state-business-primary)) 12%, transparent);
   font-size: 12px;
   line-height: 18px;
@@ -605,7 +613,7 @@
   height: 26px;
   padding: 0 8px 0 10px;
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-2);
   font: inherit;
   font-size: 12.5px;
@@ -649,7 +657,7 @@
   margin: 0;
   padding: 8px 10px 12px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-bg-layer-2);
   /* The neutral stroke is the elevation's hairline, not a border beside it. */
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l3);
@@ -663,7 +671,7 @@
   gap: 4px;
   padding: 8px 10px;
   border: 0.5px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-lg);
   cursor: pointer;
 }
 
@@ -716,7 +724,7 @@ label.registryOption {
   margin-left: 26px;
   padding: 0 10px;
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-layer-3);
   font: inherit;
   font-size: 13px;
@@ -746,7 +754,7 @@ label.registryOption {
   width: 100%;
   height: 40px;
   justify-content: center;
-  border-radius: 14px;
+  border-radius: var(--dsw-radius-md);
 }
 
 /* The installing, installed, and failed screens: a head row, the centred
@@ -800,7 +808,7 @@ label.registryOption {
   height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   background: none;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
@@ -859,7 +867,7 @@ label.registryOption {
   gap: 6px;
   padding: 16px;
   border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-lg);
   text-align: center;
 }
 
@@ -889,7 +897,7 @@ label.registryOption {
 
 .footAction {
   height: 32px;
-  border-radius: 16px;
+  border-radius: var(--dsw-radius-md);
 }
 
 .detailsToggle {
@@ -939,7 +947,7 @@ label.registryOption {
   align-self: flex-start;
   margin: 0;
   padding: 0 6px;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-3);
   font-size: 11px;
   line-height: 18px;
@@ -956,7 +964,7 @@ label.registryOption {
 .resultWarn {
   margin: 0;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   font-size: 13px;
   line-height: 20px;
   background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
@@ -974,7 +982,7 @@ label.registryOption {
   gap: 8px;
   padding: 12px 14px;
   border: 0.5px solid color-mix(in srgb, var(--dsw-alias-state-warning-primary, var(--dsw-alias-state-business-primary)) 40%, transparent);
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-lg);
   background: color-mix(in srgb, var(--dsw-alias-state-warning-primary, var(--dsw-alias-state-business-primary)) 8%, transparent);
 }
 
@@ -1012,7 +1020,7 @@ label.registryOption {
 .approvalList code {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-3);
   font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 12px;
@@ -1047,10 +1055,22 @@ label.registryOption {
   flex-direction: column;
 }
 
-/* Same top clearance as .pageHead: the crumb is the detail views' leading
-   content and otherwise lands under the traffic lights. */
-:global([data-platform='darwin']) .detail {
-  padding-top: var(--dsh-frame-top-clearance, 0px);
+/* The head row every detail view shares: the crumb over the icon/actions row.
+   It carries the same top clearance as .pageHead — the crumb is the detail
+   views' leading content and otherwise lands under the traffic lights — and the
+   same drag ownership: it marks itself `data-window-drag`, so this row's own box
+   is the window's draggable geometry. The detail container below stays
+   content: marking it would drag the window over its text and form labels. */
+.detailTop {
+  display: flex;
+  flex-direction: column;
+  /* The same 28px top inset `.pageHead` carries, so the row starts at the window's
+     top edge and the strip above the detail content drags the window. */
+  padding-top: 28px;
+}
+
+:global([data-platform='darwin']) .detailTop {
+  padding-top: calc(28px + var(--dsh-frame-top-clearance, 0px));
 }
 
 .crumb {
@@ -1071,7 +1091,7 @@ label.registryOption {
 }
 
 .crumb:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -1206,7 +1226,7 @@ label.registryOption {
   width: 40px;
   height: 40px;
   border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   color: var(--dsw-alias-label-secondary);
 }
 

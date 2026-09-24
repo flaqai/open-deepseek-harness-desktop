@@ -1,5 +1,5 @@
 /* Context-occupancy pill below the composer plus its click-open breakdown
-   panel (menu surface: r12, elevation-prominent). */
+   panel (menu surface: elevation-prominent). */
 
 .root {
   display: inline-flex;
@@ -13,7 +13,7 @@
   flex: none;
   padding: 1px 8px;
   border: none;
-  border-radius: 24px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   font-family: inherit;
@@ -50,7 +50,7 @@
   width: min(264px, calc(100vw - 24px));
   padding: 12px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-lg);
   background: var(--dsw-specific-menu);
   backdrop-filter: var(--dsw-menu-backdrop-filter);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);

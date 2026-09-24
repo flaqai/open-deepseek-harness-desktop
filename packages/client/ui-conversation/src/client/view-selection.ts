@@ -3,8 +3,8 @@ import type { ViewTab } from './contract/views.ts'
 /** Fallback View selected when no stored preference resolves to a registered View. */
 export const DEFAULT_VIEW_ID = 'chat'
 
-/** The one View the Developer tools preference gates; other Views stay registered by their owners. */
-export const DEVELOPER_TOOLS_VIEW_ID = 'trajectory'
+/** Registered identity of the trajectory View. */
+export const TRAJECTORY_VIEW_ID = 'trajectory'
 
 /**
  * Resolve a preferred registered View, then Chat, without choosing another View.

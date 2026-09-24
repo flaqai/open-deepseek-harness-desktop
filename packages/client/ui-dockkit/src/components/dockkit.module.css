@@ -215,6 +215,11 @@
   overflow: hidden;
 }
 
+.pane:focus,
+.float:focus {
+  outline: none;
+}
+
 /* A 38px row whose 28px content band sits at its bottom: chips fill the band,
    so they end flush with the strip's bottom edge, and the 28px add control, the
    28px split control, and the embedder's 28px chrome centre on the band's one
@@ -297,16 +302,17 @@
   margin-left: 4px;
 }
 
-/* macOS desktop: an embedder may pin this surface under the window's top drag
-   band (ui-layout .leadingBand — full-window geometry that Electron composes
-   in DOM order, not by stacking). The chip run, the strip-end chrome, the
-   pane body, and the split divider subtract their whole boxes so tabs,
-   controls, content, and the resize grab stay usable even where they overlap
-   the band; the strip's blank fill and top inset keep the band's drag, so the
-   row moves the window like a native tab bar. The divider must be named here:
-   it is a plain div, so ui-web base.css's interactive-element subtraction
-   never matches it. Hidden surfaces contribute nothing: Blink skips
-   non-visible boxes when it collects draggable regions. */
+/* macOS desktop: an embedder may pin this surface at the window's top edge (the
+   right sidebar does, in both presentations). The strip row is marked
+   `data-window-drag` in markup (TabPanel), so ui-web base.css's single darwin
+   rule drags it over its own box; the chip run, the strip-end chrome, the pane
+   body, and the split divider subtract their whole boxes so tabs, controls,
+   content, and the resize grab stay usable wherever they overlap that row. The
+   divider must be named here: it is a plain div, so ui-web base.css's
+   interactive-element subtraction never matches it. A floating pane subtracts its
+   own box the same way, so the strip row never drags the window over it. Hidden
+   surfaces contribute nothing: Blink skips non-visible boxes when it collects
+   draggable regions. */
 :global(html[data-platform='darwin']) .stripTabs,
 :global(html[data-platform='darwin']) .stripChrome,
 :global(html[data-platform='darwin']) .paneBody,
@@ -334,8 +340,8 @@
   background: var(--dsw-alias-border-l4);
 }
 
-/* The active chip is a filled capsule and needs no rule against it: the two
-   slots beside it go blank, so the row reads as the capsule between bare
+/* The active chip is a filled tab and needs no rule against it: the two
+   slots beside it go blank, so the row reads as the tab between bare
    chips. A caret in either slot still draws. */
 .tabActive + .slot:not(.slotCaret)::before,
 .slot:not(.slotCaret):has(+ .tabActive)::before {
@@ -348,7 +354,7 @@
   background: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
 }
 
-/* The chip: a 28px capsule whose title runs to the right inset. The close
+/* The chip: a 28px tab whose title runs to the right inset. The close
    control is not in the flow — it sits over the title's last 14px and shows
    while the chip is active, hovered, or holds focus — so a chip is the same
    width with and without it and nothing shifts on hover. */
@@ -365,7 +371,7 @@
   font-size: var(--dsh-content-font-size-secondary, 13px);
   line-height: 1;
   white-space: nowrap;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-sm);
   cursor: pointer;
   touch-action: none;
   user-select: none;
@@ -422,7 +428,7 @@
   line-height: 1;
   background: transparent;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--dsw-radius-sm);
   cursor: pointer;
   opacity: 0;
   /* Hidden means untouchable too: without this a touch press on the chip's
@@ -439,7 +445,7 @@
   pointer-events: auto;
 }
 
-/* The chip's height and corner, so it reads as one more capsule in the row. */
+/* The chip's height and corner, so it reads as one more tab in the row. */
 .addTab {
   display: flex;
   flex: none;
@@ -452,7 +458,7 @@
   line-height: 1;
   background: transparent;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-sm);
   cursor: pointer;
 }
 
@@ -470,13 +476,13 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-/* The active chip is the filled capsule, in the tag fill; the rest are bare text. */
+/* The active chip is the filled tab, in the tag fill; the rest are bare text. */
 .tabActive {
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-markdown-tag);
 }
 
-/* A pane's lone unclosable chip is a label, not a choice: no capsule, no
+/* A pane's lone unclosable chip is a label, not a choice: no tab, no
    hover fill — the primary ink on the pane's own ground. Its title never
    yields to a close control, so it keeps the clipped fade alone. */
 .tab.tabQuiet,
@@ -514,7 +520,7 @@
   line-height: 1;
   background: transparent;
   border: none;
-  border-radius: 28px;
+  border-radius: var(--dsw-radius-sm);
   cursor: pointer;
 }
 
@@ -544,11 +550,8 @@
   display: flex;
   flex-direction: column;
   min-width: 96px;
-  padding: 3px;
-  background: var(--dsw-specific-menu);
-  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  padding: 4px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
 }
 
 .menu:not(:has([role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio'])) {
@@ -562,7 +565,7 @@
   text-align: left;
   background: transparent;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--dsw-radius-md);
   cursor: pointer;
 }
 
@@ -667,7 +670,7 @@
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
   border: 1.5px dashed var(--dsw-alias-border-l2);
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-lg);
   transition: color 120ms ease-out, background-color 120ms ease-out, border-color 120ms ease-out;
   animation: dockHintIn 140ms ease-out;
 }
@@ -744,7 +747,7 @@
      to its own corners. */
   overflow: hidden;
   background: var(--dsw-alias-bg-layer-2);
-  border-radius: 20px;
+  border-radius: var(--dsw-radius-panel);
   /* The menu's shadow with the stroke rebound one step lighter than the
      default (l2): the panel reads as the same kind of raised surface, and the
      shadow's hairline outlines it, so the frame draws no border of its own. */
@@ -801,20 +804,18 @@
   touch-action: none;
 }
 
-/* The grip is a quarter arc concentric with the frame's 20px corner (16px
-   radius at a 4px inset), so it reads as part of the frame. It shows only
-   while the pointer is over the panel — an idle panel keeps a clean corner —
-   and `:active` keeps it lit while a drag holds the pointer capture. */
+/* The grip follows the floating panel's corner with a 4px inset. Pointer
+   hover and an active drag reveal it. */
 .floatResize::after {
   content: '';
   position: absolute;
   right: 4px;
   bottom: 4px;
-  width: 16px;
-  height: 16px;
+  width: calc(var(--dsw-radius-panel) - 4px);
+  height: calc(var(--dsw-radius-panel) - 4px);
   border-right: 1.5px solid var(--dsw-alias-label-caption);
   border-bottom: 1.5px solid var(--dsw-alias-label-caption);
-  border-bottom-right-radius: 16px;
+  border-bottom-right-radius: calc(var(--dsw-radius-panel) - 4px);
   opacity: 0;
   transition: opacity 120ms ease-out;
 }

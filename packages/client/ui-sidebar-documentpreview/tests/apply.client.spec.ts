@@ -77,7 +77,7 @@ async function boot() {
   const fiber = ctx.plugin({ inject: [...inject], apply })
   onTestFinished(async () => { await fiber.dispose() })
   await fiber.await()
-  return { tabs, registered, dictionaries, fiber, read, readBytes }
+  return { ctx, tabs, registered, dictionaries, fiber, read, readBytes }
 }
 
 describe('ui-sidebar-documentpreview apply', () => {
@@ -96,11 +96,11 @@ describe('ui-sidebar-documentpreview apply', () => {
       ['sidebar.right.tab.document', HTML_BODY_ID, 'documentHtml', HtmlBody],
       ['sidebar.right.tab.document', IMAGE_BODY_ID, 'sidebarImage', ImageBody],
       ['sidebar.right.tab.document', PDF_BODY_ID, 'sidebarPdf', LazyPdfBody],
-      ['sidebar.right.tab.document', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/code', 'sidebarCodePreview', CodeBody],
       ['sidebar.right.tab.document.action', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/office', 'sidebarOffice', OfficeFontAction],
       ['sidebar.right.tab.document', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/office', 'sidebarOffice', OfficeBody],
       ['sidebar.right.tab.document.office.pdf', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/office', 'sidebarPdf', LazyPdfBody],
       ['sidebar.right.tab.document', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel', 'sidebarExcel', LazyExcelBody],
+      ['sidebar.right.tab.document', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/code', 'sidebarCodePreview', CodeBody],
     ])
     expect(registered[0]?.store).toBeDefined()
     expect(typeof registered[0]?.inject).toBe('function')
@@ -112,6 +112,30 @@ describe('ui-sidebar-documentpreview apply', () => {
     expect(tabs.get(TEXTPREVIEW_KIND)).toBeUndefined()
     expect(registered).toEqual([])
     expect(dictionaries.size).toBe(0)
+  })
+
+  it('keeps specialized previews first and offers Code for shared highlighting suffixes', async () => {
+    const { ctx } = await boot()
+    const previews = ctx.get('documentPreviews')
+    if (previews === undefined) throw new Error('documentPreviews was not provided')
+    const sharedHighlighter = '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/code'
+    const owners = new Map<string, string>()
+    for (const definition of previews.getSnapshot()) {
+      for (const extension of new Set([...definition.extensions, ...definition.binaryExtensions ?? []])) {
+        const winner = previews.candidates(`file.${extension}`)[0]
+        const earlier = owners.get(extension)
+        if (earlier === undefined) {
+          expect(winner?.id, `${definition.id} declares .${extension}`).toBe(definition.id)
+        } else {
+          expect(winner?.id, `.${extension} must stay with the earlier ${earlier}`).toBe(earlier)
+          expect(definition.id, `later body ${definition.id} must not collide on .${extension}`).toBe(sharedHighlighter)
+        }
+        owners.set(extension, earlier ?? definition.id)
+      }
+    }
+    const excel = '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel'
+    expect(previews.candidates('table.csv').map(candidate => candidate.id)).toEqual([excel, sharedHighlighter])
+    expect(previews.candidates('table.tsv')[0]?.id).toBe(excel)
   })
 
   it('injects paged and byte Remote reads independently of resource metadata', async () => {

@@ -48,6 +48,15 @@ describe('code renderer registration', () => {
     expect(h.previews.candidates('notes.unknown')).toEqual([])
   })
 
+  it('admits ini and other text configuration suffixes to the code renderer', async () => {
+    const h = await boot()
+    await h.rt.mount(plugin)
+    for (const path of ['config.ini', 'C:\\work\\settings.INI', 'pyproject.toml']) {
+      expect(h.previews.candidates(path).map(item => item.id), path).toEqual([ID])
+    }
+    expect(h.previews.candidates('notes.unknown')).toEqual([])
+  })
+
   it('resolves localized names at read time and removes metadata, locale, and body on disposal', async () => {
     const h = await boot()
     await h.declare()

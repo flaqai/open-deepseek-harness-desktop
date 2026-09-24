@@ -19,7 +19,7 @@ index 5c9820b1a261305d500e69eeaf350821872beaf4..819c6d2e3ffa422b1d1bf163bf56df13
        var horizontalTop = _ref2.horizontalTop,
          verticalLeft = _ref2.verticalLeft;
        var renderCtx = this.canvasElement.getContext("2d");
-@@ -77244,6 +77245,13 @@ function handleGlobalWheel(ctx, e, cache, scrollbarX, scrollbarY) {
+@@ -77244,6 +77245,16 @@ function handleGlobalWheel(ctx, e, cache, scrollbarX, scrollbarY) {
    var _cache$searchDialog;
    if (((_cache$searchDialog = cache.searchDialog) === null || _cache$searchDialog === void 0 ? void 0 : _cache$searchDialog.mouseEnter) && ctx.showSearch && ctx.showReplace) return;
    if (ctx.filterContextMenu != null) return;
@@ -27,6 +27,9 @@ index 5c9820b1a261305d500e69eeaf350821872beaf4..819c6d2e3ffa422b1d1bf163bf56df13
 +  if (ctx.allowEdit === false && e.deltaMode === 0) {
 +    scrollbarX.scrollLeft += e.deltaX;
 +    scrollbarY.scrollTop += e.deltaY;
++    // Keep React scrollbar effects aligned with the browser-clamped offsets.
++    ctx.scrollLeft = scrollbarX.scrollLeft;
++    ctx.scrollTop = scrollbarY.scrollTop;
 +    e.preventDefault();
 +    return;
 +  }
@@ -54,7 +57,7 @@ index 04113a18dee9feee28e9434ee3023626c800e7d3..29e35f51fbf1c3bb16cca54ce2bda81b
        var horizontalTop = _ref2.horizontalTop,
          verticalLeft = _ref2.verticalLeft;
        var renderCtx = this.canvasElement.getContext("2d");
-@@ -77254,6 +77255,13 @@ function handleGlobalWheel(ctx, e, cache, scrollbarX, scrollbarY) {
+@@ -77254,6 +77255,16 @@ function handleGlobalWheel(ctx, e, cache, scrollbarX, scrollbarY) {
    var _cache$searchDialog;
    if (((_cache$searchDialog = cache.searchDialog) === null || _cache$searchDialog === void 0 ? void 0 : _cache$searchDialog.mouseEnter) && ctx.showSearch && ctx.showReplace) return;
    if (ctx.filterContextMenu != null) return;
@@ -62,6 +65,9 @@ index 04113a18dee9feee28e9434ee3023626c800e7d3..29e35f51fbf1c3bb16cca54ce2bda81b
 +  if (ctx.allowEdit === false && e.deltaMode === 0) {
 +    scrollbarX.scrollLeft += e.deltaX;
 +    scrollbarY.scrollTop += e.deltaY;
++    // Keep React scrollbar effects aligned with the browser-clamped offsets.
++    ctx.scrollLeft = scrollbarX.scrollLeft;
++    ctx.scrollTop = scrollbarY.scrollTop;
 +    e.preventDefault();
 +    return;
 +  }

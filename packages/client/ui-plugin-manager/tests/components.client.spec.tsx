@@ -8,7 +8,8 @@ import type { PluginEntryId, PluginInstallRequestId } from '@deepseek-ai/dsh-api
 import { bindSnapshotSelector, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ConfigForm, ConfigFormSnapshot, SettingsMirrorSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { ReactNode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
+import { createNavigationStore } from '../src/client/navigation-store.ts'
 import { PluginManagerPage } from '../src/client/PluginManagerPage.tsx'
 import type { PluginManagerPageProps } from '../src/client/index.ts'
 import type { ConfigLedger } from '../src/client/config-ledger.ts'
@@ -52,8 +53,9 @@ const OFFICIAL = 'https://registry.npmjs.org/'
 /** The registries the Host asks: pnpm's own first, which names npm's own registry, then the mirror. */
 const REGISTRIES = { registry: null, fallbackRegistries: [MIRROR], resolved: OFFICIAL }
 
-/** pnpm's own registry as the options label it while it names npm's own; the control and the messages use the name alone. */
-const OFFICIAL_OPTION = en.registryWithHost.replace('{name}', en.registryDefault).replace('{host}', 'registry.npmjs.org')
+/** pnpm's own registry as the options label it: by npm's own name once read, the neutral default name until then. */
+const OFFICIAL_OPTION = en.registryWithHost.replace('{name}', en.registryOfficial).replace('{host}', 'registry.npmjs.org')
+const UNREAD_OPTION = en.registryWithHost.replace('{name}', en.registryDefault).replace('{host}', 'registry.npmjs.org')
 const MIRROR_OPTION = en.registryWithHost.replace('{name}', en.registryNpmmirror).replace('{host}', 'registry.npmmirror.com')
 
 const IDLE_INSTALL: InstallState = {
@@ -134,7 +136,9 @@ function renderTab(
     useSessionRetainInfo: unusedStandardHook,
     useResource: unusedStandardHook,
   }
+  const navigation = createNavigationStore().create()
   const props: PluginManagerPageProps = {
+    useStore: bindSnapshotSelector(navigation), actions: navigation.actions,
     ...standard,
     t,
     resolveText,
@@ -165,8 +169,11 @@ function renderTab(
       return body(owner.view, owner, 'form' in owner ? owner.form as ConfigPageForm | undefined : undefined)
     },
   }
-  const { rerender } = render(<PluginManagerPage {...props} />)
+  const { rerender, unmount } = render(<PluginManagerPage {...props} />)
   return {
+    navigation,
+    props,
+    unmount,
     store,
     actions,
     set: (next: Partial<PluginManagerState>) => { act(() => { store.set({ ...store.getSnapshot(), ...next }) }) },
@@ -178,6 +185,27 @@ function renderTab(
 }
 
 describe('PluginManagerPage', () => {
+  it('opens the requested bundle after its inventory arrives and falls back when it is absent', () => {
+    const b = renderTab({ status: 'loading' })
+    act(() => { b.navigation.actions.setView({ kind: 'package', name: 'dsh-better-sidebar' }) })
+    b.set({ status: 'ready', packages: [pkg()] })
+    expect(document.querySelector('[data-plugin-detail="dsh-better-sidebar"]')).not.toBeNull()
+    act(() => { b.navigation.actions.setView({ kind: 'package', name: 'missing' }) })
+    expect(document.querySelector('[data-plugin-detail]')).toBeNull()
+    expect(document.querySelector('[data-plugin-package="dsh-better-sidebar"]')).not.toBeNull()
+  })
+
+  it('preserves the requested bundle through StrictMode effect replay and page remounts', () => {
+    const b = renderTab({ packages: [pkg()] })
+    b.unmount()
+    act(() => { b.navigation.actions.setView({ kind: 'package', name: 'dsh-better-sidebar' }) })
+    const view = render(<StrictMode><PluginManagerPage {...b.props} /></StrictMode>)
+    expect(document.querySelector('[data-plugin-detail="dsh-better-sidebar"]')).not.toBeNull()
+    view.unmount()
+    render(<PluginManagerPage {...b.props} />)
+    expect(document.querySelector('[data-plugin-detail="dsh-better-sidebar"]')).not.toBeNull()
+  })
+
   it('asks the store once mounted and renders the loading, unavailable, error, and empty states', () => {
     const { actions, set } = renderTab({ status: 'loading' })
     expect(actions.ensure).toHaveBeenCalledTimes(1)
@@ -1129,6 +1157,46 @@ describe('PluginManagerPage', () => {
     ])
   })
 
+  it('offers another way instead of a mirror the failed GitHub install already asked', () => {
+    const subject = { spec: 'github:a/b', status: 'accepted', kind: 'git', bundle: null, registry: null, host: 'github.com' } as const
+    const failed: InstallState = {
+      ...IDLE_INSTALL, open: true, spec: subject.spec, registries: REGISTRIES, registry: { kind: 'offered', registry: MIRROR },
+      phase: 'failed', subject, failure: { reason: 'GitHub connection timed out', kind: 'timeout', failedAt: 'spec-host' },
+    }
+    const { actions, set, setLanguage } = renderTab({ install: failed })
+    // The mirror picked from the options, also while pnpm's own configuration is unread, typed as an address, or named
+    // by pnpm's own configuration.
+    for (const patch of [
+      {},
+      { registries: { ...REGISTRIES, resolved: null } },
+      { registry: { kind: 'custom', url: ' https://registry.npmmirror.com ' } },
+      { registries: { ...REGISTRIES, resolved: MIRROR }, registry: { kind: 'offered', registry: null } },
+    ] as const) {
+      set({ install: { ...failed, ...patch } })
+      const dialog = within(screen.getByRole('dialog', { name: en.installGithubTimeoutTitle }))
+      expect(dialog.getByText(en.installGithubFailedDescription)).toBeTruthy()
+      expect(dialog.getAllByRole('button')).toEqual([
+        dialog.getByRole('button', { name: en.close }),
+        dialog.getByRole('button', { name: en.cancel }),
+        dialog.getByRole('button', { name: en.installTryAnotherWay }),
+      ])
+    }
+    fireEvent.click(screen.getByRole('button', { name: en.installTryAnotherWay }))
+    expect(actions.useGithubMirror).toHaveBeenCalledOnce()
+    expect(actions.runInstall).not.toHaveBeenCalled()
+    // The form it returns to opens the guide to the other kinds of spec.
+    set({ install: { ...IDLE_INSTALL, open: true, mirrorRecovery: true, registries: REGISTRIES, registry: failed.registry } })
+    expect(screen.getByRole('button', { name: en.installGuideHide }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText(en.installGuidePathExample)).toBeTruthy()
+    // A typed address other than the mirror can still switch to it.
+    set({ install: { ...failed, registry: { kind: 'custom', url: 'npm.corp' } } })
+    expect(screen.getByRole('button', { name: en.installUseGithubMirror })).toBeTruthy()
+    setLanguage(zh)
+    set({ install: failed })
+    expect(screen.getByRole('button', { name: '试试其他方式' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '改用国内镜像' })).toBeNull()
+  })
+
   it('keeps the ordinary failure view for registry errors, other hosts, and unavailable mirrors', () => {
     const failed: InstallState = {
       ...IDLE_INSTALL, open: true, registries: REGISTRIES, phase: 'failed',
@@ -1154,13 +1222,13 @@ describe('PluginManagerPage', () => {
     const open = { ...IDLE_INSTALL, open: true, registries: REGISTRIES }
     const { actions, set } = renderTab({ install: open })
     // Folded, the toggle names the registry the install asks first, by name alone.
-    const toggle = screen.getByRole('button', { name: `${en.registryToggle} ${en.registryDefault}` })
+    const toggle = screen.getByRole('button', { name: `${en.registryToggle} ${en.registryOfficial}` })
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByRole('radio')).toBeNull()
     fireEvent.click(toggle)
     expect(actions.toggleRegistryOptions).toHaveBeenCalledTimes(1)
     set({ install: { ...open, registryOpen: true } })
-    expect(screen.getByRole('button', { name: `${en.registryToggle} ${en.registryDefault}` }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: `${en.registryToggle} ${en.registryOfficial}` }).getAttribute('aria-expanded')).toBe('true')
     const radios = screen.getAllByRole('radio')
     expect(radios).toHaveLength(3)
     expect(radios[0]).toHaveProperty('checked', true)
@@ -1204,13 +1272,23 @@ describe('PluginManagerPage', () => {
     const corporate = { registry: 'https://npm.corp.example/', fallbackRegistries: [], resolved: OFFICIAL }
     set({ install: { ...open, registryOpen: true, registries: corporate, registry: { kind: 'offered', registry: 'https://npm.corp.example/' } } })
     expect(screen.getAllByRole('radio').map(radio => radio.parentElement?.textContent)).toEqual(['npm.corp.example', OFFICIAL_OPTION, en.registryCustom])
-    // pnpm's own configuration naming another registry reads as the default registry with that host.
+    // pnpm's own configuration naming another registry reads by that host, never as npm's own.
     set({ install: { ...open, registryOpen: true, registries: { ...REGISTRIES, resolved: 'https://npm.corp.example/' } } })
-    expect(screen.getByRole('radio', { name: en.registryWithHost.replace('{name}', en.registryDefault).replace('{host}', 'npm.corp.example') })).toBeTruthy()
-    // Before the Host answers, only pnpm's own is offered, read as npm's own.
+    expect(screen.getByRole('radio', { name: 'npm.corp.example' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: `${en.registryToggle} npm.corp.example` })).toBeTruthy()
+    // One that names the mirror reads by the mirror's name, and the mirror the Host offers is not listed twice.
+    set({ install: { ...open, registryOpen: true, registries: { ...REGISTRIES, resolved: MIRROR } } })
+    expect(screen.getByRole('button', { name: `${en.registryToggle} ${en.registryNpmmirror}` })).toBeTruthy()
+    const mirrorLabels = screen.getAllByRole('radio').map(radio => radio.parentElement?.textContent)
+    expect(mirrorLabels).toEqual([MIRROR_OPTION, en.registryCustom])
+    expect(new Set(mirrorLabels).size).toBe(mirrorLabels.length)
+    // A configuration the Host could not read keeps the neutral default name.
+    set({ install: { ...open, registryOpen: true, registries: { ...REGISTRIES, resolved: null } } })
+    expect(screen.getByRole('button', { name: `${en.registryToggle} ${en.registryDefault}` })).toBeTruthy()
+    // Before the Host answers, only pnpm's own is offered, under the neutral name its unread configuration keeps.
     set({ install: { ...open, registryOpen: true, registries: null } })
     expect(screen.getAllByRole('radio')).toHaveLength(2)
-    expect(screen.getByRole('radio', { name: OFFICIAL_OPTION })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: UNREAD_OPTION })).toBeTruthy()
   })
 
   it('names the registry each attempt asks while installing, badges each run, and says when every registry failed', () => {

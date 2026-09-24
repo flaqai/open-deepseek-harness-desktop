@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-removable-bundled-plugin-market.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-18-removable-bundled-plugin-market.md
-2026-08-18-removable-bundled-plugin-market.md: 6dd385df2c7ff271e7d14f8eb862dbf48493d01b
-2026-08-18-removable-bundled-plugin-market.zh.md: 403c8da101c331d3b1163cf88f215103df2e1655
+/agent-note-removable-bundled-preset-plugins:
+  en: e05a5b723b3f7f61
+  zh: f6fdee35ac585103
+/agent-note-removable-bundled-preset-plugins/problem:
+  en: 71f07206d9b6209b
+  zh: c29e523017f67864
+/agent-note-removable-bundled-preset-plugins/decision:
+  en: 19f2e8dca26d21a4
+  zh: c178a341fec6a81c
+/agent-note-removable-bundled-preset-plugins/alternatives-considered:
+  en: a2a81731d50fec84
+  zh: 4667daa517c8e60b
+/agent-note-removable-bundled-preset-plugins/consequences:
+  en: 9d50b4f138e63a42
+  zh: d2809e89905945b9

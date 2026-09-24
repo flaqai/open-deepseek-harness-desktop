@@ -27,20 +27,6 @@ const INSTALL_LOCK_INITIALIZATION_TIMEOUT_MS = 5_000
 const INSTALL_LOCK_POLL_MS = 50
 const ALLOW_HOOKS_PATH_OVERRIDE = 'DSH_LEFTHOOK_ALLOW_HOOKS_PATH_OVERRIDE'
 const REPOSITORY_EXTENSION_PATTERN = '^extensions\\.'
-const PAIRING_MERGE_DRIVER_CONFIG = [
-  ['merge.dsh-translation-pairing.name', 'DeepSeek Harness bilingual pairing records'],
-  [
-    'merge.dsh-translation-pairing.driver',
-    'scripts/merge-translation-pairing-driver.sh %O %A %B %P',
-  ],
-]
-const PAIRING_MERGE_DRIVER_PROBE = [
-  '--import',
-  'tsx/esm',
-  'scripts/merge-translation-pairing.ts',
-  '--probe',
-]
-
 function errorCode(error) {
   return typeof error === 'object' && error !== null && 'code' in error
     ? error.code
@@ -622,86 +608,6 @@ function refuseScopedHooksPath(entry) {
   )
 }
 
-function installPairingMergeDriver(root, worktreeConfigPath) {
-  const added = []
-  try {
-    for (const [key, expected] of PAIRING_MERGE_DRIVER_CONFIG) {
-      const entries = includedFileConfigEntries(root, worktreeConfigPath, key)
-      const includedEntry = entries.find(entry => !originIsFile(entry.origin, root, worktreeConfigPath))
-      if (includedEntry !== undefined) {
-        throw new Error(
-          `refusing pairing merge-driver config from an included worktree file (${configSource(includedEntry)})`,
-        )
-      }
-      const existing = assertSingle(entries.map(entry => entry.value), `worktree ${key}`)
-      const effectiveBefore = effectiveConfigEntry(root, key)
-      if (effectiveBefore?.scope === 'command') {
-        throw new Error(
-          `refusing command-scoped ${key} (${configSource(effectiveBefore)}); `
-          + 'transient configuration cannot be replaced by the worktree installer',
-        )
-      }
-      if (existing === undefined && effectiveBefore !== undefined && effectiveBefore.value !== expected) {
-        throw new Error(
-          `refusing to mask inherited ${key} (${configSource(effectiveBefore)}); `
-          + 'remove or integrate the custom pairing merge driver explicitly',
-        )
-      }
-      if (existing !== undefined && existing !== expected) {
-        throw new Error(
-          `refusing to replace worktree ${key} value ${JSON.stringify(existing)}; `
-          + 'remove or integrate the custom pairing merge driver explicitly',
-        )
-      }
-      if (existing === undefined) {
-        git(['config', '--worktree', key, expected], root)
-        added.push(key)
-      }
-      const installed = includedFileConfigEntries(root, worktreeConfigPath, key)
-      if (
-        installed.length !== 1
-        || installed[0]?.value !== expected
-        || !originIsFile(installed[0].origin, root, worktreeConfigPath)
-      ) {
-        throw new Error(`new worktree-local ${key} did not become the direct worktree value`)
-      }
-      const effectiveAfter = effectiveConfigEntry(root, key)
-      if (
-        effectiveAfter === undefined
-        || effectiveAfter.scope !== 'worktree'
-        || effectiveAfter.value !== expected
-        || !originIsFile(effectiveAfter.origin, root, worktreeConfigPath)
-      ) {
-        throw new Error(`new worktree-local ${key} did not become the effective direct worktree value`)
-      }
-    }
-  } catch (error) {
-    const rollbackErrors = []
-    for (const key of added.reverse()) {
-      try {
-        git(['config', '--worktree', '--unset-all', key], root)
-      } catch (rollbackError) {
-        rollbackErrors.push(rollbackError)
-      }
-    }
-    if (rollbackErrors.length > 0) {
-      throw new AggregateError(
-        [error, ...rollbackErrors],
-        `Pairing merge-driver configuration failed: ${String(error)}; `
-        + `rollback also failed: ${rollbackErrors.map(String).join('; ')}`,
-      )
-    }
-    throw error
-  }
-  return () => {
-    for (const key of added.reverse()) git(['config', '--worktree', '--unset-all', key], root)
-  }
-}
-
-function probePairingMergeDriver(root) {
-  capture(process.execPath, PAIRING_MERGE_DRIVER_PROBE, { cwd: root })
-}
-
 async function main() {
   if (process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true') return
   if (typeof lefthookPackage.bin?.lefthook !== 'string') return
@@ -789,10 +695,7 @@ async function main() {
     applyWorktreeConfigMigration(root, commonConfigPath, migration)
 
     let pathChanged = false
-    let rollbackPairingMergeDriver = () => {}
     try {
-      probePairingMergeDriver(root)
-      rollbackPairingMergeDriver = installPairingMergeDriver(root, worktreeConfigPath)
       git(['config', '--worktree', 'core.hooksPath', hooksPath], root)
       pathChanged = worktreePath !== hooksPath
       const installedEntry = effectiveConfigEntry(root, 'core.hooksPath')
@@ -818,11 +721,6 @@ async function main() {
         } catch (rollbackError) {
           rollbackErrors.push(rollbackError)
         }
-      }
-      try {
-        rollbackPairingMergeDriver()
-      } catch (rollbackError) {
-        rollbackErrors.push(rollbackError)
       }
       if (rollbackErrors.length > 0) {
         throw new AggregateError(

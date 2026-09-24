@@ -20,7 +20,7 @@ Status: implemented
 
 V4 编解码器将 developer 角色限定在 `developer/message` 字段内，并拒绝 inbox 与标题请求数组中的该角色。原生验证检查 developer 必需字段、历史请求头绑定及工具变更块仅限 developer 的约束，同时保留附加 JSON 属性。因此，可选元数据添加符合持久化检查器的可选属性规则，仍可读取；附加字段不能削弱必需字段、角色或打开 step 的检查。可忽略标记不代表读取方支持该事件：物理解码保留 developer 载荷，直到按词表执行接纳；写入方和原生读取方仍拒绝格式错误的已知数据。developer 接纳逻辑将格式错误的普通消息字段留给解码器恢复。已安装的 Session 接纳逻辑验证 surface 关系，不把 developer 记录转换为已发布 V3 的 user 记录。[已发布格式迁移规则](2026-08-31-released-session-format-migrations.zh.md)继续保护已提交的前代文件。
 
-产生方要求有一个限定例外：已定稿 Session V4 为 issue #4146 保留所需的持久化表示。等待提供方与 UI 实现会将格式发布与这些独立集成耦合。该预留仅允许存储和验证；已提供的 profile 不发出 developer 记录，不支持的消费者会抛出错误。生产环境发出这些记录要求提供方、UI 与压缩支持一起落地。
+Session V4 预留 issue #4146 所需的持久表示。生产发出、提供方投影、UI 展示和压缩集成见[动态工具更新决策](2026-09-20-dynamic-tool-updates.zh.md)。
 
 ## Alternatives considered
 
@@ -32,4 +32,4 @@ V4 编解码器将 developer 角色限定在 `developer/message` 字段内，并
 
 ## Consequences
 
-Session V4 为 issue #4146 持久化工具变更表示。自动发出事件、提供方序列化、延迟加载与 UI 展示有意留待后续实现，使此类型与持久化变更不阻塞 V4 合并。DeepSeek 两种协议与 pi-ai 对 developer 历史及延迟加载请求抛出错误；Chat 与 Trajectory 对 developer 事件抛出错误。已提供的模型输出与 SDK 快照场景不包含 developer 记录。
+Session V4 持久化 issue #4146 的工具变更表示。发出、路由投影、DeepSeek 序列化及 Chat 和 Trajectory 展示由[动态工具更新决策](2026-09-20-dynamic-tool-updates.zh.md)负责。

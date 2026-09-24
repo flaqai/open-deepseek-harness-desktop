@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-desktop-settings-projection.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-desktop-settings-projection.md
-2026-09-17-desktop-settings-projection.md: acf31dfde82487fd03e1f75c6a8a2f844a2d044b
-2026-09-17-desktop-settings-projection.zh.md: bad0511ee6cbc29be53a532bfad8cf5154f681d0
+/agent-note-own-desktop-download-settings-in-a-renderer-projection:
+  en: 3e9008f867f63fe8
+  zh: df044ed3b3d8282e
+/agent-note-own-desktop-download-settings-in-a-renderer-projection/problem:
+  en: f59c8f4a7eac6909
+  zh: aa74cd3add270a19
+/agent-note-own-desktop-download-settings-in-a-renderer-projection/decision:
+  en: 94b9c1aaddc7e782
+  zh: d77af6b08539f22d
+/agent-note-own-desktop-download-settings-in-a-renderer-projection/alternatives-considered:
+  en: 6e7c477f2b28deed
+  zh: fd677509ae94cedb
+/agent-note-own-desktop-download-settings-in-a-renderer-projection/consequences:
+  en: e56e1aacd835fc36
+  zh: 1f3a7c085e37b9f6

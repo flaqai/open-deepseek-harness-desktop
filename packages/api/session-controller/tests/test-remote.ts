@@ -255,6 +255,10 @@ function installControllers(
   }
   if (ctx.get('llm') === undefined) {
     ctx.provide('llm', {
+      listModels: async () => {
+        const selection = defaults.defaultModelSelection()
+        return [{ id: selection.model, name: selection.model }]
+      },
       listProviders: () => {
         const selection = defaults.defaultModelSelection()
         return [{ id: selection.provider, name: selection.provider }]

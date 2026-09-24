@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-25-desktop-dsh-command-registration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-25-desktop-dsh-command-registration.md
-2026-08-25-desktop-dsh-command-registration.md: 81da69c5cb11c28096640ca7c29defe7fb13c8ca
-2026-08-25-desktop-dsh-command-registration.zh.md: 3ff504c3f8dbb1f9479c9e5b2448a5eab1c2bb91
+/agent-note-optional-desktop-owned-dsh-command-registration:
+  en: 1e02837c2508dc12
+  zh: a748a2c75db1201c
+/agent-note-optional-desktop-owned-dsh-command-registration/problem:
+  en: cf6b4f1a09e8c8ea
+  zh: 0a0555368415be9e
+/agent-note-optional-desktop-owned-dsh-command-registration/decision:
+  en: 37aa909fea7fd254
+  zh: 21d8db82bbb13076
+/agent-note-optional-desktop-owned-dsh-command-registration/alternatives-considered:
+  en: 333c535ce54d1380
+  zh: 6fa486188fdf7c5b
+/agent-note-optional-desktop-owned-dsh-command-registration/consequences:
+  en: 651f1dd305a46e18
+  zh: befacb3ee203f31e

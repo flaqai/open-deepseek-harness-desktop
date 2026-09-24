@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-macos-helper-name.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-08-macos-helper-name.md
-2026-09-08-macos-helper-name.md: 6b60f84ffe80cfaa6c676a203a9ca4ac0715494d
-2026-09-08-macos-helper-name.zh.md: 56e7d1c685c888cbb4bfcd634939c3c4efc904a3
+/agent-note-macos-helper-names-and-native-package-qualification:
+  en: 68141488f9fe5428
+  zh: 8be280040f5b41e1
+/agent-note-macos-helper-names-and-native-package-qualification/problem:
+  en: 705288b50697434e
+  zh: c8e73383638038b6
+/agent-note-macos-helper-names-and-native-package-qualification/decision:
+  en: da9576fa19c73395
+  zh: 565d1bcc0f87d85c
+/agent-note-macos-helper-names-and-native-package-qualification/alternatives-considered:
+  en: 9a49066e568e7781
+  zh: 5fb2296e8f1db8c4
+/agent-note-macos-helper-names-and-native-package-qualification/consequences:
+  en: 7207b527b69a5f08
+  zh: cad0193bdbee9b6c

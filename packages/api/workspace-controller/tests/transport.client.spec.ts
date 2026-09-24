@@ -318,8 +318,7 @@ describe('WorkspaceController', () => {
     const controller = new WorkspaceController(client.ctx, model)
     const before = model.getSnapshot()
     mock.remote.workspace.initializeDefault.mockResolvedValueOnce({ ok: true, value: undefined })
-    await expect(controller.initializeDefault({ directoryName: 'Default workspace', title: 'Default workspace' }))
-      .resolves.toBeUndefined()
+    await expect(controller.initializeDefault()).resolves.toBeUndefined()
     expect(model.getSnapshot()).toBe(before)
   })
 
@@ -331,7 +330,7 @@ describe('WorkspaceController', () => {
 
     expect(controller.list).toBe(model)
     expect(client.ctx.workspaces.list).toBe(model)
-    await expect(controller.initializeDefault({ directoryName: '默认工作区', title: '默认工作区' }, new AbortController().signal)).resolves.toMatchObject({ workspaceId: 'default' })
+    await expect(controller.initializeDefault(new AbortController().signal)).resolves.toMatchObject({ workspaceId: 'default' })
     await expect(controller.create({ path: '/work/created' })).resolves.toMatchObject({ workspaceId: 'created' })
     await expect(controller.rename(wid('one'), 'renamed')).resolves.toMatchObject({ title: 'renamed' })
     await expect(controller.insertBefore(wid('one'))).resolves.toBeUndefined()
@@ -344,7 +343,6 @@ describe('WorkspaceController', () => {
     await expect(controller.unpinSession(sid('session'))).resolves.toBeUndefined()
     await expect(controller.delete(wid('one'))).resolves.toBeUndefined()
     // Each command crosses the wire as one positional request object.
-    expect(mock.log.requests('workspace/initializeDefault')).toEqual([{ directoryName: '默认工作区', title: '默认工作区' }])
     expect(mock.log.requests('workspace/create')).toEqual([{ path: '/work/created' }])
     expect(mock.log.requests('workspace/rename')).toEqual([{ workspaceId: 'one', title: 'renamed' }])
     expect(mock.log.requests('workspace/insertBefore')).toEqual([{ workspaceId: 'one' }])
@@ -364,7 +362,7 @@ describe('WorkspaceController', () => {
     const missingSession = new RemoteError('session/not-found', 'missing session', { sessionId: sid('session') })
 
     mock.remote.workspace.initializeDefault.mockResolvedValueOnce(err(new RemoteError('gateway/internal', 'directory denied', {})))
-    await expect(controller.initializeDefault({ directoryName: 'Default workspace', title: 'Default workspace' })).rejects.toBeInstanceOf(WorkspaceCreateError)
+    await expect(controller.initializeDefault()).rejects.toBeInstanceOf(WorkspaceCreateError)
 
     mock.remote.workspace.create.mockResolvedValueOnce(err(new RemoteError('workspace/invalid-path', 'missing path', { path: '/missing' })))
     const create = controller.create({ path: '/missing' })

@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-desktop-uninstall-preserve-dsh-home.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-09-08-desktop-uninstall-preserve-dsh-home.md
-2026-09-08-desktop-uninstall-preserve-dsh-home.md: 2586e225981639b0043c974fb71743282bad8f1a
-2026-09-08-desktop-uninstall-preserve-dsh-home.zh.md: 06d2b8af25460327f7e51ebad33527d0691c908d
+/agent-note-uninstall-desktop-while-preserving-the-harness-home:
+  en: 34508bc6528ea986
+  zh: 17de850ea6ff2d3d
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/problem:
+  en: 0899287bb9139476
+  zh: 99541d5b42fbf8c1
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/proposal:
+  en: 6074960a83346fd7
+  zh: 71d84146df99b381
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/proposal/1-establish-ownership-and-actual-paths:
+  en: e74758ae45cd795c
+  zh: db889dd23dabba76
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/proposal/2-implement-shared-preservation-and-cleanup-rules:
+  en: 722858f61999b13f
+  zh: 09e7faad61d3475d
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/proposal/3-windows-implementation:
+  en: 2bb3fb9fef1666bb
+  zh: 5046cfc5a60bc44a
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/proposal/4-macos-implementation:
+  en: c7cab33735264731
+  zh: b0b3b7640b8fc619
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/proposal/5-verification-and-documentation:
+  en: c743d0bc28c66fe5
+  zh: 978a92a002e2b046
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/alternatives-considered:
+  en: 42964f61405be54d
+  zh: e5fb841287655f3c
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/acceptance-criteria:
+  en: 7e4f06c20dc01338
+  zh: 7dad04f2cc82fb8a
+/agent-note-uninstall-desktop-while-preserving-the-harness-home/risks:
+  en: 78587b1e86bbca8c
+  zh: 73b0d7e3edd0469f

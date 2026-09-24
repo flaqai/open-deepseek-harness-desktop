@@ -28,21 +28,23 @@ The query itself must return the complete mandatory response; do not rely on int
 GET /api/v0/check_client_update?scenario=launch
 x-client-platform: desktop-win
 x-client-version: 0.1.3-rc.2
-x-client-bundle-id: com.deepseek.dsh
-x-client-locale: zh-CN
+x-client-bundle-id:
+x-client-locale: zh_CN
+x-client-timezone-offset: 28800
 x-client-arch: x64
 x-client-update-channel: nightly
 x-client-bundled-dsh-version: 0.1.3-rc.2
 ```
 
-All listed headers are required for Desktop. Values describing installed software come from the application and its release metadata, not editable UI fields.
+All listed headers are required on every Desktop request; a required header may still carry an empty value, as `x-client-bundle-id` does. The values describing installed software come from the application and its release metadata, not editable UI fields.
 
 | Header | Meaning and allowed values |
 |---|---|
 | `x-client-platform` | `desktop-win` or `desktop-mac` |
-| `x-client-version` | Full Desktop SemVer, retaining prerelease identifiers; initially equal to bundled dsh |
-| `x-client-bundle-id` | Application identity, for example `com.deepseek.dsh`; distinguishes Harness from Chat |
-| `x-client-locale` | UI locale, for example `zh-CN`; selects localized content, not region |
+| `x-client-version` | Shared client build version, inlined as `DSH_CLIENT_VERSION` at packaging; full SemVer retaining prerelease identifiers, initially equal to the bundled dsh version |
+| `x-client-bundle-id` | Platform uses this field to identify the Chat application; the field does not apply to Harness, so Desktop sends it empty |
+| `x-client-locale` | `zh_CN` or `en_US`, taken from the active UI language's primary subtag; selects localized content, not region |
+| `x-client-timezone-offset` | Whole-second offset from UTC, positive east of Greenwich, sampled from the shell for every request |
 | `x-client-arch` | Windows `x64`; macOS `x64` or `arm64` |
 | `x-client-update-channel` | Initially always `nightly`, independent of version suffix |
 | `x-client-bundled-dsh-version` | Full bundled dsh version from release metadata |
@@ -102,7 +104,7 @@ Do not add `mode`, `force_update`, `show_key`, `target_version`, button copy, or
 
 Missing required headers, invalid SemVer, and unsupported platform/architecture/channel combinations return explicit parameter errors, not no-force success or a mandatory policy. Prefer the existing business meanings of `biz_code = 1` for a missing version and `biz_code = 2` for an invalid version; final error allocation belongs to the backend. Service failures must not masquerade as success because success may remove an existing block.
 
-Match application identity, platform, architecture, Desktop version, bundled dsh version, and channel using server-owned ranges and precedence. Use complete SemVer, not lexical sorting or truncated prerelease values. Initially the two versions are equal and channel is fixed Nightly; independent revisions and channel switching are deferred. Do not require a downgrade or stop returning `40005` merely because a client has queried or displayed it before.
+Match platform, architecture, Desktop version, bundled dsh version, and channel using server-owned ranges and precedence. Use complete SemVer, not lexical sorting or truncated prerelease values. Initially the two versions are equal and channel is fixed Nightly; independent revisions and channel switching are deferred. Do not require a downgrade or stop returning `40005` merely because a client has queried or displayed it before.
 
 ### Policy publication and current decisions
 

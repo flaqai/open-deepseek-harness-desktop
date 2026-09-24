@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-desktop-process-quiescence.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-08-desktop-process-quiescence.md
-2026-09-08-desktop-process-quiescence.md: bfdc13101518527d7af3213fd5f800eee40223e7
-2026-09-08-desktop-process-quiescence.zh.md: 2663f0f41c08ac03251a0f898a2ba4daff99926c
+/agent-note-desktop-exit-requires-observed-process-quiescence:
+  en: 9a9e0b21d11ac1c8
+  zh: 87f429f1f39010bd
+/agent-note-desktop-exit-requires-observed-process-quiescence/problem:
+  en: 383b769f5d3288dd
+  zh: 51cbfbb0e215c623
+/agent-note-desktop-exit-requires-observed-process-quiescence/decision:
+  en: 5f439e8a0592418b
+  zh: 50db412b0eb55951
+/agent-note-desktop-exit-requires-observed-process-quiescence/alternatives-considered:
+  en: d761bfdedb588e96
+  zh: 1ca9e272797dbfd4
+/agent-note-desktop-exit-requires-observed-process-quiescence/consequences:
+  en: 518b785bd7b50d04
+  zh: 4b65243803bd08fb

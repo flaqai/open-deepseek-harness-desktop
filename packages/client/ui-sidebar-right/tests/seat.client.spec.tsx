@@ -5,6 +5,8 @@ import { act, fireEvent } from '@testing-library/react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { PaneId, SplitId, TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
@@ -12,6 +14,8 @@ import { dockPaneIds, getPane } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { apply, inject } from '../src/client/index.ts'
 import { intentsFor } from '../src/client/shell/SidebarRight.tsx'
+import { registerSidebarShortcuts } from '../src/client/shortcuts.ts'
+import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/registry.ts'
 import type { SidebarRightTabInfo, SidebarRightTabMenuOwnerProps } from '../src/client/contract/slots.ts'
 import type { createSidebarRightStore } from '../src/client/stores.ts'
 
@@ -73,6 +77,8 @@ async function mountSeat(viewportWidth = 1440, canShow = true, entryCount = 0, o
   runtime.ctx.provide('resources', { pin } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
+  const catalog = createSnapshotStore<readonly ShortcutCatalogEntry[]>([])
+  runtime.ctx.provide('shortcuts', { register: () => () => {}, catalog } as never)
   runtime.slots.installLocale(locale)
   await runtime.declare({
     'sidebar-right.test.opener': { kind: 'single', scope: 'session' },
@@ -137,6 +143,10 @@ async function mountSeat(viewportWidth = 1440, canShow = true, entryCount = 0, o
     runtime.slots.register({ name: 'sidebar.right.pane.tab.title', key: 'test/text' }, Title)
   })
   const view = runtime.renderSlot('rightbar', { width: 420, viewportWidth, canShow })
+  const registerPage = (kind: string, multiple = false): void => {
+    runtime.ctx.sidebarRightTabs.register({ id: `test/${kind}`, kind, multiple, title: () => kind })
+    runtime.slots.register({ name: 'sidebar.right.pane.tab', key: `test/${kind}` }, Body)
+  }
   const instance = runtime.storeOf('rightbar.session', reference) as ReturnType<ReturnType<typeof createSidebarRightStore>['create']>
   const controller = runtime.ctx.sidebarRight
   const layout = () => instance.getSnapshot().bySession[SESSION]!.layout
@@ -151,7 +161,7 @@ async function mountSeat(viewportWidth = 1440, canShow = true, entryCount = 0, o
   }
   return {
     runtime, feature, controller, instance, actions: instance.actions, layout,
-    open, selectSession, frame, pin, bodies, titles, hooks, view, arm, opened,
+    open, selectSession, frame, pin, bodies, titles, hooks, view, arm, opened, registerPage, catalog,
   }
 }
 
@@ -182,6 +192,120 @@ describe('RightbarSeat presentation', () => {
     act(() => { h.selectSession(SESSION) })
     expect(element(h.view.container, `[data-tab-body="${tab.id}"]`)).toBe(body)
     expect(h.bodies.get(tab.id)?.tab.signal.aborted).toBe(false)
+  })
+
+  it('releases the departing editable selection while retaining its draft', async () => {
+    const h = await mountSeat()
+    act(() => { h.registerPage('files') })
+    const editor = document.createElement('div')
+    editor.setAttribute('contenteditable', 'true')
+    editor.tabIndex = 0
+    editor.textContent = 'unsent draft'
+    // jsdom does not implement the browser's inherited contenteditable flag.
+    Object.defineProperty(editor, 'isContentEditable', { value: true })
+    h.view.container.append(editor)
+    editor.focus()
+    const selection = document.getSelection()!
+    selection.selectAllChildren(editor)
+    selection.collapseToEnd()
+    act(() => { h.controller.openTabFromTarget('files', h.controller.commandTarget()!) })
+    expect(document.activeElement?.hasAttribute('data-dockkit-pane')).toBe(true)
+    expect(editor.contains(selection.anchorNode)).toBe(false)
+    expect(editor.textContent).toBe('unsent draft')
+  })
+
+  it.each(['macos', 'windows'] as const)('keeps %s close commands on newly opened, revealed and replaced pages', async (platform) => {
+    const h = await mountSeat()
+    act(() => { h.registerPage('browser', true); h.registerPage('files'); h.registerPage('terminal', true) })
+    const registry = new ShortcutRegistry('desktop', platform)
+    const closeWindow = vi.fn()
+    h.runtime.ctx.effect(() => registerSidebarShortcuts({ register: command => registry.register(command),
+      runtime: 'desktop' }, h.controller, h.runtime.ctx.locale.bind('sidebarRight'), closeWindow))
+    const focusedPane = () => document.activeElement?.getAttribute('data-dockkit-pane')
+      ?? document.activeElement?.getAttribute('data-dockkit-float')
+    const close = (): void => {
+      act(() => { registry.dispatch({ code: 'KeyW', meta: platform === 'macos', control: platform === 'windows',
+        alt: false, shift: false, repeat: false, composing: false, defaultPrevented: false },
+      { target: document.activeElement, region: 'page', modal: null }, vi.fn()) })
+    }
+    const composer = document.createElement('textarea')
+    h.view.container.append(composer)
+    composer.focus()
+    act(() => { h.controller.toggleExpanded() })
+    expect(focusedPane()).toBe(h.layout().activePaneId)
+    close()
+    expect(h.layout().expanded).toBe(false)
+    expect(closeWindow).not.toHaveBeenCalled()
+    act(() => { h.controller.toggleExpanded() })
+    act(() => { h.controller.openTabFromTarget('browser', h.controller.commandTarget()!) })
+    expect(Object.values(h.layout().tabs).map(tab => tab.kind)).toEqual(['browser'])
+    expect(focusedPane()).toBe(h.layout().activePaneId)
+    const input = document.createElement('input')
+    element(h.view.container, '[data-tab-body]').append(input)
+    input.focus()
+    act(() => { h.controller.openTabFromTarget('browser', h.controller.commandTarget()!) })
+    expect(input.isConnected).toBe(false)
+    expect(focusedPane()).toBe(h.layout().activePaneId)
+    close()
+    expect(Object.values(h.layout().tabs).map(tab => tab.kind)).toEqual(['browser'])
+    act(() => { h.controller.openTabFromTarget('files', h.controller.commandTarget()!) })
+    const files = h.controller.active()!
+    act(() => { h.controller.openTabFromTarget('browser', h.controller.commandTarget()!) })
+    act(() => { h.controller.openTabFromTarget('files', h.controller.commandTarget()!) })
+    expect(h.controller.active()?.id).toBe(files.id)
+    expect(focusedPane()).toBe(h.layout().activePaneId)
+    act(() => { h.controller.float(files.id) })
+    const float = document.querySelector<HTMLElement>('[data-dockkit-float]')!
+    float.focus()
+    act(() => { h.controller.openTabFromTarget('files', h.controller.commandTarget()!) })
+    expect(focusedPane()).toBe(float.dataset.dockkitFloat)
+    act(() => { h.controller.openTabFromTarget('terminal', h.controller.commandTarget()!) })
+    expect(document.activeElement?.hasAttribute('data-dockkit-pane')).toBe(true)
+    expect(h.controller.active()?.kind).toBe('terminal')
+    close()
+    expect(h.layout().tabs[files.id]).toBeDefined()
+    expect(closeWindow).not.toHaveBeenCalled()
+    const outside = document.createElement('input')
+    h.view.container.append(outside)
+    outside.focus()
+    close()
+    expect(closeWindow).toHaveBeenCalledOnce()
+  })
+
+  it('focuses the new pane after splitting replaces the focused pane DOM', async () => {
+    const h = await mountSeat()
+    h.open()
+    element(h.view.container, '[data-dockkit-tab]').focus()
+    let created: PaneId | undefined
+    act(() => { created = h.controller.split() })
+    expect(document.activeElement?.getAttribute('data-dockkit-pane')).toBe(created)
+  })
+
+  it('focuses the dock on expansion while leaving floating focus alone on collapse', async () => {
+    const h = await mountSeat()
+    const tab = h.open()
+    act(() => { h.controller.float(tab.id) })
+    const floating = element(h.view.container, '[data-dockkit-float]')
+    floating.focus()
+    act(() => { h.controller.toggleExpanded() })
+    expect(document.activeElement).toBe(floating)
+    act(() => { h.controller.toggleExpanded() })
+    expect(document.activeElement?.getAttribute('data-dockkit-pane')).toBe(dockPaneIds(h.layout())[0])
+  })
+
+  it('retains the focused page when its body moves between docked and floating panes', async () => {
+    const h = await mountSeat()
+    const tab = h.open()
+    const input = document.createElement('input')
+    document.querySelector<HTMLElement>('[data-tab-body]')!.append(input)
+    input.focus()
+    await act(async () => { h.controller.float(tab.id) })
+    expect(document.activeElement).toBe(input)
+    const paneId = input.closest<HTMLElement>('[data-dockkit-float]')?.dataset.dockkitFloat as PaneId | undefined
+    expect(paneId).toBeDefined()
+    await act(async () => { h.controller.dock(paneId!) })
+    expect(document.activeElement).toBe(input)
+    expect(input.closest<HTMLElement>('[data-dockkit-pane]')?.dataset.dockkitPane).toBe(h.layout().activePaneId)
   })
 
   it('hides for a global main panel and retains the Session sidebar state', async () => {
@@ -281,6 +405,7 @@ describe('RightbarSeat presentation', () => {
     const h = await mountSeat()
     const panel = element(h.view.container, '[data-sidebar-right-panel]')
     expect(panel.hasAttribute('data-sidebar-right-open')).toBe(false)
+    expect(panel.getAttribute('aria-hidden')).toBe('true')
     expect(h.frame.closeRightbar).toHaveBeenCalled()
     h.open()
     expect(element(h.view.container, '[data-sidebar-right-panel]')).toBe(panel)
@@ -288,47 +413,6 @@ describe('RightbarSeat presentation', () => {
     expect(h.frame.openRightbar).toHaveBeenLastCalledWith(true, false)
     await h.runtime.dispose()
     expect(h.frame.closeRightbar).toHaveBeenCalled()
-  })
-
-  it('skips the nudge while the darwin seat has no surface to render', async () => {
-    // The seat's first render returns null (the open effect has not created
-    // the surface yet), so the nudge effect fires with an unattached panel ref.
-    document.documentElement.dataset.platform = 'darwin'
-    try {
-      const h = await mountSeat()
-      const panel = element(h.view.container, '[data-sidebar-right-panel]')
-      expect(panel.hasAttribute('data-sidebar-right-region-nudge')).toBe(false)
-    } finally {
-      delete document.documentElement.dataset.platform
-    }
-  })
-
-  it('pulses the app-region nudge at each open and close edge on macOS only', async () => {
-    const h = await mountSeat()
-    const panel = element(h.view.container, '[data-sidebar-right-panel]')
-    const marks = vi.spyOn(panel, 'setAttribute')
-    const nudges = () => marks.mock.calls.filter(([name]) => name === 'data-sidebar-right-region-nudge').length
-    // Web and Windows compose no app-regions: the slide needs no nudge.
-    act(() => { h.controller.toggleExpanded() })
-    act(() => { h.controller.toggleExpanded() })
-    expect(nudges()).toBe(0)
-    document.documentElement.dataset.platform = 'darwin'
-    try {
-      act(() => { h.controller.toggleExpanded() })
-      expect(nudges()).toBe(1)
-      expect(panel.hasAttribute('data-sidebar-right-region-nudge')).toBe(true)
-      // A frame later the mark lifts (the pulse itself is the recollection
-      // trigger), and the settle pulse re-marks after the 0.3s slide.
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 450)) })
-      expect(nudges()).toBe(2)
-      expect(panel.hasAttribute('data-sidebar-right-region-nudge')).toBe(false)
-      // The close edge pulses again so the hidden panel's stale rects drop.
-      act(() => { h.controller.toggleExpanded() })
-      expect(nudges()).toBe(3)
-      expect(panel.hasAttribute('data-sidebar-right-region-nudge')).toBe(true)
-    } finally {
-      delete document.documentElement.dataset.platform
-    }
   })
 
   it('fills the viewport without replacing the content tree or releasing the wide track', async () => {
@@ -645,7 +729,44 @@ describe('slot-owned useTabInfo', () => {
     expect(document.querySelector('[data-dockkit-tab-menu]')).toBeNull()
   })
 
-  it('hides split controls at two panes and adds a guide only to a pane without one', async () => {
+  it('keeps the current binding in the disabled split tooltip when it changes or is cleared', async () => {
+    const h = await mountSeat()
+    const split: ShortcutCatalogEntry = {
+      id: 'pane.split' as ShortcutCommandId, label: 'Split', aliases: [],
+      binding: { code: 'Backslash', modifiers: ['meta'] }, modified: false, conflicts: [], issue: null,
+      keys: ['⌘', '\\'], aria: 'Meta+\\',
+    }
+    act(() => {
+      h.runtime.ctx.locale.setLocale('en')
+      h.catalog.set([split])
+      h.controller.toggleExpanded()
+      h.controller.split()
+    })
+    const anchor = element(h.view.container, '[data-dockkit-split-button]').parentElement!
+    fireEvent.focus(anchor)
+    expect(document.querySelector('[role="tooltip"]')?.getAttribute('aria-label')).toBe('Two panes is the limit ⌘ \\')
+    act(() => { h.catalog.set([{ ...split, binding: { code: 'KeyG', modifiers: ['control'] },
+      keys: ['Ctrl', '+', 'G'], aria: 'Control+G' }]) })
+    expect(document.querySelector('[role="tooltip"]')?.getAttribute('aria-label')).toBe('Two panes is the limit Ctrl + G')
+    act(() => { h.catalog.set([{ ...split, binding: null, keys: [], aria: undefined }]) })
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe('Two panes is the limit')
+  })
+
+  it('advertises configured pane and page-close controls', async () => {
+    const h = await mountSeat()
+    const entry = (id: string): ShortcutCatalogEntry => ({ id: id as ShortcutCommandId,
+      label: id, aliases: [], binding: null, modified: true, conflicts: [], issue: null,
+      keys: ['Ctrl', 'G'], aria: 'Control+G' })
+    act(() => {
+      h.catalog.set(['page.close', 'pane.fullscreen.toggle', 'sidebar.right.toggle'].map(entry))
+      h.controller.toggleExpanded()
+    })
+    for (const selector of ['[data-sidebar-right-mode]', '[data-sidebar-right-toggle]']) {
+      expect(element(h.view.container, selector).getAttribute('aria-keyshortcuts')).toBe('Control+G')
+    }
+  })
+
+  it('explains the two-pane limit and adds a guide only to a pane without one', async () => {
     const h = await mountSeat()
     // Expanding first seeds the left pane's guide; only the right pane will lack one.
     act(() => { h.controller.toggleExpanded() })
@@ -657,7 +778,8 @@ describe('slot-owned useTabInfo', () => {
     const stored = h.instance.getSnapshot()
     act(() => { expect(h.controller.split()).toBeUndefined() })
     expect(h.instance.getSnapshot()).toBe(stored)
-    expect(splitButtons()).toHaveLength(0)
+    expect(splitButtons()).toHaveLength(2)
+    expect([...splitButtons()].every(button => button.hasAttribute('disabled'))).toBe(true)
     const right = dockPaneIds(h.layout())[1]!
     h.open('right.txt', { paneId: right })
     const guide = getPane(h.layout(), right).tabs.find(id => h.layout().tabs[id]?.kind === 'guide')!

@@ -218,7 +218,7 @@ describe.skipIf(MODE === 'record')('web e2e: archiving a running Session stops i
   it('the restored Session continues the conversation from a regular log', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-session-archive-active-restore'))
     await page.getByRole('button', { name: 'View options' }).click()
-    await page.getByRole('menuitem', { name: 'Show archived', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'All conversations (show archived)', exact: true }).click()
     await expect.poll(() => sessionRow().count(), { timeout: 10_000 }).toBe(1)
     await clickHoverAction(sessionRow(), 'Session actions for ')
     await page.getByRole('menuitem', { name: 'Unarchive session' }).click()

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-desktop-persistent-diagnostic-log.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-15-desktop-persistent-diagnostic-log.md
-2026-09-15-desktop-persistent-diagnostic-log.md: 3bb3d82cb97077e59d8b15927db3455d4131d0ce
-2026-09-15-desktop-persistent-diagnostic-log.zh.md: a1b0080d1782ca33c1fd8d8f36da2f780642c539
+/agent-note-desktop-keeps-a-bounded-diagnostic-log-across-restarts:
+  en: 8a6b3ff2641a94ef
+  zh: e8b027f9f8826de0
+/agent-note-desktop-keeps-a-bounded-diagnostic-log-across-restarts/problem:
+  en: 128056b6bb3e5413
+  zh: 38a62374fa34ecbe
+/agent-note-desktop-keeps-a-bounded-diagnostic-log-across-restarts/decision:
+  en: 7a3dd91f1e7caf39
+  zh: 60d03ce846dde443
+/agent-note-desktop-keeps-a-bounded-diagnostic-log-across-restarts/alternatives-considered:
+  en: 6f8e88e34d0e9c38
+  zh: 1e65415a85b70204
+/agent-note-desktop-keeps-a-bounded-diagnostic-log-across-restarts/consequences:
+  en: 358f17f4d24bf067
+  zh: fec16957dc144a1c

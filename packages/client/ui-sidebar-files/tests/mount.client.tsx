@@ -40,6 +40,7 @@ type FilesStoreInstance = ReturnType<ReturnType<typeof createFilesStore>['create
 
 /** The owner's tab actions as recording mocks. */
 interface MockedTabActions {
+  readonly bindCommands: Mock<SidebarRightTabActions['bindCommands']>
   readonly openResource: Mock<SidebarRightTabActions['openResource']>
   readonly openTab: Mock<SidebarRightTabActions['openTab']>
   readonly close: Mock<SidebarRightTabActions['close']>
@@ -58,7 +59,7 @@ export interface Mounted {
 }
 
 /** One store instance, one face, one owner share. */
-function harness(cwd: string | null) {
+function harness(cwd: string | null, refreshShortcut?: ReturnType<FilesBodyProps['useTabInfo']>['tab']['refreshShortcut']) {
   const instance = createFilesStore().create()
   const script = scriptedList()
   const face = filesFace(script.list, script.watch)(SESSION, instance.actions)
@@ -68,6 +69,7 @@ function harness(cwd: string | null) {
     await script.dispose()
   })
   const tabActions: MockedTabActions = {
+    bindCommands: vi.fn(() => vi.fn()),
     openResource: vi.fn<SidebarRightTabActions['openResource']>(),
     openTab: vi.fn<SidebarRightTabActions['openTab']>(),
     close: vi.fn<SidebarRightTabActions['close']>(),
@@ -82,7 +84,7 @@ function harness(cwd: string | null) {
         id: TAB, kind: 'files', contentId: 'files', title: zh['type.label'], visible: true,
         navigation: { address: 'files', params: undefined, revision: 1 },
         signal: controller.signal,
-        actions: tabActions,
+        actions: tabActions, refreshShortcut,
       },
     }),
     sessionId: SESSION,
@@ -98,9 +100,10 @@ function harness(cwd: string | null) {
 /**
  * Mount the body.
  * @param cwd - the session's working directory as `useSessions` reports it; `null` for a session without one.
+ * @param refreshShortcut - effective binding advertised by the tab owner.
  */
-export function mountBody(cwd: string | null = ROOT): Mounted {
-  const { shared, ...hands } = harness(cwd)
+export function mountBody(cwd: string | null = ROOT, refreshShortcut?: ReturnType<FilesBodyProps['useTabInfo']>['tab']['refreshShortcut']): Mounted {
+  const { shared, ...hands } = harness(cwd, refreshShortcut)
   const view = render(<FilesBody {...shared as unknown as FilesBodyProps} />)
   return { ...hands, view, remount: () => render(<FilesBody {...shared as unknown as FilesBodyProps} />) }
 }

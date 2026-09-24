@@ -276,6 +276,25 @@ describe('ReviewTab', () => {
     expect(rows[2]?.textContent).toBe('3c')
     expect(rows[5]?.textContent).toBe('20z')
     expect(store.getSnapshot().byTab[TAB]).toMatchObject({ split: true, wrap: true })
+
+    const oneSidedHunks: WorkspaceDiffHunk[] = [
+      { oldStart: 0, oldLines: 0, newStart: 1, newLines: 1, lines: ['+new'] },
+      { oldStart: 1, oldLines: 1, newStart: 0, newLines: 0, lines: ['-old'] },
+      { oldStart: 1, oldLines: 1, newStart: 1, newLines: 2, lines: [' context', '+new'] },
+      { oldStart: 1, oldLines: 2, newStart: 1, newLines: 1, lines: [' context', '-old'] },
+    ]
+    for (const wrap of [true, false]) {
+      if (!wrap) fireEvent.click(view.getByRole('button', { name: en['review.wrapAria'] }))
+      for (const hunk of oneSidedHunks) {
+        act(() => { diffs.state.set({ [changesDiffUrl(SESSION, 5, 0)]: { ...text, hunks: [hunk] } }) })
+        expect(view.container.querySelector('[data-review-view]')?.getAttribute('data-review-view')).toBe('unified')
+        expect(view.container.querySelectorAll('[data-diff-line]')).toHaveLength(hunk.lines.length)
+        expect(view.getByRole('button', { name: en['review.splitAria'] }).getAttribute('aria-pressed')).toBe('true')
+        expect(store.getSnapshot().byTab[TAB]).toMatchObject({ split: true, wrap })
+      }
+      act(() => { diffs.state.set({ [changesDiffUrl(SESSION, 5, 0)]: { ...text, hunks: oneSidedHunks } }) })
+      expect(view.container.querySelector('[data-review-view]')?.getAttribute('data-review-view')).toBe('split')
+    }
   })
 
   it('syntax-highlights recognized source files with the shared code grammar', () => {
@@ -368,7 +387,8 @@ describe('ReviewTab', () => {
     act(() => {
       diffs.state.set({ [url]: { ...text, hunks: [{ oldStart: 1, oldLines: 0, newStart: 1, newLines: long.length, lines: long }] } })
     })
-    expect(view.container.querySelectorAll('[data-diff-side="right"] [data-diff-line]')).toHaveLength(MAX_RENDERED_LINES)
+    expect(view.container.querySelector('[data-review-view]')?.getAttribute('data-review-view')).toBe('unified')
+    expect(view.container.querySelectorAll('[data-diff-line]')).toHaveLength(MAX_RENDERED_LINES)
     expect(view.container.querySelector('[data-diff-truncated]')?.textContent).toBe(`只显示前 ${MAX_RENDERED_LINES} 行`)
   })
 

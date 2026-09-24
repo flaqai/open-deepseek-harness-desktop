@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-07-composer-session-stats-pills.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-07-composer-session-stats-pills.md
-2026-09-07-composer-session-stats-pills.md: 50d3d3294ed012773657ba9849e45835c361d8be
-2026-09-07-composer-session-stats-pills.zh.md: 97b91b601e62e8b06ab13a764babb4dd3b25bfce
+/agent-note-composer-session-stats-two-icon-pills-with-click-open-stat-dialogs:
+  en: 76e613674da56884
+  zh: 4c9c5d750eace3e0
+/agent-note-composer-session-stats-two-icon-pills-with-click-open-stat-dialogs/problem:
+  en: 654462fa4eeb58dc
+  zh: 7c9cd57947ab8639
+/agent-note-composer-session-stats-two-icon-pills-with-click-open-stat-dialogs/decision:
+  en: 27eb1718cd80b39b
+  zh: e39576842a3578c1
+/agent-note-composer-session-stats-two-icon-pills-with-click-open-stat-dialogs/alternatives-considered:
+  en: 7798b1fb9824b920
+  zh: 7e75cd154ab58a0b
+/agent-note-composer-session-stats-two-icon-pills-with-click-open-stat-dialogs/consequences:
+  en: c078fb870536eec6
+  zh: 17076d824c74ee9d

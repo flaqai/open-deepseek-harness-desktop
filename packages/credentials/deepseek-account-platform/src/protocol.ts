@@ -1,10 +1,16 @@
 /** Validated platform HTTP messages and restricted browser destinations. */
 import { z } from 'zod'
+import type { AccountBonusOrderId } from '@deepseek-ai/dsh-deepseek-account/types'
 
 /** Protocol errors expose a stable code, never a response body or authorization URL. */
 export class PlatformAuthError extends Error {
   /** @param code - safe error classification. */
   constructor(readonly code: 'network' | 'protocol' | 'expired' | 'storage') { super(`account: ${code}`) }
+}
+
+/** An authenticated Platform request was rejected with HTTP 401 or code 40003. */
+export class AccountUnauthorizedError extends PlatformAuthError {
+  constructor() { super('expired') }
 }
 
 /**
@@ -103,7 +109,43 @@ export async function requestPlatform(origin: string, method: string, body: unkn
 export function requestAccount(origin: string, path: '/auth-api/v0/users/current' | '/api/v0/users/get_user_summary',
   token: string,
   signal: AbortSignal, headers: Record<string, string>): Promise<unknown> {
-  return platformRequest(`${origin}${path}`, { method: 'GET', headers: { ...headers, 'x-dsh-auth-token': token } }, signal)
+  return platformRequest(`${origin}${path}`, { method: 'GET', headers: accountHeaders(headers, token) }, signal)
+}
+
+/**
+ * Read the granted bonuses Platform has not yet recorded as displayed.
+ * @param origin - configured origin matching the grant issuer.
+ * @param token - stored account grant.
+ * @param signal - credential lifetime and request timeout.
+ * @param headers - deployment and client identity headers for this origin.
+ * @returns successful business payload holding the unnotified bonus list.
+ */
+export function requestUnnotifiedBonuses(origin: string, token: string,
+  signal: AbortSignal, headers: Record<string, string>): Promise<unknown> {
+  return platformRequest(`${origin}/api/v0/users/get_unnotified_bonuses`,
+    { method: 'GET', headers: accountHeaders(headers, token) }, signal)
+}
+
+/**
+ * Acknowledge an actually displayed bonus to Platform.
+ * @param origin - configured origin matching the grant issuer.
+ * @param token - stored account grant.
+ * @param orderId - granted bonus order the user saw.
+ * @param signal - credential lifetime and request timeout.
+ * @param headers - deployment and client identity headers for this origin.
+ * @returns successful business payload, which carries no data.
+ */
+export function requestBonusNotified(origin: string, token: string, orderId: AccountBonusOrderId,
+  signal: AbortSignal, headers: Record<string, string>): Promise<unknown> {
+  return platformRequest(`${origin}/api/v0/users/ack_bonus_notified`, {
+    method: 'POST', headers: { ...accountHeaders(headers, token), 'content-type': 'application/json' },
+    body: JSON.stringify({ order_id: orderId }),
+  }, signal)
+}
+
+// The grant is provider-owned; deployment requestHeaders cannot override it or the client identity.
+function accountHeaders(headers: Record<string, string>, token: string): Record<string, string> {
+  return { ...headers, 'x-dsh-auth-token': token }
 }
 
 /**
@@ -132,6 +174,10 @@ async function platformRequest(url: string, init: RequestInit, signal: AbortSign
     throw new PlatformAuthError('network')
   }
   console.info('[deepseek-account] response', { path, status: response.status })
+  if (response.status === 401 && new Headers(init.headers).has('x-dsh-auth-token')) {
+    await response.body?.cancel()
+    throw new AccountUnauthorizedError()
+  }
   if (!response.ok || response.body === null) {
     await response.body?.cancel()
     throw new PlatformAuthError('network')
@@ -153,6 +199,10 @@ async function platformRequest(url: string, init: RequestInit, signal: AbortSign
     }
     stage = 'parse-json'
     const payload: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    const authorization = z.object({ code: z.literal(40003) }).safeParse(payload)
+    if (authorization.success && new Headers(init.headers).has('x-dsh-auth-token')) {
+      throw new AccountUnauthorizedError()
+    }
     const codes = z.object({ code: z.number().int(), data: z.object({ biz_code: z.number().int() }).optional() }).safeParse(payload)
     if (codes.success) console.info('[deepseek-account] response codes', {
       path, code: codes.data.code, bizCode: codes.data.data?.biz_code,
@@ -173,7 +223,8 @@ async function platformRequest(url: string, init: RequestInit, signal: AbortSign
     }
     return parsed.data.data.biz_data
   } catch (error) {
-    console.info('[deepseek-account] response rejected', { path, stage, errorCode: 'protocol' })
+    console.info('[deepseek-account] response rejected', { path, stage,
+      errorCode: error instanceof PlatformAuthError ? error.code : 'protocol' })
     if (error instanceof PlatformAuthError) throw error
     throw new PlatformAuthError('protocol')
   } finally {

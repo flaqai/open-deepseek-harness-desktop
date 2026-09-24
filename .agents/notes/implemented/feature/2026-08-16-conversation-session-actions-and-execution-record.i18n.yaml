@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-16-conversation-session-actions-and-execution-record.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-16-conversation-session-actions-and-execution-record.md
-2026-08-16-conversation-session-actions-and-execution-record.md: b86cc1593392ee3b31a1d0cf7aa124a5e083694c
-2026-08-16-conversation-session-actions-and-execution-record.zh.md: cef9fca94f0635611d80b72d757f90ac81ed9a80
+/agent-note-conversation-session-actions-and-execution-record:
+  en: 84740007e4effd3b
+  zh: 2dd347626f96f824
+/agent-note-conversation-session-actions-and-execution-record/problem:
+  en: 1f86ab6e19ec03a6
+  zh: 1f96dd94794248b4
+/agent-note-conversation-session-actions-and-execution-record/decision:
+  en: f4098ea7d393a380
+  zh: db44906e832aa495
+/agent-note-conversation-session-actions-and-execution-record/alternatives-considered:
+  en: 6f0f7e8a04214146
+  zh: 4390ccc13100d004
+/agent-note-conversation-session-actions-and-execution-record/consequences:
+  en: a8c8a652a975b9f2
+  zh: a3f126c00e54e70c

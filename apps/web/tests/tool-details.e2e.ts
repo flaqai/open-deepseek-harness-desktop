@@ -51,8 +51,11 @@ describe.skipIf(MODE === 'record')('web e2e: compact Tool details', () => {
 
   it('expands every recorded tool through its keyed renderer', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-tool-details'))
-    const rows = page.locator('[data-tool]')
-    expect(await rows.count()).toBe(44)
+    // `[data-chat-call-id]` scopes the keyed tool cells: the Schedule client's
+    // turn-tail create card carries the same `data-tool` marker without being
+    // one of the keyed call views this case walks.
+    const rows = page.locator('[data-chat-call-id] [data-tool]')
+    expect(await rows.count()).toBe(45)
     for (const row of await rows.all()) {
       await row.getByRole('button', { expanded: false }).first().click()
       expect(await row.getByRole('listitem').count()).toBeGreaterThan(0)
@@ -65,12 +68,18 @@ describe.skipIf(MODE === 'record')('web e2e: compact Tool details', () => {
     await page.locator('[data-tool="create_goal"]').getByText('Awaiting continuation', { exact: true }).waitFor()
     const schema = page.locator('[data-tool="cordis_inspect_list"] pre').first()
     await expect.poll(() => schema.textContent()).toContain('"properties"')
-    const snapshots = await Promise.all(Array.from({ length: 44 }, (_, index) =>
-      captureStableAria(page, `[data-chat-call-id="details-call-${index + 1}"] [data-tool]`, scaffold.workspaceCwd)))
+    const callIds = [
+      ...Array.from({ length: 3 }, (_, index) => `details-call-${index + 1}`),
+      // The authored schedule_update round sits beside its schedule_create sibling.
+      'details-call-3b',
+      ...Array.from({ length: 41 }, (_, index) => `details-call-${index + 4}`),
+    ]
+    const snapshots = await Promise.all(callIds.map(id =>
+      captureStableAria(page, `[data-chat-call-id="${id}"] [data-tool]`, scaffold.workspaceCwd)))
     const snapshot = snapshots.join('\n')
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
     await page.setViewportSize({ width: 360, height: 800 })
-    const card = page.locator('[data-tool="schedule_create"]')
+    const card = page.locator('[data-chat-call-id] [data-tool="schedule_create"]')
     expect(await card.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
     const reminders = page.locator('[data-tool="schedule_list"]')
     await scrollIntoView(reminders)

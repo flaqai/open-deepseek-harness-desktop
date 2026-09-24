@@ -5,6 +5,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { cleanup, render, waitFor } from '@testing-library/react'
 import { Context } from '@deepseek-ai/cordis'
+import type { ShortcutCommand } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WebTerminalId, WebTerminalInfo } from '@deepseek-ai/dsh-api-terminal-controller/types'
@@ -20,6 +21,8 @@ import type { TerminalBodyInjected } from '../src/client/face.ts'
 import { en, zh } from '../src/client/locales.ts'
 
 vi.mock('@xterm/xterm', () => ({ Terminal: vi.fn() }))
+const SHORTCUT_CATALOG: readonly never[] = []
+
 const renderedTerminal = vi.hoisted(() => vi.fn(() => null))
 vi.mock('../src/client/terminal.tsx', () => ({ TerminalBody: renderedTerminal }))
 
@@ -50,15 +53,21 @@ async function mountPlugin() {
   const openTabIn = vi.fn()
   const tabsIn = vi.fn(() => [] as { id: string; kind: string }[])
   const openTabs = createSnapshotStore<readonly SidebarRightOpenTab[]>([])
+  const commandTarget = vi.fn(), openTabFromTarget = vi.fn()
+  const commands: ShortcutCommand[] = []
   ctx.provide('webTerminals', terminals as never)
   ctx.provide('sidebarRight', {
-    tabDomain: { occurrence }, openTabIn, tabsIn, openTabs,
+    tabDomain: { occurrence }, openTabIn, tabsIn, openTabs, commandTarget, openTabFromTarget,
     registerCloseHandler: (kind: string, handler: SidebarRightCloseHandler) => { expect(kind).toBe('terminal'); closeHandler = handler; return () => { closeHandler = undefined } },
   } as never)
   ctx.provide('slots', {
     inject: (_name: string, register: () => () => void) => register(),
     register: (options: Omit<typeof entries[number], 'component'>, component: unknown) => { const entry = { ...options, component }; entries.push(entry); return () => { entries.splice(entries.indexOf(entry), 1) } },
   } as never)
+  ctx.provide('shortcuts', { register: (command: ShortcutCommand) => {
+    commands.push(command)
+    return () => { commands.splice(commands.indexOf(command), 1) }
+  }, catalog: { getSnapshot: () => SHORTCUT_CATALOG, subscribe: () => () => {} } } as never)
   ctx.provide('locale', {
     bind: () => (key: string) => key,
     register: (name: string, values: unknown) => { dictionaries.set(name, values); return () => { dictionaries.delete(name) } },
@@ -68,6 +77,7 @@ async function mountPlugin() {
   const fiber = await ctx.plugin({ inject, apply })
   return {
     tabs, entries, dictionaries, terminals, model, occurrence, openTabIn, tabsIn, openTabs, theme,
+    commandTarget, openTabFromTarget, commands,
     emitTheme() { ctx.emit('theme/change', theme) },
     get closeHandler() { return closeHandler },
     setParams(next: typeof params) { params = next },
@@ -85,7 +95,7 @@ it('registers terminal views without recovery or cleanup slots, then releases co
     const Icon = definition.guide?.[0]?.icon
     if (Icon === undefined) throw new Error('Terminal guide icon was not registered')
     expect(renderToStaticMarkup(createElement(Icon, { size: 22 }))).toContain('width="22"')
-    expect(renderToStaticMarkup(createElement(Icon))).toContain('width="26"')
+    expect(renderToStaticMarkup(createElement(Icon))).toContain('width="36"')
     expect(definition.multiple).toBe(true)
     expect(h.dictionaries.get('sidebarTerminal')).toEqual({ en, zh })
     expect(h.entries.map(entry => [entry.name, entry.component, entry.locale])).toEqual([
@@ -136,6 +146,22 @@ it('registers terminal views without recovery or cleanup slots, then releases co
   expect(h.tabs.get('terminal')).toBeUndefined()
   expect(h.entries).toEqual([])
   expect(h.dictionaries.size).toBe(0)
+})
+
+it('opens a terminal for the command target and refuses without a selected Session', async () => {
+  const h = await mountPlugin()
+  try {
+    const command = h.commands[0]!
+    const input = { region: 'page', modal: null, target: null } as const
+    expect(command.resolve(input)).toEqual({ status: 'blocked', reason: 'shortcut.noSession' })
+    const target = { sessionId: 'terminal-session' }
+    h.commandTarget.mockReturnValue(target)
+    const result = command.resolve(input)
+    if (result.status !== 'handled') throw new Error('Expected terminal command to be available')
+    result.run()
+    expect(h.openTabFromTarget).toHaveBeenCalledWith('terminal', target)
+  } finally { await h.dispose() }
+  expect(h.commands).toEqual([])
 })
 
 it('loads the terminal body implementation when its registered wrapper mounts', async () => {

@@ -1,7 +1,6 @@
 /** Static or interactive HTML in an opaque iframe, without parent application access. */
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import clsx from 'clsx'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { DocumentPreviewProps } from '../document/contract.ts'
@@ -27,12 +26,13 @@ export interface HtmlBodyInjected {
 type FrameInput = Pick<HtmlBodyProps, 'resourceAddress' | 'readRelated' | 'addResource' | 'setResources'> & {
   readonly data: Uint8Array<ArrayBuffer>
   readonly signal: AbortSignal
+  readonly frameName: string
 }
 
 type FrameState = Pick<FrameInput, 'data' | 'readRelated'> & { readonly url: string | undefined }
 
 /** One mounted file owns its root Blob; replacing content also replaces the browsing context. */
-function HtmlFrame({ data, resourceAddress, readRelated, addResource, setResources, signal, t }: FrameInput & { t: HtmlBodyProps['t'] }): ReactNode {
+function HtmlFrame({ data, resourceAddress, readRelated, addResource, setResources, signal, frameName, t }: FrameInput & { t: HtmlBodyProps['t'] }): ReactNode {
   const [frame, setFrame] = useState<FrameState>()
   useEffect(() => {
     const controller = new AbortController()
@@ -62,10 +62,10 @@ function HtmlFrame({ data, resourceAddress, readRelated, addResource, setResourc
   }, [data, readRelated, resourceAddress, addResource, setResources, signal])
 
   if (frame?.data !== data || frame.readRelated !== readRelated) {
-    return <LoadingIndicator className={clsx(css.status, css.opening)} label={t('loading')} />
+    return <LoadingIndicator label={t('loading')} />
   }
   if (frame.url === undefined) return <p className={css.status} role="alert">{t('failed')}</p>
-  return <iframe key={frame.url} className={css.frame} src={frame.url} sandbox="allow-scripts" title={t('frame')} data-html-preview />
+  return <iframe key={frame.url} name={frameName} className={css.frame} src={frame.url} sandbox="allow-scripts" title={t('frame')} data-html-preview />
 }
 
 /**
@@ -82,13 +82,14 @@ export function HtmlBody({
     if (!interactivePreview) setResources([])
   }, [interactivePreview, setResources])
   if (content.kind !== 'bytes') return null
-  if (!interactivePreview) return <BasicHtmlFrame data={content.data} t={t} />
+  const frameName = `dsh-sidebar-html-${tab.id}`
+  if (!interactivePreview) return <BasicHtmlFrame data={content.data} frameName={frameName} t={t} />
   return <HtmlFrame key={resourceAddress} data={content.data} resourceAddress={resourceAddress}
-    readRelated={readRelated} signal={tab.signal} addResource={addResource} setResources={setResources} t={t} />
+    readRelated={readRelated} signal={tab.signal} frameName={frameName} addResource={addResource} setResources={setResources} t={t} />
 }
 
 /** Static preview mounts a separate browsing context so a mode change retires running scripts. */
-function BasicHtmlFrame({ data, t }: Pick<FrameInput, 'data'> & { t: HtmlBodyProps['t'] }): ReactNode {
+function BasicHtmlFrame({ data, frameName, t }: Pick<FrameInput, 'data' | 'frameName'> & { t: HtmlBodyProps['t'] }): ReactNode {
   const html = useMemo(() => {
     try {
       return createBasicHtmlDocument(data)
@@ -98,5 +99,5 @@ function BasicHtmlFrame({ data, t }: Pick<FrameInput, 'data'> & { t: HtmlBodyPro
     }
   }, [data])
   if (html === undefined) return <p className={css.status} role="alert">{t('failed')}</p>
-  return <iframe className={css.frame} srcDoc={html} sandbox="" title={t('frame')} data-html-preview />
+  return <iframe name={frameName} className={css.frame} srcDoc={html} sandbox="" title={t('frame')} data-html-preview />
 }

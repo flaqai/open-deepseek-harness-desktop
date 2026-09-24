@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-25-electron-desktop-packaging-and-updates.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.md
-2026-08-25-electron-desktop-packaging-and-updates.md: 35455b9cbb2a09e56bb0d605e9b2ae3cfa07ff21
-2026-08-25-electron-desktop-packaging-and-updates.zh.md: bc94ce6e18157e344243d2647cab2c9ad2a169b9
+/agent-note-package-and-update-the-electron-desktop-application:
+  en: 8e8e50753bf2cbae
+  zh: 85e8c9d10d33d47b
+/agent-note-package-and-update-the-electron-desktop-application/problem:
+  en: 5a39322836f06cd9
+  zh: 7a7ab48fe38a5788
+/agent-note-package-and-update-the-electron-desktop-application/decision:
+  en: d7b4a37b7fcedaab
+  zh: eba98689052960c1
+/agent-note-package-and-update-the-electron-desktop-application/ownership:
+  en: 56c4784810c8485c
+  zh: b734c935c89cf0a5
+/agent-note-package-and-update-the-electron-desktop-application/filesystem-layout:
+  en: e4db88a32edb4ae5
+  zh: 21678d91c80faec8
+/agent-note-package-and-update-the-electron-desktop-application/installation-and-resolution:
+  en: 807fe873e7c8d932
+  zh: c0b8a86a5b553ccf
+/agent-note-package-and-update-the-electron-desktop-application/updates-and-recovery:
+  en: 70c726669b6f8bb5
+  zh: 70dd4f70132c4cf3
+/agent-note-package-and-update-the-electron-desktop-application/security-and-release-policy:
+  en: dc0b73714fef6211
+  zh: 563f0b3939302c3e
+/agent-note-package-and-update-the-electron-desktop-application/implementation:
+  en: a45edae9f3329c99
+  zh: f005437c67d8a3d1
+/agent-note-package-and-update-the-electron-desktop-application/alternatives-considered:
+  en: cbcc0769eff21eb7
+  zh: 66fdb73afa1fbe42
+/agent-note-package-and-update-the-electron-desktop-application/consequences:
+  en: 5140527a9c675f8c
+  zh: 45f25659a7970536
+/agent-note-package-and-update-the-electron-desktop-application/review-decisions:
+  en: 3111d93d1eb745df
+  zh: a4e47be4b3f33247
+/agent-note-package-and-update-the-electron-desktop-application/risks:
+  en: afe7d5609585e96f
+  zh: f6ed393dade84024
+/agent-note-package-and-update-the-electron-desktop-application/related-proposals:
+  en: bfcef8bfb393a602
+  zh: e652d27535bb4861

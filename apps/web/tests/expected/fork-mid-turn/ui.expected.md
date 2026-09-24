@@ -5,7 +5,7 @@
 - text: FORK_BRANCH_USER Summarize what this branch knows about the reads. {{clock}}
 - button "Copy"
 - status: Worked
-- button "Took {{duration}}" [disabled]
+- button "Took {{duration}}"
 - paragraph: FORK_BRANCH_FIRST this branch has no read results, so I would check what the parent completed before retrying. FORK_BRANCH_DONE.
 - button "Copy"
 - button "Good response"

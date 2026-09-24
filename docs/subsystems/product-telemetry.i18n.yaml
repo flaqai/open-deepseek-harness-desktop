@@ -1,6 +1,10 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for product-telemetry.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/product-telemetry.md
-product-telemetry.md: fafed363e2a555b09628256557320ca82e7abb96
-product-telemetry.zh.md: b4cc0eea3e321e6c15b070570f7cc3fa40af9a98
+/product-telemetry:
+  en: e1a8950c3b4743ed
+  zh: 3fff7e01a8f271e1
+/product-telemetry/record-types:
+  en: bf5eadedbc896f5a
+  zh: 158fce1609a85d6d

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-24-profile-git-build-approval-retry.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-24-profile-git-build-approval-retry.md
-2026-08-24-profile-git-build-approval-retry.md: d6a462ba6798b11d0cede775a50f38129ea67a1e
-2026-08-24-profile-git-build-approval-retry.zh.md: 3a1906ed9cceff6187974ad628cad149c1e34f92
+/agent-note-profile-build-approval-retry:
+  en: 8039f185335e95a1
+  zh: 9db8daa2c733419f
+/agent-note-profile-build-approval-retry/problem:
+  en: b9108ea96d234018
+  zh: 598a9ee71cb7b4f4
+/agent-note-profile-build-approval-retry/decision:
+  en: 7b132b316e43b59b
+  zh: 575e5a8601edab00
+/agent-note-profile-build-approval-retry/alternatives-considered:
+  en: 4a3d7b08d1fbabd6
+  zh: fa1b6c2a40988fe3
+/agent-note-profile-build-approval-retry/consequences:
+  en: 114d7bd497282077
+  zh: afb80ad8c9aa54e4

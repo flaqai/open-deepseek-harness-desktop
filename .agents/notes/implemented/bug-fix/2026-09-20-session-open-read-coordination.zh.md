@@ -51,7 +51,7 @@ Skill 保留共享目录请求自己的取消信号；`@` 查询将当前候选�
 - 没有修改 Session 格式、迁移、Host observation 的 `all | none` 策略或 `session.projections` 返回字段。
 - 没有实现全局 cold-read singleflight，也没有把所有 Agent lookup 改成只读 lookup。
 - 没有删除 `SessionManager.handleConnected()` 对此前请求目录的批量刷新；本决策不保证重连只有一次冷读。
-- 工具侧 `listDescendants` 的缓存缺失仍可能读取子会话；前端展开一个子节点也仍可能冷读该节点。普通主会话首开不等于所有后代枚举场景。
+- 工具侧 `listDescendants` 观察每个可达子级目录。观察可以复用实时状态或有效的 prepared Session，否则会读取冷日志。前端展开子节点也可能冷读该节点。普通主会话首开不等于所有后代枚举场景。
 - `@` 会话候选仍枚举 header，并从 live projection 或 projection cache 取名称；缓存缺失回退到 id。原有排序、默认 50 条上限和直接 subagent 分组规则不变，没有改成沿 `subagentCatalog` 递归发现。
 
 ## 考虑过的替代方案

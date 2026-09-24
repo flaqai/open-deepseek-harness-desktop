@@ -22,7 +22,7 @@
   height: calc(28px + var(--dsh-content-font-delta, 0px));
   padding: 6px 8px;
   border: none;
-  border-radius: 28px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   font-size: calc(var(--dsh-content-font-size-secondary, 13px) - 1px);

@@ -8,14 +8,11 @@
 .submenu {
   /* min-widths below are the design's outer card widths — include the pad. */
   box-sizing: border-box;
-  padding: 3px;
+  padding: 4px;
   display: flex;
   flex-direction: column;
   gap: 0;
   border: 0;
-  border-radius: 16px;
-  background: var(--dsw-specific-menu);
-  backdrop-filter: var(--dsw-menu-backdrop-filter);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
   /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens. The
@@ -103,7 +100,7 @@
   min-height: 34px;
   padding: 6px 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-md);
   background: transparent;
   cursor: pointer;
   font-size: 13px;
@@ -136,15 +133,14 @@
 .list.compactList,
 .submenu.compactList {
   min-width: 156px;
-  padding: 2px;
-  border-radius: 7px;
+  padding: 4px;
 }
 
 .compactList .item {
   min-height: 24px;
   gap: 5px;
   padding: 2px 6px;
-  border-radius: 5px;
+  border-radius: var(--dsw-radius-sm);
   font-size: 11px;
   line-height: 17px;
 }
@@ -176,7 +172,7 @@
   height: 14px;
   align-items: center;
   justify-content: center;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--dsw-alias-menu-icon);
 }
 
 .itemIcon svg,
@@ -197,6 +193,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shortcut {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+.shortcut .shortcutKeys {
+  color: var(--dsw-alias-label-caption);
+  font-size: 11px;
+  line-height: 16px;
 }
 
 .check {
@@ -257,16 +264,13 @@
   display: none;
 }
 
-/* Nested card to the right of the parent row.
- * Bottom-aligned with the parent menu card (grows upward): itemWrap sits in
- * .list's 3px pad, so bottom: -3px matches the list's outer bottom edge.
- * Horizontal: list pad (3px) + 6px card gap = 9px past itemWrap.
- * ::before bridges the full gap so the pointer can cross without mouseLeave. */
+/* The submenu aligns with the parent's bottom edge. Its hit bridge covers
+ * the menu inset and the 6px gap so pointer movement keeps it open. */
 .submenu {
   position: absolute;
   top: auto;
-  bottom: -3px;
-  left: calc(100% + 9px);
+  bottom: -4px;
+  left: calc(100% + 10px);
   z-index: 101;
   min-width: 163px;
 }
@@ -276,6 +280,6 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -9px;
-  width: 9px;
+  left: -10px;
+  width: 10px;
 }

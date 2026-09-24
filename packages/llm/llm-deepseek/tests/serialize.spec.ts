@@ -38,9 +38,12 @@ describe('Messages request conversion', () => {
     }
   })
 
-  it('rejects deferred tool definitions until provider loading is implemented', () => {
-    expect(() => body([], { tools: [{ name: 'search', description: '', parameters: {}, deferLoading: true }] }))
-      .toThrow(expect.objectContaining({ code: 'UNSUPPORTED_CONTENT' }))
+  it('declares deferred tools with defer_loading and leaves others unmarked', () => {
+    const tools = [{ name: 'search', description: 'Search', parameters: {}, deferLoading: true as const }, { name: 'fetch', description: 'Fetch', parameters: {} }]
+    expect(body([user()], { tools }).tools).toEqual([
+      { name: 'search', description: 'Search', input_schema: {}, defer_loading: true },
+      { name: 'fetch', description: 'Fetch', input_schema: {} },
+    ])
   })
 
   it('preserves the exact request with request-only text after durable tool results', () => {
@@ -73,9 +76,26 @@ describe('Messages request conversion', () => {
     expect(input).not.toHaveProperty('source')
   })
 
-  it('rejects developer history while provider serialization is unsupported', () => {
-    const message = createDeveloperMessage({ content: [{ type: 'tool-addition', toolName: 'search' }], source: { kind: 'tool-registry' } })
-    expect(() => body([message])).toThrow(expect.objectContaining({ code: 'UNSUPPORTED_CONTENT' }))
+  it('places developer tool changes as a system update after the preceding user turn', () => {
+    const developer = (content: ContentBlock[]) => createDeveloperMessage({ content, source: { kind: 'tool-registry' } })
+    const changes = developer([
+      { type: 'tool-addition', toolName: 'search' }, { type: 'tool-removal', toolName: 'fetch' },
+      { type: 'text', text: '' }, { type: 'text', text: 'search replaces fetch' },
+    ])
+    expect(body([user(), changes, assistant([{ type: 'text', text: 'ok' }])]).messages).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'hello' }] },
+      { role: 'system', content: [
+        { type: 'tool_addition', tool: { type: 'tool_reference', name: 'search' } },
+        { type: 'tool_removal', tool: { type: 'tool_reference', name: 'fetch' } },
+        { type: 'text', text: 'search replaces fetch' },
+      ] },
+      { role: 'assistant', content: [{ type: 'text', text: 'ok' }] },
+    ])
+    expect(body([user(), developer([{ type: 'text', text: '' }])]).messages).toEqual([{ role: 'user', content: [{ type: 'text', text: 'hello' }] }])
+    expect(body([changes, user()]).messages.map(message => message.role)).toEqual(['user', 'system'])
+    expect(() => body([changes])).toThrow(expect.objectContaining({ code: 'UNSUPPORTED_CONTENT' }))
+    expect(() => body([user(), developer([{ type: 'plugin:note', text: 'x' } as never])]))
+      .toThrow(expect.objectContaining({ code: 'UNSUPPORTED_CONTENT' }))
   })
 
   it('keeps the original top-level prompt and cached prefix while appending native system updates', () => {
@@ -382,6 +402,11 @@ describe('validated configuration', () => {
     expect(modelInfo(connection, 'deepseek-official', 'custom').systemPromptUpdate).toBeUndefined()
     expect(modelInfo(capable, 'deepseek-official', MODEL).systemPromptUpdate).toBe('in-history')
     expect(modelInfo(capable, 'deepseek-official', 'custom').systemPromptUpdate).toBeUndefined()
+    expect(modelInfo(connection, 'deepseek-official', MODEL).toolUpdate).toBeUndefined()
+    expect(modelInfo(connection, 'deepseek-official', 'deepseek-flash').toolUpdate).toBe('addition-only')
+    const inHistoryTools = resolveAdapterOptions({ models: [{ id: MODEL, toolUpdate: 'in-history' }] })
+    expect(modelInfo(inHistoryTools, 'deepseek-official', MODEL).toolUpdate).toBe('in-history')
+    expect(modelInfo(inHistoryTools, 'deepseek-official', 'custom').toolUpdate).toBeUndefined()
     expect(modelInfo(resolveAdapterOptions({ thinking: 'disabled' }), 'deepseek-official', MODEL).reasoning?.efforts).toMatchObject([{ id: 'off', name: 'Off' }])
     expect(resolveAdapterOptions({ baseURL: 'https://example.com/anthropic///' }).baseURL).toBe('https://example.com/anthropic///')
   })
@@ -393,6 +418,7 @@ describe('validated configuration', () => {
     { baseURL: 'https://example.com/?key=x' }, { baseURL: 'https://example.com/#x' },
     { maxTokens: 0 }, { streamIdleTimeoutMs: 0 },
     { models: [{ id: MODEL, systemPromptUpdate: 'unsupported' }] },
+    { models: [{ id: MODEL, toolUpdate: 'unsupported' }] },
   ])('rejects invalid composition input %#', (value) => {
     expect(() => resolveAdapterOptions(value as Config)).toThrow()
   })

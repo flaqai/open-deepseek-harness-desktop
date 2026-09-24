@@ -14,19 +14,19 @@
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   gap: 2px;
-  padding: 3px;
-  border-radius: 9px;
+  padding: 4px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .indicator {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: calc((100% - 6px - 2px * (var(--dsh-segment-count) - 1)) / var(--dsh-segment-count));
-  height: calc(100% - 6px);
+  top: 4px;
+  left: 4px;
+  width: calc((100% - 8px - 2px * (var(--dsh-segment-count) - 1)) / var(--dsh-segment-count));
+  height: calc(100% - 8px);
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-1);
   box-shadow: var(--dsw-elevation-soft);
   transform: translateX(calc(var(--dsh-segment-index) * (100% + 2px)));
@@ -41,7 +41,7 @@
   height: 28px;
   padding: 0 16px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font: inherit;
@@ -64,7 +64,7 @@
 }
 
 .tab:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -2px;
 }
 

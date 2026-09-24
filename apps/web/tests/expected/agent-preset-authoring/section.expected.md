@@ -9,9 +9,6 @@
   - button "关闭"
   - heading "Agent 预设" [level=2]
   - paragraph: 选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 DSH 的能力用「创造模式」。
-  - text: 新任务可选择模式 实验性
-  - paragraph: 开启后，可为每个新任务选择模式，并在这里设置默认值。关闭后，新任务使用应用配置的默认预设。已有任务不受影响。
-  - switch "新任务可选择模式" [checked]
   - heading "内置" [level=3]
   - list:
     - listitem:

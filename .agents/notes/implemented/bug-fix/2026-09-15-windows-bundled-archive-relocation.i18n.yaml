@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-windows-bundled-archive-relocation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-15-windows-bundled-archive-relocation.md
-2026-09-15-windows-bundled-archive-relocation.md: 8f97b94565eed51a26ba0264ab8090a88e191554
-2026-09-15-windows-bundled-archive-relocation.zh.md: cf16b18510a160502df94f5e65da11d23c3b7872
+/agent-note-windows-bundled-archive-relocation:
+  en: 123c63023b294227
+  zh: 938bb1f8329a292f
+/agent-note-windows-bundled-archive-relocation/problem:
+  en: a2524df445093092
+  zh: da434a56b1bcc4c7
+/agent-note-windows-bundled-archive-relocation/decision:
+  en: 4bb7b97a5cfb747f
+  zh: b6a49a34a23a67bb
+/agent-note-windows-bundled-archive-relocation/alternatives-considered:
+  en: b8307d120ddfc71e
+  zh: 47ccb8e92cd51f56
+/agent-note-windows-bundled-archive-relocation/consequences:
+  en: 089f420636f0d256
+  zh: 619db18e523fc450

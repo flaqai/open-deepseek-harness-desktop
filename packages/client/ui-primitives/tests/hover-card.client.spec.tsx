@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { HoverCard } from '@deepseek-ai/dsh-client-ui-primitives'
+import { HoverCard, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import { POINTER_GRACE_MS } from '../src/pointer-grace.ts'
 
 afterEach(cleanup)
@@ -54,6 +54,47 @@ function installClipboard(writeText: (text: string) => Promise<void>): () => voi
 }
 
 describe('HoverCard', () => {
+  it.each(['disabled', 'unmounted'] as const)('restores its preview after a nested tooltip is %s', (released) => {
+    const markup = (state: 'active' | 'disabled' | 'unmounted') => (
+      <HoverCard
+        anchor={<div>row{state !== 'unmounted' && (
+          <Tooltip label="Create" disabled={state === 'disabled'}><button type="button">action</button></Tooltip>
+        )}</div>}
+        content={<div>card body</div>}
+        copyLabel="Copy"
+        copiedLabel="Copied"
+      />
+    )
+    const view = render(markup('active'))
+    fireEvent.pointerEnter(screen.getByText('row').parentElement as HTMLElement)
+    act(() => { vi.advanceTimersByTime(500) })
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'action' }))
+    expect(screen.getByRole('tooltip').textContent).toBe('Create')
+    expect(screen.queryByText('card body')).toBeNull()
+
+    view.rerender(markup(released))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    expect(screen.getByText('card body')).toBeTruthy()
+  })
+
+  it('keeps card content mounted while its own tooltip is visible', () => {
+    render(<HoverCard
+      anchor={<span>row</span>}
+      content={<div>card body<Tooltip label="Details"><button type="button">card action</button></Tooltip></div>}
+      copyLabel="Copy"
+      copiedLabel="Copied"
+    />)
+    fireEvent.pointerEnter(screen.getByText('row').parentElement as HTMLElement)
+    act(() => { vi.advanceTimersByTime(500) })
+    const card = screen.getByText('card body')
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'card action' }))
+    expect(card.isConnected).toBe(true)
+    expect(screen.getByRole('tooltip').textContent).toBe('Details')
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(card.isConnected).toBe(true)
+    expect(screen.getByRole('tooltip').textContent).toBe('Details')
+  })
+
   it('opens after the dwell delay, positioned right of the anchor', () => {
     const { wrapper } = mount()
     fireEvent.pointerEnter(wrapper)

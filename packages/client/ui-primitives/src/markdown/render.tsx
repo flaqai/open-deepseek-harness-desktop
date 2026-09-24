@@ -77,11 +77,12 @@ function remoteImageUrl(url: string): string | undefined {
   }
 }
 
-/** Protocols a vocabulary-rewritten image destination may carry. */
+/** Rewritten images may use Web media protocols or the Desktop application's file route. */
 function vocabularyImageUrl(url: string): string | undefined {
   try {
     const protocol = new URL(url).protocol
     return protocol === 'http:' || protocol === 'https:' || protocol === 'blob:' || protocol === 'data:'
+      || url.startsWith('dsh-app://app/api/file?')
       ? url
       : undefined
   } catch {

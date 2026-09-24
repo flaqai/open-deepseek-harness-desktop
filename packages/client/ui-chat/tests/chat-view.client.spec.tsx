@@ -2112,14 +2112,23 @@ describe('ChatView', () => {
     expect(within(cancelledDisclosure).getByRole('status').textContent).toContain('重试已取消')
   })
 
-  it('renders terminal turn failures inline with their durable message and optional code', () => {
-    const h = makeHarness({ nodes: [user(1, 'try'), turnError(2, 'AUTH'), turnError(3)] })
+  it('renders every terminal failure inline with neutral quota copy and no transient notice', () => {
+    const h = makeHarness({ nodes: [
+      user(1, 'try'), turnError(2, 'AUTH'), turnError(3), turnError(4, 'QUOTA'), turnError(5, 'ACCOUNT_QUOTA'),
+    ] })
     const view = render(<h.ChatView {...h.props} />)
     const statuses = view.getAllByRole('status')
     expect(statuses.map(status => status.textContent)).toEqual([
       '本轮运行失败API 密钥无效AUTH',
       '本轮运行失败plugin exploded',
+      '本轮运行失败当前请求的额度已用尽QUOTA',
+      '本轮运行失败当前请求的额度已用尽ACCOUNT_QUOTA',
     ])
+    // The transient notice is the frame-wide host's job; the failure row keeps
+    // neither a recharge affordance nor a toast of its own.
+    expect(view.queryByRole('alert')).toBeNull()
+    expect(view.queryByRole('dialog')).toBeNull()
+    expect(view.queryByRole('button', { name: '去充值' })).toBeNull()
   })
 
   it('renders the max-tokens notice with localized guidance, distinct from turn errors', () => {

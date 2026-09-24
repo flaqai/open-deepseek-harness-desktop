@@ -274,8 +274,7 @@ function providerWording(inheritsConversation: boolean): { description: string; 
       'Delegate a self-contained task to a subagent (a separate agent that works in its own context) '
       + 'to offload focused, independent work — research, a scoped '
       + 'implementation, an analysis — so it does not consume this conversation\'s context. The subagent '
-      + 'returns its result, not its intermediate steps. Give it a '
-      + 'complete, standalone prompt: it does not see this conversation.',
+      + 'returns its result, not its intermediate steps.',
     promptDescription:
       'The complete, self-contained task for the subagent. It does not share this '
       + 'conversation\'s context, so include everything it needs.',
@@ -390,8 +389,8 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
           // a separately installed capability, so this promise holds whenever the
           // continuable background path is reachable at all.
           ? continuable
-            ? ' This tool runs in the background by default, immediately returns a durable subagent id, and keeps the child conversation available for later turns. When that run settles, the runtime sends the parent a notice containing its outcome and any final assistant message; `send_message` steers the child\'s nearest step while it is running and starts or resumes a turn while it is inactive. Set `run_in_background: false` only when your next action depends on receiving the result.'
-            : ' This call waits for the result by default. Set `run_in_background: true` to return a job id; collect with `job_output` and stop with `job_kill`.'
+            ? ' It runs in the background by default and returns a subagent id you can continue with `send_message`; you are notified when the run settles.'
+            : ' This call waits for the result by default.'
           : ' This call waits for the subagent and returns its result.') + choiceDescription,
         parameters: {
           description: {
@@ -428,8 +427,8 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
             run_in_background: {
               type: 'boolean' as const,
               description: continuable
-                ? 'Whether to run in the background and return a durable subagent id immediately. Defaults to true. Set false to wait for the result when your next action depends on it.'
-                : 'Whether to run as a background job and return its id. Defaults to false; collect with job_output or stop with job_kill.',
+                ? 'Defaults to true. Set false only when your next action depends on the result.'
+                : 'Run as a background job and return its id (collect with job_output, stop with job_kill). Defaults to false.',
             },
           } : {},
         },
@@ -609,7 +608,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
           if (mounted === undefined || runtimeCtx.tools.get(toolName, context.scope) === undefined) return ''
           const instructions = [config.usageHint]
           if (backgroundEnabled && continuable) {
-            instructions.push(`Use ${toolName} in the background by default. Start independent delegations together in one assistant message and continue useful work while they run. Set \`run_in_background: false\` only when your next action depends on that subagent's result. When a background run settles, the runtime sends you a notice containing its outcome and any final assistant message.`)
+            instructions.push(`Use ${toolName} in the background by default. Start independent ${toolName} delegations together in one assistant message and continue useful work while they run. Set \`run_in_background: false\` only when your next action depends on that subagent's result. When a background run settles, the runtime sends you a notice containing its outcome and any final assistant message.`)
           }
           return instructions.filter((instruction): instruction is string => instruction !== undefined).join(' ')
         },

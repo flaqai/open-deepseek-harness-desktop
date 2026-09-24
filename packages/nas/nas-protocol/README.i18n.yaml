@@ -1,6 +1,37 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/nas/nas-protocol/README.md
-README.md: a4e3c3272d4e01886820d3db7f9c380859308826
-README.zh.md: 3c94efa27d2b0b34884d547211107356335b0330
+/:
+  en: faab388315fa0e2d
+  zh: 2e0e8d1e8a931d27
+/deepseek-ai-dsh-nas-protocol:
+  en: f929b7eb10c7394a
+  zh: f5cec535e5a3344d
+/deepseek-ai-dsh-nas-protocol/summary:
+  en: ef602075cbb94857
+  zh: 33331759c1772d7e
+/deepseek-ai-dsh-nas-protocol/table-of-contents:
+  en: 054c6d2af439db12
+  zh: 7de9d8bf605f9528
+/deepseek-ai-dsh-nas-protocol/use-this-package:
+  en: c16c1b828323571e
+  zh: 133c0f3252ff4833
+/deepseek-ai-dsh-nas-protocol/understand-the-implementation:
+  en: 246f89a46730c342
+  zh: 87f7a15ff3eb0b2e
+/deepseek-ai-dsh-nas-protocol/further-exploration:
+  en: c0f076158a42a237
+  zh: 40a9a7934b54e3ce
+/deepseek-ai-dsh-nas-protocol/dev-note:
+  en: b75c8458928b72b9
+  zh: eaac63c14c20b932
+/deepseek-ai-dsh-nas-protocol/model-experience:
+  en: b2b9fe2cfc58ae46
+  zh: 677dfb71cf43f1e0
+/deepseek-ai-dsh-nas-protocol/model-experience/kv-cache-effect:
+  en: b0eb7941d63252cf
+  zh: dc6336729017c5c7
+/deepseek-ai-dsh-nas-protocol/known-limitations-and-deferred-work:
+  en: a98580b53289bfd2
+  zh: 2cf719cdc8385521

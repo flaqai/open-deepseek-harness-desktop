@@ -3,6 +3,7 @@ import { chromium, type Browser } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
 import { newEnglishPage, saveFailureShot } from './support.ts'
+import { initialShortcutConfig } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 
 let scaffold: WebScaffold
 let browser: Browser
@@ -22,11 +23,17 @@ describe('navigation without a selected Session', () => {
     const page = await newEnglishPage(browser)
     try {
       if (platform !== 'web') {
-        await page.addInitScript((value) => {
+        await page.addInitScript(({ value, snapshot }) => {
+          Object.assign(window, { dshDesktop: { protocolVersion: 1,
+            keyboard: { subscribe: () => () => {}, closeWindow: async () => {} },
+            shortcuts: { get: async () => ({ ...snapshot, status: 'ready' }),
+              subscribe: () => () => {}, recording: async () => {},
+              edit: async () => ({ status: 'not-ready', snapshot }) },
+          } })
           const mark = () => { document.documentElement.setAttribute('data-platform', value) }
           if (document.documentElement === null) document.addEventListener('DOMContentLoaded', mark, { once: true })
           else mark()
-        }, platform)
+        }, { value: platform, snapshot: initialShortcutConfig() })
       }
       const tripwire = watchConsole(page)
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })

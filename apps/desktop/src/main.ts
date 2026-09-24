@@ -92,6 +92,7 @@ import {
 import { configureWorkspaceRuntimeCapability, type WorkspaceRuntimeProfilePaths } from './workspace-runtime-profile.ts'
 import { createDesktopLifecycle, type DesktopLifecycle } from './window-lifecycle.ts'
 import { ApplicationMenuController } from './application-menu-controller.ts'
+import { installDesktopShortcuts } from './keyboard.ts'
 import { CLIENT_COMMANDS, menuCopy, type DesktopCommand } from './application-menu.ts'
 import { inspectProfileMutationLock, menuMutationActive } from './menu-mutation-guard.ts'
 import { CANDIDATE_PREPARATION_TIMEOUT_MS } from './candidate-preparation.ts'
@@ -263,6 +264,7 @@ let desktopWebAccess: DesktopWebAccess | undefined
 let desktopReturnControl: DesktopReturnControl | undefined
 let lifecycle: DesktopLifecycle | undefined
 let applicationMenu: ApplicationMenuController | undefined
+let desktopShortcuts: ReturnType<typeof installDesktopShortcuts> | undefined
 let disposeApplicationMenu: (() => void) | undefined
 let activeMenuHome: string | undefined
 let menuLocale = 'en'
@@ -1324,6 +1326,7 @@ function createWindow(): BrowserWindow {
   })
   mainWindow = window
   mainSurface = surface
+  desktopShortcuts?.attach(window)
   applicationMenu?.attach(surface)
   applicationMenu?.refresh()
   const refreshMenu = (): void => { applicationMenu?.refresh() }
@@ -1358,6 +1361,16 @@ function createWindow(): BrowserWindow {
 async function startApplication(): Promise<void> {
   if (process.platform === 'win32') app.setAppUserModelId('ai.flaq.deepseek-harness')
   await app.whenReady()
+  desktopShortcuts = installDesktopShortcuts(
+    () => mainWindow, () => mainSurface?.renderer,
+    (rawUrl) => {
+      if (harnessOrigin === undefined) return false
+      try { return new URL(rawUrl).origin === new URL(harnessOrigin).origin } catch { return false }
+    },
+    app.getPath('userData'), process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
+    () => { applicationMenu?.refresh() },
+    () => ({ revision: 0, blocked: false }),
+  )
   desktopLocaleStore = createDesktopLocaleStore(join(app.getPath('userData'), 'desktop-locale.json'))
   menuLocale = desktopLocaleStore.read(app.getLocale())
   applicationMenu = new ApplicationMenuController({
@@ -4016,6 +4029,7 @@ if (!app.requestSingleInstanceLock()) {
     void lifecycle?.requestQuit()
   })
   app.on('will-quit', () => {
+    desktopShortcuts?.dispose()
     stopReleaseChecks?.()
     desktopLogSession.close('application-quit')
   })

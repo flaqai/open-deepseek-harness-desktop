@@ -830,6 +830,7 @@ describe('sessions.prompt synchronous rejection', () => {
       AttachmentStore.prototype,
     ) as never)
     ctx.provide('llm', {
+      listModels: async () => [{ id: 'm', name: 'Model' }],
       listProviders: () => [{ id: 'p', name: 'Provider' }],
       resolveModelInfo: () => Promise.resolve({
         provider: 'p', id: 'm', name: 'Model', inputModalities: ['text', 'image'],

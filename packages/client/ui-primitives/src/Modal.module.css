@@ -4,6 +4,7 @@
    Cards size against this padding box: consumers cap growth with
    `max-height: 100%`, never their own viewport calc. */
 .root {
+  pointer-events: auto;
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -14,16 +15,22 @@
   box-sizing: border-box;
 }
 
-/* User/spec mask: rgba(0,0,0,0.24) + blur(2px) via --dsw-alias-bg-mask-1 /
-   --dsw-mask-blur (light); dark theme raises mask opacity. */
+/* The mask dims the page; dark theme raises its opacity. */
 .mask {
   position: absolute;
   inset: 0;
-  background: var(--dsw-alias-bg-mask-1);
   backdrop-filter: var(--dsw-mask-blur);
 }
 
-/* Dialog card: r24, elevation-prominent, layer-2 fill, pb 24. */
+.mask::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--dsw-alias-bg-mask-1);
+  animation: modalEnter var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+/* Dialogs use the prominent elevation on the secondary layer. */
 .dialog {
   position: relative;
   z-index: 1;
@@ -35,11 +42,25 @@
   padding: 0 0 24px;
   overflow: hidden;
   border: 0;
-  border-radius: 24px;
+  border-radius: var(--dsw-radius-panel);
   background: var(--dsw-alias-bg-layer-2);
   box-shadow: var(--dsw-elevation-prominent);
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  animation: modalEnter var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+@keyframes modalEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mask::after, .dialog { animation: none; }
+}
+
+.dialog:focus {
+  outline: none;
 }
 
 .content {
@@ -76,7 +97,7 @@
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   cursor: pointer;
   color: var(--dsw-alias-label-secondary);

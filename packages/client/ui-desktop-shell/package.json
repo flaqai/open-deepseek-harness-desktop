@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-desktop-shell",
   "description": "Desktop settings plus a scoped browser-to-Electron return action",
-  "version": "0.1.6-alpha.2",
+  "version": "0.1.7-rc.2",
   "private": true,
   "repository": {
     "type": "git",

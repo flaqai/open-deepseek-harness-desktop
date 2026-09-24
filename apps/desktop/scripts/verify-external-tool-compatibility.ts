@@ -9,7 +9,6 @@ import {
   parseExternalToolCompatibilityManifest,
   type ExternalToolRuntimePackage,
 } from '../src/external-tool-compatibility-manifest.ts'
-import { BROWSER_FALLBACK_EXTERNAL_TOOL_SPECS } from '../../../packages/client/ui-settings-plugin-inventory/src/client/external-tool-compatibility-bridge.ts'
 
 interface RegistryVersion {
   readonly name?: unknown
@@ -83,6 +82,19 @@ for (const version of manifestVersions) {
   assert.equal(archived.desktopVersion, version, 'external-tool gate: immutable manifest directory must match desktopVersion')
 }
 const manifestPath = resolve(manifestsDirectory, desktopPackage.version, 'external-tools-compatibility.v2.json')
+const browserFallbackSource = await readFile(resolve(
+  'packages/client/ui-settings-plugin-inventory/src/client/external-tool-compatibility-bridge.ts',
+), 'utf8')
+const fallbackStart = browserFallbackSource.indexOf('export const BROWSER_FALLBACK_EXTERNAL_TOOL_SPECS')
+if (fallbackStart < 0) throw new Error('external-tool gate: browser fallback declaration is missing')
+const fallbackEnd = browserFallbackSource.indexOf('}', fallbackStart)
+if (fallbackEnd < 0) throw new Error('external-tool gate: browser fallback declaration is incomplete')
+const fallbackEntries = [...browserFallbackSource.slice(fallbackStart, fallbackEnd).matchAll(
+  /^\s*(?:'([^']+)'|([a-z-]+)):\s*'([^']+)',?\s*$/gmu,
+)]
+const browserFallbackSpecs = Object.fromEntries(fallbackEntries.map(match => [match[1] ?? match[2], match[3]]))
+assert.deepEqual(Object.keys(browserFallbackSpecs).sort(), [...EXTERNAL_TOOL_IDS].sort(),
+  'external-tool gate: browser fallback identities must match the reviewed Desktop manifest')
 const manifest = parseExternalToolCompatibilityManifest(
   JSON.parse(await readFile(manifestPath, 'utf8')) as unknown,
 )
@@ -104,7 +116,7 @@ for (const toolId of EXTERNAL_TOOL_IDS) {
     `external-tool gate: ${toolId} reviewed runtime must match the current source baseline`,
   )
   assert.equal(
-    BROWSER_FALLBACK_EXTERNAL_TOOL_SPECS[toolId],
+    browserFallbackSpecs[toolId],
     `${coordinate.packageName}@${coordinate.version}`,
     `external-tool gate: ${toolId} browser fallback drifted from the reviewed pin`,
   )

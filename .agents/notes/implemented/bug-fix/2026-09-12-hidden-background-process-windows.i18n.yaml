@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-hidden-background-process-windows.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-12-hidden-background-process-windows.md
-2026-09-12-hidden-background-process-windows.md: 55c844a120ab87984dd9e6d2872e2d28dd4bb314
-2026-09-12-hidden-background-process-windows.zh.md: 34773b00245094b76efa611c964feee06a664a42
+/agent-note-hidden-background-processes-on-windows:
+  en: 3de89ad1e6c12838
+  zh: af4d94869634d4c4
+/agent-note-hidden-background-processes-on-windows/problem:
+  en: 6790c61b90114c72
+  zh: b601b6fc095bc84a
+/agent-note-hidden-background-processes-on-windows/decision:
+  en: b13df0dd8e15fb85
+  zh: d5f7fb13055d9b4b
+/agent-note-hidden-background-processes-on-windows/alternatives-considered:
+  en: 3b8792e3d551413f
+  zh: b4500ab463ba304b
+/agent-note-hidden-background-processes-on-windows/consequences:
+  en: 3ea5454a5ed59a2c
+  zh: 6c850609bcf8a480

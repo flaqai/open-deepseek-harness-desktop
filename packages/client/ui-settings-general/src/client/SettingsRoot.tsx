@@ -5,7 +5,7 @@
  * close label, sections) arrives from registrants through slots; accessible
  * names resolve from localized content (trigger: shell locale; dialog:
  * aria-labelledby the title node; close: visually-hidden slot text). Modal
- * open state and the active section id are component-local viewing state;
+ * open state and the active section id belong to the declared owner store;
  * the onboarding coordinator mounts exactly one ordered registrant while the
  * sessions-derived empty-Hero fact is active. Visible dialog chrome belongs
  * to the step, so a mounted-but-deciding step paints nothing here.
@@ -14,7 +14,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
-  ConnectionIndicator,
+  ConnectionIndicator, Tooltip, useModalLayer,
   IconCheckOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconReorderOutline16,
   IconLinkOutline16, IconWarningOutline16,
   IconAgentPresetOutlineMedium, IconArchiveOutlineMedium, IconCloseOutlineRegular, IconDataOutlineMedium,
@@ -182,7 +182,7 @@ function OnboardingSectionPanel({ request, available, renderSlot, t, onBack, onC
 }
 
 /**
- * The modal layer: full-viewport mask + centered panel. Close paths: the
+ * Body-portaled modal layer: full-viewport mask + centered panel. Close paths: the
  * header button, a mask click, and document-level Escape (mounted only while
  * open, so the listener lifetime is the panel's).
  */
@@ -390,24 +390,19 @@ function SettingsPanel({
       if (e.key !== 'Escape') return
       if (armedDrag.current !== undefined || dragState.current !== undefined) {
         e.preventDefault()
+        e.stopImmediatePropagation()
         cancelPointerDrag()
-        return
       }
-      onClose()
     }
-    document.addEventListener('keydown', onKeyDown)
-    return () => { document.removeEventListener('keydown', onKeyDown) }
-  }, [cancelPointerDrag, onClose])
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => { document.removeEventListener('keydown', onKeyDown, true) }
+  }, [cancelPointerDrag])
 
   useEffect(() => () => {
     clearScheduledDragWork()
     armedDrag.current = undefined
     dragState.current = undefined
   }, [clearScheduledDragWork])
-
-  // Entering the dialog focuses the close button; the root restores its trigger on close.
-  const closeButton = useRef<HTMLButtonElement | null>(null)
-  useEffect(() => { closeButton.current?.focus() }, [])
 
   const draggedRow = drag === undefined ? undefined : rows.find(row => row.id === drag.id)
   const targetBox = drag === undefined ? undefined : drag.boxes[drag.targetIndex]
@@ -419,15 +414,19 @@ function SettingsPanel({
         ? drag.listTop - drag.listScrollTop + targetBox.top - drag.originTop
         : 0
 
-  return (
+  const panel = useRef<HTMLDivElement>(null)
+  useModalLayer(panel, true, onClose)
+
+  return createPortal((
     <div className={css.overlay} role="presentation">
       <div className={css.mask} aria-hidden="true" onClick={onClose} />
-      <div className={css.panel} data-mobile-view={active === undefined ? 'list' : 'detail'} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-label={t('title')}>
+      <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" className={css.panel} data-mobile-view={active === undefined ? 'list' : 'detail'} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-label={t('title')}>
         <nav className={css.nav}>
           <div className={css.navTitleRow}>
-            <div className={css.navTitle} id={titleId}>{renderSlot('settings.header', {})}</div>
+            <div className={css.navTitle} id={titleId} tabIndex={-1}
+              data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</div>
             {phone && (
-              <button ref={closeButton} type="button" className={css.mobileNavClose} onClick={onClose}>
+              <button type="button" className={css.mobileNavClose} onClick={onClose}>
                 <IconCloseOutline16 size={14} />
                 <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
               </button>
@@ -460,6 +459,7 @@ function SettingsPanel({
                     type="button"
                     className={clsx(css.navCell, row.id === active && css.active)}
                     aria-current={row.id === active ? 'true' : undefined}
+                    data-modal-autofocus={row.id === active ? '' : undefined}
                     onClick={() => { onSelect(row.id) }}
                   >
                     {navIcon(row.id)}
@@ -525,7 +525,7 @@ function SettingsPanel({
               <IconChevronLeftOutline14 size={18} />
             </button>
             <div className={css.actions}>{renderSlot('settings.action', active === undefined ? {} : { activeSectionId: active })}</div>
-            <button ref={phone ? undefined : closeButton} type="button" className={css.close} onClick={onClose}>
+            <button type="button" className={css.close} onClick={onClose}>
               <IconCloseOutlineRegular size={14} />
               <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
             </button>
@@ -539,7 +539,7 @@ function SettingsPanel({
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }
 
 /**
@@ -551,9 +551,10 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const {
     wide, dismissSidebar, reconnect, openDesktopUpdate, useDesktopUpdate, useConnectionState, useSections,
     useOnboardingSteps, useNavigation, useSectionOrder, useSessions, setSectionOrder, renderSlot, t,
+    useStore, actions, useShortcuts,
   } = props
-  const [open, setOpen] = useState(false)
-  const [activeId, setActiveId] = useState<string | undefined>(undefined)
+  const { open, activeId } = useStore(state => state)
+  const shortcut = useShortcuts(rows => rows.find(row => row.id === 'settings.open'))
   const [preferredSubsectionId, setPreferredSubsectionId] = useState<string | undefined>()
   const [onboardingSection, setOnboardingSection] = useState<SettingsOnboardingSectionRequest>()
   const [requestedOnboarding, setRequestedOnboarding] = useState<string | undefined>()
@@ -561,19 +562,10 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const [showRecovery, setShowRecovery] = useState(false)
   const [holdConnecting, setHoldConnecting] = useState(false)
   const connectingShownAt = useRef<number | undefined>(undefined)
-  const triggerRow = useRef<HTMLDivElement | null>(null)
-  const triggerButton = useRef<HTMLButtonElement | null>(null)
-  const wasOpen = useRef(open)
   const close = useCallback(() => {
-    setOpen(false)
-    setActiveId(undefined)
+    actions.close()
     setPreferredSubsectionId(undefined)
-  }, [])
-  // Restore after the close commit, when the dialog can no longer own focus.
-  useEffect(() => {
-    if (wasOpen.current && !open) triggerRow.current?.querySelector('button')?.focus()
-    wasOpen.current = open
-  }, [open])
+  }, [actions])
   // The ledger tick keeps the nav rows fresh: registrants re-register with
   // freshly localized text on locale change, and the trigger/header/close
   // seats re-render through their own outlets' subscriptions.
@@ -601,10 +593,9 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
 
   useEffect(() => {
     if (navigation === undefined) return
-    setOpen(true)
-    setActiveId(navigation.sectionId)
+    actions.openSection(navigation.sectionId)
     setPreferredSubsectionId(navigation.subsectionId)
-  }, [navigation?.revision])
+  }, [actions, navigation?.revision])
   const onboardingActive = useSessions((state) => {
     if (state.phase !== 'ready') return false
     const current = Object.values(state.byId)
@@ -622,6 +613,16 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     setCompletedOnboarding(new Set())
     setOnboardingSection(undefined)
   }, [onboardingActive])
+
+  const onboardingStepSeen = useRef(onboardingStep)
+  // An onboarding step owns the viewport and marks `#root` inert. The panel portals
+  // beside `#root`, outside that mark, so a step that appears while the panel is open
+  // takes the panel down rather than leaving it focusable behind the onboarding mask.
+  useEffect(() => {
+    const appeared = onboardingStepSeen.current === undefined && onboardingStep !== undefined
+    onboardingStepSeen.current = onboardingStep
+    if (appeared && open) close()
+  }, [onboardingStep, open, close])
 
   useLayoutEffect(() => {
     const previous = previousConnectionState.current
@@ -679,18 +680,24 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
 
   return (
     <>
-      <div ref={triggerRow} className={clsx(css.triggerRow, !wide && css.railRow)}>
-        {renderSlot('settings.launcher', { wide, openSettings: () => { setOpen(true) }, openOnboarding: (id) => { setOpen(false); setRequestedOnboarding(id) } }, { fallback: <button
-          ref={triggerButton}
-          type="button"
-          className={clsx(css.trigger, !wide && css.rail)}
-          aria-label={t('trigger')}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          onClick={() => { setOpen(true); dismissSidebar() }}
-        >
-          {renderSlot('settings.trigger', { wide })}
-        </button> })}
+      <div className={clsx(css.triggerRow, !wide && css.railRow)}>
+        {renderSlot('settings.launcher', {
+          wide, settingsOpen: open, openSettings: actions.open,
+          ...(shortcut?.keys.length ? { settingsShortcut: { keys: shortcut.keys, aria: shortcut.aria } } : {}),
+          openOnboarding: (id) => { close(); setRequestedOnboarding(id) },
+        }, { fallback: <Tooltip disabled={open} label={t('trigger')} shortcutKeys={shortcut?.keys}>
+          <button
+            type="button"
+            className={clsx(css.trigger, !wide && css.rail)}
+            aria-label={t('trigger')}
+            aria-keyshortcuts={shortcut?.aria}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            onClick={() => { actions.open(); dismissSidebar() }}
+          >
+            {renderSlot('settings.trigger', { wide })}
+          </button>
+        </Tooltip> })}
         <ConnectionIndicator
           state={wide ? connectionIndicator : undefined}
           disconnectedLabel={t('connection.error')}
@@ -715,7 +722,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
           renderSlot={renderSlot}
           t={t}
           activeId={activeId}
-          onSelect={(id) => { setActiveId(id); setPreferredSubsectionId(undefined) }}
+          onSelect={(id) => { actions.select(id); setPreferredSubsectionId(undefined) }}
           onReorder={reorderSections}
           onClose={close}
           {...preferredSubsectionId === undefined ? {} : { preferredSubsectionId }}

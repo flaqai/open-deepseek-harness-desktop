@@ -1,0 +1,9 @@
+# Browser-zone assertions need a fresh reading after the non-browser preparation turn.
+- id: time-context
+  disabled: false
+  config:
+    refreshIntervalMs: 0
+- id: schedule
+  disabled: false
+- id: ui-schedule
+  disabled: false

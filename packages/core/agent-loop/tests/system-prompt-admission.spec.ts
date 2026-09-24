@@ -58,6 +58,12 @@ async function send(agent: Agent, text: string) {
   await agent.whenIdle()
 }
 
+function registerTool(ctx: Context, name: string, description = `${name} tool`) {
+  return ctx.tools.register(defineContentToolFixture({
+    name, description, parameters: {}, execute: async () => [{ type: 'text', text: 'done' }],
+  }))
+}
+
 function systemTexts(request: GenerateOptions) {
   return request.messages.filter(message => message.role === 'system').map(message => message.content)
 }
@@ -73,6 +79,102 @@ function expectPlain(request: GenerateOptions, prompt: string) {
 }
 
 describe('prepared-route prompt admission', () => {
+  describe.each(['addition-only', 'in-history'] as const)('prompt/tool admission with %s updates', (toolUpdate) => {
+    it.each(['simultaneous', 'after-prompt-update'] as const)('preserves earlier input and defers additions: %s', async (timing) => {
+      const h = await harness()
+      h.capable.toolUpdate = toolUpdate
+      registerTool(h.ctx, 'search')
+      await send(h.agent, 'first')
+      h.setPrompt('prompt two')
+      if (timing === 'after-prompt-update') await send(h.agent, 'second')
+      const previous = h.capable.requests.at(-1)!
+
+      registerTool(h.ctx, 'fetch')
+      await send(h.agent, 'add fetch')
+      const request = h.capable.requests.at(-1)!
+      expect(request.messages.slice(0, previous.messages.length)).toEqual(previous.messages)
+      expect(systemTexts(request)).toEqual([
+        [{ type: 'text', text: 'prompt one' }], [{ type: 'text', text: 'prompt two' }],
+      ])
+      expect(request.tools?.find(tool => tool.name === 'fetch')?.deferLoading).toBe(true)
+      expect(request.messages.filter(message => message.role === 'developer').map(message => message.content))
+        .toEqual([[{ type: 'tool-addition', toolName: 'fetch' }]])
+      const header = h.agent.session.snapshotEvents().filter(event => event.type === 'request/header').at(-1)
+      expect(header?.data.reason).toBe('change')
+      expect(header?.data.startsSeries).not.toBe(true)
+    })
+
+    it('consolidates when the prepared route cannot append prompts', async () => {
+      const h = await harness()
+      h.capable.toolUpdate = toolUpdate
+      await send(h.agent, 'first')
+      h.setPrompt('prompt two')
+      await send(h.agent, 'second')
+      delete h.capable.systemPromptUpdate
+      registerTool(h.ctx, 'fetch')
+      await send(h.agent, 'add fetch')
+
+      const request = h.capable.requests.at(-1)!
+      expectPlain(request, 'prompt two')
+      expect(request.tools?.find(tool => tool.name === 'fetch')?.deferLoading).not.toBe(true)
+      expect(request.messages.filter(message => message.role === 'developer')).toEqual([])
+    })
+
+    it.each(['explicit', 'replacement'] as const)('rebuilds prompt and declarations at a %s series start', async (reason) => {
+      const h = await harness()
+      h.capable.toolUpdate = toolUpdate
+      await send(h.agent, 'first')
+      h.setPrompt('prompt two')
+      await send(h.agent, 'second')
+      if (reason === 'explicit') {
+        h.ctx.on('agent/pre-step', async (_payload, next) => {
+          const decision = await next()
+          return decision.kind === 'enter' ? { ...decision, startsRequestSeries: true } : decision
+        })
+      } else {
+        const seq = h.agent.session.surface.nodes.find(seq => h.agent.session.eventAt(seq)?.type === 'user/message')!
+        h.agent.session.append('user/message', createUserMessage({
+          content: [{ type: 'text', text: 'compacted history' }], source: { kind: 'test-compaction' },
+        }), { surfaceOp: { op: 'replace', startSeq: seq, endSeq: seq }, sourceEventSeqs: [seq] })
+      }
+      registerTool(h.ctx, 'fetch')
+      await send(h.agent, 'add fetch')
+
+      const request = h.capable.requests.at(-1)!
+      expectPlain(request, 'prompt two')
+      expect(request.tools?.find(tool => tool.name === 'fetch')?.deferLoading).not.toBe(true)
+      expect(request.messages.filter(message => message.role === 'developer')).toEqual([])
+      const header = h.agent.session.snapshotEvents().filter(event => event.type === 'request/header').at(-1)
+      expect(header?.data).toMatchObject({ reason: 'change', startsSeries: true })
+    })
+
+    it('rebuilds retained declarations after a same-name definition changes', async () => {
+      const h = await harness()
+      h.capable.toolUpdate = toolUpdate
+      const disposeSearch = registerTool(h.ctx, 'search')
+      await send(h.agent, 'first')
+      h.setPrompt('prompt two')
+      registerTool(h.ctx, 'fetch')
+      await send(h.agent, 'add fetch')
+      expect(h.capable.requests.at(-1)?.tools?.find(tool => tool.name === 'fetch')?.deferLoading).toBe(true)
+
+      disposeSearch()
+      registerTool(h.ctx, 'search', 'updated search tool')
+      await send(h.agent, 'use updated search')
+      const request = h.capable.requests.at(-1)!
+      expect(request.tools?.map(({ name, description, deferLoading }) => ({ name, description, deferLoading })))
+        .toEqual([
+          { name: 'fetch', description: 'fetch tool', deferLoading: undefined },
+          { name: 'search', description: 'updated search tool', deferLoading: undefined },
+        ])
+      expect(request.toolHistory?.updates).toEqual([])
+      expect(request.messages.filter(message => message.role === 'developer')).toEqual([])
+      expect(systemTexts(request)).toEqual([
+        [{ type: 'text', text: 'prompt one' }], [{ type: 'text', text: 'prompt two' }],
+      ])
+    })
+  })
+
   it.each(['capable', 'plain'] as const)('clears every active prompt version on %s routes across repeated requests and resume', async (provider) => {
     const h = await harness()
     await send(h.agent, 'first')

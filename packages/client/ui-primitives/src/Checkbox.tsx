@@ -23,7 +23,8 @@ export function Checkbox({ checked, onChange, label, disabled = false, title, cl
 }) {
   return (
     <label className={clsx(css.checkbox, className)} title={title}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => { onChange(event.target.checked) }} />
+      <input type="checkbox" checked={checked} disabled={disabled}
+        onChange={(event) => { onChange(event.target.checked) }} />
       <span>{label}</span>
     </label>
   )

@@ -114,6 +114,8 @@ describe('ui-plan browser apply', () => {
     store.actions.open(parent)
     const unbind = controller.bind({
       sessionId: parent, actions: store.actions, surfaces: store.getSnapshot().bySession, canSplitPane: () => true,
+      closeWithFocus: (_paneId, close) => { close() },
+      openWithFocus: (open) => { open() },
     })
     b.openResource.mockImplementation(controller.openResource.bind(controller))
     b.openResourceIn.mockImplementation(controller.openResourceIn.bind(controller))

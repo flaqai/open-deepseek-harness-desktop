@@ -187,7 +187,7 @@ describe('web e2e: live-turn interactions (cancel / error / retry)', () => {
 
     const stopButton = page.getByRole('button', { name: 'Stop generating' })
     await stopButton.hover()
-    await page.getByRole('tooltip', { name: 'Stop generating', exact: true }).waitFor()
+    await page.getByRole('tooltip', { name: 'Stop generating Esc Esc', exact: true }).waitFor()
     await stopButton.click()
     await settled
     expect(turnEndReasons(sessionEvents).at(-1)).toBe('aborted')
@@ -239,6 +239,32 @@ describe('web e2e: live-turn interactions (cancel / error / retry)', () => {
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
   }, 120_000)
+
+  it.skipIf(MODE === 'record').each(['QUOTA', 'ACCOUNT_QUOTA'])(
+    'retains a %s failure after its Web notice expires and history reloads', async (code) => {
+      await launch(() => ({
+        patches: [{ at: 0, entry: { kind: 'throw', chunks: [], message: 'Provider quota exhausted', code } }],
+      }))
+      onTestFailed(() => saveFailureShot(page, `web-e2e-quota-${code}`))
+      const { settled } = await sendPrompt()
+      await settled
+      const notice = page.getByRole('alert').filter({ hasText: 'Request quota exhausted.' })
+      await notice.waitFor({ timeout: 10_000 })
+      expect(await page.getByRole('dialog').count()).toBe(0)
+      const failure = page.getByRole('status').filter({ hasText: code })
+      await failure.waitFor({ timeout: 10_000 })
+      expect(await failure.textContent()).toContain('Request quota exhausted.')
+      await notice.waitFor({ state: 'hidden', timeout: 10_000 })
+      expect(await failure.isVisible()).toBe(true)
+      const expected = fileURLToPath(new URL(`./expected/quota-notice/${code.toLowerCase()}.expected.md`, import.meta.url))
+      await compareOrRefreshGolden(expected, await failure.ariaSnapshot(), MODE)
+
+      await page.reload({ waitUntil: 'load' })
+      await failure.waitFor({ timeout: 15_000 })
+      expect(await notice.count()).toBe(0)
+      expect(tripwire.pageErrors).toEqual([])
+    }, 120_000,
+  )
 
   it.skipIf(MODE === 'record')('keeps a terminal request marker inside the trajectory table', async () => {
     await launch(() => ({

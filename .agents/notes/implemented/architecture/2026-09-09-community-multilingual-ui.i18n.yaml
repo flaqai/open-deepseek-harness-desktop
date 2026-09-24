@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-09-community-multilingual-ui.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-09-community-multilingual-ui.md
-2026-09-09-community-multilingual-ui.md: 86b90a6aa05b12616a2fe6eae2e1707820fc6d17
-2026-09-09-community-multilingual-ui.zh.md: 3edbc26d891ed3125b5ffc0e52fcb48ac614cf3b
+/agent-note-community-multilingual-ui-architecture:
+  en: 0b1e9ef7f89b6e35
+  zh: 3b19170596d68fd0
+/agent-note-community-multilingual-ui-architecture/problem:
+  en: 1dd2085874c67c0a
+  zh: 868b425d3e34ead6
+/agent-note-community-multilingual-ui-architecture/decision:
+  en: c8f51c1f1dcf1c84
+  zh: b297ba6216874075
+/agent-note-community-multilingual-ui-architecture/verification:
+  en: 294df9210cb6bf6e
+  zh: af7fc3862b67786f
+/agent-note-community-multilingual-ui-architecture/alternatives-considered:
+  en: 21b081068bab22d6
+  zh: 7c88d4396d16fb27
+/agent-note-community-multilingual-ui-architecture/consequences:
+  en: 2dcc5fa4af38b54d
+  zh: 8910c30c82c8f01a

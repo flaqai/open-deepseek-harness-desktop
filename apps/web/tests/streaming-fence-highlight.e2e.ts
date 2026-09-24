@@ -30,6 +30,7 @@ const REPLY = `${OPEN_REPLY}\n\`\`\``
 
 /** Deterministic model response held after each visible fence-growth frame. */
 class StreamingFenceAdapter extends LlmAdapter {
+  override async listModels(provider: string) { return [{ provider, id: MODEL, name: `${provider}/${MODEL}` }] }
   private resolveFirstPaused!: () => void
   private resolveFirstContinuation!: () => void
   private resolveSecondPaused!: () => void

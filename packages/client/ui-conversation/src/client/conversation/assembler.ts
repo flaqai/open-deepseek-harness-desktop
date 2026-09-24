@@ -203,6 +203,17 @@ export class ConversationNodeAssembler implements ConversationViewSnapshotStore 
   }
 
   /**
+   * Read the current open turn without activating a View.
+   * @returns the latest turn number when its start is loaded and it remains open, otherwise undefined.
+   */
+  openTurn(): number | undefined {
+    const snapshot = this.locationIndex.snapshot()
+    const latest = snapshot.turnOrder.at(-1)
+    const turn = latest === undefined ? undefined : snapshot.turns.get(latest)
+    return turn?.status === 'open' && turn.start !== undefined ? turn.turn : undefined
+  }
+
+  /**
    * Replace the complete loaded window after open, resync, or gap repair.
    * @param entries - complete contiguous window.
    * @param hasMore - whether older history remains outside the window.

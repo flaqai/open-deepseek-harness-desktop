@@ -41,6 +41,13 @@ it('boots every bundled preload before DOM globals are available with only Elect
       expect(addEventListener).toHaveBeenCalledWith('DOMContentLoaded', expect.any(Function), { once: true })
       if (name === 'preload') {
         expect(exposeInMainWorld).toHaveBeenCalledWith('deepSeekHarnessDesktop', expect.any(Object))
+        const shortcuts = exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as {
+          protocolVersion: number
+          shortcuts: { get(definitions: readonly object[]): Promise<object> }
+        }
+        expect(shortcuts.protocolVersion).toBe(1)
+        await shortcuts.shortcuts.get([])
+        expect(invoke).toHaveBeenCalledWith('dsh:desktop:shortcuts:get', [])
         const exposed = exposeInMainWorld.mock.calls.find(([name]) => name === 'deepSeekHarnessDesktop')?.[1] as {
           shell: { openLogDirectory(): Promise<{ error: string }> }
         }
@@ -66,7 +73,9 @@ it('boots every bundled preload before DOM globals are available with only Elect
           location: { protocol: 'https:', hostname: 'nas.example.test' },
           process: { platform: 'darwin', argv: ['--dsh-nas-runtime'] },
         }, { timeout: 1000 })
-        const remoteExposed = remoteExposeInMainWorld.mock.calls[0]?.[1] as {
+        const remoteShortcuts = remoteExposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as Record<string, unknown>
+        expect(Object.keys(remoteShortcuts)).toEqual(['protocolVersion', 'keyboard', 'shortcuts'])
+        const remoteExposed = remoteExposeInMainWorld.mock.calls.find(([name]) => name === 'deepSeekHarnessDesktop')?.[1] as {
           shell: Record<string, unknown>
         } & Record<string, unknown>
         expect(Object.keys(remoteExposed)).toEqual(['menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes'])

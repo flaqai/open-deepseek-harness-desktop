@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-03-desktop-codex-proxy-scope.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-03-desktop-codex-proxy-scope.md
-2026-09-03-desktop-codex-proxy-scope.md: ff39faf0ac9b08bbd3bf5161d3c0f025d6d2f4fd
-2026-09-03-desktop-codex-proxy-scope.zh.md: b7561583912e5b972d2c20c4b280073dca11f0fb
+/agent-note-scope-the-desktop-system-proxy-to-codex:
+  en: ec8577390413d12f
+  zh: 7e4a0641f9702226
+/agent-note-scope-the-desktop-system-proxy-to-codex/problem:
+  en: 46c77c9d11f5f1dc
+  zh: 3cbbc011a725e3b8
+/agent-note-scope-the-desktop-system-proxy-to-codex/decision:
+  en: f69cb0c3377b1092
+  zh: 351ddee1bd52804c
+/agent-note-scope-the-desktop-system-proxy-to-codex/alternatives-considered:
+  en: 4970191dd9e5cd07
+  zh: 1d95f379c408d3f6
+/agent-note-scope-the-desktop-system-proxy-to-codex/consequences:
+  en: 0329edfaf0ff3df1
+  zh: 5cd51cc9451e27b3

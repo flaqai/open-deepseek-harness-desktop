@@ -196,16 +196,22 @@ it('keeps reveal last and makes it the default when the file query fails', async
   expect(b.openPath).toHaveBeenLastCalledWith(ABSOLUTE_PATH, 'reveal', undefined)
 })
 
-it.each([{ apps: [] }, { apps: [{ id: '/Player.app', name: 'Player', default: false, icon: null }] }])('uses reveal as the default after the available applications when none is default', async ({ apps }) => {
+it('opens with the first registered application when none is marked default', async () => {
   const b = bench()
-  render(<OpenPathAction {...b.props} applications={async () => apps} />)
+  render(<OpenPathAction {...b.props} applications={async () => [{ id: '/Player.app', name: 'Player', default: false, icon: null }]} />)
   await act(async () => {})
-  if (apps.length > 0) {
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh['path.more'] })) })
-    expect(screen.getAllByRole('menuitem').at(-1)?.textContent).toBe('显示文件位置（默认）')
-    expect(screen.queryByText('用默认应用打开')).toBeNull()
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
-  } else expect(screen.queryByRole('button', { name: zh['path.more'] })).toBeNull()
+  const main = screen.getByRole('button', { name: t('open.title', { app: 'Player' }) })
+  await act(async () => { fireEvent.click(main) })
+  expect(b.openPath).toHaveBeenLastCalledWith(ABSOLUTE_PATH, 'open', '/Player.app')
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh['path.more'] })) })
+  expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Player（默认）', zh['path.reveal']])
+})
+
+it('uses reveal as the default only when no application is registered', async () => {
+  const b = bench()
+  render(<OpenPathAction {...b.props} applications={async () => []} />)
+  await act(async () => {})
+  expect(screen.queryByRole('button', { name: zh['path.more'] })).toBeNull()
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh['path.reveal'] })) })
   expect(b.openPath).toHaveBeenLastCalledWith(ABSOLUTE_PATH, 'reveal', undefined)
 })
@@ -264,7 +270,7 @@ it('uses the same application menu in the prominent empty-state control', async 
   expect(b.openPath).toHaveBeenLastCalledWith(ABSOLUTE_PATH, 'open', '/Music.app')
 })
 
-it('labels the prominent default action as reveal when no default application is discovered', async () => {
+it('labels the prominent default action as reveal when no application is registered', async () => {
   const b = bench()
   render(<OpenPathEmptyAction {...b.props} applications={async () => []} />)
   await act(async () => {})

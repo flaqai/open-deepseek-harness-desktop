@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-desktop-profile-mutation-module.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-desktop-profile-mutation-module.md
-2026-09-17-desktop-profile-mutation-module.md: 1cc1f055efcdf1eb7663fb2f2cacac796fccfb87
-2026-09-17-desktop-profile-mutation-module.zh.md: f61810c28b3c853ab7103c6ab12064e9ed12705c
+/agent-note-encapsulate-desktop-profile-mutations-behind-one-interface:
+  en: 251f4dade95c3ab9
+  zh: 3fca11059908da63
+/agent-note-encapsulate-desktop-profile-mutations-behind-one-interface/problem:
+  en: e12a3b8f9f72f1a9
+  zh: 6a813519b133246a
+/agent-note-encapsulate-desktop-profile-mutations-behind-one-interface/decision:
+  en: abf8eb5dd8dbe86e
+  zh: 71d70e0705b6caaa
+/agent-note-encapsulate-desktop-profile-mutations-behind-one-interface/alternatives-considered:
+  en: b1f782760a17a515
+  zh: 34ed35fa2f9f8ab9
+/agent-note-encapsulate-desktop-profile-mutations-behind-one-interface/consequences:
+  en: 4d4ade2c9eb0c0fa
+  zh: e1be666d9e260f8a

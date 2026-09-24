@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-desktop-nas-runtime-authority.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-18-desktop-nas-runtime-authority.md
-2026-09-18-desktop-nas-runtime-authority.md: 0b8671a3b23e956daac606a33e7e81f56c5b790b
-2026-09-18-desktop-nas-runtime-authority.zh.md: 0bf1b87c247497d597479a548015c528df114dbf
+/agent-note-desktop-nas-runtime-authority:
+  en: 987538c6ff105480
+  zh: b31a6ada42f51da2
+/agent-note-desktop-nas-runtime-authority/problem:
+  en: a6aa7f888b9c7e08
+  zh: 846930980e060dae
+/agent-note-desktop-nas-runtime-authority/decision:
+  en: ba1ced45ad9b2758
+  zh: 99a2bafe1f0dfca9
+/agent-note-desktop-nas-runtime-authority/alternatives-considered:
+  en: 269c9d5f089f536b
+  zh: e7650c8f04c1d55d
+/agent-note-desktop-nas-runtime-authority/relationship-to-existing-decisions:
+  en: 7af4d9612bb593ba
+  zh: 5fb1f048ed02f71d
+/agent-note-desktop-nas-runtime-authority/consequences:
+  en: d454f98b47960f69
+  zh: adc0f13701235f7f

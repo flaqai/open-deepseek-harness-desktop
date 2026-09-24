@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-profile-local-pnpm-store.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-08-profile-local-pnpm-store.md
-2026-09-08-profile-local-pnpm-store.md: ce2e28136dd694069ade4af11a99cbadbce06bbf
-2026-09-08-profile-local-pnpm-store.zh.md: 2166a81bafa6d3547abd2652aae04766675f8741
+/agent-note-configuration-local-pnpm-cache:
+  en: 720832483435c208
+  zh: 26ab5d7bc5806a3a
+/agent-note-configuration-local-pnpm-cache/problem:
+  en: 28c7b83f67e9ecf5
+  zh: 085ff3b192531898
+/agent-note-configuration-local-pnpm-cache/decision:
+  en: 2de56d9fb62eca57
+  zh: d1b7e755a50ca4f9
+/agent-note-configuration-local-pnpm-cache/alternatives-considered:
+  en: 88f926b0d9589db5
+  zh: 062f6af7624e4f0f
+/agent-note-configuration-local-pnpm-cache/consequences:
+  en: fee8517a8efa7064
+  zh: 1f97adf79ac29535

@@ -197,14 +197,16 @@ describe.skipIf(MODE === 'record').each([
     await target.getByText('Acme Swift', { exact: true }).click()
     await menu.waitFor({ state: 'detached' })
     expect(selections).toBe(1)
-    expect(scaffold.ctx.agentDefaultModel.currentSelection()?.model).toBe('acme-swift')
+    await expect.poll(() => scaffold.ctx.agentDefaultModel.currentSelection().model, { timeout: 10_000 })
+      .toBe('acme-swift')
 
     await trigger.click()
     await page.getByRole('menuitem', { name: /推理等级/ }).click()
     await page.getByRole('menuitemradio', { name: 'Max', exact: true }).click()
     await menu.waitFor({ state: 'detached' })
     expect(selections).toBe(2)
-    expect(scaffold.ctx.agentDefaultModel.currentSelection()?.reasoningEffort).toBe('max')
+    await expect.poll(() => scaffold.ctx.agentDefaultModel.currentSelection().reasoningEffort, { timeout: 10_000 })
+      .toBe('max')
 
     await page.route('**/api/session/selectModel', async (route) => {
       const envelope = route.request().postDataJSON() as { rpcId: string }

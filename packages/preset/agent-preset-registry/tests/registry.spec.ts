@@ -74,7 +74,6 @@ describe('declarative preset revisions', () => {
     await expect(ctx.agentPresets.mount(scope.ctx, 'broken')).rejects.toThrow()
     expect(await ctx.agentPresets.mount(scope.ctx)).toEqual({ id: 'standard' })
     const roster = await ctx.agentPresets.remoteExportList()
-    expect(roster.modeSelectionEnabled).toBe(true)
     expect(roster.presets.find(row => row.id === 'standard')?.isDefault).toBe(true)
   })
 
@@ -217,15 +216,11 @@ it('allows an isolated service and resolves it through the Agent composition', a
   expect(ctx.agentPresets.serviceFor({ ctx: scope.ctx }, 'loader')).toBeUndefined()
 })
 
-it('keeps policy preferences while hiding and restoring the chooser', async () => {
+it('resolves the saved default over the deployment default, and drops a removed override', async () => {
   const ctx = await harness({ live: true })
   contexts.push(ctx)
   const live = liveRegistries.get(ctx)!
-  await live.update({ selectedDefault: 'minimal', modeSelectionEnabled: true })
-  expect(ctx.agentPresets.defaultId).toBe('minimal')
-  await live.update({ modeSelectionEnabled: false })
-  expect(ctx.agentPresets.defaultId).toBe('standard')
-  await live.update({ modeSelectionEnabled: true })
+  await live.update({ selectedDefault: 'minimal' })
   expect(ctx.agentPresets.defaultId).toBe('minimal')
   await live.replace({ default: 'standard' })
   expect(ctx.agentPresets.defaultId).toBe('standard')

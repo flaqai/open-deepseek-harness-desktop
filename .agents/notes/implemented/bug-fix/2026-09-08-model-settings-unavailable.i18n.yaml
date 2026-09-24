@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-model-settings-unavailable.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-08-model-settings-unavailable.md
-2026-09-08-model-settings-unavailable.md: 69d749cccf1d63cb64c369afc771d5eedb239518
-2026-09-08-model-settings-unavailable.zh.md: f800327041dcd9548fbb1c263ff70c15a740deef
+/agent-note-unavailable-provider-settings:
+  en: 871a454d03347b1d
+  zh: 5a0cc88fd228a791
+/agent-note-unavailable-provider-settings/problem:
+  en: 3960ac38f33dad51
+  zh: f16656eb87eedb74
+/agent-note-unavailable-provider-settings/decision:
+  en: 0fdcd8546663c8c4
+  zh: b065ea5529a3a7f1
+/agent-note-unavailable-provider-settings/alternatives-considered:
+  en: cb4c2ef2aaa8289b
+  zh: 319d970463104339
+/agent-note-unavailable-provider-settings/consequences:
+  en: 906086439eb915b3
+  zh: 2654e057f09f0f86

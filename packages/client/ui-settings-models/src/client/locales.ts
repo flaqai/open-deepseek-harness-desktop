@@ -3,6 +3,7 @@
 /** English strings (the key-set source of truth for this pair). */
 export const en = {
   nav: 'Models',
+  deepSeekAccount: 'DeepSeek Account',
   title: 'Models',
   intro: 'Configure API keys, endpoints, and model catalogs for each provider.',
   sessionLogUploadTitle: 'Share session events with the official DeepSeek API',
@@ -161,6 +162,7 @@ export type ModelsKey = keyof typeof en
 /** Chinese strings (same keys as {@link en}). */
 export const zh: { [Key in keyof typeof en]: string } = {
   nav: '模型',
+  deepSeekAccount: 'DeepSeek 账号',
   title: '模型',
   intro: '为每个提供方配置 API 密钥、API 地址和模型目录。',
   sessionLogUploadTitle: '向 DeepSeek 官方 API 上报会话事件',

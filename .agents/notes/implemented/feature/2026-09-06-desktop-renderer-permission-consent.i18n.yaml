@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-06-desktop-renderer-permission-consent.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-06-desktop-renderer-permission-consent.md
-2026-09-06-desktop-renderer-permission-consent.md: 09011e7d8fe9c8c476af0553c6f0269a79aa3572
-2026-09-06-desktop-renderer-permission-consent.zh.md: 1af44ae65cc7ae9871629184ca503db4d03f8e03
+/agent-note-ask-before-granting-desktop-renderer-capabilities:
+  en: 541b871641631e0b
+  zh: b2cf4ac60d8aa6d8
+/agent-note-ask-before-granting-desktop-renderer-capabilities/problem:
+  en: 0577e1d627eac995
+  zh: e960f056d4689cf6
+/agent-note-ask-before-granting-desktop-renderer-capabilities/decision:
+  en: e9d54d1a086f8f3c
+  zh: 6b7df0cff10d9578
+/agent-note-ask-before-granting-desktop-renderer-capabilities/alternatives-considered:
+  en: cc3ad08aeb0b6241
+  zh: 562594785dfca1d1
+/agent-note-ask-before-granting-desktop-renderer-capabilities/consequences:
+  en: f97be76c8904ee4e
+  zh: 59f93ce7fe3cf35e

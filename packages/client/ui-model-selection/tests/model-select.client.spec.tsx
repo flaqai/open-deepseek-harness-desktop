@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -8,7 +8,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ComponentProps } from 'react'
 import type { ModelDirectoryState } from '../src/client/directory.ts'
 import { ModelSelect } from '../src/client/ModelSelect.tsx'
-import { zh } from '../src/client/locales.ts'
+import { en, zh } from '../src/client/locales.ts'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 
 // The seat's key domain is model ∪ common; the stub mirrors the real lookup
@@ -47,6 +47,7 @@ function state(overrides: Partial<ModelDirectoryState> = {}): ModelDirectoryStat
     }],
     failures: [],
     status: 'ready',
+    pending: null,
     error: null,
     ...overrides,
   }
@@ -206,6 +207,19 @@ describe('ModelSelect reasoning effort', () => {
     expect(screen.queryByText('Fast catalog description')).toBeNull()
   })
 
+  it.each(['model', 'provider'])('keeps the saved id and effort when the selected %s disappears', (removed) => {
+    const directory = createSnapshotStore(state({ retainedEffort: 'High' }))
+    render(<ModelSelect locked={false} available directory={directory} load={vi.fn()} select={vi.fn()} t={t} />)
+    expect(screen.getByRole('button', { name: /选择模型，当前/ }).textContent).toContain('DeepSeek-V4-Flash')
+    act(() => { directory.update((snapshot) => {
+      snapshot.groups = removed === 'provider' ? [] : snapshot.groups.map(group => ({ ...group, models: [] }))
+      snapshot.routable = false
+    }) })
+    expect(screen.getByRole('button', { name: /选择模型，当前/ }).textContent)
+      .toMatchInlineSnapshot('"deepseek-official/deepseek-v4-flashHigh"')
+    expect(directory.getSnapshot().current).toEqual(state().current)
+  })
+
   it('shows loading until the catalog and Session projection are both ready', async () => {
     const directory = createSnapshotStore<ModelDirectoryState>(state({
       current: null,
@@ -269,6 +283,65 @@ describe('ModelSelect reasoning effort', () => {
       : '模型操作失败：session/model-unavailable: session already contains images')
     // The selection failure does not render the in-menu load strip (no Retry).
     expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
+  })
+
+  it('spins on the trigger and the chosen model row until the selection settles, across pane changes', async () => {
+    const groups = [{
+      id: 'deepseek-official',
+      name: 'DeepSeek',
+      models: [
+        { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', reasoning },
+        { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro' },
+      ],
+    }]
+    const directory = createSnapshotStore<ModelDirectoryState>(state({ groups }))
+    let settle!: () => void
+    const select = vi.fn((selection: ModelSelection) => {
+      directory.set(state({ groups, status: 'selecting', pending: selection }))
+      return new Promise<{ ok: true; value: undefined }>((resolve) => {
+        settle = () => {
+          directory.set(state({ groups, current: selection }))
+          resolve({ ok: true, value: undefined })
+        }
+      })
+    })
+    render(<ModelSelect locked={false} available directory={directory} load={vi.fn()} select={select} t={t} />)
+    const spinners = () => document.querySelectorAll('[data-state="ongoing"]')
+
+    const trigger = screen.getByRole('button', { name: /选择模型|当前/ })
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }))
+    expect(spinners()).toHaveLength(2)
+    expect(screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }).querySelector('[data-state="ongoing"]')).not.toBeNull()
+    expect(trigger.querySelector('[data-state="ongoing"]')).not.toBeNull()
+    expect(trigger.getAttribute('aria-busy')).toBe('true')
+
+    // Leaving the pane unmounts the row; the trigger keeps the feedback.
+    fireEvent.keyDown(trigger, { key: 'Escape' })
+    expect(screen.queryByRole('menuitemradio')).toBeNull()
+    expect(spinners()).toHaveLength(1)
+    expect(trigger.querySelector('[data-state="ongoing"]')).not.toBeNull()
+
+    await act(async () => { settle() })
+    expect(spinners()).toHaveLength(0)
+    expect(trigger.getAttribute('aria-busy')).toBe('false')
+  })
+
+  it('spins on the chosen effort row only', () => {
+    const directory = createSnapshotStore<ModelDirectoryState>(state())
+    const select = vi.fn((selection: ModelSelection) => {
+      directory.set(state({ status: 'selecting', pending: selection }))
+      return new Promise<undefined>(() => {})
+    })
+    render(<ModelSelect locked={false} available directory={directory} load={vi.fn()} select={select} t={t} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /选择模型|当前/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /推理等级/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Max/ }))
+    expect(screen.getAllByRole('menuitemradio')
+      .filter(row => row.querySelector('[data-state="ongoing"]') !== null)
+      .map(row => row.textContent)).toEqual(['Max'])
   })
 
   it('portals the placed menu card to body and closes only on truly-outside mousedown', () => {
@@ -524,4 +597,65 @@ describe('ModelSelect keyboard walk', () => {
     expect(rows.every(row => row.getAttribute('aria-checked') === 'false')).toBe(true)
     expect(document.activeElement).toBe(rows[0])
   })
+})
+
+it('shows the unselected model control with the inherited effort', async () => {
+  const directory = createSnapshotStore<ModelDirectoryState>(state({ current: null, routable: false, retainedEffort: 'High' }))
+  render(<ModelSelect locked={false} available directory={directory} load={vi.fn()} select={vi.fn()} t={t} />)
+  const trigger = screen.getByRole('button', { name: '请选择模型' })
+  expect(trigger.hasAttribute('disabled')).toBe(false)
+  await expect(`${trigger.textContent}\n`).toMatchFileSnapshot('./expected/unselected-model.txt')
+  expect(trigger.textContent).toContain('High')
+  fireEvent.click(trigger)
+  expect(screen.queryByRole('menuitem', { name: /模型/ })).toBeNull()
+  const model = screen.getByRole('menuitemradio', { name: 'DeepSeek-V4-Flash' })
+  expect(document.activeElement).toBe(model)
+  fireEvent.keyDown(model, { key: 'Escape' })
+  expect(screen.queryByRole('menu')).toBeNull()
+})
+
+
+it('places account and official models before third-party models', async () => {
+  const groups = ['custom', 'deepseek-official', 'deepseek-account', 'another'].map(id => ({
+    id, name: id, models: [1, 2].map(index => ({ id: `${id}-${index}`, name: `${id}-${index}` })),
+  }))
+  const directory = createSnapshotStore<ModelDirectoryState>(state({ current: null, groups }))
+  render(<ModelSelect locked={false} available directory={directory} load={vi.fn()} select={vi.fn()} t={t} />)
+  fireEvent.click(screen.getByRole('button', { name: '请选择模型' }))
+  const names = screen.getAllByRole('menuitemradio').map(row => row.textContent)
+  expect(names).toEqual([
+    'deepseek-account-1', 'deepseek-account-2', 'deepseek-official-1', 'deepseek-official-2',
+    'custom-1', 'custom-2', 'another-1', 'another-2',
+  ])
+  expect(groups.map(group => group.id)).toEqual(['custom', 'deepseek-official', 'deepseek-account', 'another'])
+  await expect(`${names.join('\n')}\n`).toMatchFileSnapshot('./expected/account-first.txt')
+})
+
+it.each([en, zh])('localizes the account group while preserving external names', (copy) => {
+  const groups = ['deepseek-account', 'custom'].map(id => ({
+    id, name: id === 'deepseek-account' ? 'DeepSeek Account' : 'My Gateway',
+    models: [{ id: 'model', name: 'Model' }],
+  }))
+  render(<ModelSelect locked={false} available
+    directory={createSnapshotStore(state({ current: null, groups }))}
+    load={vi.fn()} select={vi.fn()} t={key => key in copy ? copy[key as keyof typeof copy] : key} />)
+  fireEvent.click(screen.getByRole('button', { name: copy['trigger.selectAria'] }))
+  expect(screen.getByRole('group', { name: copy['provider.account'] })).toBeTruthy()
+  expect(screen.getByRole('group', { name: 'My Gateway' })).toBeTruthy()
+})
+
+it('restores the account model name after login without changing the saved route', () => {
+  const groups = [{ id: 'deepseek-account', name: 'DeepSeek Account', models: [
+    { id: 'deepseek-flash', name: 'DeepSeek Flash', reasoning },
+  ] }]
+  const selected = { provider: 'deepseek-account', model: 'deepseek-flash', reasoningEffort: 'high' }
+  const directory = createSnapshotStore(state({ current: selected, groups, retainedEffort: 'High' }))
+  render(<ModelSelect locked={false} available directory={directory} load={vi.fn()} select={vi.fn()} t={t} />)
+  expect(screen.getByRole('button', { name: /选择模型，当前/ }).textContent).toBe('DeepSeek FlashHigh')
+  act(() => { directory.update((snapshot) => { snapshot.groups = []; snapshot.routable = false }) })
+  expect(screen.getByRole('button', { name: /选择模型，当前/ }).textContent)
+    .toMatchInlineSnapshot('"deepseek-account/deepseek-flashHigh"')
+  act(() => { directory.update((snapshot) => { snapshot.groups = groups; snapshot.routable = true }) })
+  expect(screen.getByRole('button', { name: /选择模型，当前/ }).textContent).toBe('DeepSeek FlashHigh')
+  expect(directory.getSnapshot().current).toEqual(selected)
 })

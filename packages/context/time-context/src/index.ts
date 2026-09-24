@@ -56,7 +56,7 @@ export const inject = ['agents', 'sessionProjections']
 export interface Config {
   /** Fallback display zone when the open turn has no unique browser zone. Omit to use the process zone. */
   timeZone?: string
-  /** Minimum milliseconds between durable injections in one session. Omit or set to 0 to inject at every eligible step. */
+  /** Minimum milliseconds between durable injections in one session. Defaults to 600000 (10 minutes); 0 injects at every eligible step. */
   refreshIntervalMs?: number
 }
 
@@ -115,11 +115,8 @@ function renderText(
 }
 
 /** Reject refresh intervals that cannot represent an exact elapsed-millisecond threshold. */
-function validateRefreshInterval(refreshIntervalMs: number | undefined): void {
-  if (refreshIntervalMs !== undefined && (
-    !Number.isSafeInteger(refreshIntervalMs)
-    || refreshIntervalMs < 0
-  )) {
+function validateRefreshInterval(refreshIntervalMs: number): void {
+  if (!Number.isSafeInteger(refreshIntervalMs) || refreshIntervalMs < 0) {
     throw new TypeError(
       `time-context: refreshIntervalMs must be a non-negative safe integer, got ${String(refreshIntervalMs)}`,
     )
@@ -134,7 +131,7 @@ function validateRefreshInterval(refreshIntervalMs: number | undefined): void {
  */
 export function apply(ctx: Context, config: Config): void {
   const timeZone = config.timeZone
-  const refreshIntervalMs = config.refreshIntervalMs
+  const refreshIntervalMs = config.refreshIntervalMs ?? 600_000
   validateRefreshInterval(refreshIntervalMs)
   let fallbackFormatter: Intl.DateTimeFormat
   try {
@@ -193,7 +190,7 @@ export function apply(ctx: Context, config: Config): void {
     if (decision.kind === 'reject' || signal.aborted) return decision
     const now = Date.now()
     const state = ctx.sessionProjections.stateOf(agent.session, 'timeContext') as TimeContextProjection
-    if (refreshIntervalMs !== undefined && refreshIntervalMs > 0) {
+    if (refreshIntervalMs > 0) {
       const lastInjection = state.lastInjectionTime
       if (lastInjection != null
         && now >= lastInjection

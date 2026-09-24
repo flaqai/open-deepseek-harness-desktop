@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-04-release-prerelease-withdrawal.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-04-release-prerelease-withdrawal.md
-2026-09-04-release-prerelease-withdrawal.md: 60f94fea5bc76b28b9ac77aa729beed73a19af6d
-2026-09-04-release-prerelease-withdrawal.zh.md: 035f076753384632696f94d403780cad3fe60900
+/agent-note-release-prerelease-withdrawal:
+  en: f0d0bcaaa483ce0f
+  zh: f11f5f952141bbd6
+/agent-note-release-prerelease-withdrawal/problem:
+  en: c081b67ea43fd82c
+  zh: 4a979ac2e520ea73
+/agent-note-release-prerelease-withdrawal/decision:
+  en: 698bef7a3cf972a1
+  zh: 6a5ff2377316fda9
+/agent-note-release-prerelease-withdrawal/alternatives-considered:
+  en: 04998a466f84cb15
+  zh: f30e93d091fe94ed
+/agent-note-release-prerelease-withdrawal/consequences:
+  en: 0177dcff5a5c7c9d
+  zh: eb1d4110aef0af88

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-31-desktop-titlebar-webcontents-isolation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-31-desktop-titlebar-webcontents-isolation.md
-2026-08-31-desktop-titlebar-webcontents-isolation.md: 5f67498d36c8ce36ac9941cd9195f2681fbefbe1
-2026-08-31-desktop-titlebar-webcontents-isolation.zh.md: cf743a7c2508cb9afd83df3a29e250b0ceb27607
+/agent-note-isolate-desktop-title-bar-and-harness-renderers-with-native-view-bounds:
+  en: cc01d6b460e82bb7
+  zh: 7c98b411537fa703
+/agent-note-isolate-desktop-title-bar-and-harness-renderers-with-native-view-bounds/problem:
+  en: 98fc01d9bb9cc394
+  zh: 3a05be0a1237a761
+/agent-note-isolate-desktop-title-bar-and-harness-renderers-with-native-view-bounds/decision:
+  en: cd934c6038c8a72e
+  zh: a0b122a304fe589f
+/agent-note-isolate-desktop-title-bar-and-harness-renderers-with-native-view-bounds/alternatives-considered:
+  en: fe11671f013b4f6c
+  zh: 7c74a76576e395dd
+/agent-note-isolate-desktop-title-bar-and-harness-renderers-with-native-view-bounds/consequences:
+  en: ae740641db333e6d
+  zh: 848d63b8f17ac12c

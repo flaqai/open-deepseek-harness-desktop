@@ -32,7 +32,7 @@ import type { JobId, JobRegistry, JobView } from '@deepseek-ai/dsh-jobs'
 import type {} from '@deepseek-ai/dsh-shell-env'
 import type {} from '@deepseek-ai/dsh-user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@deepseek-ai/dsh-sandbox'
-import { ESCALATION_TARGETS, approveEscalation, validateEscalationArgs } from '@deepseek-ai/dsh-sandbox'
+import { ESCALATION_TARGETS, approveEscalation, sandboxPermissionsDescription, validateEscalationArgs } from '@deepseek-ai/dsh-sandbox'
 import type { SandboxPolicyService } from '@deepseek-ai/dsh-sandbox-policy'
 import type { ShellExecRequest, ShellExecSpec, ShellExecution, ShellRunResult } from '@deepseek-ai/dsh-shell'
 import { parseExitStatus } from '@deepseek-ai/dsh-shell'
@@ -119,30 +119,18 @@ function validatePwshArgs(args: PwshToolArgs): void {
 }
 /* jscpd:ignore-end */
 
-function pwshDescription(
-  backgroundEnabled: boolean,
-  escalationModes: readonly SandboxMode[],
-  promoteOnTimeout: boolean,
-): string {
-  const background = backgroundEnabled
-    ? 'Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.'
-      + (promoteOnTimeout
-        ? ' A foreground command that reaches its timeout is not killed: it moves to the background the same way, returning its job id and the output so far.'
-        : '')
-    : 'Background execution is not available; long-running commands must finish within the timeout.'
+function pwshDescription(windowsSandbox: boolean): string {
   const base = 'Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. '
-    + 'Each call runs in a fresh pwsh process: no state (cwd, variables, functions) persists between calls — '
-    + 'pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\\...`); read environment '
-    + 'variables with `$env:NAME`. Non-zero exits are reported as `[exit code: N]`. '
-    + 'Current harness environment facts are exposed through managed `$env:DSH_*` variables; inspect them when needed. '
-    + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. '
+    + 'Each call runs in a fresh pwsh process; pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\\...`); read environment '
+    + 'variables with `$env:NAME`. '
+    + 'Managed `$env:DSH_*` variables expose current harness environment facts. '
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
     + 'On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. '
-    + background
-  if (escalationModes.length === 0) return base
+    + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.'
+  if (!windowsSandbox) return base
   // The language-mode and named-pipe contracts below are Windows-restricted-token
   // behavior, but the gate is 'any confining executor is mounted'
-  // (escalationModes non-empty). Every shipped composition pairing tool-pwsh
+  // (escalation fields advertised). Every shipped composition pairing tool-pwsh
   // with a confining executor is win32-only, so the gate is equivalent. A POSIX
   // pwsh-sandbox composition must gate both sentences on the platform instead
   // (tracked in the pwsh-tool-and-executor Agent Note).
@@ -404,7 +392,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     /* jscpd:ignore-end */
     return defineTool({
       name: 'pwsh',
-      description: pwshDescription(background, escalationModes, promote),
+      description: pwshDescription(escalationModes.length > 0),
       /* jscpd:ignore-start -- deliberate mirror of dsh-tool-bash's parameter surface (pwsh-tool-and-executor Agent Note). */
       parameters: {
         command: { type: 'string', required: true, description: 'The PowerShell command to execute.' },
@@ -429,7 +417,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           sandbox_permissions: {
             type: 'string' as const,
             enum: [...escalationModes],
-            description: 'The wider sandbox mode this command needs. Only valid as a one-shot retry of a command the sandbox just denied; requires justification and user approval.',
+            description: sandboxPermissionsDescription('command'),
           },
           justification: {
             type: 'string' as const,

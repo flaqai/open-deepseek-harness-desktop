@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-17-empty-gateway-tool-call-identity.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-17-empty-gateway-tool-call-identity.md
-2026-08-17-empty-gateway-tool-call-identity.md: 8f556fed240227a102151d3751c61cfd70e0e2a6
-2026-08-17-empty-gateway-tool-call-identity.zh.md: 40a87ba4740bf143d07e68743b9418503078f3fd
+/agent-note-preserve-tool-identity-across-empty-gateway-stream-fields:
+  en: d78600fbfc3cbcd4
+  zh: e10acd943dda8181
+/agent-note-preserve-tool-identity-across-empty-gateway-stream-fields/problem:
+  en: 405bb45573d026b7
+  zh: bac9cee14fddd675
+/agent-note-preserve-tool-identity-across-empty-gateway-stream-fields/decision:
+  en: d1d2d45847f2058b
+  zh: 4d7772d6767a93c8
+/agent-note-preserve-tool-identity-across-empty-gateway-stream-fields/verification:
+  en: 402927b0ffbffe57
+  zh: c4d12e92b921fe16
+/agent-note-preserve-tool-identity-across-empty-gateway-stream-fields/alternatives-considered:
+  en: 4bc77231f99edb76
+  zh: b0c951bf9d9db314
+/agent-note-preserve-tool-identity-across-empty-gateway-stream-fields/consequences:
+  en: 8e4aa9c545ef4ac2
+  zh: 418fd7231c755d28

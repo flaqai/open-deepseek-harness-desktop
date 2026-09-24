@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-01-profile-plugin-snapshots.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-01-profile-plugin-snapshots.md
-2026-09-01-profile-plugin-snapshots.md: 7add61feed4b5cb2bc7784b83f813a49508a1a57
-2026-09-01-profile-plugin-snapshots.zh.md: 405f772cbbbb065507d2a0bce8b8966f207f33dd
+/agent-note-profile-plugin-snapshots:
+  en: aafb22048014b367
+  zh: f46ada9c3bf7d494
+/agent-note-profile-plugin-snapshots/problem:
+  en: 7d114e12b1d2ed48
+  zh: d6493f58c115e282
+/agent-note-profile-plugin-snapshots/decision:
+  en: 365ba345199ae74c
+  zh: 9fd23d7d3efd4220
+/agent-note-profile-plugin-snapshots/alternatives-considered:
+  en: e880dd03370d7625
+  zh: 5eda78a3070d4f63
+/agent-note-profile-plugin-snapshots/consequences:
+  en: ec03e265b6f15d24
+  zh: e4fc653e4ad90c7a
+/agent-note-profile-plugin-snapshots/verification:
+  en: 7cb4e96fb92c6fea
+  zh: f39c4e320299e8d7

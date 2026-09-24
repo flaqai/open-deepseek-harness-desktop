@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-market-mutation-exit-guard.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-08-market-mutation-exit-guard.md
-2026-09-08-market-mutation-exit-guard.md: 6b09bd28226979df7d85f2d7e807d57311881ffb
-2026-09-08-market-mutation-exit-guard.zh.md: a0c70386f2316dc6087e7ad442f3a0bab96fbf9d
+/agent-note-plugin-market-mutation-exit-protection:
+  en: 221b153783cb4654
+  zh: 050e42247f6f3c87
+/agent-note-plugin-market-mutation-exit-protection/problem:
+  en: 9e568f3d94af09c7
+  zh: 8824aedbc24e8d33
+/agent-note-plugin-market-mutation-exit-protection/decision:
+  en: f54872394db647a6
+  zh: d9d18f0465cb1363
+/agent-note-plugin-market-mutation-exit-protection/alternatives-considered:
+  en: e51fb381b1a6a5f6
+  zh: d16001fcf8b44d3e
+/agent-note-plugin-market-mutation-exit-protection/consequences:
+  en: 962bdb40f79fdf89
+  zh: 11f8c4a8dda04715

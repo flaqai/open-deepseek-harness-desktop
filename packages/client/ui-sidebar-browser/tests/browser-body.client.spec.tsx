@@ -38,7 +38,7 @@ const absentState = {
 }
 
 function mountBrowser(navigation?: { readonly url?: string },
-  options: { initial?: BrowserTabState; createPage?: BrowserPageFactory } = {}) {
+  options: { initial?: BrowserTabState; createPage?: BrowserPageFactory; refreshShortcut?: ReturnType<BrowserBodyProps['useTabInfo']>['tab']['refreshShortcut'] } = {}) {
   const store = createBrowserStore().create(`browser-body-test-${String(++mountSequence)}`)
   if (options.initial !== undefined) store.actions.replace(TAB, options.initial)
   const lifetime = new AbortController()
@@ -46,7 +46,7 @@ function mountBrowser(navigation?: { readonly url?: string },
   const injected = createBrowserControllers(store.actions, options.createPage ?? createIframePage, () => true)
   controllers.push(injected)
   const { keyedHooks, ...commands } = injected
-  const tabActions = { openResource: vi.fn(), openTab: vi.fn(), close: vi.fn() }
+  const tabActions = { bindCommands: vi.fn<ReturnType<BrowserBodyProps['useTabInfo']>['tab']['actions']['bindCommands']>(() => vi.fn()), openResource: vi.fn(), openTab: vi.fn(), close: vi.fn() }
   const props: Pick<BrowserBodyProps, 'sessionId' | 'useTabInfo' | 'useStore' | 'actions' | 't' | 'useBrowserState'>
     & Omit<BrowserInjected, 'keyedHooks'> = {
       sessionId: SESSION,
@@ -56,7 +56,7 @@ function mountBrowser(navigation?: { readonly url?: string },
           id: TAB, kind: 'browser', title: 'Browser', contentId: 'sidebar://browser/1', visible: true,
           navigation: { address: 'sidebar://browser/1', params: navigation, revision: 0 },
           signal: lifetime.signal,
-          actions: tabActions,
+          actions: tabActions, refreshShortcut: options.refreshShortcut,
         },
       }),
       useStore: hookOf(store),
@@ -87,6 +87,12 @@ afterEach(async () => {
 })
 
 describe('BrowserBody', () => {
+  it('displays the effective browser refresh accelerator', () => {
+    const mounted = mountBrowser(undefined, { refreshShortcut: { id: 'page.refresh' as never,
+      label: 'Refresh', aliases: [], binding: null, keys: ['Ctrl', 'R'], aria: 'Control+R',
+      modified: true, conflicts: [], issue: null } })
+    expect(mounted.view.getByRole('button', { name: zh.reload }).getAttribute('aria-keyshortcuts')).toBe('Control+R')
+  })
   it('shows the saved title and URL without loading until Restore is clicked', async () => {
     const target = { kind: 'https' as const, url: 'https://saved.example/page', title: 'Saved title' }
     const mounted = mountBrowser(undefined, { initial: browserAddressCheckpoint(target, 1) })
@@ -175,6 +181,8 @@ describe('BrowserBody', () => {
     expect(mounted.store.getSnapshot().byTab[TAB]!.request?.revision).toBe(beforeReload + 1)
     fireEvent.submit(input.closest('form')!)
     expect(mounted.store.getSnapshot().byTab[TAB]!.request?.revision).toBe(beforeReload + 2)
+    act(() => { mounted.tabActions.bindCommands.mock.calls.at(-1)![0].refresh!() })
+    expect(mounted.store.getSnapshot().byTab[TAB]!.request?.revision).toBe(beforeReload + 3)
   })
 
   it('marks later frame loads unknown and limits unsafe toolbar actions', async () => {

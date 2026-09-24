@@ -36,7 +36,7 @@ const importModule = vi.fn(async (name: string): Promise<unknown> => {
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'dsh-config-schema-'))
-  profile = { name: 'test', dir, patchPath: join(dir, 'cordis.patch.yml'), patches: [], layers: [] }
+  profile = { skippedBundles: [], name: 'test', dir, patchPath: join(dir, 'cordis.patch.yml'), patches: [], layers: [] }
   resolution = { profilesDir: dir, profileDir: dir, localPackageNames: [], entries: [], linkedRoots: [] }
   const loader = ModuleLoader.fromInternal()
   if (loader === undefined) throw new Error('test requires supported Node internals')
@@ -70,7 +70,7 @@ function validates(dump: ConfigSchemaDump, value: unknown, definition = 'entryLi
 describe('generateConfigSchema', () => {
   it('owns ordered composition, skipped-bundle diagnostics, and runtime resolution without mutating layers', async () => {
     profile.layers = [{ packageName: 'loaded', packageDir: dir, patchPaths: [join(dir, 'bundle.yml')], patches: [] }]
-    writeFileSync(join(dir, 'package.json'), JSON.stringify({ dsh: { profile: { bundles: ['loaded', 'missing'] } } }))
+    profile.skippedBundles = [{ packageName: 'missing', reason: 'Error: cannot resolve profile bundle "missing"' }]
     modules.set('server', { Config: Schema.string() })
     const layers: PatchOptions[][] = [
       [{ insert: [{ ...row('cordis:group', []), id: 'group', group: true }] }],
@@ -80,7 +80,7 @@ describe('generateConfigSchema', () => {
     const original = structuredClone(layers)
     const installAnchor = join(dir, 'installation.json')
     const resolve = vi.spyOn(profileOperations, 'createRuntimeResolution').mockResolvedValue(resolution)
-    const result = await generateConfigSchema('dsh', profile, layers, installAnchor)
+    const result = await generateConfigSchema(profile, layers, installAnchor)
     expect(resolve).toHaveBeenCalledExactlyOnceWith({ installAnchor, profile })
     expect(result['x-cordis'].entries.map(entry => [entry.path, entry.name])).toEqual([
       ['/0', 'cordis:group'], ['/0/config/0', 'server'],
@@ -94,17 +94,9 @@ describe('generateConfigSchema', () => {
     expect(dispose).toHaveBeenCalledOnce()
   })
 
-  it('requires prepared profile metadata before creating an interception', async () => {
-    const resolve = vi.spyOn(profileOperations, 'createRuntimeResolution').mockResolvedValue(resolution)
-    await expect(generateConfigSchema('dsh', profile, [], join(dir, 'installation.json'))).rejects.toThrow()
-    expect(resolve).not.toHaveBeenCalled()
-    expect(installRuntimeInterception).not.toHaveBeenCalled()
-  })
-
   it('propagates resolution setup failure without starting collection', async () => {
-    writeFileSync(join(dir, 'package.json'), '{}')
     vi.spyOn(profileOperations, 'createRuntimeResolution').mockRejectedValue(new Error('resolution setup failed'))
-    await expect(generateConfigSchema('dsh', profile, [], join(dir, 'installation.json'))).rejects.toThrow('resolution setup failed')
+    await expect(generateConfigSchema(profile, [], join(dir, 'installation.json'))).rejects.toThrow('resolution setup failed')
     expect(installRuntimeInterception).not.toHaveBeenCalled()
   })
 })

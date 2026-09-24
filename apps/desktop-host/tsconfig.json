@@ -12,6 +12,8 @@
     { "path": "../../packages/core/agent" },
     { "path": "../../packages/jobs/jobs" },
     { "path": "../../packages/core/tools" },
+    { "path": "../../packages/schedule/schedule" },
+    { "path": "../../packages/workspace/workspace" },
     {
       "path": "../cli"
     },

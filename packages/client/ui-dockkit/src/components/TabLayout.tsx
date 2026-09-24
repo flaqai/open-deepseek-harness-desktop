@@ -79,7 +79,7 @@ function TabHost({ state, callbacks, intents, tab, pane, column, floats, focusRe
     <div className={clsx(css.tabCell, floating && css.floatingCell)} hidden={!selected}
       data-dockkit-host={floating ? 'float' : 'dock'} data-dockkit-column={floating ? undefined : column}
       style={{ gridColumn: floating ? 1 : column * 2 + 1, gridRow: 1, order: floating ? depth : 0 }}>
-      <section ref={host} className={clsx(css.tabHost, floating ? css.float : css.pane)}
+      <section ref={host} tabIndex={-1} className={clsx(css.tabHost, floating ? css.float : css.pane)}
         aria-hidden={!visible || undefined}
         data-dockkit-content={tab.id}
         data-dockkit-pane={!floating && selected ? pane.id : undefined}

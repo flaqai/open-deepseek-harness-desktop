@@ -1,4 +1,5 @@
 /** Register the HTTP(S) Browser tab type in the right Sidebar. */
+import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -42,6 +43,27 @@ export const inject = ['slots', 'locale', 'sidebarRight', 'sidebarRightTabs']
 export function apply(ctx: Context): void {
   const namespace = 'sidebarBrowser'
   const t = ctx.locale.bind(namespace)
+  ctx.inject(['shortcuts'], (ctx) => {
+    ctx.effect(() => ctx.shortcuts.register({
+      id: 'browser.new' as ShortcutCommandId, label: () => t('guide.title'), aliases: ['browser', 'new browser tab'],
+      defaults: {
+        'desktop:macos': { code: 'KeyT', modifiers: ['primary'] },
+        'desktop:windows': { code: 'KeyT', modifiers: ['primary'] },
+        'desktop:linux': { code: 'KeyT', modifiers: ['primary'] },
+        'web:macos': { code: 'KeyT', modifiers: ['primary', 'alt'] },
+        'web:windows': { code: 'KeyT', modifiers: ['primary', 'alt'] },
+      },
+      // Each tab plugin owns its command's availability, localized refusal, and tab kind.
+      /* jscpd:ignore-start */
+      regions: ['page', 'editable', 'terminal'], modals: [],
+      resolve: ({ target: element }) => {
+        const target = ctx.sidebarRight.commandTarget(element)
+        if (target === undefined) return { status: 'blocked', reason: t('shortcut.noSession') }
+        return { status: 'handled', run: () => { ctx.sidebarRight.openTabFromTarget('browser', target) } }
+      },
+      /* jscpd:ignore-end */
+    }), 'ui-sidebar-browser: shortcut')
+  })
   const store = createBrowserStore()
   const openTabs = ctx.sidebarRight.openTabs
   const carrier = (globalThis as typeof globalThis & {

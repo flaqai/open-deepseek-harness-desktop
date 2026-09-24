@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-desktop-browser-webview.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-20-desktop-browser-webview.md
-2026-09-20-desktop-browser-webview.md: e69114a90f50d51542e9b6a0d40daef05a93001f
-2026-09-20-desktop-browser-webview.zh.md: b0ab8b1a7058ae9cbb1258977cb4c4e2d8c40614
+/agent-note-retained-desktop-browser-webviews:
+  en: 59456b799c9d5d5e
+  zh: 19a88c553986b463
+/agent-note-retained-desktop-browser-webviews/problem:
+  en: c6abffbd4077e427
+  zh: a7a0a2c2a99cc70b
+/agent-note-retained-desktop-browser-webviews/decision:
+  en: f4970f18902b8974
+  zh: 2b1a5fa3fc05f256
+/agent-note-retained-desktop-browser-webviews/decision/storage-ownership:
+  en: fac51097030c3670
+  zh: 86868bc1b9a6d8cf
+/agent-note-retained-desktop-browser-webviews/decision/initial-guest-policy:
+  en: 21ab346f9a98863c
+  zh: efa115f530d22de3
+/agent-note-retained-desktop-browser-webviews/alternatives-considered:
+  en: 884daa089df32dcc
+  zh: 7e16d740897555c9
+/agent-note-retained-desktop-browser-webviews/consequences:
+  en: 01d4a2e6f638d5e9
+  zh: 9804b00edea2b03c

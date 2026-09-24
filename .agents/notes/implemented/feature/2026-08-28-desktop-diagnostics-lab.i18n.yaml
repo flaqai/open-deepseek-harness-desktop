@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-28-desktop-diagnostics-lab.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-28-desktop-diagnostics-lab.md
-2026-08-28-desktop-diagnostics-lab.md: c6e9355cd7d242ce4b81f6751ea18c7f10bb659d
-2026-08-28-desktop-diagnostics-lab.zh.md: 9de0c757270231e2c74a5a9524db5fcc6b667eb0
+/agent-note-desktop-diagnostics-lab:
+  en: adcc306647e65638
+  zh: 89768fc1748814c9
+/agent-note-desktop-diagnostics-lab/problem:
+  en: 969fca01e4e27ece
+  zh: 0e10f60d2a2cf392
+/agent-note-desktop-diagnostics-lab/decision:
+  en: f120ad633dcf58e5
+  zh: 866964bf8e582e4f
+/agent-note-desktop-diagnostics-lab/alternatives-considered:
+  en: bb36b644a96aa617
+  zh: 25a1056bbc957e55
+/agent-note-desktop-diagnostics-lab/consequences:
+  en: df3d7d60a58160a7
+  zh: 9728d8db13970c04

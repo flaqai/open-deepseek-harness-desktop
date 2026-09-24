@@ -14,13 +14,12 @@ Host 进程重启后，所有 fork 出来的会话（`SessionHeader.isSeeded ===
 
 缓存记录（记录格式与前代恢复见 [投影缓存前代恢复与 Session 格式绑定](2026-09-02-projcache-cross-version-read-compat.zh.md)）绑定一份 lifecycle identity：`formatVersion + createdAt + cwd + isSeeded + inheritedEventCount`，`identityMatches` 做全等匹配。其中 `inheritedEventCount`（fork 继承的事件前缀长度，下称 cut）从 #3346 起不再出现在逻辑 header 里：header 只保留 `isSeeded` 这一位，精确 cut 跟随正文。Session 格式 v2 起（#3398），物理 header 行也不再存 `seedLength`，reader 从正文里 `session/end-seed {inherited: true}` 标记的 seq 推出 cut。
 
-于是 header-only 的读取拿不到 cut：JSONL 后端 `fromHeaderLine` 对 header-only 读取硬编码 `inheritedEventCount: 0`，`SessionPersistenceSnapshot` 只有 header、revision 和可选的 eventCount。三个只读 header 的缓存消费者都因此加了同一个守卫：
+于是 header-only 的读取拿不到 cut：JSONL 后端 `fromHeaderLine` 对 header-only 读取硬编码 `inheritedEventCount: 0`，`SessionPersistenceSnapshot` 只有 header、revision 和可选的 eventCount。Session 列表与引用消费者都因此加了同一个守卫：
 
 | 消费者 | 守卫 | 兜底 | 后果 |
 |---|---|---|---|
 | `packages/api/session-controller/src/list.ts` `projectionsFor` | `header.isSeeded ? undefined : cachedSnapshot(header, 0) ?? cachedPredecessorTitle(header, 0)` | 无 | 无 title，无 `sessionListMetadata`，blank 判定退到 `false`，排序退到 `createdAt` |
 | `packages/context/session-reference/src/index.ts` `projectedLabels` | 同 | 无 | `@` 补全按 id 显示，搜不到 title |
-| `packages/subagent/subagent/src/list-children.ts` `resolveColdIdentity` | 同 | `observeSession` 读正文 | 结果正确，每个 seeded 子代一次正文读 |
 
 守卫存在时（#3346，2026-09-01），`list.ts` 还有 `probeSmallCold`：缓存 miss 且日志文件不超过 `DEFAULT_COLD_BLANK_PROBE_MAX_BYTES = 1024` 字节时读正文补全。它的目的是识别 blank 会话，只覆盖不到 1KB 的日志，对正常 fork 从未生效。#3400（2026-09-03）删掉它，列表回到纯元数据加缓存。#4320（2026-09-19）把 fork 变成一等功能（`packages/core/session/src/fork.ts`，任意 seq fork），每个 fork 都是 `isSeeded: true` 加精确 cut，seeded 会话数量从个位数变成几十条，重启后全部冷，问题集中显形。
 
@@ -33,7 +32,7 @@ Host 进程重启后，所有 fork 出来的会话（`SessionHeader.isSeeded ===
 | `write(session)` | 三个强制点加节流写 checkpoint | 有 | 缓存内部监听 |
 | `hydratePrepared(session, events)` | 把 `rows` 当 fold 起点，从 `row.seq + 1` 继续 apply，结果进 live cell | 后续 checkpoint 写回 | `session-query/src/observation.ts` |
 | `coldSnapshot(meta, cut, events)` | fold 起点加回写 | 有 | 无生产调用方 |
-| `cachedSnapshot(meta, cut, keys?)` | `viewCheckpoint`：每行过 `ver` 和 `stateSchema`，`view` 后返回 | 无 | `list.ts`、`session-reference`、`list-children` |
+| `cachedSnapshot(meta, cut, keys?)` | `viewCheckpoint`：每行过 `ver` 和 `stateSchema`，`view` 后返回 | 无 | `list.ts`、`session-reference` |
 | `cachedPredecessorTitle(meta, cut)` | 同上，只看 `title`，允许更旧的 `formatVersion` | 无 | `list.ts` |
 
 身份校验全部在缓存内部（`recordFor` → `identityMatches`；`viewCheckpoint` 逐行校验 `ver` 与 schema）。`list.ts` 自己不校验，只是给不出 cut 时不调。
@@ -70,7 +69,6 @@ spec.ts 与 README 描述身份检查的目的时用的都是同一个动词：�
 |---|---|
 | `list.ts` `projectionsFor` | 删 `isSeeded` 分支和 `SessionLogOffset(0)`，冷会话统一 `cachedSnapshot(header) ?? cachedPredecessorTitle(header)` |
 | `session-reference` `projectedLabels` | 同一症状，同一改法 |
-| `list-children.ts` `resolveColdIdentity` | 只跟随签名，`!header.isSeeded` 守卫和正文兜底原样保留；它需要 cut 做 inherited/owned 分类，属于 fold 语义 |
 
 ### 客户端 store 区分 cached 与 sequenced 行
 
@@ -147,7 +145,7 @@ seq 比较只在同一条 Host 连接内发生：`handleConnected` 先整表 `cl
 
 付出的：
 
-- `cachedSnapshot` 与 `cachedPredecessorTitle` 签名变化，三个调用方同步修改。
+- `cachedSnapshot` 与 `cachedPredecessorTitle` 签名变化，Session 列表与引用调用方使用仅需 header 的签名。
 - `SessionProjectionHints` 新增必填字段 `kind`，所有产出列表摘要的地方和构造摘要的测试夹具都要带上。
 - 手工构造的同四字段、不同 cut 的记录会在列表上显示到会话被打开为止。
 - 基线没带的键连提示一起清掉：某个 Host 未挂载 `schedule` 时，打开会话后列表提示过的 schedule 标记消失。按"建连数据是真值"这是正确行为。
@@ -163,4 +161,3 @@ seq 比较只在同一条 Host 连接内发生：`handleConnected` 先整表 `cl
 - `api/session-controller/tests/manager.client.spec.ts`：`api-session/added` 的 `cached` block 被同 cursor 的 control 基线替换；`cached` 列表 block 不覆盖已有的 sequenced title。
 - `api/session-controller/tests/inbox-projection.client.spec.ts`：不变，活会话的 `sequenced` 列表 block 仍压过延迟到达、cut 更低的 control 基线。
 - `context/session-reference/tests/session-reference.spec.ts`：seeded 冷会话按缓存 title 标注并可按 title 搜到，没有缓存记录的会话仍按 id 标注，两者都不读日志。
-- `subagent/subagent/tests/list-children.spec.ts`：不变，seeded 子代仍走正文观察。

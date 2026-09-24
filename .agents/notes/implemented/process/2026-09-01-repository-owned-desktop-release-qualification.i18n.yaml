@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-01-repository-owned-desktop-release-qualification.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-01-repository-owned-desktop-release-qualification.md
-2026-09-01-repository-owned-desktop-release-qualification.md: 3c0a8d3ee38dd398bc1cf8760889931ea3698e2a
-2026-09-01-repository-owned-desktop-release-qualification.zh.md: 87761ce670bf1ff67390e3e3e079416d60c7c1e1
+/agent-note-repository-owned-desktop-release-qualification:
+  en: a2f3c529c28d3637
+  zh: 69a43f708b911451
+/agent-note-repository-owned-desktop-release-qualification/problem:
+  en: e66307daa2b9f646
+  zh: 86d813f57b614129
+/agent-note-repository-owned-desktop-release-qualification/decision:
+  en: 61c940c633e0bbcd
+  zh: 1766fd36abf79327
+/agent-note-repository-owned-desktop-release-qualification/alternatives-considered:
+  en: 62cc7793f4ca0301
+  zh: 93d032fafa0a0d58
+/agent-note-repository-owned-desktop-release-qualification/consequences:
+  en: 72ff05d97e024a40
+  zh: 3f4304130175a027

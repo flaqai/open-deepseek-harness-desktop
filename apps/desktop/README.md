@@ -6,9 +6,9 @@ English | [中文](README.zh.md)
 
 ## Runtime and session compatibility
 
-This integration uses Harness 0.1.6-alpha.2 and external Node 24.21.0, while Electron remains pinned to 44.0.0 and pnpm to 11.7.0. Packaged macOS builds require macOS 13.5 or later; this records the embedded Node binary's minimum rather than promising compatibility from Electron alone.
+This integration uses Harness 0.1.7-rc.2 and external Node 24.21.0, while Electron remains pinned to 44.0.0 and pnpm to 11.7.0. Packaged macOS builds require macOS 13.5 or later; this records the embedded Node binary's minimum rather than promising compatibility from Electron alone.
 
-Session history follows the complete V0 → V1 → V2 → V3 migration chain. Migration preserves older generation files and writes validated successors, but old clients cannot be assumed to understand newly written V3 data. Plugin snapshots do not include sessions and cannot undo a session-format upgrade. Validate upgrades using an isolated copy of the data directory before reusing important history.
+Session history follows the complete V0 → V1 → V2 → V3 → V4 migration chain. Migration preserves older generation files and writes validated successors, but old clients cannot be assumed to understand newly written V4 data. Plugin snapshots do not include sessions and cannot undo a session-format upgrade. Validate upgrades using an isolated copy of the data directory before reusing important history.
 
 Only ordinary Profile readiness can verify a successful-startup plugin snapshot. A diagnostic process becoming available does not mark the failed active Profile or the application healthy; during snapshot recovery it triggers the existing failed-start rollback. A dead process permits stale-lock cleanup only after the complete recorded owner passes validation; damaged owner metadata remains blocked for manual inspection.
 
@@ -59,6 +59,8 @@ New desktop-managed Profiles must prepare every startup preset before opening th
 Recovery preview, quick restart and complete exit refuse an active or unreadable Profile mutation lock, including plugin-market operations launched outside Desktop's own task queue. Retry after the operation finishes; the guard never deletes a lock. A live orphaned installer requires process diagnosis before recovery, not forced lock removal.
 
 The application menu provides New Conversation, Settings, plugin management and recovery, diagnostics, snapshots, external tools, phone access, IM bots, data-directory switching, updates, logs, and project help. New Conversation delegates to the existing workspace flow without sending a message. Settings remains available while the loaded client reconnects to its Runtime, matching the in-page Settings entry; it is disabled only before the client menu handler is registered or during a protected mutation. A missing plugin page produces an explanation and never installs the plugin automatically. Updates opens General Settings; it does not quit or install an update.
+
+The RC.2 shortcut editor stores device-local bindings in Electron `userData/keybindings.json` using an atomic write. The preload exposes only shortcut read, edit, recording, input, and close-window operations to the selected Harness renderer; IPC rejects the titlebar, other windows, and origins other than the currently selected Local or NAS Runtime. Windows and Linux use the Harness WebContentsView rather than the separate titlebar renderer for native key delivery. Shortcut settings do not modify `DSH_HOME` or the NAS Profile.
 
 macOS uses the native system menu named Open DeepSeek Harness Desktop. Windows and Linux place horizontal menus, the application icon, a draggable title, and window controls in the isolated 36 px title bar. Narrow windows collect menus under More. Native popup menus extend beyond that strip without rendering over plugins inside Harness. Editing preserves the original text target; zoom affects only Harness. Menu labels follow the client language, with English fallback. Developer Tools is available only in source runs.
 

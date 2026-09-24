@@ -1,4 +1,5 @@
 /** File association results and explicit handler authorization at the native command adapter. */
+import { readFile } from 'node:fs/promises'
 import { describe, expect, it, vi, onTestFinished } from 'vitest'
 import * as runner from '../src/runner.ts'
 import { nativeFileApplications, openNativeFileApplication } from '../src/file-applications.ts'
@@ -118,16 +119,45 @@ it('uses the production command adapter and current platform when no override is
 
 
 it('encodes Windows query and invocation data separately from native adapter source', async () => {
-  const run = vi.fn<runner.NativeCommandRunner>(async () => ({ stdout: JSON.stringify([application]), stderr: '' }))
+  const scripts: string[] = []
+  const run = vi.fn<runner.NativeCommandRunner>(async (_command, args) => {
+    scripts.push(await readFile(args.at(-1)!, 'utf8'))
+    return { stdout: JSON.stringify([application]), stderr: '' }
+  })
   const path = "C:\\测试\\a'; write-host nope.mp3"
   expect(await nativeFileApplications(path, signal, { platform: 'win32', run })).toEqual([application])
-  const query = Buffer.from(run.mock.calls[0]![1].at(-1)!, 'base64').toString('utf16le')
-  expect(query).toContain(Buffer.from(path).toString('base64'))
-  expect(query).not.toContain(path)
-  expect(query).toContain('::List($path)')
+  expect(scripts[0]!).toContain(Buffer.from(path).toString('base64'))
+  expect(scripts[0]!).not.toContain(path)
+  expect(scripts[0]!).toContain('::List($path)')
   await openNativeFileApplication(path, application.id, signal, { platform: 'win32', run })
-  expect(Buffer.from(run.mock.calls[1]![1].at(-1)!, 'base64').toString('utf16le')).toContain('::Open($path, $application)')
+  expect(scripts[1]!).toContain('::Open($path, $application)')
   expect(run.mock.calls[1]![0]).toBe('powershell.exe')
+  expect(run.mock.calls[1]![1]).toEqual(['-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-File', expect.any(String)])
+  // PowerShell 5.1 reads a -File script as ANSI without the BOM.
+  expect(scripts[1]!).toMatch(/^\uFEFF/)
+})
+
+it('keeps the complete Windows command line below the CreateProcess limit for long multibyte paths', async () => {
+  const run = vi.fn<runner.NativeCommandRunner>(async () => ({ stdout: '[]', stderr: '' }))
+  const paths = [
+    // 222 characters; this path measured 32883 characters of command line while the script travelled there.
+    `C:\\work\\${'测'.repeat(210)}.txt`,
+    `C:\\work\\${'测'.repeat(3000)}.txt`,
+  ]
+  for (const path of paths) await nativeFileApplications(path, signal, { platform: 'win32', run })
+  const commandLines = run.mock.calls.map(call => [call[0], ...call[1]].join(' '))
+  expect(commandLines).toHaveLength(paths.length)
+  commandLines.forEach((line, index) => {
+    const path = paths[index]!
+    // Windows CreateProcess rejects a command line over 32767 characters; the script and
+    // the encoded path are no longer part of the line, so it stays near 100 characters.
+    expect(line.length).toBeLessThan(1_000)
+    expect(line).toContain('powershell.exe')
+    expect(line).toContain('-File')
+    // The path travels as encoded data inside the script file, never on the command line.
+    expect(line).not.toContain(path)
+    expect(line).not.toContain(Buffer.from(path).toString('base64'))
+  })
 })
 
 it('uses the Windows desktop for WSL paths and rejects an empty translation', async () => {

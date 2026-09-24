@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-desktop-theme-synchronization.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-26-desktop-theme-synchronization.md
-2026-08-26-desktop-theme-synchronization.md: b056c3f190c9b62c7a386b577ca08be1b0735b73
-2026-08-26-desktop-theme-synchronization.zh.md: dc34c49bd14dc057d7e822ba09e31fcedce75cf3
+/agent-note-synchronize-desktop-startup-surfaces-with-the-active-theme:
+  en: 7133c4a9f2ed2e86
+  zh: cc8a9fd723b161c6
+/agent-note-synchronize-desktop-startup-surfaces-with-the-active-theme/problem:
+  en: a56127d5389af8c6
+  zh: 57dda71a152d6f0b
+/agent-note-synchronize-desktop-startup-surfaces-with-the-active-theme/decision:
+  en: e69406fb381280e3
+  zh: e6966613810d0f65
+/agent-note-synchronize-desktop-startup-surfaces-with-the-active-theme/alternatives-considered:
+  en: a03eb2e29aae6f33
+  zh: fa820ee053d18079
+/agent-note-synchronize-desktop-startup-surfaces-with-the-active-theme/consequences:
+  en: e1c6f8655bf1ff46
+  zh: 5eaface359e9a54c

@@ -166,7 +166,7 @@ Workspace 连接保持既有导航检查与面板切换失效规则。侧边栏 
 
 预设目录与部署默认值可以共享。已绑定 Session 的预设通过 Provider 的 binding 读取或修改；预设控制器按 `SessionBinding` 缓存，不由根级 current-Session 跟随器管理。Hero 的 preset seat 使用 `session-maybe` Provider：没有 Session 时显示创建流程选择，绑定空白 Session 后操作该确切 Session。标题标签读取同一 Provider 绑定 Session 的投影。
 
-Session 创建前选择的 preset 保留在主 Conversation 的 `session-maybe` preset surface 中。Workspace 创建或复用空白 Session 并建立主 Provider 后，该 surface 将选择应用到 Provider 绑定的 Session。设置页修改默认 preset 或 picker 设置时，preset 服务从 Provider 已建立的 binding 缓存中选择带 `mainView` 所有权标记的空白 Session，并更新该 Session。非空白主 Session、Sidebar 的独立 Provider 与其他后台引用均不受该设置动作影响；preset 子树不读取主引用，也不通过全局 current follower 寻找目标。
+Session 创建前选择的 preset 保留在主 Conversation 的 `session-maybe` preset surface 中。Workspace 创建或复用空白 Session 并建立主 Provider 后，该 surface 将选择应用到 Provider 绑定的 Session。设置页修改默认 preset 时，preset 服务从 Provider 已建立的 binding 缓存中选择带 `mainView` 所有权标记的空白 Session，并更新该 Session。非空白主 Session、Sidebar 的独立 Provider 与其他后台引用均不受该设置动作影响；preset 子树不读取主引用，也不通过全局 current follower 寻找目标。
 
 ### Host 事件 Context 所有权与 Typert
 

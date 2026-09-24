@@ -85,7 +85,7 @@ export function ImageBody(props: ImageBodyProps): ReactNode {
     return <p className={css.status} role="alert">{t('unsupported')}</p>
   }
   if (source?.data !== data || source.mediaType !== mediaType) {
-    return <LoadingIndicator className={css.status} label={t('loading')} />
+    return <LoadingIndicator label={t('loading')} />
   }
   if (source.kind === 'failed') return <p className={css.status} role="alert">{t('failed')}</p>
   const { name } = pathPartsOf(path)
@@ -114,7 +114,7 @@ function LoadedImage({ url, name, preference, onPreference, labels, signal, scro
   return <ZoomViewport preference={preference} intrinsicWidth={width} horizontalInset={24}
     labels={labels} signal={signal} scrollportRef={scrollportRef} onPreference={onPreference}>
     <div className={css.frame} data-image-preview>
-      {state === 'loading' && <LoadingIndicator className={css.status} label={t('loading')} />}
+      {state === 'loading' && <LoadingIndicator label={t('loading')} />}
       {state === 'failed' && <p className={css.status} role="alert">{t('failed')}</p>}
       <div className={`${css.surface} ${zoomSurfaceClass}`} data-document-zoom-surface
         style={{ '--document-zoom-width': `${width ?? 0}px` } as CSSProperties} hidden={state !== 'ready'}>

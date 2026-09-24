@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-22-desktop-main-bundle-after-workspace-tsdown.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-22-desktop-main-bundle-after-workspace-tsdown.md
+/agent-note-build-community-desktop-after-workspace-libraries:
+  en: 01d56d5b25c6e15e
+  zh: 5b1d15d6710bc0ef
+/agent-note-build-community-desktop-after-workspace-libraries/problem:
+  en: 32d28e1e0bbd3616
+  zh: 3201a2129ee63d0c
+/agent-note-build-community-desktop-after-workspace-libraries/decision:
+  en: bdcc06198c5a9b55
+  zh: edf7021af771d59a
+/agent-note-build-community-desktop-after-workspace-libraries/alternatives-considered:
+  en: 97638da55c034c01
+  zh: 959f8f38e4fa0b08
+/agent-note-build-community-desktop-after-workspace-libraries/consequences:
+  en: d26998499455ba74
+  zh: e3190452fee88b14

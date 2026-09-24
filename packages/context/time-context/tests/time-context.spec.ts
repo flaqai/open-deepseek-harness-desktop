@@ -206,11 +206,8 @@ describe('durable step context', () => {
     )
   })
 
-  it.each([
-    ['omitted interval', {}],
-    ['zero interval', { refreshIntervalMs: 0 }],
-  ] as const)('uses the preceding durable step-context timestamp after step one with %s', async (_label, config) => {
-    const { ctx } = await mount(config)
+  it('uses the preceding durable step-context timestamp after step one with zero interval', async () => {
+    const { ctx } = await mount({ refreshIntervalMs: 0 })
     const session = Session.create(SessionId('later-step'))
     const agent = sessionAgent(session)
     openMessageTurn(session, 3)
@@ -292,8 +289,11 @@ describe('durable step context', () => {
     expect(contextTexts(session)[1]).toContain('Elapsed since the preceding step context: 0s.')
   })
 
-  it('uses a shadowed durable injection after resume and injects at the exact threshold', async () => {
-    const { ctx } = await mount({ refreshIntervalMs: 1_000 })
+  it.each([
+    ['default interval', {}, 600_000],
+    ['explicit interval', { refreshIntervalMs: 1_000 }, 1_000],
+  ] as const)('uses a shadowed durable injection after resume at the exact %s threshold', async (_label, config, interval) => {
+    const { ctx } = await mount(config)
     const original = Session.create(SessionId('seed-source'))
     openMessageTurn(original, 1)
     await fire(ctx, sessionAgent(original), 1, 1)
@@ -312,7 +312,7 @@ describe('durable step context', () => {
 
     const resumed = Session.create(SessionId('resumed'), original.snapshotEvents())
     const resumedAgent = sessionAgent(resumed)
-    vi.setSystemTime(BASE + 999)
+    vi.setSystemTime(BASE + interval - 1)
     openMessageTurn(resumed, 2)
     const beforeSkip = resumed.snapshotEvents().length
 
@@ -321,7 +321,7 @@ describe('durable step context', () => {
     expect(resumed.snapshotEvents()).toHaveLength(beforeSkip)
     expect(contextTexts(resumed)).toHaveLength(1)
 
-    vi.setSystemTime(BASE + 1_000)
+    vi.setSystemTime(BASE + interval)
     await fire(ctx, resumedAgent, 2, 2)
 
     expect(contextTexts(resumed)).toHaveLength(2)
@@ -472,7 +472,7 @@ describe('real agent-loop request history', () => {
 
   it('persists one ordered context per request, accumulates readings, and leaves system headers unchanged', async () => {
     const adapter = new ScriptedAdapter([toolCallResponse(), textResponse('done')])
-    const ctx = await loopHarness(adapter)
+    const ctx = await loopHarness(adapter, { refreshIntervalMs: 0 })
     ctx.tools.register(defineContentToolFixture({
       name: 'tick',
       description: 'advance fake time',

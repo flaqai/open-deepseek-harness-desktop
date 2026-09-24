@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-16-desktop-supervised-web-host.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-16-desktop-supervised-web-host.md
-2026-08-16-desktop-supervised-web-host.md: 9f3eb9d97c1aa437b000b54658fae23638944908
-2026-08-16-desktop-supervised-web-host.zh.md: 9c765c1a815aa51589b0669152397040feb42c59
+/agent-note-desktop-runs-the-web-profile-as-a-supervised-local-process:
+  en: 6bb80263dfaa201c
+  zh: 1685a0c0eb3efddc
+/agent-note-desktop-runs-the-web-profile-as-a-supervised-local-process/problem:
+  en: 97be47fb45732b2d
+  zh: 29fe87d16d63e512
+/agent-note-desktop-runs-the-web-profile-as-a-supervised-local-process/decision:
+  en: f3da18dbe5df3084
+  zh: 02745533c4958a34
+/agent-note-desktop-runs-the-web-profile-as-a-supervised-local-process/extension-ownership:
+  en: b2f1083a2dfdbd23
+  zh: 916de3e73b88128e
+/agent-note-desktop-runs-the-web-profile-as-a-supervised-local-process/alternatives-considered:
+  en: d08ecf5998d4a5e7
+  zh: 2c7aa1c3eef2c79f
+/agent-note-desktop-runs-the-web-profile-as-a-supervised-local-process/consequences:
+  en: 05912a05d06273a2
+  zh: 5f203605f3127cc0

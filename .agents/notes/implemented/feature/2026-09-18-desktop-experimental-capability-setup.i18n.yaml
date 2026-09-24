@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-desktop-experimental-capability-setup.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-18-desktop-experimental-capability-setup.md
-2026-09-18-desktop-experimental-capability-setup.md: b1a5b000a72e208a09fcc2a77aba0e81b07ee8ec
-2026-09-18-desktop-experimental-capability-setup.zh.md: ff7ef13578d3b0dfbd486e641c49ef1ba6dd06e2
+/agent-note-desktop-setup-for-experimental-capabilities:
+  en: 5d07b74b2ea37459
+  zh: b0a5305fa005a3ab
+/agent-note-desktop-setup-for-experimental-capabilities/problem:
+  en: 8f7412909308b2e6
+  zh: 9dd5bf012b8fc4f6
+/agent-note-desktop-setup-for-experimental-capabilities/decision:
+  en: 84305fc84fc3e3f4
+  zh: fb9348f738d1ef38
+/agent-note-desktop-setup-for-experimental-capabilities/alternatives-considered:
+  en: 8328dab3ff899576
+  zh: abbf9c96a7638c47
+/agent-note-desktop-setup-for-experimental-capabilities/consequences:
+  en: 9cd9745c8b49e8d0
+  zh: f86970ff3261b484
+/agent-note-desktop-setup-for-experimental-capabilities/testing:
+  en: 2a16b4ef68ce4149
+  zh: da0491759031b84a

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-29-settings-native-open-and-navigation-overflow.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-29-settings-native-open-and-navigation-overflow.md
-2026-08-29-settings-native-open-and-navigation-overflow.md: 3c13ab33110dd205fcbb9e2f4b821ed763c49175
-2026-08-29-settings-native-open-and-navigation-overflow.zh.md: 493fc1a5dda9ced0d475ac936861324df46e7649
+/agent-note-keep-settings-actions-and-contributed-navigation-reachable:
+  en: ce8d688a3ee61bb2
+  zh: f53e4828d4f4f706
+/agent-note-keep-settings-actions-and-contributed-navigation-reachable/problem:
+  en: 88108fa30c7724b7
+  zh: 53292c3927308482
+/agent-note-keep-settings-actions-and-contributed-navigation-reachable/decision:
+  en: 0db60471ba723524
+  zh: e81c7b25921378c3
+/agent-note-keep-settings-actions-and-contributed-navigation-reachable/alternatives-considered:
+  en: 13678dd5d1303079
+  zh: b29713e6ff8b5e5a
+/agent-note-keep-settings-actions-and-contributed-navigation-reachable/consequences:
+  en: ca78f905cfeaab4d
+  zh: 2a9162da0d2fd10b

@@ -16,21 +16,22 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 const sessionId = SessionId('hover-session')
 const files = ['main.ts', 'second.ts'].map(path => ({ path, display: path, added: 1, deleted: 1 }))
 
-function mount() {
+function mount(fileCount = 2) {
   const diffs = new ChangesDiffStore()
   const loadChangesDiff = vi.fn<ChangesDiffStore['load']>().mockResolvedValue(undefined)
   const openReview = vi.fn()
   const subscribe = diffs.state.subscribe.bind(diffs.state)
   const getSnapshot = diffs.state.getSnapshot.bind(diffs.state)
-  const view = render(<ChangedFiles changes={{ seq: 5, files, total: 2, added: 2, deleted: 2 }}
+  const changes = { seq: 5, files: files.slice(0, fileCount), total: fileCount, added: fileCount, deleted: fileCount }
+  const view = render(<ChangedFiles changes={changes}
     cwd="/workspace" sessionId={sessionId} t={makeTranslate(en)} openReview={openReview}
     loadChangesDiff={loadChangesDiff}
     useChangesDiff={select => select(useSyncExternalStore(subscribe, getSnapshot))} />)
   return { view, diffs, loadChangesDiff, openReview, row: screen.getByRole('button', { name: 'View changes to main.ts' }) }
 }
 
-it('reads only after 500ms and renders the selected comparison in a single column', () => {
-  const { row, diffs, loadChangesDiff, openReview } = mount()
+it.each([1, 2])('reads only after 500ms and renders the selected comparison with %i files', (fileCount) => {
+  const { row, diffs, loadChangesDiff, openReview } = mount(fileCount)
   fireEvent.pointerEnter(row)
   act(() => { vi.advanceTimersByTime(499) })
   expect(loadChangesDiff).not.toHaveBeenCalled()

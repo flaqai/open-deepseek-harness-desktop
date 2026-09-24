@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-09-community-alpha15-runtime-and-connection.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-09-community-alpha15-runtime-and-connection.md
-2026-09-09-community-alpha15-runtime-and-connection.md: 6f02dea1cf55f4e45a84af58dab29e528ef4a48d
-2026-09-09-community-alpha15-runtime-and-connection.zh.md: 2117e25741fccd70c46a8158c8e12516acdfee82
+/agent-note-community-0-1-5-alpha-1-runtime-and-connection-integration:
+  en: f9517f06518e7034
+  zh: cb8c75b28eee04fd
+/agent-note-community-0-1-5-alpha-1-runtime-and-connection-integration/problem:
+  en: 5163f12b09c8851b
+  zh: 961618652b8c611b
+/agent-note-community-0-1-5-alpha-1-runtime-and-connection-integration/decision:
+  en: 3498923f71ddf5db
+  zh: 2147e08d7b4eed05
+/agent-note-community-0-1-5-alpha-1-runtime-and-connection-integration/alternatives-considered:
+  en: 0361a6eebf3425d7
+  zh: 4e95a7a25cb0c701
+/agent-note-community-0-1-5-alpha-1-runtime-and-connection-integration/consequences:
+  en: c5d86e66cbd332de
+  zh: e2de62bbc706b7c2

@@ -31,6 +31,17 @@
     - term: Status
     - definition: Scheduled
 - button "Inspect"
+- button "Update reminder Review the build and open the demo" [expanded]
+- list:
+  - listitem:
+    - text: Review the build and open the demo
+    - term: Scheduled for
+    - definition: Sep 11, 2099, {{clock}} GMT+8
+    - term: Repeat
+    - definition: Every day at {{clock}} (Asia/Shanghai)
+    - term: Status
+    - definition: Scheduled
+- button "Inspect"
 - button "View goal Ship compact tool cards" [expanded]
 - list:
   - listitem:

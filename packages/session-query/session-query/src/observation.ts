@@ -93,6 +93,7 @@ export class SessionObservationReader {
    * @param sessionId - logical Session identity.
    * @param options - cancellation and all-or-none projection computation for this read.
    * @returns one exact immutable observation.
+   * @throws {@link SessionQueryError} with code `SESSION_QUERY_CORRUPT_SESSION` when live or prepared projection computation fails.
    */
   async read(
     sessionId: SessionId,
@@ -279,9 +280,18 @@ export class SessionObservationReader {
     // below `seq` is the same array whenever a consumer first reads `events`.
     const seq = session.seq
     let materialized: readonly SessionEvent[] | undefined
-    const projections = projectionMode === 'none'
-      ? undefined
-      : this.ctx.get('sessionProjections')?.snapshot(session)
+    let projections: ProjectionSnapshot | undefined
+    try {
+      projections = projectionMode === 'none'
+        ? undefined
+        : this.ctx.get('sessionProjections')?.snapshot(session)
+    } catch (error: unknown) {
+      throw new SessionQueryError(
+        `failed to project session "${session.id}": ${errorMessage(error)}`,
+        'SESSION_QUERY_CORRUPT_SESSION',
+        { cause: error },
+      )
+    }
     const lease = (): SessionObservation => {
       let disposed = false
       return {

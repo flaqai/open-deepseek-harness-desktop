@@ -68,7 +68,7 @@ This section explains how the service realizes the behavior above; the observabl
 
 ### Design concept
 
-The service retains its validated Config references and samples them in `currentSelection()`. `saveSelection()` delegates a complete selection to the profile configuration editor. Session-specific selection takes precedence in the consumer.
+The service retains its validated Config references and samples them in `currentSelection()`. `saveSelection()` captures the submitted values and serializes profile writes in submission order, including overlapping callers. Each caller observes its own write failure; a rejected write does not prevent later saves. Session-specific selection takes precedence in the consumer.
 
 ### Source map
 

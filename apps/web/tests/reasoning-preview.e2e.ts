@@ -14,6 +14,7 @@ const DELTAS = ['First paragraph', `\nDetails\n\n\n${SUMMARY}`, '\nMore detail']
 const UI_EXPECTED = fileURLToPath(new URL('./expected/reasoning-preview/running.expected.md', import.meta.url))
 
 class PausedReasoningAdapter extends LlmAdapter {
+  override async listModels(provider: string) { return [{ provider, id: 'paused', name: `${provider}/paused` }] }
   readonly stages = DELTAS.map(text => ({
     text,
     arrived: Promise.withResolvers<undefined>(),

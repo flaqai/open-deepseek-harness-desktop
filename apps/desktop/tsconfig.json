@@ -9,6 +9,8 @@
   },
   "include": ["src"],
   "references": [
+    { "path": "../../packages/client/shortcuts/tsconfig.host.json" },
+    { "path": "../../packages/util/atomic-write" },
     { "path": "../../packages/nas/nas-protocol" },
     { "path": "../../packages/subprocess/subprocess" }
   ]

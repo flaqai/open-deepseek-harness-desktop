@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 0005-openai-compatible-gateway-empty-tool-identity.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/postmortem/0005-openai-compatible-gateway-empty-tool-identity.md
-0005-openai-compatible-gateway-empty-tool-identity.md: f7f321865b20338c7464ceca6011ae3628290ae0
-0005-openai-compatible-gateway-empty-tool-identity.zh.md: 5170fa19bc2609278a91da72c1ef8f1880b760f7
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity:
+  en: 5dd8b3620c8d6ebf
+  zh: 5d8ab7d3e66e465c
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/executive-summary:
+  en: 5ee5d2ed5d16fcfa
+  zh: 1f6fa0df8baf85c7
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/summary:
+  en: 3cfe5377544d5fcc
+  zh: bb8fcf849022e446
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/impact:
+  en: 94919a9f1db378d0
+  zh: f5a032be21f79aff
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/timeline:
+  en: 28b97afe72ba3b67
+  zh: 8a00e2b721d38ef5
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/root-cause:
+  en: 26742b5e1834b507
+  zh: 6f5452b77e126a5b
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/why-safeguards-missed-it:
+  en: 758c71c3f56fb27b
+  zh: fb6ec1987d3c1f51
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/guardrails-added:
+  en: 0615d9bd8f8ef1e5
+  zh: eff305785a76adea
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/provider-side-repair:
+  en: bc46303b789f8e75
+  zh: 3da80cedef3d518c
+/post-mortem-0005-empty-gateway-fragments-erased-tool-call-identity/lessons:
+  en: a5aa005698261499
+  zh: b9d57e5f49ab6e5a

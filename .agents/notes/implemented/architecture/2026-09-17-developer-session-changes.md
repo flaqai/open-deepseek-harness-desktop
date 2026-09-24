@@ -20,7 +20,7 @@ Dynamic tool changes need durable, ordered records before providers can preserve
 
 The V4 codec confines developer roles to the `developer/message` slot, including rejection from inbox and title-request arrays. Native validation checks required developer fields, historical header bindings, and developer-only tool-change blocks while preserving additional JSON properties. Optional metadata additions therefore remain readable under the persistence checker's optional-property rule; additional fields cannot weaken required-field, role, or open-step checks. An ignorable marker does not establish reader support: physical decoding preserves developer payloads until vocabulary-aware admission, while writers and native readers reject malformed known data. Developer admission leaves malformed ordinary message slots to decoder recovery. Installed Session adoption validates surface relationships without converting developer records into released-V3 user records. The [released migration rules](2026-08-31-released-session-format-migrations.md) continue to protect committed predecessor generations.
 
-The producer requirement has one scoped exception: finalized Session V4 reserves the persisted representation needed by issue #4146. Waiting for provider and UI implementations would couple the format release to those independent integrations. The reservation permits storage and validation only; no shipped profile emits developer records, and unsupported consumers throw. Production emission requires provider, UI, and compaction support together.
+Session V4 reserves the persisted representation needed by issue #4146. Production emission, provider projection, UI presentation, and compaction integration are described in the [dynamic tool update decision](2026-09-20-dynamic-tool-updates.md).
 
 ## Alternatives considered
 
@@ -32,4 +32,4 @@ The producer requirement has one scoped exception: finalized Session V4 reserves
 
 ## Consequences
 
-Session V4 persists the tool-change representation for issue #4146. Automatic emission, provider serialization, deferred loading, and UI presentation are intentionally deferred so this type-and-persistence change does not block the V4 merge. Both DeepSeek protocols and pi-ai throw for developer history and deferred-loading requests; Chat and Trajectory throw for developer events. Shipped model-output and SDK snapshot scenarios contain no developer records.
+Session V4 persists the tool-change representation for issue #4146. Emission, route projection, DeepSeek serialization, and Chat and Trajectory presentation are owned by the [dynamic tool update decision](2026-09-20-dynamic-tool-updates.md).

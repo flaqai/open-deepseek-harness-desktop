@@ -12,6 +12,7 @@
  * (a localized title), then the description right-aligned. A source publishing crumbs gets a breadcrumb
  * header pinned above the scrolling list.
  */
+import { MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import { IconChevronRightOutlineRegular, ReferenceIconRegular, useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -93,7 +94,7 @@ export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t
   return (
     // The listbox role sits on the scrolling viewport, not this shell: a
     // breadcrumb header is not an option, and a listbox may not carry one.
-    <div
+    <MenuSurface
       ref={listRef}
       className={css.menu}
       style={{ maxHeight }}
@@ -216,6 +217,6 @@ export function MenuView({ menu, headers, onPick, onCrumb, onHover, onDismiss, t
             </Fragment>
           ))}
       </div>
-    </div>
+    </MenuSurface>
   )
 }

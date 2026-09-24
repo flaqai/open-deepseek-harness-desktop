@@ -259,7 +259,7 @@ An event containing additions must have `headerSeq`; it selects an earlier known
 
 Tool-change blocks in ordinary messages, inbox/title input, compaction summary/raw output, or embedded assistant block-start/block-end records are refused. A present `request/header.header.tools[].deferLoading` must be exactly true; it is independent of whether any developer addition exists. Empty developer nodes retain surface positions, produce no model message, and cannot replace the protected system head. Unknown ignorable developer payloads are deferred until the reader knows that event type.
 
-Native format support does not enable automatic emission, provider tool loading, or UI rendering. Current provider and UI consumers explicitly refuse developer history they cannot represent. Backward-compatible consumer support for the already accepted representation is separate from adding a new format.
+Native format support validates and preserves developer history. The [LLM runtime](../../llm/llm/README.md) projects tool updates for each route and omits developer messages on unsupported routes; Chat and Trajectory render tool-change notices. These consumers use the accepted representation without adding a new format.
 
 <a id="fork-results"></a>
 ### Fork-generated results

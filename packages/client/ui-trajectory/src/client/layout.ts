@@ -122,6 +122,29 @@ function inputCellDetail(node: InputNode, t: TrajectoryTranslate): Pick<
   | 'timeSeconds'
   | 'startedAt'
 > {
+  if (node.kind === 'context' && node.content.length > 0
+    && node.content.every(block => block.type === 'tool-addition' || block.type === 'tool-removal')) {
+    const added = node.content.flatMap(block => block.type === 'tool-addition' ? [block.toolName] : [])
+    const removed = node.content.flatMap(block => block.type === 'tool-removal' ? [block.toolName] : [])
+    const single = node.content.length === 1 ? node.content[0] : undefined
+    const summary = added.length > 0 && removed.length > 0
+      ? t('layout.toolsChanged', { added: added.length, removed: removed.length })
+      : added.length > 0 ? t('layout.toolsAddedCount', { count: added.length })
+        : t('layout.toolsRemovedCount', { count: removed.length })
+    return {
+      text: single !== undefined
+        ? t(single.type === 'tool-addition' ? 'layout.toolAdded' : 'layout.toolRemoved', { name: single.toolName })
+        : `${t('layout.toolUpdateNotice')} · ${summary}`,
+      sourceSeq: node.seq,
+      sourceBlocks: node.content.map(block => ({ type: block.type, content: block.toolName })),
+      ...(single !== undefined ? {} : { inputDetail: [
+        ...added.length > 0 ? [t('layout.toolsAdded', { names: added.join(', ') })] : [],
+        ...removed.length > 0 ? [t('layout.toolsRemoved', { names: removed.join(', ') })] : [],
+      ].join('\n') }),
+      timeSeconds: 0,
+      startedAt: finiteTime(node.time),
+    }
+  }
   const preview = previewContent(node.content)
   const previewMarkdown = preview === '' ? undefined : preview
   const images = imageBlockCount(node.content)

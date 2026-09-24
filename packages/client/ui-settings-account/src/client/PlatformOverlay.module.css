@@ -13,13 +13,17 @@
   padding-top: var(--dsh-windows-titlebar-height);
 }
 
+/* The macOS shell's drag row: on darwin this bar IS the window's top strip, and
+   ui-web base.css declares the one darwin rule over the `data-window-drag` mark.
+   Windows keeps the native caption row as its drag surface instead — this bar
+   sits below that row (see above) and declares no drag of its own. */
 .header {
+  -webkit-app-region: initial;
   box-sizing: border-box;
   height: 48px;
   flex: none;
   padding: 6px 16px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l1);
-  app-region: drag;
 }
 
 .controls {
@@ -49,7 +53,7 @@
   height: 28px;
   padding: 0 6px;
   border: none;
-  border-radius: 28px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font: inherit;
@@ -57,7 +61,6 @@
   line-height: 22px;
   white-space: nowrap;
   cursor: pointer;
-  app-region: no-drag;
 }
 
 .viewport {
@@ -90,7 +93,7 @@
   min-width: 58px;
   padding: 0 12px;
   border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 18px;
+  border-radius: var(--dsw-radius-md);
   font-size: 13px;
   line-height: 20px;
   font-weight: 400;

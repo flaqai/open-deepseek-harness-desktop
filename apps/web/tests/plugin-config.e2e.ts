@@ -9,6 +9,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import type { Browser, Locator, Page } from 'playwright'
 import { chromium } from 'playwright'
+import { OPTIONAL_BUNDLES } from '@deepseek-ai/dsh-app-boot'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
 import { join } from 'node:path'
 import {
@@ -91,9 +92,9 @@ describe('web e2e: plugin configuration pages', () => {
     // the official bundles the installation ships switched off.
     await panel.getByRole('button', { name: '查看 网页搜索', exact: true }).waitFor({ timeout: 20_000 })
     const official = panel.locator('[data-plugin-group="official"]')
-    expect(await official.locator('[data-plugin-package]').count()).toBe(2)
+    expect(await official.locator('[data-plugin-package]').count()).toBe(OPTIONAL_BUNDLES.length)
     expect(await official.locator('[data-plugin-item]').count()).toBe(4)
-    for (const title of ['终端', 'Agent 循环', 'Subagent', '网页搜索']) {
+    for (const title of ['终端', 'Agent 循环', '子智能体', '网页搜索']) {
       expect(await official.getByRole('button', { name: `查看 ${title}`, exact: true }).count()).toBe(1)
     }
     // A card carries the one-liner; the fields wait for the page.
@@ -107,9 +108,9 @@ describe('web e2e: plugin configuration pages', () => {
 
   it('saves subagent limits and resets them to the deployment defaults', async () => {
     const panel = await openPlugins()
-    await openPage(panel, 'Subagent')
+    await openPage(panel, '子智能体')
     const depth = panel.getByLabel('最大递归深度', { exact: true })
-    const capacity = panel.getByLabel('Subagent 并行数量上限', { exact: true })
+    const capacity = panel.getByLabel('子智能体并行数量上限', { exact: true })
     expect(await depth.inputValue()).toBe('1')
     expect(await capacity.inputValue()).toBe('8')
     await depth.fill('2')
@@ -119,7 +120,7 @@ describe('web e2e: plugin configuration pages', () => {
     await expect.poll(settingsDocument).toContain('maxActiveSubagents: 12')
     await expect.poll(settingsDocument).toContain('maxDepth: 2')
     await openPlugins()
-    await openPage(panel, 'Subagent')
+    await openPage(panel, '子智能体')
     const snapshot = await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(join(SNAPSHOT_DIR, 'subagent.expected.md'), snapshot, MODE)
     const controlHeight = await depth.evaluate(element => element.getBoundingClientRect().height)
@@ -132,7 +133,7 @@ describe('web e2e: plugin configuration pages', () => {
     await panel.getByRole('button', { name: '保存', exact: true }).click()
     await expect.poll(() => panel.getByRole('button', { name: '保存', exact: true }).isDisabled()).toBe(true)
     await openPlugins()
-    await openPage(panel, 'Subagent')
+    await openPage(panel, '子智能体')
     expect(await depth.inputValue()).toBe('1')
     expect(await capacity.inputValue()).toBe('8')
     await panel.getByRole('button', { name: '返回插件列表', exact: true }).click()
@@ -140,7 +141,7 @@ describe('web e2e: plugin configuration pages', () => {
 
   it('opens field explanations with the keyboard and retains unsaved edits', async () => {
     const panel = await openPlugins()
-    await openPage(panel, 'Subagent')
+    await openPage(panel, '子智能体')
     const depth = panel.getByLabel('最大递归深度', { exact: true })
     await depth.fill('2')
     const depthHelp = panel.getByRole('button', { name: '最大递归深度说明', exact: true })
@@ -148,27 +149,27 @@ describe('web e2e: plugin configuration pages', () => {
     await depthHelp.press('Enter')
     const depthRules = panel.getByRole('region', { name: '最大递归深度说明', exact: true })
     await depthRules.waitFor()
-    expect(await depthRules.getByText('限制 Agent 创建 Subagent 的递归层级。', { exact: true }).count()).toBe(1)
+    expect(await depthRules.getByText('限制 Agent 创建子智能体的递归层级。', { exact: true }).count()).toBe(1)
     const depthTable = depthRules.getByRole('table', { name: '最大递归深度说明', exact: true })
-    expect(await depthTable.getByRole('row', { name: '0 禁用 Subagent', exact: true }).count()).toBe(1)
-    expect(await depthTable.getByRole('row', { name: '1 仅允许主 Agent 创建 Subagent', exact: true }).count()).toBe(1)
+    expect(await depthTable.getByRole('row', { name: '0 禁用子智能体', exact: true }).count()).toBe(1)
+    expect(await depthTable.getByRole('row', { name: '1 仅允许主 Agent 创建子智能体', exact: true }).count()).toBe(1)
     expect(await depthRules.getByText('如果某个工具单独设置了最大递归深度，以该工具的设置为准。', { exact: true }).count()).toBe(1)
     await depthHelp.press('Enter')
     expect(await depthRules.count()).toBe(0)
     expect(await depth.inputValue()).toBe('2')
-    await panel.getByRole('button', { name: 'Subagent 并行数量上限说明', exact: true }).click()
-    const capacityRules = panel.getByRole('region', { name: 'Subagent 并行数量上限说明', exact: true })
-    expect(await capacityRules.getByText('同一主 Agent 下，所有递归层级同时存活的 Subagent 总数，主 Agent 不计入。达到上限时，新的启动请求会被拒绝。', { exact: true }).count()).toBe(1)
+    await panel.getByRole('button', { name: '子智能体并行数量上限说明', exact: true }).click()
+    const capacityRules = panel.getByRole('region', { name: '子智能体并行数量上限说明', exact: true })
+    expect(await capacityRules.getByText('同一主 Agent 下，所有递归层级同时存活的子智能体总数，主 Agent 不计入。达到上限时，新的启动请求会被拒绝。', { exact: true }).count()).toBe(1)
     await panel.getByRole('button', { name: '返回插件列表', exact: true }).click()
-    await openPage(panel, 'Subagent')
+    await openPage(panel, '子智能体')
     expect(await depth.inputValue()).toBe('1')
   })
 
   it('saves limits and the model allowlist together from the shared card', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-config-subagent-model-selection'))
     const panel = await openPlugins()
-    await openPage(panel, 'Subagent')
-    const toggle = panel.getByRole('switch', { name: '允许 Agent 为 Subagent 选择模型' })
+    await openPage(panel, '子智能体')
+    const toggle = panel.getByRole('switch', { name: '允许 Agent 为子智能体选择模型' })
 
     await panel.getByLabel('最大递归深度', { exact: true }).fill('2')
     await toggle.click()

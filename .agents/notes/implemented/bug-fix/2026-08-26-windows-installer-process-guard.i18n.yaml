@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-windows-installer-process-guard.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-26-windows-installer-process-guard.md
-2026-08-26-windows-installer-process-guard.md: 593b269395fc82647ff7afa7952a0b8e506e89b7
-2026-08-26-windows-installer-process-guard.zh.md: bb3ddebbfa0d7d38d5636cf729b8b312305cd02c
+/agent-note-bound-windows-installer-process-detection-to-desktop-owned-executables:
+  en: d016d4ffbd02bc5e
+  zh: df8e379073f3aa20
+/agent-note-bound-windows-installer-process-detection-to-desktop-owned-executables/problem:
+  en: eeb84dd082e353ed
+  zh: 5e4f942630b7cf57
+/agent-note-bound-windows-installer-process-detection-to-desktop-owned-executables/decision:
+  en: 52ab54f29db61a1f
+  zh: 2ead845121d42b60
+/agent-note-bound-windows-installer-process-detection-to-desktop-owned-executables/alternatives-considered:
+  en: 040c37f40aade8ff
+  zh: fad3b16b4a6a24c4
+/agent-note-bound-windows-installer-process-detection-to-desktop-owned-executables/consequences:
+  en: e1017e1127b9e299
+  zh: cd9328f6a83d609e

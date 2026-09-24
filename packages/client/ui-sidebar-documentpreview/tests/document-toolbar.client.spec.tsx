@@ -77,7 +77,7 @@ describe('document toolbar', () => {
     expect(view.container.textContent).toContain('held')
   })
 
-  it('keeps Reading above the first code page and reload, retaining code during pagination', async () => {
+  it('shows document preparation before the first page and reload, retaining code during pagination', async () => {
     const h = harness()
     const first = Promise.withResolvers<Awaited<ReturnType<typeof h.read>>>()
     const next = Promise.withResolvers<Awaited<ReturnType<typeof h.read>>>()
@@ -93,7 +93,7 @@ describe('document toolbar', () => {
     expect(view.container.querySelector('[data-code-preview]')).toBeNull()
     expect(body?.firstElementChild).toBe(view.getByRole('status'))
     expect(view.getByRole('status').getAttribute('aria-label')).toBe('loading')
-    expect(view.getByRole('status').textContent).toBe('')
+    expect(view.getByRole('status').textContent).toBe('loading')
     expect(view.container.querySelector('[data-textpreview-more]')).toBeNull()
 
     await act(async () => { first.resolve(page(1, ['const prefix = 1;'], false)); await first.promise })

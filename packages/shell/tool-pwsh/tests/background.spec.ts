@@ -485,7 +485,7 @@ describe('foreground commands as jobs (pwsh)', () => {
     expect(ctx.jobs.list()).toEqual([])
   })
 
-  it('keeps the kill deadline and the plain description when keeping timed-out commands is off', async () => {
+  it('keeps the kill deadline and the plain timeout parameter when keeping timed-out commands is off', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
@@ -516,15 +516,14 @@ describe('foreground commands as jobs (pwsh)', () => {
     expect((result.content[0] as { text: string }).text).toContain('[timed out after 250ms]')
     expect(specs[0]?.onExpiry).toBe('kill')
     expect(ctx.jobs.list()).toEqual([])
-    const description = ctx.tools.get('pwsh')?.description ?? ''
-    expect(description).not.toContain('moves to the background')
-    expect(description).toContain('run_in_background')
+    const parameters = JSON.stringify(ctx.tools.get('pwsh')?.parameters)
+    expect(parameters).not.toContain('moves to the background')
+    expect(parameters).toContain('run_in_background')
   })
 
-  it('advertises the hand-over semantics in the description and the timeout parameter', async () => {
+  it('advertises the hand-over semantics in the timeout parameter', async () => {
     const { ctx } = await setup()
     const tool = ctx.tools.get('pwsh')
-    expect(tool?.description).toContain('A foreground command that reaches its timeout is not killed')
     expect(JSON.stringify(tool?.parameters)).toContain('moves to the background as a job instead of being killed')
   })
 })

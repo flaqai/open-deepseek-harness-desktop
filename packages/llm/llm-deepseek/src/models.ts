@@ -10,6 +10,7 @@ export const DEFAULT_MODELS: DeepSeekCatalogModel[] = [
     contextWindow: DEFAULT_CONTEXT_WINDOW,
     inputModalities: ['text', 'image'],
     systemPromptUpdate: 'in-history',
+    toolUpdate: 'addition-only',
   },
   {
     id: 'deepseek-v4-pro',

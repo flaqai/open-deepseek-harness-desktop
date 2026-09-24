@@ -37,7 +37,7 @@ const AUTO_PROVIDER = 'shipped-auto-review-test'
 const AUTO_MODEL = 'same-route'
 const AUTO_CALL_ID = ToolCallId('shipped-auto-review-denied-delete')
 const AUTO_RAW_REASON = `  direct user authorized inspection only\nTEST_ONLY_SECRET_${'x'.repeat(16_384)}  `
-const AUTO_FINAL_TEXT = 'SHIPPED_AUTO_REVIEW_DENIAL_OBSERVED'
+const AUTO_FINAL_TEXT = 'SHIPPED_AUTO_REVIEW_REJECTION_OBSERVED'
 const AUTO_CHILD_ONE_SHOT = 'AUTO_CHILD_ONE_SHOT'
 const AUTO_CHILD_CONTINUABLE = 'AUTO_CHILD_CONTINUABLE'
 const AUTO_CHILD_ADJUSTED = 'AUTO_CHILD_ADJUSTED'
@@ -94,6 +94,7 @@ function textChunks(text: string): StreamChunk[] {
 
 /** Scripted same-route main model and reviewer for the shipped Auto pipeline. */
 class ShippedAutoAdapter extends LlmAdapter {
+  override async listModels(provider: string) { return [{ provider, id: AUTO_MODEL, name: AUTO_MODEL }] }
   readonly requests: GenerateOptions[] = []
 
   constructor(private readonly targetPath: string) {
@@ -196,6 +197,7 @@ function topLevelText(options: GenerateOptions): string {
 
 /** Same-route scripts for real one-shot, continuable, and cold-resumed children. */
 class ShippedChildAutoAdapter extends LlmAdapter {
+  override async listModels(provider: string) { return [{ provider, id: AUTO_MODEL, name: AUTO_MODEL }] }
   readonly requests: GenerateOptions[] = []
   readonly reviews: ChildReviewObservation[] = []
   private readonly children = new Map<SessionId, ChildScriptState>()
@@ -728,7 +730,7 @@ it('lets a preset producer reach the background-job registry', async () => {
   }
 }, 120_000)
 
-it('routes one browser-authored Auto request through the same model before a real tool body', async () => {
+it('routes one browser-authored Auto request through the same model and asks the user after a denial', async () => {
   scaffold = await launchWebScaffold(AUTO_REVIEW_FIXTURE)
   const ctx = scaffold.ctx
   const targetPath = join(scaffold.workspaceCwd, 'auto-review-pre-existing.txt')
@@ -738,6 +740,11 @@ it('routes one browser-authored Auto request through the same model before a rea
     () => ctx.llm.registerAdapter([AUTO_PROVIDER], adapter),
     'shipped Auto review same-route adapter',
   )
+  const approvalReasons: Array<string | undefined> = []
+  ctx.effect(() => ctx.on('approval/request', (request) => {
+    approvalReasons.push(request.reason)
+    return Promise.resolve('rejected' as const)
+  }, { prepend: true }), 'shipped Auto rejecting user')
 
   const created = await remote<{ sessionId: string }>(scaffold, 'session/create', {
     request: { cwd: scaffold.workspaceCwd },
@@ -786,8 +793,9 @@ it('routes one browser-authored Auto request through the same model before a rea
   expect(reviewInput).toContain('PENDING_ACTION')
   expect(reviewInput).toContain(requestId)
   expect(reviewInput).toContain(targetPath)
+  expect(approvalReasons).toEqual([`Auto review denied tool "bash": ${AUTO_RAW_REASON}`])
   const finalModelInput = JSON.stringify(finalMain?.messages)
-  expect(finalModelInput).toContain('Auto review rejected tool \\"bash\\"; its body was not executed')
+  expect(finalModelInput).toContain('the user rejected tool \\"bash\\"')
   expect(finalModelInput).not.toContain('direct user authorized inspection only')
   expect(finalModelInput).not.toContain('TEST_ONLY_SECRET_')
 
@@ -803,13 +811,9 @@ it('routes one browser-authored Auto request through the same model before a rea
     event.type === 'tool/result'
       && event.data.message.toolCallId === AUTO_CALL_ID
   ))
-  expect(result?.data.error).toEqual({
-    name: 'AutoReviewDeniedError',
-    code: 'AUTO_REVIEW_DENIED',
-    reason: AUTO_RAW_REASON,
-  })
+  expect(result?.data.error).toBeUndefined()
   const durableModelResult = JSON.stringify(result?.data.message)
-  expect(durableModelResult).toContain('Auto review rejected tool \\"bash\\"; its body was not executed')
+  expect(durableModelResult).toContain('the user rejected tool \\"bash\\"')
   expect(durableModelResult).not.toContain('direct user authorized inspection only')
   expect(durableModelResult).not.toContain('TEST_ONLY_SECRET_')
   expect(events.some(event => (

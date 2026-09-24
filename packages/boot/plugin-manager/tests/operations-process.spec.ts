@@ -1,5 +1,6 @@
 /** The bounded drain and the tree stop are measured against real child processes. */
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -138,4 +139,24 @@ describe.skipIf(process.platform === 'win32')('a run with descendants', () => {
     await sleep(2_000)
     expect(existsSync(lateFile)).toBe(false)
   })
+})
+
+it('waits for a run recorded by an exited operation before starting its own', async () => {
+  const { context, lateFile, options } = fixture(
+    // The run reports whether the recorded run had finished writing when it started.
+    'console.log(require("node:fs").existsSync(process.env.DSH_LATE_FILE) ? "started after" : "started before")', '',
+  )
+  const orphan = spawn(process.execPath, ['-e', `setTimeout(() => { require('node:fs').writeFileSync(${JSON.stringify(lateFile)}, 'late') }, 500)`], {
+    stdio: 'ignore',
+  })
+  onTestFinished(async () => {
+    try { orphan.kill('SIGKILL') } catch { /* the recorded run already exited */ }
+    await awaitGone(orphan.pid as number)
+  })
+  const dir = join(context.home, 'profiles', 'test')
+  mkdirSync(join(dir, '.plugin-manager'), { recursive: true })
+  writeFileSync(join(dir, '.plugin-manager', 'run.json'), JSON.stringify({ pid: orphan.pid, grouped: false }))
+  const outcome = await runProfilePnpm(context, ['list'], options)
+  expect(outcome).toMatchObject({ exitCode: 0, output: 'started after\n' })
+  expect(existsSync(join(dir, '.plugin-manager', 'run.json'))).toBe(false)
 })

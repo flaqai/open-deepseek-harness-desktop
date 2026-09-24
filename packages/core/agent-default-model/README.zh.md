@@ -68,7 +68,7 @@ await ctx.agentDefaultModel.saveSelection({ provider, model, reasoningEffort: 'h
 
 ### 设计理念
 
-此服务保留已验证的 Config 引用，并在 `currentSelection()` 中读取。`saveSelection()` 将完整选择交给 profile 配置编辑器。消费者优先使用会话级选择。
+此服务保留已验证的 Config 引用，并在 `currentSelection()` 中读取。`saveSelection()` 捕获提交值，并按提交顺序串行写入 profile，包括调用重叠的情况。每个调用方收到各自的写入失败；一次写入被拒绝不会阻止后续保存。消费者优先使用会话级选择。
 
 ### 源码地图
 

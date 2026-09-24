@@ -6,7 +6,7 @@ import { fileMediaUrl, isAbsoluteWorkspacePath, pathPartsOf } from '@deepseek-ai
  * @param base - document base URI, including any deployment prefix.
  * @param documentPath - absolute source path reported by the Host, when available.
  * @param destination - authored Markdown image URL; query and fragment are not filename components.
- * @returns an HTTP(S) file URL, or undefined for unsupported or malformed destinations.
+ * @returns a Web or Desktop file URL, or undefined for unsupported or malformed destinations.
  */
 export function markdownImageUrl(base: string, documentPath: string | undefined, destination: string): string | undefined {
   const suffix = destination.search(/[?#]/u)

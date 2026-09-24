@@ -25,7 +25,7 @@ export const remoteDefaultResponses: RemoteTable = {
       failures: [],
     }),
     // ui-agent-preset hero chip and header label on first mount.
-    'agentPresets/list': ok({ presets: [], modeSelectionEnabled: true }),
+    'agentPresets/list': ok({ presets: [] }),
     // cordis-client-runner `ClientCordisInspectRegistry.sync` at apply and on `connection/reset`.
     'dynamicCordisRunner/syncInspectManifest': ok(null),
     // ui-cordis inventory at apply and on `connection/reset`.
@@ -37,6 +37,9 @@ export const remoteDefaultResponses: RemoteTable = {
     // ui-settings-account refreshes details after a stored-grant snapshot.
     'account/getProfile': ok(null),
     'account/getBalance': ok(null),
+    // ui-settings-account bonus notice read and acknowledgement at signing in.
+    'account/getUnnotifiedBonuses': ok(null),
+    'account/ackBonusNotified': ok(true),
   },
   // Stream endpoints the roster opens later than boot; declared so a spec that forgets the script gets a stream miss.
   streams: [

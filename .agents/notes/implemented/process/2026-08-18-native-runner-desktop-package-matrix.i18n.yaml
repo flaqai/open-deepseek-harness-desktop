@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-18-native-runner-desktop-package-matrix.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-18-native-runner-desktop-package-matrix.md
-2026-08-18-native-runner-desktop-package-matrix.md: b2f7fdfe8ff468bea62ebf46b8ee8cf47862d6e9
-2026-08-18-native-runner-desktop-package-matrix.zh.md: 996bdf10a507061c89a3c587d4cd09326eea1083
+/agent-note-native-runner-desktop-package-matrix:
+  en: 45c12ef23be7d57e
+  zh: 0b7961fc06d34e37
+/agent-note-native-runner-desktop-package-matrix/problem:
+  en: a77871ceb30eb3b9
+  zh: a8ed84da9c890291
+/agent-note-native-runner-desktop-package-matrix/decision:
+  en: 9191f3ee43b48849
+  zh: f662647729d597ab
+/agent-note-native-runner-desktop-package-matrix/alternatives-considered:
+  en: 71326eb1cae5f8a2
+  zh: b7334ecea203865c
+/agent-note-native-runner-desktop-package-matrix/consequences:
+  en: cd7df42324458bb5
+  zh: 3baf0485571faf04

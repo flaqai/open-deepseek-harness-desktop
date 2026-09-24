@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-19-profile-shared-host-dependency-health.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-19-profile-shared-host-dependency-health.md
-2026-08-19-profile-shared-host-dependency-health.md: 284b5245565fe852f1d4c91c4bf2d5e34280d9ac
-2026-08-19-profile-shared-host-dependency-health.zh.md: 77deff8012008bb896661b70d458e10acdb7412b
+/agent-note-profile-shared-host-dependency-health:
+  en: 454d96b43770cfb9
+  zh: 26dec5dc561e954c
+/agent-note-profile-shared-host-dependency-health/problem:
+  en: d33674b65d36d8dd
+  zh: f429b49f9e219067
+/agent-note-profile-shared-host-dependency-health/decision:
+  en: 90294a50df431415
+  zh: d9912ec17fd5c5bc
+/agent-note-profile-shared-host-dependency-health/alternatives-considered:
+  en: cde0f8286ec1aec5
+  zh: 822ad815b5702893
+/agent-note-profile-shared-host-dependency-health/consequences:
+  en: d20c3f2bcea2fa13
+  zh: 395619a98c3a9422

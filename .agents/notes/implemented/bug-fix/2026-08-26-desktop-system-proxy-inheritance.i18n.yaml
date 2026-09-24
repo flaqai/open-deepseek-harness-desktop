@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-desktop-system-proxy-inheritance.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-26-desktop-system-proxy-inheritance.md
-2026-08-26-desktop-system-proxy-inheritance.md: f8173cb6ad21b7c9f859970136fa14a5842074e4
-2026-08-26-desktop-system-proxy-inheritance.zh.md: a1e630652fd521b4b4e50e2dbf62fd5a4ee1b7c0
+/agent-note-pass-the-desktop-system-proxy-to-managed-harness-processes:
+  en: 783569049e90f8da
+  zh: e8fa57de10fa211b
+/agent-note-pass-the-desktop-system-proxy-to-managed-harness-processes/problem:
+  en: 08e33bb5188a68a6
+  zh: 3a2d74047dcfc664
+/agent-note-pass-the-desktop-system-proxy-to-managed-harness-processes/decision:
+  en: f4ab6592c61a717f
+  zh: 9adb8ad9ebb1df60
+/agent-note-pass-the-desktop-system-proxy-to-managed-harness-processes/alternatives-considered:
+  en: 8b99e834e5a499c4
+  zh: e93c5a8b806c594b
+/agent-note-pass-the-desktop-system-proxy-to-managed-harness-processes/consequences:
+  en: 73323352328502da
+  zh: 221a9ed73bd6080d

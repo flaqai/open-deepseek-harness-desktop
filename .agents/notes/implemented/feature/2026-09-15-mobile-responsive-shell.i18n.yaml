@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-mobile-responsive-shell.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-15-mobile-responsive-shell.md
-2026-09-15-mobile-responsive-shell.md: 8797d0f4ea348b85961ed4351612c926d1aa95e1
-2026-09-15-mobile-responsive-shell.zh.md: 3cc87d3384602285385bb240117ae88e4850f430
+/agent-note-mobile-responsive-shell:
+  en: 5d1743b8ba2326a7
+  zh: 53305eb4a0191bfb
+/agent-note-mobile-responsive-shell/problem:
+  en: 33d2d6c68f93172c
+  zh: 53b8487ea545f73a
+/agent-note-mobile-responsive-shell/decision:
+  en: f8b839c70a2d5f03
+  zh: 7ec709a785ca6a0a
+/agent-note-mobile-responsive-shell/alternatives-considered:
+  en: 8b4e99069b2dea84
+  zh: 4b13a6ad1d0957d1
+/agent-note-mobile-responsive-shell/consequences:
+  en: 40b59c31e785e958
+  zh: 0b31f7085c78a3eb

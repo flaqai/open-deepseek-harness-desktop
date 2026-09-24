@@ -45,7 +45,7 @@
   height: 32px;
   min-height: 32px;
   padding: 0;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -69,7 +69,7 @@
 }
 
 .guidePanel:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -2px;
 }
 
@@ -95,7 +95,7 @@
   margin: 10px 0 14px;
   padding: 14px 16px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-bg-module-platform);
 }
 

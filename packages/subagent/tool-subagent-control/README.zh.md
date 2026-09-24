@@ -54,7 +54,7 @@ kind: "package-reference"
 
 ### list_agents
 
-列出调用方 agent 下方的可继续子级：`children`（默认）从父目录读取直接子级，不打开子日志；`descendants` 按稳定前序遍历整棵树，并为每个条目标注其持久化直接父级会话 ID 与深度。状态来自在线 Agent 注册表——`running` 或 `inactive`。一次性子级因无法接受 `send_message` 而被有意排除，无法读取的候选项仅在 `descendants` 作用域中以诊断信息呈现。
+列出调用方 agent 下方的可继续子级：`children`（默认）从父目录读取直接子级，不打开子日志；`descendants` 按稳定前序递归读取子级目录，并为每个条目标注其持久化直接父级会话 ID 与深度。状态来自在线 Agent 注册表——`running` 或 `inactive`。可读取的一次性子级不出现在输出中，但其目录仍是遍历节点。未知模式与无法读取的子级目录（包括一次性子级）仅在 `descendants` 作用域中以诊断信息呈现。普通 Session fork 不是目录条目，因此从源 Session 列表中既无法发现这些 fork，也无法发现其后代。
 
 -----
 
@@ -76,7 +76,7 @@ kind: "package-reference"
 
 ### 列表投影
 
-`list_agents` 从调用 agent 推导根 id，不使用 cursor 读取服务目录，通过在线 Agent 注册表细化每个候选的状态，并省略无法接受 `send_message` 的一次性子级。diagnostic 在 descendants scope 中保留其位置，且绝不暴露描述符内容。
+`list_agents` 从调用 agent 推导根 id，不使用 cursor 读取服务目录，通过在线 Agent 注册表细化每个候选的状态，并省略无法接受 `send_message` 的一次性子级。后代遍历保留每个父目录的事件顺序。未知模式产生诊断，但其目录仍可遍历；无法读取的目录产生诊断，并停止该分支。可达目录中不存在的后代无法被发现。
 
 ### 源码地图
 
@@ -150,11 +150,11 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-按稳定目录顺序，每个可继续子级占一行：`<id> [<status>] — <label>`（`running` 表示正在执行轮次；`inactive` 表示没有轮次在执行，包括已加载和仅存于存储的情况；两种状态均不表示任务完成或结果）。仅 `descendants` 作用域会为无法读取的候选项添加 `<id> [diagnostic: <reason>]`。`descendants` 作用域会在每行标签的破折号之前按前序插入 ` parent=<id> depth=<n>`。一次性子级会被有意排除；`(no subagents)` 表示投影后没有留下可继续子级或诊断信息。
+按稳定目录顺序，每个可继续子级占一行：`<id> [<status>] — <label>`（`running` 表示正在执行轮次；`inactive` 表示没有轮次在执行，包括已加载和仅存于存储的情况；两种状态均不表示任务完成或结果）。仅 `descendants` 作用域会为未知模式或无法读取的子级目录添加 `<id> [diagnostic: <reason>]`，包括无法读取的一次性子级。`descendants` 作用域会在每行标签的破折号之前按前序插入 ` parent=<id> depth=<n>`。可读取的一次性子级会被省略；`(no subagents)` 表示投影后没有留下可继续子级或诊断信息。
 
 #### Token 影响
 
-随所列可继续子级数量线性增长——`descendants` 作用域下为整棵树；没有游标或上限，因此长期存活且有许多持久化子级的父级每次调用都会承担完整列表成本。
+随所列可继续子级和诊断数量线性增长——`descendants` 作用域下为目录可达后代；没有游标或上限，因此长期存活且有许多持久化子级的父级每次调用都会承担完整列表成本。
 
 #### KV Cache 影响
 

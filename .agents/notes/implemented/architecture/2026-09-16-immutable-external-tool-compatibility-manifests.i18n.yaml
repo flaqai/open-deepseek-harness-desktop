@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-immutable-external-tool-compatibility-manifests.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-16-immutable-external-tool-compatibility-manifests.md
-2026-09-16-immutable-external-tool-compatibility-manifests.md: 47ebba425c45e5e9a6034068c03cbd8b011cefc6
-2026-09-16-immutable-external-tool-compatibility-manifests.zh.md: de0bf635c87d0a296caf0412059872a2fbb8cf06
+/agent-note-immutable-external-tool-compatibility-manifests:
+  en: 3f0c1eef45153ae0
+  zh: d8b335cc3b089570
+/agent-note-immutable-external-tool-compatibility-manifests/problem:
+  en: f426640e66f68696
+  zh: e39631e77e6b2006
+/agent-note-immutable-external-tool-compatibility-manifests/decision:
+  en: 3c1e178af5690179
+  zh: 09d17d9131523a58
+/agent-note-immutable-external-tool-compatibility-manifests/alternatives-considered:
+  en: fa2de1506b6398c3
+  zh: 45cb1c1ef758a9df
+/agent-note-immutable-external-tool-compatibility-manifests/consequences:
+  en: f8704b8bacea4b07
+  zh: 418d4376d7ff9260
+/agent-note-immutable-external-tool-compatibility-manifests/verification:
+  en: 3852ecbf9cdd89b7
+  zh: d3be64236480e0ea

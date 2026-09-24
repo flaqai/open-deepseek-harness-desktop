@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-19-project-ios-development-skills.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-19-project-ios-development-skills.md
-2026-08-19-project-ios-development-skills.md: 8b98feca73a24f61677f57c12463a95e572ca146
-2026-08-19-project-ios-development-skills.zh.md: 1567d6d77eb644911293c7a7eba817e7de048317
+/agent-note-project-scoped-ios-development-skill-bundle:
+  en: d70b29db2fd12893
+  zh: 61144ad6365ad88d
+/agent-note-project-scoped-ios-development-skill-bundle/problem:
+  en: 6872058908d31d56
+  zh: f121d7b9e036ba11
+/agent-note-project-scoped-ios-development-skill-bundle/decision:
+  en: 16211f48f2fb6bbf
+  zh: 7a746376bba0925b
+/agent-note-project-scoped-ios-development-skill-bundle/alternatives-considered:
+  en: b583a22b003aca69
+  zh: a3346a132ae28378
+/agent-note-project-scoped-ios-development-skill-bundle/consequences:
+  en: eb7cae1ebf222e34
+  zh: 73bb4ccd62d010d0
+/agent-note-project-scoped-ios-development-skill-bundle/verification:
+  en: f055dea67647d313
+  zh: e90fa156349de1f6

@@ -41,9 +41,9 @@ export interface SystemPromptDecisionInput {
   /** Whether the prepared route for this attempt reads a later `system` message as the effective prompt. */
   inHistory: boolean
   /**
-   * Whether this step's request starts a new model-message series: a pre-step
-   * listener declared one, the surface was replaced since the last request, or
-   * the assembled tool schemas differ from the logged header.
+   * Whether prompt admission must consolidate: a pre-step listener declared a
+   * new series, the surface changed since the last request, or assembled tools
+   * changed on a route without tool-update support.
    */
   startsSeries: boolean
 }

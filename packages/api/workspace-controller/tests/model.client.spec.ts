@@ -176,18 +176,18 @@ describe('ClientWorkspaceModel', () => {
     const model = modelFor(remote)
     baseline(model)
     const signal = new AbortController().signal
-    await expect(model.initializeDefault({ directoryName: '默认工作区', title: '默认工作区' }, signal)).resolves.toMatchObject({ ok: true })
-    expect(remote.initializeDefault).toHaveBeenCalledWith({ directoryName: '默认工作区', title: '默认工作区' }, signal)
+    await expect(model.initializeDefault(signal)).resolves.toMatchObject({ ok: true })
+    expect(remote.initializeDefault).toHaveBeenCalledWith(signal)
     expect(model.getSnapshot().items.map(item => item.workspaceId)).toEqual(['default'])
     const before = model.getSnapshot()
     remote.initializeDefault.mockResolvedValueOnce(remoteOk(undefined))
-    await expect(model.initializeDefault({ directoryName: 'Default workspace', title: 'Default workspace' }))
+    await expect(model.initializeDefault())
       .resolves.toEqual({ ok: true, value: undefined })
     expect(model.getSnapshot()).toBe(before)
     remote.initializeDefault.mockResolvedValueOnce(workspaceError(
       new RemoteError('gateway/bad-request', 'choose a folder', {}),
     ))
-    await expect(model.initializeDefault({ directoryName: 'Default workspace', title: 'Default workspace' })).resolves.toMatchObject({ ok: false })
+    await expect(model.initializeDefault()).resolves.toMatchObject({ ok: false })
     expect(model.getSnapshot()).toBe(before)
   })
 

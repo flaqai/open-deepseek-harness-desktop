@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-desktop-data-home-authority.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-17-desktop-data-home-authority.md
-2026-09-17-desktop-data-home-authority.md: b19b986e13da8b0cd8cfdd0c6721995b8c6c5b3e
-2026-09-17-desktop-data-home-authority.zh.md: 8e91b348e112c912ecb72cc63e16f999c3504409
+/agent-note-centralize-desktop-data-home-authority:
+  en: 14fb02e353769eec
+  zh: f106890eae88546c
+/agent-note-centralize-desktop-data-home-authority/problem:
+  en: a217d39481b1ba62
+  zh: 7f348a14a3f85d11
+/agent-note-centralize-desktop-data-home-authority/decision:
+  en: 34e5611773b7f76d
+  zh: d5961a439d695981
+/agent-note-centralize-desktop-data-home-authority/alternatives-considered:
+  en: d731d8dd26467966
+  zh: 8e285cc911e42be1
+/agent-note-centralize-desktop-data-home-authority/consequences:
+  en: 87c822bc17df200e
+  zh: 7689b3a6120f03f0

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-06-development-recovery-entry.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-06-development-recovery-entry.md
-2026-09-06-development-recovery-entry.md: 62211990fcda9291585dd7e5992c98b5c2c50b9d
-2026-09-06-development-recovery-entry.zh.md: 72ac593ed52ce6b4a2833eff6b78a961f74e4671
+/agent-note-development-entry-for-the-startup-recovery-page:
+  en: 03a325298fb5357a
+  zh: 48165044781bad2c
+/agent-note-development-entry-for-the-startup-recovery-page/problem:
+  en: 4652a9b59b4034b9
+  zh: bcf1c5a8a27a6e97
+/agent-note-development-entry-for-the-startup-recovery-page/decision:
+  en: 17ac31ee028388ac
+  zh: 1724f997e4686077
+/agent-note-development-entry-for-the-startup-recovery-page/alternatives-considered:
+  en: 5d2f42cab58a39c2
+  zh: 7495c5f06d6b2cec
+/agent-note-development-entry-for-the-startup-recovery-page/consequences:
+  en: ab9fa6819bc9d7ba
+  zh: c3efa4764a4e4bea

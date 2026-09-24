@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-16-home-plugin-discovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-16-home-plugin-discovery.md
-2026-08-16-home-plugin-discovery.md: 68dc986b0d5dc265d256ff36cfb4d05c70a24b85
-2026-08-16-home-plugin-discovery.zh.md: 4c7908e4c654aca9becd6ace0f00e5508891ca0c
+/agent-note-home-plugin-discovery:
+  en: d889e54a7ce99c3c
+  zh: fe09618ce054d81f
+/agent-note-home-plugin-discovery/problem:
+  en: 73a643abff0b55ca
+  zh: 6681f16f1c7dc278
+/agent-note-home-plugin-discovery/decision:
+  en: 863dec47bde19a4b
+  zh: fd3731b257759498
+/agent-note-home-plugin-discovery/alternatives-considered:
+  en: 8929cf31b5fc6e48
+  zh: aa477a80042d57a5
+/agent-note-home-plugin-discovery/consequences:
+  en: b8545d20ce1415d7
+  zh: 73a65d4483b2d8ae

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-windows-uninstall-data-choice.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-windows-uninstall-data-choice.md
-2026-09-12-windows-uninstall-data-choice.md: 6296f56eca12b31cc006d2cc20d5a9fcced505a1
-2026-09-12-windows-uninstall-data-choice.zh.md: 0b05d5ed0e5d194ada2ba8203765791f49e5ea62
+/agent-note-windows-uninstall-data-choice:
+  en: 148734d99cf5db3f
+  zh: 5f562f84f754abb0
+/agent-note-windows-uninstall-data-choice/problem:
+  en: 8758b10b9af03d91
+  zh: 081816da9715b7c2
+/agent-note-windows-uninstall-data-choice/decision:
+  en: bfede0fd4975eb68
+  zh: 45dc4c6bb1ed3ab0
+/agent-note-windows-uninstall-data-choice/alternatives-considered:
+  en: 798baf7606fdae3b
+  zh: 66c9f02c462eda01
+/agent-note-windows-uninstall-data-choice/consequences:
+  en: e92a52ee76f95dac
+  zh: 4dd44b6aca143573

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-14-archived-session-recovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-14-archived-session-recovery.md
-2026-09-14-archived-session-recovery.md: 0bc6dd2c083a6b35ac01adbd66aaa56e1d592acf
-2026-09-14-archived-session-recovery.zh.md: bd017e3f9fcc4f0129123d1f2d072bf2026dbdd7
+/agent-note-archived-session-recovery:
+  en: 3a75d539eac27dd2
+  zh: 0279ec8fbef46082
+/agent-note-archived-session-recovery/problem:
+  en: 63e42c4dd8f94e8a
+  zh: 713e380a117dcddc
+/agent-note-archived-session-recovery/decision:
+  en: 9d4967b45358d618
+  zh: 94754a8dbbd813a4
+/agent-note-archived-session-recovery/alternatives-considered:
+  en: 1a2ae89586750aa2
+  zh: 167248fdda0686c2
+/agent-note-archived-session-recovery/consequences:
+  en: dcc9df7c0d21a907
+  zh: d2a3fd9ef06279f8

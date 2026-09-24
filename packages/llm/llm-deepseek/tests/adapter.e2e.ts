@@ -1,3 +1,4 @@
+import * as Protocol from '@deepseek-ai/dsh-llm-deepseek'
 /**
  * Real Messages round trips use the official root and require credentials.
  * System-update checks additionally require DEEPSEEK_IN_HISTORY_MODEL.
@@ -18,7 +19,7 @@ import type { Message } from '@deepseek-ai/dsh-llm'
 import * as PluginPackageInventoryDeepSeek from '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import * as SessionLogDeepSeek from '@deepseek-ai/dsh-session-log-deepseek'
-import * as Messages from '../src/index.ts'
+import * as Messages from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import { DeepSeekFilesClient } from '../src/files-api.ts'
 import { MESSAGES_FILES_BETA } from '../src/messages-api.ts'
 import { assemble, options, user, sourceModuleLoader } from './helpers.ts'
@@ -38,7 +39,7 @@ async function boot(models?: Messages.Options['models']) {
   cleanups.push(() => ctx.fiber.dispose())
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(Messages, {
-    baseURL: Messages.PUBLIC_BASE_URL,
+    baseURL: Protocol.PUBLIC_BASE_URL,
     maxTokens: 4096,
     ...models === undefined ? {} : { models },
   })
@@ -75,21 +76,21 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('DeepSeek Messages real API', () 
     const uploads: string[] = []
     const bodies: string[] = []
     const files = new DeepSeekFilesClient({
-      baseURL: Messages.PUBLIC_BASE_URL, apiKey: process.env.DEEPSEEK_API_KEY as string, fetch: fetchImpl,
+      baseURL: Protocol.PUBLIC_BASE_URL, headers: { 'x-api-key': process.env.DEEPSEEK_API_KEY as string }, fetch: fetchImpl,
     })
-    const ownedFiles = new Set<ReturnType<typeof Messages.DeepSeekFileId>>()
+    const ownedFiles = new Set<ReturnType<typeof Protocol.DeepSeekFileId>>()
     cleanups.push(async () => {
       for (const id of ownedFiles) await files.delete(id)
     })
     vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       const response = await fetchImpl(input, init)
-      if (url === `${Messages.PUBLIC_BASE_URL}/v1/files` && init?.method === 'POST' && response.ok) {
+      if (url === `${Protocol.PUBLIC_BASE_URL}/v1/files` && init?.method === 'POST' && response.ok) {
         const file = await response.clone().json() as { id: string }
         uploads.push(file.id)
-        ownedFiles.add(Messages.DeepSeekFileId(file.id))
+        ownedFiles.add(Protocol.DeepSeekFileId(file.id))
       }
-      if (url === `${Messages.PUBLIC_BASE_URL}/v1/messages`) {
+      if (url === `${Protocol.PUBLIC_BASE_URL}/v1/messages`) {
         expect(new Headers(init?.headers).get('anthropic-beta')).toBe(MESSAGES_FILES_BETA)
         if (typeof init?.body !== 'string') throw new Error('expected a JSON Messages request')
         bodies.push(init.body)
@@ -110,7 +111,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('DeepSeek Messages real API', () 
     expect(uploads).toHaveLength(1)
     expect(bodies).toHaveLength(2)
     expect(bodies.every(body => body.includes(`"file_id":"${uploads[0]}"`) && !body.includes('"type":"base64"'))).toBe(true)
-    const fileId = Messages.DeepSeekFileId(uploads[0]!)
+    const fileId = Protocol.DeepSeekFileId(uploads[0]!)
     const retrieved = await files.retrieve(fileId)
     expect(retrieved).toMatchObject({ id: fileId, bytes: attachment.bytes })
     expect(retrieved.expiresAt).toBeUndefined()
@@ -162,7 +163,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('DeepSeek Messages real API', () 
     let requests = 0
     vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-      if (url !== `${Messages.PUBLIC_BASE_URL}/v1/messages`) return fetchImpl(input, init)
+      if (url !== `${Protocol.PUBLIC_BASE_URL}/v1/messages`) return fetchImpl(input, init)
       if (typeof init?.body !== 'string') throw new Error('expected a JSON Messages request')
       const body = JSON.parse(init.body) as Record<string, unknown>
       expect(body).toMatchObject({ dsh_plugin_packages: {

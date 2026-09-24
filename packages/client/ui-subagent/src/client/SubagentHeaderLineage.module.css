@@ -18,7 +18,7 @@
   min-height: 28px;
   padding: 3px 2px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
@@ -99,7 +99,7 @@
   max-height: min(560px, calc(100vh - 140px));
   padding: 3px;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: var(--dsw-radius-lg);
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
@@ -115,7 +115,7 @@
   position: absolute;
   z-index: -1;
   inset: 0;
-  border-radius: 16px;
+  border-radius: inherit;
   background: var(--dsw-specific-menu);
   backdrop-filter: var(--dsw-menu-backdrop-filter);
 }
@@ -146,7 +146,7 @@
   min-height: 44px;
   padding: 6px 7px 6px 9px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--dsw-radius-lg);
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 12px;
@@ -171,7 +171,7 @@
   min-width: 0;
   margin: -6px -7px -6px;
   padding: 6px 7px;
-  border-radius: 7px;
+  border-radius: var(--dsw-radius-lg);
 }
 
 .rowActivitySlot {
@@ -273,8 +273,7 @@
   margin: 4px 0;
   padding: 6px;
   border: 0;
-  border-radius: 50%;
-  corner-shape: round;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
@@ -352,7 +351,7 @@
   gap: 3px;
   padding: 3px 5px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: inherit;
   cursor: pointer;

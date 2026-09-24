@@ -34,6 +34,10 @@ describe.skipIf(MODE === 'record')('web e2e: default Workspace', () => {
         await page.goto(scaffold.authenticatedUrl)
         const input = page.locator('[data-composer-input][contenteditable="true"]').first()
         await input.waitFor()
+        // Language-neutral on disk, localized in the hero chip. The chip's
+        // aria-label is its fixed call to action, so the label is its text.
+        await expect.poll(() => page.getByRole('button', { name: 'Choose workspace', exact: true }).textContent())
+          .toBe('Default workspace')
         expect(scaffold.ctx.workspaceRegistry.list()).toHaveLength(1)
         const initialSession = scaffold.ctx.sessions.list()[0]!
         expect(scaffold.ctx.sessions.list()).toHaveLength(1)
@@ -47,8 +51,8 @@ describe.skipIf(MODE === 'record')('web e2e: default Workspace', () => {
         await input.press('Enter')
         const sessionId = await settled
         const workspace = scaffold.ctx.workspaceRegistry.list()[0]!
-        expect(workspace.title).toBe('Default workspace')
-        expect(workspace.path).toBe(join(scaffold.workspaceCwd, 'Documents', 'deepseek-harness', 'Default workspace'))
+        expect(workspace.title).toBe('default-workspace')
+        expect(workspace.path).toBe(join(scaffold.workspaceCwd, 'Documents', 'deepseek-harness', 'default-workspace'))
         expect((await stat(workspace.path)).isDirectory()).toBe(true)
         expect(workspace.sessionIds).toContain(sessionId)
         expect(scaffold.ctx.sessions.get(sessionId)?.header.cwd).toBe(workspace.path)
@@ -71,7 +75,8 @@ describe.skipIf(MODE === 'record')('web e2e: default Workspace', () => {
     onTestFinished(() => scaffold.close())
     const parent = join(scaffold.workspaceCwd, 'Documents', 'deepseek-harness')
     await mkdir(parent, { recursive: true })
-    await writeFile(join(parent, '默认工作区'), 'occupied')
+    // A Chinese reader gets the same fixed directory name, so the same occupant conflicts.
+    await writeFile(join(parent, 'default-workspace'), 'occupied')
     const chosen = join(scaffold.workspaceCwd, 'chosen')
     await mkdir(chosen)
     const browser = await chromium.launch()

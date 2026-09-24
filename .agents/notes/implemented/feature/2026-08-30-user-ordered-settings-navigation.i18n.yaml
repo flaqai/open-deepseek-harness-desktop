@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-30-user-ordered-settings-navigation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-30-user-ordered-settings-navigation.md
-2026-08-30-user-ordered-settings-navigation.md: c32f95eace5d2e3d04d0479602abebb15e14dda1
-2026-08-30-user-ordered-settings-navigation.zh.md: 5a5e73d045838e5c7fe55c12b25748f83f8f57f5
+/agent-note-user-ordered-settings-navigation:
+  en: b656c959dbf62b17
+  zh: 293df309dcfa2dbc
+/agent-note-user-ordered-settings-navigation/problem:
+  en: f7f9c10eb9268d49
+  zh: 182a68b79a331b92
+/agent-note-user-ordered-settings-navigation/decision:
+  en: 9e23466e9364763c
+  zh: 53fcc5f4c542127c
+/agent-note-user-ordered-settings-navigation/alternatives-considered:
+  en: 4fe35a2148890ce0
+  zh: 6d1077481183ef31
+/agent-note-user-ordered-settings-navigation/consequences:
+  en: b4f94ad510c93777
+  zh: 7fa9f0bfdfa9ba98

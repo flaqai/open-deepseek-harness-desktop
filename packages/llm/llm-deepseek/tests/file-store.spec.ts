@@ -27,7 +27,7 @@ const VERSION: RequestImageAttachment = {
   space: 'srgb',
   hasAlpha: true,
 }
-const CONNECTION = { baseURL: 'https://api.deepseek.com', apiKey: 'key' }
+const CONNECTION = { baseURL: 'https://api.deepseek.com', headers: { 'x-api-key': 'key' } }
 const POLICY = { expiresAfterSeconds: 604_800, refreshMarginSeconds: 3_600, quotaCleanupBatch: 100 }
 const NOW = 1_700_000_000_000
 
@@ -67,6 +67,22 @@ function uploadFetch(now: () => number = () => NOW) {
 }
 
 describe('DeepSeekFileStore', () => {
+  it('isolates credential values and header kinds while reusing reordered headers', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'dsh-file-credentials-'))
+    roots.push(dir)
+    const remote = uploadFetch(() => NOW)
+    const index = new DeepSeekUploadIndex(join(dir, 'index.json'))
+    const store = new DeepSeekFileStore({ index, fetch: remote.fetchImpl, now: () => NOW })
+    const first = await store.ensureUploaded(VERSION, CONNECTION, POLICY)
+    const account = await store.ensureUploaded(VERSION, { ...CONNECTION, headers: { 'x-dsh-auth-token': 'key' } }, POLICY)
+    const replacement = await store.ensureUploaded(VERSION, { ...CONNECTION, headers: { 'x-api-key': 'new-key' } }, POLICY)
+    expect(new Set([first.record.scope, account.record.scope, replacement.record.scope]).size).toBe(3)
+    const combined = await store.ensureUploaded(VERSION, { ...CONNECTION, headers: { a: 'one', b: 'two' } }, POLICY)
+    const reordered = await store.ensureUploaded(VERSION, { ...CONNECTION, headers: { b: 'two', a: 'one' } }, POLICY)
+    expect(reordered.record).toEqual(combined.record)
+    expect(remote.uploads()).toBe(4)
+  })
+
   it('reuses equivalent API roots and isolates other endpoints across invalidation and expiry', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'dsh-file-scope-'))
     roots.push(dir)
@@ -77,7 +93,7 @@ describe('DeepSeekFileStore', () => {
     const alternate = { ...CONNECTION, baseURL: 'https://other.example' }
     const other = await store.ensureUploaded(VERSION, alternate, POLICY)
     const first = await store.ensureUploaded(VERSION, CONNECTION, POLICY)
-    expect(first.record.scope).toBe(deepSeekFileScope(`${CONNECTION.baseURL}/v1`, CONNECTION.apiKey))
+    expect(first.record.scope).toBe(deepSeekFileScope(`${CONNECTION.baseURL}/v1`, JSON.stringify(Object.entries(CONNECTION.headers))))
     expect(first.record.scope).not.toBe(other.record.scope)
     expect((await store.ensureUploaded(VERSION, { ...CONNECTION, baseURL: `${CONNECTION.baseURL}/v1/` }, POLICY)).record).toEqual(first.record)
     const reopened = new DeepSeekFileStore({ index, fetch: remote.fetchImpl, now: () => now })
@@ -406,7 +422,7 @@ describe('DeepSeekFileStore', () => {
     vi.spyOn(index, 'commit').mockResolvedValue({
       accepted: false,
       record: {
-        scope: deepSeekFileScope(`${CONNECTION.baseURL}/v1`, CONNECTION.apiKey),
+        scope: deepSeekFileScope(`${CONNECTION.baseURL}/v1`, JSON.stringify(Object.entries(CONNECTION.headers))),
         attachmentId: VERSION.attachment.attachmentId,
         variantId: VERSION.variantId,
         fileId: DeepSeekFileId('file-api-winner'),

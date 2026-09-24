@@ -8,7 +8,7 @@
   padding: 0 8px;
   box-sizing: border-box;
   border: 1px solid color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 20%, transparent);
-  border-radius: 13px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
   background: color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 8%, transparent);
   font-family: inherit;

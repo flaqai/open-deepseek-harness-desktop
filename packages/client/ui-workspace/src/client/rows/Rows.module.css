@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-md);
   padding: 0 8px;
   padding-inline-start: calc(8px + var(--dsh-workspace-indent, 0px));
   cursor: pointer;
@@ -29,7 +29,7 @@
   min-height: 48px;
   box-sizing: border-box;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-lg);
   padding: 4px 8px;
   background: transparent;
   cursor: pointer;
@@ -86,6 +86,11 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* The 40% share only protects a snippet; a snippetless match keeps the row. */
+.searchResultWorkspace:only-child {
+  max-width: 100%;
+}
+
 .searchResultSnippet {
   flex: 1;
   min-width: 0;
@@ -111,10 +116,6 @@
 
 .sessionRow .title {
   margin: 0 6px 0 4px;
-}
-
-.flatSessionRowWithoutStatus .title {
-  margin-left: 0;
 }
 
 .slot {
@@ -178,7 +179,7 @@
   line-height: 20px;
   padding: 0 2px;
   border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 4px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-button-elevated-fill);
   color: inherit;
   outline: none;
@@ -224,23 +225,7 @@
   flex: none;
   font-size: 10px;
   line-height: 16px;
-  color: var(--dsw-alias-label-caption);
-}
-
-.scheduleIndicator {
-  display: inline-flex;
-  flex: none;
-  width: 16px;
-  height: 20px;
-  align-items: center;
-  justify-content: center;
-  margin-right: 6px;
   color: var(--dsw-alias-label-tertiary);
-}
-
-.searchScheduleIndicator {
-  margin-right: 0;
-  margin-left: 4px;
 }
 
 .pinIndicator {
@@ -254,12 +239,11 @@
   color: var(--dsw-alias-label-caption);
 }
 
-/* Archived rows stay in place but read as inactive: title and time drop to
+/* Archived rows stay in place but read as inactive: titles drop to
    the caption label step (one step above dimmed, which reads as too faint
    over the sidebar fill). Archived search rows drop their meta line to the
    same step so both lines read as one unit. */
 .sessionRow.archived .title,
-.sessionRow.archived .time,
 .searchResultRow.archived .searchResultTitle,
 .searchResultRow.archived .searchResultWorkspace,
 .searchResultRow.archived .searchResultSnippet {
@@ -416,7 +400,7 @@
   width: 16px;
   height: 16px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--dsw-radius-xs);
   padding: 0;
   background: transparent;
   cursor: pointer;

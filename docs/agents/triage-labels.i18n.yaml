@@ -1,6 +1,7 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for triage-labels.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/agents/triage-labels.md
-triage-labels.md: 1427ace3522849f58fa388785dfbd9f13a39702c
-triage-labels.zh.md: d362d0ad0260ab707a91b557e2a6a68855c166a3
+/triage-labels:
+  en: 6f98ec777393be68
+  zh: 882809e254d36409

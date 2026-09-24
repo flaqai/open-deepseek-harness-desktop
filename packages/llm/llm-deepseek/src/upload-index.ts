@@ -37,16 +37,16 @@ export interface UploadIndexCommit {
 }
 
 /**
- * Derive a non-secret stable index namespace without persisting or logging the API key.
+ * Derive a non-secret stable index namespace without persisting or logging authentication headers.
  * @param baseURL - normalized provider endpoint namespace.
- * @param apiKey - resolved credential used only as hash input.
+ * @param credentials - serialized authentication headers used only as hash input.
  * @returns branded SHA-256 namespace digest.
  */
-export function deepSeekFileScope(baseURL: string, apiKey: string): DeepSeekFileScopeType {
+export function deepSeekFileScope(baseURL: string, credentials: string): DeepSeekFileScopeType {
   const digest = createHash('sha256')
     .update(baseURL.replace(/\/+$/u, ''))
     .update('\0')
-    .update(apiKey)
+    .update(credentials)
     .digest('hex')
   return DeepSeekFileScope(digest)
 }

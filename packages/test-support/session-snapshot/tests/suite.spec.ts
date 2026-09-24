@@ -893,6 +893,17 @@ describe('tool-schema snapshots', () => {
       .toEqual({ system: '{{system}}', tools: snapshot.initial })
   })
 
+  it('restores ordered tool names only when they match the sidecar', () => {
+    const schemas = [{ name: 'read' }, { name: 'write' }]
+    expect(restorePinnedToolSchemas({ tools: ['read', 'write'] }, schemas)).toEqual({ tools: schemas })
+    for (const tools of [['write', 'read'], ['read'], ['read', 'missing'], [1, 'write']]) {
+      expect(() => restorePinnedToolSchemas({ tools }, schemas)).toThrow(/must equal/)
+    }
+    for (const schema of [null, 'read', {}, { name: 'other' }]) {
+      expect(() => restorePinnedToolSchemas({ tools: ['read'] }, [schema])).toThrow(/must equal/)
+    }
+  })
+
   it('rejects invalid headers and a missing tool token', () => {
     expect(() => restorePinnedToolSchemas(null, snapshot.initial)).toThrow(/must be an object/)
     expect(() => restorePinnedToolSchemas('invalid', snapshot.initial)).toThrow(/must be an object/)

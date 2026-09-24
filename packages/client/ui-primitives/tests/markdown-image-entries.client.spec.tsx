@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import { fileMediaUrl } from '@deepseek-ai/dsh-util-workspace-path'
 import { MarkdownDelegateProvider } from '../src/markdown/MarkdownDelegate.tsx'
 import { MarkdownText } from './markdown-test-components.tsx'
 import { parseGfm, parseGfmWithMath } from '../src/markdown/parse.ts'
@@ -15,6 +16,37 @@ function mount(text: string, streaming = false) {
   </MarkdownDelegateProvider>)
   return { ...view, openFile }
 }
+
+it('loads Desktop inline and hover previews through the file route after streaming settles', () => {
+  vi.useFakeTimers()
+  const path = '/work/测试 图片#100%.png'
+  const src = fileMediaUrl('dsh-app://app/', path)!
+  const images = { resolve: (value: string) => fileMediaUrl('dsh-app://app/', value), labels }
+  const text = `![图片](<${encodeURI(path).replace('#', '%23')}>)\n\n[打开图片](<${encodeURI(path).replace('#', '%23')}>)`
+  const openFile = vi.fn()
+  const content = (streaming: boolean) => <MarkdownDelegateProvider fileImages={images} openFile={openFile}>
+    <MarkdownText text={text} streaming={streaming} />
+  </MarkdownDelegateProvider>
+  const view = render(content(true))
+  expect(view.container.querySelector('img')).toBeNull()
+  view.rerender(content(false))
+  expect(screen.getByRole('img').getAttribute('src')).toBe(src)
+  const trigger = screen.getByRole('button', { name: 'View full image: 图片' })
+  trigger.focus()
+  fireEvent.click(trigger)
+  expect(screen.getByRole('dialog').querySelector('img')?.getAttribute('src')).toBe(src)
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(document.activeElement).toBe(trigger)
+  const link = screen.getByRole('button', { name: '打开图片' })
+  fireEvent.pointerEnter(link.parentElement!)
+  act(() => { vi.advanceTimersByTime(500) })
+  expect(screen.getByAltText(path).getAttribute('src')).toBe(src)
+  fireEvent.error(screen.getByAltText(path))
+  expect(screen.getByText(labels.failed)).toBeTruthy()
+  fireEvent.click(link)
+  expect(openFile).toHaveBeenCalledWith(path, undefined)
+})
 
 it('opens inline images in the shared lightbox, restores focus, and never opens the sidebar', () => {
   const { openFile } = mount('![Compare](<.artifacts/对比 image.png>)')

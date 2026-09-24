@@ -21,8 +21,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {
-  ChatNodeInjected, ChatScrollPosition, ChatViewInjected,
-  TurnTailOwnerProps,
+  ChatNodeInjected, ChatScrollPosition, ChatViewInjected, QuotaNoticeInjected, QuotaNoticeState, TurnTailOwnerProps,
 } from './contract/slots.ts'
 import type { ChatSnapshot } from './contract/snapshot.ts'
 import { EMPTY_CHAT_SNAPSHOT } from './contract/snapshot.ts'
@@ -31,6 +30,7 @@ import { ChatView } from './chat/ChatView.tsx'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
 import { StatsPills } from './chat/StatsPills.tsx'
 import { registerConversationNodes } from './conversation-nodes/register.ts'
+import { QuotaNoticeHost } from './chat/QuotaNoticeHost.tsx'
 import { en, NS, zh } from './locale.ts'
 import { TranscriptViewRow, type TranscriptViewRowInjected } from './settings/TranscriptViewRow.tsx'
 import { createChatStore } from './stores.ts'
@@ -63,10 +63,41 @@ export const inject = [
  * @param ctx - Client root context.
  */
 export function apply(ctx: Context): void {
+  const quotaNotice = createSnapshotStore<QuotaNoticeState | null>(null)
+  let quotaNoticeSeq = 0
+  // Each hold is its own token, so a release can only drop the hold it was
+  // issued for: one arriving after a dismissal or a later acquisition leaves
+  // that newer hold alone.
+  const quotaNoticeHolds = new Set<symbol>()
   const chatSources = new WeakMap<SessionBinding, ObservableSnapshot<ChatSnapshot>>()
+  const quotaSubscriptions = new Set<() => Promise<void>>()
+  ctx.effect(() => async () => {
+    await Promise.all([...quotaSubscriptions].map(dispose => dispose()))
+  }, 'ui-chat: live quota notices')
   const chatSource = (binding: SessionBinding): ObservableSnapshot<ChatSnapshot> => {
     let source = chatSources.get(binding)
     if (source === undefined) {
+      // One live quota failure publishes one frame-wide notice; history
+      // replacement or paging never does, because an old failure scrolling
+      // back into view is not news.
+      const dispose = binding.ctx.effect(() => {
+        const stop = binding.eventSource.subscribe(() => {
+          const { change } = binding.eventSource.getSnapshot()
+          if (change.kind !== 'append') return
+          for (const { event } of change.entries) {
+            if (event.type !== 'turn/end' || event.data.reason.kind !== 'error') continue
+            const { code } = event.data.reason.error
+            if (quotaNoticeHolds.size > 0 || (code !== 'QUOTA' && code !== 'ACCOUNT_QUOTA')) continue
+            quotaNotice.set({ code, seq: ++quotaNoticeSeq })
+          }
+        })
+        return () => {
+          stop()
+          chatSources.delete(binding)
+          quotaSubscriptions.delete(dispose)
+        }
+      }, 'ui-chat: Provider binding quota notices')
+      quotaSubscriptions.add(dispose)
       const target = ctx.uiConversation.binding(binding).target('chat')
       source = {
         getSnapshot: () => target.getSnapshot() ?? EMPTY_CHAT_SNAPSHOT,
@@ -229,6 +260,25 @@ export function apply(ctx: Context): void {
     }, ChatView)
     return disposeView
   })
+
+  // The quota notice host lives in the frame-wide layer so a notice outlives
+  // the Chat panel that reported it. Its chain child lets a package with a
+  // billing surface claim the one live notice without importing Chat.
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'chat.quota-notice', locale: NS,
+    children: { 'shell.quota-notice': { kind: 'chain', scope: 'root' } },
+    inject: (): QuotaNoticeInjected => ({
+      hooks: { notice: quotaNotice },
+      dismissNotice: () => { quotaNoticeHolds.clear(); quotaNotice.set(null) },
+      keepNoticeOpen: () => {
+        // Nothing live to retain: later failures must still publish.
+        if (quotaNotice.getSnapshot() === null) return () => {}
+        const token = Symbol('ui-chat quota notice hold')
+        quotaNoticeHolds.add(token)
+        return () => { quotaNoticeHolds.delete(token) }
+      },
+    }),
+  }, QuotaNoticeHost))
 
   ctx.slots.inject('conversation.composer.dock', () =>
     ctx.slots.register({

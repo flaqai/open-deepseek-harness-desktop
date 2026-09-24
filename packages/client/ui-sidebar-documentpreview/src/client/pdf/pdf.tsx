@@ -1,6 +1,6 @@
 /** PDF page presentation; binary content and tab information come from the document owner. */
 import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react'
-import { Button, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { DocumentPreviewProps } from '../document/contract.ts'
@@ -39,10 +39,10 @@ const DEFAULT_PDF_VIEW: PdfView = { page: 1 }
 const FIT_WIDTH: ZoomPreference = { kind: 'fit-width' }
 /**
  * Present a PDF with tab-local viewing preferences and component-owned rendering resources.
- * @param props - complete bytes and framework-owned tab/store/locale seats.
+ * @param props - complete bytes, framework-owned tab/store/locale seats, and main-bundle loading content.
  * @returns the PDF reader.
  */
-export function PdfBody(props: PdfBodyProps): ReactNode {
+export function PdfBody(props: PdfBodyProps & { readonly loading: ReactNode }): ReactNode {
   const { tab } = props.useTabInfo()
   const view = props.useStore(state => state.byTab[tab.id] ?? DEFAULT_PDF_VIEW)
   const data = props.content.kind === 'bytes' ? props.content.data : undefined
@@ -82,12 +82,7 @@ export function PdfBody(props: PdfBodyProps): ReactNode {
     }
   }, [data, tab.signal, attempt])
   if (data === undefined) return <p className={css.status} role="alert">{t('unsupported')}</p>
-  // The open wait centres like the owner's read spinner before it, so one
-  // spinner position covers everything until the first page block appears.
-  if (load?.data !== data) return <span className={`${css.status} ${css.opening}`} role="status"
-    aria-label={t('loading')} data-document-loading>
-    <StateDot state="ongoing" />
-  </span>
+  if (load?.data !== data) return props.loading
   if (load.kind === 'failed') {
     return <div className={css.status} role="alert">
       <span>{failureText(load.error, t)}</span>
@@ -101,7 +96,7 @@ export function PdfBody(props: PdfBodyProps): ReactNode {
         onWidth={index === 0 ? setPageWidth : undefined} zoom={renderZoom} zoomSurfaceClass={zoomSurfaceClass} t={t} />
     ))}
   </section>
-  return <ZoomViewport preference={preference} intrinsicWidth={pageWidth} labels={labels}
+  return <ZoomViewport preference={preference} intrinsicWidth={pageWidth} horizontalInset={24} labels={labels}
     signal={tab.signal} scrollportRef={props.scrollportRef} onPreference={setPreference} onRenderZoom={setRenderZoom}>
     {pages}
   </ZoomViewport>

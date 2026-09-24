@@ -507,6 +507,29 @@ describe('ChangedFiles card', () => {
     return { props, openFile, view }
   }
 
+  it.each([en, zh])('shows one edited filename without a list and opens its review', (locale) => {
+    const single = servedStore({ turn: 1, files: [changedFile('src/example.scss', 3, 1)], total: 1, added: 3, deleted: 1 })
+    const { props, view } = renderCard(new PresentedOpenController(), locale, { changes, presented: [] }, single)
+    const t = makeTranslate(locale)
+    const card = view.container.querySelector('[data-changed-files]')!
+    expect(within(card as HTMLElement).getByText(t('changes.singleTitle', { name: 'example.scss' }))).toBeTruthy()
+    expect(card.querySelector('ul')).toBeNull()
+    expect(view.queryByRole('button', { name: /Show all|Collapse changed|展开全部|收起改动/ })).toBeNull()
+    expect(card.querySelector('svg [data-file-type-mark]')?.children).toHaveLength(3)
+    const open = view.getByRole('button', { name: t('changes.viewDiff', { name: 'src/example.scss' }) })
+    expect(open.getAttribute('aria-describedby')).toBeTruthy()
+    fireEvent.click(open)
+    expect(props.openChangesReview).toHaveBeenCalledExactlyOnceWith({ sessionId: 'child-session', seq: 5, turn: 1 }, 0)
+  })
+
+  it.each(['binary', 'oversized'] as const)('keeps the %s status in a single-file header', (flag) => {
+    const single = servedStore({ turn: 1, files: [changedFile('asset.bin', 0, 0, { [flag]: true })], total: 1, added: 0, deleted: 0 })
+    const { view } = renderCard(new PresentedOpenController(), en, { changes, presented: [] }, single)
+    expect(view.getByText(en[`changes.${flag}`])).toBeTruthy()
+    expect(view.queryByText('+0')).toBeNull()
+    expect(view.queryByRole('list')).toBeNull()
+  })
+
   it('hides changed files and avoids summary reads when developer tools are off', () => {
     const props = openProps(new PresentedOpenController(), servedStore())
     const base = { ...props, matched: { changes, presented: [] }, openFile: vi.fn(), sessionId: SessionId('child-session'), t: makeTranslate(en) }
@@ -607,7 +630,7 @@ describe('ChangedFiles card', () => {
     expect(within(within(card).getByRole('button', { name: 'View changes to src/index.ts' })).getByText('src/index.ts')).toBeTruthy()
     expect(within(card).queryByText('~/.zshrc')).toBeNull()
     expect(within(card).getByRole('button', { name: 'Review this turn’s changes in the sidebar' })
-      .querySelector('svg')?.getAttribute('width')).toBe('10')
+      .querySelector('svg')?.getAttribute('width')).toBe('20')
     fireEvent.click(within(card).getByRole('button', { name: 'View changes to config/feature-flags.json' }))
     expect(props.openChangesReview).toHaveBeenLastCalledWith({ sessionId: 'child-session', seq: 5, turn: 1 }, 1)
     expect(props.openChanged).not.toHaveBeenCalled()
@@ -912,7 +935,7 @@ it.each([{}, { turn: '1', callId: 'bad', files: [] },
   const summaries = new ChangesSummaryStore()
   summaries.state.set({ [changesSummaryUrl(SessionId('session'), 5)]: { turn: 1, files: [{ path: 'a.txt', display: 'a.txt', added: 1, deleted: 0 }], total: 1, added: 1, deleted: 0 } })
   const view = render(<Deliverables {...openProps(new PresentedOpenController(), summaries)} matched={matched} openFile={owner.openFile} sessionId={SessionId('session')} t={makeTranslate(en)} />)
-  expect(view.getByText('Edited 1 files')).toBeTruthy()
+  expect(view.getByText('Edited a.txt')).toBeTruthy()
   expect(view.queryByText('Deliverables')).toBeNull()
 })
 

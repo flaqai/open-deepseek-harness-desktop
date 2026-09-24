@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-14-workbuddy-external-tool.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-14-workbuddy-external-tool.md
-2026-09-14-workbuddy-external-tool.md: e111e5a2aa948928e35e7e20cbde2f1408f55b11
-2026-09-14-workbuddy-external-tool.zh.md: bdb7f4abbd5b36bd81423c0f08ea082e6d50141a
+/agent-note-workbuddy-stays-an-explicit-community-connection:
+  en: 79ea5f97390a2021
+  zh: 6dbc4657cc668a12
+/agent-note-workbuddy-stays-an-explicit-community-connection/problem:
+  en: fd5be7568f2e7cac
+  zh: 122f9f290649f314
+/agent-note-workbuddy-stays-an-explicit-community-connection/decision:
+  en: 2cbb3709397bd964
+  zh: 1a0cca80e416343a
+/agent-note-workbuddy-stays-an-explicit-community-connection/alternatives-considered:
+  en: f11612a78da63e21
+  zh: aec5f747e0f935dc
+/agent-note-workbuddy-stays-an-explicit-community-connection/consequences:
+  en: b7f3859e42bd2930
+  zh: d2e0b6d766b53d5f

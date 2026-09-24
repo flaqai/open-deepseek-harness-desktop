@@ -83,7 +83,10 @@
     - text: One cursor token, one focus ring.
   - listitem: Mirror spec (non-http) A non-http source renders inert.
 - button "Inspect"
-- button "Fetch https://docs.example.test/tokens" [expanded]
+- button "Fetch https://docs.example.test/tokens" [expanded]:
+  - text: Fetch
+  - link "https://docs.example.test/tokens":
+    - /url: https://docs.example.test/tokens
 - link "https://docs.example.test/tokens":
   - /url: https://docs.example.test/tokens
 - text: HTTP 200

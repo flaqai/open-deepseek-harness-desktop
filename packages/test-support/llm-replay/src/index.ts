@@ -32,6 +32,7 @@ import type {
   StreamChunk,
   SystemPromptUpdate,
   TokenUsage,
+  ToolUpdate,
 } from '@deepseek-ai/dsh-llm'
 import { LlmAdapter, LlmError, ReasoningEffortId, expandAssistantStream, offloadedImageText, requestImageHandleText, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
@@ -104,6 +105,8 @@ export interface ReplayModelConfig {
   defaultReasoningEffort?: string
   /** Optional in-history system prompt replacement for a keyless replay route. */
   systemPromptUpdate?: SystemPromptUpdate
+  /** Optional mid-conversation tool declaration mode for a keyless replay route. */
+  toolUpdate?: ToolUpdate
 }
 
 /** One provider route exposed by the replay adapter. */
@@ -921,6 +924,9 @@ class ReplayAdapter extends LlmAdapter {
       ...configuredModel?.systemPromptUpdate === undefined
         ? {}
         : { systemPromptUpdate: configuredModel.systemPromptUpdate },
+      ...configuredModel?.toolUpdate === undefined
+        ? {}
+        : { toolUpdate: configuredModel.toolUpdate },
       ...configuredModel?.reasoningEfforts === undefined
         ? {}
         : {
@@ -1170,6 +1176,13 @@ function validateConfiguredModels(providers: ReplayProviderConfig[] | undefined)
         throw new Error(
           `llm-replay: provider "${provider.id}" model "${model.id}" systemPromptUpdate `
           + 'must be "in-history" when present',
+        )
+      }
+      const toolUpdate: unknown = model.toolUpdate
+      if (toolUpdate !== undefined && toolUpdate !== 'in-history' && toolUpdate !== 'addition-only') {
+        throw new Error(
+          `llm-replay: provider "${provider.id}" model "${model.id}" toolUpdate `
+          + 'must be "in-history" or "addition-only" when present',
         )
       }
     }

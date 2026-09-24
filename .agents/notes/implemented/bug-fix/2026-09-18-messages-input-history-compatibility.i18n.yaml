@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-messages-input-history-compatibility.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-18-messages-input-history-compatibility.md
-2026-09-18-messages-input-history-compatibility.md: dd974fb1ae883716002a1381f4c374dee792b3b3
-2026-09-18-messages-input-history-compatibility.zh.md: 6e850328db63d5ae5cb508aa3529e9f2507182b0
+/agent-note-replay-assistant-blocks-in-messages-user-input:
+  en: 2928aedee63465ba
+  zh: 0492dcc6604e2292
+/agent-note-replay-assistant-blocks-in-messages-user-input/problem:
+  en: d42b7147df73f498
+  zh: f77ef429363c2da8
+/agent-note-replay-assistant-blocks-in-messages-user-input/decision:
+  en: 0b5629b321be7181
+  zh: 3449958cde376d59
+/agent-note-replay-assistant-blocks-in-messages-user-input/alternatives-considered:
+  en: 3801041c0f9c4d8a
+  zh: 71d80b08183e8b30
+/agent-note-replay-assistant-blocks-in-messages-user-input/consequences:
+  en: c1770c7aa4097c42
+  zh: 80ab7f2b66408ad7

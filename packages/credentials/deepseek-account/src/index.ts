@@ -1,9 +1,16 @@
 /** Account Service Definition shared by platform, API, and model consumers. */
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { AccountDetails, AccountView, SignInAttemptId } from './types.ts'
-export type { AccountDetails, AccountProfile, AccountWallet, AccountLinks, AccountView, SignInAttemptId, SignInAttemptView, SignInErrorCode } from './types.ts'
+import type { AccountBonusBatch, AccountBonusOrderId, AccountClientMetadata, AccountDetails, AccountUserId, AccountView, SignInAttemptId } from './types.ts'
+export type { AccountBonusBatch, AccountBonusNotification, AccountBonusOrderId, AccountClientMetadata, AccountDetails, AccountProfile, AccountUserId, AccountWallet, AccountLinks, AccountView, SignInAttemptId, SignInAttemptView, SignInErrorCode } from './types.ts'
+export { isRunningAccountTask, installAccountTaskCancellation } from './account-tasks.ts'
 
 declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /** Local grant removal has completed.
+     * @mode emit
+     */
+    'deepseek-account/signed-out'(): void
+  }
   interface Context {
     deepseekAccount: DeepSeekAccount
   }
@@ -13,9 +20,11 @@ declare module '@deepseek-ai/cordis' {
 export interface PlatformSession {
   readonly origin: string
   readonly token: string
+  /** Stable issuer account ID from the last successful profile read; null requires disposable browser storage. */
+  readonly userId: AccountUserId | null
   /** Optional dist query value selecting the embedded frontend deployment. */
   readonly embeddedPageDist?: string
-  /** Host-only request headers: deployment headers and the provider client identity; never exposed through renderer bootstrap. */
+  /** Host-only deployment request headers; the consuming client adds its own dynamic identity, and neither reaches renderer bootstrap. */
   readonly requestHeaders?: Readonly<Record<string, string>>
 }
 
@@ -30,22 +39,40 @@ export abstract class DeepSeekAccount extends Service {
   abstract getState(): Promise<AccountView>
   /**
    * Query Platform profile independently of wallet balances.
+   * A ready result whose stable profile ID first becomes available or changes notifies watch
+   * consumers, so identity consumers re-read getPlatformSession; repeated IDs stay silent.
+   * @param client - identity of the requesting UI for this call.
    * @returns profile outcome, or null if signed out or the grant changed during the query.
    */
-  abstract getProfile(): Promise<AccountDetails['profile'] | null>
+  abstract getProfile(client: AccountClientMetadata): Promise<AccountDetails['profile'] | null>
   /**
    * Query Platform recharge and bonus wallet balances independently of profile data.
+   * @param client - identity of the requesting UI for this call.
    * @returns balance outcome, or null if signed out or the grant changed during the query.
    */
-  abstract getBalance(): Promise<AccountDetails['balance'] | null>
+  abstract getBalance(client: AccountClientMetadata): Promise<AccountDetails['balance'] | null>
+  /**
+   * Query the granted bonuses Platform has not yet recorded as displayed.
+   * @param client - identity of the requesting UI for this call; its language selects the server-authored message.
+   * @returns bonuses with their account, or null if signed out or the grant changed during the query.
+   */
+  abstract getUnnotifiedBonuses(client: AccountClientMetadata): Promise<AccountBonusBatch | null>
+  /**
+   * Record one displayed bonus as notified for the account it belongs to.
+   * @param accountId - account the notification was read for; a different current account is never acknowledged.
+   * @param orderId - granted bonus order the user saw.
+   * @param client - identity of the requesting UI for this call.
+   * @returns true once Platform records the acknowledgement; false if signed out or the account changed.
+   */
+  abstract ackBonusNotified(accountId: AccountUserId, orderId: AccountBonusOrderId, client: AccountClientMetadata): Promise<boolean>
   /**
    * Join an active attempt or start browser authorization.
-   * @param locale - active UI language for a new attempt; joining retains its original language.
+   * @param client - identity of the requesting UI; a new attempt captures it, and joining retains the original attempt's identity.
    * @param callbackOrigin - browser-accessible loopback HTTP origin, including any SSH local port.
    * @param loginSource - initiating UI, used to return from a failed exchange.
    * @returns the initial snapshot without waiting for browser approval.
    */
-  abstract startSignIn(locale: string, callbackOrigin: string, loginSource: 'web' | 'desktop'): Promise<AccountView>
+  abstract startSignIn(client: AccountClientMetadata, callbackOrigin: string, loginSource: 'web' | 'desktop'): Promise<AccountView>
   /**
    * Cancel only the named attempt; committing attempts settle before returning.
    * @param id - attempt identity from this Host.
@@ -53,10 +80,11 @@ export abstract class DeepSeekAccount extends Service {
    */
   abstract cancelSignIn(id: SignInAttemptId): Promise<AccountView>
   /**
-   * Remove the local grant while retaining API keys and tasks; the provider revokes it in the background.
+   * Remove the local grant while retaining API keys; the provider revokes it in the background.
+   * @param client - identity of the requesting UI, captured for the background revocation retries.
    * @returns the signed-out state after local removal; remote failures never restore the grant.
    */
-  abstract signOut(): Promise<AccountView>
+  abstract signOut(client: AccountClientMetadata): Promise<AccountView>
   /**
    * Subscribe to snapshots including a complete initial state.
    * @param signal - subscription lifetime; ending it never cancels login.
@@ -70,8 +98,15 @@ export abstract class DeepSeekAccount extends Service {
    */
   abstract resolveToken(url: string): Promise<string | undefined>
   /**
-   * Read credentials for the configured Platform origin, bound to their issuing environment.
-   * @returns a Host-only snapshot, or null while signed out.
+   * Remove an inference-rejected token only while it still matches the stored login.
+   * @param token - token captured by the rejected inference request.
+   * @returns after matching credentials are removed and the expiry notification is emitted.
+   */
+  abstract rejectToken(token: string): Promise<void>
+  /**
+   * Read credentials for the configured Platform origin, bound to their issuing environment, and
+   * pair them with the account ID from the last successful profile read; no profile request is made.
+   * @returns a Host-only snapshot, or null while signed out or when the credential changed during the read.
    */
   abstract getPlatformSession(): Promise<PlatformSession | null>
 }
@@ -103,4 +138,31 @@ export function mergePlatformCookies(base: string, override: string): string {
 export function desktopClientHeaders(platform: 'darwin' | 'win32' | null): Record<string, string> {
   if (platform === null) return {}
   return { 'x-client-platform': platform === 'win32' ? 'desktop-win' : 'desktop-mac' }
+}
+
+/**
+ * Build the Platform client identity headers for one call.
+ * @param platform - Operating system supplied by the desktop composition; null identifies the client as web.
+ * @param client - identity of the requesting UI for this call.
+ * @returns the five client headers; the bundle ID is intentionally empty.
+ */
+export function platformClientHeaders(platform: 'darwin' | 'win32' | null, client: AccountClientMetadata): Record<string, string> {
+  return {
+    'x-client-bundle-id': '',
+    'x-client-platform': 'web',
+    ...desktopClientHeaders(platform),
+    'x-client-version': client.version,
+    'x-client-locale': platformWireLocale(client.locale),
+    'x-client-timezone-offset': String(client.timezoneOffsetSeconds),
+  }
+}
+
+/**
+ * Reduce a caller's UI language to the region-tagged Platform locale.
+ * Shares one normalization with the header and with request body locale fields.
+ * @param locale - active UI language such as `zh-CN`, `zh_TW`, or `en-US`.
+ * @returns the region-tagged Platform locale for that language, `zh_CN` or `en_US`.
+ */
+export function platformWireLocale(locale: string): 'zh_CN' | 'en_US' {
+  return locale.toLowerCase().split(/[-_]/)[0] === 'zh' ? 'zh_CN' : 'en_US'
 }

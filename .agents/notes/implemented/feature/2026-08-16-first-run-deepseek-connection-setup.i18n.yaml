@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-16-first-run-deepseek-connection-setup.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-16-first-run-deepseek-connection-setup.md
-2026-08-16-first-run-deepseek-connection-setup.md: 8beea254c9d51cc606729811ce6f178ee239fdf5
-2026-08-16-first-run-deepseek-connection-setup.zh.md: 9ea43b1028015ee8ca1dcb42cd03f8fa78c6c09d
+/agent-note-first-run-deepseek-connection-setup:
+  en: 189374fa39e7b58c
+  zh: 501762317be04781
+/agent-note-first-run-deepseek-connection-setup/problem:
+  en: bb668664a07a7f0f
+  zh: 4314a5311ac2791f
+/agent-note-first-run-deepseek-connection-setup/decision:
+  en: 0b602cdf4e990fbe
+  zh: 456b916b3159ab2d
+/agent-note-first-run-deepseek-connection-setup/alternatives-considered:
+  en: 75b8e16b21b74e76
+  zh: e828a6f8051d0224
+/agent-note-first-run-deepseek-connection-setup/consequences:
+  en: 6a009a811239ae1e
+  zh: 77c89fe0868f8baa

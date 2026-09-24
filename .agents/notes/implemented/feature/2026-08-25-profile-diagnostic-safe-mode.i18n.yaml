@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-25-profile-diagnostic-safe-mode.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-25-profile-diagnostic-safe-mode.md
-2026-08-25-profile-diagnostic-safe-mode.md: ed3e3f2cb1a91a98778fd084663f5dcac90dea0b
-2026-08-25-profile-diagnostic-safe-mode.zh.md: cd11ffce2c7f3332379d5f22c785afa272efcffc
+/agent-note-profile-diagnostics-and-safe-startup:
+  en: 1d30f179446bdeab
+  zh: 5508348ed09dd46c
+/agent-note-profile-diagnostics-and-safe-startup/problem:
+  en: 58e509e90c8133c7
+  zh: c072d386c100b1b7
+/agent-note-profile-diagnostics-and-safe-startup/decision:
+  en: 5a0d7d407c504084
+  zh: b9ab015d25a7430f
+/agent-note-profile-diagnostics-and-safe-startup/alternatives-considered:
+  en: 80791292cc4c748c
+  zh: 052bc2073247bd0f
+/agent-note-profile-diagnostics-and-safe-startup/consequences:
+  en: 872ab6794c057a85
+  zh: 9d008a8b902ea41d

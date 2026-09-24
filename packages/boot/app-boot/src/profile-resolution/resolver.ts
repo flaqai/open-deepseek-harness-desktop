@@ -652,17 +652,28 @@ function internalModules(): InternalModules {
   }
 }
 
+/**
+ * Replace a resolver error's message and the same text in its stack.
+ * Node's module-hooks thread serializes errors and returns the stack accessor as a read-only configurable
+ * data property, so a rejected stack assignment redefines the property value.
+ * @param error - resolver error to update in place.
+ * @param message - replacement message.
+ */
+function replaceErrorMessage(error: Error, message: string): void {
+  const { message: originalMessage, stack } = error
+  error.message = message
+  /* v8 ignore next -- Node's resolver errors always carry a stack */
+  if (stack === undefined) return
+  const replaced = stack.replace(originalMessage, message)
+  if (!Reflect.set(error, 'stack', replaced)) Object.defineProperty(error, 'stack', { value: replaced })
+}
+
 function throwWithImporter(error: unknown, routedParent: string, parent: string): never {
   const code = (error as NodeJS.ErrnoException).code
   if (error instanceof Error && (code === 'ERR_MODULE_NOT_FOUND' || code === 'ERR_PACKAGE_PATH_NOT_EXPORTED')) {
     const routedPath = fileURLToPath(routedParent)
     const parentPath = fileURLToPath(parent)
-    const originalMessage = error.message
-    const message = originalMessage.replaceAll(routedParent, parent).replaceAll(routedPath, parentPath)
-    const stack = error.stack
-    error.message = message
-    /* v8 ignore next -- Node's resolver errors always carry a stack */
-    if (stack !== undefined) error.stack = stack.replace(originalMessage, message)
+    replaceErrorMessage(error, error.message.replaceAll(routedParent, parent).replaceAll(routedPath, parentPath))
   }
   throw error
 }

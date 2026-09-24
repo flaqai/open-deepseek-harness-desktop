@@ -8,6 +8,8 @@ import { pathToFileURL } from 'node:url'
 import { ModuleLoader } from '@deepseek-ai/cordis-plugin-loader'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readPluginMeta, resolvePluginResource } from '../src/package-meta.ts'
+import { installRuntimeInterception } from '../src/profile-resolution/resolver.ts'
+import { registerHooksThreadStacks } from './hooks-thread-stack.ts'
 
 let root: string
 let dir: string
@@ -431,5 +433,60 @@ describe('plugin locale display metadata', () => {
     // Case-insensitive filesystems cannot hold both filenames.
     if (readdirSync(join(dir, 'locale')).length !== 2) context.skip()
     expect(readPluginMeta('localized', parentURL)?.error).toContain('duplicates locale en')
+  })
+})
+
+describe('plugin display metadata with read-only resolver stacks', () => {
+  const cleanups: (() => void)[] = []
+  let bundle: string
+  let profileURL: string
+
+  beforeEach(() => {
+    bundle = join(root, 'bundle')
+    file(join(bundle, 'package.json'), JSON.stringify({ name: 'bundle', dependencies: { plain: '*', translated: '*' } }))
+    file(join(bundle, 'node_modules', 'plain', 'package.json'), JSON.stringify({
+      name: 'plain', description: 'Plain introduction', exports: { '.': './index.js', './package.json': './package.json' },
+    }))
+    file(join(bundle, 'node_modules', 'translated', 'package.json'), JSON.stringify({
+      name: 'translated', exports: { '.': './index.js', './locale/*.json': './locale/*.json', './package.json': './package.json' },
+    }))
+    dictionary('en', { meta: { title: 'Translated' } }, join(bundle, 'node_modules', 'translated', 'locale'))
+    const profilesDir = join(root, 'profiles')
+    const profileDir = join(profilesDir, 'web')
+    mkdirSync(profileDir, { recursive: true })
+    profileURL = `${pathToFileURL(profileDir).href}/`
+    const registration = installRuntimeInterception({
+      profilesDir, profileDir, localPackageNames: [], linkedRoots: [],
+      entries: ['plain', 'translated'].map(name => ({
+        name, version: undefined, scope: 'profile' as const,
+        packageDir: join(bundle, 'node_modules', name), declarer: join(bundle, 'package.json'),
+      })),
+    })
+    cleanups.push(() => { registration.dispose() })
+    const hooks = registerHooksThreadStacks()
+    cleanups.push(() => { hooks.deregister() })
+  })
+
+  afterEach(() => {
+    for (const cleanup of cleanups.splice(0).reverse()) cleanup()
+  })
+
+  function parentFor(lookup: 'profile' | 'native'): string {
+    return lookup === 'profile' ? profileURL : pathToFileURL(join(bundle, 'entry.mjs')).href
+  }
+
+  it.each(['profile', 'native'] as const)('falls back to package fields when %s resolution finds no locale resources', (lookup) => {
+    expect(readPluginMeta('plain', parentFor(lookup))).toEqual({ title: 'plain', description: 'Plain introduction' })
+  })
+
+  it.each(['profile', 'native'] as const)('reads exported locale resources through %s resolution', (lookup) => {
+    expect(readPluginMeta('translated', parentFor(lookup))).toEqual({ title: { en: 'Translated' } })
+  })
+
+  it('reports invalid export targets reached through the profile', () => {
+    file(join(bundle, 'node_modules', 'plain', 'package.json'), JSON.stringify({
+      name: 'plain', exports: { './locale/*.json': '../outside/*.json' },
+    }))
+    expect(readPluginMeta('plain', profileURL)?.error).toContain('Invalid "exports" target')
   })
 })

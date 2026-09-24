@@ -15,6 +15,7 @@ describe('OpenInAppController availability', () => {
   it('starts without a platform-specific choice', () => {
     const controller = new OpenInAppController(async () => jsonResponse({ apps: [] }))
     expect(controller.choice.getSnapshot()).toBe('')
+    expect(controller.currentApp()).toBeUndefined()
   })
 
   it('shares one availability read across concurrent loads', async () => {
@@ -45,6 +46,34 @@ describe('OpenInAppController availability', () => {
 })
 
 describe('OpenInAppController launching', () => {
+  it('uses only nameable installed apps and falls back when the remembered choice is unavailable', () => {
+    const controller = new OpenInAppController()
+    controller.apps.set(['unknown-app', 'finder', 'cursor'])
+    controller.choose('cursor')
+    expect(controller.currentApp()).toBe('cursor')
+    controller.apps.set(['unknown-app', 'finder'])
+    expect(controller.currentApp()).toBe('finder')
+    controller.apps.set(['unknown-app'])
+    expect(controller.currentApp()).toBeUndefined()
+  })
+
+  it('shares the busy operation across gestures and captures its app and directory', async () => {
+    let finish!: (response: Response) => void
+    const fetcher = vi.fn((_input: string | URL, _init?: RequestInit) => new Promise<Response>((resolve) => { finish = resolve }))
+    const controller = new OpenInAppController(fetcher)
+    controller.choose('cursor')
+    const pending = controller.launch('cursor', '/workspace/first')
+    expect(controller.operation.getSnapshot()).toEqual({ phase: 'busy', path: '/workspace/first' })
+    controller.choose('finder')
+    await controller.launch('finder', '/workspace/second')
+    expect(controller.choice.getSnapshot()).toBe('cursor')
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ app: 'cursor', path: '/workspace/first' }))
+    finish(jsonResponse({ ok: true }))
+    await pending
+    expect(controller.operation.getSnapshot()).toEqual({ phase: 'idle', path: '/workspace/first' })
+  })
+
   it('restores the chosen app from the open-in-app storage key', () => {
     const values = new Map<string, string>()
     vi.stubGlobal('localStorage', {
@@ -72,5 +101,6 @@ describe('OpenInAppController launching', () => {
 
     const failing = new OpenInAppController(async () => jsonResponse({}, 404))
     await expect(failing.launch('cursor', '/w/dir')).rejects.toThrow('open failed: HTTP 404')
+    expect(failing.operation.getSnapshot()).toEqual({ phase: 'error', path: '/w/dir' })
   })
 })

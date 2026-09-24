@@ -39,6 +39,8 @@ A docking layout kit: a split tree of tabbed panes with invertible operations, a
 
 **The components** render a layout snapshot and report settled intents — one per gesture, never a drag frame. A drag previews in local state while the gesture's own facts stay in its closure; on release the net result leaves through one `DockIntents` call — a strip release reports the caret slot as drawn, the dragged chip counted, and `planPlaceTab` turns that into the reorder or the move. That is what lets an embedder record exactly one history entry per gesture. The strip follows the WAI-ARIA tabs pattern with manual activation: the selected chip is in the tab order; Left and Right (wrapping), Home, and End move focus between chips without selecting; Enter or Space selects the focused chip through the same intent as a click. A chip is a capsule carrying one control, its close; the context menu (a secondary press on the chip) carries the same close plus the embedder's items — a menu that would hold no item at all never shows — and renders in a portal positioned against the chip because the chip box clips its overflow on purpose (see below). After the chips sits the add control, which asks the embedder (`DockIntents.addTab`) to seat its seeded tab; the embedder's `canAddTab(paneId)` decides per pane whether the control is drawn at all. Copying a tab has no kit control — it is the embedder's API — and floating is the drag released clear of the surface.
 
+Tab context menus show the close action name without a shortcut hint: they act on the clicked tab, while shortcuts can target another focused pane. An unmodified Escape dismisses the foreground tab menu without closing the tab and returns focus from a menu item to its tab without drawing a focus outline. Tab and arrow navigation retain the tab’s visible focus indicator. Composition and held-key repeats do not dismiss it.
+
 <a id="embedding-it"></a>
 ## Embedding it
 
@@ -62,6 +64,8 @@ A tab's `kind` is an opaque string. Seeded tabs are factories (`DockControllerOp
 
 <a id="interaction-rules-worth-keeping"></a>
 ## Interaction rules worth keeping
+
+The split control accepts localized tooltip text, separate effective keys through `splitPaneKeys`, and an ARIA combination from its embedder. Close controls receive their keys through `closeTabKeys`. A disabled control has a keyboard-focusable wrapper that explains the pane-budget or width restriction. Docked and floating pane containers can receive programmatic focus without entering the normal tab sequence or drawing a focus outline; their controls retain their own keyboard focus indicators. Tab navigation and selection use unmodified keys and leave composition input to its owner.
 
 These are not stylistic; each one fixes a defect found in a real browser.
 
@@ -99,10 +103,14 @@ None; this package neither assembles nor sends a provider request.
 <a id="dev-note"></a>
 ### Dev Note
 
+Menus use the shared `MenuSurface` material, including the macOS backing for background blur; custom content follows the [menu rules](../../../docs/web-styling.md#component-rules).
+
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
 None.
+
+The embedder supplies effective close keycaps and ARIA combinations for tab and floating close controls. Close controls expose the same tooltip on hover and keyboard focus. Tab close tooltips stay hidden while their pane's context menu is open.
 
 </details>
 

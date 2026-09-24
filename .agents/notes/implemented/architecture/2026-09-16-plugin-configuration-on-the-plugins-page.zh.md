@@ -20,7 +20,7 @@ Status: implemented
 
 **四个宿主平面页面在 Host 服务其命名空间期间注册。** 每个页面所在的包在共享的 settings 镜像显示某个命名空间时通过 `ctx.slots.inject` 注册对应页面，命名空间消失时销毁，因此没有组装该插件的部署不会留下它的痕迹；自[设置页作为伴生包](2026-09-17-settings-pages-as-companion-packages.zh.md)起，每个页面各是一个伴生包，`ui-settings-plugins` 把设置分区保留为清单标签页外面的**内置插件**外壳。`settings.plugin.item` slot 退役。
 
-**官方分组。** 安装随附的可选组合包开启这个分组，属于 beta 功能的（Agent Teams）带 **Beta** 标签，没有官方标签；配置页排在其后。Auto review 是安装引导用作示例的已发布实验包，不属于 `OPTIONAL_BUNDLES` 或 CLI 依赖。
+**官方分组。** 安装随附的可选组合包开启这个分组，属于实验包的带 **Beta** 标签，没有官方标签；配置页排在其后。[实验能力的可选 bundle 决策](2026-09-21-experimental-capabilities-as-optional-bundles.zh.md)列出这些条目。
 
 ## 后果
 

@@ -4,8 +4,9 @@
 .status { display: flex; gap: 12px; align-items: center; margin: 0; padding: 16px; font-size: 13px; color: var(--dsw-alias-label-secondary); }
 .body { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: auto; padding: 8px 0 16px; font: var(--dsw-font-markdown-code-block); }
 .columns { display: grid; flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 0; }
-/* One intrinsic-width track keeps every hunk and empty row painted across the scrollable content. */
-.column { display: grid; grid-template-columns: minmax(max-content, 100%); align-content: start; min-width: 0; overflow-x: scroll; overscroll-behavior: none; }
+/* One intrinsic-width track keeps every hunk and row painted across the scrollable content. */
+.column, .body[data-review-view='unified']:not([data-review-wrap]) { display: grid; grid-template-columns: minmax(max-content, 100%); align-content: start; }
+.column { min-width: 0; overflow-x: scroll; overscroll-behavior: none; }
 .column + .column { border-left: 0.5px solid var(--dsw-alias-border-l3); }
 .sideLine { display: grid; grid-template-columns: 3.5em max-content; box-sizing: border-box; min-width: 100%; width: max-content; min-height: 22px; line-height: 22px; white-space: pre; }
 .note { margin: 0; padding: 4px 16px 8px; font: var(--dsw-font-xs-13); color: var(--dsw-alias-label-tertiary); }

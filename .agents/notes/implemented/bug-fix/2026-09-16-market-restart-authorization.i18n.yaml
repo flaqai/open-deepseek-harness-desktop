@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-market-restart-authorization.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-16-market-restart-authorization.md
-2026-09-16-market-restart-authorization.md: bc45a6ba768712a84b25c25e568ba8ea43797ce8
-2026-09-16-market-restart-authorization.zh.md: 1d5b0d237ea94c555fd9f6eb0d4654ffe5bf3ce6
+/agent-note-explicit-desktop-plugin-transaction-authorization:
+  en: 52c8b0dcf8898967
+  zh: 96602633dcbf3fc4
+/agent-note-explicit-desktop-plugin-transaction-authorization/problem:
+  en: cc0066cd38947763
+  zh: 5e2a6dbd4983a81c
+/agent-note-explicit-desktop-plugin-transaction-authorization/decision:
+  en: ec62cadd91004ed7
+  zh: f2d6b4d8e74f6fc2
+/agent-note-explicit-desktop-plugin-transaction-authorization/alternatives-considered:
+  en: 8dcc4402a3f4d79a
+  zh: 88179b74f3aab7e9
+/agent-note-explicit-desktop-plugin-transaction-authorization/consequences:
+  en: 58da6d5457a325c5
+  zh: 775a5b97505a5a3c

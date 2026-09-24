@@ -83,7 +83,7 @@ describe('ui-settings-general shell', () => {
 
   it('declares its services', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'settingsNavigation',
+      'slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'settingsNavigation', 'shortcuts',
     ])
   })
 

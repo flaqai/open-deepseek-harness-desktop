@@ -68,7 +68,7 @@ export function OfficeBody(props: OfficeBodyProps): ReactNode {
       <Button size="sm" onClick={request.reload}>{t('retry')}</Button>
     </div>
   }
-  if (file === undefined) return <LoadingIndicator className={common.statusLine} label={t('loading')} />
+  if (file === undefined) return <LoadingIndicator label={t('loading')} />
   return <div className={css.body}>
     {props.renderSlot('sidebar.right.tab.document.office.pdf', {
       resourceAddress, content: { kind: 'bytes', data: file.data }, wrap: props.wrap, scrollportRef: props.scrollportRef,

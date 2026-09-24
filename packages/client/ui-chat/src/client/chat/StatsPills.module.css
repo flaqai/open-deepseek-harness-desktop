@@ -27,7 +27,8 @@
   max-width: 100%;
   padding: 1px 8px;
   border: none;
-  border-radius: 24px;
+  border-radius: 999px;
+  corner-shape: round;
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   font: inherit;

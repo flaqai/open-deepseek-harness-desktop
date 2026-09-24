@@ -1,7 +1,8 @@
 {
   "name": "@deepseek-ai/dsh-experimental-auto-review",
   "description": "Per-tool LLM authorization review for the DeepSeek Harness Auto permission preset",
-  "version": "0.1.7-rc.1",
+  "version": "0.1.7-rc.2",
+  "icon": "./icon.svg",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
@@ -21,6 +22,7 @@
     "./cordis.patch.yml": "./cordis.patch.yml"
   },
   "files": [
+    "icon.svg",
     "locale/*.json",
     "lib/index.js",
     "cordis.patch.yml",
@@ -51,6 +53,7 @@
     "@deepseek-ai/dsh-fs-sandbox": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-llm-deepseek": "workspace:*",
+    "@deepseek-ai/dsh-llm-deepseek-api-key": "workspace:*",
     "@deepseek-ai/dsh-permission-presets": "workspace:*",
     "@deepseek-ai/dsh-ptc-runtime-node": "workspace:*",
     "@deepseek-ai/dsh-sandbox": "workspace:*",

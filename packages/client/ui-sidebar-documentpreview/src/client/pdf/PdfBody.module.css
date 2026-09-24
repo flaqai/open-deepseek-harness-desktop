@@ -1,14 +1,20 @@
 .body {
   display: flex;
   flex-direction: column;
+  gap: 12px;
   box-sizing: border-box;
   width: 100%;
-  min-height: 0;
+  min-height: 100%;
   min-width: 100%;
+  padding: 12px;
   overflow: visible;
   background: var(--dsw-alias-bg-document-preview);
   font-family: var(--dsw-font, sans-serif);
   white-space: normal;
+}
+
+:global([data-document-zoom-mode="fixed"]) .body {
+  width: max-content;
 }
 
 .page {
@@ -138,13 +144,4 @@
 
 .body .status {
   color: var(--dsw-alias-label-document-preview);
-}
-
-/* The document-open wait fills the still-empty body and centres, matching the
-   owner's read spinner position. */
-.opening {
-  justify-content: center;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 100%;
 }

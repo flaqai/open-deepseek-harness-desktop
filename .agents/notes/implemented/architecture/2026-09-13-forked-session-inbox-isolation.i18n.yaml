@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-forked-session-inbox-isolation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-13-forked-session-inbox-isolation.md
-2026-09-13-forked-session-inbox-isolation.md: eed3bcce1331fa8fe31fca5bd5551eca9c82465b
-2026-09-13-forked-session-inbox-isolation.zh.md: 5af81fb0836910aaf386600a462683293ec5506a
+/agent-note-forked-session-inbox-isolation:
+  en: a71f39714fd7a4f2
+  zh: 621750a07b0c847c
+/agent-note-forked-session-inbox-isolation/problem:
+  en: 92944a32410fe920
+  zh: c420ec44e361ec2b
+/agent-note-forked-session-inbox-isolation/decision:
+  en: 3ef424757943b1ae
+  zh: 8038752070210114
+/agent-note-forked-session-inbox-isolation/alternatives-considered:
+  en: 6e394bf892a0dbd0
+  zh: 16abbe1dfb295129
+/agent-note-forked-session-inbox-isolation/consequences:
+  en: bee7d606ebd50236
+  zh: 23e159f5d28c6311

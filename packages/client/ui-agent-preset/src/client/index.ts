@@ -11,6 +11,10 @@
  * header only reports what a session already runs. The default preset is
  * edited where the roster is visible — the settings section's "make default"
  * — so General settings carries no duplicate control for the same field.
+ *
+ * Developer tools (General settings) are the single gate over selection: with
+ * them off the chip disappears and the card actions are disabled, while the
+ * saved default keeps composing new sessions.
  */
 
 // Type-only: pulls the Session Controller service merge (ctx.sessions).
@@ -96,6 +100,15 @@ export function apply(ctx: ClientContext): void {
     return seat
   }
   const section = new AgentPresetSectionController(ctx)
+  // Turning Developer tools off clears the shared stage before any apply can compose it.
+  const developerTools = ctx.configForms.developerTools.enabled
+  ctx.effect(() => developerTools.subscribe(() => {
+    if (developerTools.getSnapshot()) return
+    staged.id = undefined
+    staged.introduce = false
+    void unboundSeat.apply()
+    for (const seat of seats.values) void seat.apply()
+  }), 'ui-agent-preset: Developer tools gate')
   const mainBlankSeat = (): AgentPresetSeatController | undefined => {
     const summary = Object.values(ctx.sessions.list.getSnapshot().byId)
       .find((session) => {
@@ -142,7 +155,7 @@ export function apply(ctx: ClientContext): void {
       const binding = sessionId === undefined ? undefined : ctx.sessions.binding(sessionId)
       const seat = binding === undefined ? unboundSeat : seatFor(binding)
       return {
-        hooks: { agentPresetSeat: seat.store, showPresetPicker: ctx.configForms.developerTools.enabled },
+        hooks: { agentPresetSeat: seat.store, developerTools: ctx.configForms.developerTools.enabled },
         load: () => seat.load(),
         select: (id: string) => seat.select(id),
         introduced: () => { seat.introduced() },
@@ -156,7 +169,6 @@ export function apply(ctx: ClientContext): void {
 
     scope.effect(() => {
       creatorDraft = () => {
-        if (!section.store.getSnapshot().showPicker) return
         const seat = mainBlankSeat() ?? unboundSeat
         seat.stage('cordis', true)
         scope.uiWorkspace.startSession()
@@ -204,7 +216,6 @@ export function apply(ctx: ClientContext): void {
     closeView: () => { section.closeView() },
     ...creatorDraft === undefined ? {} : { startCreatorDraft: creatorDraft },
     makeDefault: (id: string) => section.makeDefault(id, captureBlankSessionSync()),
-    setPickerVisible: (showPicker: boolean) => section.setPickerVisible(showPicker, captureBlankSessionSync()),
   })
 
   // Ordered after Models: choosing a model is routine, and composing an

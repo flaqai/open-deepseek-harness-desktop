@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-30-bounded-community-release-discovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-30-bounded-community-release-discovery.md
-2026-08-30-bounded-community-release-discovery.md: de024836a297c8288108f7a75b694ca448c5d2ff
-2026-08-30-bounded-community-release-discovery.zh.md: 0e95e35c624fdcbd698ac3349a85b340fb6b4d98
+/agent-note-bound-community-desktop-release-discovery:
+  en: fd3fb8a42512bcab
+  zh: b6d83c1e5c6eb400
+/agent-note-bound-community-desktop-release-discovery/problem:
+  en: d0b364f1d26a1bcb
+  zh: e377b4c164f04654
+/agent-note-bound-community-desktop-release-discovery/decision:
+  en: 66d6be4295989a6b
+  zh: 6a9a604d74cbebb5
+/agent-note-bound-community-desktop-release-discovery/alternatives-considered:
+  en: f12d1c4274f338d3
+  zh: 096b1eff4c954206
+/agent-note-bound-community-desktop-release-discovery/consequences:
+  en: 37680cbc157b09f2
+  zh: 303d344f1ab171d1

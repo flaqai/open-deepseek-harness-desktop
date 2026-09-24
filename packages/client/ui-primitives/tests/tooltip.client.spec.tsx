@@ -39,6 +39,18 @@ afterEach(() => {
 })
 
 describe('Tooltip', () => {
+  it('updates independent keycaps and the accessible combination while visible', () => {
+    const view = render(<Tooltip label="Reload" shortcutKeys={['⌘', 'R']}><button>anchor</button></Tooltip>)
+    fireEvent.focus(screen.getByText('anchor'))
+    expect(Array.from(screen.getByRole('tooltip', { name: 'Reload ⌘ R' }).querySelectorAll('kbd'), key => key.textContent)).toEqual(['⌘', 'R'])
+    view.rerender(<Tooltip label="Reload" shortcutKeys={['Ctrl', '+', 'R']}><button>anchor</button></Tooltip>)
+    expect(Array.from(screen.getByRole('tooltip', { name: 'Reload Ctrl + R' }).querySelectorAll('kbd'), key => key.textContent)).toEqual(['Ctrl', '+', 'R'])
+    view.rerender(<Tooltip label="Reload" shortcutKeys={[]}><button>anchor</button></Tooltip>)
+    expect(screen.getByRole('tooltip').querySelector('kbd')).toBeNull()
+    fireEvent.click(screen.getByText('anchor'))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+
   it('fits from observed sizes without synchronously measuring the bubble', () => {
     automaticResize = false
     const measured = vi.spyOn(Element.prototype, 'getBoundingClientRect')

@@ -95,11 +95,7 @@ export function PresetGuideDialog({ guide, initialPage, t, onClose }: {
   const content = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
-    const previous = document.activeElement
     content.current?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')?.focus()
-    return () => {
-      if (previous instanceof HTMLElement) previous.focus()
-    }
   }, [])
 
   // This reader sits above Settings. Keep keyboard navigation in the reader,

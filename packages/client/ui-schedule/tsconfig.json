@@ -27,6 +27,21 @@
       "path": "../ui-primitives"
     },
     {
+      "path": "../ui-layout"
+    },
+    {
+      "path": "../ui-sidebar"
+    },
+    {
+      "path": "../ui-sidebar-right"
+    },
+    {
+      "path": "../ui-tool"
+    },
+    {
+      "path": "../ui-workspace"
+    },
+    {
       "path": "../ui-renderer"
     },
     {
@@ -34,6 +49,15 @@
     },
     {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../connection/tsconfig.client.json"
+    },
+    {
+      "path": "../../util/values"
     }
   ]
 }

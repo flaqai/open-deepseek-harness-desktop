@@ -73,7 +73,7 @@ export function RiskConfirmation({
           type="checkbox"
           checked={acknowledged}
           disabled={disabled}
-          autoFocus
+          data-modal-autofocus
           onChange={(event) => { onAcknowledgedChange(event.currentTarget.checked) }}
         />
         <span>{acknowledgeLabel}</span>

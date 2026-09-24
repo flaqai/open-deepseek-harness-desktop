@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-23-fork-ci-signal-scope.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/testing/2026-08-23-fork-ci-signal-scope.md
-2026-08-23-fork-ci-signal-scope.md: 4616925a117de56073efb3be4aece1e091ec30c0
-2026-08-23-fork-ci-signal-scope.zh.md: 5020675c11a98fb7c0426ce356ed01e80cd2c8b4
+/agent-note-fork-ci-signal-scope:
+  en: 53b7e599deece0e0
+  zh: 25987b1aab33b655
+/agent-note-fork-ci-signal-scope/problem:
+  en: d3425eabdb118974
+  zh: f59d0e0cb440f2cd
+/agent-note-fork-ci-signal-scope/decision:
+  en: 1461d400de3f84de
+  zh: 0db7ebb73fdeb4cd
+/agent-note-fork-ci-signal-scope/alternatives-considered:
+  en: 4a4f64b6573a2ea4
+  zh: fed84b5d5716336d
+/agent-note-fork-ci-signal-scope/consequences:
+  en: 1c51590f1ab190b5
+  zh: 7f4a8c06af70c3e9

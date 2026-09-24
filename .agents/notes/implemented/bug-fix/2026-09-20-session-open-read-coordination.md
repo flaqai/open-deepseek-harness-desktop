@@ -51,7 +51,7 @@ A known address does not waive authorization checks. When opening child history,
 - Session formats, migrations, the Host observation's `all | none` policy, and the response fields of `session.projections` are unchanged.
 - There is no global cold-read singleflight, and Agent lookups are not universally replaced with read-only lookups.
 - `SessionManager.handleConnected()` still refreshes previously requested catalogs in bulk; this decision does not guarantee one cold read on reconnect.
-- Tool-side `listDescendants` can still read child Sessions on cache misses, and expanding a child node in the Client can still cold-read that node. Ordinary main-session opening is not equivalent to every descendant-enumeration scenario.
+- Tool-side `listDescendants` observes each reachable child catalog. An observation can reuse live state or a valid prepared Session; otherwise it reads the cold log. Expanding a child node in the Client can also cold-read that node. Ordinary main-session opening is not equivalent to every descendant-enumeration scenario.
 - `@` Session candidates still enumerate headers and obtain names from live projections or projection caches, falling back to ids on misses. Existing ranking, the default limit of 50, and direct-subagent grouping remain unchanged; discovery does not recursively traverse `subagentCatalog`.
 
 ## Alternatives considered

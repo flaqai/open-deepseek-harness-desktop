@@ -134,7 +134,7 @@
 | extension point | 扩展点 | | | 注意与 `seam` 区分 |
 | fail-fast | 快速失败 | | | |
 | fenced code block | 围栏代码块 | | | 沿用 MDN 中文翻译 |
-| fingerprint | 指纹 | | | 通用内容指纹；双语配对机制使用 sidecar record 记录两侧 blob hash |
+| fingerprint | 指纹 | | | 通用内容指纹；双语配对机制使用 sidecar record 按分节记录两侧 hash |
 | finish reason | 结束原因 | | | |
 | fold | 折叠区 | | | 配置界面语境：默认收起的字段分区（collapsed →「收起」）|
 | foreground run | 前台运行 | | | |

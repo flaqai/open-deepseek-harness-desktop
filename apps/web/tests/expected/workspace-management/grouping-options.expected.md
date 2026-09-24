@@ -9,5 +9,6 @@
   - menuitem "Last updated"
   - separator
   - text: Filter sessions
-  - menuitem "Show archived"
+  - menuitem "Hide archived"
+  - menuitem "All conversations (show archived)"
   - menuitem "Archived only"

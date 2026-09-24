@@ -133,7 +133,7 @@
    against a busy transcript. */
 .mark:focus-visible::before {
   transform: translateY(-50%) scaleX(1);
-  background: var(--dsw-alias-state-business-primary);
+  background: var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
 }
 
 .mark:focus-visible {
@@ -145,8 +145,9 @@
   inset: 0 0 0 auto;
   width: 20px;
   border-radius: inherit;
-  outline: 1px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+  outline: 1px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  /* The scroller clips the right edge; keep the marker's ring inside it. */
+  outline-offset: -1px;
   content: '';
 }
 
@@ -164,7 +165,7 @@
   overflow: hidden;
   padding: 10px 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-lg);
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-layer-1);
   box-shadow: var(--dsw-elevation-panel);

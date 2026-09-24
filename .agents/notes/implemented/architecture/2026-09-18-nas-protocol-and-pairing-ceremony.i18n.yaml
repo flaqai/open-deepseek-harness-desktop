@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-nas-protocol-and-pairing-ceremony.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-18-nas-protocol-and-pairing-ceremony.md
-2026-09-18-nas-protocol-and-pairing-ceremony.md: 8c4345247249a5baddfbe107b0c775cd377a71c5
-2026-09-18-nas-protocol-and-pairing-ceremony.zh.md: 83bacb3b595098db9ef288263b92e901f35d39d3
+/agent-note-nas-protocol-and-pairing-ceremony-modules:
+  en: ca6b2d123db15c51
+  zh: 7f5316f65215fb54
+/agent-note-nas-protocol-and-pairing-ceremony-modules/problem:
+  en: 08246d088ce2ff16
+  zh: b89d38dd33ad2e46
+/agent-note-nas-protocol-and-pairing-ceremony-modules/decision:
+  en: 41843b8f47c0d6ec
+  zh: 32ab7e1bba57fe4d
+/agent-note-nas-protocol-and-pairing-ceremony-modules/alternatives-considered:
+  en: dce373041b726384
+  zh: 03f5b1bf5d33ef0c
+/agent-note-nas-protocol-and-pairing-ceremony-modules/relationship-to-existing-decisions:
+  en: a72d5a7342248505
+  zh: 071d5992ac2e8ee1
+/agent-note-nas-protocol-and-pairing-ceremony-modules/consequences:
+  en: 79594e5386cf5e74
+  zh: a3b8a6319a20c455

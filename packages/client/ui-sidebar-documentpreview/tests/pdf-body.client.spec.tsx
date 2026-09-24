@@ -18,6 +18,7 @@ vi.mock('../src/client/pdf/document.ts', () => ({ renderPdfPage: engine.render }
 import { PdfBody, type PdfBodyProps } from '../src/client/pdf/pdf.tsx'
 import { createPdfStore, type PdfState } from '../src/client/pdf/store.ts'
 import { en } from '../src/client/pdf/locales.ts'
+import { LoadingIndicator } from '../src/client/LoadingIndicator.tsx'
 import { PdfWorkerFailure } from '../src/client/pdf/errors.ts'
 import { ZoomViewport, zoomSurfaceClass } from '../src/client/zoom/ZoomViewport.tsx'
 
@@ -27,7 +28,8 @@ const loads: Array<{
 }> = []
 
 beforeEach(() => {
-  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(100)
+  // Keep the 100px fixture pages at actual size inside the document gutters.
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(124)
   const context: Pick<CanvasRenderingContext2D, 'drawImage'> = { drawImage: () => {} }
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as CanvasRenderingContext2D)
   loads.length = 0
@@ -93,7 +95,8 @@ function harness() {
       useTabInfo: () => ({ tab: { id: tabId, signal: controller.signal } }),
       useStore, actions: instance.actions, retainTab: vi.fn(), t: makeTranslate(en),
     } as unknown as PdfBodyProps
-    return <PdfBody {...props} scrollportRef={scrollportRef} ZoomViewport={ZoomViewport} zoomSurfaceClass={zoomSurfaceClass} />
+    return <PdfBody {...props} loading={<LoadingIndicator label={en.loading} />} scrollportRef={scrollportRef}
+      ZoomViewport={ZoomViewport} zoomSurfaceClass={zoomSurfaceClass} />
   }
   return { instance, controller, tabId, scrollportRef, View }
 }
@@ -118,7 +121,7 @@ describe('PDF body', () => {
   it('shows loading, adds zoom controls, and renders a continuous page sequence', async () => {
     const h = harness()
     const view = render(<h.View />)
-    expect(screen.getByRole('status').getAttribute('aria-label')).toBe('Reading…')
+    expect(screen.getByRole('status').getAttribute('aria-label')).toBe('Rendering document...')
     expect(screen.getByRole('status').hasAttribute('data-document-loading')).toBe(true)
     expect(screen.getByRole('status').querySelector('[data-state="ongoing"]')).not.toBeNull()
     await act(async () => { loads[0]!.deferred.resolve(documentOf()) })

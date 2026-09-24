@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { SESSION_FORMAT_VERSION, Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { scheduleDomain } from '@deepseek-ai/dsh-schedule'
 import { createSessionFormatCatalogWithChildren } from '@deepseek-ai/dsh-session-format-catalog'
 import {
   generationLogFilename,
@@ -13,6 +14,7 @@ import {
   buildVfsExampleFiles,
   VFS_EXAMPLE_OLDEST_MESSAGE,
   VFS_EXAMPLE_ROOT,
+  VFS_EXAMPLE_SCHEDULE_IDS,
   VFS_EXAMPLE_SESSION_IDS,
   VFS_EXAMPLE_TAIL_MESSAGE,
   VFS_EXAMPLE_TITLE,
@@ -124,6 +126,24 @@ describe('WebWorker preview VFS example', () => {
         },
       },
     })
+  })
+
+  it('seeds Host Schedule tasks the whole-unit domain accepts', () => {
+    const path = 'home/storages/schedule.json'
+    const text = buildVfsExampleFiles().get(path)
+    if (text === undefined) throw new Error(`missing generated preview Schedule storage ${path}`)
+    const document = JSON.parse(text) as {
+      unit: { name: string; version: number }
+      tables: { tasks: Record<string, unknown> }
+    }
+    expect(document.unit).toEqual({ name: scheduleDomain.name, version: scheduleDomain.version })
+    for (const id of Object.values(VFS_EXAMPLE_SCHEDULE_IDS)) {
+      const task = scheduleDomain.tables.tasks.valueSchema.parse(document.tables.tasks[id])
+      expect(task.record.id).toBe(id)
+      expect(task.record.title.trim().length).toBeGreaterThan(0)
+      expect(task.status).toBe('active')
+      expect(Date.parse(task.record.scheduledAt)).toBeGreaterThan(Date.now())
+    }
   })
 
   it('restores the main production log with paging and tool coverage', () => {
