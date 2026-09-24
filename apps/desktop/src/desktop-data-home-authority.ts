@@ -1,6 +1,8 @@
 /** Desktop ownership of data-home selection, validation, preparation, and publication. */
 
 import { randomUUID } from 'node:crypto'
+import { inspectPortablePluginTransfer } from './portable-plugin-transfer.ts'
+import type { PortablePluginTarget } from './portable-plugin-bundle.ts'
 import {
   copyCommunityDesktopData,
   desktopDataHomeSetup,
@@ -42,6 +44,7 @@ export type DesktopDataHomeChoice =
     readonly source: string
     readonly target: string
     readonly customTarget: boolean
+    readonly portableTransfer?: { readonly path: string; readonly sha256: string }
   }
   | { readonly mode: 'reused'; readonly sourceKind: 'community'; readonly source: string }
 
@@ -56,6 +59,7 @@ type DesktopDataHomeChoiceRequest =
     readonly source: string
     readonly sourceSelectionId?: string
     readonly target: { readonly kind: 'default' } | { readonly kind: 'custom'; readonly selectionId: string }
+    readonly pluginMigration?: { readonly mode: 'online' } | { readonly mode: 'offline'; readonly selectionId: string }
   }
   | {
     readonly mode: 'reused'
@@ -79,6 +83,10 @@ export type DesktopDataHomeTargetResult =
   | { readonly status: 'selected'; readonly selectionId: string; readonly path: string }
   | { readonly status: 'not-empty' | 'overlap' | 'unreadable'; readonly path: string }
   | { readonly status: 'cancelled' }
+
+export type DesktopDataHomePortableResult =
+  | { readonly status: 'selected'; readonly selectionId: string; readonly target: PortablePluginTarget }
+  | { readonly status: 'invalid' | 'unreadable' | 'cancelled' }
 
 export type DesktopDataHomeSubmission =
   | { readonly status: 'ignored' }
@@ -151,6 +159,12 @@ function isDataHomeChoiceRequest(value: unknown): value is DesktopDataHomeChoice
   if (value.mode === 'copied'
     && (!('source' in value) || typeof value.source !== 'string' || value.source.trim().length === 0
       || !('sourceKind' in value) || (value.sourceKind !== 'official' && value.sourceKind !== 'community'))) return false
+  if (value.mode === 'copied' && 'pluginMigration' in value) {
+    const migration = value.pluginMigration
+    if (typeof migration !== 'object' || migration === null || !('mode' in migration)
+      || (migration.mode !== 'online' && migration.mode !== 'offline')
+      || (migration.mode === 'offline' && (!('selectionId' in migration) || !isSelectionId(migration.selectionId)))) return false
+  }
   if (!('target' in value) || typeof value.target !== 'object' || value.target === null
     || !('kind' in value.target)) return false
   return value.target.kind === 'default'
@@ -173,6 +187,7 @@ export class DesktopDataHomeChooserSession {
   readonly #selectionLifetimeMs: number
   readonly #pendingTargets = new Map<string, PendingPath>()
   readonly #pendingCommunitySources = new Map<string, PendingPath>()
+  readonly #pendingPortable = new Map<string, PendingPath & { readonly sha256: string; readonly target: PortablePluginTarget }>()
 
   constructor(
     presentation: DesktopDataHomeChooserPresentation,
@@ -228,6 +243,21 @@ export class DesktopDataHomeChooserSession {
     }
     if (path === undefined) return { status: 'not-empty', path: candidate }
     return { status: 'selected', selectionId: this.#remember(this.#pendingTargets, path), path }
+  }
+
+  async choosePortable(candidate: string | undefined): Promise<DesktopDataHomePortableResult> {
+    if (candidate === undefined) return { status: 'cancelled' }
+    try {
+      const inspection = await inspectPortablePluginTransfer(candidate)
+      const selectionId = this.#createSelectionId()
+      this.#pendingPortable.set(selectionId, {
+        path: candidate, sha256: inspection.sha256, target: inspection.target,
+        expiresAt: this.#now() + this.#selectionLifetimeMs,
+      })
+      return { status: 'selected', selectionId, target: inspection.target }
+    } catch {
+      return { status: 'invalid' }
+    }
   }
 
   async submit(value: unknown): Promise<DesktopDataHomeSubmission> {
@@ -294,16 +324,25 @@ export class DesktopDataHomeChooserSession {
       return { status: 'selected', choice: { mode: 'fresh', target, customTarget } }
     }
     if (source === undefined) return { status: 'ignored' }
+    let portableTransfer: { readonly path: string; readonly sha256: string } | undefined
+    if (value.pluginMigration?.mode === 'offline') {
+      const pending = this.#pendingPortable.get(value.pluginMigration.selectionId)
+      if (!this.#valid(pending)) return { status: 'ignored' }
+      portableTransfer = { path: pending.path, sha256: pending.sha256 }
+      this.#pendingPortable.delete(value.pluginMigration.selectionId)
+    }
     if (value.sourceSelectionId !== undefined) this.#pendingCommunitySources.delete(value.sourceSelectionId)
     return {
       status: 'selected',
-      choice: { mode: 'copied', sourceKind: value.sourceKind, source: source.path, target, customTarget },
+      choice: { mode: 'copied', sourceKind: value.sourceKind, source: source.path, target, customTarget,
+        ...(portableTransfer === undefined ? {} : { portableTransfer }) },
     }
   }
 
   clear(): void {
     this.#pendingTargets.clear()
     this.#pendingCommunitySources.clear()
+    this.#pendingPortable.clear()
   }
 
   #remember(store: Map<string, PendingPath>, path: string): string {
@@ -503,8 +542,8 @@ export class DesktopDataHomeAuthority {
 
   async #prepareChoice(selection: DesktopDataHomeChoice): Promise<PreparedDataHomeChoice> {
     if (selection.mode === 'copied') {
-      if (selection.sourceKind === 'official') await importOfficialDesktopData(selection.source, selection.target)
-      else await copyCommunityDesktopData(selection.source, selection.target)
+      if (selection.sourceKind === 'official') await importOfficialDesktopData(selection.source, selection.target, selection.portableTransfer)
+      else await copyCommunityDesktopData(selection.source, selection.target, selection.portableTransfer)
       await ensureCommunityProfileIdentity(selection.target)
       return {
         path: selection.target,

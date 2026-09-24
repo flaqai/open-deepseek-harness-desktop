@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DESKTOP_LOCALE_IDS } from '../src/desktop-locale.ts'
 import { copyFor, detailsFor } from '../src/locales/data-home.ts'
 import { sourceCopyFor } from '../src/locales/data-home-source.ts'
+import { portableCopyFor } from '../src/locales/data-home-portable.ts'
 
 describe('data-home locale coverage', () => {
   it('provides every chooser message and detail for every offered locale', () => {
@@ -10,8 +11,11 @@ describe('data-home locale coverage', () => {
     for (const locale of DESKTOP_LOCALE_IDS) {
       const copy = copyFor(locale)
       const sourceCopy = sourceCopyFor(locale)
+      const portableCopy = portableCopyFor(locale)
       expect(Object.keys(sourceCopy).sort(), locale).toEqual(Object.keys(sourceCopyFor('en')).sort())
       for (const [key, value] of Object.entries(sourceCopy)) expect(value.trim(), `${locale}.${key}`).not.toBe('')
+      expect(Object.keys(portableCopy).sort(), locale).toEqual(Object.keys(portableCopyFor('en')).sort())
+      for (const [key, value] of Object.entries(portableCopy)) expect(value.trim(), `${locale}.${key}`).not.toBe('')
       expect(Object.keys(copy).sort(), locale).toEqual(englishKeys)
       for (const [key, value] of Object.entries(copy)) {
         expect(value.trim(), `${locale}.${key}`).not.toBe('')

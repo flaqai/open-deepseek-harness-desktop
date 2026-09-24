@@ -7,7 +7,7 @@ import {
   type DesktopProcessObserver,
 } from './process-observer.ts'
 import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import { homedir, tmpdir, userInfo } from 'node:os'
+import { homedir, release, tmpdir, userInfo } from 'node:os'
 import { basename, delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -68,7 +68,7 @@ import { DesktopReleaseChecker, fetchGitHubReleases, isAllowedReleaseUrl, type D
 import { DesktopReleaseDownloader, type DesktopReleaseDownloadStatus, type ReleaseFetch } from './release-downloader.ts'
 import { fetchCnbReleaseIndex, isAllowedCnbUrl, selectCnbRelease } from './cnb-release-source.ts'
 import {
-  DownloadNetworkSettingsStore, type DownloadNetworkSettings, type DownloadNetworkTarget,
+  DownloadNetworkSettingsStore, npmRegistryUrl, type DownloadNetworkSettings, type DownloadNetworkTarget,
   type DownloadNetworkTestStatus,
 } from './download-network-settings.ts'
 import {
@@ -109,7 +109,10 @@ import {
 import { parseStartupBuildApproval } from './startup-build-approval.ts'
 import {
   readDesktopDataHomeSetup,
+  PORTABLE_PLUGIN_TRANSFER_FILENAME,
+  resolveCommunityDataHomeSource,
   resolveDesktopApplicationDataRoot,
+  resolveDesktopDataHomeSource,
   shouldPreserveLegacyCopiedProfile,
   resolveDesktopDataHomeLayout,
   type DesktopDataHomeSelectionResult,
@@ -122,6 +125,7 @@ import {
   type DesktopDataHomeChooserSession,
   type DesktopDataHomeSourceResult,
   type DesktopDataHomeTargetResult,
+  type DesktopDataHomePortableResult,
 } from './desktop-data-home-authority.ts'
 import { mapBundledPluginProgress, type DesktopStartupProgress } from './startup-progress.ts'
 import {
@@ -156,6 +160,11 @@ import {
   stageImportedPluginDirectory,
   type StagedImportedPlugin,
 } from './imported-plugin-local-source.ts'
+import { planPortablePluginImport } from './portable-plugin-import.ts'
+import { installPortablePluginCandidate } from './portable-plugin-install.ts'
+import { packPortablePluginBundle, unpackPortablePluginBundle } from './portable-plugin-transfer.ts'
+import { parsePortablePluginTarget } from './portable-plugin-bundle.ts'
+import { exportPortablePluginsFromHome, planPortablePluginSources } from './portable-plugin-source.ts'
 import { resolveSystemProxyEnvironment } from './system-proxy.ts'
 import {
   PluginSnapshotManager,
@@ -583,6 +592,7 @@ async function showDataHomeChooser(
       ipcMain.removeListener('dsh:data-home:cancelled', handleCancellation)
       ipcMain.removeHandler('dsh:data-home:choose-source')
       ipcMain.removeHandler('dsh:data-home:choose-target')
+      ipcMain.removeHandler('dsh:data-home:choose-portable')
       session.clear()
       if (dataHomeChooserWindow === chooser) dataHomeChooserWindow = undefined
     }
@@ -653,6 +663,18 @@ async function showDataHomeChooser(
       })
       return session.chooseTarget(result.canceled ? undefined : result.filePaths[0])
     })
+    ipcMain.handle('dsh:data-home:choose-portable', async (event): Promise<DesktopDataHomePortableResult> => {
+      if (event.sender !== chooser.webContents) throw new Error('desktop: invalid offline plugin transfer requester')
+      const result = await dialog.showOpenDialog(chooser, {
+        properties: ['openFile'], filters: [{ name: 'Offline plugin transfer', extensions: ['tgz'] }],
+      })
+      const choice = await session.choosePortable(result.canceled ? undefined : result.filePaths[0])
+      if (choice.status === 'selected' && (choice.target.platform !== process.platform
+        || choice.target.architecture !== process.arch || choice.target.osVersion !== release())) {
+        return { status: 'invalid' }
+      }
+      return choice
+    })
     chooser.once('closed', () => { finish() })
     chooser.once('ready-to-show', () => {
       chooser.show()
@@ -676,6 +698,9 @@ async function showDataHomeChooser(
       development: app.isPackaged ? 'false' : 'true',
       returnToMain: presentation.returnToMain ? 'true' : 'false',
       defaultTargetAvailable: presentation.defaultTargetAvailable ? 'true' : 'false',
+      hostPlatform: process.platform,
+      hostArchitecture: process.arch,
+      hostOsVersion: release(),
     } }).catch(fail)
   })
 }
@@ -2430,6 +2455,177 @@ async function startApplication(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.importedPluginsChooseArchive, async (event, restoreId: unknown) => {
     assertMainRenderer(event.sender)
     return installSelectedImportedPlugin(restoreId, 'archive')
+  })
+  ipcMain.handle(DESKTOP_IPC.importedPluginsChoosePortable, async (event): Promise<ImportedPluginRestoreSnapshot | undefined> => {
+    assertMainRenderer(event.sender)
+    const manager = importedPluginRestoreManager
+    if (manager === undefined) throw new Error('desktop: imported plugin restore manager is unavailable')
+    const chooser = mainWindow
+    const staged = join(dshHome, PORTABLE_PLUGIN_TRANSFER_FILENAME)
+    const stagedExists = await lstat(staged).then(stats => stats.isFile(), () => false)
+    let selected: string | undefined
+    if (stagedExists) {
+      const chinese = app.getLocale().toLowerCase().startsWith('zh')
+      const response = await showDesktopMessageBox({
+        type: 'question',
+        title: chinese ? '使用已导入的离线包？' : 'Use the imported offline transfer?',
+        message: chinese ? '导入配置时选定的离线包已准备好。' : 'The transfer selected during configuration import is ready.',
+        buttons: chinese ? ['取消', '使用此包', '选择其他文件'] : ['Cancel', 'Use this transfer', 'Choose another file'],
+        defaultId: 1, cancelId: 0,
+      })
+      if (response.response === 0) return manager.snapshot()
+      if (response.response === 1) selected = staged
+    }
+    if (selected === undefined) {
+      const result = await (chooser === undefined ? dialog.showOpenDialog({
+        properties: ['openFile'], filters: [{ name: 'Offline plugin transfer', extensions: ['tgz'] }],
+      }) : dialog.showOpenDialog(chooser, {
+        properties: ['openFile'], filters: [{ name: 'Offline plugin transfer', extensions: ['tgz'] }],
+      }))
+      selected = result.filePaths[0]
+      if (result.canceled || selected === undefined) return manager.snapshot()
+    }
+    const transfer = await unpackPortablePluginBundle(selected)
+    try {
+      const host = parsePortablePluginTarget({
+        platform: process.platform, architecture: process.arch, osVersion: release(),
+      })
+      const plan = await planPortablePluginImport(dshHome, transfer.directory, host,
+        async (args, cwd, environment) => {
+          await runPackageManagerInvocation(args, cwd, environment, launchOptions, IMPORTED_PLUGIN_INSTALL_TIMEOUT_MS)
+        })
+      if (plan.ready.length === 0) throw new Error('desktop: offline transfer has no plugins awaiting restore in this Profile')
+      const chinese = app.getLocale().toLowerCase().startsWith('zh')
+      const approval = await showDesktopMessageBox({
+        type: 'question',
+        title: chinese ? '确认离线恢复插件' : 'Confirm offline plugin restore',
+        message: chinese ? `将离线安装 ${plan.ready.length} 个插件` : `Install ${plan.ready.length} plugins offline`,
+        detail: plan.ready.map(item => `${item.packageName}@${item.version}`).join('\n'),
+        buttons: chinese ? ['取消', '安装'] : ['Cancel', 'Install'], defaultId: 0, cancelId: 0,
+      })
+      if (approval.response !== 1) return manager.snapshot()
+      cancelBootableSnapshot()
+      try {
+        const outcome = await manager.installPortable(plan.ready, async () => installPortablePluginCandidate({
+          activeHome: dshHome,
+          candidateHome: desktopMutations.mutationHome,
+          bundleDirectory: transfer.directory,
+          selectedPackages: plan.ready.map(item => item.packageName),
+          run: (args, environment) => runDesktopInvocation(resolveHarnessInvocation({
+            ...harnessEnvironment, ...environment,
+          }, ['plugin', '--profile', 'web', ...args], launchOptions),
+          'imported-portable-plugin-install', IMPORTED_PLUGIN_INSTALL_TIMEOUT_MS),
+        }))
+        if (selected === staged && plan.ready.every(item => outcome.entries.some(entry => (
+          entry.restoreId === item.restoreId && entry.state === 'succeeded'
+        )))) await rm(staged, { force: true }).catch((error: unknown) => {
+          console.warn('desktop: restored offline transfer could not be removed', error)
+        })
+        return outcome
+      } finally {
+        restartBootableSnapshotStabilityWindow('portable plugin restore settled')
+      }
+    } finally {
+      await transfer.cleanup()
+    }
+  })
+  let portableExportSource: {
+    senderId: number
+    selectionId: string
+    path: string
+    candidates: readonly { packageName: string; version: string }[]
+    expiresAt: number
+  } | undefined
+  ipcMain.handle(DESKTOP_IPC.importedPluginsInspectExport, async (event) => {
+    assertMainRenderer(event.sender)
+    const chooser = mainWindow
+    const result = await (chooser === undefined
+      ? dialog.showOpenDialog({ properties: ['openDirectory'] })
+      : dialog.showOpenDialog(chooser, { properties: ['openDirectory'] }))
+    const selected = result.filePaths[0]
+    if (result.canceled || selected === undefined) return undefined
+    const source = await resolveDesktopDataHomeSource(selected)
+      ?? await resolveCommunityDataHomeSource(selected)
+    if (source === undefined) throw new Error('desktop: selected directory is not a Harness configuration')
+    const plan = await planPortablePluginSources(source.path)
+    if (plan.sourceIssues.length > 0) throw new Error('desktop: selected Profile has unresolved plugin metadata')
+    const selectionId = randomUUID()
+    portableExportSource = {
+      senderId: event.sender.id, selectionId, path: source.path,
+      candidates: plan.candidates.map(item => ({ packageName: item.packageName, version: item.version })),
+      expiresAt: Date.now() + 10 * 60_000,
+    }
+    return {
+      selectionId,
+      host: parsePortablePluginTarget({ platform: process.platform, architecture: process.arch, osVersion: release() }),
+      candidates: plan.candidates.map(item => ({ packageName: item.packageName, version: item.version })),
+      omitted: plan.omitted,
+    }
+  })
+  ipcMain.handle(DESKTOP_IPC.importedPluginsExport, async (event, value: unknown): Promise<{ status: 'saved' | 'cancelled' }> => {
+    assertMainRenderer(event.sender)
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      throw new TypeError('desktop: invalid offline plugin export request')
+    }
+    const request = value as { selectionId?: unknown; target?: unknown; packageNames?: unknown }
+    const source = portableExportSource
+    if (typeof request.selectionId !== 'string' || source?.selectionId !== request.selectionId
+      || source.senderId !== event.sender.id || source.expiresAt <= Date.now()) {
+      throw new Error('desktop: offline plugin export source expired; choose it again')
+    }
+    if (!Array.isArray(request.packageNames) || request.packageNames.some(name => typeof name !== 'string')) {
+      throw new TypeError('desktop: invalid offline plugin selection')
+    }
+    const packageNames = request.packageNames as string[]
+    if (packageNames.length === 0 || new Set(packageNames).size !== packageNames.length) {
+      throw new TypeError('desktop: select distinct offline plugin packages')
+    }
+    const target = parsePortablePluginTarget(request.target)
+    const confirmedSource = await resolveDesktopDataHomeSource(source.path)
+      ?? await resolveCommunityDataHomeSource(source.path)
+    if (confirmedSource?.path !== source.path) throw new Error('desktop: offline plugin export source changed')
+    const currentPlan = await planPortablePluginSources(source.path)
+    if (currentPlan.sourceIssues.length > 0 || packageNames.some((name) => {
+      const previous = source.candidates.find(item => item.packageName === name)
+      const current = currentPlan.candidates.find(item => item.packageName === name)
+      return previous === undefined || current?.version !== previous.version
+    })) throw new Error('desktop: selected plugin versions changed; choose the source again')
+    const chooser = mainWindow
+    const saved = await (chooser === undefined
+      ? dialog.showSaveDialog({ defaultPath: 'dsh-offline-plugins.tgz', filters: [{ name: 'Offline plugin transfer', extensions: ['tgz'] }] })
+      : dialog.showSaveDialog(chooser, { defaultPath: 'dsh-offline-plugins.tgz', filters: [{ name: 'Offline plugin transfer', extensions: ['tgz'] }] }))
+    if (saved.canceled || saved.filePath === '') return { status: 'cancelled' }
+    const workspace = await mkdtemp(join(dirname(saved.filePath), '.dsh-portable-export-'))
+    try {
+      const registry = downloadNetworkStore === undefined
+        ? 'https://registry.npmjs.org' : npmRegistryUrl(downloadNetworkStore.read().npm)
+      if (registry === undefined) throw new Error('desktop: selected npm registry has no public address')
+      const actualHost = parsePortablePluginTarget({
+        platform: process.platform, architecture: process.arch, osVersion: release(),
+      })
+      if (downloadNetworkProxy === undefined) throw new Error('desktop: plugin download proxy is unavailable')
+      const fetcher = await pluginFetch()
+      const packageProxy = downloadNetworkProxy.pluginUrl
+      const bundleDirectory = join(workspace, 'bundle')
+      await exportPortablePluginsFromHome(
+        source.path, bundleDirectory, target, actualHost, packageNames, registry,
+        async (args, cwd, environment) => {
+          await runPackageManagerInvocation(args, cwd, {
+            ...environment,
+            ...(environment.npm_config_offline === 'true' ? {} : {
+              HTTP_PROXY: packageProxy, HTTPS_PROXY: packageProxy, ALL_PROXY: packageProxy,
+              http_proxy: packageProxy, https_proxy: packageProxy, all_proxy: packageProxy,
+            }),
+          }, launchOptions, IMPORTED_PLUGIN_INSTALL_TIMEOUT_MS)
+        },
+        (url, init) => fetcher(url.href, init),
+      )
+      await packPortablePluginBundle(bundleDirectory, saved.filePath)
+      portableExportSource = undefined
+      return { status: 'saved' }
+    } finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
   })
   ipcMain.handle(DESKTOP_IPC.diagnosticLabCatalog, (event) => {
     assertMainRenderer(event.sender)

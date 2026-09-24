@@ -1,6 +1,7 @@
 /** Resolve and initialize the desktop-owned Harness data home. */
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { createReadStream } from 'node:fs'
 import {
   chmod, copyFile, lstat, mkdir, readFile, readdir, rename, rm, writeFile,
 } from 'node:fs/promises'
@@ -19,6 +20,18 @@ export const COMMUNITY_PROFILE_IDENTITY_FILE = '.open-deepseek-harness-desktop.j
 const ONBOARDING_SETTINGS_NAMESPACE = 'ui-onboarding'
 export const IMPORTED_ONBOARDING_RESET_VERSION = '1'
 export const PORTABLE_PLUGIN_RESTORE_VERSION = '1'
+export const PORTABLE_PLUGIN_TRANSFER_FILENAME = 'portable-plugin-transfer.tgz'
+const MAX_PORTABLE_PLUGIN_TRANSFER_BYTES = 5 * 1024 * 1024 * 1024
+
+async function portableTransferHash(path: string): Promise<string> {
+  const metadata = await lstat(path)
+  if (!metadata.isFile() || metadata.size > MAX_PORTABLE_PLUGIN_TRANSFER_BYTES) {
+    throw new Error('desktop: offline plugin transfer is not a bounded regular file')
+  }
+  const hash = createHash('sha256')
+  for await (const chunk of createReadStream(path)) hash.update(chunk as Buffer)
+  return hash.digest('hex')
+}
 const IMPORTABLE_ENTRIES = Object.freeze([
   '.agent-presets',
   '.credentials.yaml',
@@ -592,6 +605,7 @@ async function copyIndependentDesktopData(
   sourceDshHome: string,
   targetDshHome: string,
   resetOnboarding: boolean,
+  portableTransfer?: { readonly path: string; readonly sha256: string },
 ): Promise<DesktopDataImportResult> {
   if (desktopDataHomesOverlap(sourceDshHome, targetDshHome)) {
     throw new Error('desktop: source and isolated Harness homes must not overlap')
@@ -615,6 +629,16 @@ async function copyIndependentDesktopData(
     if (resetOnboarding) await resetImportedOnboardingSettings(join(staging, 'settings.yaml'))
     const restorePlan = await extractImportedPluginRestorePlan(sourceDshHome)
     await writeImportedPluginRestorePlan(staging, restorePlan)
+    if (portableTransfer !== undefined) {
+      if (await portableTransferHash(portableTransfer.path) !== portableTransfer.sha256) {
+        throw new Error('desktop: selected offline plugin transfer changed before import')
+      }
+      const copied = join(staging, PORTABLE_PLUGIN_TRANSFER_FILENAME)
+      await copyFile(portableTransfer.path, copied)
+      if (await portableTransferHash(copied) !== portableTransfer.sha256) {
+        throw new Error('desktop: offline plugin transfer changed during import')
+      }
+    }
     if (await pathExists(targetDshHome)) await rm(targetDshHome, { recursive: true })
     await rename(staging, targetDshHome)
   } catch (error) {
@@ -635,16 +659,18 @@ async function copyIndependentDesktopData(
 export function importOfficialDesktopData(
   officialDshHome: string,
   targetDshHome: string,
+  portableTransfer?: { readonly path: string; readonly sha256: string },
 ): Promise<DesktopDataImportResult> {
-  return copyIndependentDesktopData(officialDshHome, targetDshHome, true)
+  return copyIndependentDesktopData(officialDshHome, targetDshHome, true, portableTransfer)
 }
 
 /** Import compatible community desktop data without plugin runtimes or replaying onboarding. */
 export function copyCommunityDesktopData(
   communityDshHome: string,
   targetDshHome: string,
+  portableTransfer?: { readonly path: string; readonly sha256: string },
 ): Promise<DesktopDataImportResult> {
-  return copyIndependentDesktopData(communityDshHome, targetDshHome, false)
+  return copyIndependentDesktopData(communityDshHome, targetDshHome, false, portableTransfer)
 }
 
 /**

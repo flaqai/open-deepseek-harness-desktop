@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { create } from 'tar'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   DesktopDataHomeAuthority,
@@ -9,10 +11,13 @@ import {
 } from '../src/desktop-data-home-authority.ts'
 import {
   COMMUNITY_PROFILE_IDENTITY_FILE,
+  PORTABLE_PLUGIN_TRANSFER_FILENAME,
   ensureCommunityProfileIdentity,
   readDesktopDataHomeSetup,
   resolveDesktopDataHomeLayout,
 } from '../src/desktop-data-home.ts'
+import { writePortablePluginBundle } from '../src/portable-plugin-bundle.ts'
+import { packPortablePluginBundle } from '../src/portable-plugin-transfer.ts'
 
 const roots: string[] = []
 
@@ -36,6 +41,28 @@ function presentation(defaultTarget: string): DesktopDataHomeChooserPresentation
     returnToMain: false,
     defaultTargetAvailable: true,
   }
+}
+
+async function portableFixture(root: string): Promise<string> {
+  const packageDirectory = join(root, 'package-source', 'package')
+  await mkdir(packageDirectory, { recursive: true })
+  await writeFile(join(packageDirectory, 'package.json'), JSON.stringify({ name: 'example-plugin', version: '1.2.3' }))
+  const archive = join(root, 'example.tgz')
+  await create({ cwd: join(root, 'package-source'), file: archive, gzip: true }, ['package'])
+  const bundle = join(root, 'bundle')
+  const manifest = await writePortablePluginBundle(bundle, {
+    platform: 'win32', architecture: 'x64', osVersion: '10.0.22631',
+  }, [{ packageName: 'example-plugin', version: '1.2.3', archive }])
+  await mkdir(join(bundle, 'store'))
+  await mkdir(join(bundle, 'cache'))
+  const emptyHash = createHash('sha256').digest('hex')
+  await writeFile(join(bundle, 'manifest.json'), JSON.stringify({
+    ...manifest, registry: 'https://registry.npmjs.org/',
+    store: { sha256: emptyHash, cacheSha256: emptyHash, verification: 'target-rehearsal-required' },
+  }))
+  const transfer = join(root, 'transfer.tgz')
+  await packPortablePluginBundle(bundle, transfer)
+  return transfer
 }
 
 describe('Desktop data-home authority interface', () => {
@@ -144,6 +171,81 @@ describe('Desktop data-home authority interface', () => {
     await expect(readDesktopDataHomeSetup(layout.setupFile)).resolves.toMatchObject({
       mode: 'imported', dshHome: layout.dshHome, source: layout.officialDshHome,
     })
+  })
+
+  it('copies only a verified offline transfer with the configuration and rejects a foreign selection id', async () => {
+    const root = await fixture()
+    const layout = resolveDesktopDataHomeLayout(join(root, 'app-data'), root, true, {})
+    await mkdir(layout.officialDshHome, { recursive: true })
+    await writeFile(join(layout.officialDshHome, 'settings.yaml'), 'locale: zh\n')
+    const transfer = await portableFixture(root)
+    const authority = new DesktopDataHomeAuthority({
+      layout, stopActiveProfile: async () => {}, scheduleRestart: () => {},
+    })
+    const result = await authority.initialize(async (session) => {
+      const chosen = await session.choosePortable(transfer)
+      if (chosen.status !== 'selected') throw new Error(`unexpected ${chosen.status}`)
+      expect(chosen.target).toEqual({ platform: 'win32', architecture: 'x64', osVersion: '10.0.22631' })
+      await expect(session.submit({
+        mode: 'copied', sourceKind: 'official', source: layout.officialDshHome,
+        target: { kind: 'default' }, pluginMigration: { mode: 'offline', selectionId: '00000000-0000-4000-8000-000000000000' },
+      })).resolves.toEqual({ status: 'ignored' })
+      const submission = await session.submit({
+        mode: 'copied', sourceKind: 'official', source: layout.officialDshHome,
+        target: { kind: 'default' }, pluginMigration: { mode: 'offline', selectionId: chosen.selectionId },
+      })
+      if (submission.status !== 'selected') throw new Error(`unexpected ${submission.status}`)
+      return submission.choice
+    })
+    expect(result.copied).toBe(true)
+    expect(await readFile(join(layout.dshHome, PORTABLE_PLUGIN_TRANSFER_FILENAME)))
+      .toEqual(await readFile(transfer))
+  })
+
+  it('refuses an expired offline selection before copying any configuration', async () => {
+    const root = await fixture()
+    const source = join(root, 'official')
+    const target = join(root, 'target')
+    await mkdir(source)
+    await writeFile(join(source, 'settings.yaml'), 'locale: zh\n')
+    const transfer = await portableFixture(root)
+    let now = 100
+    const session = new DesktopDataHomeChooserSession(presentation(target), {
+      now: () => now, selectionLifetimeMs: 50,
+      createSelectionId: () => '77777777-7777-4777-8777-777777777777',
+    })
+    const chosen = await session.choosePortable(transfer)
+    if (chosen.status !== 'selected') throw new Error(`unexpected ${chosen.status}`)
+    now = 151
+    await expect(session.submit({
+      mode: 'copied', sourceKind: 'official', source, target: { kind: 'default' },
+      pluginMigration: { mode: 'offline', selectionId: chosen.selectionId },
+    })).resolves.toEqual({ status: 'ignored' })
+  })
+
+  it('keeps the destination unpublished if the verified transfer changes before copying', async () => {
+    const root = await fixture()
+    const layout = resolveDesktopDataHomeLayout(join(root, 'app-data'), root, true, {})
+    await mkdir(layout.officialDshHome, { recursive: true })
+    await writeFile(join(layout.officialDshHome, 'settings.yaml'), 'locale: zh\n')
+    const transfer = await portableFixture(root)
+    const authority = new DesktopDataHomeAuthority({
+      layout, stopActiveProfile: async () => {}, scheduleRestart: () => {},
+    })
+    await expect(authority.initialize(async (session) => {
+      const chosen = await session.choosePortable(transfer)
+      if (chosen.status !== 'selected') throw new Error(`unexpected ${chosen.status}`)
+      const submission = await session.submit({
+        mode: 'copied', sourceKind: 'official', source: layout.officialDshHome,
+        target: { kind: 'default' }, pluginMigration: { mode: 'offline', selectionId: chosen.selectionId },
+      })
+      if (submission.status !== 'selected') throw new Error(`unexpected ${submission.status}`)
+      await writeFile(transfer, 'changed after selection')
+      return submission.choice
+    })).rejects.toThrow('selected offline plugin transfer changed before import')
+    await expect(readFile(join(layout.dshHome, PORTABLE_PLUGIN_TRANSFER_FILENAME)))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readDesktopDataHomeSetup(layout.setupFile)).resolves.toBeUndefined()
   })
 
   it('binds switch selections to one renderer and publishes only a consumed decision', async () => {

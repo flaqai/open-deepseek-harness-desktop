@@ -88,12 +88,52 @@ describe('configuration source and operation flow', () => {
     await mount()
     expect(button('#back').hidden).toBe(true)
     button('#continue').click()
+    expect(step()).toBe('plugins')
+    button('#continue').click()
     expect(step()).toBe('destination')
     expect(ipc.send).not.toHaveBeenCalled()
     expect(document.querySelector<HTMLElement>('#facts')?.inert).toBe(true)
     expect(button('[data-operation="reused"]').hidden).toBe(true)
     button('#back').click()
+    expect(step()).toBe('plugins')
+    button('#back').click()
     expect(step()).toBe('details')
+  })
+
+  it('requires a verified offline transfer and submits only its opaque selection', async () => {
+    await mount()
+    button('#continue').click()
+    expect(step()).toBe('plugins')
+    button('[data-migration="offline"]').click()
+    expect(button('#continue').disabled).toBe(true)
+    expect(document.querySelector('#portable-error')?.textContent).not.toBe('')
+
+    ipc.invoke.mockResolvedValueOnce({ status: 'cancelled' })
+    button('#choose-portable').click()
+    await vi.waitFor(() => { expect(button('#choose-portable').disabled).toBe(false) })
+    expect(button('#continue').disabled).toBe(true)
+    expect(ipc.send).not.toHaveBeenCalled()
+
+    ipc.invoke.mockResolvedValueOnce({ status: 'invalid' })
+    button('#choose-portable').click()
+    await vi.waitFor(() => { expect(button('#choose-portable').disabled).toBe(false) })
+    expect(button('#continue').disabled).toBe(true)
+
+    ipc.invoke.mockResolvedValueOnce({
+      status: 'selected', selectionId: '12345678-1234-4234-8234-123456789abc',
+      target: { platform: 'win32', architecture: 'x64', osVersion: '10.0.22631' },
+    })
+    button('#choose-portable').click()
+    await vi.waitFor(() => { expect(button('#continue').disabled).toBe(false) })
+    expect(document.querySelector('#portable-target')?.textContent).toContain('10.0.22631')
+    expect(ipc.invoke).toHaveBeenCalledWith('dsh:data-home:choose-portable')
+    button('#continue').click()
+    expect(step()).toBe('destination')
+    button('#continue').click()
+    expect(ipc.send).toHaveBeenCalledExactlyOnceWith('dsh:data-home:selected', {
+      mode: 'copied', sourceKind: 'official', source: '/official/.dsh', target: { kind: 'default' },
+      pluginMigration: { mode: 'offline', selectionId: '12345678-1234-4234-8234-123456789abc' },
+    })
   })
 
   it('copies a community home through an opaque destination and preserves Back navigation', async () => {
@@ -110,13 +150,18 @@ describe('configuration source and operation flow', () => {
     button('#continue').click()
     button('[data-operation="imported"]').click()
     button('#continue').click()
+    expect(step()).toBe('plugins')
+    button('#continue').click()
     expect(step()).toBe('destination')
+    button('#back').click()
+    expect(step()).toBe('plugins')
     button('#back').click()
     expect(step()).toBe('operation')
     expect(button('[data-operation="imported"]').ariaChecked).toBe('true')
     button('#back').click()
     expect(step()).toBe('details')
     expect(button('#back').hidden).toBe(true)
+    button('#continue').click()
     button('#continue').click()
     button('#continue').click()
     ipc.invoke.mockResolvedValueOnce({ status: 'selected', path: '/新 目录', selectionId: 'opaque-selection' })
@@ -127,6 +172,7 @@ describe('configuration source and operation flow', () => {
       mode: 'copied', sourceKind: 'community', source: '/社区配置/dsh-home',
       sourceSelectionId: '12345678-1234-1234-1234-123456789abc',
       target: { kind: 'custom', selectionId: 'opaque-selection' },
+      pluginMigration: { mode: 'online' },
     })
   })
 
@@ -217,6 +263,11 @@ describe('configuration source and operation flow', () => {
     expect(document.querySelector('#operation-plugins')?.textContent).toContain('插件恢复清单')
     expect(document.querySelector('#operation-builds')?.textContent).toContain('精确 allowBuilds')
     button('#continue').click()
+    expect(step()).toBe('plugins')
+    button('#help').click()
+    expect(document.querySelector('#comparison-title')?.textContent).toContain('插件')
+    button('#acknowledge').click()
+    button('#continue').click()
     expect(step()).toBe('destination')
     button('#help').click()
     expect(document.querySelector('#comparison-title')?.textContent).toBe('选择配置目录')
@@ -225,7 +276,7 @@ describe('configuration source and operation flow', () => {
 
   it('keeps full comparison on source categories at every step and returns focus to its trigger', async () => {
     await mount('zh', '', '/desktop/community/dsh-home')
-    for (const current of ['details', 'operation', 'destination']) {
+    for (const current of ['details', 'operation', 'plugins', 'destination']) {
       expect(step()).toBe(current)
       button('#compare').click()
       expect(document.querySelectorAll('#comparison-head th')).toHaveLength(4)
@@ -276,6 +327,8 @@ describe('browser source preview', () => {
 
     button('#choose-official-source').click()
     expect(document.querySelector('#official-source-status')?.textContent).toContain('Detected')
+    button('#continue').click()
+    expect(step()).toBe('plugins')
     button('#continue').click()
     expect(step()).toBe('destination')
     expect(button('[data-operation="reused"]').hidden).toBe(true)

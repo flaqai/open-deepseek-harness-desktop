@@ -7,6 +7,7 @@ import {
   classifyImportedPluginSourceFailure,
   dependencyMatchesImportedRestore,
   ImportedPluginRestoreManager,
+  type ImportedPluginRestoreManagerOptions,
   mergeImportedAllowBuilds,
   readImportedPluginRestorePlan,
   writeImportedPluginRestorePlan,
@@ -323,11 +324,12 @@ describe('imported plugin restore', () => {
         recoverable: true, state: 'pending' as const,
       })),
     })
-    let finishMutation: ((value: string) => void) | undefined
-    const withMutation = vi.fn(async (_operation: () => Promise<string>, expectedPackages: readonly string[]) => {
+    let finishMutation: (() => void) | undefined
+    const withMutation: ImportedPluginRestoreManagerOptions['withMutation'] = async <T>(operation: () => Promise<T>, expectedPackages: readonly string[]): Promise<T> => {
       expect(expectedPackages).toEqual(['one', 'two'])
-      return new Promise<string>((resolve) => { finishMutation = resolve })
-    })
+      await new Promise<void>((resolve) => { finishMutation = resolve })
+      return operation()
+    }
     const manager = new ImportedPluginRestoreManager({
       dshHome: root, providedDependencies: {}, install: async () => '', withMutation,
     })
@@ -339,7 +341,7 @@ describe('imported plugin restore', () => {
     const pending = manager.installPortable(selected, async () => 'installed')
     await vi.waitFor(() => { expect(finishMutation).toBeDefined() })
     expect(manager.snapshot()?.entries.map(entry => entry.state)).toEqual(['pending', 'pending'])
-    finishMutation?.('installed')
+    finishMutation?.()
     await expect(pending).resolves.toMatchObject({ active: false })
     expect(manager.snapshot()?.entries.map(entry => entry.state)).toEqual(['succeeded', 'succeeded'])
   })

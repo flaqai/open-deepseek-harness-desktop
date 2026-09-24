@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { create } from 'tar'
 import { afterEach, describe, expect, it } from 'vitest'
 import { verifyPreparedPortablePluginBundle, writePortablePluginBundle } from '../src/portable-plugin-bundle.ts'
-import { packPortablePluginBundle, unpackPortablePluginBundle } from '../src/portable-plugin-transfer.ts'
+import { inspectPortablePluginTransfer, packPortablePluginBundle, unpackPortablePluginBundle } from '../src/portable-plugin-transfer.ts'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -39,6 +39,10 @@ describe('single-file portable plugin transfer', () => {
     const directory = await preparedBundle(root)
     const output = join(root, 'plugins.tgz')
     await packPortablePluginBundle(directory, output)
+    await expect(inspectPortablePluginTransfer(output)).resolves.toEqual({
+      target: { platform: 'win32', architecture: 'x64', osVersion: 'Windows 11' },
+      sha256: createHash('sha256').update(await readFile(output)).digest('hex'),
+    })
     const unpacked = await unpackPortablePluginBundle(output)
     try {
       await expect(verifyPreparedPortablePluginBundle(unpacked.directory)).resolves.toMatchObject({
@@ -59,5 +63,22 @@ describe('single-file portable plugin transfer', () => {
     const archive = join(root, 'unsafe.tgz')
     await create({ cwd: join(root, 'content'), file: archive, gzip: true }, ['store'])
     await expect(unpackPortablePluginBundle(archive)).rejects.toThrow(/unsafe portable plugin transfer/u)
+  })
+
+  it('rejects damaged or non-archive input before it can become an import selection', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-portable-transfer-'))
+    roots.push(root)
+    const damaged = join(root, 'damaged.tgz')
+    await writeFile(damaged, 'not a portable plugin archive')
+    await expect(inspectPortablePluginTransfer(damaged)).rejects.toThrow()
+
+    const directory = await preparedBundle(root)
+    const output = join(root, 'plugins.tgz')
+    await packPortablePluginBundle(directory, output)
+    const bytes = await readFile(output)
+    const midpoint = Math.floor(bytes.length / 2)
+    bytes[midpoint] = (bytes[midpoint] ?? 0) ^ 0xff
+    await writeFile(output, bytes)
+    await expect(inspectPortablePluginTransfer(output)).rejects.toThrow()
   })
 })

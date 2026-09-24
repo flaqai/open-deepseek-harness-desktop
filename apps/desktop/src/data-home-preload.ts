@@ -8,6 +8,7 @@ import {
 } from './desktop-locale.ts'
 import { copyFor, detailsFor } from './locales/data-home.ts'
 import { sourceCopyFor } from './locales/data-home-source.ts'
+import { portableCopyFor } from './locales/data-home-portable.ts'
 
 type DataHomeMode = 'imported' | 'reused' | 'fresh'
 
@@ -27,7 +28,7 @@ type DataHomeTargetResult =
   | { readonly status: 'cancelled' }
 
 type DataHomeTargetMode = 'default' | 'custom'
-type DataHomeStep = 'details' | 'operation' | 'destination'
+type DataHomeStep = 'details' | 'operation' | 'plugins' | 'destination'
 type SourceCategory = 'official' | 'community' | 'fresh'
 
 function isDataHomeMode(value: string | null): value is DataHomeMode {
@@ -103,6 +104,12 @@ window.addEventListener('DOMContentLoaded', () => {
   const copyOperationSummary = required('#copy-operation-summary')
   const reuseOperationSummary = required('#reuse-operation-summary')
   const destinationPanel = required('#destination-panel')
+  const portablePanel = required('#portable-panel')
+  const migrationChoices = [...document.querySelectorAll<HTMLButtonElement>('[data-migration]')]
+  const portableSelection = required('#portable-selection')
+  const portableTarget = required('#portable-target')
+  const portableError = required('#portable-error')
+  const choosePortableButton = required('#choose-portable') as HTMLButtonElement
   const destinationSummary = required('#destination-summary')
   const targetChoicesGroup = required('#target-choices')
   const targetChoices = [...document.querySelectorAll<HTMLElement>('[data-target]')]
@@ -124,6 +131,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const plugins = required('#plugins-value')
   const builds = required('#builds-value')
   const parameters = new URLSearchParams(window.location.search)
+  const currentHost = [parameters.get('hostPlatform'), parameters.get('hostArchitecture'), parameters.get('hostOsVersion')]
+    .every(value => value !== null && value !== '')
+    ? `${parameters.get('hostPlatform')}/${parameters.get('hostArchitecture')} · ${parameters.get('hostOsVersion')}` : undefined
   const development = parameters.get('development') === 'true'
   const returnToMain = parameters.get('returnToMain') === 'true'
   const defaultTargetAvailable = parameters.get('defaultTargetAvailable') !== 'false'
@@ -171,6 +181,10 @@ window.addEventListener('DOMContentLoaded', () => {
   let targetMode: DataHomeTargetMode = defaultTargetAvailable ? 'default' : 'custom'
   let customTarget: { readonly selectionId: string; readonly path: string } | undefined
   let targetErrorKind: 'not-empty' | 'overlap' | 'unreadable' | undefined
+  let migrationMode: 'online' | 'offline' = 'online'
+  let portableBundle: { selectionId: string; target: { platform: string; architecture: string; osVersion: string } } | undefined
+  let portableInvalid = false
+  let portableChecking = false
   let simulateMissingSource = false
   let selectionBeforeSimulation: SourceCategory | undefined
 
@@ -248,6 +262,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const renderStep = (): void => {
     const destinationVisible = step === 'destination'
     const operationVisible = step === 'operation'
+    const portableVisible = step === 'plugins'
     const detail = detailsFor(language)[selected]
     const sourceCopy = sourceCopyFor(language)
     operationSummary.textContent = origin === 'official'
@@ -266,9 +281,28 @@ window.addEventListener('DOMContentLoaded', () => {
     facts.ariaHidden = String(step !== 'details')
     operationPanel.inert = !operationVisible
     operationPanel.ariaHidden = String(!operationVisible)
+    portablePanel.inert = !portableVisible
+    portablePanel.ariaHidden = String(!portableVisible)
     destinationPanel.ariaHidden = String(!destinationVisible)
     destinationPanel.inert = !destinationVisible
     for (const choice of operationChoices) choice.ariaChecked = String(choice.dataset.operation === selected)
+    const portableCopy = portableCopyFor(language)
+    required('#portable-title').textContent = portableCopy.title
+    required('#portable-summary').textContent = portableCopy.summary
+    required('#portable-current-host').textContent = currentHost === undefined ? '' : `${portableCopy.currentHost}: ${currentHost}`
+    required('#portable-online-title').textContent = portableCopy.online
+    required('#portable-online-detail').textContent = portableCopy.onlineDetail
+    required('#portable-offline-title').textContent = portableCopy.offline
+    required('#portable-offline-detail').textContent = portableCopy.offlineDetail
+    for (const choice of migrationChoices) choice.ariaChecked = String(choice.dataset.migration === migrationMode)
+    portableSelection.hidden = migrationMode !== 'offline'
+    choosePortableButton.textContent = portableChecking ? portableCopy.checking : portableCopy.choose
+    choosePortableButton.disabled = portableChecking || submitting
+    portableTarget.textContent = portableBundle === undefined ? ''
+      : `${portableCopy.selected}: ${portableBundle.target.platform}/${portableBundle.target.architecture} · ${portableBundle.target.osVersion}`
+    portableError.textContent = portableInvalid ? portableCopy.invalid
+      : migrationMode === 'offline' && portableBundle === undefined ? portableCopy.required : ''
+    portableError.hidden = portableError.textContent.length === 0
     reuseOperationChoice.hidden = origin === 'official'
     required('#operation-sharing').textContent = detail.sharing
     required('#operation-plugins').textContent = detail.plugins
@@ -281,7 +315,8 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
       continueButton.disabled = false
     }
-    continueButton.disabled ||= sourceSelectionPending || submitting
+    continueButton.disabled ||= sourceSelectionPending || submitting || portableChecking
+      || (portableVisible && migrationMode === 'offline' && portableBundle === undefined)
   }
 
   const renderCopy = (): void => {
@@ -345,11 +380,39 @@ window.addEventListener('DOMContentLoaded', () => {
     targetChoices.find(choice => choice.dataset.target === targetMode)?.focus()
   }
 
+  const enterPortableStep = (): void => {
+    step = 'plugins'
+    renderStep()
+    migrationChoices.find(choice => choice.dataset.migration === migrationMode)?.focus()
+  }
+
   const leaveDestinationStep = (): void => {
-    step = origin === 'fresh' || origin === 'official' || step === 'operation' ? 'details' : 'operation'
+    step = step === 'destination' && origin !== 'fresh' ? 'plugins'
+      : step === 'plugins' && origin === 'community' ? 'operation' : 'details'
     renderStep()
     if (step === 'operation') operationChoices.find(choice => choice.dataset.operation === selected)?.focus()
+    else if (step === 'plugins') migrationChoices.find(choice => choice.dataset.migration === migrationMode)?.focus()
     else choices.find(choice => choice.dataset.source === origin)?.focus()
+  }
+
+  const choosePortable = async (): Promise<void> => {
+    if (submitting || portableChecking) return
+    portableChecking = true
+    portableInvalid = false
+    renderStep()
+    try {
+      const result = await ipcRenderer.invoke('dsh:data-home:choose-portable') as
+        | { status: 'selected'; selectionId: string; target: { platform: string; architecture: string; osVersion: string } }
+        | { status: 'invalid' | 'unreadable' | 'cancelled' }
+      if (result.status === 'selected') portableBundle = { selectionId: result.selectionId, target: result.target }
+      else if (result.status !== 'cancelled') { portableBundle = undefined; portableInvalid = true }
+    } catch {
+      portableBundle = undefined
+      portableInvalid = true
+    } finally {
+      portableChecking = false
+      renderStep()
+    }
   }
   const chooseSource = async (category: ExistingSourceCategory): Promise<void> => {
     if (sourceSelectionPending || submitting) return
@@ -377,6 +440,8 @@ window.addEventListener('DOMContentLoaded', () => {
       sources[category].status = 'valid'
       sources[category].error = undefined
       sources[category].selectionId = result.selectionId
+      portableBundle = undefined
+      portableInvalid = false
       renderSource()
     } catch {
       sources[category].error = 'unreadable'
@@ -417,6 +482,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const selectOrigin = (category: SourceCategory): void => {
     if (sourceSelectionPending || submitting) return
     origin = category
+    portableBundle = undefined
+    portableInvalid = false
     source = category === 'fresh' ? undefined : sources[category].path
     step = 'details'
     select(category === 'community' ? 'reused' : category === 'fresh' ? 'fresh' : 'imported')
@@ -431,6 +498,15 @@ window.addEventListener('DOMContentLoaded', () => {
       select(choice.dataset.operation as 'imported' | 'reused')
     })
   }
+  for (const choice of migrationChoices) {
+    choice.addEventListener('click', () => {
+      if (submitting || portableChecking) return
+      migrationMode = choice.dataset.migration === 'offline' ? 'offline' : 'online'
+      renderStep()
+      if (migrationMode === 'offline' && portableBundle === undefined) choosePortableButton.focus()
+    })
+  }
+  choosePortableButton.addEventListener('click', () => { void choosePortable() })
   for (const choice of targetChoices) {
     choice.addEventListener('click', (event) => {
       if (submitting) return
@@ -604,6 +680,14 @@ window.addEventListener('DOMContentLoaded', () => {
       ], 'option')
       return
     }
+    if (step === 'plugins') {
+      const portableCopy = portableCopyFor(language)
+      renderComparisonTable(portableCopy.title, portableCopy.summary, [copy.pluginsLabel], [
+        { title: portableCopy.online, tone: 'copy', values: [portableCopy.onlineDetail] },
+        { title: portableCopy.offline, tone: 'reuse', values: [portableCopy.offlineDetail] },
+      ], 'option')
+      return
+    }
     renderComparisonTable(copy.destinationTitle, copy.destinationSummary, [
       copy.locationLabel, copy.suitableLabel,
     ], [
@@ -663,6 +747,8 @@ window.addEventListener('DOMContentLoaded', () => {
       ? { mode: selected, target }
       : {
         mode: 'copied', sourceKind: origin, source, target,
+        pluginMigration: migrationMode === 'offline' && portableBundle !== undefined
+          ? { mode: 'offline', selectionId: portableBundle.selectionId } : { mode: 'online' },
         ...(origin !== 'community' || sources.community.selectionId === undefined
           ? {} : { sourceSelectionId: sources.community.selectionId }),
       })
@@ -676,7 +762,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     if (step === 'details') {
       if (origin === 'fresh') enterDestinationStep()
-      else if (origin === 'official') enterDestinationStep()
+      else if (origin === 'official') enterPortableStep()
       else {
         step = 'operation'
         renderStep()
@@ -685,6 +771,10 @@ window.addEventListener('DOMContentLoaded', () => {
       return
     }
     if (step === 'operation' && selected === 'imported') {
+      enterPortableStep()
+      return
+    }
+    if (step === 'plugins') {
       enterDestinationStep()
       return
     }

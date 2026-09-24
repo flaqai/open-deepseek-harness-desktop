@@ -39,7 +39,7 @@ async function fixture() {
 describe('portable candidate installation', () => {
   it('stages a verified archive in the candidate and forces offline resolution', async () => {
     const { bundle, activeHome, candidateHome, manifest } = await fixture()
-    const run = vi.fn(async () => 'installed')
+    const run = vi.fn(async (_args: readonly string[], _environment: NodeJS.ProcessEnv) => 'installed')
     await expect(installPortablePluginCandidate({
       activeHome, candidateHome, bundleDirectory: bundle, selectedPackages: ['example-plugin'], run,
     })).resolves.toBe('installed')
@@ -53,7 +53,7 @@ describe('portable candidate installation', () => {
 
   it('rejects a package that is not in the verified bundle without calling the installer', async () => {
     const { bundle, activeHome, candidateHome } = await fixture()
-    const run = vi.fn(async () => 'unexpected')
+    const run = vi.fn(async (_args: readonly string[], _environment: NodeJS.ProcessEnv) => 'unexpected')
     await expect(installPortablePluginCandidate({
       activeHome, candidateHome, bundleDirectory: bundle, selectedPackages: ['other'], run,
     })).rejects.toThrow('not in the verified bundle')
