@@ -97,13 +97,47 @@ test('accepts a failed phase prefix and preserves only its safe category', async
   assert.equal(JSON.stringify(evidence).includes('secret-stack'), false)
 })
 
+test('degrades quickly and safely when the Windows process query is unavailable', async () => {
+  const { root, runnerTemp, destination } = await fixture()
+  const missingSystemRoot = join(root, 'private-missing-system-root')
+  const startedAt = performance.now()
+  const evidence = await collectWindowsSmokeEvidence({
+    runnerTemp, destination, platform: 'win32', environment: { SystemRoot: missingSystemRoot },
+  })
+  assert.ok(performance.now() - startedAt < 5_000, 'a missing PowerShell must fail without waiting for the query timeout')
+  assert.deepEqual(evidence.processes, {
+    status: 'degraded', errorKind: 'process-query-failed', entries: [],
+  })
+  assert.equal(evidence.status, 'degraded')
+  assert.equal(evidence.smoke.status, 'collected')
+  const persisted = await readFile(join(destination, 'evidence.json'), 'utf8')
+  assert.deepEqual(JSON.parse(persisted), evidence)
+  assert.equal(persisted.includes(missingSystemRoot), false)
+  assert.equal(persisted.includes('private-missing-system-root'), false)
+  assert.equal(persisted.includes(runnerTemp), false)
+})
+
 test('collects native Windows process metadata through the real interface', { skip: process.platform !== 'win32' }, async () => {
   const { runnerTemp, destination } = await fixture()
   const evidence = await collectWindowsSmokeEvidence({ runnerTemp, destination })
-  assert.equal(evidence.processes.status, 'collected')
-  for (const entry of evidence.processes.entries) {
-    assert.deepEqual(Object.keys(entry).sort(), ['name', 'parentProcessId', 'processId'])
+  if (evidence.processes.status === 'collected') {
+    assert.deepEqual(Object.keys(evidence.processes).sort(), ['entries', 'status'])
+    assert.equal(evidence.status, 'complete')
+    for (const entry of evidence.processes.entries) {
+      assert.deepEqual(Object.keys(entry).sort(), ['name', 'parentProcessId', 'processId'])
+      assert.ok(Number.isSafeInteger(entry.processId) && entry.processId >= 0)
+      assert.ok(Number.isSafeInteger(entry.parentProcessId) && entry.parentProcessId >= 0)
+      assert.ok(typeof entry.name === 'string' && entry.name.length > 0 && entry.name.length <= 128)
+    }
+  } else {
+    assert.deepEqual(evidence.processes, {
+      status: 'degraded', errorKind: 'process-query-failed', entries: [],
+    })
+    assert.equal(evidence.status, 'degraded')
   }
+  const persisted = await readFile(join(destination, 'evidence.json'), 'utf8')
+  assert.deepEqual(JSON.parse(persisted), evidence)
+  assert.equal(persisted.includes(runnerTemp), false)
 })
 
 test('fails only when the evidence destination cannot be created', async () => {
