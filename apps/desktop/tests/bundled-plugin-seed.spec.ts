@@ -201,7 +201,7 @@ describe('bundled plugin seed', () => {
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-mermaid'))
       .toMatchObject({ version: '0.4.1', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-whale-widget'))
-      .toMatchObject({ version: '0.3.10', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.3.11', installPolicy: 'startup' })
     expect(new Set(manifest.plugins.map(entry => entry.seedId)).size).toBe(manifest.plugins.length)
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-better-sidebar')?.approvedBuilds)
       .toEqual(['node-pty'])
