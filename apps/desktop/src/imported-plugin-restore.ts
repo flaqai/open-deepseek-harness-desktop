@@ -550,6 +550,40 @@ export class ImportedPluginRestoreManager {
     return this.snapshot() as ImportedPluginRestoreSnapshot
   }
 
+  /** Install one validated offline selection through a single candidate activation. */
+  async installPortable(
+    selected: readonly { readonly restoreId: string; readonly packageName: string; readonly archive: string }[],
+    install: (archives: readonly string[]) => Promise<string>,
+  ): Promise<ImportedPluginRestoreSnapshot> {
+    if (this.plan === undefined) throw new Error('desktop: imported plugin restore plan is unavailable')
+    if (this.active) throw new Error('desktop: imported plugin restore is already running')
+    const ids = new Set(selected.map(item => item.restoreId))
+    if (selected.length === 0 || ids.size !== selected.length) throw new TypeError('desktop: invalid portable plugin selection')
+    for (const item of selected) {
+      const entry = this.requireLocalEntry(item.restoreId)
+      if (entry.packageName !== item.packageName) throw new TypeError('desktop: portable plugin identity changed')
+    }
+    this.active = true
+    this.plan = { ...this.plan, firstPromptDismissed: true, ignored: false }
+    try {
+      const diagnostic = await this.mutate(selected.map(item => item.packageName), async () => {
+        for (const item of selected) await this.update(item.restoreId, { state: 'installing', diagnostic: null })
+        return install(selected.map(item => item.archive))
+      })
+      for (const item of selected) await this.update(item.restoreId, {
+        state: 'succeeded',
+        ...(diagnostic.trim() === '' ? {} : { diagnostic: diagnostic.slice(-2000) }),
+      })
+    } catch (error) {
+      const diagnostic = selected.length > 1
+        ? `Batch rolled back: ${boundedDiagnostic(error)}` : boundedDiagnostic(error)
+      for (const item of selected) await this.update(item.restoreId, { state: 'failed', diagnostic })
+    } finally {
+      this.active = false
+    }
+    return this.snapshot() as ImportedPluginRestoreSnapshot
+  }
+
   /** Resolve the package identity for a local picker without exposing filesystem access to the renderer. */
   localEntry(restoreId: string): Pick<ImportedPluginRestoreEntry, 'packageName' | 'declaredSpec'> {
     const entry = this.requireLocalEntry(restoreId)

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,6 +19,8 @@ import {
   verifyPortablePluginBundle,
   writePortablePluginBundle,
 } from '../src/portable-plugin-bundle.ts'
+import { packPortablePluginBundle, unpackPortablePluginBundle } from '../src/portable-plugin-transfer.ts'
+import { mergePortablePluginStore } from '../src/portable-plugin-store.ts'
 
 const roots: string[] = []
 const execFileAsync = promisify(execFile)
@@ -146,7 +148,7 @@ describe('portable plugin bundle', () => {
     await rehearsePortablePluginBundle(bundle, target, async (args, cwd, environment) => {
       called = true
       expect(args).toContain('--offline')
-      expect(args).toContain(`--store-dir=${join(bundle, 'store')}`)
+      expect(args).toContain(`--store-dir=${join(cwd, 'store')}`)
       expect(args.at(-1)).toContain(join(bundle, 'artifacts'))
       expect(cwd).not.toContain(bundle)
       expect(environment.npm_config_offline).toBe('true')
@@ -317,6 +319,38 @@ describe('portable plugin bundle', () => {
       expect(calls).toBe(2)
       expect(result.store?.verification).toBe('source-host-rehearsed')
       await expect(verifyPortablePluginBundle(bundle)).resolves.toMatchObject({ store: result.store })
+      const transfer = join(root, 'portable-plugins.tgz')
+      await packPortablePluginBundle(bundle, transfer)
+      const unpacked = await unpackPortablePluginBundle(transfer)
+      try {
+        await rehearsePortablePluginBundle(unpacked.directory, target, async (args, cwd, environment) => {
+          await execFileAsync(process.execPath, [pnpm, ...args], {
+            cwd, env: environment, timeout: 30_000, maxBuffer: 256 * 1024,
+          })
+        })
+        const newHome = join(root, 'destination-home')
+        const newProfile = join(newHome, 'profiles', 'web')
+        await mkdir(newProfile, { recursive: true })
+        await writeFile(join(newProfile, 'package.json'), '{"name":"portable-target","private":true}\n')
+        await mergePortablePluginStore(unpacked.directory, newHome)
+        const retainedArchive = join(newHome, 'portable-plugin.tgz')
+        const artifact = result.artifacts[0]
+        if (artifact === undefined) throw new Error('fixture has no exported plugin archive')
+        await copyFile(join(unpacked.directory, artifact.file), retainedArchive)
+        await execFileAsync(process.execPath, [pnpm, 'add', '--offline', '--ignore-scripts', '--save-exact',
+          `--store-dir=${join(newHome, '.pnpm-store')}`,
+          `--config.cache-dir=${join(unpacked.directory, 'cache')}`,
+          `--registry=${registryUrl}/`, retainedArchive], {
+          cwd: newProfile,
+          env: { ...process.env, HTTP_PROXY: 'http://127.0.0.1:9', HTTPS_PROXY: 'http://127.0.0.1:9' },
+          timeout: 30_000,
+          maxBuffer: 256 * 1024,
+        })
+        expect(JSON.parse(await readFile(join(newProfile, 'node_modules', 'example-plugin', 'package.json'), 'utf8')))
+          .toMatchObject({ name: 'example-plugin', version: '1.2.3' })
+      } finally {
+        await unpacked.cleanup()
+      }
     } finally {
       if (registry.listening) await new Promise<void>((resolve) => { registry.close(() => { resolve() }) })
     }

@@ -310,6 +310,67 @@ describe('imported plugin restore', () => {
     })
   })
 
+  it('commits a portable batch only after its candidate transaction succeeds', async () => {
+    const root = await fixture()
+    await mkdir(join(root, 'profiles', 'web'), { recursive: true })
+    await writeFile(join(root, 'profiles', 'web', 'pnpm-workspace.yaml'), 'packages:\n  - .\n')
+    const base = await extractImportedPluginRestorePlan(root)
+    await writeImportedPluginRestorePlan(root, {
+      ...base,
+      entries: ['one', 'two'].map(packageName => ({
+        restoreId: `${packageName}-id`, packageName, packageSpec: `${packageName}@^1`,
+        declaredSpec: '^1', category: 'plugin' as const, defaultSelected: true,
+        recoverable: true, state: 'pending' as const,
+      })),
+    })
+    let finishMutation: ((value: string) => void) | undefined
+    const withMutation = vi.fn(async (_operation: () => Promise<string>, expectedPackages: readonly string[]) => {
+      expect(expectedPackages).toEqual(['one', 'two'])
+      return new Promise<string>((resolve) => { finishMutation = resolve })
+    })
+    const manager = new ImportedPluginRestoreManager({
+      dshHome: root, providedDependencies: {}, install: async () => '', withMutation,
+    })
+    await manager.prepare()
+    const selected = [
+      { restoreId: 'one-id', packageName: 'one', archive: '/bundle/one.tgz' },
+      { restoreId: 'two-id', packageName: 'two', archive: '/bundle/two.tgz' },
+    ]
+    const pending = manager.installPortable(selected, async () => 'installed')
+    await vi.waitFor(() => { expect(finishMutation).toBeDefined() })
+    expect(manager.snapshot()?.entries.map(entry => entry.state)).toEqual(['pending', 'pending'])
+    finishMutation?.('installed')
+    await expect(pending).resolves.toMatchObject({ active: false })
+    expect(manager.snapshot()?.entries.map(entry => entry.state)).toEqual(['succeeded', 'succeeded'])
+  })
+
+  it('keeps a failed portable batch retryable and rejects a substituted identity', async () => {
+    const root = await fixture()
+    await mkdir(join(root, 'profiles', 'web'), { recursive: true })
+    await writeFile(join(root, 'profiles', 'web', 'pnpm-workspace.yaml'), 'packages:\n  - .\n')
+    const base = await extractImportedPluginRestorePlan(root)
+    await writeImportedPluginRestorePlan(root, {
+      ...base,
+      entries: [{
+        restoreId: 'one-id', packageName: 'one', packageSpec: 'one@^1',
+        declaredSpec: '^1', category: 'plugin', defaultSelected: true,
+        recoverable: true, state: 'pending',
+      }],
+    })
+    const manager = new ImportedPluginRestoreManager({
+      dshHome: root, providedDependencies: {}, install: async () => '',
+      withMutation: async () => { throw new Error('activation failed') },
+    })
+    await manager.prepare()
+    await expect(manager.installPortable([{ restoreId: 'one-id', packageName: 'other', archive: '/bad.tgz' }], async () => ''))
+      .rejects.toThrow('identity changed')
+    await expect(manager.installPortable([{ restoreId: 'one-id', packageName: 'one', archive: '/good.tgz' }], async () => ''))
+      .resolves.toMatchObject({ active: false })
+    expect((await readImportedPluginRestorePlan(root))?.entries[0]).toMatchObject({
+      state: 'failed', diagnostic: 'activation failed',
+    })
+  })
+
   it('rejects a locally edited plan that tries to replace an opaque id with a path install', async () => {
     const root = await fixture()
     const plan = await extractImportedPluginRestorePlan(root)

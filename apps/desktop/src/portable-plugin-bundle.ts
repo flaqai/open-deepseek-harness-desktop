@@ -1,8 +1,8 @@
 /** Validated, target-specific metadata for a portable plugin dependency bundle. */
 
 import { createHash, randomUUID } from 'node:crypto'
-import { createReadStream } from 'node:fs'
-import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, rmdir, unlink, writeFile } from 'node:fs/promises'
+import { constants, createReadStream } from 'node:fs'
+import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, rmdir, unlink, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import semver from 'semver'
@@ -240,6 +240,10 @@ export async function rehearsePortablePluginBundle(
   if (!cacheStats.isDirectory()) throw new Error('desktop: portable plugin bundle has no regular pnpm metadata cache')
   const rehearsal = await mkdtemp(join(tmpdir(), 'dsh-portable-plugin-rehearsal-'))
   try {
+    const rehearsalStore = join(rehearsal, 'store')
+    const rehearsalCache = join(rehearsal, 'cache')
+    await cp(storeDirectory, rehearsalStore, { recursive: true, mode: constants.COPYFILE_FICLONE })
+    await cp(cacheDirectory, rehearsalCache, { recursive: true, mode: constants.COPYFILE_FICLONE })
     await writeFile(join(rehearsal, 'package.json'), '{"name":"dsh-portable-plugin-rehearsal","private":true}\n', {
       flag: 'wx', mode: 0o600,
     })
@@ -263,8 +267,8 @@ export async function rehearsePortablePluginBundle(
       ALL_PROXY: 'http://127.0.0.1:9',
     }
     await install([
-      'add', '--offline', '--ignore-scripts', '--save-exact', `--store-dir=${storeDirectory}`,
-      `--config.cache-dir=${cacheDirectory}`,
+      'add', '--offline', '--ignore-scripts', '--save-exact', `--store-dir=${rehearsalStore}`,
+      `--config.cache-dir=${rehearsalCache}`,
       ...(manifest.registry === undefined ? [] : [`--registry=${manifest.registry}`]),
       ...manifest.artifacts.map(artifact => join(directory, artifact.file)),
     ], rehearsal, environment)
@@ -272,6 +276,7 @@ export async function rehearsePortablePluginBundle(
   } finally {
     await rm(rehearsal, { recursive: true, force: true })
   }
+  if (manifest.store !== undefined) await verifyPreparedPortablePluginBundle(directory)
 }
 
 /** Fill an isolated store and attest an offline rehearsal only on the exact current target. */
@@ -324,6 +329,7 @@ export async function preparePortablePluginBundle(
       ...staged.artifacts.map(artifact => join(directory, artifact.file)),
     ], preparation, onlineEnvironment)
     await verifyPreparedInstall(preparation, staged.artifacts)
+    await removePnpmProjectRegistrations(storeDirectory)
     const host = parsePortablePluginTarget(actualHost)
     const matchingHost = staged.target.platform === host.platform
       && staged.target.architecture === host.architecture
