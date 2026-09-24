@@ -86,7 +86,7 @@ describe('portable plugin registry download', () => {
       if (url.hostname === 'registry.npmmirror.com') {
         return Response.redirect('https://cdn.npmmirror.com/packages/example-plugin-1.2.3.tgz', 302)
       }
-      return new Response(archive)
+      return new Response(new Uint8Array(archive))
     }
     const downloaded = await downloadPortablePluginArchive(
       'https://registry.npmmirror.com', 'example-plugin', '1.2.3', request,
