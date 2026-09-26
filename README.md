@@ -542,9 +542,9 @@ API Key 由 Harness 凭据服务管理，请勿提交凭据。选择任何兼容
 欢迎扫码加入 Open DeepSeek Harness Desktop 交流群，与其他用户和插件作者交流使用经验、问题排查与功能建议。
 
 <p align="center">
-  <img src="./assets/readme/wechat-group-qr-2026-09-26.jpg" width="360" alt="Open DeepSeek Harness Desktop 微信交流群二维码">
+  <img src="./assets/readme/wechat-group-qr-2026-10-03.png" width="360" alt="Open DeepSeek Harness Desktop 微信交流群二维码">
   <br>
-  <sub>当前二维码有效期至 2026 年 9 月 26 日；过期后请关注 README 中更新的二维码</sub>
+  <sub>当前二维码在 2026 年 10 月 3 日前有效；过期后请关注 README 中更新的二维码</sub>
 </p>
 
 ## 致谢
