@@ -13,6 +13,10 @@ export interface DesktopLifecycleOptions {
   reportError(error: unknown): void
   /** Return false when an active mutation cannot safely be interrupted. */
   canQuit?(): boolean
+  /** Ordinary quit only: confirm work interruption after the synchronous mutation guard. */
+  confirmQuit?(): Promise<boolean>
+  /** Invalidate an ordinary confirmation when a quick restart takes over. */
+  cancelQuitConfirmation?(): void
   /** False only when the host positively knows tray creation failed. */
   canHideToTray?(): boolean
   onTrayUnavailable?(): void
@@ -23,7 +27,8 @@ export interface DesktopLifecycle {
   readonly isQuitting: boolean
   onWindowClose(event: Event): void
   showWindow(): void
-  requestQuit(): Promise<void>
+  /** System session termination skips an interactive dialog but retains normal cleanup. */
+  requestQuit(options?: { readonly skipConfirmation?: boolean }): Promise<void>
   requestRestart(relaunch: () => void): Promise<void>
 }
 
@@ -55,10 +60,31 @@ export function createDesktopLifecycle(options: DesktopLifecycleOptions): Deskto
     return quitOperation
   }
 
-  const requestQuit = (): Promise<void> => {
+  const requestQuit = (request?: { readonly skipConfirmation?: boolean }): Promise<void> => {
+    if (request?.skipConfirmation === true) {
+      if (quitting) return quitOperation ?? Promise.resolve()
+      if (options.canQuit?.() === false) return Promise.resolve()
+      if (quitOperation !== undefined) options.cancelQuitConfirmation?.()
+      quitOperation = undefined
+      return beginQuit()
+    }
     if (quitOperation !== undefined) return quitOperation
     if (options.canQuit?.() === false) return Promise.resolve()
-    return beginQuit()
+    if (options.confirmQuit === undefined) return beginQuit()
+    const operation: Promise<void> = Promise.resolve().then(() => quitOperation === operation ? options.confirmQuit?.() : false)
+      .then(async (approved) => {
+        if (quitOperation !== operation || approved !== true) return
+        if (options.canQuit?.() === false) return
+        await beginQuit()
+      })
+      .catch((error: unknown) => {
+        if (quitOperation !== operation) return
+        options.reportError(error)
+        showWindow()
+      })
+      .finally(() => { if (quitOperation === operation) quitOperation = undefined })
+    quitOperation = operation
+    return operation
   }
 
   return {
@@ -76,8 +102,12 @@ export function createDesktopLifecycle(options: DesktopLifecycleOptions): Deskto
     showWindow,
     requestQuit,
     requestRestart(relaunch) {
-      if (quitOperation !== undefined) return quitOperation
+      if (quitting) return quitOperation ?? Promise.resolve()
       if (options.canQuit?.() === false) return Promise.resolve()
+      if (quitOperation !== undefined) {
+        options.cancelQuitConfirmation?.()
+        quitOperation = undefined
+      }
       return beginQuit(relaunch)
     },
   }

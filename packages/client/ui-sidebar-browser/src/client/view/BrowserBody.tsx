@@ -97,7 +97,13 @@ export function BrowserBody(props: BrowserBodyProps): ReactNode {
           <button type="submit" className={[css.tool, css.addressGo].join(' ')} aria-label={t('go')} title={t('go')}><IconLinkOutlineRegular /></button>
         </div>
         <button type="button" className={css.tool} aria-label={t('external')} title={t('external')} disabled={externalUrl === undefined}
-          onClick={externalUrl === undefined ? undefined : () => { window.open(externalUrl, '_blank', 'noopener,noreferrer') }}
+          onClick={externalUrl === undefined ? undefined : () => {
+            const desktop = (globalThis as typeof globalThis & {
+              deepSeekHarnessDesktop?: { externalBrowser?: { open(url: string): Promise<void> } }
+            }).deepSeekHarnessDesktop?.externalBrowser
+            if (desktop !== undefined) void desktop.open(externalUrl).catch(() => {})
+            else window.open(externalUrl, '_blank', 'noopener,noreferrer')
+          }}
         ><IconRightUpOutlineRegular size={14} /></button>
         {sandboxed !== undefined && <button
           type="button"

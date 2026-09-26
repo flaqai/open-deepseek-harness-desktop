@@ -88,15 +88,29 @@ it('claims account balance notices from the frame-wide quota chain and declines 
   expect(select({ ...notice, code: 'QUOTA' })).toBeNull()
 }, 60_000)
 
-it('shares account actions across seats, publishes dialog ownership, and opens contextual support', async ({ start }) => {
+it('opens the support page through the Desktop main-frame browser bridge', async ({ start }) => {
+  const open = vi.fn(async (_url: string) => {})
+  const nativePopup = vi.spyOn(window, 'open').mockReturnValue(null)
+  vi.stubGlobal('dshDesktop', {})
+  vi.stubGlobal('deepSeekHarnessDesktop', { externalBrowser: { open } })
+  const c = await start()
+  operations(c).contactUs()
+  expect(open).toHaveBeenCalledOnce()
+  expect(new URL(open.mock.calls[0]![0]).protocol).toBe('https:')
+  expect(nativePopup).not.toHaveBeenCalled()
+}, 60_000)
+
+it('shares account actions across active desktop seats and opens contextual support', async ({ start }) => {
   vi.stubGlobal(CONTACT_CONFIG_GLOBAL, { contactFormUrl: 'https://example.test/form/', contactSource: 'harness' })
   const open = vi.spyOn(window, 'open').mockReturnValue(null)
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
   const actions = operations(c)
-  expect(c.ctx.slots.entries('settings.models.sign-in')[0]!.inject!()).toBe(actions)
+  expect(c.ctx.slots.entries('shell.overlay').some(entry => entry.options.id === 'desktop-onboarding')).toBe(true)
+  expect(c.ctx.slots.entries('settings.models.sign-in')).toHaveLength(0)
   // The account UI follows the live theme service through the framework hook channel.
   const theme = c.ctx.get('theme') as ThemeRuntime
+  const themeIds = theme.getTheme().themes.map(candidate => candidate.id)
   const onTheme = vi.fn()
   const offTheme = actions.hooks.theme.subscribe(onTheme)
   expect(actions.hooks.theme.getSnapshot()).toBe(theme.getTheme())
@@ -104,7 +118,7 @@ it('shares account actions across seats, publishes dialog ownership, and opens c
   expect(onTheme).toHaveBeenCalledOnce()
   probe()
   offTheme()
-  expect(theme.getTheme().themes.map(candidate => candidate.id)).toEqual(['light', 'dark'])
+  expect(theme.getTheme().themes.map(candidate => candidate.id)).toEqual(themeIds)
   await actions.refreshAccount()
   expect(c.mock.remote.account.getProfile).not.toHaveBeenCalled()
   const listener = vi.fn()
@@ -125,7 +139,7 @@ it('shares account actions across seats, publishes dialog ownership, and opens c
   await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().details?.profile).toEqual(profile) })
   const entry = c.ctx.slots.entries('settings.section').find(entry => entry.options.id === 'account')!
   expect(entry.inject!()).toBe(actions)
-  expect(resolveSlotLabel(entry.options.label)).toBe('Account')
+  expect(resolveSlotLabel(entry.options.label)).toBe('Connect to DeepSeek')
   vi.spyOn(c.ctx.locale, 'getSnapshot').mockReturnValue({ ...c.ctx.locale.getSnapshot(), active: 'zh' })
   actions.contactUs()
   const support = new URL(String(open.mock.calls.at(-1)![0]))

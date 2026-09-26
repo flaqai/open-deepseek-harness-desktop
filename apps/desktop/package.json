@@ -20,10 +20,11 @@
     "semver": "^7.8.5",
     "sigstore": "4.1.1",
     "tar": "^7.5.22",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "ws": "^8.21.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && pnpm --config.verifyDepsBeforeRun=false exec tsdown --config tsdown.preload.config.ts && node scripts/copy-assets.mjs",
+    "build": "tsc -p tsconfig.json && pnpm --config.verifyDepsBeforeRun=false exec tsdown --config tsdown.preload.config.ts && node scripts/copy-assets.mjs && node scripts/build-welcome.mjs",
     "dev": "node scripts/dev-watch.mjs",
     "dev:once": "pnpm run build && node scripts/start-electron.mjs",
     "package:win:x64": "pnpm --dir ../.. run prepare:desktop:bundled-plugins && pnpm --dir ../.. run build:community-desktop && pnpm exec tsx scripts/prepare-workspace-runtime.ts win-x64 && node scripts/prepare-windows-runtime.mjs && node node_modules/electron-builder/out/cli/cli.js --win nsis --x64 --publish never",
@@ -38,11 +39,17 @@
     "@electron/notarize": "2.5.0",
     "@types/semver": "^7.7.1",
     "@types/node": "^22.20.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "@types/ws": "^8.18.1",
     "electron": "44.0.0",
     "electron-builder": "26.15.3",
     "extract-zip": "2.0.1",
     "pnpm": "11.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "vite": "^6.0.0"
   }
 }

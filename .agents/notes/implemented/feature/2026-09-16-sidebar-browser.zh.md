@@ -18,7 +18,7 @@ Status: implemented
 
 地址解析器接受 `http:` 与 `https:`，包括 loopback 目标；不带 scheme 的主机名补为 HTTPS。它拒绝内嵌凭据、应用自身 origin、畸形地址、`file:` URL，以及所有其他 scheme。本地文件继续由 Document Preview 负责。
 
-Web 使用 iframe 载体；Desktop 使用[保持页面实例的 webview 载体](2026-09-20-desktop-browser-webview.zh.md)。它的默认 Web 策略是 `sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"`；frame 没有直接的下载或顶层导航 flag。popup 会脱离 sandbox，Web popup 会保留 opener，并可以通过该链导航顶层应用。same-origin 允许被访问的 origin 使用自己的 Cookie 与 Web storage；它不会让跨域目标与 DSH 变成同源。iframe 不发送 referrer，也不添加包自有的 Permissions Policy，因此浏览器默认策略与用户授权生效。最右侧 toolbar 开关会为当前 tab occurrence 移除 sandbox attribute；该模式不持久化，启用期间持续显示警告。未受 sandbox 约束的页面可以按浏览器 activation 规则导航顶层应用，并使用下载、模态对话框和输入锁定。本包不执行 Host 侧 URL probe 或代理。
+Web 和社区 Desktop 均使用 iframe 载体；[保持页面实例的 webview 载体](2026-09-20-desktop-browser-webview.zh.md)尚未接入社区 Desktop。Web 默认使用 `sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"`，并提供带警告的逐 tab 临时 sandbox 开关。社区 Desktop 固定使用 `allow-scripts allow-forms allow-same-origin`，不提供开关或 popup 逃逸。其主进程拒绝子框架请求 Harness 监听地址，包括 loopback 别名；明确的外部打开操作通过受限 HTTP(S) bridge 交给主进程，并只接受主框架请求。两种 iframe 都不发送 referrer，也不添加包自有的 Permissions Policy。被访问的 origin 在父浏览器 session 中使用自身 Cookie 与 Web storage；它不会因此与 DSH 同源。本包不执行 Host 侧 URL probe 或代理。
 
 每个 tab 获得一个 `BrowserController`，负责地址校验与载体无关的命令。`BrowserFrame` 提供导航、可观察的地址/加载/history/错误状态和可选 sandbox 控制，`BrowserPresentation` 负责 DOM 挂载。`pages.ts` 把两个对象组装成 `BrowserPage`。`IframeImpl` 持有应用已知的 `BrowserNavigation`，`ElectronWebViewImpl` 则观察原生 history。Slot injection 通过 `useBrowserState` 提供按 key 索引的控制器状态和普通回调；React body 只持有草稿与内容容器，没有载体分支、控制器实例或可观察源。
 
@@ -45,7 +45,7 @@ Browser 状态只属于呈现层，不进入 Session log、模型请求、resour
 
 ## Electron carrier
 
-[Desktop webview 决策](2026-09-20-desktop-browser-webview.zh.md)负责原生页面生命周期、Workspace 存储共享、guest 策略与运行时验证缺口。本文的 iframe 行为仍具有独立价值；其跨域限制不描述 Desktop 载体。
+[Desktop webview 决策](2026-09-20-desktop-browser-webview.zh.md)描述尚未接线的原生载体。社区 Desktop preload 没有暴露 Browser guest bridge，因此选择 iframe 提供方。与 guest 不同，此 iframe 与主渲染进程共用浏览器 session，不能提供逐 Workspace Cookie 或进程隔离。Desktop 固定启用 sandbox，并在主进程拒绝 frame 发起的 popup 与 Harness 监听地址请求；明确的外部打开操作会验证请求来自主框架。
 
 ## Alternatives considered
 
@@ -69,6 +69,6 @@ Browser 状态只属于呈现层，不进入 Session log、模型请求、resour
 
 ## Consequences
 
-iframe 载体不暴露 Electron 或 Node API。很多站点拒绝 iframe 嵌入，或者依赖默认 sandbox 不向 frame 提供的下载或顶层导航。HTTPS 应用可能按 mixed-content 策略阻止公共 HTTP 页面，或限制 private-network 请求；关闭 sandbox 也无法绕过这些浏览器策略。关闭 sandbox 在其他方面会用自身保护换取兼容性：frame 可以按浏览器 activation 规则导航顶层应用，并使用下载、模态对话框和输入锁定。逃逸出 sandbox 的 Web popup 会保留 opener，并可以通过该链导航顶层应用。这两条路径都不会增加 Electron 或 Node API。URL 检查无法阻止 iframe 内页面自行选择目标。后续 iframe load 能表明已经发生导航，但无法给出跨域 URL；History API 与 fragment 变化可能完全不可见。
+iframe 载体不暴露 Electron 或 Node API。很多站点拒绝 iframe 嵌入，或者依赖 Desktop sandbox 不向 frame 提供的下载或顶层导航。Web 可以为兼容性关闭 sandbox，但这不能绕过 mixed-content 或 private-network 策略，并会允许顶层导航、下载、对话框与输入锁定。逃逸的 Web popup 会保留 opener，并可以导航应用。社区 Desktop 则拒绝嵌入页 popup；依赖它们的站点需要使用外部浏览器。URL 检查无法阻止 iframe 内页面自行选择目标。后续 iframe load 能表明已经发生导航，但无法给出跨域 URL；History API 与 fragment 变化可能完全不可见。
 
 Web 站点 Cookie 行为遵循用户浏览器，并不按 Browser tab 隔离。本地文件会被拒绝，并继续由 Document Preview 负责。持久化 URL 可能含敏感 query 或 fragment，因此用户不应在地址栏输入不希望保留在应用本地浏览器存储中的凭据。

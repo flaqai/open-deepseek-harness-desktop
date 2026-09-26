@@ -17,9 +17,10 @@ export class IframeImpl implements BrowserFrame {
   private disposal: Promise<void> | undefined
 
   /** @param options - initial checkpoint and persistence writer. @param presentation - iframe DOM adapter. */
-  constructor(private readonly options: BrowserPageOptions, private readonly presentation: IframePresentation) {
+  constructor(private readonly options: BrowserPageOptions, private readonly presentation: IframePresentation,
+    private readonly policy: 'web' | 'desktop' = 'web') {
     this.navigation = new BrowserNavigation(options.initial)
-    this.store = createSnapshotStore({ ...emptyBrowserFrame(), sandboxEnabled: this.sandboxed })
+    this.store = createSnapshotStore({ ...emptyBrowserFrame(), sandboxEnabled: policy === 'web' ? this.sandboxed : undefined })
   }
 
   /**
@@ -72,7 +73,7 @@ export class IframeImpl implements BrowserFrame {
   }
 
   private setSandbox(enabled: boolean): void {
-    if (this.disposed || enabled === this.sandboxed) return
+    if (this.disposed || this.policy === 'desktop' || enabled === this.sandboxed) return
     this.sandboxed = enabled
     if (this.store.getSnapshot().target === undefined) {
       this.store.set({ ...this.store.getSnapshot(), sandboxEnabled: enabled })
@@ -94,7 +95,7 @@ export class IframeImpl implements BrowserFrame {
     return { target, address: target === undefined ? 'empty' : state.navigation.status === 'unknown' ? 'unknown' : 'requested',
       loading: state.navigation.status === 'loading' && this.error === undefined,
       canGoBack: this.navigation.canGoBack, canGoForward: this.navigation.canGoForward,
-      error: this.error, sandboxEnabled: this.sandboxed }
+      error: this.error, sandboxEnabled: this.policy === 'web' ? this.sandboxed : undefined }
   }
 
   private publish(): void {

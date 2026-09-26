@@ -94,7 +94,8 @@ export function apply(ctx: Context): void {
       },
     }, BrowserBody)), 'ui-sidebar-browser.body')
   }
-  if (desktop === undefined) installFrames(ctx, () => createIframePage)
+  if (desktop === undefined) installFrames(ctx, () => options => createIframePage(options,
+    carrier?.protocolVersion === 1 ? 'desktop' : 'web'))
   else ctx.inject(['workspaces'], (scope) => {
     installFrames(scope, sessionId => options => createElectronPage(options, desktop,
       signal => browserWorkspace(scope.workspaces.list, sessionId, signal)))

@@ -12,14 +12,14 @@ Independent per-tab storage also prevents related pages in one Workspace from sh
 
 ## Decision
 
-Desktop uses `<webview>` through `ElectronWebViewImpl`; Web retains its opt-in iframe carrier. The [Sidebar Browser decision](2026-09-16-sidebar-browser.md) owns shared tab behavior and iframe limitations; this note owns the Desktop carrier and Workspace-keyed partitions.
+The codebase contains a retained `<webview>` implementation through `ElectronWebViewImpl`, but the community Desktop preload does not expose its guest bridge. The community Desktop and Web therefore use the iframe carrier described in the [Sidebar Browser decision](2026-09-16-sidebar-browser.md). This note records the unconnected native carrier and its Workspace-keyed partition design; it does not claim that its guest isolation protects the community Desktop iframe.
 
 The [stable Sidebar mounting decision](../architecture/2026-09-20-sidebar-retained-tab-layout.md) owns retained Session and tab containers in real CSS layout. Workspace storage ownership and baseline guest security remain with this note.
 
 - `BrowserController` owns address commands and recoverable presentation state. Native history stays in the guest; actual URL and title observations update the persisted address.
 - Controller registries are keyed by DSH Session, independently of presentation bindings. Rebinding replaces the store writer without recreating the page.
 - `electron/pages.ts` composes the Electron navigation provider and presentation object. `ElectronWebViewImpl` owns guest leases and native navigation; `ElectronWebviewPresentation` creates the tag and attaches it inside the Sidebar-owned content container.
-- The Desktop Browser type declares `keepMounted`. Sidebar retains its DOM ancestors across hiding and docking; CSS owns layout and clipping. Docking gestures disable guest pointer input, and body-local drop hints use normal stacking. A physical unmount cancels pending attachment and releases the guest; a later mount recreates it from the known address.
+- When the native bridge is present, the Desktop Browser type declares `keepMounted`. Sidebar retains its DOM ancestors across hiding and docking; CSS owns layout and clipping. Docking gestures disable guest pointer input, and body-local drop hints use normal stacking. A physical unmount cancels pending attachment and releases the guest; a later mount recreates it from the known address.
 - Tab occurrence cancellation, plugin unload and window destruction release guests. Guest crashes leave a retryable failure; Reload creates a new guest. Application restart offers the saved title and URL for explicit restoration; it creates no guest until the user restores or submits an address. Page memory and native history are not restored.
 
 The standard `./types` subpath exports the shared lease, reservation, open-request and bridge declarations through a declaration-only `types` condition; Desktop consumers use `import type`. There is no runtime default, extra JavaScript artifact or early Host bundling for these declarations. Preload exposes scoped operations and callbacks, not raw IPC or Electron objects.
@@ -34,7 +34,7 @@ Closing a tab releases its guest, not its account's cookies or storage. Cookies,
 
 ### Initial guest policy
 
-Only the primary application window enables `webviewTag`. The main process accepts guest reservations only from that window's application top frame and validates a one-use lease, partition and inert initial `about:blank` document before allowing the guest. The main process replaces renderer-supplied preferences: no Node integration, guest preload, nested webviews, plugins, insecure content, dialogs or drag navigation; sandbox, context isolation and Web security stay enabled.
+The unconnected guest manager binds only to the primary application window when a native Browser bridge is enabled. Its main process accepts guest reservations only from that window's application top frame and validates a one-use lease, partition and inert initial `about:blank` document before allowing the guest. It replaces renderer-supplied preferences: no Node integration, guest preload, nested webviews, plugins, insecure content, dialogs or drag navigation; sandbox, context isolation and Web security stay enabled.
 
 Guest Sessions do not register the application protocol or inherit the application's authenticated request forwarding. Permission requests and checks, device access, display capture, downloads, native popup windows and HTTP authentication prompts are denied. Approved direct HTTP(S) popup requests without a POST body are routed through their live lease to a new Sidebar tab; scripted blank-window and POST popup flows remain unsupported. Navigation accepts credential-free HTTP(S); request filtering rejects local-file and privileged schemes and the known DSH Host endpoint, including common loopback aliases. This is not a general private-network or DNS-rebinding firewall.
 
@@ -52,7 +52,7 @@ The Desktop toolbar has no sandbox-disable switch. The implementation adds no re
 
 ## Consequences
 
-Sidebar-owned stable ancestors preserve the page without Browser-owned geometry or occlusion handling. Hidden guests retain page memory and may continue network activity; there is no idle eviction policy. Persistent storage, selectable isolation scopes and permission-grant UI remain separate work. Temporary Workspace partitions are the current policy, not a promise that Workspace isolation always implies temporary storage.
+When connected, Sidebar-owned stable ancestors preserve the native page without Browser-owned geometry or occlusion handling. Hidden guests retain page memory and may continue network activity; there is no idle eviction policy. Persistent storage, selectable isolation scopes and permission-grant UI remain separate work. The community Desktop currently uses the iframe instead, without these guest partitions.
 
 Focused tests cover native navigation error recovery, preload listener scoping and migrated iframe behavior. They do not establish real Electron attachment timing, overlap, focus, platform styling or storage isolation; those remain runtime verification gaps. No GUI recording accompanies the change. This implementation is not evidence that the complete browser security policy is ready for release.
 

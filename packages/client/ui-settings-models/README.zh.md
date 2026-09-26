@@ -102,7 +102,7 @@ Models 页面包含 **DeepSeek 账号**（`deepseek-account`，英文为 **DeepS
 
 -----
 
-`settings.models.sign-in` 插槽让账号登录在凭证编辑器之前提供选择；没有贡献者时直接显示编辑器。关闭账号选择弹窗会结束整个引导步骤。从账号菜单显式重新打开时，即使已有提供者配置，也会进入同一个编辑器。
+首次设置向导会打开模型设置页以配置提供者凭证。Desktop 使用独立的引导覆盖层；用户仍可从模型设置页显式编辑 API Key。
 
 <a id="model-experience"></a>
 ## 模型体验

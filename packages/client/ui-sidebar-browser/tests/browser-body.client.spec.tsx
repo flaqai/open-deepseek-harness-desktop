@@ -8,7 +8,7 @@ import { createBrowserControllers, type BrowserControllerState, type BrowserInje
 import { createBrowserStore } from '../src/client/browser/store.ts'
 import type { BrowserBodyProps } from '../src/client/view/BrowserBody.tsx'
 import { BrowserBody } from '../src/client/view/BrowserBody.tsx'
-import { WEB_BROWSER_SANDBOX } from '../src/client/view/IframePresentation.ts'
+import { DESKTOP_BROWSER_SANDBOX, WEB_BROWSER_SANDBOX } from '../src/client/view/IframePresentation.ts'
 import { createIframePage } from '../src/client/pages.ts'
 import { zh } from '../src/client/locales.ts'
 import { browserAddressCheckpoint, type BrowserTabState } from '../src/client/browser/BrowserPersistence.ts'
@@ -84,9 +84,34 @@ afterEach(async () => {
   lifetimes.clear()
   localStorage.clear()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('BrowserBody', () => {
+  it('uses the Desktop main-frame bridge for the explicit external-browser action', async () => {
+    const open = vi.fn(async () => {})
+    vi.stubGlobal('deepSeekHarnessDesktop', { externalBrowser: { open } })
+    const nativePopup = vi.spyOn(window, 'open').mockReturnValue(null)
+    const mounted = mountBrowser({ url: 'https://example.com/' }, {
+      createPage: options => createIframePage(options, 'desktop'),
+    })
+    await waitFor(() => { expect(mounted.view.container.querySelector('iframe')).not.toBeNull() })
+    fireEvent.click(mounted.view.getByRole('button', { name: zh.external }))
+    expect(open).toHaveBeenCalledExactlyOnceWith('https://example.com/')
+    expect(nativePopup).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Desktop iframe sandbox fixed and removes the unsafe toggle', async () => {
+    const mounted = mountBrowser({ url: 'https://example.com/' }, {
+      createPage: options => createIframePage(options, 'desktop'),
+    })
+    await waitFor(() => { expect(mounted.view.container.querySelector('iframe')).not.toBeNull() })
+    const frame = mounted.view.container.querySelector('iframe')!
+    expect(frame.getAttribute('sandbox')).toBe(DESKTOP_BROWSER_SANDBOX)
+    expect(mounted.view.queryByRole('button', { name: zh['sandbox.disable'] })).toBeNull()
+    expect(mounted.view.queryByRole('button', { name: zh['sandbox.enable'] })).toBeNull()
+    expect(mounted.view.queryByText(zh['sandbox.warning'])).toBeNull()
+  })
   it('displays the effective browser refresh accelerator', () => {
     const mounted = mountBrowser(undefined, { refreshShortcut: { id: 'page.refresh' as never,
       label: 'Refresh', aliases: [], binding: null, keys: ['Ctrl', 'R'], aria: 'Control+R',

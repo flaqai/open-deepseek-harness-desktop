@@ -77,7 +77,7 @@ export function SignInDialog({ account, colorScheme, start, cancel, close, useAp
     <div className={css.actions}>
       <Button variant="outline" className={css.secondaryButton} disabled={committing || busy}
         onClick={active ? dismiss : useApiKey}>{t(active ? 'cancel' : 'addApiKey')}</Button>
-      <Button variant="primary" className={css.primaryButton} disabled={busy || committing || waiting || account.view === undefined}
+      <Button variant="primary" className={css.primaryButton} disabled={busy || committing || waiting || (account.view === undefined && !error)}
         aria-label={waiting ? t('waiting') : undefined} onClick={() => { void run(retry) }}>
         {waiting ? <IconLoadingOutlineRegular className={css.spinner} /> : t(expired || error ? 'retry' : 'signIn')}
       </Button>

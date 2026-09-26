@@ -11,7 +11,8 @@ import { homedir, release, tmpdir, userInfo } from 'node:os'
 import { basename, delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, net, Notification, safeStorage, session, shell, Tray,
+  app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, net,
+  Notification, powerMonitor, safeStorage, session, shell, Tray,
   type Session,
   type MenuItemConstructorOptions, type MessageBoxOptions, type WebContents, type WebPreferences,
 } from 'electron'
@@ -56,6 +57,7 @@ import { clearDeadModuleFallbackLock, inspectModuleFallbackLock } from './module
 import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
 import { ensureWorkspacePtcPlugin, hasManagedWorkspacePtcBlock, isWorkspacePtcPluginInstalled, PTC_PLUGIN_NAME } from './workspace-ptc-plugin.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
+import { blockEmbeddedNavigation, blockEmbeddedRequest, parseExternalBrowserUrl, trustedRendererPopupUrl } from './sidebar-iframe-security.ts'
 import { terminateWindowsProcessTree } from './windows-process-tree.ts'
 import { revealHarnessLog, type OpenLogResult } from './log-reveal.ts'
 import { startDesktopLogSession } from './persistent-log.ts'
@@ -91,6 +93,13 @@ import {
 } from './workspace-runtime-manifest.ts'
 import { configureWorkspaceRuntimeCapability, type WorkspaceRuntimeProfilePaths } from './workspace-runtime-profile.ts'
 import { createDesktopLifecycle, type DesktopLifecycle } from './window-lifecycle.ts'
+import { DesktopQuitConfirmation } from './quit-confirmation.ts'
+import { openWelcomeWindow } from './welcome-window.ts'
+import { DesktopWelcomePresentation } from './welcome-presentation.ts'
+import { connectDesktopWelcome, type DesktopWelcomeBackend } from './welcome-backend.ts'
+import { WELCOME_IPC } from './welcome-api.ts'
+import { resolveDesktopLocale as resolveWelcomeLocale } from './locale.ts'
+import { inspectLocalHarnessQuit } from './quit-inspection-client.ts'
 import { ApplicationMenuController } from './application-menu-controller.ts'
 import { installDesktopShortcuts } from './keyboard.ts'
 import { CLIENT_COMMANDS, menuCopy, type DesktopCommand } from './application-menu.ts'
@@ -254,6 +263,8 @@ process.on('uncaughtExceptionMonitor', (error, origin) => {
 })
 
 let mainWindow: BrowserWindow | undefined
+let welcomeWindow: BrowserWindow | undefined
+let disposeWelcomeWatch: (() => void) | undefined
 let iconManager: DesktopIconManager | undefined
 let mainSurface: DesktopWindowSurface | undefined
 let supervisor: HarnessSupervisor | undefined
@@ -263,6 +274,7 @@ let nasRuntimeAuthority: DesktopNasRuntimeAuthority | undefined
 let desktopWebAccess: DesktopWebAccess | undefined
 let desktopReturnControl: DesktopReturnControl | undefined
 let lifecycle: DesktopLifecycle | undefined
+let sessionEnding = false
 let applicationMenu: ApplicationMenuController | undefined
 let desktopShortcuts: ReturnType<typeof installDesktopShortcuts> | undefined
 let disposeApplicationMenu: (() => void) | undefined
@@ -1127,6 +1139,107 @@ async function loadAuthenticatedHarness(surface: DesktopWindowSurface, url: stri
   await surface.loadURL(withDesktopWindowMetadata(url, process.platform))
 }
 
+/** Show the native welcome once per local Harness home, then enter the workspace. */
+async function openInitialWorkspace(url: string, dshHome: string): Promise<void> {
+  const surface = mainSurface
+  if (surface === undefined || surface.window.isDestroyed()) return
+  const presentation = new DesktopWelcomePresentation(dshHome)
+  const enterWorkspace = async (): Promise<void> => {
+    disposeWelcomeWatch?.()
+    disposeWelcomeWatch = undefined
+    const previous = welcomeWindow
+    welcomeWindow = undefined
+    if (previous !== undefined && !previous.isDestroyed()) previous.close()
+    if (!surface.window.isDestroyed()) {
+      await loadAuthenticatedHarness(surface, url)
+      if (!hiddenLaunch && lifecycle?.isQuitting !== true) surface.window.show()
+      desktopWebAccess?.openAutomatically(preferences.openBrowserOnStartup)
+    }
+  }
+  let backend: DesktopWelcomeBackend
+  try {
+    backend = await connectDesktopWelcome(url, (input, init) => net.fetch(input, init),
+      async () => (await surface.renderer.session.cookies.get({ url }))
+        .map(cookie => `${cookie.name}=${cookie.value}`).join('; '))
+    const state = await backend.read()
+    if (!await presentation.shouldPresent(state)) {
+      await enterWorkspace()
+      return
+    }
+  } catch (error) {
+    // Missing optional account or credentials APIs must not prevent the community
+    // Web onboarding, data import, or diagnostic recovery from opening.
+    console.warn('desktop: native welcome unavailable; continuing to workspace', error)
+    await enterWorkspace()
+    return
+  }
+  if (mainSurface !== surface || surface.window.isDestroyed() || lifecycle?.isQuitting === true) return
+  const locale = resolveWelcomeLocale(menuLocale)
+  const welcomeState = { entered: false }
+  const openedLoginAttempts = new Set<string>()
+  const enter = async (): Promise<void> => {
+    if (welcomeState.entered) return
+    welcomeState.entered = true
+    await enterWorkspace()
+  }
+  try {
+    const window = await openWelcomeWindow(locale, {
+      takeNotice: () => Promise.resolve(undefined),
+      startSignIn: () => backend.account.start({
+        version: app.getVersion(), locale: locale.id,
+        timezoneOffsetSeconds: -new Date().getTimezoneOffset() * 60,
+      }),
+      cancelSignIn: id => backend.account.cancel(id),
+      copySignInLink: async (id) => {
+        const state = await backend.account.state()
+        if (state.attempt?.id !== id || state.attempt.phase !== 'waiting-browser'
+          || state.attempt.authorizeUrl === undefined) throw new Error('desktop welcome: login link unavailable')
+        await clipboard.writeText(state.attempt.authorizeUrl)
+      },
+      saveApiKey: async (value) => {
+        const result = await backend.save(value)
+        if (result.ok) await enter()
+        return result
+      },
+      skip: enter,
+    }, surface.window.getBounds(), () => presentation.markPresented(), surface.window.isMaximized())
+    if (welcomeState.entered || mainSurface !== surface) {
+      window.close()
+      return
+    }
+    welcomeWindow = window
+    surface.window.hide()
+    window.once('closed', () => {
+      if (welcomeWindow === window) welcomeWindow = undefined
+      disposeWelcomeWatch?.()
+      disposeWelcomeWatch = undefined
+      if (!welcomeState.entered && !surface.window.isDestroyed() && lifecycle?.isQuitting !== true) {
+        void enter().catch((error: unknown) => {
+          console.error('desktop: could not restore workspace after welcome closed', error)
+        })
+      }
+    })
+    disposeWelcomeWatch = backend.account.watch((state) => {
+      if (window.isDestroyed()) return
+      window.webContents.send(WELCOME_IPC.state, state)
+      if (state.status === 'credential-stored' && state.attempt?.phase === 'succeeded') {
+        void enter().catch((error: unknown) => {
+          console.error('desktop: could not open workspace after sign in', error)
+        })
+      } else if (state.attempt?.phase === 'waiting-browser' && state.attempt.authorizeUrl !== undefined
+        && !openedLoginAttempts.has(state.attempt.id)) {
+        openedLoginAttempts.add(state.attempt.id)
+        const loginUrl = new URL(state.attempt.authorizeUrl)
+        loginUrl.searchParams.set('theme', nativeTheme.shouldUseDarkColors ? 'dark' : 'light')
+        void shell.openExternal(loginUrl.href).catch(() => undefined)
+      }
+    }, () => undefined, () => undefined)
+  } catch (error) {
+    console.warn('desktop: could not open native welcome; continuing to workspace', error)
+    await enter()
+  }
+}
+
 function configureNavigation(renderer: WebContents): void {
   const permissionGrants = new Set<string>()
   const permissionDetails = (details: object): HarnessPermissionDetails => ({
@@ -1181,18 +1294,45 @@ function configureNavigation(renderer: WebContents): void {
   }
 
   renderer.on('will-navigate', (event, target) => {
-    if (harnessOrigin !== undefined && new URL(target).origin === harnessOrigin) return
+    try {
+      if (harnessOrigin !== undefined && new URL(target).origin === harnessOrigin) return
+    } catch { /* Invalid navigation is denied below. */ }
     event.preventDefault()
   })
-  renderer.setWindowOpenHandler(({ url }) => {
-    let parsed: URL
-    try {
-      parsed = new URL(url)
-    } catch {
-      return { action: 'deny' }
-    }
-    if (parsed.protocol === 'https:') void shell.openExternal(parsed.href)
+  // Electron supplies no initiator frame for popups. A trusted referrer keeps
+  // ordinary Harness links working; noreferrer links use the main-frame bridge.
+  renderer.setWindowOpenHandler(({ url, referrer, postBody }) => {
+    const target = trustedRendererPopupUrl(url, referrer.url, harnessOrigin, postBody !== undefined)
+    if (target !== undefined) void shell.openExternal(target)
     return { action: 'deny' }
+  })
+  renderer.on('will-frame-navigate', (event) => {
+    if (blockEmbeddedNavigation(event.url, harnessOrigin, event.isMainFrame,
+      event.initiator !== null && event.initiator !== undefined && event.initiator !== renderer.mainFrame)) {
+      event.preventDefault()
+    }
+  })
+  renderer.on('will-redirect', (event) => {
+    if (blockEmbeddedNavigation(event.url, harnessOrigin, event.isMainFrame,
+      event.initiator !== null && event.initiator !== undefined && event.initiator !== renderer.mainFrame)) {
+      event.preventDefault()
+      return
+    }
+    if (event.isMainFrame) {
+      try {
+        if (harnessOrigin !== undefined && new URL(event.url).origin === harnessOrigin) return
+      } catch { /* Invalid redirect is denied below. */ }
+      event.preventDefault()
+    }
+  })
+  renderer.session.webRequest.onBeforeRequest((details, callback) => {
+    callback({ cancel: blockEmbeddedRequest(details.url, harnessOrigin, details.resourceType,
+      details.frame?.parent !== null && details.frame?.parent !== undefined) })
+  })
+  renderer.on('will-attach-webview', (event) => { event.preventDefault() })
+  renderer.on('login', (event, _details, _authInfo, callback) => {
+    event.preventDefault()
+    callback()
   })
   renderer.session.setPermissionCheckHandler((contents, permission, requestingOrigin, details) => {
     if (bootNasRuntime() !== undefined && permission !== 'notifications') return false
@@ -1279,6 +1419,14 @@ function createWindow(): BrowserWindow {
     },
   })
   const { window } = surface
+  if (process.platform === 'win32') {
+    // Windows session-end is definitive; query-session-end alone can be vetoed.
+    window.on('session-end', () => { sessionEnding = true })
+  } else {
+    // A cancelled macOS shutdown must not suppress later ordinary confirmations.
+    window.on('focus', () => { sessionEnding = false })
+    window.on('show', () => { sessionEnding = false })
+  }
   configureNavigation(surface.renderer)
   surface.renderer.session.webRequest.onCompleted({ urls: ['http://127.0.0.1/*', 'https://*/*'] }, (details) => {
     if (details.webContentsId !== surface.renderer.id || details.resourceType !== 'mainFrame'
@@ -2284,6 +2432,14 @@ async function startApplication(): Promise<void> {
     assertMainRenderer(event.sender)
     return openHarnessLog()
   })
+  ipcMain.handle(DESKTOP_IPC.externalBrowserOpen, async (event, value: unknown): Promise<void> => {
+    assertMainRenderer(event.sender)
+    if (event.senderFrame === null || event.senderFrame !== event.sender.mainFrame
+      || harnessOrigin === undefined || new URL(event.senderFrame.url).origin !== harnessOrigin) {
+      throw new Error('desktop: external browser request must come from the Harness main frame')
+    }
+    await shell.openExternal(parseExternalBrowserUrl(value, harnessOrigin))
+  })
   ipcMain.handle(DESKTOP_IPC.bundledPluginsStart, (event, request: unknown): BundledPluginStartResult => {
     assertMainRenderer(event.sender)
     if (request === null || typeof request !== 'object') throw new TypeError('desktop: invalid bundled plugin request')
@@ -2796,6 +2952,32 @@ async function startApplication(): Promise<void> {
     if (typeof error === 'string') pending.reject(new Error(error.slice(0, 1000)))
     else pending.resolve()
   })
+  const quitConfirmation = new DesktopQuitConfirmation({
+    inspect: () => {
+      // Closing this client does not stop a selected NAS Host. Never query its
+      // tasks or represent them as work that this local process would interrupt.
+      if (activeNasRuntime !== undefined || supervisor === undefined) return undefined
+      if (supervisor.isDiagnosticMode) {
+        return Promise.reject(new Error('desktop quit: diagnostic Host cannot inspect the active Profile'))
+      }
+      const surface = mainSurface
+      const origin = harnessOrigin
+      if (harnessAuthenticationUrl === undefined || surface === undefined || origin === undefined
+        || surface.renderer.isDestroyed()) {
+        return Promise.reject(new Error('desktop quit: local Harness is not ready for task inspection'))
+      }
+      return inspectLocalHarnessQuit(origin, surface.renderer.session.cookies, fetch)
+    },
+    show: options => dialog.showMessageBox(options),
+    locale: () => menuLocale,
+    focus: () => {
+      if (mainWindow === undefined || mainWindow.isDestroyed()) return
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    },
+    icon: nativeImage.createFromPath(WINDOW_ICON),
+  })
   lifecycle = createDesktopLifecycle({
     getWindow: () => mainWindow,
     createWindow,
@@ -2806,6 +2988,8 @@ async function startApplication(): Promise<void> {
       reportMenuError(new Error(menuCopy(menuLocale).busy))
       return false
     },
+    confirmQuit: () => quitConfirmation.confirm(),
+    cancelQuitConfirmation: () => { quitConfirmation.cancelPending() },
     canHideToTray: () => !trayUnavailable,
     onTrayUnavailable: () => {
       if (trayWarningOpen) return
@@ -3739,8 +3923,8 @@ async function startApplication(): Promise<void> {
       const readyOrigin = harnessOrigin
       setTimeout(() => {
         if (harnessOrigin !== readyOrigin || mainSurface === undefined || mainSurface.window.isDestroyed()) return
-        void loadAuthenticatedHarness(mainSurface, url).catch((error: unknown) => {
-          console.error('desktop: could not load authenticated Harness page', error)
+        void openInitialWorkspace(url, dshHome).catch((error: unknown) => {
+          console.error('desktop: could not open initial workspace', error)
         })
       }, 120)
       if (recovering) {
@@ -3751,7 +3935,6 @@ async function startApplication(): Promise<void> {
         ...notificationCopy.startupWarning,
         body: `${notificationCopy.startupWarning.body}\n${startupWarnings.slice(0, 3).join('\n')}`,
       })
-      desktopWebAccess?.openAutomatically(preferences.openBrowserOnStartup)
     },
     onDiagnosticReady: (url, failure) => {
       recoveryHarnessSuspended = false
@@ -4010,7 +4193,8 @@ async function startApplication(): Promise<void> {
   supervisor.start()
 
   app.on('activate', () => {
-    lifecycle?.showWindow()
+    if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) { welcomeWindow.show(); welcomeWindow.focus() }
+    else lifecycle?.showWindow()
   })
 }
 
@@ -4018,7 +4202,8 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    lifecycle?.showWindow()
+    if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) { welcomeWindow.show(); welcomeWindow.focus() }
+    else lifecycle?.showWindow()
   })
   app.on('window-all-closed', () => {
     // The tray owns application lifetime on every platform.
@@ -4026,13 +4211,14 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', (event) => {
     if (quitReleased) return
     event.preventDefault()
-    void lifecycle?.requestQuit()
+    void lifecycle?.requestQuit(sessionEnding ? { skipConfirmation: true } : undefined)
   })
   app.on('will-quit', () => {
     desktopShortcuts?.dispose()
     stopReleaseChecks?.()
     desktopLogSession.close('application-quit')
   })
+  if (process.platform !== 'win32') powerMonitor.on('shutdown', () => { sessionEnding = true })
   void startApplication().catch((error: unknown) => {
     if (!(error instanceof DesktopDataHomeSelectionCancelledError)) console.error(error)
     if (lifecycle === undefined) {

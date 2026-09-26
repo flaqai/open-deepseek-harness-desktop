@@ -12,14 +12,14 @@ iframe 无法提供跨域导航状态, 也无法显示拒绝嵌入的站点. 如
 
 ## Decision
 
-Desktop 通过 `ElectronWebViewImpl` 使用 `<webview>`; Web 保留显式启用的 iframe 载体. [Sidebar Browser 决策](2026-09-16-sidebar-browser.zh.md)负责共享 Tab 行为与 iframe 限制; 本文负责 Desktop 载体和按 Workspace 共享的分区.
+代码库包含通过 `ElectronWebViewImpl` 实现的保持页面实例的 `<webview>`，但社区 Desktop preload 没有暴露其 guest bridge。因此，社区 Desktop 与 Web 都使用 [Sidebar Browser 决策](2026-09-16-sidebar-browser.zh.md)描述的 iframe 载体。本文记录尚未接线的原生载体及其按 Workspace 分区的设计；它不表示这些 guest 隔离措施正在保护社区 Desktop iframe。
 
 [Sidebar 稳定挂载决策](../architecture/2026-09-20-sidebar-retained-tab-layout.zh.md)负责真实 CSS 布局中的保活会话与 Tab 容器。Workspace 存储所有权与 guest 基础安全配置仍由本文负责。
 
 - `BrowserController` 负责地址命令与可恢复的展示状态。原生 history 留在 guest 内；真实 URL 与标题观察更新持久化地址。
 - 控制器注册表按 DSH Session 索引，不依赖呈现绑定的存活期。重新绑定只替换存储写入方，不重建页面。
 - `electron/pages.ts` 组装 Electron 导航提供方和呈现对象. `ElectronWebViewImpl` 负责 guest 租约与原生导航; `ElectronWebviewPresentation` 创建标签并挂载到 Sidebar 持有的内容容器内.
-- Desktop Browser 类型声明 `keepMounted`。Sidebar 在隐藏和停靠切换时保留其 DOM 祖先，CSS 负责布局与裁剪。停靠手势期间禁用 guest 指针输入，Body 内的放置提示使用普通层叠。物理卸载会取消未完成的挂载并释放 guest，之后重新挂载时从已知地址重建。
+- 存在原生 bridge 时，Desktop Browser 类型才声明 `keepMounted`。Sidebar 在隐藏和停靠切换时保留其 DOM 祖先，CSS 负责布局与裁剪。停靠手势期间禁用 guest 指针输入，Body 内的放置提示使用普通层叠。物理卸载会取消未完成的挂载并释放 guest，之后重新挂载时从已知地址重建。
 - tab occurrence 取消、插件卸载与窗口销毁会释放 guest。guest 崩溃留下可重试的失败状态；刷新创建新 guest。应用重启展示保存的标题与 URL，等待显式恢复；用户恢复或提交地址之前不创建 guest。不恢复页面内存或原生 history。
 
 标准 `./types` 子路径通过仅指向声明文件的 `types` 条件导出共享的租约、申请结果、打开请求与桥接声明，Desktop 消费方使用 `import type`。这些声明没有运行时 default、额外 JavaScript 产物或提前进行的 Host 打包。preload 只暴露限定范围的操作与回调，不暴露原始 IPC 或 Electron 对象。
@@ -34,7 +34,7 @@ Browser 分别拥有 Host 与 Client 编译程序。Desktop 和 Host 聚合配�
 
 ### Initial guest policy
 
-只有主应用窗口启用 `webviewTag`。主进程只接受该窗口应用顶层 frame 发起的 guest 申请，并在放行前校验一次性租约、partition 与无活动内容的初始 `about:blank` 文档。主进程替换 renderer 提供的偏好：不启用 Node integration、guest preload、嵌套 webview、plugin、不安全内容、模态对话框或拖放导航；sandbox、context isolation 与 Web security 保持开启。
+尚未接线的 guest 管理器只在启用原生 Browser bridge 时绑定到主应用窗口。其主进程只接受该窗口应用顶层 frame 发起的 guest 申请，并在放行前校验一次性租约、partition 与无活动内容的初始 `about:blank` 文档。它会替换 renderer 提供的偏好：不启用 Node integration、guest preload、嵌套 webview、plugin、不安全内容、模态对话框或拖放导航；sandbox、context isolation 与 Web security 保持开启。
 
 guest Session 不注册应用协议，也不继承应用的认证请求转发。权限请求与检查、设备访问、屏幕捕获、下载、原生弹窗与 HTTP 认证提示全部拒绝。通过检查且不带 POST body 的直接 HTTP(S) 弹窗请求，通过活动租约路由为新 Sidebar Tab；脚本操作空白窗口和 POST 弹窗流程仍不支持。导航接受不带内嵌凭据的 HTTP(S)；请求过滤拒绝本地文件、特权协议与已知 DSH Host 地址，包括常见 loopback 别名。这不是通用的私有网络或 DNS rebinding 防火墙。
 
@@ -52,7 +52,7 @@ Desktop toolbar 没有关闭 sandbox 的开关。实现不增加远程调试端�
 
 ## Consequences
 
-Sidebar 持有的稳定祖先保留页面，无需 Browser 自行处理几何或遮挡。隐藏 guest 保留页面内存，也可能继续联网；当前没有空闲回收策略。持久化存储、可选择的隔离级别与权限授权 UI 留作独立工作。临时 Workspace partition 是当前策略，并不意味着 Workspace 隔离必然要求临时存储。
+接线后，Sidebar 持有的稳定祖先可以保留原生页面，无需 Browser 自行处理几何或遮挡。隐藏 guest 保留页面内存，也可能继续联网；当前没有空闲回收策略。持久化存储、可选择的隔离级别与权限授权 UI 留作独立工作。社区 Desktop 当前改用 iframe，不具备这些 guest 分区。
 
 定向测试覆盖原生导航错误恢复、preload 监听范围和已迁移的 iframe 行为。这些测试不能确认真实 Electron 的挂载时序、遮挡、焦点、平台样式或存储隔离；这些仍是运行时验证缺口。本次变更不附带 GUI 录像。此实现不构成完整浏览器安全策略已经可以发布的证据。
 

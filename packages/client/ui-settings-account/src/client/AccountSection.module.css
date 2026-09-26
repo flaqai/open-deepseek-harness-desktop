@@ -87,6 +87,14 @@
   flex-wrap: wrap;
 }
 
+.accountActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .linkButton {
   flex: none;
   display: inline-flex;

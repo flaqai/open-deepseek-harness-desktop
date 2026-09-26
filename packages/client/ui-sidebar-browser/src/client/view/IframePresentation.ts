@@ -5,6 +5,8 @@ import css from './Browser.module.css'
 
 /** Fixed iframe policy; top navigation and downloads are not granted directly. */
 export const WEB_BROWSER_SANDBOX = 'allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox'
+/** Desktop popups use an explicit main-frame bridge; embedded pages cannot create windows. */
+export const DESKTOP_BROWSER_SANDBOX = 'allow-scripts allow-forms allow-same-origin'
 
 interface IframeDocument {
   readonly target: BrowserTarget
@@ -27,7 +29,8 @@ export class IframePresentation implements BrowserPresentation {
   private rendered = false
 
   /** @param events - provider-owned load and remount callbacks. */
-  constructor(private readonly events: IframePresentationEvents) {}
+  constructor(private readonly events: IframePresentationEvents,
+    private readonly policy: 'web' | 'desktop' = 'web') {}
 
   /** @param viewportId - mounted placeholder. @returns removes only the iframe presentation. */
   mount(viewportId: string): () => void {
@@ -74,7 +77,8 @@ export class IframePresentation implements BrowserPresentation {
     element.title = current.target.title
     element.referrerPolicy = 'no-referrer'
     element.dataset.sidebarBrowserFrame = 'iframe'
-    if (current.sandboxed) element.setAttribute('sandbox', WEB_BROWSER_SANDBOX)
+    if (this.policy === 'desktop') element.setAttribute('sandbox', DESKTOP_BROWSER_SANDBOX)
+    else if (current.sandboxed) element.setAttribute('sandbox', WEB_BROWSER_SANDBOX)
     element.addEventListener('load', () => {
       if (this.element === element) this.events.loaded(current.revision)
     })

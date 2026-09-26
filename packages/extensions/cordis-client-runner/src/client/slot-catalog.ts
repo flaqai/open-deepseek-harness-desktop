@@ -2672,10 +2672,8 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     hookContext: '',
     slotInject: '',
     declaredBy: 'the runtime itself (built in; always present)',
-    occupants: [
-      'client-ui-settings-account AccountOnboarding',
-    ],
-    replaceRisk: 'shadows-shipped-ui',
+    occupants: [],
+    replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.models.sign-in\', () => ctx.slots.register(\n      { name: \'settings.models.sign-in\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
     source: 'packages/client/ui-settings-models/src/client/slot-contract.ts:35',
   },

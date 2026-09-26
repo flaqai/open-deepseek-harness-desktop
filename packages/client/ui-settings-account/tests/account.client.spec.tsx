@@ -102,7 +102,7 @@ it.each([en, zh])('renders account cards without inventing profile or balance da
   expect(screen.getAllByText(copy.loading)).toHaveLength(3)
   expect(screen.getByRole('link', { name: copy.usage }).getAttribute('href')).toBe('http://localhost:8081/usage')
   expect(screen.getByRole('link', { name: copy.topUp }).getAttribute('href')).toBe('http://localhost:8081/top_up')
-  expect(screen.queryByRole('button', { name: copy.signOut })).toBeNull()
+  expect(screen.getByRole('button', { name: copy.signOut })).toBeTruthy()
   expect(document.body.textContent).not.toContain('209.00')
   await expect(`${screen.getByRole('region').textContent}\n`).toMatchFileSnapshot(`./expected/account-${copy === en ? 'en' : 'zh'}.txt`)
 })
@@ -117,36 +117,26 @@ it('starts sign-in and disables cancellation during persistence', async () => {
   expect(screen.queryByRole('button', { name: en.signIn })).toBeNull()
 })
 
-it.each([en, zh].flatMap(copy => ([false, true, 'unknown'] as const).map(running => ({ copy, running }))))('confirms sidebar sign-out with task impact $running', async ({ copy, running }) => {
+it.each([en, zh].flatMap(copy => ([false, true, 'unknown'] as const).map(running => ({ copy, running }))))('confirms settings sign-out with task impact $running', async ({ copy, running }) => {
   const signOut = vi.fn(() => Promise.resolve())
-  const openSettings = vi.fn()
   const operations = mount({ status: 'credential-stored', attempt: null }, copy)
   cleanup()
-  const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
-  render(<AccountMenu {...({} as GlobalStandardProps)} {...operations} settingsOpen={false} signOut={signOut}
+  render(<AccountSection {...({} as GlobalStandardProps)} {...operations} signOut={signOut}
     hasRunningAccountTasks={async () => { if (running === 'unknown') throw new Error('offline'); return running }}
     useAccount={selector => selector(operations.hooks.account.getSnapshot())}
-    useTheme={selector => selector(operations.hooks.theme.getSnapshot())} wide openOnboarding={() => {}} openSettings={openSettings}
+    useTheme={selector => selector(operations.hooks.theme.getSnapshot())} close={() => {}}
     t={key => key in copy ? copy[key as AccountKey] : key} />)
-  fireEvent.click(screen.getByRole('button', { name: copy.menu }))
-  expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([copy.settings, copy.contactUs, copy.signOut])
-  await expect(`${screen.getByRole('menu').textContent}\n`).toMatchFileSnapshot(`./expected/menu-${copy === en ? 'en' : 'zh'}.txt`)
-  fireEvent.click(screen.getByRole('menuitem', { name: copy.settings }))
-  expect(openSettings).toHaveBeenCalledOnce()
-  fireEvent.click(screen.getByRole('button', { name: copy.menu }))
-  fireEvent.click(screen.getByRole('menuitem', { name: copy.contactUs }))
+  fireEvent.click(screen.getByRole('button', { name: copy.contactUs }))
   expect(operations.contactUs).toHaveBeenCalledOnce()
-  expect(screen.queryByRole('menu')).toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: copy.menu }))
-  await act(async () => { fireEvent.click(screen.getByRole('menuitem', { name: copy.signOut })) })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: copy.signOut })) })
   expect(signOut).not.toHaveBeenCalled()
   expect(screen.getByText(running === 'unknown' ? copy.signOutUnknownDescription : running ? copy.signOutRunningDescription : copy.signOutDescription)).toBeTruthy()
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: copy.signOut })) })
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: copy.signOut })) })
   expect(signOut).toHaveBeenCalledOnce()
-  expect(screen.queryByRole('menu')).toBeNull()
+  expect(screen.queryByRole('dialog')).toBeNull()
 })
 
-it.each([en, zh])('updates the Settings menu keycaps and accessible combination from its owner', async (copy) => {
+it.each([en, zh])('opens Settings directly and updates its accessible shortcut', async (copy) => {
   const operations = mount({ status: 'signed-out', attempt: null }, copy)
   cleanup()
   const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
@@ -154,28 +144,25 @@ it.each([en, zh])('updates the Settings menu keycaps and accessible combination 
     ...({} as GlobalStandardProps), ...operations, wide: true, settingsOpen: false,
     useAccount: selector => selector(operations.hooks.account.getSnapshot()),
     useTheme: selector => selector(operations.hooks.theme.getSnapshot()),
-    openSettings: vi.fn(() => { expect(document.activeElement).toBe(screen.getByRole('button', { name: copy.menu })) }),
+    openSettings: vi.fn(),
     openOnboarding: vi.fn(),
     t: key => key in copy ? copy[key as AccountKey] : key,
   }
   const view = render(<AccountMenu {...props} settingsShortcut={{ keys: ['⌘', ','], aria: 'Meta+,' }} />)
-  fireEvent.click(screen.getByRole('button', { name: copy.menu }))
-  const settings = screen.getByRole('menuitem', { name: copy.settings })
+  const settings = screen.getByRole('button', { name: copy.settings })
   expect(settings.getAttribute('aria-keyshortcuts')).toBe('Meta+,')
-  expect([...settings.querySelectorAll('kbd')].map(key => key.textContent)).toEqual(['⌘', ','])
 
   view.rerender(<AccountMenu {...props} settingsShortcut={{ keys: ['Ctrl', 'Shift', 'S'], aria: 'Control+Shift+S' }} />)
   expect(settings.getAttribute('aria-keyshortcuts')).toBe('Control+Shift+S')
-  expect([...settings.querySelectorAll('kbd')].map(key => key.textContent)).toEqual(['Ctrl', 'Shift', 'S'])
 
   view.rerender(<AccountMenu {...props} />)
   expect(settings.hasAttribute('aria-keyshortcuts')).toBe(false)
-  expect(settings.querySelector('kbd')).toBeNull()
   fireEvent.click(settings)
   expect(props.openSettings).toHaveBeenCalledOnce()
+  expect(screen.queryByRole('menu')).toBeNull()
 })
 
-it.each([en, zh])('offers settings, contact and sign-in from the signed-out account menu', async (copy) => {
+it.each([en, zh])('moves contact and sign-in into Settings while retaining a direct sidebar Settings button', async (copy) => {
   const openSettings = vi.fn()
   const operations = operationsOf({ status: 'signed-out', attempt: null })
   const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
@@ -183,20 +170,20 @@ it.each([en, zh])('offers settings, contact and sign-in from the signed-out acco
     useAccount={selector => selector(operations.hooks.account.getSnapshot())}
     useTheme={selector => selector(operations.hooks.theme.getSnapshot())} wide openOnboarding={() => {}} openSettings={openSettings}
     t={key => key in copy ? copy[key as AccountKey] : key} />)
-  const trigger = screen.getByRole('button', { name: copy.menu })
-  expect(trigger.textContent).toBe(copy.more)
+  const trigger = screen.getByRole('button', { name: copy.settings })
+  expect(trigger.textContent).toBe(copy.settings)
   expect(trigger.querySelector('svg')).not.toBeNull()
   fireEvent.click(trigger)
-  expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([copy.settings, copy.contactUsSignedOut, copy.signIn])
-  await expect(`${screen.getByRole('menu').textContent}\n`).toMatchFileSnapshot(`./expected/menu-signed-out-${copy === en ? 'en' : 'zh'}.txt`)
-  fireEvent.click(screen.getByRole('menuitem', { name: copy.settings }))
   expect(openSettings).toHaveBeenCalledOnce()
-  fireEvent.click(screen.getByRole('button', { name: copy.menu }))
-  fireEvent.click(screen.getByRole('menuitem', { name: copy.contactUsSignedOut }))
-  expect(operations.contactUs).toHaveBeenCalledOnce()
+  expect(screen.queryByRole('menu')).toBeNull()
+  cleanup()
+  const sectionActions = mount({ status: 'signed-out', attempt: null }, copy)
+  fireEvent.click(screen.getByRole('button', { name: copy.contactUsSignedOut }))
+  expect(sectionActions.contactUs).toHaveBeenCalledOnce()
+  expect(screen.getByRole('button', { name: copy.signIn })).toBeTruthy()
 })
 
-it('reports a failed start in the login dialog, not as a sidebar alert', async () => {
+it('reports a failed Settings sign-in in the login dialog, not as a sidebar alert', async () => {
   const operations = mount({ status: 'signed-out', attempt: null })
   cleanup()
   const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
@@ -211,14 +198,17 @@ it('reports a failed start in the login dialog, not as a sidebar alert', async (
     useAccount={selector => selector(snapshot)} useTheme={selector => selector(operations.hooks.theme.getSnapshot())}
     wide openOnboarding={() => {}} openSettings={() => {}}
     t={key => key in en ? en[key as AccountKey] : key} />)
-  fireEvent.click(screen.getByRole('button', { name: en.menu }))
-  await act(async () => { fireEvent.click(screen.getByRole('menuitem', { name: en.signIn })) })
+  const section = render(<AccountSection {...({} as GlobalStandardProps)} {...operations} start={start}
+    useAccount={selector => selector(snapshot)} useTheme={selector => selector(operations.hooks.theme.getSnapshot())}
+    close={() => {}} t={key => en[key as AccountKey]} />)
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.signIn })) })
   expect(start).toHaveBeenCalledOnce()
   expect(screen.queryByRole('alert')).toBeNull()
   view.rerender(<AccountMenu {...({} as GlobalStandardProps)} {...operations} settingsOpen={false} start={start}
     useAccount={selector => selector(snapshot)} useTheme={selector => selector(operations.hooks.theme.getSnapshot())}
     wide openOnboarding={() => {}} openSettings={() => {}}
     t={key => key in en ? en[key as AccountKey] : key} />)
+  section.unmount()
   expect(screen.getByRole('dialog').textContent).toContain(en.failed)
   expect(screen.queryByRole('alert')).toBeNull()
   // The dialog is the only place that reports the failure, so its copy appears once.
@@ -229,16 +219,14 @@ it('reports a failed start in the login dialog, not as a sidebar alert', async (
 it('keeps the confirmation dialog open after a failed sign-out', async () => {
   const operations = mount({ status: 'credential-stored', attempt: null })
   cleanup()
-  const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
   const signOut = vi.fn((): Promise<void> => Promise.reject(new Error('account sign-out failed')))
-  render(<AccountMenu {...({} as GlobalStandardProps)} {...operations} settingsOpen={false}
+  render(<AccountSection {...({} as GlobalStandardProps)} {...operations}
     signOut={signOut}
     useAccount={selector => selector(operations.hooks.account.getSnapshot())}
-    useTheme={selector => selector(operations.hooks.theme.getSnapshot())} wide
-    openOnboarding={() => {}} openSettings={() => {}} t={key => key in en ? en[key as AccountKey] : key} />)
-  fireEvent.click(screen.getByRole('button', { name: en.menu }))
-  await act(async () => { fireEvent.click(screen.getByRole('menuitem', { name: en.signOut })) })
+    useTheme={selector => selector(operations.hooks.theme.getSnapshot())} close={() => {}}
+    t={key => key in en ? en[key as AccountKey] : key} />)
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.signOut })) })
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.signOut })) })
   // The confirmation dialog owns the failure; the launcher renders no error of its own.
   const dialog = screen.getByRole('dialog')
   expect(within(dialog).getByRole('alert').textContent).toBe(en.failed)
@@ -387,30 +375,19 @@ it.each([
   [null, '138****0000', '138****0000'],
   [null, 'u***@example.com', 'u***@example.com'],
   [null, null, en.signedIn],
-])('uses the sidebar profile label %s / %s', async (name, contact, expected) => {
-  const operations = mount({ status: 'credential-stored', attempt: null }, en, {
+])('shows the profile label in Settings %s / %s', async (name, contact, expected) => {
+  mount({ status: 'credential-stored', attempt: null }, en, {
     profile: { status: 'ready', value: { id: null, name, contact } },
   })
-  cleanup()
-  const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
-  render(<AccountMenu {...({} as GlobalStandardProps)} {...operations} settingsOpen={false}
-    useAccount={selector => selector(operations.hooks.account.getSnapshot())}
-    useTheme={selector => selector(operations.hooks.theme.getSnapshot())}
-    wide openSettings={() => {}} openOnboarding={() => {}} t={key => en[key as AccountKey]} />)
-  expect(screen.getByRole('button', { name: en.menu }).textContent).toBe(expected)
+  expect(screen.getByText(expected)).toBeTruthy()
 })
 
-it('shows the profile image in settings and the sidebar, with independent load-error fallbacks', async () => {
-  const operations = mount({ status: 'credential-stored', attempt: null }, en, {
+it('shows the profile image in Settings with a load-error fallback', async () => {
+  mount({ status: 'credential-stored', attempt: null }, en, {
     profile: { status: 'ready', value: { id: null, name: 'User', contact: null, avatarUrl: 'https://example.test/avatar.png' } },
   })
-  const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
-  render(<AccountMenu {...({} as GlobalStandardProps)} {...operations} settingsOpen={false}
-    useAccount={selector => selector(operations.hooks.account.getSnapshot())}
-    useTheme={selector => selector(operations.hooks.theme.getSnapshot())}
-    wide openSettings={() => {}} openOnboarding={() => {}} t={key => en[key as AccountKey]} />)
   const images = document.querySelectorAll('img')
-  expect(images).toHaveLength(2)
+  expect(images).toHaveLength(1)
   for (const image of images) {
     expect(image.getAttribute('src')).toBe('https://example.test/avatar.png')
     const parent = image.parentElement!
@@ -551,7 +528,7 @@ it('opens the embedded Platform page from a failed balance row on Desktop', asyn
   expect(screen.queryByRole('button', { name: en.backToHarness })).toBeNull()
 })
 
-it('reports a rejected settings login and disables login while initial state is unavailable', async () => {
+it('reports a rejected settings login and allows retry while initial state is unavailable', async () => {
   const operations = mount({ status: 'signed-out', attempt: null })
   cleanup()
   let snapshot: AccountSnapshot = { view: undefined, details: undefined, failed: true }
@@ -562,7 +539,7 @@ it('reports a rejected settings login and disables login while initial state is 
     t: (key: string) => en[key as AccountKey],
   }
   const view = render(<AccountSection {...props} />)
-  expect(screen.getByRole('button', { name: en.signIn }).hasAttribute('disabled')).toBe(true)
+  expect(screen.getByRole('button', { name: en.signIn }).hasAttribute('disabled')).toBe(false)
   expect(screen.getByRole('status').textContent).toBe(en.failed)
   snapshot = operations.hooks.account.getSnapshot()
   view.rerender(<AccountSection {...props} />)
@@ -570,7 +547,7 @@ it('reports a rejected settings login and disables login while initial state is 
   expect(screen.getByRole('status').textContent).toBe(en.failed)
 })
 
-it('dismisses a collapsed menu and hands its login dialog to the API-key onboarding step', async () => {
+it('opens collapsed Settings directly and hands its login dialog to the API-key onboarding step', async () => {
   const operations = mount({ status: 'credential-stored', attempt: null }, en, { profile: { status: 'failed' } })
   cleanup()
   const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
@@ -581,9 +558,9 @@ it('dismisses a collapsed menu and hands its login dialog to the API-key onboard
     useTheme: <T,>(select: (value: ThemeSnapshot) => T) => select(operations.hooks.theme.getSnapshot()),
     t: (key: string) => en[key as AccountKey] }
   const view = render(<AccountMenu {...props} />)
-  expect(screen.getByRole('button', { name: en.menu }).textContent).toBe('')
-  fireEvent.click(screen.getByRole('button', { name: en.menu }))
-  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(screen.getByRole('button', { name: en.settings }).textContent).toBe('')
+  fireEvent.click(screen.getByRole('button', { name: en.settings }))
+  expect(props.openSettings).toHaveBeenCalledOnce()
   expect(screen.queryByRole('menu')).toBeNull()
   snapshot = { ...snapshot, view: { ...snapshot.view!, status: 'signed-out' }, loginVisible: true }
   view.rerender(<AccountMenu {...props} />)

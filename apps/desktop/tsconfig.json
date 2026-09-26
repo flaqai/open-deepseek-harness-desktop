@@ -4,6 +4,7 @@
     "composite": false,
     "declaration": false,
     "declarationMap": false,
+    "jsx": "react-jsx",
     "rootDir": "src",
     "outDir": "lib"
   },

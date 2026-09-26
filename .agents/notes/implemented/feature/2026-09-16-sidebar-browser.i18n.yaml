@@ -9,14 +9,14 @@
   en: 5236141e90e42b81
   zh: 1af6306b20797603
 /agent-note-sandboxed-sidebar-browser/decision:
-  en: 9e89a0fe77cd8b9f
-  zh: 7aba8507320cf504
+  en: 7f5b645d0a691d4a
+  zh: 056a494ba25564c7
 /agent-note-sandboxed-sidebar-browser/web-navigation-states:
   en: 6aec277c70600c7d
   zh: e2b53f01072b2423
 /agent-note-sandboxed-sidebar-browser/electron-carrier:
-  en: dd20fa5656fc5779
-  zh: 94b5908de0695755
+  en: 1c98be36b72b7109
+  zh: dc7afb557b693f81
 /agent-note-sandboxed-sidebar-browser/alternatives-considered:
   en: 73919eb8d5618982
   zh: 18d2f5becae72790
@@ -24,5 +24,5 @@
   en: 91563b2be0b76a37
   zh: 24e55764bc85b8ae
 /agent-note-sandboxed-sidebar-browser/consequences:
-  en: d9844d90ebdeb553
-  zh: 7f05c8e911bd73c4
+  en: 886b674a7236b8ab
+  zh: 208e76c49975e02b

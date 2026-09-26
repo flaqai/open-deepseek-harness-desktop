@@ -13,7 +13,6 @@ import type { OnboardingChange } from './onboarding-contract.ts'
 import type { PlatformBridge } from './PlatformOverlay.tsx'
 import { ContactConfig, CONTACT_CONFIG_GLOBAL } from '../contact-config.ts'
 import { contactUrl } from './contact-url.ts'
-import { AccountOnboarding } from './AccountOnboarding.tsx'
 import { AccountPlatformHost, type AccountPlatformHostInjected } from './AccountPlatformHost.tsx'
 import { AccountMenu } from './AccountMenu.tsx'
 import { createPlatformPages, type PlatformPages } from './platform-pages.ts'
@@ -165,7 +164,11 @@ export function apply(ctx: Context): void {
         locale: ctx.locale.getSnapshot().active === 'zh' ? 'zh-CN' : 'en',
         width: window.screen.width, height: window.screen.height, pixelRatio: window.devicePixelRatio,
       })
-      window.open(url, '_blank', 'noopener,noreferrer')
+      const desktop = (globalThis as typeof globalThis & {
+        deepSeekHarnessDesktop?: { externalBrowser?: { open(url: string): Promise<void> } }
+      }).deepSeekHarnessDesktop?.externalBrowser
+      if (desktop !== undefined) void desktop.open(url).catch(() => {})
+      else window.open(url, '_blank', 'noopener,noreferrer')
     },
     showLogin(visible) { publish({ ...snapshot, loginVisible: visible }) },
     setOnboarding(active) { publish({ ...snapshot, onboarding: active }) },
@@ -239,9 +242,6 @@ export function apply(ctx: Context): void {
       }),
     }, DesktopOnboardingEntry))
   }
-  ctx.slots.inject('settings.models.sign-in', () => ctx.slots.register({
-    name: 'settings.models.sign-in', locale: 'settings.account', inject: () => operations,
-  }, AccountOnboarding))
   ctx.slots.inject('shell.quota-notice', () => ctx.slots.register({
     name: 'shell.quota-notice', locale: 'settings.account',
     select: owner => owner.code === 'ACCOUNT_QUOTA' ? owner : null,
@@ -262,21 +262,8 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('settings.launcher', () => ctx.slots.register({
     name: 'settings.launcher', locale: 'settings.account', inject: () => operations,
   }, AccountMenu))
-  ctx.slots.inject('settings.section', () => {
-    let unregister: (() => void) | undefined
-    const update = () => {
-      if (snapshot.view?.status === 'credential-stored') {
-        unregister ??= ctx.slots.register({
-          name: 'settings.section', id: 'account', order: -10, label: () => t('nav'),
-          locale: 'settings.account', inject: () => operations,
-        }, AccountSection)
-      } else {
-        unregister?.()
-        unregister = undefined
-      }
-    }
-    listeners.add(update)
-    update()
-    return () => { listeners.delete(update); unregister?.() }
-  })
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section', id: 'account', order: -10, label: () => t('nav'),
+    locale: 'settings.account', inject: () => operations,
+  }, AccountSection))
 }

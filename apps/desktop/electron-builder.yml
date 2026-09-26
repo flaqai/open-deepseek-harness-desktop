@@ -7,6 +7,7 @@ directories:
   output: ../../.artifacts/desktop-windows
 files:
   - lib/**/*
+  - renderer/**/*
   - scripts/primary-runtime-lock.json
   - package.json
 extraResources:

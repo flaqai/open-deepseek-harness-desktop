@@ -35,6 +35,14 @@ it.each([en, zh])('requires a user action after timeout', async (copy) => {
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: copy.retry })) })
   expect(props.start).toHaveBeenCalledOnce()
 })
+it('retries a failed login when the account stream has no snapshot', async () => {
+  const props = dialogProps(null)
+  render(<SignInDialog {...props} account={{ ...props.account, view: undefined, loginFailed: true }} />)
+  const retry = screen.getByRole('button', { name: en.retry })
+  expect(retry.hasAttribute('disabled')).toBe(false)
+  await act(async () => { fireEvent.click(retry) })
+  expect(props.start).toHaveBeenCalledOnce()
+})
 it.each([en, zh])('shows waiting actions and cancels before dismissing', async (copy) => {
   const props = mount({ id, phase: 'waiting-browser', authorizeUrl: 'https://platform.deepseek.com/dsh/authorize?state=example' }, copy)
   expect(screen.getByRole('button', { name: copy.waiting }).hasAttribute('disabled')).toBe(true)

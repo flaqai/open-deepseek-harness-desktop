@@ -116,13 +116,13 @@ describe('ui-settings-general shell', () => {
     off()
   })
 
-  it('shows Account first in Desktop while signed in and removes it on sign-out', async ({ start }) => {
+  it('keeps Connect to DeepSeek first in Desktop before and after sign-in', async ({ start }) => {
     vi.stubGlobal('dshDesktop', {})
     onTestFinished(() => { vi.unstubAllGlobals() })
     const c = await start()
     const { sections } = injectedOf(c).hooks
     await c.mock.streams.opened('account/watch', 1)
-    expect(sections.getSnapshot().map(row => row.id)).toEqual(PRODUCT_SECTIONS)
+    expect(sections.getSnapshot().map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS])
     c.mock.streams.push('account/watch', { status: 'credential-stored', attempt: null })
     await vi.waitFor(() => {
       expect(sections.getSnapshot().map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS])
@@ -130,7 +130,7 @@ describe('ui-settings-general shell', () => {
     c.mock.streams.push('account/watch', { status: 'credential-stored', attempt: null })
     await vi.waitFor(() => { expect(sections.getSnapshot().filter(row => row.id === 'account')).toHaveLength(1) })
     c.mock.streams.push('account/watch', { status: 'signed-out', attempt: null })
-    await vi.waitFor(() => { expect(sections.getSnapshot().map(row => row.id)).toEqual(PRODUCT_SECTIONS) })
+    await vi.waitFor(() => { expect(sections.getSnapshot().map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS]) })
   })
 
   it('projects the roster Connection control without copying its state; reconnect opens a new $events generation', async ({ start }) => {

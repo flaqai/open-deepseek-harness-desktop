@@ -26,6 +26,7 @@ import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-shell-env'
+import { installDesktopQuitInspectionRoute, mayExposeDesktopQuitInspection } from './desktop-quit-inspection.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'web-app'
@@ -256,6 +257,13 @@ export const internals: {
  */
 export function apply(ctx: Context, config: Config): void {
   const runtime = resolveLanTrust(ctx.webServer.host, config.trustedHosts, config.nas)
+  // Only the community Desktop supervisor sets this marker, and it binds its Web Host
+  // to loopback. NAS deployments must not gain a Desktop-only inspection endpoint.
+  if (mayExposeDesktopQuitInspection(
+    process.env.DSH_DESKTOP_WEB_RESTART_OWNER, ctx.webServer.host, config.nas !== undefined,
+  )) {
+    installDesktopQuitInspectionRoute(ctx)
+  }
   // The loopback URL belongs to this host. Under SSH, the operator reaches it
   // through a local forwarding address that this process cannot derive.
   const handoffBrowser = config.openBrowser && !launchedThroughSsh(launchEnvironmentOf(ctx))

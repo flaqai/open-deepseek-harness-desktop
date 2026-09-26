@@ -23,4 +23,5 @@ export default defineConfig([
   { ...shared, entry: ['lib/preload.js'] },
   { ...shared, entry: ['lib/data-home-preload.js'] },
   { ...shared, entry: ['lib/titlebar-preload.js'] },
+  { ...shared, entry: ['lib/preload-welcome.js'] },
 ])

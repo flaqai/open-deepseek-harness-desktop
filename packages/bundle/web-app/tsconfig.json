@@ -27,6 +27,15 @@
       "path": "../../client/connection/tsconfig.host.json"
     },
     {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../jobs/jobs"
+    },
+    {
+      "path": "../../schedule/schedule"
+    },
+    {
       "path": "../../host/frontend-static"
     },
     {

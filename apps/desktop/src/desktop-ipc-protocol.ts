@@ -31,6 +31,7 @@ export const DESKTOP_IPC = {
   downloadNetworkTestStatus: 'dsh:desktop:download-network:test-status',
   downloadNetworkUpdate: 'dsh:desktop:download-network:update',
   externalToolsResolve: 'dsh:desktop:external-tools:resolve',
+  externalBrowserOpen: 'dsh:desktop:external-browser:open',
   iconsApply: 'dsh:desktop:icons:apply',
   iconsChoose: 'dsh:desktop:icons:choose',
   iconsCreateShortcut: 'dsh:desktop:icons:create-shortcut',

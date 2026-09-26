@@ -16,6 +16,8 @@ Closing the main window hides it on both platforms; the page and the Host keep r
 
 Every ordinary quit entry asks the Host over the private IPC channel for two facts: active tasks under the update-restart rule, and armed scheduled reminders reported by the `schedule` family of `workspace/session-activity` for the sessions loaded in this run. Both absent, the quit proceeds silently; otherwise a native message box without an owner window shows one of three fixed explanations with Quit as the default and Cancel on Esc. Repeated quit requests join the open box, the copy is frozen while it is open, and approval does not re-inspect. A Host that is not ready cannot run tasks and the quit proceeds; an inspection failure or a missed two-second deadline counts as running tasks because a needless prompt is cheaper than a silent interruption. The installer restart, fatal recovery, the development restart command, and operating-system session end skip the confirmation.
 
+The community Desktop runs a separate `web` Host without that private IPC channel. Its supervisor-owned loopback Web invocation exposes an authenticated, exact GET inspection route through Connection. The Electron main process reads only the current renderer session's authority-specific cookie and queries only its validated `127.0.0.1` origin. The route counts live Agent work, queued inbox turns, running jobs, and all active rows in Schedule's persistent catalog; a disabled Schedule has no armed timers. Ordinary quits use the same native-dialog policy, but an unavailable inspection has its own uncertain-state explanation and Cancel is the default. Closing to the tray and quick restart do not ask; definitive system-session termination skips the dialog but retains cleanup. A selected NAS Host has no local supervisor, and closing the Desktop client does not stop its remote tasks.
+
 The Windows tray bitmaps are rendered from the vector icon at seven sizes and committed as an ICO; the confirmation on Windows uses the application icon in a task dialog and stays light because the control does not follow the application theme. The installer and uninstaller copy for a running application points at the tray.
 
 ## Alternatives considered
@@ -26,10 +28,14 @@ The Windows tray bitmaps are rendered from the vector icon at seven sizes and co
 
 **Reuse the update-tasks IPC request with a flag.** The quit needs a second fact and a shorter deadline; a distinct request keeps the update admission lock semantics untouched and lets both share one correlation id space.
 
+**Copy the private IPC request into the community Desktop.** Its Web Host is launched through stdio pipes rather than the official Desktop profile's IPC channel. The authenticated loopback route preserves the existing process architecture and Connection trust checks.
+
 **Downscale one large bitmap for the tray.** Rasterizing the vector source per size keeps edges crisp at 100 % through 400 % display scale, which a single downscale does not guarantee.
 
 ## Consequences
 
 Users can close the window freely; background tasks and scheduled reminders continue, and reopening restores the same page. Quitting warns only when it interrupts something. Windows carries a tray icon for the whole run, and a hidden window that finishes a user-initiated update download defers its install confirmation until the window is shown again. Reminders in sessions never loaded during the run are neither counted nor resumed until those sessions open, and Desktop does not enable scheduled tasks by default, so the scheduled-task copy appears only once that feature is on.
+
+The community Desktop inspection counts active persisted reminders even when their Sessions are not loaded. Its result is a point-in-time check, not a lock on new Agent work; ordinary shutdown still relies on the existing supervised Host cleanup. A failed or timed-out query never becomes a known-idle result.
 
 Verification covers the four inspection outcomes, inspection failure and deadline, each quit entry's bypass or confirmation, the close-to-hide path with the tray and the first-close acknowledgement, the deferred update prompt, the Host-side inspection, the IPC correlation and deadline, and the committed tray icon's bitmap set. Windows tray and dialog behavior needs a manual pass on a Windows machine at several display scales.

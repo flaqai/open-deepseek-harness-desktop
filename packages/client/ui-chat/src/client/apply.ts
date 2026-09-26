@@ -232,7 +232,11 @@ export function apply(ctx: Context): void {
             if (linkOpening.getSnapshot() === 'sidebar' && ctx.get('sidebarRightTabs')?.get('browser') !== undefined) {
               ctx.sidebarRight.openTab('browser', { params: { url } })
             } else {
-              window.open(url, '_blank', 'noopener,noreferrer')
+              const desktop = (globalThis as typeof globalThis & {
+                deepSeekHarnessDesktop?: { externalBrowser?: { open(url: string): Promise<void> } }
+              }).deepSeekHarnessDesktop?.externalBrowser
+              if (desktop !== undefined) void desktop.open(url).catch(() => {})
+              else window.open(url, '_blank', 'noopener,noreferrer')
             }
           },
           loadOlder: () => { void session.loadOlder() },

@@ -50,6 +50,7 @@
     }
   },
   "dependencies": {
+    "@deepseek-ai/dsh-agent": "workspace:*",
     "@deepseek-ai/dsh-agent-instructions": "workspace:*",
     "@deepseek-ai/dsh-agent-preset": "workspace:*",
     "@deepseek-ai/dsh-agent-preset-registry": "workspace:*",
@@ -138,6 +139,7 @@
     "@deepseek-ai/dsh-host-open-in-app": "workspace:*",
     "@deepseek-ai/dsh-host-plugin-inventory": "workspace:*",
     "@deepseek-ai/dsh-host-webserver": "workspace:*",
+    "@deepseek-ai/dsh-jobs": "workspace:*",
     "@deepseek-ai/dsh-launch-environment": "workspace:*",
     "@deepseek-ai/dsh-message-feedback": "workspace:*",
     "@deepseek-ai/dsh-office-to-pdf": "workspace:*",

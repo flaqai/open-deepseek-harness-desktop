@@ -88,6 +88,75 @@ describe('desktop lifecycle', () => {
     expect(b.releaseQuit).toHaveBeenCalledOnce()
   })
 
+  it('waits for task confirmation before disposing and leaves a cancelled quit intact', async () => {
+    const decision = Promise.withResolvers<boolean>()
+    const confirmQuit = vi.fn(() => decision.promise)
+    const b = bench('quit', { confirmQuit })
+    const pending = b.lifecycle.requestQuit()
+    expect(b.lifecycle.requestQuit()).toBe(pending)
+    await Promise.resolve()
+    expect(confirmQuit).toHaveBeenCalledOnce()
+    expect(b.disposeHost).not.toHaveBeenCalled()
+    decision.resolve(false)
+    await pending
+    expect(b.lifecycle.isQuitting).toBe(false)
+    expect(b.disposeHost).not.toHaveBeenCalled()
+    expect(b.releaseQuit).not.toHaveBeenCalled()
+    await b.lifecycle.requestQuit()
+    expect(confirmQuit).toHaveBeenCalledTimes(2)
+  })
+
+  it('lets quick restart supersede a pending quit decision without trusting its late answer', async () => {
+    const decision = Promise.withResolvers<boolean>()
+    const cancelQuitConfirmation = vi.fn()
+    const b = bench('quit', { confirmQuit: () => decision.promise, cancelQuitConfirmation })
+    const pendingQuit = b.lifecycle.requestQuit()
+    const relaunch = vi.fn()
+    await b.lifecycle.requestRestart(relaunch)
+    decision.resolve(true)
+    await pendingQuit
+    expect(cancelQuitConfirmation).toHaveBeenCalledOnce()
+    expect(b.disposeHost).toHaveBeenCalledOnce()
+    expect(relaunch).toHaveBeenCalledOnce()
+    expect(b.releaseQuit).toHaveBeenCalledOnce()
+  })
+
+  it('lets a definitive system session end bypass a dialog without bypassing cleanup', async () => {
+    const decision = Promise.withResolvers<boolean>()
+    const confirmQuit = vi.fn(() => decision.promise)
+    const cancelQuitConfirmation = vi.fn()
+    const b = bench('quit', { confirmQuit, cancelQuitConfirmation })
+    const ordinaryQuit = b.lifecycle.requestQuit()
+    await b.lifecycle.requestQuit({ skipConfirmation: true })
+    decision.resolve(false)
+    await ordinaryQuit
+    expect(cancelQuitConfirmation).toHaveBeenCalledOnce()
+    expect(b.disposeHost).toHaveBeenCalledOnce()
+    expect(b.releaseQuit).toHaveBeenCalledOnce()
+  })
+
+  it('does not open a superseded dialog when system termination arrives in the same turn', async () => {
+    const confirmQuit = vi.fn(async () => true)
+    const b = bench('quit', { confirmQuit })
+    const ordinaryQuit = b.lifecycle.requestQuit()
+    await b.lifecycle.requestQuit({ skipConfirmation: true })
+    await ordinaryQuit
+    expect(confirmQuit).not.toHaveBeenCalled()
+    expect(b.disposeHost).toHaveBeenCalledOnce()
+  })
+
+  it('rechecks the mutation guard after approval and refuses teardown if work started meanwhile', async () => {
+    const decision = Promise.withResolvers<boolean>()
+    let busy = false
+    const b = bench('quit', { confirmQuit: () => decision.promise, canQuit: () => !busy })
+    const pending = b.lifecycle.requestQuit()
+    busy = true
+    decision.resolve(true)
+    await pending
+    expect(b.disposeHost).not.toHaveBeenCalled()
+    expect(b.lifecycle.isQuitting).toBe(false)
+  })
+
   it('schedules one relaunch and performs the same graceful host disposal', async () => {
     const b = bench('tray')
     const relaunch = vi.fn()

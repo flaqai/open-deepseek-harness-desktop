@@ -84,6 +84,8 @@ patch 会替换目标行的整个 `config`，因此每个 Web 行都重述自己
 
 URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发起 RPC，浏览器一打开就请求页面，因此两者只在 Loader 配置树结算、通过 required 启动检查且 Connection 认证可用后运行——在没有 Loader 的手工构建树中则立即运行。此时 client combo JavaScript 和 source map 仍未物化。可选插件失败不会阻止就绪宣告；required 启动失败或启动中途被释放的树不会宣告任何内容。
 
+由社区 Desktop 管理、只绑定 loopback 的 Web 调用会通过 Connection 的认证 API 路由注册 `GET /api/desktop.quit-inspection`；普通 Web 和 NAS 调用不会注册。它读取运行中的 Agent 回合、排队中的 inbox 工作、运行中的 job，以及 Schedule 完整持久目录内的活动任务，不会激活 Session。Schedule 默认禁用，因此服务缺失表示没有已启用的提醒计时器；必要服务不可用或目录读取失败时返回 503，不会报告为空闲。路由随 Web 插件 fiber 释放。
+
 ### LAN 信任采样
 
 `resolveLanTrust` 在启动时只采样一次网络：loopback 绑定（`127.0.0.1`）不派生任何 LAN 地址，绑定所有网卡则会加入每个非 internal IPv4 字面量。派生字面量加上显式的 `--trusted-host` 权威标识组成 `/api` 浏览器信任栅栏，打印的 LAN URL 始终与该栅栏一致。
@@ -93,11 +95,13 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `web-app` 粘合插件：dist 解析、LAN 信任采样、提示词段落、bash 变量、URL 行、浏览器交接 |
+| [`src/desktop-quit-inspection.ts`](src/desktop-quit-inspection.ts) | 仅供 Desktop 使用的认证任务检查路由 |
 | [`src/startup.ts`](src/startup.ts) | `web-startup` 提供方：`--host`、`--port`、`--trusted-host`、`--no-open`、`--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | Web patch：重述的基础值、Web 宿主行、浏览器名录、preset 注册表 |
 | [`presets/`](presets) | 每个随发行版交付的 preset（`standard`、`ptc`、`minimal`、`cordis`）各一条 `@deepseek-ai/dsh-agent-preset` 声明，各自一个补丁文件 |
 | — | 不发布运行时不变式伴生入口；每项贡献（frontend-static 子插件、提示词段落、bashEnv 注册）都会随 fiber 由注册表释放，且每个所属注册表的包负责该关系的不变式；本包不持有需要审计的可变状态。 |
 | [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | dist 解析、回退席位、提示词段落、就绪宣告 |
+| [`tests/desktop-quit-inspection.spec.ts`](tests/desktop-quit-inspection.spec.ts) | 任务检查、禁用的 Schedule、路由限制与失败响应 |
 | [`tests/startup.spec.ts`](tests/startup.spec.ts) | 在真实 Loader 树上的命令行解析 |
 | [`tests/trusted-hosts.spec.ts`](tests/trusted-hosts.spec.ts) | LAN 信任采样 |
 | [`tests/browser-open.spec.ts`](tests/browser-open.spec.ts) | 页面可达后的默认浏览器交接 |

@@ -4,6 +4,13 @@ import { trayDictionaries, type TrayCopy } from './tray.ts'
 
 const en = {
   productName: 'Open DeepSeek Harness Desktop',
+  quitTitle: 'Quit Open DeepSeek Harness Desktop?',
+  quitActiveTasks: 'Running tasks will be interrupted.',
+  quitScheduledTasks: 'Scheduled tasks will not run while the app is closed.',
+  quitActiveAndScheduledTasks: 'Running tasks will be interrupted, and scheduled tasks will not run while the app is closed.',
+  quitTaskStatusUnknown: 'Could not confirm whether tasks are running on this computer. Quitting may interrupt them.',
+  quit: 'Quit',
+  cancel: 'Cancel',
   chooseSource: 'Choose DSH configuration directory',
   chooseTarget: 'Choose an empty folder for the configuration',
   buildBlockedTitle: 'Plugin build script blocked',
@@ -31,6 +38,13 @@ const en = {
 
 const zh: typeof en = {
   productName: 'Open DeepSeek Harness Desktop',
+  quitTitle: '退出 Open DeepSeek Harness Desktop？',
+  quitActiveTasks: '当前正在运行的任务将会中断。',
+  quitScheduledTasks: '应用关闭期间，定时任务不会运行。',
+  quitActiveAndScheduledTasks: '当前正在运行的任务将会中断，且应用关闭期间，定时任务不会运行。',
+  quitTaskStatusUnknown: '无法确认本机是否有运行中的任务；退出可能中断任务。',
+  quit: '退出',
+  cancel: '取消',
   chooseSource: '选择 DSH 配置目录',
   chooseTarget: '选择空文件夹作为配置目录',
   buildBlockedTitle: '插件构建脚本被拦截',

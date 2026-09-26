@@ -13,6 +13,7 @@ import { BROWSER_ID, BROWSER_KIND } from '../src/client/definition.tsx'
 import { apply, inject } from '../src/client/index.ts'
 import { en, zh } from '../src/client/locales.ts'
 import { createBrowserStore } from '../src/client/browser/store.ts'
+import { DESKTOP_BROWSER_SANDBOX } from '../src/client/view/IframePresentation.ts'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { DesktopBrowserBridge, DesktopBrowserLeaseId } from '../src/types.ts'
 
@@ -70,6 +71,29 @@ async function boot(platform: ShortcutPlatform = 'macos', runtime: 'desktop' | '
 }
 
 describe('ui-sidebar-browser apply', () => {
+  it('mounts the locked iframe through the real Desktop plugin composition without a WebView bridge', async () => {
+    vi.stubGlobal('dshDesktop', { protocolVersion: 1 })
+    const h = await boot()
+    const injectFace = h.registered.find(entry => entry.name === 'sidebar.right.pane.tab')!.inject as
+      (sessionId: string, actions: Parameters<BrowserInjected['rebind']>[0]) => BrowserInjected
+    const store = createBrowserStore().create('desktop-iframe-composition')
+    const controller = injectFace('session', store.actions)
+    const host = document.createElement('div')
+    host.id = 'desktop-iframe-composition-host'
+    document.body.append(host)
+    const signal = new AbortController()
+    try {
+      controller.mount({ tabId: 'desktop-iframe' as TabId, signal: signal.signal, viewportId: host.id,
+        applicationOrigin: 'http://127.0.0.1:38123', initial: undefined,
+        initialUrl: 'https://example.com/', openTab: vi.fn() })
+      expect(host.querySelector('iframe')?.getAttribute('sandbox')).toBe(DESKTOP_BROWSER_SANDBOX)
+      expect(controller.keyedHooks.browserState('desktop-iframe')?.getSnapshot()?.frame.sandboxEnabled).toBeUndefined()
+    } finally {
+      signal.abort()
+      host.remove()
+    }
+  })
+
   it.each([0, 1])('binds and rebinds session controllers under desktop protocol %s', async (protocolVersion) => {
     const acquire = vi.fn(async () => ({ lease: 'test-lease' as DesktopBrowserLeaseId, partition: 'test-partition' }))
     const bridge: DesktopBrowserBridge = {

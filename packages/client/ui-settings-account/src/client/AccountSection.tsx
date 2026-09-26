@@ -8,6 +8,7 @@ import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { PlatformPage, PlatformPages } from './platform-pages.ts'
 import { formatBalance } from './formatBalance.ts'
 import { AccountAvatar } from './AccountAvatar.tsx'
+import { SignOutDialog } from './SignOutDialog.tsx'
 import { authorizeUrlWithTheme } from './authorize-url.ts'
 import type { BonusNotice } from './bonus-notices.ts'
 import css from './AccountSection.module.css'
@@ -81,7 +82,9 @@ export interface AccountSectionInjected {
 export type AccountSectionProps =
   PropsRuntime<'settings.section'> & PropsLocale<'settings.account'> & InjectFace<AccountSectionInjected>
 /** @param props - localized actions, account subscription, and the shared Platform page channel. @returns account settings UI. */
-export function AccountSection({ t, useAccount, useTheme, start, cancel, openPlatformPage }: AccountSectionProps) {
+export function AccountSection({
+  t, useAccount, useTheme, start, cancel, contactUs, hasRunningAccountTasks, signOut, openPlatformPage,
+}: AccountSectionProps) {
   const { view: state, details, failed: streamFailed } = useAccount(value => value)
   const colorScheme = useTheme(snapshot => snapshot.active.colorScheme)
   // The shared host owns the native view; this page holds only its own request,
@@ -89,6 +92,7 @@ export function AccountSection({ t, useAccount, useTheme, start, cancel, openPla
   const releasePage = useRef<(() => void) | undefined>(undefined)
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [signOutImpact, setSignOutImpact] = useState<boolean | 'unknown'>()
   const profile = details?.profile?.status === 'ready' ? details.profile.value : undefined
   const wallets = details?.balance?.status === 'ready' ? details.balance.value : undefined
   const bonusWallets = details?.balance?.status === 'ready'
@@ -111,6 +115,12 @@ export function AccountSection({ t, useAccount, useTheme, start, cancel, openPla
     setBusy(true)
     setFailed(false)
     try { await action() } catch { setFailed(true) } finally { setBusy(false) }
+  }
+  const requestSignOut = async () => {
+    setBusy(true)
+    try { setSignOutImpact(await hasRunningAccountTasks()) }
+    catch { setSignOutImpact('unknown') }
+    finally { setBusy(false) }
   }
   /**
    * @param event - click on a Platform destination link.
@@ -145,8 +155,11 @@ export function AccountSection({ t, useAccount, useTheme, start, cancel, openPla
             {failed || streamFailed ? t('failed') : t('settingsSignedOutDescription')}
           </span>
         </div>
-        <Button variant="primary" className={css.signInButton} disabled={busy || state === undefined}
-          onClick={() => { void run(start) }}>{t('signIn')}</Button>
+        <div className={css.accountActions}>
+          <Button variant="outline" onClick={contactUs}>{t('contactUsSignedOut')}</Button>
+          <Button variant="primary" className={css.signInButton} disabled={busy}
+            onClick={() => { void run(start) }}>{t('signIn')}</Button>
+        </div>
       </div>
     </section>
   )
@@ -211,6 +224,12 @@ export function AccountSection({ t, useAccount, useTheme, start, cancel, openPla
           </div>
         </div>
       </div>
+      {signedIn && <div className={css.accountActions}>
+        <Button variant="outline" onClick={contactUs}>{t('contactUs')}</Button>
+        <Button variant="outline" disabled={busy} onClick={() => { void requestSignOut() }}>{t('signOut')}</Button>
+      </div>}
+      {signedIn && signOutImpact !== undefined && <SignOutDialog running={signOutImpact} signOut={signOut}
+        close={() => { setSignOutImpact(undefined) }} t={t} />}
     </section>
   )
 }

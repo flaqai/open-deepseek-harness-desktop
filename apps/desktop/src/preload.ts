@@ -577,6 +577,9 @@ const remoteDesktopWebBridge: DesktopWebBridge = {
 }
 
 const commonDesktopBridge = {
+  externalBrowser: Object.freeze({
+    open: (url: string): Promise<void> => ipcRenderer.invoke(DESKTOP_IPC.externalBrowserOpen, url) as Promise<void>,
+  }),
   menu: Object.freeze({
     reportState(state: { available: boolean; ready: boolean; locale: string }): void {
       ipcRenderer.send(DESKTOP_IPC.menuClientState, state)
