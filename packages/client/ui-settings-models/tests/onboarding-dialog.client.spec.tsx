@@ -183,7 +183,7 @@ describe('DeepSeekOnboardingDialog', () => {
     const key = screen.getByLabelText<HTMLInputElement>(en.keyInput)
     await waitFor(() => { expect(document.activeElement).toBe(key) })
     expect(screen.getByText(en.customized).closest('details')?.open).toBe(true)
-    expect(screen.getByLabelText(en.baseUrl).getAttribute('placeholder')).toBe('https://api.deepseek.com')
+    expect(screen.getByLabelText(en.baseUrl).getAttribute('placeholder')).toBe(en.deepSeekBaseUrl)
   })
 
   it('stores a custom endpoint and model catalog beside the write-only key', async () => {

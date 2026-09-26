@@ -50,6 +50,7 @@
   background: var(--dsw-specific-menu);
   color: var(--dsw-alias-label-primary);
   box-shadow: var(--dsw-elevation-prominent);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
   font-size: 12px;
   line-height: 18px;
 }

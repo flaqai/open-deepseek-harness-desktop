@@ -22,7 +22,7 @@ describe('product icon set', () => {
     expect(weightedNames.length).toBeGreaterThanOrEqual(186)
     const regular = weightedNames.filter(name => name.endsWith('Regular')).map(name => name.slice(0, -'Regular'.length))
     const medium = weightedNames.filter(name => name.endsWith('Medium')).map(name => name.slice(0, -'Medium'.length))
-    expect(iconNames.some(name => /\d+$/.test(name))).toBe(false)
+    expect(weightedNames.some(name => /\d+$/.test(name))).toBe(false)
     expect(medium.sort()).toEqual(regular.sort())
     expect(iconNames).toEqual(expect.arrayContaining(['IconPlanOutline14', 'IconCompactOutline16', 'IconShieldOutline16']))
     expect(iconNames).toEqual(expect.arrayContaining([

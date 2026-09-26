@@ -47,7 +47,7 @@ H 表示以 CSS 像素计、包含边框的设计外部高度。R 表示浏览�
 
 添加功能自有的几何规则前，优先复用 `ui-primitives` 控件。固定外部尺寸使用 `box-sizing: border-box`。填充、描边、ghost、加载中和禁用变体保持相同尺寸与圆角；hover、按下、选中和焦点状态不改变圆角。
 
-普通控件和卡片使用具名 token，不新增 10px、14px、18px、24px 等局部数值。计划任务控件、Desktop 引导、账号通知和快捷键控件保留所属包的几何规则；[圆角例外记录](../packages/client/ui-theme/tests/expected/radius-exceptions.expected.json)逐项固定允许的文件、选择器及声明，不豁免整个包。组件族专用属性可引用共享 token，例如 `--dsl-guide-entry-radius`。由真实内缩距离派生的几何可使用 `calc()`；它不构成新的尺度档位。
+普通控件和卡片使用具名 token，不新增 10px、14px、18px、24px 等局部数值。现有功能自有控件仅在[圆角例外记录](../packages/client/ui-theme/tests/expected/radius-exceptions.expected.json)逐项固定文件、选择器和声明时保留原有几何规则；记录不豁免整个包，也不允许新增未记录的数值。组件族专用属性可引用共享 token，例如 `--dsl-guide-entry-radius`。由真实内缩距离派生的几何可使用 `calc()`；它不构成新的尺度档位。
 
 普通圆角表面在支持时使用主题的 `superellipse(1.5)` 曲线。`corner-shape` 不会继承：主题将它应用于元素及其 `::before`/`::after`。不支持的引擎保留普通圆弧。不要添加组件专用的平滑规则，导致底色与外框使用不同曲线。
 

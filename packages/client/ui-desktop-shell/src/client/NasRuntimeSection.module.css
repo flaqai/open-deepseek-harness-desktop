@@ -18,7 +18,7 @@
 .discovery { display: grid; width: 100%; gap: 3px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--dsh-border, #e5e7eb); background: transparent; color: inherit; text-align: start; cursor: pointer; }
 .discovery:last-of-type { border-bottom: 0; }
 .discovery code { overflow-wrap: anywhere; color: var(--dsh-text-secondary, #6b7280); font-size: 12px; }
-.discovery:focus-visible { outline: 2px solid var(--dsh-focus, #2563eb); outline-offset: 2px; }
+.discovery:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
 .mono, .fingerprint, .trust code { overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .trust { display: grid; gap: 12px; padding: 12px; border-radius: 10px; background: var(--dsh-surface-muted, rgba(127,127,127,.08)); }
 .trust label { display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }

@@ -26,7 +26,7 @@
 .editor { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .viewport { position: relative; width: min(280px, 100%); aspect-ratio: 1; flex: none; overflow: hidden; touch-action: none; user-select: none; cursor: grab; border-radius: 12px; outline: 1px solid var(--dsw-alias-border-l2); background: repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 0 / 16px 16px; }
 .viewport:active { cursor: grabbing; }
-.viewport:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 4px; }
+.viewport:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 4px; }
 .viewport img, .preview img { position: absolute; pointer-events: none; height: auto; }
 .grid { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to right, transparent 33%, #ffffff66 33%, #ffffff66 33.5%, transparent 33.5%, transparent 66%, #ffffff66 66%, #ffffff66 66.5%, transparent 66.5%), linear-gradient(to bottom, transparent 33%, #ffffff66 33%, #ffffff66 33.5%, transparent 33.5%, transparent 66%, #ffffff66 66%, #ffffff66 66.5%, transparent 66.5%); }
 .zoom { display: flex; align-items: center; width: 100%; gap: 12px; font-size: 13px; }

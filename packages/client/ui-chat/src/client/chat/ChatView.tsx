@@ -50,7 +50,7 @@ function TurnStatus({ startTime, t }: { startTime: number | null; t: ChatViewSlo
     return () => { clearInterval(id) }
   }, [anchor])
   return (
-    <div className={css.turnStatus} role="status" aria-live="polite">
+    <div className={css.turnStatus}>
       {t('chat.deepDiving')}
       {elapsedMs >= 15_000 && <span className={css.turnStatusClock} aria-hidden>{formatRunDuration(elapsedMs, t)}</span>}
     </div>

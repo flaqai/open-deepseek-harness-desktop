@@ -22,7 +22,7 @@
 .networkFields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 10px; min-width: 0; }
 .networkFields label { display: grid; gap: 6px; min-width: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
 .networkFields select, .networkFields input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 36px; padding: 7px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; }
-.networkFields select:focus-visible, .networkFields input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary-new-colorprimary-new-color); outline-offset: 1px; }
+.networkFields select:focus-visible, .networkFields input:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 1px; }
 .networkActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .networkSuccess { color: var(--dsw-alias-state-success-primary); font-size: 12px; line-height: 18px; }
 .processSection { border-top: 0.5px solid var(--dsw-alias-border-l2); }

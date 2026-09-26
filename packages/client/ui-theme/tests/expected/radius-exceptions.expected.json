@@ -1,4 +1,40 @@
 {
+  "ui-approval/src/client/ApprovalPanel.module.css": [
+    ".command: border-radius: 10px"
+  ],
+  "ui-attachment/src/MessageImage.module.css": [
+    ".frame[data-variant='expanded']: border-radius: 14px"
+  ],
+  "ui-chat/src/client/chat/AssistantMarkdown.module.css": [
+    ".localImageRetry: border-radius: 10px"
+  ],
+  "ui-conversation/src/client/skeleton/SessionActions.module.css": [
+    ".iconButton: border-radius: 9px",
+    ".error: border-radius: 8px"
+  ],
+  "ui-desktop-shell/src/client/DesktopIconSettings.module.css": [
+    ".card: border-radius: 16px",
+    ".trayPreview: border-radius: 10px",
+    ".viewport: border-radius: 12px",
+    ".sample: border-radius: 10px"
+  ],
+  "ui-desktop-shell/src/client/DesktopShell.module.css": [
+    ".selector: border-radius: 18px",
+    ".networkCard: border-radius: 14px",
+    ".networkFields select, .networkFields input: border-radius: 9px",
+    ".dataHomeChoice: border-radius: 12px",
+    ".dataHomeWarning: border-radius: 10px"
+  ],
+  "ui-desktop-shell/src/client/NasRuntimeSection.module.css": [
+    ".card: border-radius: 14px",
+    ".field input: border-radius: 9px",
+    ".trust: border-radius: 10px",
+    ".betaNotice, .warning, .message: border-radius: 10px"
+  ],
+  "ui-model-selection/src/client/ModelSelect.module.css": [
+    ".search input: border-radius: 10px",
+    ".clearSearch: border-radius: 8px"
+  ],
   "ui-schedule/src/client/ClockPicker.module.css": [
     ".option: border-radius: 10px"
   ],
@@ -40,6 +76,11 @@
     ".list: border-radius: 16px",
     ".item: border-radius: 8px"
   ],
+  "ui-selection-actions/src/client/SelectionActions.module.css": [
+    ".toolbar: border-radius: 12px",
+    ".menu: border-radius: 14px",
+    ".action: border-radius: 9px"
+  ],
   "ui-settings-account/src/client/AccountNotice.module.css": [
     ".card: border-radius: 16px"
   ],
@@ -50,6 +91,83 @@
     ".page .action: border-radius: 12px",
     ".indicator: border-radius: 6px"
   ],
+  "ui-settings-general/src/client/SettingsRoot.module.css": [
+    ".navItem: border-radius: 12px",
+    ".dragHandle: border-radius: 8px",
+    ".onboardingPanel: border-radius: 24px",
+    ".onboardingBack, .onboardingDone: border-radius: 12px"
+  ],
+  "ui-settings-models/src/client/DeepSeekOnboardingDialog.module.css": [
+    ".defaultConnection: border-radius: 12px"
+  ],
+  "ui-settings-models/src/client/ModelsSection.module.css": [
+    ".privacyCard: border-radius: 16px"
+  ],
+  "ui-settings-models/src/client/SetupWizard.module.css": [
+    ".language: border-radius: 9px",
+    ".task[data-complete='true']: border-radius: 12px",
+    ".taskIcon: border-radius: 9px",
+    ".taskSkip, .taskConfigure, .skipAll, .primary: border-radius: 10px"
+  ],
+  "ui-settings-plugin-inventory/src/client/BetterSidebarInstallCard.module.css": [
+    ".card: border-radius: 16px"
+  ],
+  "ui-settings-plugin-inventory/src/client/DiagnosticLabPanel.module.css": [
+    ".lab: border-radius: 14px",
+    ".controls select: border-radius: 8px",
+    ".warning: border-radius: 9px",
+    ".scenarios label: border-radius: 10px"
+  ],
+  "ui-settings-plugin-inventory/src/client/DiagnosticLabProgressCard.module.css": [
+    ".card: border-radius: 16px"
+  ],
+  "ui-settings-plugin-inventory/src/client/ExternalToolsSection.module.css": [
+    ".card: border-radius: 16px",
+    ".toolMark: border-radius: 12px",
+    ".installSplit: border-radius: 8px",
+    ".terminalScroll: border-radius: 12px",
+    ".footnote: border-radius: 12px",
+    ".capabilityForm label: border-radius: 10px",
+    ".capabilityOptionHint: border-radius: 0 8px 8px 0",
+    ".capabilityNotice, .capabilityHint: border-radius: 10px",
+    ".runtimeNotice: border-radius: 8px"
+  ],
+  "ui-settings-plugin-inventory/src/client/ImportedPluginRestore.module.css": [
+    ".surface: border-radius: 14px",
+    ".notice: border-radius: 8px",
+    ".sourceCheck button, .localActions button, .developmentButtons button: border-radius: 7px",
+    ".developmentFixtures: border-radius: 10px",
+    ".entries > li: border-radius: 9px"
+  ],
+  "ui-settings-plugin-inventory/src/client/PluginDiagnosticsSection.module.css": [
+    ".summary: border-radius: 12px",
+    ".diagnosticModeNotice: border-radius: 10px",
+    ".fixtureDialog: border-radius: 16px",
+    ".buildKey: border-radius: 6px",
+    ".fixtureDialogActions button: border-radius: 8px",
+    ".notice, .finding, .explainers details: border-radius: 10px",
+    ".solution: border-radius: 9px"
+  ],
+  "ui-settings-plugin-inventory/src/client/PluginDiscovery.module.css": [
+    ".trigger: border-radius: 16px",
+    ".notice, .staleNotice, .warning: border-radius: 10px",
+    ".loadingPanel: border-radius: 12px",
+    ".card: border-radius: 14px",
+    ".meta span: border-radius: 8px"
+  ],
+  "ui-settings-plugin-inventory/src/client/PluginSnapshotPanel.module.css": [
+    ".panel: border-radius: 14px",
+    ".create input: border-radius: 8px",
+    ".list article: border-radius: 10px"
+  ],
+  "ui-settings-plugin-inventory/src/client/PortablePluginExport.module.css": [
+    ".surface: border-radius: 12px",
+    ".surface button, .target select, .target input: border-radius: 8px"
+  ],
+  "ui-settings-plugin-inventory/src/client/QuarantineNotice.module.css": [
+    ".dialog: border-radius: 16px",
+    ".body li: border-radius: 9px"
+  ],
   "ui-shortcuts/src/client/Reference.module.css": [
     ".dialog: border-radius: 24px",
     ".close: border-radius: 28px",
@@ -57,5 +175,16 @@
     ".keyBadge: border-radius: 10px",
     ".unbound: border-radius: 10px",
     ".recorder: border-radius: 10px"
+  ],
+  "ui-sidebar/src/client/SidebarRoot.module.css": [
+    ".mobileTrigger: border-radius: 12px"
+  ],
+  "ui-theme/src/client/AppearanceRow.module.css": [
+    ".choiceCard, .backgroundCard: border-radius: 14px",
+    ".skinPreview: border-radius: 9px",
+    ".previewBubble: border-radius: 7px",
+    ".previewComposer: border-radius: 7px",
+    ".backgroundPreview, .customPreview: border-radius: 9px",
+    ".uploadButton: border-radius: 10px"
   ]
 }

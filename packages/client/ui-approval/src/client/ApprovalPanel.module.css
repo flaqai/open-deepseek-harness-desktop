@@ -89,7 +89,7 @@
 
 .commandDisclosure summary:focus-visible {
   border-radius: 4px;
-  outline: 2px solid var(--dsw-alias-label-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 3px;
 }
 
