@@ -141,8 +141,9 @@ function ownedBlock(text: string, owner: Recipe['owner']): OwnedBlock | undefine
   if (starts.length === 0) return undefined
   const begin = starts[0]
   const finish = ends[0]
-  if (begin === undefined || finish === undefined || begin.index === undefined
-    || finish.index === undefined || finish.index <= begin.index + begin[0].length) malformed()
+  if (begin === undefined || finish === undefined) return malformed()
+  if (begin.index === undefined || finish.index === undefined
+    || finish.index <= begin.index + begin[0].length) return malformed()
   return { from: begin.index, through: finish.index + finish[0].length }
 }
 
