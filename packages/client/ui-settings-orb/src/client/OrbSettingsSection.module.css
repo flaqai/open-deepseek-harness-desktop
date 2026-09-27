@@ -1,0 +1,14 @@
+.section { container-type: inline-size; display: flex; flex-direction: column; gap: 16px; width: 100%; color: var(--dsw-alias-label-primary); }
+.heading { display: flex; flex-direction: column; gap: 4px; }
+.heading h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 500; }
+.heading p, .hint { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: .5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-base); }
+.card h3 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 500; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; font-size: 13px; line-height: 20px; }
+.row input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--dsw-alias-link); }
+.row select { min-width: 130px; max-width: 55%; border: .5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-sm); padding: 6px 8px; background: var(--dsw-alias-bg-base); color: inherit; font: inherit; }
+.row select:focus-visible, .row input:focus-visible, .link:focus-visible { outline: 2px solid var(--dsw-alias-link); outline-offset: 2px; }
+.link { align-self: flex-start; border: 0; padding: 0; background: transparent; color: var(--dsw-alias-link); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.link:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+.notice { padding: 8px 10px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+@container (max-width: 480px) { .card { padding: 12px; } .row { align-items: flex-start; flex-direction: column; } .row select { max-width: 100%; width: 100%; } }

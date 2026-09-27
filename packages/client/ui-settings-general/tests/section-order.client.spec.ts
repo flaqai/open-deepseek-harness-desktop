@@ -21,6 +21,18 @@ describe('settings section order', () => {
     ])
   })
 
+  it('inserts the new orb page after tools without rearranging a saved navigation order', () => {
+    const extended = [
+      { id: 'agent-presets', order: 20, label: 'Presets' },
+      { id: 'orb', order: 19, label: 'Orb' },
+      { id: 'external-tools', order: 18, label: 'Tools' },
+      ...rows,
+    ].sort((a, b) => a.order - b.order)
+    expect(orderSettingsSections(extended, ['models', 'external-tools', 'general', 'agent-presets']).map(row => row.id)).toEqual([
+      'models', 'external-tools', 'orb', 'general', 'agent-presets', 'plugins',
+    ])
+  })
+
   it('moves visible ids while retaining absent plugin ids for a later reinstall', () => {
     expect(moveSettingsSection(
       ['general', 'models', 'plugins'],

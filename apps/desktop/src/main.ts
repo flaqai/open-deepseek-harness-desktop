@@ -14,7 +14,7 @@ import {
   app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, net,
   Notification, powerMonitor, safeStorage, session, shell, Tray,
   type Session,
-  type MenuItemConstructorOptions, type MessageBoxOptions, type WebContents, type WebPreferences,
+  type IpcMainInvokeEvent, type MenuItemConstructorOptions, type MessageBoxOptions, type WebContents, type WebPreferences,
 } from 'electron'
 import { appendBundledPluginFailure, seedBundledPluginsBatch, verifyBundledPluginArchive } from './bundled-plugin-seed.ts'
 import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
@@ -57,6 +57,9 @@ import { clearDeadModuleFallbackLock, inspectModuleFallbackLock } from './module
 import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
 import { ensureWorkspacePtcPlugin, hasManagedWorkspacePtcBlock, isWorkspacePtcPluginInstalled, PTC_PLUGIN_NAME } from './workspace-ptc-plugin.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
+import { createOrbSettingsStore, parseOrbSettingsPatch, type OrbSettings, type OrbSettingsPatch } from './orb-settings.ts'
+import { createOrbWindowController, type OrbWindowController } from './orb-window.ts'
+import { isTrustedOrbPage } from './orb-navigation.ts'
 import { blockEmbeddedNavigation, blockEmbeddedRequest, parseExternalBrowserUrl, trustedRendererPopupUrl } from './sidebar-iframe-security.ts'
 import { terminateWindowsProcessTree } from './windows-process-tree.ts'
 import { revealHarnessLog, type OpenLogResult } from './log-reveal.ts'
@@ -218,6 +221,8 @@ const LOADING_PAGE = fileURLToPath(new URL('./loading.html', import.meta.url))
 const WINDOW_ICON = fileURLToPath(new URL('./icon.png', import.meta.url))
 const MACOS_TRAY_ICON = fileURLToPath(new URL('./tray-iconTemplate.png', import.meta.url))
 const PRELOAD = fileURLToPath(new URL('./preload.cjs', import.meta.url))
+const ORB_PRELOAD = fileURLToPath(new URL('./orb-preload.cjs', import.meta.url))
+const ORB_SHELL_PAGE = fileURLToPath(new URL('./orb-shell.html', import.meta.url))
 const TITLEBAR_PAGE = fileURLToPath(new URL('./titlebar.html', import.meta.url))
 const TITLEBAR_PRELOAD = fileURLToPath(new URL('./titlebar-preload.cjs', import.meta.url))
 const DATA_HOME_PAGE = fileURLToPath(new URL('./data-home.html', import.meta.url))
@@ -441,6 +446,7 @@ async function executeProductMenu(command: DesktopCommand): Promise<void> {
     return
   }
   switch (command) {
+    case 'orb-toggle': await setOrbVisible(!readOrbSettings().visible); return
     case 'show': lifecycle?.showWindow(); return
     case 'open-web':
       if (desktopWebAccess === undefined) throw new Error(menuCopy(menuLocale).unavailable)
@@ -489,6 +495,75 @@ async function openSettingsDocument(): Promise<{ error: string }> {
   return { error }
 }
 let preferencesStore: DesktopPreferencesStore | undefined
+let orbSettingsStore: ReturnType<typeof createOrbSettingsStore> | undefined
+let orbWindowController: OrbWindowController | undefined
+
+function readOrbSettings(): OrbSettings {
+  if (orbSettingsStore === undefined || bootNasRuntime() !== undefined) {
+    throw new Error('desktop: floating ball is unavailable outside a local Harness home')
+  }
+  return orbSettingsStore.read()
+}
+
+function ensureOrbWindow(): OrbWindowController {
+  if (orbWindowController !== undefined) return orbWindowController
+  orbWindowController = createOrbWindowController({
+    preload: ORB_PRELOAD,
+    shellPage: ORB_SHELL_PAGE,
+    getHarnessOrigin: () => harnessOrigin,
+    getSettings: readOrbSettings,
+    getLocale: () => menuLocale,
+    openMain: () => { lifecycle?.showWindow() },
+    openSettings: () => { void executeProductMenu('orb-settings').catch(reportMenuError) },
+    hide: () => { void setOrbVisible(false).catch(reportMenuError) },
+    quit: () => { void executeProductMenu('quit').catch(reportMenuError) },
+  })
+  return orbWindowController
+}
+
+async function setOrbVisible(visible: boolean): Promise<OrbSettings> {
+  const store = orbSettingsStore
+  if (store === undefined || bootNasRuntime() !== undefined) throw new Error('desktop: floating ball is unavailable in NAS mode')
+  if (visible && (harnessOrigin === undefined || supervisor?.isDiagnosticMode === true)) {
+    throw new Error('desktop: local Harness is not ready for floating chat')
+  }
+  const previous = store.read()
+  const settings = { ...previous, visible }
+  if (visible) await ensureOrbWindow().show()
+  try { store.write(settings) }
+  catch (error) {
+    if (!previous.visible) orbWindowController?.hide()
+    throw error
+  }
+  orbWindowController?.update(settings)
+  mainSurface?.send(DESKTOP_IPC.orbChanged, settings)
+  applicationMenu?.refresh()
+  return settings
+}
+
+async function updateOrbSettings(input: unknown): Promise<OrbSettings> {
+  const patch: OrbSettingsPatch = parseOrbSettingsPatch(input)
+  const store = orbSettingsStore
+  if (store === undefined || bootNasRuntime() !== undefined) throw new Error('desktop: floating ball is unavailable in NAS mode')
+  const current = store.read()
+  if (patch.backend !== undefined && patch.backend !== current.backend) {
+    throw new Error('desktop: switching the Computer Use backend requires a managed Profile transaction')
+  }
+  const next: OrbSettings = { ...current, ...patch }
+  if (next.visible && (harnessOrigin === undefined || supervisor?.isDiagnosticMode === true)) {
+    throw new Error('desktop: local Harness is not ready for floating chat')
+  }
+  if (next.visible) await ensureOrbWindow().show()
+  try { store.write(next) }
+  catch (error) {
+    if (!current.visible) orbWindowController?.hide()
+    throw error
+  }
+  orbWindowController?.update(next)
+  mainSurface?.send(DESKTOP_IPC.orbChanged, next)
+  applicationMenu?.refresh()
+  return next
+}
 let preferences: DesktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES }
 let tray: Tray | undefined
 let quitReleased = false
@@ -1527,7 +1602,9 @@ async function startApplication(): Promise<void> {
       clientAvailable: menuClientAvailable && harnessOrigin !== undefined,
       ready: menuClientReady && harnessOrigin !== undefined,
       busy: menuBusy(), maximized: mainWindow?.isMaximized() ?? false,
-      fullscreen: mainWindow?.isFullScreen() ?? false, development: !app.isPackaged }),
+      fullscreen: mainWindow?.isFullScreen() ?? false, development: !app.isPackaged,
+      orbAvailable: activeMenuHome !== undefined && bootNasRuntime() === undefined
+        && harnessOrigin !== undefined && supervisor?.isDiagnosticMode !== true }),
     icon: () => (iconManager?.images().application ?? nativeImage.createFromPath(WINDOW_ICON))
       .resize({ width: 20, height: 20 }).toDataURL(),
     execute: executeProductMenu, reportError: reportMenuError,
@@ -1615,6 +1692,7 @@ async function startApplication(): Promise<void> {
   // preparation so packaged presets come from local archives before optional plugin restoration.
   const preserveCopiedPlugins = shouldPreserveLegacyCopiedProfile(dataHomeSetup)
   activeMenuHome = activeNasRuntime === undefined ? dshHome : undefined
+  orbSettingsStore = activeNasRuntime === undefined ? createOrbSettingsStore(dshHome) : undefined
   const persistentServicesPath = join(app.getPath('userData'), 'managed-processes', 'persistent-services-v1.json')
   persistentServiceAuthority = new FilePersistentServiceAuthorizer(
     persistentServicesPath,
@@ -1851,6 +1929,43 @@ async function startApplication(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.capabilities, (event) => {
     assertMainRenderer(event.sender)
     return desktopCapabilities()
+  })
+  const assertOrbRenderer = (event: IpcMainInvokeEvent): void => {
+    if (event.sender.id !== orbWindowController?.webContentsId || event.senderFrame !== event.sender.mainFrame) {
+      throw new Error('desktop: untrusted floating renderer')
+    }
+    if (!isTrustedOrbPage(event.senderFrame.url, ORB_SHELL_PAGE, harnessOrigin)) {
+      throw new Error('desktop: floating renderer origin is not trusted')
+    }
+  }
+  ipcMain.handle(DESKTOP_IPC.orbGet, (event): OrbSettings => {
+    if (event.sender.id === orbWindowController?.webContentsId) assertOrbRenderer(event)
+    else assertMainRenderer(event.sender)
+    return readOrbSettings()
+  })
+  ipcMain.handle(DESKTOP_IPC.orbUpdate, (event, patch: unknown): Promise<OrbSettings> => {
+    assertMainRenderer(event.sender)
+    return updateOrbSettings(patch)
+  })
+  ipcMain.handle(DESKTOP_IPC.orbExpand, (event): Promise<void> => {
+    assertOrbRenderer(event)
+    return ensureOrbWindow().expand()
+  })
+  ipcMain.handle(DESKTOP_IPC.orbCollapse, (event): Promise<void> => {
+    assertOrbRenderer(event)
+    return ensureOrbWindow().collapse()
+  })
+  ipcMain.handle(DESKTOP_IPC.orbHide, async (event): Promise<void> => {
+    assertOrbRenderer(event)
+    await setOrbVisible(false)
+  })
+  ipcMain.handle(DESKTOP_IPC.orbOpenMain, (event): void => {
+    assertOrbRenderer(event)
+    lifecycle?.showWindow()
+  })
+  ipcMain.handle(DESKTOP_IPC.orbOpenSettings, async (event): Promise<void> => {
+    assertOrbRenderer(event)
+    await executeProductMenu('orb-settings')
   })
   ipcMain.handle(DESKTOP_IPC.directoryPick, async (event): Promise<string | null> => {
     assertMainRenderer(event.sender)
@@ -3916,6 +4031,13 @@ async function startApplication(): Promise<void> {
       latestRecoveryDiagnostic = undefined
       harnessOrigin = new URL(url).origin
       harnessAuthenticationUrl = url
+      try {
+        if (orbSettingsStore?.read().showAtStartup === true) {
+          void setOrbVisible(true).catch((error: unknown) => { console.error('desktop: floating window failed to open', error) })
+        }
+      } catch (error) {
+        console.error('desktop: floating settings could not be read; leaving the ball hidden', error)
+      }
       desktopReturnControl?.setHarnessOrigin(`${harnessOrigin}/`)
       desktopWebAccess?.setReady(url)
       reportedDesktopReadiness.clear()
@@ -4215,6 +4337,7 @@ if (!app.requestSingleInstanceLock()) {
     void lifecycle?.requestQuit(sessionEnding ? { skipConfirmation: true } : undefined)
   })
   app.on('will-quit', () => {
+    orbWindowController?.dispose()
     desktopShortcuts?.dispose()
     stopReleaseChecks?.()
     desktopLogSession.close('application-quit')

@@ -9,6 +9,7 @@ import type {
 import type { DesktopIconsBridge, DesktopIconStatus, IconSelection } from './icon-protocol.ts'
 import type { OpenLogResult } from './log-reveal.ts'
 import type { DesktopPreferences, DesktopPreferencesPatch } from './preferences.ts'
+import type { OrbSettings, OrbSettingsPatch } from './orb-settings.ts'
 import type { DesktopReleaseStatus } from './release-checker.ts'
 import type { DesktopReleaseDownloadStatus } from './release-downloader.ts'
 import type { SourceUpdateResult, SourceUpdateStatus } from './source-updater.ts'
@@ -132,6 +133,13 @@ export interface DesktopWebBridge {
   getStatus(): Promise<DesktopWebStatus>
   open(): Promise<DesktopWebOpenResult>
   onStatus(callback: (status: DesktopWebStatus) => void): () => void
+}
+
+/** Per-home floating-ball controls; absent while connected to NAS. */
+export interface DesktopOrbBridge {
+  get(): Promise<OrbSettings>
+  update(patch: OrbSettingsPatch): Promise<OrbSettings>
+  onChanged(callback: (settings: OrbSettings) => void): () => void
 }
 
 /** Saved NAS runtimes and fixed pairing operations; tokens never reach the renderer. */
@@ -602,6 +610,15 @@ const commonDesktopBridge = {
   desktopWeb: Object.freeze(nasMode ? remoteDesktopWebBridge : desktopWebBridge),
   workspaceRuntimes: Object.freeze(nasMode ? remoteWorkspaceRuntimesBridge : workspaceRuntimesBridge),
 }
+const orbBridge: DesktopOrbBridge = Object.freeze({
+  get: () => ipcRenderer.invoke(DESKTOP_IPC.orbGet) as Promise<OrbSettings>,
+  update: (patch: OrbSettingsPatch) => ipcRenderer.invoke(DESKTOP_IPC.orbUpdate, patch) as Promise<OrbSettings>,
+  onChanged(callback: (settings: OrbSettings) => void) {
+    const listener = (_event: Electron.IpcRendererEvent, settings: OrbSettings): void => { callback(settings) }
+    ipcRenderer.on(DESKTOP_IPC.orbChanged, listener)
+    return () => { ipcRenderer.removeListener(DESKTOP_IPC.orbChanged, listener) }
+  },
+})
 const shortcutBridge = Object.freeze({
   protocolVersion: 1,
   keyboard: Object.freeze({
@@ -629,6 +646,7 @@ contextBridge.exposeInMainWorld('dshDesktop', shortcutBridge)
 contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({
   ...commonDesktopBridge,
   ...(nasMode ? {} : {
+    orb: orbBridge,
     icons: Object.freeze(iconsBridge),
     downloadNetwork: Object.freeze(downloadNetworkBridge),
     bundledPlugins: Object.freeze(bundledPluginsBridge),

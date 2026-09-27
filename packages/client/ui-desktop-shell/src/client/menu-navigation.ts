@@ -1,7 +1,7 @@
 /** Fixed product destinations; the native menu cannot navigate to arbitrary URLs. */
 const sections: Readonly<Record<string, string>> = {
   settings: 'general', updates: 'general', market: 'market', 'plugin-restore': 'plugin-restore',
-  diagnostics: 'diagnostics', snapshots: 'diagnostics', 'external-tools': 'external-tools',
+  diagnostics: 'diagnostics', snapshots: 'diagnostics', 'external-tools': 'external-tools', 'orb-settings': 'orb',
   phone: 'pocket', im: 'xmanrui-dsh-im', 'data-home': 'general',
 }
 
