@@ -10,6 +10,9 @@ export type ExperimentalCapabilityRecipe =
   | 'computer-use-native'
   | 'computer-use-mcp'
 
+/** Supported Computer Use compositions; the author-style provider is not loadable yet. */
+export type ComputerUseBackendSelection = 'official-native' | 'official-mcp' | 'off'
+
 interface Recipe {
   readonly owner: 'browser-use' | 'computer-use'
   readonly yaml: string
@@ -121,20 +124,48 @@ function resolveRecipe(recipeId: ExperimentalCapabilityRecipe, discovery: Chromi
   return recipe
 }
 
+interface OwnedBlock {
+  readonly from: number
+  readonly through: number
+}
+
+function ownedBlock(text: string, owner: Recipe['owner']): OwnedBlock | undefined {
+  const start = `# BEGIN community-desktop:${owner}`
+  const end = `# END community-desktop:${owner}`
+  const starts = [...text.matchAll(new RegExp(`^${start}\\r?$`, 'gmu'))]
+  const ends = [...text.matchAll(new RegExp(`^${end}\\r?$`, 'gmu'))]
+  const malformed = (): never => { throw new Error(`dsh: malformed community Desktop ${owner} composition block`) }
+  if (starts.length !== ends.length || starts.length > 1
+    || text.split(start).length - 1 !== starts.length
+    || text.split(end).length - 1 !== ends.length) malformed()
+  if (starts.length === 0) return undefined
+  const begin = starts[0]
+  const finish = ends[0]
+  if (begin === undefined || finish === undefined || begin.index === undefined
+    || finish.index === undefined || finish.index <= begin.index + begin[0].length) malformed()
+  return { from: begin.index, through: finish.index + finish[0].length }
+}
+
 function replaceOwnedBlock(text: string, recipe: Recipe): string {
   const start = `# BEGIN community-desktop:${recipe.owner}`
   const end = `# END community-desktop:${recipe.owner}`
-  const startIndex = text.indexOf(start)
-  const endIndex = text.indexOf(end)
-  if ((startIndex < 0) !== (endIndex < 0) || (startIndex >= 0 && endIndex < startIndex)) {
-    throw new Error(`dsh: malformed community Desktop ${recipe.owner} composition block`)
-  }
+  const span = ownedBlock(text, recipe.owner)
   const block = `${start}\n${recipe.yaml}\n${end}`
-  if (startIndex < 0) {
+  if (span === undefined) {
     const base = text.replace(/(?:^|\n)\s*\[\]\s*$/u, '').trimEnd()
     return `${base}${base === '' ? '' : '\n\n'}${block}\n`
   }
-  return `${text.slice(0, startIndex)}${block}${text.slice(endIndex + end.length)}`
+  return `${text.slice(0, span.from)}${block}${text.slice(span.through)}`
+}
+
+function removeOwnedBlock(text: string, owner: Recipe['owner']): string {
+  const span = ownedBlock(text, owner)
+  if (span === undefined) return text
+  const before = text.slice(0, span.from).replace(/\r?\n$/u, '')
+  const after = text.slice(span.through).replace(/^\r?\n/u, '')
+  const retained = `${before}${before !== '' && after !== '' ? '\n' : ''}${after}`.trimEnd()
+  const active = retained.replace(/^\s*#.*$/gmu, '').trim()
+  return `${retained}${active === '' ? `${retained === '' ? '' : '\n'}[]` : ''}\n`
 }
 
 function writeAtomic(filename: string, content: string): void {
@@ -147,6 +178,7 @@ function writeAtomic(filename: string, content: string): void {
     fsyncSync(descriptor)
     closeSync(descriptor)
     open = false
+    loadOptionalPatches('dsh', temporary)
     renameSync(temporary, filename)
   } catch (error) {
     if (open) closeSync(descriptor)
@@ -174,6 +206,27 @@ export function configureExperimentalCapability(
   const after = replaceOwnedBlock(text, recipe)
   if (after === text) return false
   writeAtomic(filename, after)
+  return true
+}
+
+/**
+ * Select one official Computer Use provider, or remove only its community-owned block.
+ * Desktop callers run this through the Profile mutation transaction and restart after tasks settle.
+ * The author-style provider stays unavailable until it is a loadable Cordis plugin.
+ * @param profile - Profile whose patch owns the single Computer Use block.
+ * @param backend - Closed provider choice or `off`.
+ * @returns Whether the Profile patch changed.
+ */
+export function setComputerUseBackend(profile: string, backend: ComputerUseBackendSelection): boolean {
+  if (backend === 'official-native') return configureExperimentalCapability(profile, 'computer-use-native')
+  if (backend === 'official-mcp') return configureExperimentalCapability(profile, 'computer-use-mcp')
+  if (backend !== 'off') throw new Error('dsh: unsupported Computer Use backend')
+  const filename = join(resolveProfileDir(profile), 'cordis.patch.yml')
+  if (!existsSync(filename)) return false
+  const text = readFileSync(filename, 'utf8')
   loadOptionalPatches('dsh', filename)
+  const after = removeOwnedBlock(text, 'computer-use')
+  if (after === text) return false
+  writeAtomic(filename, after)
   return true
 }

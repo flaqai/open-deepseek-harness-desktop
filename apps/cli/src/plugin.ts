@@ -73,7 +73,12 @@ import {
   createProfileTransactionInterruptionExercise,
   resumeProfilePluginPreparation,
 } from './profile-plugin-transaction.ts'
-import { configureExperimentalCapability, type ExperimentalCapabilityRecipe } from './experimental-capability.ts'
+import {
+  configureExperimentalCapability,
+  setComputerUseBackend,
+  type ComputerUseBackendSelection,
+  type ExperimentalCapabilityRecipe,
+} from './experimental-capability.ts'
 
 export { resolvePnpmCommand } from './profile-package-manager.ts'
 
@@ -267,7 +272,7 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
       if (!Array.isArray(step.args) || step.args.length === 0 || step.args.length > 16
         || !step.args.every(arg => typeof arg === 'string' && arg.length <= 8192 && !arg.includes('\0'))
         || typeof step.args[0] !== 'string'
-        || !['add', 'remove', 'install', 'update', 'approve-build', 'approve-build-key', 'doctor', 'configure-experimental-capability'].includes(step.args[0])
+        || !['add', 'remove', 'install', 'update', 'approve-build', 'approve-build-key', 'doctor', 'configure-experimental-capability', 'set-computer-use-backend'].includes(step.args[0])
         || (step.acceptedExitCodes !== undefined && (!Array.isArray(step.acceptedExitCodes)
           || !step.acceptedExitCodes.every((code: unknown) => typeof code === 'number' && [0, 10, 11].includes(code))))) {
         throw new Error('dsh: invalid plugin mutation batch step')
@@ -288,6 +293,15 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
       'computer-use-mcp',
     ].includes(recipe)) throw new Error('dsh: invalid experimental capability recipe')
     configureExperimentalCapability(profile, recipe)
+    return 0
+  }
+  if (args[0] === 'set-computer-use-backend') {
+    const backend = args[1] as ComputerUseBackendSelection | undefined
+    if (args.length !== 2 || backend === undefined
+      || !['official-native', 'official-mcp', 'off'].includes(backend)) {
+      throw new Error('dsh: invalid Computer Use backend')
+    }
+    setComputerUseBackend(profile, backend)
     return 0
   }
   if (args[0] === 'snapshot') {

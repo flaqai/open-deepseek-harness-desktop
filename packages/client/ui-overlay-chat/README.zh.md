@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-悬浮窗显示当前会话、近期历史和新建会话入口，不另建 Session 存储。它仅在社区桌面版的悬浮渲染器中出现，与主窗口使用同一个已认证的本机 Host。隐藏球体不会删除会话或停止正在运行的工作。
+悬浮窗显示当前会话、正常的消息输入框、近期历史和新建会话入口，不另建 Session 存储。它仅在社区桌面版的悬浮渲染器中出现，与主窗口使用同一个已认证的本机 Host。隐藏球体不会删除会话或停止正在运行的工作。
 
 ## 目录
 
@@ -31,7 +31,7 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 实现说明
 
-此插件仅在悬浮渲染器中占据根 slot。它在所选 Session provider 下渲染现有聊天视图，并把新建会话和历史选择交给 `uiWorkspace`；主窗口继续拥有其常规根 slot。
+此插件仅在悬浮渲染器中占据根 slot。它通过 keyed `main` slot 渲染现有会话组件及输入框，并把新建会话和历史选择交给 `uiWorkspace`；主窗口继续拥有其常规根 slot。受信任的桌面划词事件把纯文本插入所选会话草稿，不会发送消息。若会话尚未就绪，文字暂存在渲染进程内存中，直到会话可以接收草稿；可见提示也提供手动重试入口。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -47,7 +47,7 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 - 精简视图只在本机桌面 Host 完成认证后可用；NAS 模式不创建悬浮渲染器。
-- 本展示包不提供系统级 Computer Use、划词捕获或后台 agent 控件。
+- 本展示包不提供系统级 Computer Use、划词捕获或后台 agent 控件。它只消费桌面 Host 传入的有长度限制的划词文本。
 
 <a id="dev-note"></a>
 ### 开发备注

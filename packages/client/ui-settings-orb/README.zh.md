@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-「悬浮球」页面管理社区桌面的显示、启动、头像与屏幕边缘位置偏好。它只通过受限的桌面悬浮球接口读写设置。设置按 `DSH_HOME` 分开保存；页面不能改变 NAS 主机或普通 Web 客户端。
+「悬浮球」页面管理社区桌面的显示、启动、划词、头像与屏幕边缘位置偏好。它先读取 Host 的功能可用性、系统权限和任务状态，再提供本机操作。设置按 `DSH_HOME` 分开保存；页面不能改变 NAS 主机或普通 Web 客户端。
 
 ## 目录
 
@@ -31,7 +31,7 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 实现说明
 
-插件贡献一个 `settings.section` 插槽，并订阅 Host 拥有的状态快照。渲染进程只通过 `DesktopOrbBridge` 提交封闭的设置补丁，不能提供任意路径、网址、包名或命令。Host 会拒绝非法参数及 NAS 环境中的请求。
+插件贡献一个 `settings.section` 插槽，并订阅 Host 拥有的设置。渲染进程只通过 `DesktopOrbBridge` 提交封闭的设置补丁，不能提供任意路径、网址、包名或命令。Host 状态决定划词与后端控件能否启用；任务状态未知时不能切换后端。后端切换成功后，页面提供已有的桌面快速重启操作，不会自动重启。Host 会拒绝非法参数及 NAS 环境中的请求。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -46,7 +46,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 划词捕获、Computer Use 后端切换与后台任务控件，需完成受保护的 Host 集成后才能启用。对应卡片解释预期边界，不宣称功能已经可用。
+- 只有 Host 对应方法报告可用时，页面才开放划词、后端切换与后台状态。页面不授予系统权限，也不批准后台命令。
 - Web 和 NAS 页面只展示不可用状态，不创建本机悬浮窗。
 
 <a id="dev-note"></a>

@@ -12,7 +12,7 @@ import { basename, delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, net,
-  Notification, powerMonitor, safeStorage, session, shell, Tray,
+  Notification, powerMonitor, safeStorage, screen, session, shell, systemPreferences, Tray,
   type Session,
   type IpcMainInvokeEvent, type MenuItemConstructorOptions, type MessageBoxOptions, type WebContents, type WebPreferences,
 } from 'electron'
@@ -57,9 +57,16 @@ import { clearDeadModuleFallbackLock, inspectModuleFallbackLock } from './module
 import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
 import { ensureWorkspacePtcPlugin, hasManagedWorkspacePtcBlock, isWorkspacePtcPluginInstalled, PTC_PLUGIN_NAME } from './workspace-ptc-plugin.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
-import { createOrbSettingsStore, parseOrbSettingsPatch, type OrbSettings, type OrbSettingsPatch } from './orb-settings.ts'
+import { createOrbSettingsStore, parseOrbSettingsPatch, type ManagedOrbComputerBackend, type OrbSettings, type OrbSettingsPatch } from './orb-settings.ts'
 import { createOrbWindowController, type OrbWindowController } from './orb-window.ts'
 import { isTrustedOrbPage } from './orb-navigation.ts'
+import { orbRuntimeStatus, type OrbPermissionStatus, type OrbRuntimeStatus } from './orb-runtime-status.ts'
+import { createOrbShortcutController, electronOrbShortcutRegistry, type OrbShortcutController } from './orb-shortcut.ts'
+import { createOrbSelectionController, type OrbSelectionController } from './orb-selection.ts'
+import {
+  createElectronOrbSelectionToolbarWindow, createOrbSelectionWindowController,
+  orbSelectionSupportsPositioning, orbSelectionWorkAreas, type OrbSelectionWindowController,
+} from './orb-selection-window.ts'
 import { blockEmbeddedNavigation, blockEmbeddedRequest, parseExternalBrowserUrl, trustedRendererPopupUrl } from './sidebar-iframe-security.ts'
 import { terminateWindowsProcessTree } from './windows-process-tree.ts'
 import { revealHarnessLog, type OpenLogResult } from './log-reveal.ts'
@@ -497,12 +504,158 @@ async function openSettingsDocument(): Promise<{ error: string }> {
 let preferencesStore: DesktopPreferencesStore | undefined
 let orbSettingsStore: ReturnType<typeof createOrbSettingsStore> | undefined
 let orbWindowController: OrbWindowController | undefined
+let orbShortcutController: OrbShortcutController | undefined
+let orbSelectionController: OrbSelectionController | undefined
+let orbSelectionWindowController: OrbSelectionWindowController | undefined
+let orbTaskState: boolean | 'unknown' = 'unknown'
+let orbTaskInspectionRevision = 0
+let orbTaskPollTimer: ReturnType<typeof setInterval> | undefined
 
 function readOrbSettings(): OrbSettings {
   if (orbSettingsStore === undefined || bootNasRuntime() !== undefined) {
     throw new Error('desktop: floating ball is unavailable outside a local Harness home')
   }
   return orbSettingsStore.read()
+}
+
+function canUseOrbCopiedSelection(): boolean {
+  return orbSettingsStore?.read().selectionToolbar === true && bootNasRuntime() === undefined
+    && harnessOrigin !== undefined && supervisor?.isDiagnosticMode === false && orbTaskState === false
+}
+
+function setOrbTaskState(state: boolean | 'unknown'): void {
+  orbTaskState = state
+  const blocked = state !== false
+  orbSelectionController?.setTaskRunning(blocked)
+  orbSelectionWindowController?.setTaskRunning(blocked)
+  orbShortcutController?.setTaskRunning(blocked)
+}
+
+async function refreshOrbTaskState(): Promise<void> {
+  const revision = ++orbTaskInspectionRevision
+  const origin = harnessOrigin
+  const surface = mainSurface
+  if (origin === undefined || bootNasRuntime() !== undefined || surface === undefined
+    || surface.renderer.isDestroyed() || supervisor?.isDiagnosticMode !== false) {
+    setOrbTaskState('unknown')
+    return
+  }
+  try {
+    const state = (await inspectLocalHarnessQuit(origin, surface.renderer.session.cookies, fetch)).activeTasks
+    if (revision === orbTaskInspectionRevision && origin === harnessOrigin) setOrbTaskState(state)
+  } catch (error) {
+    if (revision === orbTaskInspectionRevision) setOrbTaskState('unknown')
+    console.warn('desktop: floating-ball task inspection is unavailable', error)
+  }
+}
+
+function stopOrbTaskInspection(): void {
+  orbTaskInspectionRevision++
+  if (orbTaskPollTimer !== undefined) clearInterval(orbTaskPollTimer)
+  orbTaskPollTimer = undefined
+  setOrbTaskState('unknown')
+  orbSelectionController?.refreshAuthority()
+  orbSelectionWindowController?.refreshAuthority()
+}
+
+function startOrbTaskInspection(): void {
+  stopOrbTaskInspection()
+  if (orbSettingsStore?.read().selectionToolbar !== true) return
+  void refreshOrbTaskState()
+  orbTaskPollTimer = setInterval(() => { void refreshOrbTaskState() }, 3000)
+}
+
+async function ensureOrbSelectionCanAttach(): Promise<void> {
+  const status = await readOrbRuntimeStatus()
+  if (!status.selectionAvailable || status.taskInspection !== 'known' || status.activeTasks !== 0) {
+    throw new Error('desktop: copied selection is unavailable while local tasks or permissions are unconfirmed')
+  }
+}
+
+async function attachCopiedSelectionToOrb(text: string): Promise<void> {
+  await ensureOrbSelectionCanAttach()
+  await setOrbVisible(true)
+  await ensureOrbWindow().sendSelectionText(text)
+}
+
+function createLocalOrbSelectionController(): OrbSelectionController {
+  orbSelectionWindowController?.dispose()
+  orbSelectionWindowController = createOrbSelectionWindowController({
+    canShowLocal: canUseOrbCopiedSelection,
+    supportsPositioning: orbSelectionSupportsPositioning,
+    workAreas: orbSelectionWorkAreas,
+    createWindow: createElectronOrbSelectionToolbarWindow,
+    locale: () => menuLocale,
+  })
+  return createOrbSelectionController({
+    canReadLocalSelection: canUseOrbCopiedSelection,
+    readCopiedText: async () => {
+      await ensureOrbSelectionCanAttach()
+      const text = clipboard.readText()
+      await ensureOrbSelectionCanAttach()
+      return text
+    },
+    cursorPoint: () => screen.getCursorScreenPoint(),
+    showActions: (selection, actions) => {
+      void orbSelectionWindowController?.show(selection, actions).then((result) => {
+        // Native Wayland cannot position a cross-application toolbar. Keep the
+        // explicit copied-text gesture usable by putting it into the draft.
+        if (result === 'unavailable' && !orbSelectionSupportsPositioning()) actions.attach()
+      }).catch((error: unknown) => { console.warn('desktop: floating selection toolbar failed', error) })
+    },
+    openSearch: url => shell.openExternal(url),
+    promptChat: (message) => { void attachCopiedSelectionToOrb(message).catch((error: unknown) => {
+      console.warn('desktop: floating selection translation could not open', error)
+    }) },
+    attachToChat: (text) => { void attachCopiedSelectionToOrb(text).catch((error: unknown) => {
+      console.warn('desktop: floating selection could not be attached', error)
+    }) },
+  })
+}
+
+function orbPermissions(): OrbRuntimeStatus['permission'] {
+  if (process.platform !== 'darwin') return { screen: 'unknown', accessibility: 'unknown' }
+  let screenPermission: OrbPermissionStatus = 'unknown'
+  let accessibility: OrbPermissionStatus = 'unknown'
+  try {
+    const status = systemPreferences.getMediaAccessStatus('screen')
+    if (status === 'granted') screenPermission = 'granted'
+    else if (status === 'denied' || status === 'restricted') screenPermission = 'denied'
+  } catch (error) { console.warn('desktop: screen permission status is unavailable', error) }
+  try { accessibility = systemPreferences.isTrustedAccessibilityClient(false) ? 'granted' : 'denied' }
+  catch (error) { console.warn('desktop: accessibility permission status is unavailable', error) }
+  return { screen: screenPermission, accessibility }
+}
+
+async function readOrbRuntimeStatus(): Promise<OrbRuntimeStatus> {
+  const local = activeMenuHome !== undefined && bootNasRuntime() === undefined
+  let plugins: Awaited<ReturnType<typeof readRecoveryPluginInventory>>['plugins'] = []
+  let inventoryKnown = false
+  if (local && activeMenuHome !== undefined) {
+    try {
+      plugins = (await readRecoveryPluginInventory(activeMenuHome)).plugins
+      inventoryKnown = true
+    } catch (error) { console.warn('desktop: floating-ball plugin status is unavailable', error) }
+  }
+  let activeTasks: boolean | 'unknown' = 'unknown'
+  const surface = mainSurface
+  if (local && harnessOrigin !== undefined && surface !== undefined && !surface.renderer.isDestroyed()
+    && supervisor !== undefined && !supervisor.isDiagnosticMode) {
+    try { activeTasks = (await inspectLocalHarnessQuit(harnessOrigin, surface.renderer.session.cookies, fetch)).activeTasks }
+    catch (error) { console.warn('desktop: floating-ball task status is unavailable', error) }
+  }
+  const permission = local ? orbPermissions() : { screen: 'unknown' as const, accessibility: 'unknown' as const }
+  let pendingRestart = false
+  if (local) {
+    try { pendingRestart = orbSettingsStore?.readPendingBackend() !== undefined }
+    catch (error) { console.warn('desktop: pending floating-ball backend status is unavailable', error) }
+  }
+  return orbRuntimeStatus({
+    mode: local ? 'local' : 'nas', plugins, inventoryKnown, ...permission, activeTasks,
+    pendingRestart,
+    selectionEnabled: local && (orbSettingsStore?.read().selectionToolbar ?? false),
+    selectionShortcutReady: orbShortcutController?.status().state === 'registered', observationActive: false,
+  })
 }
 
 function ensureOrbWindow(): OrbWindowController {
@@ -560,9 +713,38 @@ async function updateOrbSettings(input: unknown): Promise<OrbSettings> {
     throw error
   }
   orbWindowController?.update(next)
+  orbShortcutController?.setEnabled(next.selectionToolbar)
+  orbSelectionController?.refreshAuthority()
+  orbSelectionWindowController?.refreshAuthority()
+  if (next.selectionToolbar !== current.selectionToolbar) startOrbTaskInspection()
   mainSurface?.send(DESKTOP_IPC.orbChanged, next)
   applicationMenu?.refresh()
   return next
+}
+
+async function stageOrbBackend(input: unknown): Promise<OrbSettings> {
+  if (input !== 'official-native' && input !== 'official-mcp') {
+    throw new TypeError('desktop: invalid floating-ball Computer Use backend')
+  }
+  const backend: ManagedOrbComputerBackend = input
+  const store = orbSettingsStore
+  if (store === undefined || bootNasRuntime() !== undefined || supervisor?.isDiagnosticMode === true) {
+    throw new Error('desktop: Computer Use backend switching requires a healthy local Profile')
+  }
+  const current = store.read()
+  if (current.backend === backend) {
+    store.clearPendingBackend()
+    return current
+  }
+  const status = await readOrbRuntimeStatus()
+  if (status.taskInspection !== 'known' || status.activeTasks !== 0) {
+    throw new Error('desktop: finish running tasks before switching the Computer Use backend')
+  }
+  if (status.backendAvailability[backend] !== 'ready') {
+    throw new Error('desktop: install and verify the selected Computer Use backend before switching')
+  }
+  store.writePendingBackend(backend)
+  return current
 }
 let preferences: DesktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES }
 let tray: Tray | undefined
@@ -1693,6 +1875,20 @@ async function startApplication(): Promise<void> {
   const preserveCopiedPlugins = shouldPreserveLegacyCopiedProfile(dataHomeSetup)
   activeMenuHome = activeNasRuntime === undefined ? dshHome : undefined
   orbSettingsStore = activeNasRuntime === undefined ? createOrbSettingsStore(dshHome) : undefined
+  stopOrbTaskInspection()
+  orbSelectionController?.dispose()
+  orbSelectionWindowController?.dispose()
+  orbSelectionController = activeNasRuntime === undefined ? createLocalOrbSelectionController() : undefined
+  orbShortcutController?.dispose()
+  orbShortcutController = activeNasRuntime === undefined ? createOrbShortcutController(electronOrbShortcutRegistry(), {
+    canUseLocalSelection: canUseOrbCopiedSelection,
+    invokeCopiedSelection: () => { void orbSelectionController?.invokeCopiedSelection().catch((error: unknown) => {
+      console.warn('desktop: floating copied-selection shortcut could not be applied', error)
+    }) },
+    onStatus: (status) => { if (status.state === 'conflict' || status.state === 'failed') {
+      console.warn('desktop: floating copied-selection shortcut is unavailable', status)
+    } },
+  }) : undefined
   const persistentServicesPath = join(app.getPath('userData'), 'managed-processes', 'persistent-services-v1.json')
   persistentServiceAuthority = new FilePersistentServiceAuthorizer(
     persistentServicesPath,
@@ -1938,14 +2134,29 @@ async function startApplication(): Promise<void> {
       throw new Error('desktop: floating renderer origin is not trusted')
     }
   }
+  const assertMainOrbRenderer = (event: IpcMainInvokeEvent): void => {
+    assertMainRenderer(event.sender)
+    if (event.senderFrame !== event.sender.mainFrame || harnessOrigin === undefined
+      || new URL(event.senderFrame.url).origin !== harnessOrigin) {
+      throw new Error('desktop: floating-ball settings require the local Harness main frame')
+    }
+  }
   ipcMain.handle(DESKTOP_IPC.orbGet, (event): OrbSettings => {
     if (event.sender.id === orbWindowController?.webContentsId) assertOrbRenderer(event)
-    else assertMainRenderer(event.sender)
+    else assertMainOrbRenderer(event)
     return readOrbSettings()
   })
+  ipcMain.handle(DESKTOP_IPC.orbStatus, (event): Promise<OrbRuntimeStatus> => {
+    assertMainOrbRenderer(event)
+    return readOrbRuntimeStatus()
+  })
   ipcMain.handle(DESKTOP_IPC.orbUpdate, (event, patch: unknown): Promise<OrbSettings> => {
-    assertMainRenderer(event.sender)
+    assertMainOrbRenderer(event)
     return updateOrbSettings(patch)
+  })
+  ipcMain.handle(DESKTOP_IPC.orbSelectBackend, (event, backend: unknown): Promise<OrbSettings> => {
+    assertMainOrbRenderer(event)
+    return stageOrbBackend(backend)
   })
   ipcMain.handle(DESKTOP_IPC.orbExpand, (event): Promise<void> => {
     assertOrbRenderer(event)
@@ -3362,6 +3573,10 @@ async function startApplication(): Promise<void> {
     }
   }
   let runtimePendingApplied = false
+  let orbPendingBackend: ManagedOrbComputerBackend | undefined
+  try { orbPendingBackend = orbSettingsStore?.readPendingBackend() }
+  catch (error) { console.warn('desktop: pending floating-ball backend is invalid; preserving the active Profile', error) }
+  let orbPendingApplied = false
   const desktopMutations = new DesktopProfileMutation({
     home: dshHome,
     ownerPid: process.pid,
@@ -3413,6 +3628,19 @@ async function startApplication(): Promise<void> {
       }
     },
     onFirstStartCommit: async () => {
+      if (orbPendingApplied && orbPendingBackend !== undefined && orbSettingsStore !== undefined) {
+        try {
+          const active = orbSettingsStore.read()
+          orbSettingsStore.write({ ...active, backend: orbPendingBackend })
+          orbSettingsStore.clearPendingBackend()
+          orbPendingApplied = false
+          await appendDesktopStartupLog(`Floating-ball Computer Use backend ${orbPendingBackend} committed after normal Profile readiness.`)
+        } catch (error) {
+          // Profile has already committed; a settings-bookkeeping failure cannot
+          // roll it back. Keep the pending file for an idempotent later retry.
+          console.warn('desktop: floating-ball backend committed but settings bookkeeping failed', error)
+        }
+      }
       if (runtimePendingApplied) {
         await workspaceRuntimeManager?.commitPending(dshHome)
         runtimePendingApplied = false
@@ -3803,7 +4031,7 @@ async function startApplication(): Promise<void> {
     }
     if (startupProfileMutationAllowed && !preserveCopiedPlugins) {
       // Even a retry with settled markers needs a readiness-verified commit before clearing the gate.
-      if (firstStartPending || applyRuntimePending) await desktopMutations.prepareStartup()
+      if (firstStartPending || applyRuntimePending || orbPendingBackend !== undefined) await desktopMutations.prepareStartup()
       if (prebuilt !== undefined && prebuiltDirectory !== undefined) {
         const startedAt = Date.now()
         const candidate = desktopMutations.mutationHome
@@ -3929,6 +4157,33 @@ async function startApplication(): Promise<void> {
     }
     runtimePendingApplied = hasRuntimePending
   }
+  if (orbPendingBackend === 'official-native' || orbPendingBackend === 'official-mcp') {
+    if (startupProfileMutationAllowed && !preserveCopiedPlugins) {
+      try {
+        await desktopMutations.applyAtStartup({
+          operation: 'orb-computer-use-backend-switch',
+          run: async (context) => {
+            const inventory = await readRecoveryPluginInventory(context.home)
+            const packageName = orbPendingBackend === 'official-native'
+              ? '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'
+              : '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp'
+            if (!inventory.plugins.some(plugin => plugin.packageName === packageName
+              && plugin.version !== undefined && plugin.status === 'normal')) {
+              throw new Error(`desktop: selected Computer Use backend ${packageName} is not installed and healthy`)
+            }
+            await context.write({ kind: 'set-computer-use-backend', backend: orbPendingBackend,
+              operation: 'orb-computer-use-backend-switch', timeoutMs: PROFILE_REPAIR_TIMEOUT_MS })
+          },
+        })
+        orbPendingApplied = true
+      } catch (error) {
+        console.warn('desktop: floating-ball backend switch failed; preserving prior Profile and pending choice', error)
+        await appendDesktopStartupLog(`Floating-ball backend switch deferred: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    } else {
+      await appendDesktopStartupLog('Floating-ball backend switch deferred because Profile mutations are unavailable.')
+    }
+  }
   const officeNodeModules = await workspaceRuntimeManager.officeNodeModules(dshHome)
   if (officeNodeModules === undefined) delete harnessEnvironment.NODE_PATH
   else harnessEnvironment.NODE_PATH = [officeNodeModules, harnessEnvironment.NODE_PATH]
@@ -4031,6 +4286,8 @@ async function startApplication(): Promise<void> {
       latestRecoveryDiagnostic = undefined
       harnessOrigin = new URL(url).origin
       harnessAuthenticationUrl = url
+      orbShortcutController?.setEnabled(orbSettingsStore?.read().selectionToolbar === true)
+      startOrbTaskInspection()
       try {
         if (orbSettingsStore?.read().showAtStartup === true) {
           void setOrbVisible(true).catch((error: unknown) => { console.error('desktop: floating window failed to open', error) })
@@ -4095,6 +4352,7 @@ async function startApplication(): Promise<void> {
         cancelBootableSnapshot()
         harnessOrigin = undefined
         harnessAuthenticationUrl = undefined
+        stopOrbTaskInspection()
         desktopReturnControl?.clear()
         desktopWebAccess?.clear()
       }
@@ -4337,7 +4595,11 @@ if (!app.requestSingleInstanceLock()) {
     void lifecycle?.requestQuit(sessionEnding ? { skipConfirmation: true } : undefined)
   })
   app.on('will-quit', () => {
+    stopOrbTaskInspection()
     orbWindowController?.dispose()
+    orbShortcutController?.dispose()
+    orbSelectionController?.dispose()
+    orbSelectionWindowController?.dispose()
     desktopShortcuts?.dispose()
     stopReleaseChecks?.()
     desktopLogSession.close('application-quit')

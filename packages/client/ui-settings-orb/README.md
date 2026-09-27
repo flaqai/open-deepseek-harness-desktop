@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Floating ball page owns the community Desktop's visible, startup, avatar, and screen-edge preferences. It reads and writes only the narrow Desktop orb bridge. Settings persist per `DSH_HOME`; the page cannot change a NAS host or a general Web client.
+The Floating ball page owns the community Desktop's display, startup, selection, avatar, and screen-edge preferences. It reads the Host's availability, permission, and task status before offering local actions. Settings persist per `DSH_HOME`; the page cannot change a NAS host or a general Web client.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ Open Settings → Floating ball after starting the community Desktop against a l
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The plugin contributes a `settings.section` slot and subscribes to one Host-owned snapshot. The renderer submits a closed settings patch to `DesktopOrbBridge`; it cannot supply an arbitrary path, URL, package, or command. The Host rejects invalid values and unavailable NAS context.
+The plugin contributes a `settings.section` slot and subscribes to Host-owned settings. The renderer submits a closed settings patch to `DesktopOrbBridge`; it cannot supply an arbitrary path, URL, package, or command. Host status determines whether selection and backend controls are enabled, and an unknown task state prevents backend switching. A successful backend change waits for the existing Desktop quick-restart action; the page never restarts automatically. The Host rejects invalid values and unavailable NAS context.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -46,7 +46,7 @@ None; this package does not assemble provider requests.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Selection capture, Computer Use backend switching, and background task controls remain unavailable until their guarded Host integrations are completed. Their cards describe the intended boundary but do not claim an enabled capability.
+- Selection, backend switching, and background status are enabled only when the corresponding Host methods report availability. The page does not grant system permissions or approve background commands.
 - Web and NAS views show an unavailable state rather than a local floating window.
 
 <a id="dev-note"></a>

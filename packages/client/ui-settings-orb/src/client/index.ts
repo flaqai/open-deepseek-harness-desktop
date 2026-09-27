@@ -6,7 +6,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { OrbSettingsSection, type OrbSettingsInjected } from './OrbSettingsSection.tsx'
-import { readOrbDesktopBridge, type OrbSettingsView } from './orb-bridge.ts'
+import { readOrbDesktopBridge, readOrbQuickRestart, type OrbSettings, type OrbSettingsView } from './orb-bridge.ts'
 import { en, zh, type OrbSettingsKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -24,31 +24,66 @@ export const inject = ['slots', 'locale', 'settingsNavigation']
  */
 export function apply(ctx: ClientContext): void {
   const bridge = readOrbDesktopBridge()
+  const restart = readOrbQuickRestart()
   const view = createSnapshotStore<OrbSettingsView>({ phase: bridge === undefined ? 'unavailable' : 'loading' })
+  let generation = 0
+  let disposed = false
   const reload = (): void => {
     if (bridge === undefined) return
+    const currentGeneration = ++generation
     view.set({ phase: 'loading' })
-    void bridge.get().then(
-      (settings) => { view.set({ phase: 'ready', settings }) },
-      () => { view.set({ phase: 'error' }) },
+    void Promise.all([bridge.get(), bridge.getStatus?.()]).then(
+      ([settings, status]) => { if (!disposed && currentGeneration === generation) view.set({ phase: 'ready', settings, status }) },
+      () => { if (!disposed && currentGeneration === generation) view.set({ phase: 'error' }) },
     )
   }
   ctx.effect(() => ctx.locale.register('settings.orb', { zh, en }), 'ui-settings-orb: dictionaries')
   if (bridge !== undefined) ctx.effect(() => {
-    const off = bridge.onChanged((settings) => { view.set({ phase: 'ready', settings }) })
+    disposed = false
+    const off = bridge.onChanged((settings) => {
+      const current = view.getSnapshot()
+      if (current.phase === 'ready') view.set({ ...current, settings })
+      else reload()
+    })
     reload()
-    return off
+    return () => { disposed = true; generation += 1; off() }
   }, 'ui-settings-orb: host state')
+  const act = async (action: () => Promise<OrbSettings>): Promise<void> => {
+    const current = view.getSnapshot()
+    if (current.phase !== 'ready' || current.busy) return
+    view.set({ ...current, busy: true, error: undefined })
+    try {
+      const settings = await action()
+      if (disposed) return
+      const latest = view.getSnapshot()
+      view.set({ phase: 'ready', settings, status: latest.phase === 'ready' ? latest.status : current.status })
+      if (bridge?.getStatus !== undefined) void bridge.getStatus().then((status) => {
+        const next = view.getSnapshot()
+        if (!disposed && next.phase === 'ready') view.set({ ...next, status })
+      }, () => {})
+    } catch (error) {
+      if (!disposed) view.set({ ...current, error: String(error) })
+    }
+  }
   const injected = (): OrbSettingsInjected => ({
     hooks: { orb: view },
     update: async (patch) => {
       if (bridge === undefined) return
+      await act(() => bridge.update(patch))
+    },
+    selectBackend: async (backend) => {
+      const selectBackend = bridge?.selectBackend
+      if (selectBackend === undefined) return
+      await act(() => selectBackend(backend))
+    },
+    canSelectBackend: bridge?.selectBackend !== undefined,
+    canRestart: restart !== undefined,
+    restart: async () => {
+      if (restart === undefined) return
       const current = view.getSnapshot()
-      try { view.set({ phase: 'ready', settings: await bridge.update(patch) }) }
-      catch (error) {
-        if (current.phase === 'ready') view.set({ phase: 'ready', settings: current.settings, error: String(error) })
-        else view.set({ phase: 'error' })
-      }
+      if (current.phase !== 'ready' || current.status?.pendingRestart !== true || current.status.mode !== 'local') return
+      try { await restart() }
+      catch (error) { if (!disposed) view.set({ ...current, error: String(error) }) }
     },
     reload,
     openTools: () => { ctx.settingsNavigation.open({ sectionId: 'external-tools' }) },

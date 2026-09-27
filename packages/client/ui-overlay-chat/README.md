@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The floating window shows the current conversation, recent history, and a New conversation action without creating another Session store. It appears only in the community Desktop floating renderer and uses the same authenticated local Host as the main window. Hiding the ball does not delete conversations or stop running work.
+The floating window shows the current conversation, its normal message composer, recent history, and a New conversation action without creating another Session store. It appears only in the community Desktop floating renderer and uses the same authenticated local Host as the main window. Hiding the ball does not delete conversations or stop running work.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ The community Desktop composition loads this plugin for its dedicated `?surface=
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The plugin occupies the root slot only in the floating renderer. It renders the existing Chat view under the selected Session provider and delegates New conversation and history selection to `uiWorkspace`; the main window continues to own its normal root slot.
+The plugin occupies the root slot only in the floating renderer. It renders the existing Conversation component and composer through the keyed `main` slot and delegates New conversation and history selection to `uiWorkspace`; the main window continues to own its normal root slot. A trusted Desktop selection event inserts plain text into the selected Session's draft without sending it. If no Session is ready, the selection remains in renderer memory until a Session can accept the draft; the visible notice offers a manual retry.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -47,7 +47,7 @@ None; the package does not assemble provider requests.
 <a id="known-limitations-and-deferred-work"></a>
 
 - The compact view is available only after the local Desktop Host authenticates; NAS mode has no floating renderer.
-- System-level Computer Use, selection capture, and background-agent controls are not supplied by this presentation package.
+- System-level Computer Use, selection capture, and background-agent controls are not supplied by this presentation package. It consumes only the bounded selection text delivered by the Desktop Host.
 
 <a id="dev-note"></a>
 ### Dev Note

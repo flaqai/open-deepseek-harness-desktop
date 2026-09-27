@@ -12,6 +12,7 @@ export interface OrbWindowController {
   show(): Promise<void>
   hide(): void
   expand(): Promise<void>
+  sendSelectionText(text: string): Promise<void>
   collapse(): Promise<void>
   update(settings: OrbSettings): void
   dispose(): void
@@ -132,6 +133,7 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
       const target = live()
       const origin = options.getHarnessOrigin()
       if (target === undefined || origin === undefined) throw new Error('desktop: local Harness is not ready for floating chat')
+      if (expanded && target.webContents.getURL() === `${origin}/?surface=orb`) { target.show(); return }
       expanded = true
       dock(target)
       try { await target.loadURL(`${origin}/?surface=orb`) }
@@ -141,6 +143,17 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
         await loadShell(target)
         throw error
       }
+    },
+    async sendSelectionText(text) {
+      if (text.length === 0 || text.length > 8192) throw new Error('desktop: invalid floating selection length')
+      await controller.expand()
+      const target = live()
+      const origin = options.getHarnessOrigin()
+      if (target === undefined || !expanded || origin === undefined
+        || target.webContents.getURL() !== `${origin}/?surface=orb`) {
+        throw new Error('desktop: floating chat is unavailable for the copied selection')
+      }
+      target.webContents.send(DESKTOP_IPC.orbSelectionText, text)
     },
     async collapse() {
       const target = live()

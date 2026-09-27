@@ -9,7 +9,8 @@ import type {
 import type { DesktopIconsBridge, DesktopIconStatus, IconSelection } from './icon-protocol.ts'
 import type { OpenLogResult } from './log-reveal.ts'
 import type { DesktopPreferences, DesktopPreferencesPatch } from './preferences.ts'
-import type { OrbSettings, OrbSettingsPatch } from './orb-settings.ts'
+import type { OrbComputerBackend, OrbSettings, OrbSettingsPatch } from './orb-settings.ts'
+import type { OrbRuntimeStatus } from './orb-runtime-status.ts'
 import type { DesktopReleaseStatus } from './release-checker.ts'
 import type { DesktopReleaseDownloadStatus } from './release-downloader.ts'
 import type { SourceUpdateResult, SourceUpdateStatus } from './source-updater.ts'
@@ -138,6 +139,8 @@ export interface DesktopWebBridge {
 /** Per-home floating-ball controls; absent while connected to NAS. */
 export interface DesktopOrbBridge {
   get(): Promise<OrbSettings>
+  getStatus(): Promise<OrbRuntimeStatus>
+  selectBackend(backend: OrbComputerBackend): Promise<OrbSettings>
   update(patch: OrbSettingsPatch): Promise<OrbSettings>
   onChanged(callback: (settings: OrbSettings) => void): () => void
 }
@@ -612,6 +615,8 @@ const commonDesktopBridge = {
 }
 const orbBridge: DesktopOrbBridge = Object.freeze({
   get: () => ipcRenderer.invoke(DESKTOP_IPC.orbGet) as Promise<OrbSettings>,
+  getStatus: () => ipcRenderer.invoke(DESKTOP_IPC.orbStatus) as Promise<OrbRuntimeStatus>,
+  selectBackend: (backend: OrbComputerBackend) => ipcRenderer.invoke(DESKTOP_IPC.orbSelectBackend, backend) as Promise<OrbSettings>,
   update: (patch: OrbSettingsPatch) => ipcRenderer.invoke(DESKTOP_IPC.orbUpdate, patch) as Promise<OrbSettings>,
   onChanged(callback: (settings: OrbSettings) => void) {
     const listener = (_event: Electron.IpcRendererEvent, settings: OrbSettings): void => { callback(settings) }

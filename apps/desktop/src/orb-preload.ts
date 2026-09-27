@@ -10,7 +10,18 @@ export interface OrbRendererBridge {
   hide(): Promise<void>
   openMain(): Promise<void>
   openSettings(): Promise<void>
+  onSelectionText(callback: (text: string) => void): () => void
 }
+
+let pendingSelectionText: string | undefined
+const selectionListeners = new Set<(text: string) => void>()
+ipcRenderer.on(DESKTOP_IPC.orbSelectionText, (_event, value: unknown) => {
+  if (location.protocol !== 'http:' || location.hostname !== '127.0.0.1'
+    || new URLSearchParams(location.search).get('surface') !== 'orb'
+    || typeof value !== 'string' || value.length === 0 || value.length > 8192) return
+  if (selectionListeners.size === 0) { pendingSelectionText = value; return }
+  for (const listener of selectionListeners) listener(value)
+})
 
 const bridge: OrbRendererBridge = Object.freeze({
   expand: () => ipcRenderer.invoke(DESKTOP_IPC.orbExpand) as Promise<void>,
@@ -18,6 +29,15 @@ const bridge: OrbRendererBridge = Object.freeze({
   hide: () => ipcRenderer.invoke(DESKTOP_IPC.orbHide) as Promise<void>,
   openMain: () => ipcRenderer.invoke(DESKTOP_IPC.orbOpenMain) as Promise<void>,
   openSettings: () => ipcRenderer.invoke(DESKTOP_IPC.orbOpenSettings) as Promise<void>,
+  onSelectionText(callback: (text: string) => void) {
+    selectionListeners.add(callback)
+    if (pendingSelectionText !== undefined) {
+      const text = pendingSelectionText
+      pendingSelectionText = undefined
+      callback(text)
+    }
+    return () => { selectionListeners.delete(callback) }
+  },
 })
 
 contextBridge.exposeInMainWorld('dshOrb', bridge)

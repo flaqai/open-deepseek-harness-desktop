@@ -3,11 +3,14 @@
 .shell { box-sizing: border-box; display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--dsw-alias-label-primary); }
 .header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: .5px solid var(--dsw-alias-border-l2); }
 .title { flex: 1; min-width: 0; font-size: 14px; line-height: 20px; font-weight: 500; }
-.action { border: 0; border-radius: var(--dsw-radius-sm); padding: 5px 7px; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 13px; }
+.action { border: 0; border-radius: var(--dsw-radius-sm); min-height: 32px; padding: 5px 7px; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 13px; }
 .action:hover { background: var(--dsw-alias-interactive-bg-hover); }
 .action:focus-visible, .history:focus-visible { outline: 2px solid var(--dsw-alias-link); outline-offset: 2px; }
+.activity { min-height: 20px; margin: 8px 12px 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.selectionNotice { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 12px 0; padding: 8px 10px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 20px; }
+.selectionNotice span { min-width: 0; }
 .history { display: block; box-sizing: border-box; width: calc(100% - 24px); margin: 8px 12px; padding: 7px; border: .5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-sm); color: inherit; background: var(--dsw-alias-bg-base); font: inherit; font-size: 13px; }
-.conversation { flex: 1; min-height: 0; overflow: auto; --dsh-chat-content-width: 100%; --dsh-composer-side-clearance: 0px; }
+.conversation { flex: 1; min-height: 0; overflow: hidden; --dsh-chat-content-width: 100%; --dsh-composer-side-clearance: 0px; }
+.conversation :global([data-window-drag]) { display: none; }
 .conversation :global([data-chat-turn-rail]) { display: none; }
-.empty { display: grid; place-items: center; height: 100%; padding: 20px; text-align: center; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
-.inputOverlay { width: 0; height: 0; overflow: visible; }
+@media (max-width: 380px) { .header { flex-wrap: wrap; } .title { flex-basis: 100%; } .header .action { flex: 1; } }
