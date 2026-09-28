@@ -7,6 +7,8 @@ export interface OrbComputerUseFrame {
   readonly data: Uint8Array
   readonly mediaType: 'image/png' | 'image/jpeg'
   readonly bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+  /** Opaque native identity of the captured foreground window, not its title or PID. */
+  readonly windowId: string
   readonly appName: string
   readonly windowTitle?: string
 }
@@ -22,6 +24,8 @@ export interface OrbComputerUseAuthority {
 export interface OrbComputerUsePlatform {
   withOverlayExcluded<T>(run: () => Promise<T>, signal: AbortSignal): Promise<T>
   captureFrontmost(signal: AbortSignal): Promise<OrbComputerUseFrame>
+  /** Re-read focus immediately before HID input; never trust only screenshot coordinates. */
+  frontmostWindowId(signal: AbortSignal): Promise<string | undefined>
   click(input: { readonly x: number; readonly y: number; readonly button: 'left' | 'right'; readonly count: 1 | 2 }, signal: AbortSignal): Promise<void>
   typeText(input: {
     readonly x: number
@@ -72,13 +76,22 @@ function requireAuthority(authority: OrbComputerUseAuthority, action: boolean): 
 }
 
 function requireFrame(frame: OrbComputerUseFrame): void {
+  if (frame.mediaType !== 'image/png' && frame.mediaType !== 'image/jpeg') {
+    throw new Error('orb computer use: unsupported screenshot format')
+  }
   const { x, y, width, height } = frame.bounds
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isInteger(width) || !Number.isInteger(height)
     || width < 2 || height < 2 || width > MAX_EDGE || height > MAX_EDGE) {
     throw new Error('orb computer use: invalid captured window bounds')
   }
-  if (frame.data.byteLength === 0 || frame.data.byteLength > MAX_IMAGE_BYTES) {
+  if (!(frame.data instanceof Uint8Array) || frame.data.byteLength === 0 || frame.data.byteLength > MAX_IMAGE_BYTES) {
     throw new Error('orb computer use: captured window image exceeds supported size')
+  }
+  if (frame.windowId.length === 0 || frame.windowId.length > 256 || frame.windowId.trim() !== frame.windowId) {
+    throw new Error('orb computer use: invalid captured window identity')
+  }
+  if (frame.appName.length === 0 || frame.appName.length > 256 || frame.appName.trim() !== frame.appName) {
+    throw new Error('orb computer use: invalid captured application identity')
   }
 }
 
@@ -168,6 +181,10 @@ export async function createOrbComputerUseBackend(options: OrbComputerUseBackend
         current = undefined
         return options.platform.withOverlayExcluded(async () => {
           requireAuthority(await options.authority(), true)
+          active.throwIfAborted()
+          if (await options.platform.frontmostWindowId(active) !== previous.frame.windowId) {
+            throw new Error('orb computer use: frontmost window changed; observe again before input')
+          }
           active.throwIfAborted()
           if (action.kind === 'click') {
             await options.platform.click({ ...point, button: action.button, count: action.count }, active)

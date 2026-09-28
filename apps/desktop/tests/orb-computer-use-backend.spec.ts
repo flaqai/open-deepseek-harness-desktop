@@ -10,6 +10,7 @@ const frame: OrbComputerUseFrame = {
   data: new Uint8Array([1, 2, 3]),
   mediaType: 'image/png',
   bounds: { x: 200, y: 100, width: 101, height: 51 },
+  windowId: 'native-window-42',
   appName: 'Target',
 }
 
@@ -25,6 +26,10 @@ function fixture() {
     async captureFrontmost() {
       events.push('capture')
       return frame
+    },
+    async frontmostWindowId() {
+      events.push('focus')
+      return frame.windowId
     },
     async click(input) { events.push(`click:${input.x},${input.y}`) },
     async typeText(input) { events.push(`type:${input.x},${input.y}:${input.text}`) },
@@ -54,7 +59,7 @@ describe('floating Computer Use backend', () => {
     expect(second.frameId).toBe(2)
     expect(f.events).toEqual([
       'reserve', 'overlay:begin', 'capture', 'overlay:end',
-      'overlay:begin', 'click:300,100', 'capture', 'overlay:end',
+      'overlay:begin', 'focus', 'click:300,100', 'capture', 'overlay:end',
     ])
     await backend.close()
     expect(f.events.at(-1)).toBe('release')
@@ -87,6 +92,19 @@ describe('floating Computer Use backend', () => {
     await expect(backend.act(fresh.frameId, { kind: 'click', position: [0, 0], button: 'left', count: 1 })).rejects.toThrow('input control permission')
     f.setAuthority({ mode: 'local', screenCapture: true, inputControl: true })
     await expect(backend.act(fresh.frameId, { kind: 'click', position: [0, 0], button: 'left', count: 1 })).rejects.toThrow('stale')
+    await backend.close()
+  })
+
+  it('rejects input if another app takes focus after the screenshot', async () => {
+    const f = fixture()
+    const backend = await createOrbComputerUseBackend({ ...f, postActionWaitMs: 0 })
+    const first = await backend.observe()
+    f.platform.frontmostWindowId = async () => 'another-window'
+    await expect(backend.act(first.frameId, { kind: 'click', position: [500, 500], button: 'left', count: 1 }))
+      .rejects.toThrow('frontmost window changed')
+    expect(f.events.some(event => event.startsWith('click:'))).toBe(false)
+    await expect(backend.act(first.frameId, { kind: 'click', position: [500, 500], button: 'left', count: 1 }))
+      .rejects.toThrow('stale')
     await backend.close()
   })
 
@@ -128,6 +146,24 @@ describe('floating Computer Use backend', () => {
     })
     const backend = await createOrbComputerUseBackend({ ...f, postActionWaitMs: 0 })
     await expect(backend.observe()).rejects.toThrow('invalid captured window bounds')
+    await backend.close()
+  })
+
+  it('rejects a screenshot without a stable native window identity', async () => {
+    const f = fixture()
+    f.platform.captureFrontmost = async () => ({ ...frame, windowId: '' })
+    const backend = await createOrbComputerUseBackend({ ...f, postActionWaitMs: 0 })
+    await expect(backend.observe()).rejects.toThrow('invalid captured window identity')
+    await backend.close()
+  })
+
+  it('rejects unexpected native screenshot metadata', async () => {
+    const f = fixture()
+    f.platform.captureFrontmost = async () => ({ ...frame, mediaType: 'text/plain' as 'image/png' })
+    const backend = await createOrbComputerUseBackend({ ...f, postActionWaitMs: 0 })
+    await expect(backend.observe()).rejects.toThrow('unsupported screenshot format')
+    f.platform.captureFrontmost = async () => ({ ...frame, appName: '' })
+    await expect(backend.observe()).rejects.toThrow('invalid captured application identity')
     await backend.close()
   })
 
