@@ -11,6 +11,13 @@ English | [中文](README.zh.md)
 
 This package defines three author-style foreground tools: `orb_observe`, `orb_click`, and `orb_type`. It does not implement native capture or input. The Desktop Host must supply an `OrbHostBridge` and mount `createOrbComputerUseProvider(bridge)` explicitly. Loading the bare package fails before registering tools or a computer-use provider.
 
+## Table of Contents
+
+- [Host integration](#host-integration)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Host integration
 
 `bridge.open(acquireExclusive)` creates one `OrbBackend`. The backend calls `acquireExclusive()` exactly once before exposing operations and calls its returned release function during `close()`. The plugin reserves `orb-native` through the official `ctx.computerUse.register` slot before opening the backend; it removes tools, waits for calls, closes the backend, and then releases the slot. A missing backend, failed startup, or duplicate provider rejects activation.
