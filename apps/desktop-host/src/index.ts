@@ -12,8 +12,11 @@ import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 import { installDesktopQuitInspection } from './quit-inspection.ts'
 import { installPlatformSessionPublisher } from './platform-session.ts'
 import { installOfficeEngineResolution } from './office-engine.ts'
+import { consumeDesktopOrbEndpoint } from './orb-computer-use-client.ts'
+import { mountDesktopOrbComputerUse } from './orb-computer-use-binding.ts'
 
 async function main(): Promise<void> {
+  const orbEndpoint = consumeDesktopOrbEndpoint(process.env)
   const runtimeDir = process.argv[2] as string
   const projectDir = process.argv[3] as string
   installOfficeEngineResolution(runtimeDir)
@@ -87,7 +90,14 @@ async function main(): Promise<void> {
     })().catch((error: unknown) => { console.error(error) })
   })
   process.once('disconnect', () => { void stop() })
-  const { ctx } = await application
+  const running = await application
+  const { ctx } = running
+  try {
+    if (orbEndpoint !== undefined) await mountDesktopOrbComputerUse(ctx, orbEndpoint)
+  } catch (error) {
+    await running.shutdown.shutdown(1)
+    throw error
+  }
   control.updateTasks = installDesktopUpdateTaskControl(ctx)
   control.quitInspection = installDesktopQuitInspection(ctx)
   installPlatformSessionPublisher(ctx, (session) => {
