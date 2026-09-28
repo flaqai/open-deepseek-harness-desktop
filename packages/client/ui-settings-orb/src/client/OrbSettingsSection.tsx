@@ -50,13 +50,13 @@ export function OrbSettingsSection({
     {status?.mode === 'nas' && <p className={css.notice}>{t('unavailable')}</p>}
     <div className={css.card}>
       <h3>{t('display')}</h3>
-      <label className={css.row}><span>{t('visible')}</span><input type="checkbox" checked={settings.visible} disabled={view.busy || status?.mode === 'nas'} onChange={(event) => { void update({ visible: event.currentTarget.checked }) }} /></label>
-      <label className={css.row}><span>{t('showAtStartup')}</span><input type="checkbox" checked={settings.showAtStartup} disabled={view.busy || status?.mode === 'nas'} onChange={(event) => { void update({ showAtStartup: event.currentTarget.checked }) }} /></label>
+      <label className={css.row}><span>{t('visible')}</span><input type="checkbox" checked={settings.visible} disabled={view.busy} onChange={(event) => { void update({ visible: event.currentTarget.checked }) }} /></label>
+      <label className={css.row}><span>{t('showAtStartup')}</span><input type="checkbox" checked={settings.showAtStartup} disabled={view.busy} onChange={(event) => { void update({ showAtStartup: event.currentTarget.checked }) }} /></label>
     </div>
     <div className={css.card}>
       <h3>{t('appearance')}</h3>
-      <label className={css.row}><span>{t('avatar')}</span><select value={settings.avatar} disabled={view.busy || status?.mode === 'nas'} onChange={(event) => { void update({ avatar: event.currentTarget.value === 'minimal' ? 'minimal' : 'deepseek' }) }}><option value="deepseek">{t('deepseek')}</option><option value="minimal">{t('minimal')}</option></select></label>
-      <label className={css.row}><span>{t('anchor')}</span><select value={settings.anchor} disabled={view.busy || status?.mode === 'nas'} onChange={(event) => { void update({ anchor: event.currentTarget.value === 'left' ? 'left' : 'right' }) }}><option value="left">{t('left')}</option><option value="right">{t('right')}</option></select></label>
+      <label className={css.row}><span>{t('avatar')}</span><select value={settings.avatar} disabled={view.busy} onChange={(event) => { void update({ avatar: event.currentTarget.value === 'minimal' ? 'minimal' : 'deepseek' }) }}><option value="deepseek">{t('deepseek')}</option><option value="minimal">{t('minimal')}</option></select></label>
+      <label className={css.row}><span>{t('anchor')}</span><select value={settings.anchor} disabled={view.busy} onChange={(event) => { void update({ anchor: event.currentTarget.value === 'left' ? 'left' : 'right' }) }}><option value="left">{t('left')}</option><option value="right">{t('right')}</option></select></label>
     </div>
     <div className={css.card}><h3>{t('selection')}</h3><p className={css.hint}>{status?.mode === 'local' && status.selectionAvailable ? t('selectionReady') : t('selectionHint')}</p><label className={css.row}><span>{t('selectionToolbar')}</span><input type="checkbox" checked={settings.selectionToolbar} disabled={status?.mode !== 'local' || view.busy} onChange={(event) => { void update({ selectionToolbar: event.currentTarget.checked }) }} /></label></div>
     <div className={css.card}>

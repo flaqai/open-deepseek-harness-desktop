@@ -10,8 +10,10 @@ export const zh = {
   selectionPending: '已获取选中文字，等待会话就绪后插入草稿。', insertSelection: '插入草稿',
 } as const
 
+/** Keys shared by the compact-chat dictionaries. */
 export type OrbChatKey = keyof typeof zh
 
+/** English copy for the compact Desktop chat surface. */
 export const en: Record<OrbChatKey, string> = {
   title: 'Floating chat',
   history: 'Conversation history',

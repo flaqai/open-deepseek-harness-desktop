@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Floating ball page owns the community Desktop's display, startup, selection, avatar, and screen-edge preferences. It reads the Host's availability, permission, and task status before offering local actions. Settings persist per `DSH_HOME`; the page cannot change a NAS host or a general Web client.
+The Floating ball page manages display, startup, selection, avatar, and screen-edge preferences. It reads Desktop availability, permission, and task status before offering local actions. Local settings persist per `DSH_HOME`; NAS chat presentation has separate settings per paired server and cannot change remote capabilities.
 
 ## Table of Contents
 
@@ -24,14 +24,14 @@ The Floating ball page owns the community Desktop's display, startup, selection,
 <a id="use-this-package"></a>
 ## Use this package
 
-Open Settings → Floating ball after starting the community Desktop against a local Home. The page follows Tools & capabilities in the default navigation. Existing customized navigation orders retain their other entries and insert this page next to Tools & capabilities. The page links back to that section for the official Computer Use installer.
+Open Settings → Floating ball after connecting the community Desktop to a local Home or paired NAS. The page follows Tools & capabilities in the default navigation. Existing customized navigation orders retain their other entries and insert this page next to Tools & capabilities. Local mode links back to Tools & capabilities for the official Computer Use installer.
 
 -----
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The plugin contributes a `settings.section` slot and subscribes to Host-owned settings. The renderer submits a closed settings patch to `DesktopOrbBridge`; it cannot supply an arbitrary path, URL, package, or command. Host status determines whether selection and backend controls are enabled, and an unknown task state prevents backend switching. A successful backend change waits for the existing Desktop quick-restart action; the page never restarts automatically. The Host rejects invalid values and unavailable NAS context.
+The plugin contributes a `settings.section` slot and subscribes to Desktop-owned settings. The renderer submits a closed settings patch to `DesktopOrbBridge`; it cannot supply an arbitrary path, URL, package, or command. In NAS mode, the bridge accepts only chat presentation changes; it does not expose backend switching and rejects local selection settings. In local mode, an unknown task state prevents backend switching, and a successful change waits for the existing quick-restart action.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -47,7 +47,7 @@ None; this package does not assemble provider requests.
 <a id="known-limitations-and-deferred-work"></a>
 
 - Selection, backend switching, and background status are enabled only when the corresponding Host methods report availability. The page does not grant system permissions or approve background commands.
-- Web and NAS views show an unavailable state rather than a local floating window.
+- General Web views lack the Desktop bridge. NAS mode can show remote chat only after a verified connection; local Computer Use, selection, and background-task controls remain unavailable.
 
 <a id="dev-note"></a>
 ### Dev Note

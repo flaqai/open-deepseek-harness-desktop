@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The floating window shows the current conversation, its normal message composer, recent history, and a New conversation action without creating another Session store. It appears only in the community Desktop floating renderer and uses the same authenticated local Host as the main window. Hiding the ball does not delete conversations or stop running work.
+The floating window shows the current conversation, its normal message composer, recent history, and a New conversation action without creating another Session store. It uses the same authenticated Harness origin as the main window, including the selected NAS for remote chat. Hiding the ball does not delete conversations or stop running work.
 
 ## Table of Contents
 
@@ -46,7 +46,7 @@ None; the package does not assemble provider requests.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- The compact view is available only after the local Desktop Host authenticates; NAS mode has no floating renderer.
+- The compact view requires a connected Harness origin. NAS mode allows remote chat but never grants local screenshot, input, selection, or background-task controls.
 - System-level Computer Use, selection capture, and background-agent controls are not supplied by this presentation package. It consumes only the bounded selection text delivered by the Desktop Host.
 
 <a id="dev-note"></a>

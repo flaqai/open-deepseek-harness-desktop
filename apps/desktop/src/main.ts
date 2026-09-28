@@ -57,12 +57,16 @@ import { clearDeadModuleFallbackLock, inspectModuleFallbackLock } from './module
 import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
 import { ensureWorkspacePtcPlugin, hasManagedWorkspacePtcBlock, isWorkspacePtcPluginInstalled, PTC_PLUGIN_NAME } from './workspace-ptc-plugin.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
-import { createOrbSettingsStore, parseOrbSettingsPatch, type ManagedOrbComputerBackend, type OrbSettings, type OrbSettingsPatch } from './orb-settings.ts'
+import {
+  createOrbSettingsStore, nasOrbSettingsHome, parseNasOrbSettingsPatch, parseOrbSettingsPatch,
+  type ManagedOrbComputerBackend, type OrbSettings, type OrbSettingsPatch,
+} from './orb-settings.ts'
 import { createOrbWindowController, type OrbWindowController } from './orb-window.ts'
-import { isTrustedOrbPage } from './orb-navigation.ts'
+import { isTrustedOrbPage, nasOrbChatReady } from './orb-navigation.ts'
 import { orbRuntimeStatus, type OrbPermissionStatus, type OrbRuntimeStatus } from './orb-runtime-status.ts'
 import { createOrbShortcutController, electronOrbShortcutRegistry, type OrbShortcutController } from './orb-shortcut.ts'
 import { createOrbSelectionController, type OrbSelectionController } from './orb-selection.ts'
+import { createOrbMacSelectionMonitorFactory } from './orb-selection-macos-native.ts'
 import {
   createElectronOrbSelectionToolbarWindow, createOrbSelectionWindowController,
   orbSelectionSupportsPositioning, orbSelectionWorkAreas, type OrbSelectionWindowController,
@@ -504,6 +508,7 @@ async function openSettingsDocument(): Promise<{ error: string }> {
 let preferencesStore: DesktopPreferencesStore | undefined
 let orbSettingsStore: ReturnType<typeof createOrbSettingsStore> | undefined
 let orbWindowController: OrbWindowController | undefined
+let nasOrbChatConnected = false
 let orbShortcutController: OrbShortcutController | undefined
 let orbSelectionController: OrbSelectionController | undefined
 let orbSelectionWindowController: OrbSelectionWindowController | undefined
@@ -512,10 +517,17 @@ let orbTaskInspectionRevision = 0
 let orbTaskPollTimer: ReturnType<typeof setInterval> | undefined
 
 function readOrbSettings(): OrbSettings {
-  if (orbSettingsStore === undefined || bootNasRuntime() !== undefined) {
-    throw new Error('desktop: floating ball is unavailable outside a local Harness home')
-  }
+  if (orbSettingsStore === undefined) throw new Error('desktop: floating chat settings are unavailable')
   return orbSettingsStore.read()
+}
+
+function orbChatCanOpen(): boolean {
+  const origin = harnessOrigin
+  if (origin === undefined || orbSettingsStore === undefined) return false
+  const nas = bootNasRuntime()
+  return nas === undefined
+    ? supervisor?.isDiagnosticMode === false
+    : nasOrbChatReady(nas, origin, nasOrbChatConnected)
 }
 
 function canUseOrbCopiedSelection(): boolean {
@@ -524,11 +536,13 @@ function canUseOrbCopiedSelection(): boolean {
 }
 
 function setOrbTaskState(state: boolean | 'unknown'): void {
+  const changed = orbTaskState !== state
   orbTaskState = state
   const blocked = state !== false
   orbSelectionController?.setTaskRunning(blocked)
   orbSelectionWindowController?.setTaskRunning(blocked)
   orbShortcutController?.setTaskRunning(blocked)
+  if (changed) orbSelectionController?.refreshAuthority()
 }
 
 async function refreshOrbTaskState(): Promise<void> {
@@ -610,7 +624,11 @@ function createLocalOrbSelectionController(): OrbSelectionController {
     attachToChat: (text) => { void attachCopiedSelectionToOrb(text).catch((error: unknown) => {
       console.warn('desktop: floating selection could not be attached', error)
     }) },
-  })
+  }, createOrbMacSelectionMonitorFactory({
+    onStatus: (status) => {
+      if (status !== 'ready') console.warn(`desktop: floating automatic selection is ${status}`)
+    },
+  }))
 }
 
 function orbPermissions(): OrbRuntimeStatus['permission'] {
@@ -663,7 +681,7 @@ function ensureOrbWindow(): OrbWindowController {
   orbWindowController = createOrbWindowController({
     preload: ORB_PRELOAD,
     shellPage: ORB_SHELL_PAGE,
-    getHarnessOrigin: () => harnessOrigin,
+    getHarnessOrigin: () => orbChatCanOpen() ? harnessOrigin : undefined,
     getSettings: readOrbSettings,
     getLocale: () => menuLocale,
     openMain: () => { lifecycle?.showWindow() },
@@ -676,10 +694,8 @@ function ensureOrbWindow(): OrbWindowController {
 
 async function setOrbVisible(visible: boolean): Promise<OrbSettings> {
   const store = orbSettingsStore
-  if (store === undefined || bootNasRuntime() !== undefined) throw new Error('desktop: floating ball is unavailable in NAS mode')
-  if (visible && (harnessOrigin === undefined || supervisor?.isDiagnosticMode === true)) {
-    throw new Error('desktop: local Harness is not ready for floating chat')
-  }
+  if (store === undefined) throw new Error('desktop: floating chat settings are unavailable')
+  if (visible && !orbChatCanOpen()) throw new Error('desktop: the selected Harness chat is not connected')
   const previous = store.read()
   const settings = { ...previous, visible }
   if (visible) await ensureOrbWindow().show()
@@ -695,17 +711,16 @@ async function setOrbVisible(visible: boolean): Promise<OrbSettings> {
 }
 
 async function updateOrbSettings(input: unknown): Promise<OrbSettings> {
-  const patch: OrbSettingsPatch = parseOrbSettingsPatch(input)
+  const patch: OrbSettingsPatch = bootNasRuntime() === undefined
+    ? parseOrbSettingsPatch(input) : parseNasOrbSettingsPatch(input)
   const store = orbSettingsStore
-  if (store === undefined || bootNasRuntime() !== undefined) throw new Error('desktop: floating ball is unavailable in NAS mode')
+  if (store === undefined) throw new Error('desktop: floating chat settings are unavailable')
   const current = store.read()
   if (patch.backend !== undefined && patch.backend !== current.backend) {
     throw new Error('desktop: switching the Computer Use backend requires a managed Profile transaction')
   }
   const next: OrbSettings = { ...current, ...patch }
-  if (next.visible && (harnessOrigin === undefined || supervisor?.isDiagnosticMode === true)) {
-    throw new Error('desktop: local Harness is not ready for floating chat')
-  }
+  if (next.visible && !orbChatCanOpen()) throw new Error('desktop: the selected Harness chat is not connected')
   if (next.visible) await ensureOrbWindow().show()
   try { store.write(next) }
   catch (error) {
@@ -1785,8 +1800,7 @@ async function startApplication(): Promise<void> {
       ready: menuClientReady && harnessOrigin !== undefined,
       busy: menuBusy(), maximized: mainWindow?.isMaximized() ?? false,
       fullscreen: mainWindow?.isFullScreen() ?? false, development: !app.isPackaged,
-      orbAvailable: activeMenuHome !== undefined && bootNasRuntime() === undefined
-        && harnessOrigin !== undefined && supervisor?.isDiagnosticMode !== true }),
+      orbAvailable: orbChatCanOpen() }),
     icon: () => (iconManager?.images().application ?? nativeImage.createFromPath(WINDOW_ICON))
       .resize({ width: 20, height: 20 }).toDataURL(),
     execute: executeProductMenu, reportError: reportMenuError,
@@ -1831,10 +1845,25 @@ async function startApplication(): Promise<void> {
         return {
           isCurrent: runtime => !surface.window.isDestroyed() && mainSurface === surface
             && bootNasRuntime()?.id === runtime.id,
-          load: baseUrl => surface.loadURL(withDesktopWindowMetadata(baseUrl, process.platform)),
+          load: async (baseUrl) => {
+            await surface.loadURL(withDesktopWindowMetadata(baseUrl, process.platform))
+            if (surface.window.isDestroyed() || mainSurface !== surface
+              || bootNasRuntime()?.baseUrl !== baseUrl || harnessOrigin !== baseUrl) return
+            nasOrbChatConnected = true
+            applicationMenu?.refresh()
+            try {
+              if (orbSettingsStore?.read().showAtStartup === true) {
+                void setOrbVisible(true).catch((error: unknown) => {
+                  console.error('desktop: remote floating chat failed to open', error)
+                })
+              }
+            } catch (error) { console.error('desktop: remote floating chat settings are unavailable', error) }
+          },
         }
       },
       begin: (runtime) => {
+        nasOrbChatConnected = false
+        orbWindowController?.hide()
         harnessOrigin = runtime.baseUrl
         harnessAuthenticationUrl = undefined
         reportedDesktopReadiness.clear()
@@ -1843,6 +1872,9 @@ async function startApplication(): Promise<void> {
       },
       ready: () => { publishStartupProgress({ stage: 'ready', progress: 100, detail: 'nas-ready' }) },
       fail: async (runtime, error) => {
+        nasOrbChatConnected = false
+        orbWindowController?.hide()
+        applicationMenu?.refresh()
         await appendDesktopStartupLog(`NAS connection failed: ${error.message}`)
         showLoading('failed', {
           message: error.message,
@@ -1874,7 +1906,9 @@ async function startApplication(): Promise<void> {
   // preparation so packaged presets come from local archives before optional plugin restoration.
   const preserveCopiedPlugins = shouldPreserveLegacyCopiedProfile(dataHomeSetup)
   activeMenuHome = activeNasRuntime === undefined ? dshHome : undefined
-  orbSettingsStore = activeNasRuntime === undefined ? createOrbSettingsStore(dshHome) : undefined
+  orbSettingsStore = activeNasRuntime === undefined
+    ? createOrbSettingsStore(dshHome)
+    : createOrbSettingsStore(nasOrbSettingsHome(app.getPath('userData'), activeNasRuntime.id, activeNasRuntime.baseUrl))
   stopOrbTaskInspection()
   orbSelectionController?.dispose()
   orbSelectionWindowController?.dispose()

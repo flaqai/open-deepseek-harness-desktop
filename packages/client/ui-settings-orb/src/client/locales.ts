@@ -1,7 +1,7 @@
 /** Settings copy for the floating ball and its restricted capabilities. */
 export const zh = {
   nav: '悬浮球', title: '悬浮球', description: '在本机桌面上快速查看会话与发起对话。',
-  unavailable: 'NAS 模式下只能使用远程会话；本机悬浮球和电脑操作不可用。',
+  unavailable: 'NAS 模式下悬浮球可连接远程会话；本机截图、输入、划词和后台任务不可用。',
   loading: '正在读取悬浮球设置…', error: '读取设置失败，请重试。', retry: '重试',
   display: '显示与启动', visible: '显示悬浮球', showAtStartup: '启动桌面应用时显示',
   appearance: '外观和位置', avatar: '头像', deepseek: 'DeepSeek', minimal: '简洁', anchor: '停靠位置', left: '左侧', right: '右侧',
@@ -19,11 +19,13 @@ export const zh = {
   saveError: '保存失败，请检查诊断日志后重试。',
 } as const
 
+/** Keys shared by the floating-ball Settings dictionaries. */
 export type OrbSettingsKey = keyof typeof zh
 
+/** English floating-ball Settings copy. */
 export const en: Record<OrbSettingsKey, string> = {
   nav: 'Floating Ball', title: 'Floating Ball', description: 'Quickly view conversations and start chats from the local desktop.',
-  unavailable: 'Only remote chat is available in NAS mode; the local floating ball and computer controls are disabled.',
+  unavailable: 'In NAS mode, the floating ball can open remote chat. Local capture, input, selection, and background tasks stay disabled.',
   loading: 'Loading floating-ball settings…', error: 'Unable to load settings. Try again.', retry: 'Retry',
   display: 'Display and startup', visible: 'Show floating ball', showAtStartup: 'Show when the desktop app starts',
   appearance: 'Appearance and position', avatar: 'Avatar', deepseek: 'DeepSeek', minimal: 'Minimal', anchor: 'Dock edge', left: 'Left', right: 'Right',

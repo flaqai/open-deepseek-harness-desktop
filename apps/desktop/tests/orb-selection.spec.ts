@@ -74,6 +74,27 @@ describe('floating selection controller', () => {
     expect(stops).toBe(1)
   })
 
+  it('retries a stopped native monitor only after an explicit authority refresh', () => {
+    const state = harness()
+    let starts = 0
+    let stops = 0
+    let active = true
+    const controller = createOrbSelectionController(state.host, () => {
+      starts++
+      active = true
+      return { stop() { stops++; active = false }, active: () => active }
+    })
+    expect(starts).toBe(1)
+    active = false
+    controller.refreshAuthority()
+    expect(starts).toBe(2)
+    expect(stops).toBe(1)
+    controller.refreshAuthority()
+    expect(starts).toBe(2)
+    controller.dispose()
+    expect(stops).toBe(2)
+  })
+
   it('rejects empty, excessive, and invalid-location events', async () => {
     const state = harness()
     const controller = createOrbSelectionController(state.host)

@@ -1,5 +1,6 @@
 /** Per-Harness-home floating-ball preferences. */
 
+import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
@@ -76,6 +77,31 @@ export function parseOrbSettingsPatch(input: unknown): OrbSettingsPatch {
     throw new TypeError('desktop: invalid orb anchor')
   }
   return source
+}
+
+/** NAS may change chat presentation only; local device abilities stay absent.
+ * @param input - Renderer-supplied settings patch.
+ * @returns A presentation-only patch.
+ */
+export function parseNasOrbSettingsPatch(input: unknown): OrbSettingsPatch {
+  const patch = parseOrbSettingsPatch(input)
+  if ('selectionToolbar' in patch || 'backend' in patch) {
+    throw new TypeError('desktop: local-only floating capabilities are unavailable in NAS mode')
+  }
+  return patch
+}
+
+/** Stable private presentation directory for one paired NAS identity and origin.
+ * Raw remote IDs are never interpreted as path segments. This path carries no
+ * Profile and therefore cannot enable a local Computer Use backend.
+ * @param userData - Electron's Desktop-owned userData root.
+ * @param runtimeId - Fixed paired NAS identity.
+ * @param baseUrl - Exact paired HTTPS origin.
+ * @returns The settings-home path for this remote chat surface.
+ */
+export function nasOrbSettingsHome(userData: string, runtimeId: string, baseUrl: string): string {
+  const digest = createHash('sha256').update(runtimeId).update('\0').update(baseUrl).digest('hex')
+  return join(userData, 'nas-orb', digest)
 }
 
 /** Normalize a persisted JSON value independently for each supported field.

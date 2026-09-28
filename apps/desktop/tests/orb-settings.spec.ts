@@ -1,9 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  createOrbSettingsStore, DEFAULT_ORB_SETTINGS, initialOrbBackend, normalizeOrbSettings, parseOrbSettingsPatch,
+  createOrbSettingsStore, DEFAULT_ORB_SETTINGS, initialOrbBackend, nasOrbSettingsHome, normalizeOrbSettings,
+  parseNasOrbSettingsPatch, parseOrbSettingsPatch,
 } from '../src/orb-settings.ts'
 
 describe('per-home orb settings', () => {
@@ -12,6 +13,13 @@ describe('per-home orb settings', () => {
     expect(() => parseOrbSettingsPatch({ backend: 'arbitrary' })).toThrow()
     expect(() => parseOrbSettingsPatch({ visible: 'yes' })).toThrow()
     expect(parseOrbSettingsPatch({ backend: 'official-native', visible: true })).toEqual({ backend: 'official-native', visible: true })
+  })
+
+  it('allows NAS chat presentation settings but never local Computer Use or selection settings', () => {
+    expect(parseNasOrbSettingsPatch({ visible: true, avatar: 'minimal', anchor: 'left' }))
+      .toEqual({ visible: true, avatar: 'minimal', anchor: 'left' })
+    expect(() => parseNasOrbSettingsPatch({ selectionToolbar: true })).toThrow('local-only')
+    expect(() => parseNasOrbSettingsPatch({ backend: 'official-native' })).toThrow('local-only')
   })
 
   it('defaults missing or invalid persisted fields', () => {
@@ -41,6 +49,17 @@ describe('per-home orb settings', () => {
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
+  })
+
+  it('isolates NAS presentation state by server identity without using a raw ID as a path', () => {
+    const root = '/desktop/user-data'
+    const first = nasOrbSettingsHome(root, 'server-one', 'https://nas.example.com')
+    expect(first).toBe(nasOrbSettingsHome(root, 'server-one', 'https://nas.example.com'))
+    expect(first).not.toBe(nasOrbSettingsHome(root, 'server-two', 'https://nas.example.com'))
+    expect(first).not.toBe(nasOrbSettingsHome(root, 'server-one', 'https://changed.example.com'))
+    const hostile = nasOrbSettingsHome(root, '../../escape', 'https://nas.example.com')
+    expect(dirname(hostile)).toBe(join(root, 'nas-orb'))
+    expect(basename(hostile)).toMatch(/^[a-f0-9]{64}$/u)
   })
 
   it('keeps an existing official Profile provider for homes without orb preferences', () => {

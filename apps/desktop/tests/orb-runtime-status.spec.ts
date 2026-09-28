@@ -25,7 +25,7 @@ describe('floating-ball runtime status', () => {
   it('suppresses every local entry in NAS mode and reports an unconfirmed task check', () => {
     expect(orbRuntimeStatus({ ...base, mode: 'nas', selectionEnabled: true, selectionShortcutReady: true,
       observationActive: true, activeTasks: true })).toMatchObject({
-      backendAvailability: { 'official-native': 'not-installed' }, activeTasks: 1,
+      backendAvailability: { 'official-native': 'unsupported' }, activeTasks: 1,
       selectionAvailable: false, observationActive: false,
     })
   })

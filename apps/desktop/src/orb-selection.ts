@@ -48,6 +48,8 @@ export interface OrbSelectionHost {
 /** Selection events from an optional platform adapter; no ambient clipboard polling. */
 export interface OrbSelectionMonitor {
   stop(): void
+  /** False after a native permission failure or monitor teardown; retried only on refresh. */
+  active?(): boolean
 }
 
 /** Optional native selection adapter. The shortcut path remains available without one. */
@@ -102,6 +104,11 @@ export function createOrbSelectionController(
       monitor = undefined
       generation++
       return
+    }
+    if (monitor?.active?.() === false) {
+      monitor.stop()
+      monitor = undefined
+      generation++
     }
     monitor ??= monitorFactory?.((selection) => { present(selection) })
   }

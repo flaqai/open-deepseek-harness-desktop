@@ -61,11 +61,17 @@ it('does not treat failed task inspection or missing bridge methods as permissio
   expect((screen.getByRole('combobox', { name: zh.backend }) as HTMLSelectElement).disabled).toBe(true)
 })
 
-it('disables local controls in NAS mode and selection when no capture backend exists', () => {
-  mount({ phase: 'ready', settings, status: { ...ready, mode: 'nas', selectionAvailable: false } })
-  expect((screen.getByRole('checkbox', { name: zh.visible }) as HTMLInputElement).disabled).toBe(true)
+it('keeps NAS remote-chat presentation available but disables local controls', () => {
+  const actions = mount({ phase: 'ready', settings, status: { ...ready, mode: 'nas', selectionAvailable: false } })
+  const visible = screen.getByRole('checkbox', { name: zh.visible }) as HTMLInputElement
+  expect(visible.disabled).toBe(false)
+  fireEvent.click(visible)
+  expect(actions.update).toHaveBeenCalledWith({ visible: false })
+  expect((screen.getByRole('checkbox', { name: zh.showAtStartup }) as HTMLInputElement).disabled).toBe(false)
+  expect((screen.getByRole('combobox', { name: zh.avatar }) as HTMLSelectElement).disabled).toBe(false)
   expect((screen.getByRole('checkbox', { name: zh.selectionToolbar }) as HTMLInputElement).disabled).toBe(true)
   expect((screen.getByRole('combobox', { name: zh.backend }) as HTMLSelectElement).disabled).toBe(true)
+  expect(screen.getByText(zh.unavailable)).toBeTruthy()
 })
 
 it('offers but does not automatically invoke quick restart after a backend change', () => {

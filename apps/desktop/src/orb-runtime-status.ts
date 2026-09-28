@@ -51,7 +51,7 @@ export interface OrbRuntimeFacts {
  */
 export function orbRuntimeStatus(facts: OrbRuntimeFacts): OrbRuntimeStatus {
   const installed = (backend: keyof typeof ORB_OFFICIAL_PACKAGES): OrbBackendAvailability => (
-    !facts.inventoryKnown ? 'unknown' : facts.mode === 'local' && facts.plugins.some(plugin => plugin.packageName === ORB_OFFICIAL_PACKAGES[backend]
+    facts.mode === 'nas' ? 'unsupported' : !facts.inventoryKnown ? 'unknown' : facts.plugins.some(plugin => plugin.packageName === ORB_OFFICIAL_PACKAGES[backend]
       && plugin.version !== undefined && plugin.status === 'normal') ? 'ready' : 'not-installed'
   )
   return {
