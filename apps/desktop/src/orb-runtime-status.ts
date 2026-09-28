@@ -35,6 +35,7 @@ export const ORB_OFFICIAL_PACKAGES = Object.freeze({
 export interface OrbRuntimeFacts {
   readonly mode: 'local' | 'nas'
   readonly authorBackendAvailable: boolean
+  readonly backgroundHostAvailable?: boolean
   readonly plugins: readonly RecoveryPluginSummary[]
   readonly inventoryKnown: boolean
   readonly screen: OrbPermissionStatus
@@ -68,7 +69,7 @@ export function orbRuntimeStatus(facts: OrbRuntimeFacts): OrbRuntimeStatus {
     pendingRestart: facts.pendingRestart,
     selectionAvailable: facts.mode === 'local' && facts.selectionEnabled && facts.selectionShortcutReady
       && facts.activeTasks === false,
-    backgroundAvailable: false,
+    backgroundAvailable: facts.mode === 'local' && facts.backgroundHostAvailable === true,
     observationActive: facts.mode === 'local' && facts.observationActive,
   }
 }

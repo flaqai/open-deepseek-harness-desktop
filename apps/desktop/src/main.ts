@@ -68,8 +68,10 @@ import { orbRuntimeStatus, type OrbPermissionStatus, type OrbRuntimeStatus } fro
 import { createOrbShortcutController, electronOrbShortcutRegistry, type OrbShortcutController } from './orb-shortcut.ts'
 import { createOrbSelectionController, type OrbSelectionController } from './orb-selection.ts'
 import { createOrbMacSelectionMonitorFactory } from './orb-selection-macos-native.ts'
-import { createOrbComputerUseBackend } from './orb-computer-use-backend.ts'
+import { createOrbComputerUseBackend, type OrbComputerUsePlatform } from './orb-computer-use-backend.ts'
 import { createOrbMacComputerUsePlatform, readOrbMacComputerUsePermissions } from './orb-computer-use-macos.ts'
+import { createOrbWindowsComputerUsePlatform, readOrbWindowsComputerUsePermissions } from './orb-computer-use-windows.ts'
+import { createOrbLinuxComputerUsePlatform, readOrbLinuxComputerUsePermissions } from './orb-computer-use-linux.ts'
 import { startOrbComputerUseTransport, type OrbComputerUseTransport } from './orb-computer-use-transport.ts'
 import {
   createElectronOrbObservationWindow, createOrbObservationController,
@@ -664,6 +666,21 @@ function orbPermissions(): OrbRuntimeStatus['permission'] {
   return { screen: screenPermission, accessibility }
 }
 
+async function orbNativeComputerUsePermissions(): Promise<{ screenCapture: boolean; inputControl: boolean }> {
+  if (process.platform === 'darwin') return readOrbMacComputerUsePermissions()
+  if (process.platform === 'win32') return readOrbWindowsComputerUsePermissions()
+  if (process.platform === 'linux') return readOrbLinuxComputerUsePermissions()
+  return { screenCapture: false, inputControl: false }
+}
+
+function createOrbNativeComputerUsePlatform(): OrbComputerUsePlatform {
+  const overlay = { exclude: excludeOrbOverlaysForCapture }
+  if (process.platform === 'darwin') return createOrbMacComputerUsePlatform(overlay)
+  if (process.platform === 'win32') return createOrbWindowsComputerUsePlatform(overlay)
+  if (process.platform === 'linux') return createOrbLinuxComputerUsePlatform(overlay)
+  throw new Error('orb computer use: native platform is unsupported')
+}
+
 async function readOrbRuntimeStatus(): Promise<OrbRuntimeStatus> {
   const local = activeMenuHome !== undefined && bootNasRuntime() === undefined
   let plugins: Awaited<ReturnType<typeof readRecoveryPluginInventory>>['plugins'] = []
@@ -681,7 +698,16 @@ async function readOrbRuntimeStatus(): Promise<OrbRuntimeStatus> {
     try { activeTasks = (await inspectLocalHarnessQuit(harnessOrigin, surface.renderer.session.cookies, fetch)).activeTasks }
     catch (error) { console.warn('desktop: floating-ball task status is unavailable', error) }
   }
-  const permission = local ? orbPermissions() : { screen: 'unknown' as const, accessibility: 'unknown' as const }
+  let permission = local ? orbPermissions() : { screen: 'unknown' as const, accessibility: 'unknown' as const }
+  if (local && process.platform !== 'darwin') {
+    try {
+      const native = await orbNativeComputerUsePermissions()
+      permission = {
+        screen: native.screenCapture ? 'granted' : 'denied',
+        accessibility: native.inputControl ? 'granted' : 'denied',
+      }
+    } catch (error) { console.warn('desktop: floating native permission status is unavailable', error) }
+  }
   let pendingRestart = false
   if (local) {
     try { pendingRestart = orbSettingsStore?.readPendingBackend() !== undefined }
@@ -690,6 +716,8 @@ async function readOrbRuntimeStatus(): Promise<OrbRuntimeStatus> {
   return orbRuntimeStatus({
     mode: local ? 'local' : 'nas', plugins, inventoryKnown, ...permission, activeTasks,
     authorBackendAvailable: local && orbComputerUseTransport !== undefined,
+    backgroundHostAvailable: local && orbChatCanOpen() && harnessOrigin !== undefined
+      && supervisor?.isDiagnosticMode === false,
     pendingRestart,
     selectionEnabled: local && (orbSettingsStore?.read().selectionToolbar ?? false),
     selectionShortcutReady: orbShortcutController?.status().state === 'registered', observationActive: orbObservationActive,
@@ -4355,16 +4383,19 @@ async function startApplication(): Promise<void> {
     try { return (orbPendingApplied ? orbPendingBackend : orbSettingsStore?.read().backend) === 'orb' }
     catch { return false }
   }
-  if (activeNasRuntime === undefined && process.platform === 'darwin') {
+  if (activeNasRuntime === undefined && ['darwin', 'win32', 'linux'].includes(process.platform)) {
     try {
       // Probe the packaged native helper without requesting any OS permission.
-      await readOrbMacComputerUsePermissions()
+      if (process.platform === 'linux') {
+        const linux = await readOrbLinuxComputerUsePermissions()
+        if (linux.status !== 'available') throw new Error(`Linux foreground control is ${linux.status}`)
+      } else await orbNativeComputerUsePermissions()
       orbComputerUseTransport = await startOrbComputerUseTransport({
         secret: () => orbNativeSelected() ? supervisor?.orbCallerSecret : undefined,
         openBackend: () => createOrbComputerUseBackend({
-          platform: createOrbMacComputerUsePlatform({ exclude: excludeOrbOverlaysForCapture }),
+          platform: createOrbNativeComputerUsePlatform(),
           authority: async () => {
-            const rights = await readOrbMacComputerUsePermissions()
+            const rights = await orbNativeComputerUsePermissions()
             const local = bootNasRuntime() === undefined && activeMenuHome === dshHome
               && supervisor?.isDiagnosticMode === false && harnessOrigin !== undefined
               && orbNativeSelected()

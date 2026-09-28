@@ -27,6 +27,11 @@ describe('floating-ball runtime status', () => {
     expect(orbRuntimeStatus({ ...base, mode: 'nas', authorBackendAvailable: true }).backendAvailability.orb).toBe('unsupported')
   })
 
+  it('advertises background Sessions only for a live local Host', () => {
+    expect(orbRuntimeStatus({ ...base, backgroundHostAvailable: true }).backgroundAvailable).toBe(true)
+    expect(orbRuntimeStatus({ ...base, mode: 'nas', backgroundHostAvailable: true }).backgroundAvailable).toBe(false)
+  })
+
   it('suppresses every local entry in NAS mode and reports an unconfirmed task check', () => {
     expect(orbRuntimeStatus({ ...base, mode: 'nas', selectionEnabled: true, selectionShortcutReady: true,
       observationActive: true, activeTasks: true })).toMatchObject({
