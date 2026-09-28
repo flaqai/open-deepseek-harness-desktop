@@ -108,6 +108,23 @@ describe('floating Computer Use backend', () => {
     await backend.close()
   })
 
+  it('expires a screenshot before HID input after one minute or a clock regression', async () => {
+    const f = fixture()
+    let now = 1000
+    const backend = await createOrbComputerUseBackend({ ...f, postActionWaitMs: 0, now: () => now })
+    const first = await backend.observe()
+    now += 60_001
+    await expect(backend.act(first.frameId, { kind: 'click', position: [0, 0], button: 'left', count: 1 }))
+      .rejects.toThrow('screenshot expired')
+    expect(f.events.some(event => event.startsWith('click:'))).toBe(false)
+    const second = await backend.observe()
+    now -= 1
+    await expect(backend.act(second.frameId, { kind: 'click', position: [0, 0], button: 'left', count: 1 }))
+      .rejects.toThrow('screenshot expired')
+    expect(f.events.some(event => event.startsWith('click:'))).toBe(false)
+    await backend.close()
+  })
+
   it('validates screenshot coordinates and serialized input', async () => {
     const f = fixture()
     const backend = await createOrbComputerUseBackend({ ...f, postActionWaitMs: 0 })

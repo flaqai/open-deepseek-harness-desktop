@@ -64,10 +64,13 @@ export interface OrbComputerUseBackendOptions {
   /** Pass `ctx.computerUse.register(ComputerUseProviderName('orb-native'))` here. */
   readonly acquireExclusive: () => Promise<() => Promise<void>>
   readonly postActionWaitMs: number
+  /** Monotonic clock for screenshot age checks; production uses performance.now(). */
+  readonly now?: () => number
 }
 
 const MAX_IMAGE_BYTES = 32 * 1024 * 1024
 const MAX_EDGE = 16_384
+const MAX_OBSERVATION_AGE_MS = 60_000
 
 function requireAuthority(authority: OrbComputerUseAuthority, action: boolean): void {
   if (authority.mode !== 'local') throw new Error('orb computer use: unavailable in NAS mode')
@@ -137,6 +140,7 @@ export async function createOrbComputerUseBackend(options: OrbComputerUseBackend
   let tail: Promise<void> = Promise.resolve()
   const pending = new Set<Promise<unknown>>()
   let current: OrbComputerUseObservation | undefined
+  let capturedAt = 0
   let nextFrameId = 0
   let closed = false
   let closing: Promise<void> | undefined
@@ -162,6 +166,12 @@ export async function createOrbComputerUseBackend(options: OrbComputerUseBackend
     signal.throwIfAborted()
     requireFrame(frame)
     const observation = { frameId: ++nextFrameId, frame }
+    const observedAt = options.now?.() ?? performance.now()
+    if (!Number.isFinite(observedAt)) {
+      current = undefined
+      throw new Error('orb computer use: observation clock is unavailable')
+    }
+    capturedAt = observedAt
     current = observation
     return observation
   }
@@ -174,6 +184,11 @@ export async function createOrbComputerUseBackend(options: OrbComputerUseBackend
       return enqueue(signal, async (active) => {
         if (current === undefined || current.frameId !== frameId) {
           throw new Error('orb computer use: screenshot is stale; observe the frontmost window again')
+        }
+        const age = (options.now?.() ?? performance.now()) - capturedAt
+        if (!Number.isFinite(age) || age < 0 || age > MAX_OBSERVATION_AGE_MS) {
+          current = undefined
+          throw new Error('orb computer use: screenshot expired; observe the frontmost window again')
         }
         requireAction(action)
         const previous = current
