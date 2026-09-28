@@ -13,6 +13,7 @@ function harness() {
   let positioned = true
   let taskRunning = false
   let inputActive = false
+  let fallbackChoice: OrbSelectionToolbarAction | undefined
   const windows: Array<OrbSelectionToolbarWindow & {
     visible: boolean
     destroyed: boolean
@@ -30,6 +31,7 @@ function harness() {
     supportsPositioning: () => positioned,
     workAreas: () => [left, right],
     locale: () => 'zh-CN',
+    chooseFallbackAction: async () => fallbackChoice,
     createWindow() {
       let handler: ((action: OrbSelectionToolbarAction) => void) | undefined
       const window = {
@@ -57,6 +59,7 @@ function harness() {
     setPositioned(value: boolean) { positioned = value; controller.refreshAuthority() },
     setTaskRunning(value: boolean) { taskRunning = value; controller.setTaskRunning(value) },
     setInputActive(value: boolean) { inputActive = value; controller.setInputActive(value) },
+    setFallbackChoice(value: OrbSelectionToolbarAction | undefined) { fallbackChoice = value },
     get paused() { return taskRunning || inputActive },
   }
 }
@@ -158,6 +161,54 @@ describe('cross-app selection toolbar', () => {
     finishLoad?.()
     expect(await pending).toBe('unavailable')
     expect(shown).toBe(false)
+    controller.dispose()
+  })
+
+  it('requires an explicit Wayland fallback choice and offers the same four actions', async () => {
+    const state = harness()
+    state.setPositioned(false)
+    expect(await state.controller.showFallback(state.actions)).toBe('cancelled')
+    expect(state.calls).toEqual([])
+    for (const [choice, outcome] of [
+      ['attach', 'attach'], ['translate-zh', 'translate-zh'],
+      ['translate-en', 'translate-en'], ['search', 'search'],
+    ] as const) {
+      state.setFallbackChoice(choice)
+      expect(await state.controller.showFallback(state.actions)).toBe('chosen')
+      expect(state.calls.at(-1)).toBe(outcome)
+    }
+    expect(state.windows).toEqual([])
+  })
+
+  it('invalidates a pending fallback when NAS authority or task state changes', async () => {
+    let resolveChoice: ((choice: OrbSelectionToolbarAction) => void) | undefined
+    let local = true
+    const calls: string[] = []
+    const controller = createOrbSelectionWindowController({
+      canShowLocal: () => local,
+      supportsPositioning: () => false,
+      workAreas: () => [],
+      locale: () => 'en',
+      createWindow: () => { throw new Error('Wayland must not create a positioned window') },
+      chooseFallbackAction: () => new Promise((resolve) => { resolveChoice = resolve }),
+    })
+    const actions: OrbSelectionActions = {
+      search: async () => { calls.push('search') },
+      translate: () => { calls.push('translate') },
+      attach: () => { calls.push('attach') },
+    }
+    const nasPending = controller.showFallback(actions)
+    local = false
+    controller.refreshAuthority()
+    resolveChoice?.('attach')
+    expect(await nasPending).toBe('unavailable')
+    expect(calls).toEqual([])
+    local = true
+    const taskPending = controller.showFallback(actions)
+    controller.setTaskRunning(true)
+    resolveChoice?.('translate-zh')
+    expect(await taskPending).toBe('unavailable')
+    expect(calls).toEqual([])
     controller.dispose()
   })
 })

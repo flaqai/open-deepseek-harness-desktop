@@ -1,6 +1,6 @@
 /** Cross-application selection toolbar with a fixed, unprivileged renderer. */
 
-import { BrowserWindow, screen } from 'electron'
+import { BrowserWindow, dialog, screen, type MessageBoxOptions } from 'electron'
 import type { OrbObservedSelection, OrbSelectionActions, OrbSelectionPoint } from './orb-selection.ts'
 
 /** Initial toolbar size in Electron display-independent pixels. */
@@ -16,6 +16,10 @@ export interface OrbSelectionToolbarRect {
 
 /** The only renderer navigation requests that may dispatch an action. */
 export type OrbSelectionToolbarAction = 'attach' | 'translate-zh' | 'translate-en' | 'search'
+
+const FALLBACK_ACTIONS: readonly OrbSelectionToolbarAction[] = [
+  'attach', 'translate-zh', 'translate-en', 'search',
+]
 
 /** Unprivileged toolbar window operations; tests inject an in-memory implementation. */
 export interface OrbSelectionToolbarWindow {
@@ -38,11 +42,15 @@ export interface OrbSelectionToolbarHost {
   workAreas(): readonly OrbSelectionToolbarRect[]
   createWindow(locale: string): OrbSelectionToolbarWindow
   locale(): string
+  /** Explicit native chooser when Wayland cannot position the cross-app toolbar. */
+  chooseFallbackAction?(locale: string): Promise<OrbSelectionToolbarAction | undefined>
 }
 
 /** Toolbar lifecycle and screenshot-exclusion handle. */
 export interface OrbSelectionWindowController {
   show(selection: OrbObservedSelection, actions: OrbSelectionActions): Promise<'shown' | 'unavailable'>
+  /** Never runs an action without a fresh user choice and live local authority. */
+  showFallback(actions: OrbSelectionActions): Promise<'chosen' | 'cancelled' | 'unavailable'>
   hide(): void
   setTaskRunning(running: boolean): void
   setInputActive(active: boolean): void
@@ -115,8 +123,8 @@ export function createOrbSelectionWindowController(host: OrbSelectionToolbarHost
   let taskRunning = false
   let inputActive = false
   let generation = 0
-  const available = (): boolean => !disposed && !taskRunning && !inputActive
-    && host.canShowLocal() && host.supportsPositioning()
+  const localAvailable = (): boolean => !disposed && !taskRunning && !inputActive && host.canShowLocal()
+  const available = (): boolean => localAvailable() && host.supportsPositioning()
   const hide = (): void => {
     generation++
     if (window !== undefined && !window.isDestroyed()) window.hide()
@@ -155,10 +163,25 @@ export function createOrbSelectionWindowController(host: OrbSelectionToolbarHost
       target.showInactive()
       return 'shown'
     },
+    async showFallback(actions) {
+      const choose = host.chooseFallbackAction
+      if (!localAvailable() || host.supportsPositioning() || choose === undefined) return 'unavailable'
+      hide()
+      const ticket = generation
+      const choice = await choose(host.locale())
+      if (ticket !== generation || !localAvailable() || host.supportsPositioning()) return 'unavailable'
+      if (choice === undefined) return 'cancelled'
+      switch (choice) {
+        case 'attach': actions.attach(); return 'chosen'
+        case 'translate-zh': actions.translate('zh'); return 'chosen'
+        case 'translate-en': actions.translate('en'); return 'chosen'
+        case 'search': await actions.search(); return 'chosen'
+      }
+    },
     hide,
     setTaskRunning(running) { taskRunning = running; if (running) hide() },
     setInputActive(active) { inputActive = active; if (active) hide() },
-    refreshAuthority() { if (!available()) hide() },
+    refreshAuthority() { if (!localAvailable()) hide() },
     get webContentsId() { return window !== undefined && !window.isDestroyed() ? window.webContentsId : undefined },
     dispose() {
       if (disposed) return
@@ -170,6 +193,34 @@ export function createOrbSelectionWindowController(host: OrbSelectionToolbarHost
     },
   }
   return controller
+}
+
+/** Show one explicit choice in a native dialog when global Wayland placement is unavailable.
+ * The Desktop host still checks NAS, task, and input authority after this resolves.
+ * @param locale - Desktop language.
+ * @param owner - Optional visible Desktop window to own the native dialog.
+ * @returns One fixed action, or undefined on cancellation.
+ */
+export async function chooseElectronOrbSelectionFallbackAction(
+  locale: string, owner?: BrowserWindow,
+): Promise<OrbSelectionToolbarAction | undefined> {
+  const chinese = /^zh(?:-|$)/iu.test(locale)
+  const buttons = chinese
+    ? ['发给悬浮聊天', '译中', '译英', '搜索', '取消']
+    : ['Send to chat', 'To Chinese', 'To English', 'Search', 'Cancel']
+  const options: MessageBoxOptions = {
+    type: 'question',
+    title: chinese ? '划词操作' : 'Selection actions',
+    message: chinese ? '已复制文字。请选择要执行的操作。' : 'Text copied. Choose an action.',
+    buttons,
+    defaultId: 4,
+    cancelId: 4,
+    noLink: true,
+  }
+  const result = owner === undefined || owner.isDestroyed()
+    ? await dialog.showMessageBox(options)
+    : await dialog.showMessageBox(owner, options)
+  return FALLBACK_ACTIONS[result.response]
 }
 
 function toolbarHtml(locale: string): string {
