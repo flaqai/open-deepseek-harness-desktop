@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 
 /** The single Computer Use backend selected for one Profile. */
 export type OrbComputerBackend = 'orb' | 'official-native' | 'official-mcp'
-export type ManagedOrbComputerBackend = Exclude<OrbComputerBackend, 'orb'>
+export type ManagedOrbComputerBackend = OrbComputerBackend
 
 /** Persisted settings; the active home selects the backing file. */
 export interface OrbSettings {
@@ -163,7 +163,7 @@ export function createOrbSettingsStore(home: string): {
         throw error
       }
       if (typeof value !== 'object' || value === null || Array.isArray(value)
-        || !('backend' in value) || (value.backend !== 'official-native'
+        || !('backend' in value) || (value.backend !== 'orb' && value.backend !== 'official-native'
           && value.backend !== 'official-mcp')) {
         throw new Error('desktop: malformed pending floating-ball backend')
       }

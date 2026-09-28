@@ -21,6 +21,7 @@ const ONE_SHOT_ENVIRONMENT = new Set([
   'DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID', 'DSH_PLUGIN_SNAPSHOT_BATCH', 'DSH_PLUGIN_TRANSACTION_ORIGIN',
   'DSH_DESKTOP_WEB_GENERATION', 'DSH_DESKTOP_WEB_RESTART_OWNER',
   'DSH_DESKTOP_ORB_OWNER_SECRET',
+  'DSH_DESKTOP_ORB_NATIVE_ORIGIN', 'DSH_DESKTOP_ORB_NATIVE_SECRET',
 ])
 
 /** Observable lifecycle states for the desktop chrome. */
@@ -73,6 +74,8 @@ export interface HarnessSupervisorOptions {
   beforeRestart?(signal: AbortSignal): Promise<void>
   /** Report the settled optional-entry failures for candidate target validation. */
   onOptionalStartupFailures?(failures: readonly OptionalStartupFailure[]): void
+  /** Desktop-only loopback endpoint, passed only to the local Host child. */
+  orbNativeOrigin?: string
 }
 
 /** Owns one restartable Harness child and its durable combined log. */
@@ -141,7 +144,13 @@ export class HarnessSupervisor {
     }).filter(([key]) => !ONE_SHOT_ENVIRONMENT.has(key.toUpperCase()))) as Record<string, string>
     environment.DSH_DESKTOP_WEB_RESTART_OWNER = String(process.pid)
     this.#orbCallerSecret = this.#diagnosticMode ? undefined : randomBytes(32).toString('base64url')
-    if (this.#orbCallerSecret !== undefined) environment.DSH_DESKTOP_ORB_OWNER_SECRET = this.#orbCallerSecret
+    if (this.#orbCallerSecret !== undefined) {
+      environment.DSH_DESKTOP_ORB_OWNER_SECRET = this.#orbCallerSecret
+      if (this.#options.orbNativeOrigin !== undefined) {
+        environment.DSH_DESKTOP_ORB_NATIVE_ORIGIN = this.#options.orbNativeOrigin
+        environment.DSH_DESKTOP_ORB_NATIVE_SECRET = this.#orbCallerSecret
+      }
+    }
     let child: RunningHarness
     try {
       child = this.#spawn(environment)

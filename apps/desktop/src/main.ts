@@ -68,6 +68,13 @@ import { orbRuntimeStatus, type OrbPermissionStatus, type OrbRuntimeStatus } fro
 import { createOrbShortcutController, electronOrbShortcutRegistry, type OrbShortcutController } from './orb-shortcut.ts'
 import { createOrbSelectionController, type OrbSelectionController } from './orb-selection.ts'
 import { createOrbMacSelectionMonitorFactory } from './orb-selection-macos-native.ts'
+import { createOrbComputerUseBackend } from './orb-computer-use-backend.ts'
+import { createOrbMacComputerUsePlatform, readOrbMacComputerUsePermissions } from './orb-computer-use-macos.ts'
+import { startOrbComputerUseTransport, type OrbComputerUseTransport } from './orb-computer-use-transport.ts'
+import {
+  createElectronOrbObservationWindow, createOrbObservationController,
+  orbObservationLogicalRegion, orbObservationWorkAreas, type OrbObservationController,
+} from './orb-observation.ts'
 import {
   chooseElectronOrbSelectionFallbackAction, createElectronOrbSelectionToolbarWindow, createOrbSelectionWindowController,
   orbSelectionSupportsPositioning, orbSelectionWorkAreas, type OrbSelectionWindowController,
@@ -509,6 +516,9 @@ async function openSettingsDocument(): Promise<{ error: string }> {
 let preferencesStore: DesktopPreferencesStore | undefined
 let orbSettingsStore: ReturnType<typeof createOrbSettingsStore> | undefined
 let orbWindowController: OrbWindowController | undefined
+let orbComputerUseTransport: OrbComputerUseTransport | undefined
+let orbObservationController: OrbObservationController | undefined
+let orbObservationActive = false
 let nasOrbChatConnected = false
 let orbShortcutController: OrbShortcutController | undefined
 let orbSelectionController: OrbSelectionController | undefined
@@ -679,9 +689,10 @@ async function readOrbRuntimeStatus(): Promise<OrbRuntimeStatus> {
   }
   return orbRuntimeStatus({
     mode: local ? 'local' : 'nas', plugins, inventoryKnown, ...permission, activeTasks,
+    authorBackendAvailable: local && orbComputerUseTransport !== undefined,
     pendingRestart,
     selectionEnabled: local && (orbSettingsStore?.read().selectionToolbar ?? false),
-    selectionShortcutReady: orbShortcutController?.status().state === 'registered', observationActive: false,
+    selectionShortcutReady: orbShortcutController?.status().state === 'registered', observationActive: orbObservationActive,
   })
 }
 
@@ -699,6 +710,36 @@ function ensureOrbWindow(): OrbWindowController {
     quit: () => { void executeProductMenu('quit').catch(reportMenuError) },
   })
   return orbWindowController
+}
+
+/** Keep the native target frontmost while excluding all Orb overlays from a capture. */
+async function excludeOrbOverlaysForCapture(): Promise<() => Promise<void>> {
+  orbObservationController?.hide()
+  orbObservationActive = false
+  orbSelectionController?.setInputActive(true)
+  orbSelectionWindowController?.setInputActive(true)
+  orbShortcutController?.setInputActive(true)
+  const restoreOrb = orbWindowController?.excludeFromCapture()
+  return async () => {
+    try { restoreOrb?.() }
+    finally {
+      orbSelectionController?.setInputActive(false)
+      orbSelectionWindowController?.setInputActive(false)
+      orbShortcutController?.setInputActive(false)
+    }
+  }
+}
+
+function ensureOrbObservationController(): OrbObservationController {
+  orbObservationController ??= createOrbObservationController({
+    canObserveLocal: () => bootNasRuntime() === undefined && supervisor?.isDiagnosticMode === false
+      && harnessOrigin !== undefined && orbSettingsStore?.read().backend === 'orb'
+      && orbPermissions().screen === 'granted',
+    workAreas: orbObservationWorkAreas,
+    toLogicalRegion: orbObservationLogicalRegion,
+    createWindow: createElectronOrbObservationWindow,
+  })
+  return orbObservationController
 }
 
 async function setOrbVisible(visible: boolean): Promise<OrbSettings> {
@@ -747,7 +788,7 @@ async function updateOrbSettings(input: unknown): Promise<OrbSettings> {
 }
 
 async function stageOrbBackend(input: unknown): Promise<OrbSettings> {
-  if (input !== 'official-native' && input !== 'official-mcp') {
+  if (input !== 'orb' && input !== 'official-native' && input !== 'official-mcp') {
     throw new TypeError('desktop: invalid floating-ball Computer Use backend')
   }
   const backend: ManagedOrbComputerBackend = input
@@ -3404,7 +3445,9 @@ async function startApplication(): Promise<void> {
       // been removed from both normal and crash-recovery cleanup scopes.
       await preservePersistentServicesForActiveProfile()
       publishStartupProgress({ stage: 'stopping-harness', progress: 38 })
-      outcomes.push(...await Promise.allSettled([supervisor?.stop(), desktopReturnControl?.close()]))
+      outcomes.push(...await Promise.allSettled([
+        supervisor?.stop(), desktopReturnControl?.close(), orbComputerUseTransport?.close(),
+      ]))
       publishStartupProgress({ stage: 'reclaiming-processes', progress: 72 })
       outcomes.push(...await Promise.allSettled([processObserver?.stopAll()]))
       publishStartupProgress({ stage: 'checking-shutdown', progress: 94 })
@@ -4214,21 +4257,23 @@ async function startApplication(): Promise<void> {
     }
     runtimePendingApplied = hasRuntimePending
   }
-  if (orbPendingBackend === 'official-native' || orbPendingBackend === 'official-mcp') {
+  if (orbPendingBackend === 'orb' || orbPendingBackend === 'official-native' || orbPendingBackend === 'official-mcp') {
     if (startupProfileMutationAllowed && !preserveCopiedPlugins) {
       try {
         await desktopMutations.applyAtStartup({
           operation: 'orb-computer-use-backend-switch',
           run: async (context) => {
-            const inventory = await readRecoveryPluginInventory(context.home)
-            const packageName = orbPendingBackend === 'official-native'
+            const packageName = orbPendingBackend === 'orb' ? undefined : orbPendingBackend === 'official-native'
               ? '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'
               : '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp'
-            if (!inventory.plugins.some(plugin => plugin.packageName === packageName
-              && plugin.version !== undefined && plugin.status === 'normal')) {
-              throw new Error(`desktop: selected Computer Use backend ${packageName} is not installed and healthy`)
+            if (packageName !== undefined) {
+              const inventory = await readRecoveryPluginInventory(context.home)
+              if (!inventory.plugins.some(plugin => plugin.packageName === packageName
+                && plugin.version !== undefined && plugin.status === 'normal')) {
+                throw new Error(`desktop: selected Computer Use backend ${packageName} is not installed and healthy`)
+              }
             }
-            await context.write({ kind: 'set-computer-use-backend', backend: orbPendingBackend,
+            await context.write({ kind: 'set-computer-use-backend', backend: orbPendingBackend === 'orb' ? 'off' : orbPendingBackend,
               operation: 'orb-computer-use-backend-switch', timeoutMs: PROFILE_REPAIR_TIMEOUT_MS })
           },
         })
@@ -4306,6 +4351,43 @@ async function startApplication(): Promise<void> {
   publishStartupProgress({ stage: 'starting-harness', progress: 88 })
   await appendDesktopStartupLog('Starting Harness supervisor.')
   const launch = resolveHarnessLaunch(harnessEnvironment, launchOptions)
+  const orbNativeSelected = (): boolean => {
+    try { return (orbPendingApplied ? orbPendingBackend : orbSettingsStore?.read().backend) === 'orb' }
+    catch { return false }
+  }
+  if (activeNasRuntime === undefined && process.platform === 'darwin') {
+    try {
+      // Probe the packaged native helper without requesting any OS permission.
+      await readOrbMacComputerUsePermissions()
+      orbComputerUseTransport = await startOrbComputerUseTransport({
+        secret: () => orbNativeSelected() ? supervisor?.orbCallerSecret : undefined,
+        openBackend: () => createOrbComputerUseBackend({
+          platform: createOrbMacComputerUsePlatform({ exclude: excludeOrbOverlaysForCapture }),
+          authority: async () => {
+            const rights = await readOrbMacComputerUsePermissions()
+            const local = bootNasRuntime() === undefined && activeMenuHome === dshHome
+              && supervisor?.isDiagnosticMode === false && harnessOrigin !== undefined
+              && orbNativeSelected()
+            return {
+              mode: local ? 'local' : 'nas',
+              screenCapture: local && rights.screenCapture,
+              inputControl: local && rights.inputControl,
+            }
+          },
+          // The Host provider owns the sole Cordis Computer Use reservation;
+          // this Desktop instance owns one generation-scoped native backend.
+          acquireExclusive: async () => async () => {},
+          postActionWaitMs: 350,
+        }),
+        onObservation: (observed) => {
+          orbObservationActive = ensureOrbObservationController().show(observed.frame.bounds) === 'shown'
+        },
+      })
+    } catch (error) {
+      orbComputerUseTransport = undefined
+      console.warn('desktop: floating Computer Use native backend is unavailable', error)
+    }
+  }
   desktopMutations.start()
   const notificationCopy = desktopNotificationDictionary(app.getLocale())
   const allowNotification = createNotificationThrottle(5 * 60_000)
@@ -4322,6 +4404,8 @@ async function startApplication(): Promise<void> {
     onSpawn: (pid) => { observeProcess(pid, 'Harness') },
     logPath: harnessLogPath,
     environment: { ...harnessEnvironment },
+    ...(orbComputerUseTransport === undefined || !orbNativeSelected()
+      ? {} : { orbNativeOrigin: orbComputerUseTransport.origin }),
     managedRuntime: processObserver,
     onOptionalStartupFailures: (failures) => {
       profileMutation?.observeHarness({ type: 'optional-startup-failures', failures })
@@ -4404,6 +4488,11 @@ async function startApplication(): Promise<void> {
       showNotification('failed', notificationCopy.failed)
     },
     onState: (state) => {
+      if (state !== 'ready') {
+        orbComputerUseTransport?.invalidateGeneration()
+        orbObservationController?.hide()
+        orbObservationActive = false
+      }
       if (state === 'starting') profileMutation?.observeHarness({ type: 'starting' })
       if (state === 'restarting' || state === 'failed' || state === 'stopped') {
         cancelBootableSnapshot()
@@ -4657,6 +4746,7 @@ if (!app.requestSingleInstanceLock()) {
     orbShortcutController?.dispose()
     orbSelectionController?.dispose()
     orbSelectionWindowController?.dispose()
+    orbObservationController?.dispose()
     desktopShortcuts?.dispose()
     stopReleaseChecks?.()
     desktopLogSession.close('application-quit')

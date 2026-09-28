@@ -89,7 +89,10 @@ describe('per-home orb settings', () => {
       expect(store.read().backend).toBe('orb')
       store.clearPendingBackend()
       expect(store.readPendingBackend()).toBeUndefined()
-      writeFileSync(join(directory, '.desktop-orb', 'pending-backend-v1.json'), '{"backend":"orb"}')
+      store.writePendingBackend('orb')
+      expect(store.readPendingBackend()).toBe('orb')
+      store.clearPendingBackend()
+      writeFileSync(join(directory, '.desktop-orb', 'pending-backend-v1.json'), '{"backend":"other"}')
       expect(() => store.readPendingBackend()).toThrow('malformed pending floating-ball backend')
     } finally {
       rmSync(directory, { recursive: true, force: true })

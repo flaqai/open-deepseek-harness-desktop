@@ -34,6 +34,7 @@ export const ORB_OFFICIAL_PACKAGES = Object.freeze({
 /** Inputs observed by the Desktop host, with unknown represented explicitly. */
 export interface OrbRuntimeFacts {
   readonly mode: 'local' | 'nas'
+  readonly authorBackendAvailable: boolean
   readonly plugins: readonly RecoveryPluginSummary[]
   readonly inventoryKnown: boolean
   readonly screen: OrbPermissionStatus
@@ -45,7 +46,7 @@ export interface OrbRuntimeFacts {
   readonly observationActive: boolean
 }
 
-/** Project host facts without claiming the unconnected author-style executor is ready.
+/** Project live host facts without claiming unsupported native platforms are ready.
  * @param facts - Live installation, task, permission, and local-mode facts.
  * @returns A redacted UI status.
  */
@@ -57,7 +58,7 @@ export function orbRuntimeStatus(facts: OrbRuntimeFacts): OrbRuntimeStatus {
   return {
     mode: facts.mode,
     backendAvailability: {
-      orb: 'unsupported',
+      orb: facts.mode === 'local' && facts.authorBackendAvailable ? 'ready' : 'unsupported',
       'official-native': installed('official-native'),
       'official-mcp': installed('official-mcp'),
     },

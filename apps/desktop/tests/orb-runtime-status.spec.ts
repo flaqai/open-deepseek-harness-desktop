@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { orbRuntimeStatus, ORB_OFFICIAL_PACKAGES, type OrbRuntimeFacts } from '../src/orb-runtime-status.ts'
 
 const base: OrbRuntimeFacts = {
-  mode: 'local', plugins: [], inventoryKnown: true, screen: 'unknown', accessibility: 'unknown', activeTasks: 'unknown',
+  mode: 'local', authorBackendAvailable: false, plugins: [], inventoryKnown: true, screen: 'unknown', accessibility: 'unknown', activeTasks: 'unknown',
   pendingRestart: false, selectionEnabled: false, selectionShortcutReady: false, observationActive: false,
 }
 
@@ -20,6 +20,11 @@ describe('floating-ball runtime status', () => {
     expect(orbRuntimeStatus({ ...base, plugins: [{ ...plugin, status: 'attention' }] }).backendAvailability['official-native']).toBe('not-installed')
     expect(orbRuntimeStatus({ ...base, plugins: [{ packageName: plugin.packageName, source: plugin.source, status: plugin.status }] }).backendAvailability['official-native']).toBe('not-installed')
     expect(orbRuntimeStatus({ ...base, inventoryKnown: false }).backendAvailability['official-native']).toBe('unknown')
+  })
+
+  it('advertises author backend only with a live local native transport', () => {
+    expect(orbRuntimeStatus({ ...base, authorBackendAvailable: true }).backendAvailability.orb).toBe('ready')
+    expect(orbRuntimeStatus({ ...base, mode: 'nas', authorBackendAvailable: true }).backendAvailability.orb).toBe('unsupported')
   })
 
   it('suppresses every local entry in NAS mode and reports an unconfirmed task check', () => {
