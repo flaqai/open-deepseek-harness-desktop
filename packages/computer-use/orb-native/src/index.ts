@@ -1,6 +1,6 @@
 /**
  * Explicitly hosted Orb computer-use tools for one authorized caller.
- * @module @deepseek-ai/dsh-experimental-computer-use-orb-native
+ * @module @deepseek-ai/dsh-computer-use-orb-native
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -19,7 +19,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 
 /** Cordis identity; a bare Loader row intentionally fails without a Desktop bridge. */
-export const name = 'experimental-computer-use-orb-native'
+export const name = 'computer-use-orb-native'
 
 /** Services needed to reserve the sole provider and persist screenshots. */
 export const inject = ['computerUse', 'tools', 'attachments', 'systemPrompt']

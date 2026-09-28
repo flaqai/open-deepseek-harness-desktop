@@ -3,13 +3,13 @@ description: "An experimental Orb Computer Use provider that requires a Desktop 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-computer-use-orb-native
+# @deepseek-ai/dsh-computer-use-orb-native
 
 English | [中文](README.zh.md)
 
 ## Summary
 
-This package defines three author-style foreground tools: `orb_observe`, `orb_click`, and `orb_type`. It does not implement native capture or input. The Desktop Host must supply an `OrbHostBridge` and mount `createOrbComputerUseProvider(bridge)` explicitly. Loading the bare package fails before registering tools or a computer-use provider.
+This Desktop-only package defines three author-style foreground tools: `orb_observe`, `orb_click`, and `orb_type`. It does not implement native capture or input. The Desktop Host supplies an `OrbHostBridge` and mounts `createOrbComputerUseProvider(bridge)` only when the user selects the Orb backend. Loading the bare package fails before registering tools or a computer-use provider.
 
 ## Table of Contents
 

@@ -1,7 +1,7 @@
 /** Bind the experimental foreground provider to this Desktop Host generation. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { createOrbComputerUseProvider } from '@deepseek-ai/dsh-experimental-computer-use-orb-native'
+import { createOrbComputerUseProvider } from '@deepseek-ai/dsh-computer-use-orb-native'
 import { createDesktopOrbHttpBackend, type DesktopOrbEndpoint } from './orb-computer-use-client.ts'
 
 import type {} from '@deepseek-ai/dsh-agent'

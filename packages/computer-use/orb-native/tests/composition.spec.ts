@@ -51,7 +51,7 @@ describe('Orb native Loader composition', () => {
       ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
       ['@deepseek-ai/dsh-tools', ToolRuntime],
       ['@fixture/attachments', { name: 'fixture-attachments', apply(ctx: Context) { ctx.provide('attachments', { saveImage } as never) } }],
-      ['@deepseek-ai/dsh-experimental-computer-use-orb-native', provider],
+      ['@deepseek-ai/dsh-computer-use-orb-native', provider],
     ])
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, JSON.stringify([...modules.keys()].map(name => ({ name, config: {} }))))

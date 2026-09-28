@@ -228,7 +228,7 @@
     { "path": "./packages/computer-use/computer-use" },
     { "path": "./packages/experimental/computer-use-cua-driver-mcp" },
     { "path": "./packages/experimental/computer-use-cua-driver-native" },
-    { "path": "./packages/experimental/computer-use-orb-native" },
+    { "path": "./packages/computer-use/orb-native" },
     { "path": "./packages/client/ui-sidebar-documentpreview/tsconfig.host.json" },
     { "path": "./packages/client/ui-sidebar-browser/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },

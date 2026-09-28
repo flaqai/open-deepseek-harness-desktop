@@ -69,7 +69,7 @@
       "@deepseek-ai/dsh-computer-use/brand": ["./packages/computer-use/computer-use/src/brand.ts"],
       "@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp": ["./packages/experimental/computer-use-cua-driver-mcp/src/index.ts"],
       "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native": ["./packages/experimental/computer-use-cua-driver-native/src/index.ts"],
-      "@deepseek-ai/dsh-experimental-computer-use-orb-native": ["./packages/experimental/computer-use-orb-native/src/index.ts"],
+      "@deepseek-ai/dsh-computer-use-orb-native": ["./packages/computer-use/orb-native/src/index.ts"],
       "@deepseek-ai/cordis": ["./vendor/cordis/src"],
       "@deepseek-ai/cosmokit": ["./vendor/cosmokit/src"],
       "@deepseek-ai/schemastery": ["./vendor/schemastery/src"],

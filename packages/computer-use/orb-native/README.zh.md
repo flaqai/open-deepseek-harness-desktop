@@ -1,15 +1,15 @@
 ---
-description: "需要 Desktop Host 桥接和主机所属调用者授权的实验性 Orb 电脑操作提供者。"
+description: "需要 Desktop Host 桥接和主机所属调用者授权的桌面 Orb 电脑操作提供者。"
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-computer-use-orb-native
+# @deepseek-ai/dsh-computer-use-orb-native
 
 [English](README.md) | 中文
 
 ## 概述
 
-本包定义三个作者模式前台工具：`orb_observe`、`orb_click` 和 `orb_type`。本包不实现原生截图或输入。Desktop Host 必须提供 `OrbHostBridge` 并显式挂载 `createOrbComputerUseProvider(bridge)`。直接加载本包会失败，且不会注册工具或电脑操作提供者。
+这个仅用于桌面版的包定义三个作者模式前台工具：`orb_observe`、`orb_click` 和 `orb_type`。本包不实现原生截图或输入。只有用户选择 Orb 后端时，Desktop Host 才提供 `OrbHostBridge` 并挂载 `createOrbComputerUseProvider(bridge)`。直接加载本包会失败，且不会注册工具或电脑操作提供者。
 
 ## 目录
 
