@@ -36,7 +36,7 @@ The plugin occupies the root slot only in the floating renderer. It renders the 
 <a id="model-experience"></a>
 ## Model Experience
 
-The background form sends a user task to a Host-owned standard Session through the ordinary prompt path. The package does not add model-visible context or bypass approvals.
+None, as the background form only forwards the user's task to a Host-owned standard Session through the ordinary prompt path and adds no model-visible context or approval bypass.
 
 #### KV Cache effect
 

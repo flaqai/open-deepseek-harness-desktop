@@ -36,7 +36,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-后台任务表单通过普通提示路径把用户任务发给 Host 拥有的标准 Session。本包不增加模型可见的上下文，也不绕过审批。
+无，因为后台任务表单只通过普通提示路径把用户任务发给 Host 拥有的标准 Session，不增加模型可见的上下文，也不绕过审批。
 
 #### KV Cache 影响
 
