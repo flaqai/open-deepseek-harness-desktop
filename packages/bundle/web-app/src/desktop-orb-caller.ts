@@ -23,6 +23,16 @@ export function validOrbSecret(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/u.test(value)
 }
 
+/** Consume launch-only authority before any route admission or plugin subprocess starts.
+ * @param environment - Host process environment.
+ * @returns A well-formed secret or undefined; the key is always removed.
+ */
+export function consumeDesktopOrbSecret(environment: NodeJS.ProcessEnv): string | undefined {
+  const secret = environment.DSH_DESKTOP_ORB_OWNER_SECRET
+  delete environment.DSH_DESKTOP_ORB_OWNER_SECRET
+  return validOrbSecret(secret) ? secret : undefined
+}
+
 function matchesSecret(actual: string | null, expected: string): boolean {
   if (actual === null || actual.length !== expected.length) return false
   return timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
