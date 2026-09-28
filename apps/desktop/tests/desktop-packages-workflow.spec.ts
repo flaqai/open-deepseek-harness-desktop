@@ -155,9 +155,11 @@ describe('desktop package workflow bundled plugins', () => {
   it('raises the macOS packaging file limit before electron-builder signs the expanded runtime', () => {
     const source = readFileSync(resolve(import.meta.dirname, '../../../.github/workflows/desktop-packages.yml'), 'utf8')
     const workflow = parse(source) as { jobs: Record<string, WorkflowJob> }
-    const build = workflow.jobs.macos?.steps?.find(step => step.name === 'Build macOS package')
+    const prepare = workflow.jobs.macos?.steps?.find(step => step.name === 'Prepare macOS Harness runtime and preset Profile')
+    const build = workflow.jobs.macos?.steps?.find(step => step.name === 'Build macOS DMG and ZIP')
+    expect(prepare?.run).toContain('ulimit -n 65536')
     expect(build?.run).toContain('ulimit -n 65536')
-    expect(build?.run).toContain('pnpm run package:desktop:macos:${{ matrix.arch }}')
+    expect(build?.run).toContain('electron-builder/out/cli/cli.js')
   })
 
   it('keeps packaging manual and leaves GitHub Release publication to the explicit local workflow', () => {

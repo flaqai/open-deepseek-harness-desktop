@@ -64,9 +64,9 @@ describe('desktop window frame policy', () => {
   it('lets full-viewport client surfaces fill only the contained renderer', () => {
     const files = [
       '../../../packages/client/ui-primitives/src/Modal.module.css',
-      '../../../packages/client/ui-primitives/src/OnboardingSurface.module.css',
+      '../../../packages/client/ui-settings-account/src/client/OnboardingSurface.module.css',
       '../../../packages/client/ui-attachment/src/DropOverlay.module.css',
-      '../../../packages/client/ui-attachment/src/ImageLightbox.module.css',
+      '../../../packages/client/ui-primitives/src/ImageLightbox.module.css',
       '../../../packages/client/ui-settings-general/src/client/SettingsRoot.module.css',
       '../../../packages/client/ui-settings-models/src/client/OnboardingModal.module.css',
       '../../../packages/client/ui-settings-models/src/client/SetupWizard.module.css',
