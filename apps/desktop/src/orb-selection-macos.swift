@@ -100,6 +100,11 @@ private final class SelectionMonitor: @unchecked Sendable {
       let focused
     else { return }
     let element = focused as! AXUIElement
+    var focusedPid: pid_t = 0
+    guard AXUIElementGetPid(element, &focusedPid) == .success,
+      focusedPid == sourcePid,
+      NSWorkspace.shared.frontmostApplication?.processIdentifier == sourcePid
+    else { return }
     var selected: CFTypeRef?
     guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selected) == .success,
       let text = selected as? String

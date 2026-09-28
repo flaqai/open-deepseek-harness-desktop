@@ -29,6 +29,18 @@ export function verifyHelperLayout(app) {
   return plist.CFBundleExecutable
 }
 
+/** Confirm that the Node addon and its @rpath-linked Swift library unpack together.
+ * @param {string} app Packaged application directory.
+ * @returns The two native paths to verify with codesign.
+ */
+export function verifyOrbSelectionLayout(app) {
+  const directory = join(app, 'Contents/Resources/app.asar.unpacked/lib')
+  const files = ['orb-selection-macos-napi.node', 'liborb-selection-macos.dylib']
+    .map(name => join(directory, name))
+  for (const file of files) accessSync(file, constants.R_OK)
+  return files
+}
+
 /** Check a final DMG, ZIP, or app on a native macOS runner.
  * @param {string} input Final package or extracted application.
  */
@@ -57,7 +69,11 @@ export function smokeMacPackage(input) {
     if (apps.length !== 1) throw new Error('Expected exactly one extracted application')
     const app = directory ? join(directory, apps[0]) : source
     const executable = verifyHelperLayout(app)
+    const orbSelectionNative = verifyOrbSelectionLayout(app)
     execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', app], { timeout: 60000 })
+    for (const file of orbSelectionNative) {
+      execFileSync('/usr/bin/codesign', ['--verify', '--strict', file], { timeout: 30000 })
+    }
     execFileSync(process.execPath, [fileURLToPath(new URL('./verify-prebuilt-profile.mjs', import.meta.url)), join(app, 'Contents/Resources')], { timeout: 300000, stdio: 'inherit' })
     const env = { ...process.env }
     delete env.ELECTRON_RUN_AS_NODE

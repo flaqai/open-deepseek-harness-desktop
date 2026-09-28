@@ -1,6 +1,9 @@
 appId: ai.flaq.deepseek-harness
 productName: Open DeepSeek Harness Desktop
 asar: true
+asarUnpack:
+  - lib/orb-selection-macos-napi.node
+  - lib/liborb-selection-macos.dylib
 npmRebuild: false
 directories:
   buildResources: build

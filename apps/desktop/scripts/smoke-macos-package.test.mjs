@@ -1,9 +1,35 @@
 import assert from 'node:assert/strict'
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { verifyHelperLayout } from './smoke-macos-package.mjs'
+import { parse } from 'yaml'
+import { verifyHelperLayout, verifyOrbSelectionLayout } from './smoke-macos-package.mjs'
+
+test('macOS packaging unpacks both AX-only native libraries', () => {
+  const config = parse(readFileSync(new URL('../electron-builder.macos.yml', import.meta.url), 'utf8'))
+  assert.deepEqual(config.asarUnpack, [
+    'lib/orb-selection-macos-napi.node',
+    'lib/liborb-selection-macos.dylib',
+  ])
+})
+
+test('AX-only selection native pair must share the unpacked lib directory', () => {
+  const app = mkdtempSync(join(tmpdir(), 'dsh-orb-native-layout-'))
+  const directory = join(app, 'Contents/Resources/app.asar.unpacked/lib')
+  try {
+    mkdirSync(directory, { recursive: true })
+    const addon = join(directory, 'orb-selection-macos-napi.node')
+    const dylib = join(directory, 'liborb-selection-macos.dylib')
+    writeFileSync(addon, 'test')
+    writeFileSync(dylib, 'test')
+    assert.deepEqual(verifyOrbSelectionLayout(app), [addon, dylib])
+    rmSync(dylib)
+    assert.throws(() => verifyOrbSelectionLayout(app), /ENOENT/)
+  } finally {
+    rmSync(app, { recursive: true, force: true })
+  }
+})
 
 test('native Helper lookup accepts display branding but rejects CFBundleName mismatch and missing helpers', { skip: process.platform !== 'darwin' }, () => {
   const app = mkdtempSync(join(tmpdir(), 'dsh-helper-layout-'))
