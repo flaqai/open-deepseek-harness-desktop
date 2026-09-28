@@ -15,7 +15,7 @@ This package defines three author-style foreground tools: `orb_observe`, `orb_cl
 
 `bridge.open(acquireExclusive)` creates one `OrbBackend`. The backend calls `acquireExclusive()` exactly once before exposing operations and calls its returned release function during `close()`. The plugin reserves `orb-native` through the official `ctx.computerUse.register` slot before opening the backend; it removes tools, waits for calls, closes the backend, and then releases the slot. A missing backend, failed startup, or duplicate provider rejects activation.
 
-`bridge.authorize(agent)` receives the actual `ToolExecution.agent` and must check Host-owned caller identity. Missing agents and false results are denied inside every tool executor before native access. The renderer's `sessionId` is not authority. The Desktop bridge must supply native permission, focused-window, screenshot, and input implementations; the backend must reject stale frame IDs and focus changes before HID delivery.
+`bridge.authorize(agent, signal)` receives the actual Agent and must check Host-owned caller identity. Tool schemas are hidden from other Agents during prompt assembly, and missing agents or false results are denied again inside every executor before native access. The renderer's `sessionId` is not authority. The Desktop bridge must supply native permission, focused-window, screenshot, and input implementations; the backend must reject stale frame IDs and focus changes before HID delivery.
 
 Each successful operation saves its returned screenshot through `ctx.attachments` and emits a durable image block alongside the new `frame_id`. Coordinates are integer 0–1000 fractions of that image. The only actions are click and text input; there is no shell command or automatic tool approval in this package.
 
@@ -31,7 +31,7 @@ The fixed Orb reference at commit `72f1d738` informed screenshot envelopes and 0
 
 #### What the model sees
 
-When mounted, the model receives `orb_observe`, `orb_click`, and `orb_type` schemas. Successful results contain the frontmost app, optional window title, a fresh `frame_id`, the 0–1000 coordinate space, and a screenshot image block. The executing Host denies calls outside the authorized Orb caller.
+Only the authorized Orb Agent receives `orb_observe`, `orb_click`, and `orb_type` schemas. Successful results contain the frontmost app, optional window title, a fresh `frame_id`, the 0–1000 coordinate space, and a screenshot image block. The executing Host denies calls outside the authorized Orb caller.
 
 #### Token effect
 

@@ -15,7 +15,7 @@ kind: "package-reference"
 
 `bridge.open(acquireExclusive)` 创建一个 `OrbBackend`。后端在公开操作前恰好调用一次 `acquireExclusive()`，并在 `close()` 时调用返回的释放函数。插件在打开后端前通过官方 `ctx.computerUse.register` 名额占用 `orb-native`；卸载时先移除工具、等待调用、关闭后端，最后释放名额。缺少后端、启动失败或提供者冲突均拒绝激活。
 
-`bridge.authorize(agent)` 接收实际的 `ToolExecution.agent`，必须检查主机拥有的调用者身份。每个工具执行器都会在原生访问前拒绝缺失 Agent 或返回 false 的授权结果。渲染器提供的 `sessionId` 不构成权限。Desktop 桥接必须提供原生权限、前台窗口、截图和输入实现；后端必须在发送 HID 输入前拒绝过期帧 ID 和焦点变化。
+`bridge.authorize(agent, signal)` 接收实际的 Agent，必须检查主机拥有的调用者身份。提示词组装期间会对其他 Agent 隐藏工具 schema，每个工具执行器还会在原生访问前再次拒绝缺失 Agent 或返回 false 的授权结果。渲染器提供的 `sessionId` 不构成权限。Desktop 桥接必须提供原生权限、前台窗口、截图和输入实现；后端必须在发送 HID 输入前拒绝过期帧 ID 和焦点变化。
 
 每次成功操作都通过 `ctx.attachments` 保存返回的截图，并随新 `frame_id` 发出持久图像块。坐标是图像上 0–1000 的整数比例。仅支持点击和文字输入；本包不包含 Shell 命令或自动工具审批。
 
@@ -31,7 +31,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-挂载后，模型收到 `orb_observe`、`orb_click` 和 `orb_type` 的 schema。成功结果包含前台应用、可选窗口标题、新的 `frame_id`、0–1000 坐标空间和截图图像块。执行方主机拒绝已授权 Orb 调用者之外的调用。
+只有已授权的 Orb Agent 会收到 `orb_observe`、`orb_click` 和 `orb_type` 的 schema。成功结果包含前台应用、可选窗口标题、新的 `frame_id`、0–1000 坐标空间和截图图像块。执行方主机拒绝已授权 Orb 调用者之外的调用。
 
 #### Token 影响
 

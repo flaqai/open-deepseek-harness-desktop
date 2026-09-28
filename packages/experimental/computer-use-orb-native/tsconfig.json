@@ -11,6 +11,7 @@
     { "path": "../../core/agent" },
     { "path": "../../attachment/attachment" },
     { "path": "../../computer-use/computer-use" },
+    { "path": "../../core/system-prompt" },
     { "path": "../../core/tools" }
   ]
 }

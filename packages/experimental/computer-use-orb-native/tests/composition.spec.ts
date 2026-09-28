@@ -60,6 +60,7 @@ describe('Orb native Loader composition', () => {
     ctx.baseUrl = pathToFileURL(root).href + '/'
     await ctx.plugin(Loader)
     ctx.loader.builtins.include = Include
+    if (ctx.loader.internal === undefined) throw new Error('Loader has no module importer')
     ctx.loader.internal.import = async (specifier: string) => {
       const module = modules.get(specifier)
       if (module === undefined) throw new Error(`Unexpected Loader import: ${specifier}`)

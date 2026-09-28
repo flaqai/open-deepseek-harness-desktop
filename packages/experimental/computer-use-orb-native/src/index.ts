@@ -15,13 +15,14 @@ import type { ToolExecution } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-computer-use'
+import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 
 /** Cordis identity; a bare Loader row intentionally fails without a Desktop bridge. */
 export const name = 'experimental-computer-use-orb-native'
 
 /** Services needed to reserve the sole provider and persist screenshots. */
-export const inject = ['computerUse', 'tools', 'attachments']
+export const inject = ['computerUse', 'tools', 'attachments', 'systemPrompt']
 
 /** Native behavior is supplied by the Desktop Host, not configuration text. */
 export const Config = Schema.object({})
@@ -77,6 +78,7 @@ export interface OrbComputerUsePlugin {
 export const TOOL_NAMES = ['orb_observe', 'orb_click', 'orb_type'] as const
 
 const PROVIDER = ComputerUseProviderName('orb-native')
+const TOOL_NAME_SET = new Set<string>(TOOL_NAMES)
 
 const IMAGE_SCHEMA = {
   type: 'object',
@@ -201,7 +203,7 @@ export function createOrbComputerUseProvider(bridge: OrbHostBridge): OrbComputer
         }
         const child = ctx.plugin({
           name: 'computer-use-orb-native-tools',
-          inject: ['tools', 'attachments'],
+          inject: ['tools', 'attachments', 'systemPrompt'],
           async apply(inner: Context): Promise<void> {
             backend = await bridge.open(() => {
               if (acquired || ctx.computerUse.providerName !== PROVIDER) {
@@ -214,6 +216,18 @@ export function createOrbComputerUseProvider(bridge: OrbHostBridge): OrbComputer
             lifetime.signal.throwIfAborted()
             if (!acquired) throw new Error('orb computer use: native backend did not acquire the exclusive reservation')
             const activeBackend = backend
+
+            inner.on('system-prompt/assemble', async (_assembly, context, next) => {
+              const assembled = await next()
+              const agent = context.agent
+              if (agent !== undefined) {
+                const signal = context.signal === undefined
+                  ? lifetime.signal : AbortSignal.any([context.signal, lifetime.signal])
+                signal.throwIfAborted()
+                if (await bridge.authorize(agent, signal)) return assembled
+              }
+              return { ...assembled, tools: assembled.tools.filter(tool => !TOOL_NAME_SET.has(tool.name)) }
+            })
 
             async function run(exec: ToolExecution, action: (signal: AbortSignal) => Promise<OrbObservation>): Promise<ObservationValue> {
               const signal = AbortSignal.any([exec.signal, lifetime.signal])
