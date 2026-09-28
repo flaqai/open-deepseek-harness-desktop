@@ -106,6 +106,31 @@ static void target_token(Target target, char output[80]) {
   snprintf(output, 80, "%lu:%d:%d:%d:%d", target.id, target.x, target.y, target.width, target.height);
 }
 
+static void application_name(Display *display, Window window, char output[257]) {
+  Atom property = XInternAtom(display, "WM_CLASS", True);
+  if (property == None) fail("foreground application identity is unavailable");
+  Atom type = None;
+  int format = 0;
+  unsigned long count = 0, remaining = 0;
+  unsigned char *data = NULL;
+  int status = XGetWindowProperty(display, window, property, 0, 64, False, XA_STRING,
+    &type, &format, &count, &remaining, &data);
+  if (status != Success || type != XA_STRING || format != 8 || count < 3
+    || count > 256 || remaining != 0 || data == NULL)
+    fail("foreground application identity is unavailable");
+  const unsigned char *first_end = memchr(data, 0, count);
+  if (first_end == NULL || (size_t)(first_end - data) + 1 >= count)
+    fail("foreground application identity is unavailable");
+  const unsigned char *class_name = first_end + 1;
+  size_t available = count - (size_t)(class_name - data);
+  const unsigned char *class_end = memchr(class_name, 0, available);
+  if (class_end == NULL || class_end == class_name) fail("foreground application identity is unavailable");
+  size_t length = (size_t)(class_end - class_name);
+  memcpy(output, class_name, length);
+  output[length] = 0;
+  XFree(data);
+}
+
 static Target required_target(Display *display, const char *expected) {
   Target target = foreground(display);
   if (expected != NULL) {
@@ -296,26 +321,18 @@ int main(int argc, char **argv) {
     if (after.id != target.id || after.x != target.x || after.y != target.y
       || after.width != target.width || after.height != target.height)
       fail("frontmost window changed during capture");
-    XClassHint class_hint;
-    memset(&class_hint, 0, sizeof class_hint);
-    if (!XGetClassHint(display, target.id, &class_hint) || class_hint.res_class == NULL
-      || class_hint.res_class[0] == 0) fail("foreground application identity is unavailable");
-    char *title = NULL;
-    XFetchName(display, target.id, &title);
+    char name[257];
+    application_name(display, target.id, name);
     char token[80];
     target_token(target, token);
     printf("{\"windowId\":\"%s\",\"appName\":", token);
-    json_string((const unsigned char *)class_hint.res_class, strlen(class_hint.res_class));
+    json_string((const unsigned char *)name, strlen(name));
     printf(",\"x\":%d,\"y\":%d,\"width\":%d,\"height\":%d,\"png\":\"",
       target.x, target.y, target.width, target.height);
     base64_print(image.data, image.size);
     putchar('"');
-    if (title != NULL) { fputs(",\"windowTitle\":", stdout); json_string((const unsigned char *)title, strlen(title)); }
     puts("}");
     free(image.data);
-    if (title != NULL) XFree(title);
-    if (class_hint.res_name != NULL) XFree(class_hint.res_name);
-    XFree(class_hint.res_class);
   } else if (argc == 7 && strcmp(argv[1], "click") == 0) {
     int x = integer(argv[3]), y = integer(argv[4]);
     unsigned int button = strcmp(argv[5], "left") == 0 ? 1 : strcmp(argv[5], "right") == 0 ? 3 : 0;
