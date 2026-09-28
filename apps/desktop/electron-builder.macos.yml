@@ -4,6 +4,7 @@ asar: true
 asarUnpack:
   - lib/orb-selection-macos-napi.node
   - lib/liborb-selection-macos.dylib
+  - lib/orb-computer-use-macos
 npmRebuild: false
 directories:
   buildResources: build

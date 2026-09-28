@@ -4,14 +4,30 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { parse } from 'yaml'
-import { verifyHelperLayout, verifyOrbSelectionLayout } from './smoke-macos-package.mjs'
+import { verifyHelperLayout, verifyOrbComputerUseLayout, verifyOrbSelectionLayout } from './smoke-macos-package.mjs'
 
 test('macOS packaging unpacks both AX-only native libraries', () => {
   const config = parse(readFileSync(new URL('../electron-builder.macos.yml', import.meta.url), 'utf8'))
   assert.deepEqual(config.asarUnpack, [
     'lib/orb-selection-macos-napi.node',
     'lib/liborb-selection-macos.dylib',
+    'lib/orb-computer-use-macos',
   ])
+})
+
+test('foreground Computer Use helper must be executable in the unpacked lib directory', () => {
+  const app = mkdtempSync(join(tmpdir(), 'dsh-orb-computer-use-layout-'))
+  const directory = join(app, 'Contents/Resources/app.asar.unpacked/lib')
+  try {
+    mkdirSync(directory, { recursive: true })
+    const helper = join(directory, 'orb-computer-use-macos')
+    writeFileSync(helper, 'test')
+    assert.throws(() => verifyOrbComputerUseLayout(app), /EACCES/)
+    chmodSync(helper, 0o755)
+    assert.equal(verifyOrbComputerUseLayout(app), helper)
+  } finally {
+    rmSync(app, { recursive: true, force: true })
+  }
 })
 
 test('AX-only selection native pair must share the unpacked lib directory', () => {

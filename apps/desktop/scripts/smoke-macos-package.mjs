@@ -41,6 +41,16 @@ export function verifyOrbSelectionLayout(app) {
   return files
 }
 
+/** Confirm the foreground Computer Use helper is executable after asar unpacking.
+ * @param {string} app Packaged application directory.
+ * @returns Executable native helper path.
+ */
+export function verifyOrbComputerUseLayout(app) {
+  const executable = join(app, 'Contents/Resources/app.asar.unpacked/lib/orb-computer-use-macos')
+  accessSync(executable, constants.X_OK)
+  return executable
+}
+
 /** Check a final DMG, ZIP, or app on a native macOS runner.
  * @param {string} input Final package or extracted application.
  */
@@ -70,10 +80,12 @@ export function smokeMacPackage(input) {
     const app = directory ? join(directory, apps[0]) : source
     const executable = verifyHelperLayout(app)
     const orbSelectionNative = verifyOrbSelectionLayout(app)
+    const orbComputerUseNative = verifyOrbComputerUseLayout(app)
     execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', app], { timeout: 60000 })
     for (const file of orbSelectionNative) {
       execFileSync('/usr/bin/codesign', ['--verify', '--strict', file], { timeout: 30000 })
     }
+    execFileSync('/usr/bin/codesign', ['--verify', '--strict', orbComputerUseNative], { timeout: 30000 })
     execFileSync(process.execPath, [fileURLToPath(new URL('./verify-prebuilt-profile.mjs', import.meta.url)), join(app, 'Contents/Resources')], { timeout: 300000, stdio: 'inherit' })
     const env = { ...process.env }
     delete env.ELECTRON_RUN_AS_NODE
