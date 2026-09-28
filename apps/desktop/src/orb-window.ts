@@ -11,6 +11,8 @@ export interface OrbWindowController {
   readonly visible: boolean
   show(): Promise<void>
   hide(): void
+  /** Temporarily exclude this window from native capture without changing saved visibility. */
+  excludeFromCapture(): () => void
   expand(): Promise<void>
   sendSelectionText(text: string): Promise<void>
   collapse(): Promise<void>
@@ -61,6 +63,7 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
   let window: BrowserWindow | undefined
   let expanded = false
   let disposed = false
+  let captureExclusions = 0
 
   const live = (): BrowserWindow | undefined => window !== undefined && !window.isDestroyed() ? window : undefined
   const dock = (target: BrowserWindow): void => {
@@ -126,14 +129,31 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
           throw error
         }
       }
-      target.show()
+      if (captureExclusions === 0) target.show()
     },
     hide() { live()?.hide() },
+    excludeFromCapture() {
+      const target = live()
+      const wasVisible = target?.isVisible() === true
+      captureExclusions++
+      target?.hide()
+      let restored = false
+      return () => {
+        if (restored) return
+        restored = true
+        captureExclusions--
+        if (captureExclusions === 0 && wasVisible && target === live()
+          && options.getSettings().visible) target.showInactive()
+      }
+    },
     async expand() {
       const target = live()
       const origin = options.getHarnessOrigin()
       if (target === undefined || origin === undefined) throw new Error('desktop: local Harness is not ready for floating chat')
-      if (expanded && target.webContents.getURL() === `${origin}/?surface=orb`) { target.show(); return }
+      if (expanded && target.webContents.getURL() === `${origin}/?surface=orb`) {
+        if (captureExclusions === 0) target.show()
+        return
+      }
       expanded = true
       dock(target)
       try { await target.loadURL(`${origin}/?surface=orb`) }
@@ -165,7 +185,7 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
     update(settings) {
       const target = live()
       if (target === undefined) return
-      if (settings.visible) target.show()
+      if (settings.visible && captureExclusions === 0) target.show()
       else target.hide()
       dock(target)
       target.webContents.send(DESKTOP_IPC.orbChanged, settings)
