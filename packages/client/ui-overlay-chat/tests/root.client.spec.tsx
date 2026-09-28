@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import { OverlayChatRoot, type OverlayChatRootProps } from '../src/client/OverlayChatRoot.tsx'
@@ -57,4 +57,68 @@ it('keeps selected text pending until a session can accept its draft', () => {
   view.rerender(<OverlayChatRoot {...(props as OverlayChatRootProps)} />)
   expect(insertSelection).toHaveBeenCalledWith('Selected words\nMore words')
   expect(screen.queryByText(zh.selectionPending)).toBeNull()
+})
+
+it('opens the Host-owned Session but retains access to ordinary history', async () => {
+  const other = 'session-history' as SessionListState['ids'][number]
+  const owned = 'session-owned' as SessionListState['ids'][number]
+  let list = {
+    ids: [other, owned], phase: 'ready', projectionsBySession: {},
+    byId: {
+      [other]: { id: other, displayTitle: 'History', retainedBy: {}, running: false },
+      [owned]: { id: owned, displayTitle: 'Floating chat', retainedBy: {}, running: false },
+    },
+  } as SessionListState
+  const openSession = vi.fn((id: typeof other) => {
+    list = { ...list, byId: Object.fromEntries(Object.entries(list.byId).map(([key, row]) => [key, {
+      ...row, retainedBy: { mainView: key === id ? 1 : 0 },
+    }])) } as SessionListState
+  })
+  const ensureCallerSession = vi.fn(async () => owned)
+  const props = {
+    t: ((key: string) => (zh as Readonly<Record<string, string>>)[key] ?? key),
+    renderSlot: vi.fn(() => null),
+    useSessions: (select: (state: SessionListState) => unknown) => select(list),
+    startSession: vi.fn(), openSession, collapse: vi.fn(), openMain: vi.fn(), insertSelection: vi.fn(),
+    ensureCallerSession,
+  }
+  const view = render(<OverlayChatRoot {...(props as OverlayChatRootProps)} />)
+  await waitFor(() => { expect(openSession).toHaveBeenCalledWith(owned) })
+  view.rerender(<OverlayChatRoot {...(props as OverlayChatRootProps)} />)
+  fireEvent.change(screen.getByRole('combobox', { name: zh.history }), { target: { value: other } })
+  expect(openSession).toHaveBeenLastCalledWith(other)
+  expect(ensureCallerSession).toHaveBeenCalledOnce()
+})
+
+it('does not override a history choice made while the Host resolves the owned Session', async () => {
+  const old = 'session-old' as SessionListState['ids'][number]
+  const selected = 'session-manual' as SessionListState['ids'][number]
+  let list = {
+    ids: [old, selected], phase: 'ready', projectionsBySession: {},
+    byId: {
+      [old]: { id: old, displayTitle: 'Old', retainedBy: { mainView: 1 }, running: false },
+      [selected]: { id: selected, displayTitle: 'Manual', retainedBy: {}, running: false },
+    },
+  } as SessionListState
+  let resolveOwned!: (id: string) => void
+  const ownedPromise = new Promise<string>((resolve) => { resolveOwned = resolve })
+  const openSession = vi.fn((id: typeof old) => {
+    list = { ...list, byId: Object.fromEntries(Object.entries(list.byId).map(([key, row]) => [key, {
+      ...row, retainedBy: { mainView: key === id ? 1 : 0 },
+    }])) } as SessionListState
+  })
+  const props = {
+    t: ((key: string) => (zh as Readonly<Record<string, string>>)[key] ?? key),
+    renderSlot: vi.fn(() => null),
+    useSessions: (select: (state: SessionListState) => unknown) => select(list),
+    startSession: vi.fn(), openSession, collapse: vi.fn(), openMain: vi.fn(), insertSelection: vi.fn(),
+    ensureCallerSession: () => ownedPromise,
+  }
+  const view = render(<OverlayChatRoot {...(props as OverlayChatRootProps)} />)
+  fireEvent.change(screen.getByRole('combobox', { name: zh.history }), { target: { value: selected } })
+  // The Host can reply before the Session list emits its next render.
+  await act(async () => { resolveOwned('session-owned') })
+  expect(openSession).toHaveBeenCalledTimes(1)
+  expect(openSession).toHaveBeenLastCalledWith(selected)
+  view.rerender(<OverlayChatRoot {...(props as OverlayChatRootProps)} />)
 })

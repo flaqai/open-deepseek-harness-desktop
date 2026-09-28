@@ -21,6 +21,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 interface OrbRendererBridge {
   collapse(): Promise<void>
   openMain(): Promise<void>
+  ensureCallerSession?(): Promise<string>
   onSelectionText?(callback: (text: string) => void): () => void
 }
 
@@ -64,6 +65,7 @@ export function apply(ctx: ClientContext): void {
   const bridge = readOrbBridge()
   if (bridge === undefined) return
   const onSelectionText = bridge.onSelectionText
+  const ensureCallerSession = bridge.ensureCallerSession
   ctx.effect(() => ctx.locale.register('orbChat', { zh, en }), 'ui-overlay-chat: dictionaries')
   ctx.effect(() => ctx.slots.register({
     name: 'root',
@@ -76,6 +78,9 @@ export function apply(ctx: ClientContext): void {
       openSession: (id) => { ctx.uiWorkspace.openSession(id) },
       collapse: () => { void bridge.collapse() },
       openMain: () => { void bridge.openMain() },
+      ...(ensureCallerSession === undefined ? {} : {
+        ensureCallerSession,
+      }),
       ...(onSelectionText === undefined ? {} : { onSelectionText: (callback: (text: string) => void) => onSelectionText(callback) }),
       insertSelection: text => insertSelectionIntoCurrentDraft(ctx, text),
     }),

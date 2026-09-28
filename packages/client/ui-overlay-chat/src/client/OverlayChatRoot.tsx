@@ -9,6 +9,8 @@ import css from './OverlayChatRoot.module.css'
 export interface OverlayChatInjected {
   startSession(): void
   openSession(id: SessionListState['ids'][number]): void
+  /** Desktop ensures and returns the Host-owned Session; the Client cannot claim ownership. */
+  ensureCallerSession?(): Promise<string>
   collapse(): void
   openMain(): void
   onSelectionText?(callback: (text: string) => void): () => void
@@ -27,7 +29,7 @@ export type OverlayChatRootProps = PropsRuntime<'root'>
  */
 export function OverlayChatRoot({
   renderSlot, useSessions, t, startSession, openSession, collapse, openMain,
-  onSelectionText, insertSelection,
+  onSelectionText, insertSelection, ensureCallerSession,
 }: OverlayChatRootProps) {
   const list = useSessions(state => state)
   const sessionId = list.ids.find(id => (list.byId[id]?.retainedBy.mainView ?? 0) > 0)
@@ -35,16 +37,35 @@ export function OverlayChatRoot({
   const running = recent.filter(id => list.byId[id]?.running).length
   const [pendingSelection, setPendingSelection] = useState<string | undefined>()
   const startingSession = useRef(false)
+  const manualNavigation = useRef(0)
+  const openSessionRef = useRef(openSession)
+  openSessionRef.current = openSession
+  const currentSelection = useRef(sessionId)
+  currentSelection.current = sessionId
+  useEffect(() => {
+    if (ensureCallerSession === undefined) return
+    const selectedBeforeEnsure = currentSelection.current
+    const navigationBeforeEnsure = manualNavigation.current
+    let cancelled = false
+    void ensureCallerSession().then((ownedId) => {
+      // A user selecting history while the Host answers always wins.
+      if (!cancelled && currentSelection.current === selectedBeforeEnsure
+        && manualNavigation.current === navigationBeforeEnsure) {
+        openSessionRef.current(ownedId as SessionListState['ids'][number])
+      }
+    }).catch((error: unknown) => { console.warn('floating chat: owned Session unavailable', error) })
+    return () => { cancelled = true }
+  }, [ensureCallerSession])
   useEffect(() => { if (sessionId !== undefined) startingSession.current = false }, [sessionId])
   useEffect(() => onSelectionText?.((text) => {
     if (text.trim() === '') return
     if (sessionId !== undefined && insertSelection(text)) return
     setPendingSelection(previous => previous === undefined ? text : `${previous}\n${text}`)
-    if (sessionId === undefined && !startingSession.current) {
+    if (sessionId === undefined && ensureCallerSession === undefined && !startingSession.current) {
       startingSession.current = true
       startSession()
     }
-  }), [onSelectionText, insertSelection, sessionId, startSession])
+  }), [onSelectionText, insertSelection, sessionId, startSession, ensureCallerSession])
   useEffect(() => {
     if (pendingSelection !== undefined && sessionId !== undefined && insertSelection(pendingSelection)) {
       setPendingSelection(undefined)
@@ -54,7 +75,7 @@ export function OverlayChatRoot({
     <main className={css.shell} data-overlay-chat="">
       <header className={css.header}>
         <span className={css.title}>{t('title')}</span>
-        <button className={css.action} type="button" onClick={startSession}>{t('new')}</button>
+        <button className={css.action} type="button" onClick={() => { manualNavigation.current += 1; startSession() }}>{t('new')}</button>
         <button className={css.action} type="button" onClick={openMain}>{t('openMain')}</button>
         <button className={css.action} type="button" onClick={collapse}>{t('collapse')}</button>
       </header>
@@ -66,7 +87,7 @@ export function OverlayChatRoot({
         value={sessionId ?? ''}
         onChange={(event) => {
           const id = recent.find(candidate => candidate === event.currentTarget.value)
-          if (id !== undefined) openSession(id)
+          if (id !== undefined) { manualNavigation.current += 1; openSession(id) }
         }}
       >
         <option value="">{t('history')}</option>
