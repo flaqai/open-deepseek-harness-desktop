@@ -42,6 +42,7 @@ function mount(view: OrbSettingsView, canSelectBackend = true) {
 it('shows only observed capabilities and preserves the normal approval warning', () => {
   const actions = mount({ phase: 'ready', settings, status: ready })
   expect(screen.getByText(zh.backgroundHint)).toBeTruthy()
+  expect(screen.getByText(zh.automaticSelectionNeedsAccessibility)).toBeTruthy()
   expect(screen.getByText('运行中的任务：0')).toBeTruthy()
   expect(screen.getByText(zh.permissionDenied)).toBeTruthy()
   const backend = screen.getByRole('combobox', { name: zh.backend }) as HTMLSelectElement
@@ -72,6 +73,7 @@ it('keeps NAS remote-chat presentation available but disables local controls', (
   expect((screen.getByRole('checkbox', { name: zh.selectionToolbar }) as HTMLInputElement).disabled).toBe(true)
   expect((screen.getByRole('combobox', { name: zh.backend }) as HTMLSelectElement).disabled).toBe(true)
   expect(screen.getByText(zh.unavailable)).toBeTruthy()
+  expect(screen.queryByText(zh.automaticSelectionNeedsAccessibility)).toBeNull()
 })
 
 it('offers but does not automatically invoke quick restart after a backend change', () => {
