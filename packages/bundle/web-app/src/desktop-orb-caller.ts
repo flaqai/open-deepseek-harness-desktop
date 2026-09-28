@@ -8,6 +8,12 @@ import { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-client-connection'
 
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    desktopOrbCaller: DesktopOrbCallerOwner
+  }
+}
+
 /** Launch-only environment key for the Desktop generation authority. */
 export const DESKTOP_ORB_SECRET_ENV = 'DSH_DESKTOP_ORB_OWNER_SECRET'
 /** Exact local Host route owned by the Desktop caller bridge. */
@@ -46,15 +52,18 @@ export interface OrbCallerSessionDriver {
   inspect(sessionId: SessionId): Promise<{ readonly meta: { readonly cwd?: string; readonly agentPreset?: string } }>
 }
 
+/** Host-owned caller identity shared by the private route and native provider. */
+export interface DesktopOrbCallerOwner {
+  ensure(): Promise<SessionId>
+  ownsCaller(sessionId: SessionId): Promise<boolean>
+}
+
 /** Host-side durable owner; no renderer-supplied Session ID is accepted.
  * @param home - Canonical active Harness data directory.
  * @param sessions - Host Session operations, never a browser proxy.
  * @returns Owner operations for this Host and data directory.
  */
-export function createDesktopOrbCaller(home: string, sessions: OrbCallerSessionDriver): {
-  ensure(): Promise<SessionId>
-  ownsCaller(sessionId: SessionId): Promise<boolean>
-} {
+export function createDesktopOrbCaller(home: string, sessions: OrbCallerSessionDriver): DesktopOrbCallerOwner {
   if (!isAbsolute(home) || resolve(home) !== home) throw new Error('orb caller: expected a canonical absolute DSH_HOME')
   const directory = join(home, '.desktop-orb')
   const workspace = join(home, 'orb-workspace')
@@ -129,6 +138,7 @@ export function installDesktopOrbCallerRoute(ctx: Context, home: string, secret:
   if (!validOrbSecret(secret)) throw new Error('orb caller: invalid Desktop generation secret')
   ctx.inject(['connection', 'sessionController'], (inner) => {
     const owner = createDesktopOrbCaller(home, inner.sessionController)
+    inner.provide('desktopOrbCaller', owner)
     inner.effect(() => inner.connection.fetch.register({
       path: DESKTOP_ORB_CALLER_ROUTE,
       methods: ['POST'],

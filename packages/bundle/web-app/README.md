@@ -86,6 +86,10 @@ The URL line and browser handoff are readiness signals: supervisors RPC as soon 
 
 A community Desktop-owned, loopback-only Web invocation registers `GET /api/desktop.quit-inspection` through Connection's authenticated API router; ordinary Web and NAS invocations do not register it. It reports live Agent turns, queued inbox work, running jobs, and active rows from Schedule's full persistent catalog without activating a Session. Schedule is disabled by default, so its absence means no reminder timer is armed; unavailable required services or a failed catalog read return 503 rather than an idle result. The route is released with the Web plugin fiber.
 
+The same Desktop-only launch may register `POST /api/desktop.orb-caller` when its generation secret and data home are available. The private route ensures one durable standard Orb caller Session and publishes its Host-owned identity as `ctx.desktopOrbCaller`; the private Desktop Host uses `ownsCaller()` to authorize native Computer Use calls. Ordinary Web and NAS launches expose neither route nor owner.
+
+The Host background-task helper can create standard worker Sessions for that caller, queue text through the ordinary Session Controller, list owned workers after a Host restart, and cancel only an active turn. Worker ownership records live under the local data home. It does not install a route or a UI command; callers must supply the local Desktop authority and Host-owned caller verifier. Ordinary approval and user-question handling remains with each worker's standard Session.
+
 ### LAN trust sampling
 
 `resolveLanTrust` samples the network once at boot: a loopback bind (`127.0.0.1`) derives no LAN addresses, while an all-interfaces bind adds every non-internal IPv4 literal. The derived literals plus the explicit `--trusted-host` authorities form the `/api` browser-trust fence, and the printed LAN URL always matches that fence.
@@ -96,12 +100,16 @@ A community Desktop-owned, loopback-only Web invocation registers `GET /api/desk
 |---|---|
 | [`src/index.ts`](src/index.ts) | The `web-app` glue plugin: dist resolution, LAN trust sampling, prompt sections, bash variable, URL line, browser handoff |
 | [`src/desktop-quit-inspection.ts`](src/desktop-quit-inspection.ts) | Desktop-only authenticated task inspection route |
+| [`src/desktop-orb-caller.ts`](src/desktop-orb-caller.ts) | Desktop-only caller Session route and Host-owned identity |
+| [`src/desktop-orb-background.ts`](src/desktop-orb-background.ts) | Local Host worker ownership and standard Session operations |
 | [`src/startup.ts`](src/startup.ts) | The `web-startup` provider: `--host`, `--port`, `--trusted-host`, `--no-open`, `--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | The web patch: restated base values, web host rows, browser roster, preset registry |
 | [`presets/`](presets) | One `@deepseek-ai/dsh-agent-preset` declaration per shipped preset (`standard`, `ptc`, `minimal`, `cordis`), each its own patch file |
 | — | No runtime invariant companion is published; every contribution (frontend-static child plugin, prompt section, bashEnv registration) is registry-disposed with the fiber, and each owning registry's package carries that relation's invariant; the package holds no mutable state of its own to audit. |
 | [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | Dist resolution, fallback seat, prompt sections, readiness |
 | [`tests/desktop-quit-inspection.spec.ts`](tests/desktop-quit-inspection.spec.ts) | Task inspection, disabled Schedule, route restrictions, and failure response |
+| [`tests/desktop-orb-caller.spec.ts`](tests/desktop-orb-caller.spec.ts) | Durable Orb caller identity, route authority, and disposal |
+| [`tests/desktop-orb-background.spec.ts`](tests/desktop-orb-background.spec.ts) | Worker ownership, restart, queue, and cancel behavior |
 | [`tests/startup.spec.ts`](tests/startup.spec.ts) | Command-line parsing over a real Loader tree |
 | [`tests/trusted-hosts.spec.ts`](tests/trusted-hosts.spec.ts) | LAN-trust sampling |
 | [`tests/browser-open.spec.ts`](tests/browser-open.spec.ts) | Default-browser handoff after the page is reachable |

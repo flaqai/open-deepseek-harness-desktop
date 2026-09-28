@@ -95,8 +95,9 @@ describe('Desktop Orb caller ownership', () => {
     ctx.provide('connection', { fetch: { register } } as never)
     ctx.provide('sessionController', sessions as never)
     try {
-      const mounted = ctx.plugin(pluginCtx => installDesktopOrbCallerRoute(pluginCtx, path, SECRET))
+      const mounted = ctx.plugin((pluginCtx) => { installDesktopOrbCallerRoute(pluginCtx, path, SECRET) })
       await mounted.await()
+      expect(ctx.get('desktopOrbCaller')).toBeDefined()
       expect(register).toHaveBeenCalledWith(expect.objectContaining({
         path: '/api/desktop.orb-caller', methods: ['POST'], requestBody: 'buffered',
       }))
@@ -109,6 +110,8 @@ describe('Desktop Orb caller ownership', () => {
       const response = await route!.fetch(request(SECRET))
       expect(response.status).toBe(200)
       expect((await response.json() as { sessionId: string }).sessionId).toMatch(/^session-/u)
+      await mounted.dispose()
+      expect(ctx.get('desktopOrbCaller')).toBeUndefined()
     } finally { await ctx.fiber.dispose() }
   })
 })
