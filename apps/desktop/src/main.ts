@@ -62,13 +62,14 @@ import {
   type ManagedOrbComputerBackend, type OrbSettings, type OrbSettingsPatch,
 } from './orb-settings.ts'
 import { createOrbWindowController, type OrbWindowController } from './orb-window.ts'
+import { ensureLocalOrbCaller } from './orb-caller-client.ts'
 import { isTrustedOrbPage, nasOrbChatReady } from './orb-navigation.ts'
 import { orbRuntimeStatus, type OrbPermissionStatus, type OrbRuntimeStatus } from './orb-runtime-status.ts'
 import { createOrbShortcutController, electronOrbShortcutRegistry, type OrbShortcutController } from './orb-shortcut.ts'
 import { createOrbSelectionController, type OrbSelectionController } from './orb-selection.ts'
 import { createOrbMacSelectionMonitorFactory } from './orb-selection-macos-native.ts'
 import {
-  createElectronOrbSelectionToolbarWindow, createOrbSelectionWindowController,
+  chooseElectronOrbSelectionFallbackAction, createElectronOrbSelectionToolbarWindow, createOrbSelectionWindowController,
   orbSelectionSupportsPositioning, orbSelectionWorkAreas, type OrbSelectionWindowController,
 } from './orb-selection-window.ts'
 import { blockEmbeddedNavigation, blockEmbeddedRequest, parseExternalBrowserUrl, trustedRendererPopupUrl } from './sidebar-iframe-security.ts'
@@ -599,6 +600,10 @@ function createLocalOrbSelectionController(): OrbSelectionController {
     supportsPositioning: orbSelectionSupportsPositioning,
     workAreas: orbSelectionWorkAreas,
     createWindow: createElectronOrbSelectionToolbarWindow,
+    chooseFallbackAction: locale => chooseElectronOrbSelectionFallbackAction(
+      locale,
+      mainSurface?.window.isVisible() === true ? mainSurface.window : undefined,
+    ),
     locale: () => menuLocale,
   })
   return createOrbSelectionController({
@@ -612,9 +617,13 @@ function createLocalOrbSelectionController(): OrbSelectionController {
     cursorPoint: () => screen.getCursorScreenPoint(),
     showActions: (selection, actions) => {
       void orbSelectionWindowController?.show(selection, actions).then((result) => {
-        // Native Wayland cannot position a cross-application toolbar. Keep the
-        // explicit copied-text gesture usable by putting it into the draft.
-        if (result === 'unavailable' && !orbSelectionSupportsPositioning()) actions.attach()
+        // Native Wayland cannot position a cross-application toolbar. Present
+        // the same four explicit choices; never attach text automatically.
+        if (result === 'unavailable' && !orbSelectionSupportsPositioning()) {
+          void orbSelectionWindowController?.showFallback(actions).catch((error: unknown) => {
+            console.warn('desktop: floating selection fallback could not open', error)
+          })
+        }
       }).catch((error: unknown) => { console.warn('desktop: floating selection toolbar failed', error) })
     },
     openSearch: url => shell.openExternal(url),
@@ -2179,6 +2188,20 @@ async function startApplication(): Promise<void> {
     if (event.sender.id === orbWindowController?.webContentsId) assertOrbRenderer(event)
     else assertMainOrbRenderer(event)
     return readOrbSettings()
+  })
+  ipcMain.handle(DESKTOP_IPC.orbCallerEnsure, async (event): Promise<string> => {
+    assertOrbRenderer(event)
+    const origin = harnessOrigin
+    const secret = supervisor?.orbCallerSecret
+    if (bootNasRuntime() !== undefined || supervisor?.isDiagnosticMode !== false
+      || origin === undefined || secret === undefined) {
+      throw new Error('desktop: floating Session ownership is unavailable outside the active local Host')
+    }
+    const sessionId = await ensureLocalOrbCaller(origin, secret, event.sender.session.cookies, fetch)
+    if (origin !== harnessOrigin || secret !== supervisor?.orbCallerSecret || bootNasRuntime() !== undefined) {
+      throw new Error('desktop: floating Session Host generation changed during ownership lookup')
+    }
+    return sessionId
   })
   ipcMain.handle(DESKTOP_IPC.orbStatus, (event): Promise<OrbRuntimeStatus> => {
     assertMainOrbRenderer(event)

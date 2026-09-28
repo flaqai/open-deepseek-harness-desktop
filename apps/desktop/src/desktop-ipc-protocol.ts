@@ -64,6 +64,7 @@ export const DESKTOP_IPC = {
   nasStatus: 'dsh:desktop:nas:status',
   nasTest: 'dsh:desktop:nas:test',
   orbGet: 'dsh:desktop:orb:get',
+  orbCallerEnsure: 'dsh:desktop:orb:caller-ensure',
   orbStatus: 'dsh:desktop:orb:status',
   orbSelectBackend: 'dsh:desktop:orb:select-backend',
   orbChanged: 'dsh:desktop:orb:changed',

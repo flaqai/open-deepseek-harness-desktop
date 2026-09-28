@@ -5,6 +5,7 @@ import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
 
 /** Fixed host operations available only to the floating renderer. */
 export interface OrbRendererBridge {
+  ensureCallerSession(): Promise<string>
   expand(): Promise<void>
   collapse(): Promise<void>
   hide(): Promise<void>
@@ -24,6 +25,7 @@ ipcRenderer.on(DESKTOP_IPC.orbSelectionText, (_event, value: unknown) => {
 })
 
 const bridge: OrbRendererBridge = Object.freeze({
+  ensureCallerSession: () => ipcRenderer.invoke(DESKTOP_IPC.orbCallerEnsure) as Promise<string>,
   expand: () => ipcRenderer.invoke(DESKTOP_IPC.orbExpand) as Promise<void>,
   collapse: () => ipcRenderer.invoke(DESKTOP_IPC.orbCollapse) as Promise<void>,
   hide: () => ipcRenderer.invoke(DESKTOP_IPC.orbHide) as Promise<void>,
