@@ -88,7 +88,7 @@ A community Desktop-owned, loopback-only Web invocation registers `GET /api/desk
 
 The same Desktop-only launch may register `POST /api/desktop.orb-caller` when its generation secret and data home are available. The private route ensures one durable standard Orb caller Session and publishes its Host-owned identity as `ctx.desktopOrbCaller`; the private Desktop Host uses `ownsCaller()` to authorize native Computer Use calls. Ordinary Web and NAS launches expose neither route nor owner.
 
-The Host background-task helper can create standard worker Sessions for that caller, queue text through the ordinary Session Controller, list owned workers after a Host restart, and cancel only an active turn. Worker ownership records live under the local data home. It does not install a route or a UI command; callers must supply the local Desktop authority and Host-owned caller verifier. Ordinary approval and user-question handling remains with each worker's standard Session.
+The local Desktop Host registers `GET` and `POST /api/desktop.orb-background` behind ordinary Connection cookie and origin checks. The route derives its caller Session from `ctx.desktopOrbCaller` instead of accepting a caller ID from the renderer. It creates standard worker Sessions, queues text through the ordinary Session Controller, lists owned workers after a Host restart, and cancels only an active turn. Worker ownership records live under the local data home. Ordinary approval, plan, and user-question handling remains with each worker's standard Session. Web and NAS launches do not register this route.
 
 ### LAN trust sampling
 

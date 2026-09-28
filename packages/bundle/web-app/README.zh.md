@@ -88,7 +88,7 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 
 同一仅供 Desktop 使用的启动过程，在具有代际密钥和数据目录时，还可注册 `POST /api/desktop.orb-caller`。此私有路由确保一个持久的标准 Orb 调用者 Session，并将主机所属身份作为 `ctx.desktopOrbCaller` 发布；私有 Desktop Host 使用 `ownsCaller()` 授权原生电脑操作调用。普通 Web 与 NAS 启动不暴露该路由或身份。
 
-Host 后台任务辅助模块可为该调用者创建标准 worker Session，通过普通 Session 控制器排队文本，在 Host 重启后列出归属该调用者的 worker，并且只取消正在执行的轮次。worker 归属记录保存在本地数据目录下。此模块不安装路由或 UI 命令；调用方必须提供本地 Desktop 权限状态和 Host 所属的调用者验证器。每个 worker 的标准 Session 仍按普通流程处理审批和用户提问。
+本机 Desktop Host 在普通 Connection Cookie 与来源检查之后注册 `GET` 和 `POST /api/desktop.orb-background`。该路由从 `ctx.desktopOrbCaller` 获取调用者 Session，不接受渲染器传入的调用者 ID。它创建标准 worker Session，通过普通 Session 控制器排队文本，在 Host 重启后列出归属该调用者的 worker，并且只取消正在执行的轮次。worker 归属记录保存在本地数据目录下。每个 worker 的标准 Session 仍按普通流程处理审批、计划和用户提问。普通 Web 与 NAS 启动不注册此路由。
 
 ### LAN 信任采样
 

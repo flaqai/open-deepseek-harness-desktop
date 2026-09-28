@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import { createDesktopOrbBackgroundTasks, type OrbBackgroundSessionDriver } from '../src/desktop-orb-background.ts'
+import { Context } from '@deepseek-ai/cordis'
+import { createDesktopOrbBackgroundTasks, installDesktopOrbBackgroundRoute, type OrbBackgroundSessionDriver } from '../src/desktop-orb-background.ts'
 
 const homes: string[] = []
 afterEach(async () => { await Promise.all(homes.splice(0).map(path => rm(path, { recursive: true, force: true }))) })
@@ -50,7 +51,7 @@ async function fixture() {
   } satisfies OrbBackgroundSessionDriver
   const owner = { ownsCaller: async (id: string) => id === caller && owned }
   const tasks = () => createDesktopOrbBackgroundTasks(home, owner, sessions, () => local)
-  return { home, caller, other, headers, running, create, prompt, cancel, tasks,
+  return { home, caller, other, headers, running, create, prompt, cancel, tasks, sessions, owner,
     setLocal(value: boolean) { local = value }, setOwned(value: boolean) { owned = value } }
 }
 
@@ -104,5 +105,47 @@ describe('local Desktop Orb background Sessions', () => {
       .rejects.toThrow('differs from its ownership record')
     await expect(tasks.stop(f.caller, receipt.sessionId)).rejects.toThrow('differs from its ownership record')
     expect(f.prompt).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses Host-owned caller identity for authenticated route operations and rejects NAS', async () => {
+    const f = await fixture()
+    const ctx = new Context()
+    let route: { fetch(request: Request): Promise<Response> } | undefined
+    const register = vi.fn((input: unknown) => { route = input as typeof route; return () => {} })
+    ctx.provide('connection', { fetch: { register } } as never)
+    ctx.provide('sessionController', f.sessions as never)
+    ctx.provide('desktopOrbCaller', { ensure: async () => f.caller, ownsCaller: f.owner.ownsCaller })
+    try {
+      const mounted = ctx.plugin((pluginCtx) => { installDesktopOrbBackgroundRoute(pluginCtx, f.home, () => true) })
+      await mounted.await()
+      expect(register).toHaveBeenCalledWith(expect.objectContaining({
+        path: '/api/desktop.orb-background', methods: ['GET', 'POST'], requestBody: 'buffered',
+      }))
+      const post = (body: object) => route!.fetch(new Request('http://127.0.0.1:1234/api/desktop.orb-background', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      }))
+      expect((await post({ operation: 'submit', task: 'draft', callerSessionId: f.other })).status).toBe(400)
+      expect(f.prompt).not.toHaveBeenCalled()
+      const created = await post({ operation: 'submit', task: 'draft' })
+      expect(created.status).toBe(200)
+      const receipt = await created.json() as { sessionId: string }
+      const listed = await route!.fetch(new Request('http://127.0.0.1:1234/api/desktop.orb-background'))
+      expect((await listed.json() as { workers: Array<{ sessionId: string }> }).workers[0]?.sessionId).toBe(receipt.sessionId)
+      expect((await post({ operation: 'stop', workerSessionId: receipt.sessionId })).status).toBe(200)
+      await mounted.dispose()
+    } finally { await ctx.fiber.dispose() }
+
+    const nas = new Context()
+    let nasRoute: { fetch(request: Request): Promise<Response> } | undefined
+    nas.provide('connection', { fetch: { register: (input: unknown) => { nasRoute = input as typeof nasRoute; return () => {} } } } as never)
+    nas.provide('sessionController', f.sessions as never)
+    nas.provide('desktopOrbCaller', { ensure: async () => f.caller, ownsCaller: f.owner.ownsCaller })
+    try {
+      const mounted = nas.plugin((pluginCtx) => { installDesktopOrbBackgroundRoute(pluginCtx, f.home, () => false) })
+      await mounted.await()
+      const response = await nasRoute!.fetch(new Request('http://127.0.0.1:1234/api/desktop.orb-background'))
+      expect(response.status).toBe(403)
+      await mounted.dispose()
+    } finally { await nas.fiber.dispose() }
   })
 })

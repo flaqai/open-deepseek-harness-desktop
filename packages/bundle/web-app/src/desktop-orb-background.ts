@@ -3,11 +3,18 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
+import type { Context } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionController, SessionRequestId } from '@deepseek-ai/dsh-api-session-controller'
+import type {} from '@deepseek-ai/dsh-client-connection'
+import type {} from './desktop-orb-caller.ts'
 
 const SESSION_PATTERN = /^session-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
 const MAX_TASK_LENGTH = 16_384
+const MAX_ROUTE_BODY_BYTES = 20 * 1024
+
+/** Authenticated same-origin route mounted only by the local Desktop Host. */
+export const DESKTOP_ORB_BACKGROUND_ROUTE = '/api/desktop.orb-background'
 
 /** Existing Host operations; the ordinary controller retains approval and question handling. */
 export type OrbBackgroundSessionDriver = Pick<SessionController, 'create' | 'prompt' | 'inspect' | 'list' | 'cancel'>
@@ -201,7 +208,96 @@ export function createDesktopOrbBackgroundTasks(
       await requireCaller(callerSessionId, signal)
       await readWorker(callerSessionId, workerSessionId, signal)
       await requireCaller(callerSessionId, signal)
-      await sessions.cancel({ sessionId: workerSessionId })
+      sessions.cancel({ sessionId: workerSessionId })
     },
   }
+}
+
+function requestBody(value: unknown):
+  | { operation: 'submit'; task: string; workerSessionId?: SessionId }
+  | { operation: 'stop'; workerSessionId: SessionId } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('invalid request')
+  const record = value as Record<string, unknown>
+  if (record.operation === 'submit' && typeof record.task === 'string'
+    && record.task.trim().length > 0 && record.task.length <= MAX_TASK_LENGTH
+    && (record.workerSessionId === undefined || typeof record.workerSessionId === 'string'
+      && SESSION_PATTERN.test(record.workerSessionId))
+    && Object.keys(record).length === (record.workerSessionId === undefined ? 2 : 3)) {
+    return {
+      operation: 'submit', task: record.task,
+      ...(record.workerSessionId === undefined ? {} : { workerSessionId: SessionId(record.workerSessionId) }),
+    }
+  }
+  if (record.operation === 'stop' && typeof record.workerSessionId === 'string'
+    && SESSION_PATTERN.test(record.workerSessionId) && Object.keys(record).length === 2) {
+    return { operation: 'stop', workerSessionId: SessionId(record.workerSessionId) }
+  }
+  throw new Error('invalid request')
+}
+
+async function boundedBody(request: Request): Promise<string> {
+  if (request.body === null) throw new Error('invalid request')
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let bytes = 0
+  try {
+    for (;;) {
+      request.signal.throwIfAborted()
+      const next = await reader.read()
+      if (next.done) break
+      bytes += next.value.byteLength
+      if (bytes > MAX_ROUTE_BODY_BYTES) throw new Error('invalid request')
+      chunks.push(next.value)
+    }
+  } finally { await reader.cancel().catch(() => {}) }
+  return Buffer.concat(chunks, bytes).toString('utf8')
+}
+
+/** Install background controls behind Connection's normal cookie and origin checks.
+ * @param ctx - Local Desktop Web Host plugin context.
+ * @param home - Canonical local Harness data directory.
+ * @param local - Current Desktop-owned local Host authority, checked for every operation.
+ */
+export function installDesktopOrbBackgroundRoute(ctx: Context, home: string, local: () => boolean): void {
+  ctx.inject(['connection', 'sessionController', 'desktopOrbCaller'], (inner) => {
+    const tasks = createDesktopOrbBackgroundTasks(home, inner.desktopOrbCaller, inner.sessionController, local)
+    inner.effect(() => inner.connection.fetch.register({
+      path: DESKTOP_ORB_BACKGROUND_ROUTE,
+      methods: ['GET', 'POST'],
+      requestBody: 'buffered',
+      fetch: async (request) => {
+        const url = new URL(request.url)
+        if (!local() || url.protocol !== 'http:' || url.hostname !== '127.0.0.1'
+          || url.pathname !== DESKTOP_ORB_BACKGROUND_ROUTE || url.search !== ''
+          || request.headers.get('origin') !== null && request.headers.get('origin') !== url.origin) {
+          return Response.json({ error: 'forbidden' }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
+        }
+        try {
+          const callerSessionId = await inner.desktopOrbCaller.ensure()
+          if (request.method === 'GET') {
+            const workers = await tasks.list(callerSessionId, request.signal)
+            return Response.json({ workers }, { headers: { 'Cache-Control': 'no-store' } })
+          }
+          if (request.method !== 'POST' || request.headers.get('content-type') !== 'application/json') {
+            return Response.json({ error: 'invalid_request' }, { status: 400 })
+          }
+          let parsed: ReturnType<typeof requestBody>
+          try { parsed = requestBody(JSON.parse(await boundedBody(request)) as unknown) }
+          catch { return Response.json({ error: 'invalid_request' }, { status: 400 }) }
+          if (parsed.operation === 'submit') {
+            const result = await tasks.submit({
+              callerSessionId, task: parsed.task,
+              ...(parsed.workerSessionId === undefined ? {} : { workerSessionId: parsed.workerSessionId }),
+            }, request.signal)
+            return Response.json(result, { headers: { 'Cache-Control': 'no-store' } })
+          }
+          await tasks.stop(callerSessionId, parsed.workerSessionId, request.signal)
+          return Response.json({ stopped: true }, { headers: { 'Cache-Control': 'no-store' } })
+        } catch (error) {
+          inner.logger.warn('orb background: request failed', error)
+          return Response.json({ error: 'unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+        }
+      },
+    }), 'web-app: Desktop Orb background tasks')
+  })
 }

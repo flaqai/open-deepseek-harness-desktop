@@ -28,6 +28,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-shell-env'
 import { installDesktopQuitInspectionRoute, mayExposeDesktopQuitInspection } from './desktop-quit-inspection.ts'
 import { consumeDesktopOrbSecret, installDesktopOrbCallerRoute } from './desktop-orb-caller.ts'
+import { installDesktopOrbBackgroundRoute } from './desktop-orb-background.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'web-app'
@@ -267,6 +268,9 @@ export function apply(ctx: Context, config: Config): void {
     installDesktopQuitInspectionRoute(ctx)
     if (orbSecret !== undefined && process.env.DSH_HOME !== undefined) {
       installDesktopOrbCallerRoute(ctx, process.env.DSH_HOME, orbSecret)
+      installDesktopOrbBackgroundRoute(ctx, process.env.DSH_HOME, () => mayExposeDesktopQuitInspection(
+        process.env.DSH_DESKTOP_WEB_RESTART_OWNER, ctx.webServer.host, config.nas !== undefined,
+      ))
     }
   }
   // The loopback URL belongs to this host. Under SSH, the operator reaches it

@@ -72,7 +72,7 @@ it('opens the Host-owned Session but retains access to ordinary history', async 
   const openSession = vi.fn((id: typeof other) => {
     list = { ...list, byId: Object.fromEntries(Object.entries(list.byId).map(([key, row]) => [key, {
       ...row, retainedBy: { mainView: key === id ? 1 : 0 },
-    }])) } as SessionListState
+    }])) }
   })
   const ensureCallerSession = vi.fn(async () => owned)
   const props = {
@@ -105,7 +105,7 @@ it('does not override a history choice made while the Host resolves the owned Se
   const openSession = vi.fn((id: typeof old) => {
     list = { ...list, byId: Object.fromEntries(Object.entries(list.byId).map(([key, row]) => [key, {
       ...row, retainedBy: { mainView: key === id ? 1 : 0 },
-    }])) } as SessionListState
+    }])) }
   })
   const props = {
     t: ((key: string) => (zh as Readonly<Record<string, string>>)[key] ?? key),
@@ -121,4 +121,49 @@ it('does not override a history choice made while the Host resolves the owned Se
   expect(openSession).toHaveBeenCalledTimes(1)
   expect(openSession).toHaveBeenLastCalledWith(selected)
   view.rerender(<OverlayChatRoot {...(props as OverlayChatRootProps)} />)
+})
+
+it('shows a background worker only after the Host list confirms its submitted Session', async () => {
+  const workerId = 'session-00000000-0000-4000-8000-000000000001'
+  const list = { ids: [], phase: 'ready', byId: {}, projectionsBySession: {} } as SessionListState
+  const workers = [{ sessionId: workerId, running: true }]
+  let listResult: typeof workers = []
+  const backgroundTasks = {
+    list: vi.fn(async () => listResult),
+    submit: vi.fn(async () => { listResult = workers; return workerId }),
+    stop: vi.fn(async () => { listResult = [{ sessionId: workerId, running: false }] }),
+  }
+  const openSession = vi.fn()
+  const props = {
+    t: ((key: string) => (zh as Readonly<Record<string, string>>)[key] ?? key),
+    renderSlot: vi.fn(() => null),
+    useSessions: (select: (state: SessionListState) => unknown) => select(list),
+    startSession: vi.fn(), openSession, collapse: vi.fn(), openMain: vi.fn(), insertSelection: vi.fn(),
+    backgroundTasks,
+  } as OverlayChatRootProps
+  render(<OverlayChatRoot {...props} />)
+  await screen.findByLabelText(zh.backgroundTaskLabel)
+  expect(screen.queryByText(zh.backgroundWorker)).toBeNull()
+  fireEvent.change(screen.getByLabelText(zh.backgroundTaskLabel), { target: { value: 'Prepare report' } })
+  fireEvent.click(screen.getByRole('button', { name: zh.backgroundSubmit }))
+  await waitFor(() => { expect(screen.getByText(zh.backgroundQueued)).toBeTruthy() })
+  expect(backgroundTasks.submit).toHaveBeenCalledWith('Prepare report')
+  fireEvent.click(screen.getByRole('button', { name: zh.backgroundOpen }))
+  expect(openSession).toHaveBeenCalledWith(workerId)
+  fireEvent.click(screen.getByRole('button', { name: zh.backgroundStop }))
+  await waitFor(() => { expect(backgroundTasks.stop).toHaveBeenCalledWith(workerId) })
+})
+
+it('hides local task controls when the Host route is absent', async () => {
+  const list = { ids: [], phase: 'ready', byId: {}, projectionsBySession: {} } as SessionListState
+  const props = {
+    t: ((key: string) => (zh as Readonly<Record<string, string>>)[key] ?? key),
+    renderSlot: vi.fn(() => null),
+    useSessions: (select: (state: SessionListState) => unknown) => select(list),
+    startSession: vi.fn(), openSession: vi.fn(), collapse: vi.fn(), openMain: vi.fn(), insertSelection: vi.fn(),
+    backgroundTasks: { list: async () => undefined, submit: vi.fn(), stop: vi.fn() },
+  } as OverlayChatRootProps
+  render(<OverlayChatRoot {...props} />)
+  await waitFor(() => { expect(screen.queryByText(zh.backgroundTitle)).toBeNull() })
+  expect(screen.queryByRole('button', { name: zh.backgroundSubmit })).toBeNull()
 })

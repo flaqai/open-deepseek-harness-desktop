@@ -10,6 +10,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { OverlayChatRoot, type OverlayChatInjected } from './OverlayChatRoot.tsx'
 import { en, zh, type OrbChatKey } from './locales.ts'
+import { createOrbBackgroundClient } from './orb-background-client.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -64,8 +65,11 @@ export function apply(ctx: ClientContext): void {
   if (new URLSearchParams(window.location.search).get('surface') !== 'orb') return
   const bridge = readOrbBridge()
   if (bridge === undefined) return
-  const onSelectionText = bridge.onSelectionText
-  const ensureCallerSession = bridge.ensureCallerSession
+  const onSelectionText = bridge.onSelectionText === undefined
+    ? undefined : (callback: (text: string) => void) => bridge.onSelectionText?.(callback) ?? (() => {})
+  const ensureCallerSession = bridge.ensureCallerSession === undefined
+    ? undefined : () => bridge.ensureCallerSession?.() ?? Promise.reject(new Error('floating Session bridge is unavailable'))
+  const backgroundTasks = createOrbBackgroundClient(fetch)
   ctx.effect(() => ctx.locale.register('orbChat', { zh, en }), 'ui-overlay-chat: dictionaries')
   ctx.effect(() => ctx.slots.register({
     name: 'root',
@@ -83,6 +87,7 @@ export function apply(ctx: ClientContext): void {
       }),
       ...(onSelectionText === undefined ? {} : { onSelectionText: (callback: (text: string) => void) => onSelectionText(callback) }),
       insertSelection: text => insertSelectionIntoCurrentDraft(ctx, text),
+      backgroundTasks,
     }),
   }, OverlayChatRoot), 'ui-overlay-chat: compact root')
 }
