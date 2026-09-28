@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/experimental/computer-use-orb-native/README.md
+/:
+  en: dc0325788ce94f9c
+  zh: cfcce883d3198825
+/deepseek-ai-dsh-experimental-computer-use-orb-native:
+  en: fc4ba0c00bf70078
+  zh: 5dc6bf7f2f16b738
+/deepseek-ai-dsh-experimental-computer-use-orb-native/summary:
+  en: 7dfb6103c3009dcc
+  zh: 83df015fc91492db
+/deepseek-ai-dsh-experimental-computer-use-orb-native/host-integration:
+  en: 8ed584f4eda6c829
+  zh: 7b9bda92b670f729
+/deepseek-ai-dsh-experimental-computer-use-orb-native/dev-note:
+  en: 120d4c78d4687180
+  zh: bd3ecac69c399f1a
+/deepseek-ai-dsh-experimental-computer-use-orb-native/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-experimental-computer-use-orb-native/model-experience/orb-tools-and-results:
+  en: aaed3e696643c58e
+  zh: e2b090c7d62bdfa6
+/deepseek-ai-dsh-experimental-computer-use-orb-native/model-experience/orb-tools-and-results/what-the-model-sees:
+  en: 868b532ee0aafd80
+  zh: c474ea02ad18db84
+/deepseek-ai-dsh-experimental-computer-use-orb-native/model-experience/orb-tools-and-results/token-effect:
+  en: 88298a5346ae42e4
+  zh: b8b21239141ed182
+/deepseek-ai-dsh-experimental-computer-use-orb-native/model-experience/orb-tools-and-results/kv-cache-effect:
+  en: efc696a1ef680a6c
+  zh: c4d28b613bcde660
+/deepseek-ai-dsh-experimental-computer-use-orb-native/known-limitations-and-deferred-work:
+  en: 2ae1299c08f82447
+  zh: cb43cff102debf40
