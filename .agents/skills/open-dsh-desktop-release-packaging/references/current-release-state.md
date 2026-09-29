@@ -4,55 +4,51 @@ This file records the most recently completed desktop release. It is historical 
 
 ## Version lock
 
-- Target version: `0.1.6-alpha.2`
-- Tag: `odsh-v0.1.6-alpha.2`
-- Title: `v0.1.6-alpha.2`
-- Release branch: `release/0.1.6-alpha.2`
-- Packaging branch: `fix/windows-packaging-0.1.6-alpha.2`
+- Target version: `0.1.7-rc.2.1`
+- Tag: `odsh-v0.1.7-rc.2.1`
+- Title: `v0.1.7-rc.2.1`
+- Release branch: `release/0.1.7-rc.2.1`
+- Packaging branch: `fix/windows-packaging-0.1.7-rc.2.1`
 - Lock rule: preserve this version and identity until the user explicitly requests a version change. A request to retry, rebuild, synchronize, package, upload, or publish preserves this lock.
 
 ## Recorded source state
 
-Last observed: `2026-09-20 19:41:04 CST`
+Last observed: `2026-09-29 19:27 CST`
 
 | Item | Recorded value | State |
 | --- | --- | --- |
-| `master` | `origin/master` | selected source candidate; includes the release-orchestration empty-conclusion parser repair |
-| Packaging branch | `origin/fix/windows-packaging-0.1.6-alpha.2` | synchronized to the selected source candidate |
-| Release branch | `origin/release/0.1.6-alpha.2` | synchronized to the selected source candidate |
-| Release notes | `.artifacts/release-notes/odsh-v0.1.6-alpha.2.md` | regenerated from the previous public `odsh-v0.1.5-rc.2.3` Release to tag `odsh-v0.1.6-alpha.2`; Python and Office are described as newly added on-demand capabilities |
+| Final source | `odsh-v0.1.7-rc.2.1` | published tag identifies the accepted build source; the release Doctor plan records its full SHA |
+| Previous public Release | `odsh-v0.1.7-rc.2` | release-note comparison base |
+| Release notes | `.artifacts/release-notes/odsh-v0.1.7-rc.2.1.md` | bilingual notes validated against the previous public Release and final source |
+| Bundled plugins | `b3e980f5a0ba887e26fc42c35fa6063a6c8b4cd421e8db7de8240001b6305561` | matching snapshot in all three accepted platform runs |
 
 ## Network preflight
 
 | Item | Recorded value |
 | --- | --- |
-| Adopted route | direct CLI route through the selected system network node; the extra `127.0.0.1:7890` HTTP layer was removed after it produced intermittent GitHub API EOF responses |
-| Required floor | `1.0 MiB/s` |
-| Last result | passed at `2.91 MiB/s` minimum and `3.05 MiB/s` average; sampled `desktop-linux-x64` from run `35500438762` (`67108864` bytes in `21.05s`) |
+| Adopted route | explicit proxy through `127.0.0.1:7890` |
+| Required download floor | `1.0 MiB/s` |
+| Last result | passed; slowest observed sample `3.39 MiB/s` |
 | Dispatch permission | all native builds, downloads, and exact-set verification completed |
 
 ## Platform delivery matrix
 
-These rows describe artifacts built from the final source for this locked version, not older runs with the same or a nearby version.
+All accepted runs built from the commit named by `odsh-v0.1.7-rc.2.1`.
 
-| Platform | Workflow run | Build | Native qualification | Downloaded locally | Exact-set verified | Public on GitHub | Public on CNB |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Windows x64 | [35499287110](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/35499287110) | succeeded | candidate build, installed-package smoke and checksum jobs succeeded | downloaded | verified in complete set | yes | yes |
-| macOS arm64/x64 | [35500405004](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/35500405004) | succeeded for both architectures | final DMG and ZIP native smoke succeeded for arm64 and x64 | downloaded | verified in complete set | yes | yes |
-| Linux x64 | [35500438762](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/35500438762) | succeeded | packaged resources, deb/rpm build and checksum jobs succeeded | downloaded | verified in complete set | yes | yes |
+| Platform | Workflow run | Native qualification | Local exact set | GitHub | CNB |
+| --- | --- | --- | --- | --- | --- |
+| Windows x64 | [36529700320](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/36529700320) | installed-package startup reached `dsh web`, client ready, event dispatch ready, and first-start bundled-plugin commit | verified | public | public |
+| macOS arm64/x64 | [36531870619](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/36531870619) | CI native DMG/ZIP smoke passed for both architectures; isolated local arm64 GUI launch reached the welcome screen and both readiness signals; x64 GUI was not manually inspected | verified | public | public |
+| Linux x64 | [36531924037](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/36531924037) | packaged resource, DEB/RPM and checksum jobs passed | verified | public | public |
 
 ## Publication state
 
-- GitHub tag: `odsh-v0.1.6-alpha.2` identifies the published source revision.
-- GitHub Release: public, stable/latest, and not a prerelease at `https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.6-alpha.2`; published at `2026-09-20T11:03:43Z`.
-- GitHub assets: 18 public assets: seven desktop installers, eight optional runtime archives, `SHA256SUMS`, the signed runtime catalog, and its Sigstore bundle. All 15 distributable files match their recorded SHA-256 values.
-- Optional runtime delivery: the eight managed-Python and official-Office-engine archives are public for Windows x64, macOS arm64/x64, and Linux x64. Signed runtime metadata was generated by successful run [35508066786](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/35508066786).
-- CNB synchronization: exact-tag run [35508142613](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/35508142613) succeeded for `odsh-v0.1.6-alpha.2` after the signed metadata was available.
-- CNB anonymous update index: revision `53`, generated `2026-09-20T11:36:50.551Z`, expires `2026-09-20T17:36:50.551Z`, and contains one active `odsh-v0.1.6-alpha.2` entry with all 15 distributable assets. Anonymous HEAD checks returned the indexed byte size for every asset. Release URL: `https://cnb.cool/hecoococ/open-deepseek-harness-desktop/-/releases/tag/odsh-v0.1.6-alpha.2`.
-- CNB signed metadata: both `workspace-runtimes-0.1.6-alpha.2.v1.json` and `workspace-runtimes.v1.sigstore.json` are anonymously downloadable from the CNB Release with the same byte sizes as GitHub.
-- Bundled-plugin snapshot: all three accepted runs match digest `f433923408bfe057247aa6a9362cfb502d7be34092c6e2b589a0eba177a60fd8`.
-- Local handoff directory: `/Users/6677h/StudioProjects/flaq-deepseek-harness/open-deepseek-harness-desktop/release/0.1.6-alpha.2`; its seven installers remain unchanged and verified against the accepted workflow checksums. `SHA256SUMS` now also records the eight optional runtime archives used by GitHub and CNB.
-- Publication authorization: complete. The user manually confirmed the GitHub publication, and the GitHub-to-CNB synchronization plus anonymous verification succeeded.
+- GitHub tag and Release: `odsh-v0.1.7-rc.2.1` is [public, stable, non-prerelease and Latest](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.7-rc.2.1), published `2026-09-29T11:20:27Z`.
+- GitHub assets: seven platform installers plus `SHA256SUMS`; every published asset passed size and SHA-256 checks against the local exact set. No optional runtime archive is part of this Release.
+- CNB synchronization: [release-triggered run 36561129000](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/36561129000) succeeded without a duplicate manual dispatch.
+- CNB anonymous update index: revision `102`, generated `2026-09-29T11:20:58.775Z`, expires `2026-09-29T17:20:58.775Z`; the exact-tag entry and anonymous HEAD byte sizes for all seven installers were verified. The [CNB Release](https://cnb.cool/hecoococ/open-deepseek-harness-desktop/-/releases/tag/odsh-v0.1.7-rc.2.1) is public.
+- Local handoff directory: `/Users/6677h/StudioProjects/flaq-deepseek-harness/open-deepseek-harness-desktop/release/0.1.7-rc.2.1`, containing exactly seven installers and `SHA256SUMS`.
+- Publication authorization: the user explicitly approved public upload to GitHub and CNB for this release.
 
 ## Recording a completed release
 
