@@ -56,7 +56,7 @@ test('Windows candidate reuse reruns fast preflight and strict installed smoke w
   const smoke = workflow.jobs['windows-smoke']
   assert.ok(smoke.needs.includes('windows-preflight'))
   assert.match(smoke.if, /needs\.windows-preflight\.result == 'success'/u)
-  assert.equal(smoke.steps.find(step => step.uses === 'actions/checkout@v6')?.with?.['fetch-depth'], 0)
+  assert.equal(smoke.steps.find(step => step.uses === 'actions/checkout@v6')?.with?.['fetch-depth'], "${{ inputs.windows_candidate_run_id != '' && '0' || '1' }}")
   assert.ok(smoke.steps.some(step => step.name === 'Verify Windows candidate identity'))
   assert.ok(smoke.steps.some(step => step.name === 'Smoke test installed Windows package'))
 })
