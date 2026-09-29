@@ -11,14 +11,23 @@ import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { parseDshArgs } from './args.ts'
 import { claimDesktopWebLaunch } from './desktop-web-launch.ts'
 import { reportStartupFailure } from './startup-diagnostics.ts'
+import type { RunProfileOptions } from './profile-boot.ts'
+
+/** Installation-owned dependencies supplied by a packaged CLI launcher. */
+export type RunCliOptions = Pick<RunProfileOptions, 'packageManager'> & {
+  /** Permit plugin commands for Desktop's existing profile; reserved for its installed carrier. */
+  manageDesktopProfile?: boolean
+}
 
 /**
  * Run the public dsh command-line interface.
+ * @param options - Package runtime and Desktop profile access supplied by the installation.
  * @returns a promise that settles when the selected command mode finishes.
  */
-export async function runCli(): Promise<void> {
+export async function runCli(options: RunCliOptions = {}): Promise<void> {
   const version = getDshRuntimeVersion()
-  const invocation = parseDshArgs(process.argv.slice(2), version)
+  const { manageDesktopProfile, ...profileOptions } = options
+  const invocation = parseDshArgs(process.argv.slice(2), version, manageDesktopProfile)
 
   switch (invocation.mode) {
     case 'profile': {
@@ -36,6 +45,7 @@ export async function runCli(): Promise<void> {
           args: invocation.args,
           diagnosticMode: process.env.DSH_PROFILE_DIAGNOSTIC_MODE === '1',
           diagnosticModeOnFailure: process.env.DSH_PROFILE_DIAGNOSTIC_MODE_ON_FAILURE === '1',
+          ...profileOptions,
         })
       } catch (error) {
         if (!(error instanceof StartupError)) throw error
@@ -47,7 +57,7 @@ export async function runCli(): Promise<void> {
     case 'plugin': {
       const { runPlugin } = await import('./plugin.ts')
       // Let native handles and output drain before Node tears down the process.
-      process.exitCode = await runPlugin(invocation.profile, invocation.args)
+      process.exitCode = await runPlugin(invocation.profile, invocation.args, options.packageManager)
       break
     }
     case 'dump-config': {

@@ -12,12 +12,7 @@ import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { CLIENT_BUILD_PROFILE_SELECTOR } from './client-build-environment.ts'
 import { COVERAGE_EXEMPT_ENV, coverageExemptHeavySuites } from './coverage-exempt.ts'
-import {
-  COVERAGE_PARTITIONS_ENV,
-  COVERAGE_TEST_TIMEOUT_ENV,
-  coverageTestTimeoutArgs,
-  parseCoveragePartitionCount,
-} from './coverage-partitions.ts'
+import { COVERAGE_PARTITIONS_ENV, parseCoveragePartitionCount } from './coverage-partitions.ts'
 import { pnpmInvocation } from './pnpm-invocation.ts'
 
 /** A named aggregate exposed by the gate runner. */
@@ -27,6 +22,7 @@ export type Mode =
   | 'ci-static'
   | 'ci-lint-contracts-ready'
   | 'ci-coverage'
+  | 'ci-unit'
   | 'ci-bench'
   | 'ci-snapshot'
   | 'ci-artifacts'
@@ -141,6 +137,7 @@ function parseMode(raw: string | undefined): Mode {
     case 'ci-static':
     case 'ci-lint-contracts-ready':
     case 'ci-coverage':
+    case 'ci-unit':
     case 'ci-bench':
     case 'ci-snapshot':
     case 'ci-artifacts':
@@ -156,7 +153,7 @@ function parseMode(raw: string | undefined): Mode {
       return raw
     default:
       throw new Error(
-        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick, got ${JSON.stringify(raw)}.`,
+        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-unit | ci-bench | ci-snapshot | ci-artifacts | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational-ready | node-compat | check-all | hygiene | doc-sync | doc-quick, got ${JSON.stringify(raw)}.`,
       )
   }
 }
@@ -201,7 +198,12 @@ export function ciWorkerEnvironment(
   env: NodeJS.ProcessEnv,
   available = availableParallelism(),
 ): Record<string, string> {
-  if (!mode.startsWith('ci-')) return {}
+  // ci-unit's gates read none of these settings, while the inventory it runs
+  // reads the same variables (run-gates.spec.ts builds coverage gates from
+  // DSH_COVERAGE_PARTITIONS; the oxlint contract spawns run-oxlint, which
+  // reads DSH_OXLINT_THREADS), so the aggregate leaves the environment as
+  // `pnpm run test` finds it.
+  if (!mode.startsWith('ci-') || mode === 'ci-unit') return {}
   const additions: Record<string, string> = {}
   const setDefault = (name: string, value: number): void => {
     if (env[name] === undefined || env[name] === '') additions[name] = String(value)
@@ -281,6 +283,8 @@ export function gatesForMode(selected: Mode): Gate[] {
       ]
     case 'ci-coverage':
       return coverageGates()
+    case 'ci-unit':
+      return ciUnitGates()
     case 'ci-bench':
       return [pnpmScript('bench', 'test:bench', { label: 'performance benchmarks' })]
     case 'ci-snapshot':
@@ -609,6 +613,14 @@ function ciWindowsCompleteGates(): Gate[] {
 function ciWindowsObservationalGates(): Gate[] {
   const predecessors = [
     ...ciStaticGates({ ownsBuild: true }),
+    // Electron's lazy download must finish before Vitest removes ambient proxies.
+    {
+      id: 'electron-install',
+      label: 'Electron binary',
+      displayCommand: 'pnpm --filter @deepseek-ai/dsh-desktop exec install-electron',
+      ...pnpmInvocation(['--filter', '@deepseek-ai/dsh-desktop', 'exec', 'install-electron']),
+      env: { ELECTRON_GET_USE_PROXY: '1' },
+    },
     // Linux owns required lint and snapshots; Windows omits those duplicates.
     pnpmScript('duplication', 'duplication'),
     pnpmScript('publint', 'publint', { needs: ['build'] }),
@@ -621,7 +633,7 @@ function ciWindowsObservationalGates(): Gate[] {
   return [
     ...predecessors,
     {
-      ...builtBinSmokeGate(),
+      ...builtBinSmokeGate(['build', 'electron-install']),
       // This smoke starts real application children with bounded startup
       // deadlines. Let other Windows processes settle before measuring startup.
       after: predecessors.map(gate => gate.id),
@@ -656,9 +668,8 @@ function lintGate(options: { needs?: string[] } = {}): Gate {
 // small share. A budget of 1 gives each gate 1 worker; lanes that need a strict
 // total of one (the serial reference jobs) also set DSH_GATE_CONCURRENCY=1,
 // which keeps the gates from overlapping at all.
-// DSH_COVERAGE_TEST_TIMEOUT_MS raises Vitest's per-test, expect.poll, and hook
-// defaults together for instrumented lanes whose scheduling overhead exceeds
-// those defaults. Explicit fixture timeouts remain authoritative.
+// DSH_COVERAGE_TEST_TIMEOUT_MS is not a gate argument: vitest.config.ts reads
+// it from the environment every gate inherits (coverageTestTimeoutOptions).
 function coverageWorkerArgs(): { instrumented: string[]; exempt: string[] } {
   const [flag] = positiveIntArg('DSH_COVERAGE_MAX_WORKERS', '--maxWorkers')
   if (flag === undefined) return { instrumented: [], exempt: [] }
@@ -673,7 +684,6 @@ function coverageWorkerArgs(): { instrumented: string[]; exempt: string[] } {
 
 function coverageGates(): Gate[] {
   const workers = coverageWorkerArgs()
-  const timeouts = coverageTestTimeoutArgs(process.env[COVERAGE_TEST_TIMEOUT_ENV])
   const partitions = parseCoveragePartitionCount(process.env[COVERAGE_PARTITIONS_ENV])
   const instrumented = partitions === undefined
     ? pnpmExec('coverage', [
@@ -681,7 +691,6 @@ function coverageGates(): Gate[] {
       'run',
       '--coverage',
       ...workers.instrumented,
-      ...timeouts,
     ], {
       label: 'test:coverage',
       env: { [COVERAGE_EXEMPT_ENV]: '1' },
@@ -700,10 +709,26 @@ function coverageGates(): Gate[] {
       'run',
       ...coverageExemptHeavySuites.map(suite => suite.filter),
       ...workers.exempt,
-      ...timeouts,
     ], {
       label: 'test:coverage-exempt-heavy',
       needs: ['native-system'],
+    }),
+  ]
+}
+
+// The uninstrumented unit inventory for a whole-inventory reference lane
+// (the Sandbox workflow's darwin parity job). It is `pnpm run test`; the lane
+// sets DSH_COVERAGE_TEST_TIMEOUT_MS, which vitest.config.ts reads from the
+// inherited environment, because a shared hosted runner delays cases that
+// inherit Vitest's defaults past them. Output streams so the job log keeps
+// per-file timestamps for a 15–30 minute run.
+function ciUnitGates(): Gate[] {
+  return [
+    pnpmScript('native-system', 'build:native-system'),
+    pnpmExec('unit', ['vitest', 'run'], {
+      label: 'test',
+      needs: ['native-system'],
+      streamOutput: true,
     }),
   ]
 }
@@ -826,6 +851,7 @@ function docSyncLeafGates(options: {
     pnpmScript('skill-invocation-metadata', 'verify-skill-invocation-metadata', { label: 'skill invocation metadata', quick: true }),
     pnpmScript('translation-prompt', 'verify-translation-prompt', { label: 'translation prompt', quick: true }),
     pnpmScript('doc-budgets', 'verify-doc-budgets', { label: 'doc budgets', quick: true }),
+    pnpmScript('upgrade-guides', 'verify-upgrade-guides', { label: 'upgrade guides', quick: true }),
     pnpmExec('doc-standard-tests', ['vitest', 'run', 'scripts/doc-standard.spec.ts'], {
       label: 'documentation standard tests',
       quick: true,
@@ -861,6 +887,7 @@ function builtBinSmokeGate(needs: string[] = ['build']): Gate {
     'apps/cli/tests/profiles/headless/tests/keyless-smoke.e2e.ts',
     'apps/cli/tests/profiles/headless/tests/source-tool.built.e2e.ts',
     'apps/cli/tests/built-bin.e2e.ts',
+    'apps/desktop/tests/acl-skill.built.e2e.ts',
     'packages/host/directory-picker-native/tests/built-worker.e2e.ts',
     'packages/sdk/server/tests/built-scope-carrier.e2e.ts',
     'packages/deliverables/tool-present/tests/built-errors.e2e.ts',

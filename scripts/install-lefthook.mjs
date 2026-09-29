@@ -374,6 +374,18 @@ async function waitForLockTestBarrier(path) {
   }
 }
 
+/** Windows can deny access to a deleted lock until its last reader closes it. */
+async function accessInstallLock(operation, deadline) {
+  while (true) {
+    try {
+      return operation()
+    } catch (error) {
+      if (process.platform !== 'win32' || errorCode(error) !== 'EPERM' || Date.now() >= deadline) throw error
+      await new Promise(resolveWait => setTimeout(resolveWait, INSTALL_LOCK_POLL_MS))
+    }
+  }
+}
+
 async function acquireInstallLock(commonDirectory) {
   const lockPath = join(commonDirectory, INSTALL_LOCK)
   const deadline = Date.now() + INSTALL_LOCK_TIMEOUT_MS
@@ -382,7 +394,7 @@ async function acquireInstallLock(commonDirectory) {
   let observeBarrier = process.env.DSH_TEST_LEFTHOOK_LOCK_OBSERVE_BARRIER
   while (true) {
     try {
-      const lockHandle = openSync(lockPath, 'wx', 0o600)
+      const lockHandle = await accessInstallLock(() => openSync(lockPath, 'wx', 0o600), deadline)
       let ownedStat
       try {
         ownedStat = fstatSync(lockHandle)
@@ -405,14 +417,14 @@ async function acquireInstallLock(commonDirectory) {
       return () => releaseInstallLock(lockPath, ownedRecord, ownedStat)
     } catch (error) {
       if (errorCode(error) !== 'EEXIST') throw error
-      const existingStat = installLockStat(lockPath)
+      const existingStat = await accessInstallLock(() => installLockStat(lockPath), deadline)
       if (existingStat === undefined) continue
       if (!existingStat.isFile() || existingStat.isSymbolicLink()) {
         throw manualLockRecoveryError(lockPath, 'invalid')
       }
-      const existingRecord = readInstallLock(lockPath)
+      const existingRecord = await accessInstallLock(() => readInstallLock(lockPath), deadline)
       if (existingRecord === undefined) continue
-      const verifiedStat = installLockStat(lockPath)
+      const verifiedStat = await accessInstallLock(() => installLockStat(lockPath), deadline)
       if (verifiedStat === undefined) continue
       if (!verifiedStat.isFile() || verifiedStat.isSymbolicLink()) {
         throw manualLockRecoveryError(lockPath, 'invalid')

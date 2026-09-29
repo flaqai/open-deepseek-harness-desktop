@@ -27,8 +27,6 @@ export type AgentPresetSettingsKey =
   | 'switchRefused'
   | 'close'
   | 'creatorDraft'
-  | 'enableDevToolsToSetDefault'
-  | 'enableDevToolsToCreate'
 
 /** English copy. */
 export const en: Record<AgentPresetSettingsKey, string> = {
@@ -67,8 +65,6 @@ export const en: Record<AgentPresetSettingsKey, string> = {
 
   creatorDraft: 'Let the agent help me create a preset',
 
-  enableDevToolsToSetDefault: 'Turn on Coding Tools in General settings to choose a default',
-  enableDevToolsToCreate: 'Turn on Coding Tools in General settings to start Creator mode',
 }
 
 /** Simplified Chinese copy. */
@@ -104,8 +100,6 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
 
   creatorDraft: '让 Agent 帮我创建预设模式',
 
-  enableDevToolsToSetDefault: '请先在通用设置中开启代码工作工具，再设置默认值',
-  enableDevToolsToCreate: '请先在通用设置中开启代码工作工具，再启动创造模式',
 }
 
 // The resolution itself is the shared fold in `dsh-agent-preset-registry/display`,

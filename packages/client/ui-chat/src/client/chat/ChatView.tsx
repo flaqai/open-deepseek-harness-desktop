@@ -1,10 +1,8 @@
 // An enclosing `[data-conversation-scroll]` owns scrolling when present;
 // otherwise this view owns it. Each row subscribes to one stable node key.
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
-import type {
-  ConversationTimelineSnapshot, NodeKey, RenderEntry, RenderMessageImages,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { memo, useCallback, useMemo, useRef, useState, type ComponentProps } from 'react'
+import type { NodeKey, RenderEntry, RenderMessageImages } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { InboxState } from '@deepseek-ai/dsh-agent/types'
 import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/client'
 import {
@@ -18,9 +16,9 @@ import { ChatGroupSeat } from './ChatGroupSeat.tsx'
 import { chatRenderKey } from './render-entry.ts'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { TurnNavigator } from './TurnNavigator.tsx'
+import { RunningStatus } from './RunningStatus.tsx'
 import { mergeTurnRailItems } from './turn-rail-items.ts'
 import { useChatScroll } from './use-chat-scroll.ts'
-import { formatRunDuration } from './message-chrome.ts'
 import { fileMediaUrl, resolveWorkspacePath } from '@deepseek-ai/dsh-util-workspace-path'
 import css from './ChatView.module.css'
 
@@ -28,33 +26,6 @@ import css from './ChatView.module.css'
 function openFailureMessage(error: unknown, fallback: string): string {
   const message = error instanceof Error ? error.message : String(error)
   return message === '' ? fallback : message
-}
-
-function runningTurnStartTime(timeline: ConversationTimelineSnapshot): number | null {
-  let latest: number | null = null
-  for (const turn of timeline.turns.values()) {
-    if (turn.status === 'open') latest = turn.start?.time ?? null
-  }
-  return latest
-}
-
-/** Turn-level activity remains visible during first-token wait, tools, and streaming. */
-function TurnStatus({ startTime, t }: { startTime: number | null; t: ChatViewSlotProps['t'] }) {
-  const [mountedAt] = useState(() => Date.now())
-  const anchor = startTime ?? mountedAt
-  const [elapsedMs, setElapsedMs] = useState(() => Math.max(0, Date.now() - anchor))
-  useEffect(() => {
-    const tick = (): void => { setElapsedMs(Math.max(0, Date.now() - anchor)) }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => { clearInterval(id) }
-  }, [anchor])
-  return (
-    <div className={css.turnStatus}>
-      {t('chat.deepDiving')}
-      {elapsedMs >= 15_000 && <span className={css.turnStatusClock} aria-hidden>{formatRunDuration(elapsedMs, t)}</span>}
-    </div>
-  )
 }
 
 /**
@@ -140,6 +111,13 @@ export function ChatView({
   // both the data and its change signal: the array identity moves only when a
   // Turn enters, leaves, or changes its preview.
   const turnNavigationItems = useChat(s => s.navigation.items())
+  const latestTurnAnchor = turnNavigationItems.at(-1)?.anchorKey
+  const runningStartTime = useChatNode(latestTurnAnchor ?? '', (node) => {
+    const location = node?.location
+    return location?.kind === 'turn' || location?.kind === 'step'
+      ? location.turn.status === 'open' ? location.turn.start?.time : undefined
+      : undefined
+  })
   // Host-computed whole-log outline; the merge is view-layer only (the
   // conversation snapshot never carries projection values).
   const turnOutline = useProjection('turnOutline')
@@ -158,8 +136,6 @@ export function ChatView({
     },
   }), [cwd, t])
   const running = useSession(s => s.running)
-  const timeline = useChat(s => s.timeline)
-  const runningTurnStart = useMemo(() => runningTurnStartTime(timeline), [timeline])
   const openState = useSession(s => s.openState)
   const openError = useSession(s => s.openError)
   const hasMore = useSession(s => s.hasMore)
@@ -320,7 +296,7 @@ export function ChatView({
                 t={t}
               />
             </MarkdownDelegateProvider>
-            {running && <TurnStatus startTime={runningTurnStart} t={t} />}
+            {running && <RunningStatus startTime={runningStartTime} t={t} />}
             {/* No pending placeholders: questions (ui-user-questions) and approvals
                 (ApprovalPanel) both take over the composer, so a flow card would
                 double-render the same wait. */}

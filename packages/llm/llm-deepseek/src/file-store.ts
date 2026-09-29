@@ -244,21 +244,15 @@ export class DeepSeekFileStore {
   }
 
   /**
-   * Invalidate one exact local mapping after a model request rejects its remote id.
-   * @param version - request-image version whose remote generation failed.
-   * @param fileId - exact rejected file id.
+   * Invalidate exact local mappings in one index update after a model request rejects their remote ids.
+   * @param generations - request-image variants with the exact file id the request used for each.
    * @param connection - endpoint and API-key snapshot.
    */
   async invalidate(
-    version: RequestImageAttachment,
-    fileId: DeepSeekFileId,
+    generations: readonly Pick<DeepSeekUploadRecord, 'variantId' | 'fileId'>[],
     connection: DeepSeekFileConnection,
   ): Promise<void> {
-    await this.index.remove(
-      fileScope(connection),
-      version.variantId,
-      fileId,
-    )
+    await this.index.remove(fileScope(connection), generations)
   }
 
   /**
@@ -284,7 +278,7 @@ export class DeepSeekFileStore {
     )
     if (record === undefined) return false
     await this.client(connection).delete(record.fileId, signal)
-    await this.index.remove(scope, version.variantId, record.fileId)
+    await this.index.remove(scope, [{ variantId: version.variantId, fileId: record.fileId }])
     return true
   }
 

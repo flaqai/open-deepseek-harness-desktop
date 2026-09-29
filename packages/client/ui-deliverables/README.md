@@ -27,7 +27,7 @@ This package renders the changed-files card a finished turn ends with — the fi
 
 Mount this plugin alongside `ui-conversation` and the Host [workspace-changes](../../deliverables/workspace-changes/README.md) plugin; a finished turn then ends with the changed-files card between the closing message's body and its action footer. Without a served summary — a turn that changed no file, the plugin composed out, or a Host restarted since the turn ran — the card is absent and only deliveries and prose links remain; outside a git repository the summary lists file-tool edits only.
 
-Changed-file and delivery entry cards, their file-icon tiles, and hover previews follow the [R16 preview-card rule](../../../docs/ui-radius.md#radius-scale), retaining the same contour on hover.
+Changed-file and delivery entry cards and hover previews follow the [R16 preview-card rule](../../../docs/ui-radius.md#radius-scale); their file-icon tiles use the same rule’s R10 exception. Each retains the same contour on hover.
 
 <a id="explicit-deliveries"></a>
 ### Explicit deliveries

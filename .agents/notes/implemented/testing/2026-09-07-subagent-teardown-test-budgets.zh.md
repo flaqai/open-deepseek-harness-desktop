@@ -12,7 +12,7 @@ Windows 覆盖率运行 (run 34085536250, job 101628739668) 为测试和钩子�
 
 [ACP 测试](../../../../packages/subagent/subagent-acp/tests/subagent-acp.spec.ts) 在执行通道的测试预算内等待清理完成，然后检查真实子进程的结果。失败清理先等待释放和子进程完成，再删除私有目录。延迟的退出观察证明，清理不能仅因已请求终止而完成。生产环境的 EOF 与终止宽限期保持不变。
 
-[Codex 测试](../../../../packages/subagent/subagent-codex/tests/real-product.spec.ts) 继承执行通道的钩子预算。清理在第一次异步等待前取得其上下文、HTTP 夹具和临时根目录，因此超时钩子不能取走其他测试注册的资源。清理保留上下文释放、服务器关闭、目录删除的顺序，等待所有已取得的释放操作，并在拒绝后继续尝试其余清理阶段。收集的错误指出各自失败的阶段或路径并保留原始原因；只有全部已取得资源都尝试清理后才报告错误。
+[Codex 测试](../../../../packages/subagent/subagent-codex/tests/real-product.spec.ts) 继承执行通道的钩子预算；`vitest.config.ts` 从 `DSH_COVERAGE_TEST_TIMEOUT_MS` 把该预算施加到每个内联 project（[`coverageTestTimeoutOptions`](../../../../scripts/coverage-partitions.ts) 负责说明 CLI 标志为何无法承载它）。清理在第一次异步等待前取得其上下文、HTTP 夹具和临时根目录，因此超时钩子不能取走其他测试注册的资源。清理保留上下文释放、服务器关闭、目录删除的顺序，等待所有已取得的释放操作，并在拒绝后继续尝试其余清理阶段。收集的错误指出各自失败的阶段或路径并保留原始原因；只有全部已取得资源都尝试清理后才报告错误。
 
 [原生 Windows CI 决策](../process/2026-08-08-native-windows-pull-request-ci.zh.md) 继续负责通道调度和预算。本次改动仅移除冲突的局部期限并加强资源生命周期断言；它并不证明 Windows 进程终止或文件系统存在缺陷。
 

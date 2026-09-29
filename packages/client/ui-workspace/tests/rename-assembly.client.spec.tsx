@@ -119,8 +119,8 @@ describe('session rename through the assembled browser', () => {
     registerAction('last', 600, -2, 'Last action')
     const view = runtime.renderRoot()
 
-    const row = (await view.findByText('Session title')).closest('[role="treeitem"]')!
-    const trigger = within(row as HTMLElement).getByLabelText('会话“Session title”的操作')
+    const row = (await view.findByText('Persisted title')).closest('[role="treeitem"]')!
+    const trigger = within(row as HTMLElement).getByLabelText('会话“Persisted title”的操作')
     fireEvent.click(trigger)
     expect(view.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       '置顶会话', '重命名', '分叉会话', '归档会话', 'Export action', 'Last action',
@@ -134,7 +134,7 @@ describe('session rename through the assembled browser', () => {
     fireEvent.keyDown(last, { key: 'ArrowUp' })
     expect(document.activeElement).toBe(exportRow)
     fireEvent.click(exportRow)
-    expect(selected).toHaveBeenCalledWith('export', SID, 'Session title')
+    expect(selected).toHaveBeenCalledWith('export', SID, 'Persisted title')
     // The plugin row dismissed the menu through the bound open-state hook;
     // the list returns focus to the trigger.
     expect(view.queryByRole('menu')).toBeNull()

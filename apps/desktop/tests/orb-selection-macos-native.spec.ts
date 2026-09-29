@@ -5,12 +5,15 @@ import {
 
 function fakeBinding() {
   let callback: ((line: string) => void) | undefined
+  const start = vi.fn((next: (line: string) => void) => { callback = next })
+  const stop = vi.fn(() => undefined)
+  const excludePids = vi.fn((_pids: string) => undefined)
   const binding: OrbMacSelectionBinding = {
-    start: vi.fn((next) => { callback = next }),
-    stop: vi.fn(),
-    excludePids: vi.fn(),
+    start,
+    stop,
+    excludePids,
   }
-  return { binding, emit: (line: string) => { callback?.(line) } }
+  return { binding, start, stop, excludePids, emit: (line: string) => { callback?.(line) } }
 }
 
 describe('macOS AX-only selection ingress', () => {
@@ -40,7 +43,7 @@ describe('macOS AX-only selection ingress', () => {
     })
     const monitor = factory?.((selection) => { seen.push(selection.text) })
     expect(monitor?.active?.()).toBe(true)
-    expect(fake.binding.excludePids).toHaveBeenCalledWith(String(process.pid))
+    expect(fake.excludePids).toHaveBeenCalledWith(String(process.pid))
     fake.emit(JSON.stringify({ type: 'ready' }))
     fake.emit(JSON.stringify({ type: 'selection', text: 'one', x: 1, y: 2, pid: process.pid + 1 }))
     fake.emit(JSON.stringify({ type: 'untrusted' }))
@@ -49,7 +52,7 @@ describe('macOS AX-only selection ingress', () => {
     monitor?.stop()
     expect(statuses).toEqual(['ready', 'untrusted'])
     expect(seen).toEqual(['one'])
-    expect(fake.binding.stop).toHaveBeenCalledTimes(1)
+    expect(fake.stop).toHaveBeenCalledTimes(1)
   })
 
   it('never reports ready or presents text when Accessibility is refused at start', () => {
@@ -66,19 +69,19 @@ describe('macOS AX-only selection ingress', () => {
     monitor?.stop()
     expect(status).toHaveBeenCalledExactlyOnceWith('untrusted')
     expect(selection).not.toHaveBeenCalled()
-    expect(fake.binding.stop).toHaveBeenCalledTimes(1)
+    expect(fake.stop).toHaveBeenCalledTimes(1)
   })
 
   it('fails closed when the native monitor cannot start', () => {
     const fake = fakeBinding()
-    vi.mocked(fake.binding.start).mockImplementation(() => { throw new Error('native unavailable') })
+    fake.start.mockImplementation(() => { throw new Error('native unavailable') })
     const status = vi.fn()
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
       const factory = createOrbMacSelectionMonitorFactory({ binding: fake.binding, platform: 'darwin', onStatus: status })
       expect(factory?.(() => undefined)).toBeUndefined()
       expect(status).toHaveBeenCalledWith('failed')
-      expect(fake.binding.stop).toHaveBeenCalledTimes(1)
+      expect(fake.stop).toHaveBeenCalledTimes(1)
     } finally {
       warning.mockRestore()
     }

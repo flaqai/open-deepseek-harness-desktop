@@ -79,6 +79,7 @@ function requireAuthority(authority: OrbComputerUseAuthority, action: boolean): 
 }
 
 function requireFrame(frame: OrbComputerUseFrame): void {
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- Native helpers can violate their declared media type at runtime.
   if (frame.mediaType !== 'image/png' && frame.mediaType !== 'image/jpeg') {
     throw new Error('orb computer use: unsupported screenshot format')
   }
@@ -99,6 +100,7 @@ function requireFrame(frame: OrbComputerUseFrame): void {
 }
 
 function toGlobal(position: OrbComputerUsePosition, frame: OrbComputerUseFrame): { x: number; y: number } {
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- Positions originate in an untrusted transport despite their tuple type.
   if (position.length !== 2 || position.some(value => !Number.isInteger(value) || value < 0 || value > 1000)) {
     throw new Error('orb computer use: position must use integer screenshot coordinates from 0 to 1000')
   }
@@ -111,11 +113,13 @@ function toGlobal(position: OrbComputerUsePosition, frame: OrbComputerUseFrame):
 
 function requireAction(action: OrbComputerUseAction): void {
   if (action.kind === 'click') {
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- Revalidate deserialized action options before native input.
     if ((action.button !== 'left' && action.button !== 'right') || (action.count !== 1 && action.count !== 2)) {
       throw new Error('orb computer use: invalid click options')
     }
     return
   }
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- An HTTP payload can carry an unsupported action kind at runtime.
   if (action.kind === 'type') {
     if (action.text.length === 0 || action.text.length > 32_768) throw new Error('orb computer use: invalid input text length')
     return

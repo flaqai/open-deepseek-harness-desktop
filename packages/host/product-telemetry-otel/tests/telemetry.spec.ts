@@ -1,9 +1,9 @@
+import OTel from '@deepseek-ai/dsh-otel'
 import { createServer, type IncomingHttpHeaders } from 'node:http'
 import { once } from 'node:events'
 import { gunzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { LoggerProvider } from '@opentelemetry/sdk-logs'
 import { SeverityNumber } from '@opentelemetry/api-logs'
 import ProductTelemetry, { Config } from '../src/index.ts'
 
@@ -58,7 +58,8 @@ function config(endpoint: string, overrides: Partial<Config> = {}): Config {
 
 function context() {
   const ctx = new Context()
-  cleanup.push(() => ctx.fiber.dispose())
+  const ready = ctx.plugin(OTel)
+  cleanup.push(async () => { await ready; await ctx.fiber.dispose() })
   return ctx
 }
 
@@ -184,20 +185,49 @@ describe('explicit product telemetry', () => {
     expect(target.captures[0]?.headers['content-encoding']).toBe('gzip')
   })
 
-  it('bounds a stalled shutdown and observes its later settlement', async () => {
-    const target = await collector()
+  it.each(['headers', 'body'] as const)('cancels a stalled response %s before disposal completes', async (stall) => {
+    const received = Promise.withResolvers<undefined>()
+    const disconnected = Promise.withResolvers<undefined>()
+    const server = createServer((req, res) => {
+      req.resume()
+      req.on('end', () => {
+        res.on('close', () => { disconnected.resolve(undefined) })
+        if (stall === 'body') res.writeHead(200).write('{')
+        received.resolve(undefined)
+      })
+    })
+    cleanup.push(async () => {
+      const closed = once(server, 'close')
+      server.close()
+      server.closeAllConnections()
+      await closed
+    })
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const address = server.address()
+    if (address === null || typeof address === 'string') throw new Error('collector has no port')
     const ctx = context()
     const warn = vi.spyOn(ctx.logger, 'warn')
-    const fiber = await ctx.plugin(ProductTelemetry, config(target.endpoint, { shutdownTimeoutMillis: 20 }))
-    const pending = Promise.withResolvers<undefined>()
-    vi.spyOn(LoggerProvider.prototype, 'shutdown').mockReturnValue(pending.promise)
-    vi.useFakeTimers()
-    const disposal = fiber.dispose()
-    await vi.advanceTimersByTimeAsync(20)
-    await disposal
+    const fiber = await ctx.plugin(ProductTelemetry, config(`http://127.0.0.1:${address.port}/v1/logs`, {
+      maxExportBatchSize: 1, shutdownTimeoutMillis: 50,
+    }))
+    ctx.productTelemetry.emit(event)
+    await received.promise
+    await fiber.dispose()
+    await disconnected.promise
     expect(warn).toHaveBeenCalledWith('Product telemetry shutdown deadline exceeded; pending events may be lost')
-    pending.resolve(undefined)
-    await pending.promise
-    await vi.advanceTimersByTimeAsync(0)
   })
+})
+
+it('drains the dependent product channel when the shared OTel plugin unloads', async () => {
+  const target = await collector()
+  const ctx = new Context()
+  cleanup.push(() => ctx.fiber.dispose())
+  const service = await ctx.plugin(OTel)
+  await ctx.plugin(ProductTelemetry, config(target.endpoint))
+  ctx.productTelemetry.emit(event)
+  await service.dispose()
+  expect(ctx.get('otel')).toBeUndefined()
+  expect(ctx.get('productTelemetry')).toBeUndefined()
+  expect(target.captures).toHaveLength(1)
 })

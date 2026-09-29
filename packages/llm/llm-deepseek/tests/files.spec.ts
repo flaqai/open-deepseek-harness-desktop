@@ -73,7 +73,7 @@ describe('Messages Files requests', () => {
     vi.stubGlobal('fetch', fetchImpl)
     const h = harness()
     await chunks(h.adapter.stream(request([ref, second])))
-    expect(h.invalidate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ attachment: ref }), 'file-a', expect.objectContaining({}))
+    expect(h.invalidate).toHaveBeenCalledExactlyOnceWith([{ variantId: version(ref).variantId, fileId: 'file-a' }], expect.objectContaining({}))
     expect(fetchImpl).toHaveBeenCalledTimes(2)
     expect(h.prepare).toHaveBeenCalledTimes(2)
     expect(h.ensureUploaded).toHaveBeenCalledTimes(4)
@@ -85,7 +85,7 @@ describe('Messages Files requests', () => {
     const h = harness()
     await expect(chunks(h.adapter.stream(request([ref, second])))).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
     expect(fetchImpl).toHaveBeenCalledTimes(2)
-    expect(h.invalidate).toHaveBeenCalledTimes(4)
+    expect(h.invalidate.mock.calls.map(call => call[0].length)).toEqual([2, 2])
     expect(fetchImpl.mock.calls.every(call => !body(call[1]).includes('base64'))).toBe(true)
   })
 

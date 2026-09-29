@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, fireEvent, render } from '@testing-library/react'
 import {
   SlotTestRuntime, stubConfigForm, usePinnedBrowserLanguages,
@@ -129,26 +129,33 @@ describe('Chat apply wiring', () => {
     expect(b.runtime.slots.entries('conversation.composer.dock').map(row => row.options.id))
       .toEqual(['stats'])
     expect(b.runtime.slots.entries('settings.general.item').map(row => row.options.id))
-      .toEqual(['transcript-view', 'performance-usage', 'link-opening', 'composer-enter'])
+      .toEqual(['transcript-view', 'link-opening', 'composer-enter', 'performance-usage'])
     await b.runtime.dispose()
   })
 
-  it('mirrors the Host transcript preference into its Settings row', async () => {
+  it.each([
+    { desktop: false, initial: 'detailed', choice: 'standard' },
+    { desktop: true, initial: 'standard', choice: 'detailed' },
+  ] as const)('mirrors the Host transcript preference into its Settings row (desktop: $desktop)', async ({ desktop, initial, choice }) => {
+    if (desktop) {
+      vi.stubGlobal('dshDesktop', {})
+      onTestFinished(() => { vi.unstubAllGlobals() })
+    }
     const b = await bench()
+    onTestFinished(() => b.runtime.dispose())
     const row = b.runtime.slots.entries('settings.general.item')
       .find(entry => entry.options.id === 'transcript-view')!
     const face = (row.inject as unknown as () => TranscriptViewRowInjected)()
 
-    expect(face.hooks.transcriptView.getSnapshot()).toBe('standard')
-    face.setTranscriptView('detailed')
-    expect(face.hooks.transcriptView.getSnapshot()).toBe('detailed')
-    expect(b.chatSettings.set).toHaveBeenCalledWith('transcriptView', 'detailed')
+    expect(face.hooks.transcriptView.getSnapshot()).toBe(initial)
+    face.setTranscriptView(choice)
+    expect(face.hooks.transcriptView.getSnapshot()).toBe(choice)
+    expect(b.chatSettings.set).toHaveBeenCalledWith('transcriptView', choice)
 
     b.chatSettings.publish({
       status: 'ready', value: { linkOpening: 'sidebar', transcriptView: 'compact', performanceUsage: 'detailed' }, revision: 1, writable: true,
     })
     expect(face.hooks.transcriptView.getSnapshot()).toBe('compact')
-    await b.runtime.dispose()
   })
 
   it('shares the accepted performance preference with settings, composer, and turn tails', async () => {

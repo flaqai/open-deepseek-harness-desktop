@@ -7,7 +7,7 @@
  * forwarding), live versus on-demand canonical-log capture, and the HMR
  * cursor. Everything downstream of
  * {@link SessionTelemetryBackend.emit} — batching, retry, queueing, and loss policy — is the
- * reporting SDK's territory and is deliberately not modelled here. The
+ * backend's responsibility and is deliberately not modelled here. The
  * design and its trade-offs are pinned in
  * .agents/notes/implemented/feature/2026-07-23-session-telemetry-otel-revival.md.
  *
@@ -15,6 +15,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
+import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -62,6 +63,8 @@ export type SessionTelemetrySeverity = 'info' | 'warn' | 'error'
  * identity so they can never be mistaken for ledger rows.
  */
 export interface SessionTelemetryRecord {
+  /** Canonical envelope without data; body carries the separately redacted payload. Absent for operational records. */
+  sourceEvent?: { sessionId: SessionId; envelope: Omit<SessionEvent, 'data'> }
   /** Ledger (session-log mirror) or ops (operational signal) channel; backends keep the two under separate instrumentation scopes. */
   channel: 'ledger' | 'ops'
   /** Unix epoch milliseconds — the source event's append time for ledger records, the emission time for ops records. */

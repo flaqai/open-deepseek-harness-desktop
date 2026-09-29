@@ -189,7 +189,7 @@ export async function startOrbComputerUseTransport(options: OrbComputerUseTransp
     authority = `127.0.0.1:${String(address.port)}`
   } catch (error) {
     server.closeAllConnections()
-    if (server.listening) await new Promise<void>((resolve) => { server.close(() => resolve()) })
+    if (server.listening) await new Promise<void>((resolve) => { server.close(() => { resolve() }) })
     throw error
   }
   return {
@@ -201,7 +201,7 @@ export async function startOrbComputerUseTransport(options: OrbComputerUseTransp
       invalidateGeneration()
       closing = (async () => {
         server.closeAllConnections()
-        await new Promise<void>((resolve) => { server.close(() => resolve()) })
+        await new Promise<void>((resolve) => { server.close(() => { resolve() }) })
         await Promise.allSettled(pending)
         await retiring
       })()

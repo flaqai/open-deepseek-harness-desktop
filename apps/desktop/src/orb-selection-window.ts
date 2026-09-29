@@ -164,7 +164,7 @@ export function createOrbSelectionWindowController(host: OrbSelectionToolbarHost
       return 'shown'
     },
     async showFallback(actions) {
-      const choose = host.chooseFallbackAction
+      const choose = host.chooseFallbackAction?.bind(host)
       if (!localAvailable() || host.supportsPositioning() || choose === undefined) return 'unavailable'
       hide()
       const ticket = generation

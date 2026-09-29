@@ -16,6 +16,9 @@
     },
     {
       "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../telemetry/otel"
     }
   ]
 }

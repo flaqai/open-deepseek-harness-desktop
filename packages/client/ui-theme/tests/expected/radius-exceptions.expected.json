@@ -35,6 +35,12 @@
     ".search input: border-radius: 10px",
     ".clearSearch: border-radius: 8px"
   ],
+  "ui-deliverables/src/client/ChangedFiles.module.css": [
+    ".tile: border-radius: 10px"
+  ],
+  "ui-deliverables/src/client/Deliverables.module.css": [
+    ".fileIcon: border-radius: 10px"
+  ],
   "ui-schedule/src/client/ClockPicker.module.css": [
     ".option: border-radius: 10px"
   ],

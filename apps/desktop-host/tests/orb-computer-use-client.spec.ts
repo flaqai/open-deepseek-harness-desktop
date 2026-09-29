@@ -21,15 +21,18 @@ describe('Host Orb native client', () => {
   it('reserves before transport use and decodes one bounded screenshot', async () => {
     const release = vi.fn(async () => {})
     const acquire = vi.fn(async () => release)
-    const fetcher = vi.fn(async () => Response.json(frame))
+    const fetcher = vi.fn<typeof fetch>(async () => Response.json(frame))
     const backend = await createDesktopOrbHttpBackend(endpoint, acquire, fetcher)
     try {
       const result = await backend.observe()
       expect(result.frame.data).toEqual(Buffer.from([137, 80, 78, 71]))
       expect(acquire).toHaveBeenCalledOnce()
-      expect(fetcher).toHaveBeenCalledWith(`${endpoint.origin}/orb-computer-use/v1`, expect.objectContaining({
-        method: 'POST', headers: expect.objectContaining({ 'x-dsh-desktop-orb-secret': endpoint.secret }),
-      }))
+      const call = fetcher.mock.calls[0]
+      if (call === undefined) throw new Error('Orb transport request was not recorded')
+      const [url, options] = call
+      expect(url).toBe(`${endpoint.origin}/orb-computer-use/v1`)
+      expect(options?.method).toBe('POST')
+      expect((options?.headers as Record<string, string>)['x-dsh-desktop-orb-secret']).toBe(endpoint.secret)
     } finally { await backend.close() }
     expect(release).toHaveBeenCalledOnce()
   })

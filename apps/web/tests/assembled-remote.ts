@@ -223,8 +223,10 @@ export function createAssembledRemote(options: AssembledRemoteOptions = {}): Ass
     return ok(undefined)
   })
   mock.unary('session/list', () => ok({ items: structuredClone(sessions) }))
-  // The shipped Web composition mounts the Schedule client, whose catalog and
-  // per-Session list read empty here: these scenarios drive no reminder.
+  // The shipped bundle layers this graph composes carry the `ui-schedule` row
+  // disabled, so the Schedule client does not mount and no case here reads the
+  // catalog or the per-Session list. Both stay declared so an enabled
+  // composition reads empty lists instead of a missing-rule failure.
   mock.unary('schedule/catalog', () => ok([]))
   mock.unary('schedule/list', () => ok([]))
   mock.unary('session/projections', (request: unknown) => {

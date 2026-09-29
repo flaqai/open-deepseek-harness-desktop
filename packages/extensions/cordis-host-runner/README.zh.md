@@ -38,8 +38,16 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `vmTimeoutMs` | `5000` | host 半在 vm 中同步执行的那部分被中止求值前可运行的毫秒数 |
+| `clientInspectTimeoutMs` | `10000` | 等待有效 Client 检查响应的最长时间；1 到 2147483647 毫秒之间的整数 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-cordis-host-runner)是每个受支持字段的穷尽式真源。
+
+<a id="client-inspection"></a>
+### Client 检查
+
+装载 Gateway 时，没有活动事件流的 Client 查询在发送前就会失败。此检查不订阅断连：已发送的查询仍沿用原期限。没有 Gateway 的独立事件传输保持相同的超时行为。
+
+Client 查询在 `clientInspectTimeoutMs` 内接受首个有效页面响应。某个页面失败不会阻止其他页面成功回答。若没有有效结果，查询返回首个 Client 错误或输出校验诊断；若没有页面回答，则提示调用方打开或重新连接 Harness 页面后重试。取消和注册表卸载也会结束待处理查询。页面重连不会重放错过的请求，因此需在连接恢复后重试。Host 查询不受此超时影响。
 
 ### run 会做什么
 

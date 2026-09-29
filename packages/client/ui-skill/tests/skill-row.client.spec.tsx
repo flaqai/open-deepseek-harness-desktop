@@ -110,7 +110,7 @@ describe('SkillRow', () => {
     }))} />)
     const row = screen.getByRole('button', { name: 'skill 加载失败加载技能SkillError: missing resource' })
     expect(view.container.querySelector('[data-tool="skill"]')?.getAttribute('data-state')).toBe('error')
-    expect(view.container.querySelector('[data-tool="skill"] > div > span:first-child svg')).not.toBeNull()
+    expect(view.container.querySelector('[data-tool="skill"] [role="button"] svg')).not.toBeNull()
     expect(view.container.querySelector('[data-tool="skill"] [data-state]')).toBeNull()
     expect(row.textContent).not.toContain('Check SKILL.md.')
     fireEvent.click(row)
@@ -124,8 +124,8 @@ describe('SkillRow', () => {
       error: { name: 'InterruptedError', code: 'interrupted' },
     }))} />)
     const stoppedSummary = stoppedView.getByText('skill 加载已中止')
-    expect(stoppedSummary.className).toContain('stoppedSummary')
-    expect(stoppedView.container.querySelector('[data-tool="skill"] > div > span:first-child svg')).not.toBeNull()
+    expect(stoppedSummary.parentElement?.className).toContain('stoppedSummary')
+    expect(stoppedView.container.querySelector('[data-tool="skill"] [role="button"] svg')).not.toBeNull()
     expect(stoppedView.container.querySelector('[data-tool="skill"] [data-state]')).toBeNull()
     cleanup()
 

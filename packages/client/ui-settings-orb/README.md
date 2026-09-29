@@ -33,6 +33,8 @@ Open Settings → Floating ball after connecting the community Desktop to a loca
 
 The plugin contributes a `settings.section` slot and subscribes to Desktop-owned settings. The renderer submits a closed settings patch to `DesktopOrbBridge`; it cannot supply an arbitrary path, URL, package, or command. In NAS mode, the bridge accepts only chat presentation changes; it does not expose backend switching and rejects local selection settings. In local mode, an unknown task state prevents backend switching, and a successful change waits for the existing quick-restart action.
 
+No runtime invariant companion is published because the Desktop bridge validates capability and permission state before accepting each settings change; this page only presents the Host result.
+
 With copied-text shortcuts enabled in local mode, copy text and press Cmd/Ctrl+Shift+O. Choose one of four explicit actions: Send to chat, To Chinese, To English, or Search. Supported desktops show a toolbar near the pointer; native Wayland uses a chooser because cross-application toolbar placement is unavailable. Cancel leaves the draft unchanged, and no action sends a chat message automatically. Selection actions are unavailable in NAS mode or while local task/input authority is unavailable.
 
 <a id="model-experience"></a>

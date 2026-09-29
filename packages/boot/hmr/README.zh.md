@@ -87,6 +87,7 @@ App-boot 负责 profile 解析和 patch 优先级规则。HMR 读取启动器提
 
 - 模块替换需要 Node loader 内部接口。框架依赖变化调用宿主提供的 `loader.exit()` 钩子；HMR 本身不重启进程。
 - 通过插件管理器替换已安装包版本仍需要重启。浏览器 Client 模块图保留独立的浏览器侧加载机制。
+- `watchConfig()` 在 Chokidar 报告就绪时 resolve。darwin 上 libuv 随后才在自己的线程启动 FSEvents 流，因此注册后数毫秒内落地的写入要等到该目录的下一个事件才会被报告；启动之后的编辑不受影响。
 
 ### 开发备注
 

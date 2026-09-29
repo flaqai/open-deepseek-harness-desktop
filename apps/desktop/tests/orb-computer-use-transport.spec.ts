@@ -59,7 +59,8 @@ describe('private Orb native transport', () => {
     try {
       const response = await request({ operation: 'observe' })
       expect(response.status).toBe(200)
-      expect((await response.json()).frame.data).toBe(Buffer.from(FRAME.frame.data).toString('base64'))
+      const observation = await response.json() as { frame: { data: string } }
+      expect(observation.frame.data).toBe(Buffer.from(FRAME.frame.data).toString('base64'))
       expect(observed).toHaveBeenCalledOnce()
       const invalid = await request({ operation: 'act', frameId: 1, action: { kind: 'click', position: [1001, 0], button: 'left', count: 1 } })
       expect(invalid.status).toBe(400)

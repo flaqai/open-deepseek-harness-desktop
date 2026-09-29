@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-desktop",
   "description": "Cross-platform Electron host for the DeepSeek Harness Web GUI",
-  "version": "0.1.7-rc.2.1",
+  "version": "0.2.0-rc.2.1",
   "private": true,
   "homepage": "https://github.com/flaqai/open-deepseek-harness-desktop",
   "author": {
@@ -50,6 +50,7 @@
     "react-dom": "^18.2.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "@deepseek-ai/dsh-client-product-analytics": "workspace:*"
   }
 }

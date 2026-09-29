@@ -72,7 +72,7 @@ export function apply(ctx: ClientContext): void {
       await act(() => bridge.update(patch))
     },
     selectBackend: async (backend) => {
-      const selectBackend = bridge?.selectBackend
+      const selectBackend = bridge?.selectBackend?.bind(bridge)
       if (selectBackend === undefined) return
       await act(() => selectBackend(backend))
     },

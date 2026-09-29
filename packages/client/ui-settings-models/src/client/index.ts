@@ -1,11 +1,12 @@
 /**
  * Models settings and product-onboarding plugin, browser half. It registers
- * the Models page plus the first-run setup wizard that routes into the existing
- * Models and IM settings pages. Host settings and credential contracts stay
- * behind their existing wire APIs.
+ * the Models page, community web setup wizard, and official DeepSeek
+ * credential onboarding. Host settings and credential contracts stay behind
+ * their existing wire APIs.
  * Export discipline:
  * packages/client/AGENTS.md.
  */
+import type {} from '@deepseek-ai/dsh-client-product-analytics/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the shell's SlotMap merge (the 'settings.section' entry).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -19,12 +20,15 @@ import { ModelsSection } from './ModelsSection.tsx'
 import type { ModelsSectionInjected } from './ModelsSection.tsx'
 import { SetupWizard } from './SetupWizard.tsx'
 import type { SetupWizardInjected } from './SetupWizard.tsx'
+import { DeepSeekOnboardingDialog } from './DeepSeekOnboardingDialog.tsx'
+import type { DeepSeekOnboardingInjected } from './DeepSeekOnboardingDialog.tsx'
 import { WelcomeNoticeStore } from './welcome-store.ts'
 import { ModelsSettingsStore } from './store.ts'
 import { createModelsOperations } from './operations.ts'
 import { createSettingsSchemaOperations } from './schema-operations.ts'
 import { en, zh, type ModelsKey } from './locales.ts'
 import { WELCOME_NOTICE_SETTINGS_NAMESPACE } from '../onboarding-copy.ts'
+import { Config, ONBOARDING_CONFIG_GLOBAL } from '../onboarding-config.ts'
 
 export type { ModelsSectionInjected, ModelsSectionProps } from './ModelsSection.tsx'
 export type { ModelsFooterOwnerProps, ProviderCardExtrasOwnerProps } from './slot-contract.ts'
@@ -72,6 +76,14 @@ export const inject = [
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  const page = globalThis as Partial<Record<typeof ONBOARDING_CONFIG_GLOBAL, unknown>>
+  let credentialOnboarding = false
+  try {
+    credentialOnboarding = Config(page[ONBOARDING_CONFIG_GLOBAL] ?? {}).credentialOnboarding
+      && !('dshDesktop' in globalThis)
+  } catch {
+    // Ignore malformed optional page configuration; never auto-open onboarding for it.
+  }
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-models: copy dictionaries')
 
   const schema = createSettingsSchemaOperations(ctx.settingsSchema)
@@ -85,6 +97,15 @@ export function apply(ctx: ClientContext): void {
   const injected = (): ModelsSectionInjected => ({
     controller,
     hooks: { snapshot: controller.store },
+    operations,
+    schema,
+    t,
+  })
+  const deepSeekOnboardingInjected = (): DeepSeekOnboardingInjected => ({
+    automatic: credentialOnboarding,
+    track: (name, attributes) => ctx.get('productAnalytics')?.track(name, attributes),
+    controller,
+    hooks: { models: controller.store },
     operations,
     schema,
     t,
@@ -141,4 +162,11 @@ export function apply(ctx: ClientContext): void {
     order: 0,
     inject: setupInjected,
   }, SetupWizard))
+  ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
+    name: 'settings.onboarding',
+    id: 'deepseek-official',
+    children: { 'settings.models.sign-in': { kind: 'single', scope: 'root' } },
+    order: 10,
+    inject: deepSeekOnboardingInjected,
+  }, DeepSeekOnboardingDialog))
 }

@@ -142,8 +142,7 @@ function ownedBlock(text: string, owner: Recipe['owner']): OwnedBlock | undefine
   const begin = starts[0]
   const finish = ends[0]
   if (begin === undefined || finish === undefined) return malformed()
-  if (begin.index === undefined || finish.index === undefined
-    || finish.index <= begin.index + begin[0].length) return malformed()
+  if (finish.index <= begin.index + begin[0].length) return malformed()
   return { from: begin.index, through: finish.index + finish[0].length }
 }
 
@@ -221,7 +220,9 @@ export function configureExperimentalCapability(
 export function setComputerUseBackend(profile: string, backend: ComputerUseBackendSelection): boolean {
   if (backend === 'official-native') return configureExperimentalCapability(profile, 'computer-use-native')
   if (backend === 'official-mcp') return configureExperimentalCapability(profile, 'computer-use-mcp')
-  if (backend !== 'off') throw new Error('dsh: unsupported Computer Use backend')
+  // Keep a runtime guard for untyped CLI or IPC callers even though TypeScript narrows the union here.
+  const selected: unknown = backend
+  if (selected !== 'off') throw new Error('dsh: unsupported Computer Use backend')
   const filename = join(resolveProfileDir(profile), 'cordis.patch.yml')
   if (!existsSync(filename)) return false
   const text = readFileSync(filename, 'utf8')

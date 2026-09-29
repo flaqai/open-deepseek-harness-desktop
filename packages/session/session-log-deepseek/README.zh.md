@@ -27,7 +27,7 @@ kind: "package-reference"
 
 | 配置键 | 默认值 | 含义 |
 |---|---:|---|
-| `enabled` | `true` | 注册 `dsh_session_log` 贡献。将其设为 `false` 可停止会话日志上传。 |
+| `enabled` | `true` | 发送 `dsh_session_log` 贡献。修改从下一次请求生效；设为 `false` 可停止会话日志上传。 |
 | `maxBytes` | 8 MiB | 单次请求携带的 `dsh_session_log` 字段序列化后的最大 UTF-8 字节数。 |
 
 随附 profile 会挂载该插件，因此默认配置会注册请求字段并追加接受水位。存在设置服务时，“模型”设置页会显示实际生效状态，并实时写入 `session-log-deepseek.enabled` 用户覆盖；overlay 或用户设置均可用 `enabled: false` 选择退出。

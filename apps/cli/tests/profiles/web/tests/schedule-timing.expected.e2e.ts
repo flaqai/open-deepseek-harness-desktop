@@ -8,7 +8,8 @@ import type { DailyScheduleRecord, ScheduleCatalogEntry } from '@deepseek-ai/dsh
 import { expect, it } from 'vitest'
 import { withDefaultWeb, webGet, webRequest } from './default-web-process.ts'
 
-const patches = [fileURLToPath(new URL('./fixtures/schedule.patch.yml', import.meta.url))]
+/** The optional Schedule bundle is the switch this built-Web scenario turns on. */
+const patches = [fileURLToPath(new URL('../../../../../../packages/experimental/schedule-bundle/cordis.patch.yml', import.meta.url))]
 
 const id = 'retained-remote-task' as DailyScheduleRecord['id']
 const sessionId = 'unloaded-owner' as ScheduleCatalogEntry['sessionId']

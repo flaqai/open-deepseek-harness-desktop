@@ -1,9 +1,8 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-orb",
   "description": "Community Desktop floating-ball settings page",
-  "version": "0.1.7-rc.2",
-  "publishConfig": { "access": "public" },
-  "repository": { "type": "git", "url": "git+https://github.com/flaqai/open-deepseek-harness-desktop.git", "directory": "packages/client/ui-settings-orb" },
+  "version": "0.2.0-rc.2",
+  "private": true,
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

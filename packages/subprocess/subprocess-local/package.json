@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-subprocess-local",
   "description": "Local-subprocess implementation of the DeepSeek Harness subprocess seam",
-  "version": "0.1.7-rc.2",
+  "version": "0.2.0-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -56,7 +56,7 @@
   "dependencies": {
     "@deepseek-ai/dsh-lazy-require": "workspace:*",
     "@deepseek-ai/dsh-win32-process": "workspace:*",
-    "koffi": "^3.1.0",
+    "koffi": "3.1.1",
     "node-pty": "1.2.0-beta.15"
   },
   "devDependencies": {

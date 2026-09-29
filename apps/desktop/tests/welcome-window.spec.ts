@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
 const load = vi.hoisted(() => ({ path: '', shown: false, destroyed: false, maximized: false }))
+const handlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>())
 
 vi.mock('electron', () => ({
   app: { getAppPath: () => join(process.cwd(), 'lib') },
@@ -22,11 +23,15 @@ vi.mock('electron', () => ({
     maximize() { load.maximized = true }
     destroy() { load.destroyed = true }
   },
-  ipcMain: { handle: () => undefined, removeHandler: () => undefined },
+  ipcMain: {
+    handle: (channel: string, handler: (...args: unknown[]) => unknown) => { handlers.set(channel, handler) },
+    removeHandler: (channel: string) => { handlers.delete(channel) },
+  },
 }))
 
 import { resolveDesktopLocale } from '../src/locale.ts'
 import { openWelcomeWindow, welcomeWindowOptions } from '../src/welcome-window.ts'
+import { WELCOME_IPC } from '../src/welcome-api.ts'
 
 describe('native desktop welcome file', () => {
   it('uses the workspace window bounds instead of the upstream fixed-size dialog', () => {
@@ -40,6 +45,7 @@ describe('native desktop welcome file', () => {
     load.maximized = false
     let recordedBeforeShow = false
     await openWelcomeWindow(resolveDesktopLocale('en'), {
+      analyticsEnabled: async () => false,
       takeNotice: async () => undefined,
       startSignIn: async () => { throw new Error('unused') },
       cancelSignIn: async () => { throw new Error('unused') },
@@ -57,6 +63,7 @@ describe('native desktop welcome file', () => {
     load.shown = false
     load.destroyed = false
     await expect(openWelcomeWindow(resolveDesktopLocale('en'), {
+      analyticsEnabled: async () => false,
       takeNotice: async () => undefined,
       startSignIn: async () => { throw new Error('unused') },
       cancelSignIn: async () => { throw new Error('unused') },
@@ -68,4 +75,32 @@ describe('native desktop welcome file', () => {
     expect(load.shown).toBe(false)
     expect(load.destroyed).toBe(true)
   })
+})
+
+it('accepts only permitted event fields and reads the current policy over IPC', async () => {
+  const analytics = vi.fn(async () => {})
+  let enabled = true
+  const window = await openWelcomeWindow(resolveDesktopLocale('en'), {
+    takeNotice: async () => undefined,
+    startSignIn: async () => { throw new Error('unused') },
+    cancelSignIn: async () => { throw new Error('unused') },
+    copySignInLink: async () => undefined,
+    saveApiKey: async () => ({ ok: false }),
+    skip: async () => undefined,
+    analytics,
+    analyticsEnabled: async () => enabled,
+  }, { x: 0, y: 0, width: 1440, height: 920 }, async () => undefined)
+  const own = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
+  const policy = handlers.get(WELCOME_IPC.analyticsEnabled)!
+  expect(await policy(own)).toBe(true)
+  enabled = false
+  expect(await policy(own)).toBe(false)
+  const report = handlers.get(WELCOME_IPC.analytics)!
+  await report(own, 'auth_page_click', { button_name: 'api-key' })
+  expect(analytics).toHaveBeenLastCalledWith('auth_page_click', { button_name: 'api-key' })
+  await expect(report(own, 'auth_page_click', { button_name: 'api-key', token: 'private' })).rejects.toThrow('invalid analytics')
+  await expect(report(own, 'desktop_app_launch', {})).rejects.toThrow('invalid analytics')
+  await expect(report(own, 'auth_page_view', null)).rejects.toThrow('invalid analytics')
+  await report(own, 'api_key_save_click', {})
+  expect(analytics).toHaveBeenLastCalledWith('api_key_save_click', {})
 })

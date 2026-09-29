@@ -1085,3 +1085,24 @@ describe('session row schedule seats', () => {
     }
   })
 })
+
+it.each([['未命名', t], ['Untitled', tEn]])('labels unnamed history as %s', (label, translate) => {
+  const node: SessionNode = { id: sid('unnamed'), title: '', blank: false, running: false,
+    runningSubagentCount: 0, completed: false, updatedAt: 0, pinned: false, archived: false }
+  const onRenameRequest = vi.fn()
+  render(<SessionNodeItem node={node} currentId={node.id} now={0} onOpen={vi.fn()}
+    renderSlot={() => null} onRenameRequest={onRenameRequest} t={translate} />)
+  expect(screen.getByText(label)).toBeTruthy()
+  fireEvent.doubleClick(screen.getByText(label))
+  expect(onRenameRequest).toHaveBeenCalledWith(node.id, '')
+})
+
+it.each([['未命名', t], ['Untitled', tEn]])('labels unnamed search results as %s', (label, translate) => {
+  const result: SearchResultNode = { id: sid('unnamed-search'), title: '', workspace: 'Project',
+    running: false, runningSubagentCount: 0, completed: false, archived: false }
+  const onOpen = vi.fn()
+  render(<SearchResultItem result={result} currentId={undefined} onOpen={onOpen}
+    onUnarchive={vi.fn()} t={translate} />)
+  fireEvent.click(screen.getByText(label))
+  expect(onOpen).toHaveBeenCalledWith(result.id)
+})

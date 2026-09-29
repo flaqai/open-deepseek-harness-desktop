@@ -23,6 +23,9 @@ function updateCopy(state: DesktopUpdatePresentation, t: SettingsTranslate): { l
     error: t('desktop.update.retry'),
   }
   const label = labels[state.phase]
+  if (state.phase === 'checking' || state.phase === 'verifying' || state.phase === 'installing') {
+    return { label, detail: state.version ?? label }
+  }
   if (state.phase === 'error') {
     const failures: Readonly<Record<DesktopUpdateFailureKind, string>> = {
       check: t('desktop.update.checkFailed'),

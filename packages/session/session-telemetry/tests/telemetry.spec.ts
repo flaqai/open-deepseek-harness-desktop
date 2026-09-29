@@ -135,6 +135,12 @@ describe('SessionTelemetryCoordinator capture', () => {
     ;(message.body as { content: { text: string }[] }).content[0]!.text = 'tampered'
     const logged = session.snapshotEvents()[1] as SessionEvent<'user/message'>
     expect(logged.data.content[0]).toMatchObject({ text: 'hello' })
+    expect(message.sourceEvent?.sessionId).toBe(session.id)
+    expect(message.sourceEvent?.envelope).not.toHaveProperty('data')
+    expect(message.sourceEvent?.envelope).toMatchObject({ seq: logged.seq, time: logged.time, type: logged.type, surfaceOp: 'append' })
+    expect(message.sourceEvent?.envelope).not.toBe(logged)
+    message.sourceEvent!.envelope.time = 0
+    expect(logged.time).not.toBe(0)
   })
 
   it('captures a live request header without replaying previously withheld events', async () => {

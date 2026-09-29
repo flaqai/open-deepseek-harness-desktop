@@ -52,7 +52,9 @@ export { REGION_BEGIN, REGION_END }
 export const SERVICE_PAGE: Record<string, string> = {
   speechToText: 'voice-input.md',
   speechController: 'voice-input.md',
+  otel: 'otel.md',
   productTelemetry: 'product-telemetry.md',
+  productAnalytics: 'product-telemetry.md',
   connection: 'web-server.md',
   pluginManager: 'boot.md',
   pluginRegistryProbe: 'boot.md',
@@ -182,6 +184,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   configForms: 'client-side shared entry forms — packages/client/ui-settings/README.md owns the API',
   chatFileMentions: 'client-side slot-contract accessor (ChatFileMentions) — packages/client/ui-chat/README.md owns the API',
   shortcuts: 'client-side interface-typed keyboard service — packages/client/shortcuts/README.md owns the API',
+  userQuestionPanels: 'client-side slot-contract accessor (UserQuestionPanels) — packages/client/ui-tool/README.md owns the API',
   commandUi: 'client-side interface-typed browser service — packages/client/ui-commands/README.md owns the API',
   feedbackUi: 'client-side feedback dialog service — packages/client/ui-message-feedback/README.md owns the API',
   conversation: 'client-side interface-typed browser service — packages/client/ui-conversation/README.md owns the API',
@@ -201,6 +204,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   sidebarRight: 'client-side right-Sidebar navigation face — packages/client/ui-sidebar-right/README.md owns the API',
   sidebarRightTabs: 'client-side right-Sidebar tab-type registry — packages/client/ui-sidebar-right/README.md owns the API',
   documentPreviews: 'client-side document renderer registry — docs/subsystems/sidebar-right.md owns the API',
+  desktopOrbCaller: 'Desktop-only launch-provided Orb Session owner — packages/bundle/web-app/README.md owns the private Host API',
 }
 
 /**
@@ -275,6 +279,12 @@ export const EVENT_WALK_EXEMPTIONS: Record<string, string> = {
  * appear on more than one page.
  */
 export const LINK_MAP: Readonly<Record<string, string>> = {
+  EventLogOptions: 'otel.md',
+  EventLogReporter: 'otel.md',
+  SessionLogOptions: 'otel.md',
+  SessionLogReporter: 'otel.md',
+  OTelEventRecord: 'otel.md',
+  OTelEventScalar: 'otel.md',
   ProductTelemetryRecord: 'product-telemetry.md',
   ProductTelemetryScalar: 'product-telemetry.md',
   WorkspaceChangesSummary: 'deliverables.md',
@@ -418,6 +428,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   FileUploadReceiptId: 'attachment.md',
   FileUploadValue: 'attachment.md',
   SessionStartSource: 'core.md',
+  ToolCallId: 'core.md',
   SessionLogSnapshot: 'session-query.md',
   SessionSurfaceSnapshot: 'session-query.md',
   ApprovalOutcome: 'approval.md',
@@ -731,6 +742,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   ResolvedCredential: 'credentials.md',
   AskUserQuestionAnswer: 'user-questions.md',
   AskUserQuestionRequest: 'user-questions.md',
+  TimedUserQuestionResult: 'user-questions.md',
   UserQuestionProvider: 'user-questions.md',
   WebFetchProvider: 'web.md',
   WebFetchRequest: 'web.md',
@@ -829,6 +841,7 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  ProductEvent: 'Desktop event fields are owned by packages/client/product-analytics/README.md and src/events.ts',
   ConnectionFetchHandler: 'shared Fetch dispatch is owned by packages/client/connection/src/rpc.ts',
   ConnectionRequestRejection: 'transport rejection status is owned by packages/client/connection/src/rpc.ts',
   ConnectionTrustRequest: 'transport authentication input is owned by packages/client/connection/src/rpc.ts',

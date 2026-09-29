@@ -26,6 +26,40 @@ afterEach(() => {
 })
 
 describe('profile plugin package manager', () => {
+  it('does not create the Desktop-owned profile through its installed CLI carrier', () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-desktop-profile-cli-'))
+    vi.stubEnv('DSH_HOME', home)
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try {
+      expect(runPlugin('desktop', ['list'])).toBe(1)
+      expect(existsSync(join(home, 'profiles', 'desktop'))).toBe(false)
+      expect(stderr).toHaveBeenCalledWith(expect.stringContaining('initialize its profile'))
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
+  it('uses an installation-owned executable and fixed arguments for package operations', () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-packaged-pnpm-'))
+    const profile = join(home, 'profiles', 'web')
+    mkdirSync(profile, { recursive: true })
+    try {
+      const result = runProfilePackageManager(profile, ['list'], {
+        packageManager: {
+          command: process.execPath,
+          args: ['-e', 'process.stdout.write(JSON.stringify(process.argv.slice(1)))', '--'],
+          env: { DSH_HOME: home, ELECTRON_RUN_AS_NODE: '1' },
+        },
+      })
+      expect(result.exitCode).toBe(0)
+      expect(JSON.parse(result.diagnostic ?? 'null')).toEqual([
+        '--store-dir', join(home, '.pnpm-store'), 'list',
+      ])
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
   it('hides both pnpm subprocess windows', () => {
     const source = readFileSync(new URL('../src/profile-package-manager.ts', import.meta.url), 'utf8')
     expect(source.match(/windowsHide: true/gu)).toHaveLength(2)

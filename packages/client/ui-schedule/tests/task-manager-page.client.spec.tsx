@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { act, cleanup, fireEvent, isInaccessible, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, isInaccessible, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bindSnapshotSelector, makeTranslate, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
@@ -3985,8 +3985,10 @@ describe('Task manager deletion', () => {
     h.list.mockResolvedValueOnce({ ok: true, value: [] })
     fireEvent.click(screen.getByRole('button', { name: en['list.retry'] }))
     await screen.findByText(en['list.empty'])
-    // The successful read reports the row gone, so the detail closes.
-    expect(screen.queryByRole('complementary')).toBeNull()
+    // The successful read reports the row gone, so the detail closes. The panel
+    // leaves on the effect that observes the removed row, one commit after the
+    // empty list replaces it, so the assertion waits for that commit.
+    await waitFor(() => { expect(screen.queryByRole('complementary')).toBeNull() })
   })
 
   it('keeps the detail on its rule when the confirmed deletion reaches no authoritative removal', () => {

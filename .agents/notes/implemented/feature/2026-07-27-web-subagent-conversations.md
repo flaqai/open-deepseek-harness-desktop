@@ -28,7 +28,7 @@ This decision covers Web discovery, transcript viewing, and parent-authorized hu
 
 ## Design context
 
-The Figma [subagent list](https://www.figma.com/design/jRBBK7zBgcszdVWQ0Fh5J8/Harness?node-id=383-14602&p=f), [hierarchical expansion](https://www.figma.com/design/jRBBK7zBgcszdVWQ0Fh5J8/Harness?node-id=383-15917&p=f), and [child conversation](https://www.figma.com/design/jRBBK7zBgcszdVWQ0Fh5J8/Harness?node-id=388-18584&p=f) frames are non-normative interaction and visual references. This note owns lifecycle, wire, and failure semantics.
+The Figma subagent list, hierarchical expansion, and child conversation frames are non-normative interaction and visual references. This note owns lifecycle, wire, and failure semantics.
 
 | Design intent | Shipped contract |
 | --- | --- |

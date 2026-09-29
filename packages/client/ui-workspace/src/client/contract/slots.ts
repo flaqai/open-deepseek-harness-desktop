@@ -76,7 +76,7 @@ export interface DirectoryFlowOwnerProps {
 export interface SessionRowOwnerProps {
   /** Session the row shows. */
   sessionId: SessionId
-  /** Row display title: persisted title, project basename, or Session id. */
+  /** Row display title: persisted title, or empty when the Session has none. */
   displayTitle: string
 }
 

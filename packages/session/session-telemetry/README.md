@@ -39,6 +39,8 @@ A backend implements three members: `emit(record)` must be a non-blocking enqueu
 
 Capture runs in one of two modes. `live` capture follows session events as they are appended, replays already-live sessions at mount time, and records lifecycle markers; `on-demand` capture reads the canonical session log only when the backend requests a prefix through `captureSession(session, throughSeq?)`. Coordinator options select whether stored history is included. Every canonical session event maps to one ledger record in order. An `assistant/message` or `assistant/attempt` record carries its complete embedded compact stream, including failed and retried output. Each ledger record also carries `session.id`, `session.format_version`, the numeric event identity, optional header facts, and a pre-mapped severity (`error` for `tool/result.isError`, `turn/end` error reasons, and `agent-error`; `info` otherwise).
 
+Ledger records carry `sourceEvent` with the owning Session id and a copied event envelope excluding `data`. The redaction waterfall receives `body` as the only payload copy. Backends can reconstruct a complete exported event from the envelope and redacted body without bypassing redaction.
+
 ### The sharing disclosure
 
 <a id="the-sharing-disclosure"></a>
@@ -63,7 +65,7 @@ This section explains the capture design; the observable behavior is fully cover
 
 ### Design concept
 
-The seam is built on one boundary: the harness's aspect ends at `emit()`. Complete event capture, redaction, and the handoff cursor live here; batching, retry, queueing, and loss policy are the reporting SDK's, deliberately not modelled or wrapped. The design and rejected alternatives are pinned in the [revival Agent Note](../../../.agents/notes/implemented/feature/2026-07-23-session-telemetry-otel-revival.md).
+The capture package owns complete event capture, redaction, and handoff cursors. Redaction rules must preserve `sourceEvent` for OTel upload; returning a fresh record without it withholds the event with a diagnostic. Its cloned envelope excludes `data`, which is carried only in `body`. The OTel backend owns byte/count scheduling and uses SDK transport/retries. The [revival Agent Note](../../../.agents/notes/implemented/feature/2026-07-23-session-telemetry-otel-revival.md) owns capture and redaction rationale.
 
 ### Source map
 

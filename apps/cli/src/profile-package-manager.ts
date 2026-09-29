@@ -15,7 +15,7 @@ import {
   writeSync,
 } from 'node:fs'
 import { rebindProfilePnpmStore } from './profile-pnpm-store.ts'
-import type { ProfilePackageManagerResult } from '@deepseek-ai/dsh-app-boot'
+import type { ProfilePackageManagerResult, ProfilePnpmInvocation } from '@deepseek-ai/dsh-app-boot'
 import { packageNetworkDiagnostic } from './package-network-diagnostic.ts'
 import { profilePackageManagerLeaseEnvironment } from './profile-package-manager-lease.ts'
 
@@ -26,6 +26,8 @@ const MAX_PROGRESS_DIAGNOSTIC_BYTES = 1024 * 1024
 /** Optional observation channel owned by the desktop installer Host. */
 export interface ProfilePackageManagerOptions {
   readonly progressFile?: string
+  /** Installation-owned executable, fixed arguments and environment. */
+  readonly packageManager?: ProfilePnpmInvocation | undefined
 }
 
 interface ProgressFile {
@@ -303,21 +305,27 @@ export function runProfilePackageManager(
   args: readonly string[],
   options: ProfilePackageManagerOptions = {},
 ): ProfilePackageManagerResult {
-  const packageEnvironment = profilePackageDownloadEnvironment(process.env)
+  const packageEnvironment = profilePackageDownloadEnvironment({ ...process.env, ...options.packageManager?.env })
   delete packageEnvironment.DSH_DESKTOP_INSTALL_PROGRESS_FILE
   const tracked = profilePackageManagerLeaseEnvironment(profileDir, packageEnvironment)
   const storeDir = tracked.pnpm_config_store_dir ?? join(resolveDshHome(), '.pnpm-store')
-  const invocation = resolvePnpmInvocation(packageEnvironment, [
+  const pnpmArgs = [
     ...(options.progressFile === undefined ? [] : ['--reporter=ndjson']),
     '--store-dir', storeDir, ...args,
-  ])
+  ]
+  const invocation = options.packageManager === undefined
+    ? resolvePnpmInvocation(packageEnvironment, pnpmArgs)
+    : { command: options.packageManager.command, args: [...options.packageManager.args, ...pnpmArgs], shell: false }
   const inherited = Object.fromEntries(Object.entries(tracked)
     .filter(([key]) => !/^(?:pnpm|npm)_config_store_dir$/iu.test(key)))
   const environment = {
     ...inherited, pnpm_config_store_dir: storeDir, npm_config_store_dir: storeDir,
   }
   if (existsSync(join(profileDir, 'node_modules', '.modules.yaml'))) {
-    const probe = resolvePnpmInvocation(environment, ['--store-dir', storeDir, 'store', 'path', '--silent'])
+    const probeArgs = ['--store-dir', storeDir, 'store', 'path', '--silent']
+    const probe = options.packageManager === undefined
+      ? resolvePnpmInvocation(environment, probeArgs)
+      : { command: options.packageManager.command, args: [...options.packageManager.args, ...probeArgs], shell: false }
     const result = spawnSync(probe.command, probe.args, {
       cwd: profileDir, env: environment, encoding: 'utf8', maxBuffer: 64 * 1024,
       timeout: 15_000, shell: probe.shell, windowsHide: true,

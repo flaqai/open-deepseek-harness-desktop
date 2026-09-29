@@ -88,14 +88,14 @@ export function PortablePluginExport({ t }: {
               <select disabled={busy} value={target.platform} onChange={(event) => {
                 setTarget(current => ({ ...current, platform: event.target.value as Target['platform'], osVersion: '' }))
               }}>
-                <option value="win32">Windows</option><option value="darwin">macOS</option><option value="linux">Linux</option>
+                <option value="win32">{t('portableExport.target.windows')}</option><option value="darwin">{t('portableExport.target.macos')}</option><option value="linux">{t('portableExport.target.linux')}</option>
               </select>
             </label>
             <label>{t('portableExport.architecture')}
               <select disabled={busy} value={target.architecture} onChange={(event) => {
                 setTarget(current => ({ ...current, architecture: event.target.value as Target['architecture'] }))
               }}>
-                <option value="x64">x64</option><option value="arm64">arm64</option>
+                <option value="x64">{t('portableExport.target.x64')}</option><option value="arm64">{t('portableExport.target.arm64')}</option>
               </select>
             </label>
             <label>{t('portableExport.version')}

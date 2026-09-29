@@ -33,6 +33,8 @@ The community Desktop composition loads this plugin for its dedicated `?surface=
 
 The plugin occupies the root slot only in the floating renderer. It renders the existing Conversation component and composer through the keyed `main` slot and delegates New conversation and history selection to `uiWorkspace`; the main window continues to own its normal root slot. A trusted Desktop selection event inserts plain text into the selected Session's draft without sending it. If no Session is ready, the selection remains in renderer memory until a Session can accept the draft; the visible notice offers a manual retry. Background controls appear only after the local Host route confirms its worker list. A submission becomes visible after a fresh Host list confirms the worker; an uncertain request requires refresh before retry. Opening a worker uses the normal Conversation view for approvals, plans, and questions.
 
+No runtime invariant companion is published because Session, authentication, and background-task state remain owned and verified by the Host rather than duplicated in this presentation plugin.
+
 <a id="model-experience"></a>
 ## Model Experience
 

@@ -1,5 +1,6 @@
 /** Electron application host for the existing DeepSeek Harness Web GUI. */
 
+import type { ProductEvent } from '@deepseek-ai/dsh-client-product-analytics/types'
 import { createHash, randomUUID } from 'node:crypto'
 import {
   loadProcessObserver,
@@ -21,6 +22,7 @@ import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
 import { FirstStartPreparation } from './first-start-preparation.ts'
 import { BundledPresetVersionGate } from './bundled-preset-version-gate.ts'
 import { applyFreshProfileDefaults } from './fresh-profile-defaults.ts'
+import { legacyScheduleMigrationNeeded, migrateLegacyScheduleCandidate, SCHEDULE_BUNDLE } from './legacy-schedule-migration.ts'
 import { deployPrebuiltProfile, readPrebuiltProfile, readProfileBuildApprovals, type PrebuiltProfileManifest } from './prebuilt-profile.ts'
 import {
   BundledPluginInstaller,
@@ -117,6 +119,7 @@ import {
 } from './workspace-runtime-manifest.ts'
 import { configureWorkspaceRuntimeCapability, type WorkspaceRuntimeProfilePaths } from './workspace-runtime-profile.ts'
 import { createDesktopLifecycle, type DesktopLifecycle } from './window-lifecycle.ts'
+import { readDesktopLoginShellEnvironment, resolveDesktopLoginShellConfig } from './login-shell-environment.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { openWelcomeWindow } from './welcome-window.ts'
 import { DesktopWelcomePresentation } from './welcome-presentation.ts'
@@ -742,21 +745,22 @@ function ensureOrbWindow(): OrbWindowController {
 }
 
 /** Keep the native target frontmost while excluding all Orb overlays from a capture. */
-async function excludeOrbOverlaysForCapture(): Promise<() => Promise<void>> {
+function excludeOrbOverlaysForCapture(): Promise<() => Promise<void>> {
   orbObservationController?.hide()
   orbObservationActive = false
   orbSelectionController?.setInputActive(true)
   orbSelectionWindowController?.setInputActive(true)
   orbShortcutController?.setInputActive(true)
   const restoreOrb = orbWindowController?.excludeFromCapture()
-  return async () => {
+  return Promise.resolve(() => {
     try { restoreOrb?.() }
     finally {
       orbSelectionController?.setInputActive(false)
       orbSelectionWindowController?.setInputActive(false)
       orbShortcutController?.setInputActive(false)
     }
-  }
+    return Promise.resolve()
+  })
 }
 
 function ensureOrbObservationController(): OrbObservationController {
@@ -1536,6 +1540,12 @@ async function openInitialWorkspace(url: string, dshHome: string): Promise<void>
   }
   try {
     const window = await openWelcomeWindow(locale, {
+      analyticsEnabled: () => backend.analyticsEnabled(),
+      analytics: async (eventName, attributes) => {
+        if (await backend.analyticsEnabled()) {
+          await backend.report({ eventName, attributes, timestamp: Date.now() } as ProductEvent)
+        }
+      },
       takeNotice: () => Promise.resolve(undefined),
       startSignIn: () => backend.account.start({
         version: app.getVersion(), locale: locale.id,
@@ -2041,8 +2051,14 @@ async function startApplication(): Promise<void> {
     (error) => { console.error('desktop: could not read download network settings; using defaults', error) },
   )
   downloadNetworkProxy = await startPluginDownloadProxy(downloadNetworkStore)
+  const loginShellEnvironment = app.isPackaged
+    ? await readDesktopLoginShellEnvironment(process.env, resolveDesktopLoginShellConfig(process.env))
+    : { environment: process.env, failures: [] }
+  for (const failure of loginShellEnvironment.failures) {
+    console.warn(`desktop: login shell ${failure.shell} environment unavailable (${failure.reason}); trying inherited environment`)
+  }
   let harnessEnvironment: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...loginShellEnvironment.environment,
     DSH_HOME: dshHome,
     DSH_DESKTOP_APPLICATION_VERSION: app.getVersion(),
     DSH_DESKTOP_PNPM_VERSION: DESKTOP_PNPM_VERSION,
@@ -2272,6 +2288,7 @@ async function startApplication(): Promise<void> {
       throw new Error('desktop: floating Session ownership is unavailable outside the active local Host')
     }
     const sessionId = await ensureLocalOrbCaller(origin, secret, event.sender.session.cookies, fetch)
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- The supervisor may be replaced while ownership lookup awaits.
     if (origin !== harnessOrigin || secret !== supervisor?.orbCallerSecret || bootNasRuntime() !== undefined) {
       throw new Error('desktop: floating Session Host generation changed during ownership lookup')
     }
@@ -3092,12 +3109,12 @@ async function startApplication(): Promise<void> {
     const stagedExists = await lstat(staged).then(stats => stats.isFile(), () => false)
     let selected: string | undefined
     if (stagedExists) {
-      const chinese = app.getLocale().toLowerCase().startsWith('zh')
+      const copy = shellMessages(app.getLocale())
       const response = await showDesktopMessageBox({
         type: 'question',
-        title: chinese ? '使用已导入的离线包？' : 'Use the imported offline transfer?',
-        message: chinese ? '导入配置时选定的离线包已准备好。' : 'The transfer selected during configuration import is ready.',
-        buttons: chinese ? ['取消', '使用此包', '选择其他文件'] : ['Cancel', 'Use this transfer', 'Choose another file'],
+        title: copy.useImportedTransferTitle,
+        message: copy.useImportedTransferMessage,
+        buttons: [copy.cancel, copy.useImportedTransfer, copy.chooseAnotherTransfer],
         defaultId: 1, cancelId: 0,
       })
       if (response.response === 0) return manager.snapshot()
@@ -3105,9 +3122,9 @@ async function startApplication(): Promise<void> {
     }
     if (selected === undefined) {
       const result = await (chooser === undefined ? dialog.showOpenDialog({
-        properties: ['openFile'], filters: [{ name: 'Offline plugin transfer', extensions: ['tgz'] }],
+        properties: ['openFile'], filters: [{ name: shellMessages(app.getLocale()).offlineTransferFilter, extensions: ['tgz'] }],
       }) : dialog.showOpenDialog(chooser, {
-        properties: ['openFile'], filters: [{ name: 'Offline plugin transfer', extensions: ['tgz'] }],
+        properties: ['openFile'], filters: [{ name: shellMessages(app.getLocale()).offlineTransferFilter, extensions: ['tgz'] }],
       }))
       selected = result.filePaths[0]
       if (result.canceled || selected === undefined) return manager.snapshot()
@@ -3122,13 +3139,13 @@ async function startApplication(): Promise<void> {
           await runPackageManagerInvocation(args, cwd, environment, launchOptions, IMPORTED_PLUGIN_INSTALL_TIMEOUT_MS)
         })
       if (plan.ready.length === 0) throw new Error('desktop: offline transfer has no plugins awaiting restore in this Profile')
-      const chinese = app.getLocale().toLowerCase().startsWith('zh')
+      const copy = shellMessages(app.getLocale())
       const approval = await showDesktopMessageBox({
         type: 'question',
-        title: chinese ? '确认离线恢复插件' : 'Confirm offline plugin restore',
-        message: chinese ? `将离线安装 ${plan.ready.length} 个插件` : `Install ${plan.ready.length} plugins offline`,
+        title: copy.confirmOfflinePluginRestore,
+        message: copy.installPluginsOffline(plan.ready.length),
         detail: plan.ready.map(item => `${item.packageName}@${item.version}`).join('\n'),
-        buttons: chinese ? ['取消', '安装'] : ['Cancel', 'Install'], defaultId: 0, cancelId: 0,
+        buttons: [copy.cancel, copy.install], defaultId: 0, cancelId: 0,
       })
       if (approval.response !== 1) return manager.snapshot()
       cancelBootableSnapshot()
@@ -3708,7 +3725,7 @@ async function startApplication(): Promise<void> {
   }
   let runtimePendingApplied = false
   let orbPendingBackend: ManagedOrbComputerBackend | undefined
-  try { orbPendingBackend = orbSettingsStore?.readPendingBackend() }
+  try { orbPendingBackend = orbSettingsStore.readPendingBackend() }
   catch (error) { console.warn('desktop: pending floating-ball backend is invalid; preserving the active Profile', error) }
   let orbPendingApplied = false
   const desktopMutations = new DesktopProfileMutation({
@@ -4144,6 +4161,16 @@ async function startApplication(): Promise<void> {
     ptcNeedsInstall = !await isWorkspacePtcPluginInstalled(dshHome, ptcVersion)
   }
   const applyRuntimePending = (hasRuntimePending || ptcNeedsInstall) && startupProfileMutationAllowed && !preserveCopiedPlugins
+  let legacySchedulePending = firstStartPending
+  let legacyScheduleActivationExpected = false
+  if (!firstStartPending && startupProfileMutationAllowed && !preserveCopiedPlugins) {
+    try {
+      legacySchedulePending = await legacyScheduleMigrationNeeded(dshHome)
+    } catch (error) {
+      await appendDesktopStartupLog(`Legacy Schedule migration inspection failed; preserving the Profile: ${error instanceof Error ? error.message : String(error)}`)
+      await retainStartupWarning('runtime.schedule-migration-failed', 'schedule-migration-inspection', ['diagnostics', 'open-log'])
+    }
+  }
   let presetUpgradeNeeded = false
   let presetVersionMarkerUnavailable = false
   if (!firstStartPending && (startupProfileMutationAllowed || preserveCopiedPlugins)) {
@@ -4169,7 +4196,9 @@ async function startApplication(): Promise<void> {
     }
     if (startupProfileMutationAllowed && !preserveCopiedPlugins) {
       // Even a retry with settled markers needs a readiness-verified commit before clearing the gate.
-      if (firstStartPending || applyRuntimePending || orbPendingBackend !== undefined) await desktopMutations.prepareStartup()
+      if (firstStartPending || applyRuntimePending || orbPendingBackend !== undefined || legacySchedulePending) {
+        await desktopMutations.prepareStartup()
+      }
       if (prebuilt !== undefined && prebuiltDirectory !== undefined) {
         const startedAt = Date.now()
         const candidate = desktopMutations.mutationHome
@@ -4222,6 +4251,22 @@ async function startApplication(): Promise<void> {
         await appendDesktopStartupLog(presetVersionMarkerUnavailable
           ? 'Skipped bundled plugin provisioning: the desktop version marker is unavailable; inspect startup diagnostics.'
           : 'Skipped bundled plugin provisioning: this desktop version was already attempted for the Profile.')
+      }
+      if (legacySchedulePending) {
+        try {
+          const result = await desktopMutations.applyAtStartup({
+            operation: 'legacy-schedule-bundle-migration',
+            run: context => migrateLegacyScheduleCandidate(context.home, dshHome, !firstStartPending),
+          })
+          legacyScheduleActivationExpected = result === 'enabled'
+          if (result === 'enabled') {
+            await appendDesktopStartupLog('Enabled the optional Schedule bundle in the startup candidate for an existing local Profile; stored tasks and user patches were not changed.')
+          }
+        } catch (error) {
+          legacySchedulePending = false
+          await appendDesktopStartupLog(`Legacy Schedule migration failed; preserving the prior Profile: ${error instanceof Error ? error.message : String(error)}`)
+          await retainStartupWarning('runtime.schedule-migration-failed', 'schedule-migration', ['diagnostics', 'open-log', 'snapshot-restore'])
+        }
       }
     } else {
       await appendDesktopStartupLog(
@@ -4379,9 +4424,10 @@ async function startApplication(): Promise<void> {
       }
     }
     else {
-      await desktopMutations.finishStartup(firstStartPending
-        ? manifest.plugins.filter(entry => entry.installPolicy === 'startup').map(entry => entry.packageName)
-        : [])
+      await desktopMutations.finishStartup([
+        ...(firstStartPending ? manifest.plugins.filter(entry => entry.installPolicy === 'startup').map(entry => entry.packageName) : []),
+        ...(legacyScheduleActivationExpected ? [SCHEDULE_BUNDLE] : []),
+      ])
     }
   } catch (error) {
     await appendDesktopStartupLog('Startup candidate could not be activated; preserved the prior Profile.')
@@ -4398,6 +4444,7 @@ async function startApplication(): Promise<void> {
     try { return (orbPendingApplied ? orbPendingBackend : orbSettingsStore?.read().backend) === 'orb' }
     catch { return false }
   }
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- Keep the local-only transport gate explicit across startup refactors.
   if (activeNasRuntime === undefined && ['darwin', 'win32', 'linux'].includes(process.platform)) {
     try {
       // Probe the packaged native helper without requesting any OS permission.
@@ -4422,7 +4469,7 @@ async function startApplication(): Promise<void> {
           },
           // The Host provider owns the sole Cordis Computer Use reservation;
           // this Desktop instance owns one generation-scoped native backend.
-          acquireExclusive: async () => async () => {},
+          acquireExclusive: () => Promise.resolve(() => Promise.resolve()),
           postActionWaitMs: 350,
         }),
         onObservation: (observed) => {

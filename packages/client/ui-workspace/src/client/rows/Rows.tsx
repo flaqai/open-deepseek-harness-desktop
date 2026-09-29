@@ -46,7 +46,7 @@ type RowRenderSlots = PropsRenderSlots<
 
 /** Row display title: blank rows show the localized New Session label. */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
-  return node.blank ? t('session.new') : node.title
+  return node.blank ? t('session.new') : (node.title || t('session.untitled'))
 }
 
 /* Overflow this small hides no meaningful tail; scrolling for it reads as an
@@ -499,7 +499,7 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: 
             <SessionStatusDots statuses={statuses} />
           )}
         </span>
-        <span className={css.searchResultTitle}>{result.title}</span>
+        <span className={css.searchResultTitle}>{result.title || t('session.untitled')}</span>
         {result.archived && (
           <span className={css.rowActions}>
             <Tooltip label={t('actions.unarchive')} side="bottom" align="end" delayMs={500}>
@@ -699,7 +699,7 @@ export function SessionNodeItem({
       content={<SessionHoverContent node={node} now={now} renderSlot={renderSlot} t={t} />}
       openDelayMs={800}
       disabled={menuOpen || drag?.active === true}
-      copyText={row.blank ? undefined : row.title}
+      copyText={row.blank || row.title === '' ? undefined : row.title}
       copyLabel={t('copy')}
       copiedLabel={t('hover.copied')}
     />

@@ -1017,6 +1017,57 @@ describe('DeepSeekAdapter against a mock server', () => {
       ])
   })
 
+  it('recovers in one replacement request when the provider lists dozens of missing file ids', async () => {
+    const refs = Array.from({ length: 40 }, (_, index): ImageAttachmentRef => ({
+      ...imageRef,
+      attachmentId: AttachmentId(`sha256:${(index + 1).toString(16).padStart(64, '0')}`),
+    }))
+    const missing = Array.from({ length: 30 }, (_, index) => `file-api-${index + 1}`)
+    const server = await mockServer([
+      {
+        kind: 'http-error',
+        status: 400,
+        body: JSON.stringify({
+          error: {
+            type: 'invalid_request_error',
+            message: 'messages.0.content.1.tool_result: the following file_ids do not exist or are not created under your account: '
+              + `${missing.join(', ')} (request_id: 00000000-0000-4000-8000-000000000002)`,
+          },
+        }),
+      },
+      { kind: 'sse', events: textEvents },
+    ])
+    const attachments = attachmentStoreOf(ref => Promise.resolve({
+      ...requestImage(ref),
+      variantId: ImageVariantId(String(ref.attachmentId)),
+    })).store
+    const adapter = adapterOf({
+      baseURL: server.url,
+      models: [{ id: 'deepseek-v4-flash-vision-exp', inputModalities: ['text', 'image'] }],
+    }, attachments)
+
+    await drain(adapter.stream({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-flash-vision-exp',
+      messages: [createUserMessage({
+        content: refs.map(ref => ({ type: 'image' as const, attachment: ref })),
+        source: { kind: 'model', provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+      })],
+    }))
+
+    expect(server.requests).toHaveLength(2)
+    expect(server.fileRequests.filter(request => request.method === 'POST')).toHaveLength(70)
+    const attempts = server.requests as Array<{ messages: Array<{ content: Array<{ type: string; source?: { file_id?: string } }> }> }>
+    const fileIds = (attempt: number) => attempts[attempt]?.messages[0]?.content
+      .filter(block => block.type === 'image')
+      .map(block => block.source?.file_id)
+    expect(fileIds(0)).toEqual(refs.map((_, index) => `file-api-${index + 1}`))
+    expect(fileIds(1)).toEqual([
+      ...missing.map((_, index) => `file-api-${41 + index}`),
+      ...refs.slice(30).map((_, index) => `file-api-${31 + index}`),
+    ])
+  })
+
   it('invalidates every used mapping when a stale-file response does not identify one file id', async () => {
     const secondRef: ImageAttachmentRef = {
       ...imageRef,

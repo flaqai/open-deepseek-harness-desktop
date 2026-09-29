@@ -105,11 +105,29 @@
    toggle, shell.leading controls), the same in both sidebar states. Entry
    pages in the main panel (plugin manager, settings-like pages — not the
    conversation, which owns its header) pad their top by it so their leading
-   content clears the strip, and overlay primitives keep it as their top
-   viewport margin. Declared on the root element rather than the frame so
+   content clears the strip, and overlay primitives add their own safe inset.
+   Declared on the root element rather than the frame so
    overlays portalled to document.body inherit it too. */
 :global(html[data-platform='darwin']) {
   --dsh-frame-top-clearance: 48px;
+}
+
+/* In-frame Windows content already clears the caption through .frame padding. */
+:global(html[data-windows-titlebar]) {
+  --dsh-frame-top-clearance: var(--dsh-windows-titlebar-height);
+  --dsh-frame-chrome-top: var(--dsh-windows-titlebar-height);
+}
+
+/* Portalled overlays share a viewport inset without adding space to entry pages. */
+:global(html[data-platform='darwin']),
+:global(html[data-windows-titlebar]) {
+  --dsh-frame-overlay-top: calc(var(--dsh-frame-top-clearance) + 20px);
+}
+
+:global(html[data-platform='darwin'][data-fullscreen]),
+:global(html[data-windows-titlebar][data-fullscreen]) {
+  --dsh-frame-overlay-top: 20px;
+  --dsh-frame-chrome-top: 0px;
 }
 
 :global([data-platform='darwin']) .sidebarCol {

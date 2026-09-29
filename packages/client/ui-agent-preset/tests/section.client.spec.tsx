@@ -12,8 +12,7 @@ const translations: ReadonlyMap<string, string> = new Map(Object.entries(en))
 function unusedHook(): never {
   throw new Error('This section does not read global slot sources')
 }
-function view(partial: Partial<AgentPresetSectionState> = {}, startCreatorDraft?: () => void, developerTools = true,
-  outerClose?: () => void) {
+function view(partial: Partial<AgentPresetSectionState> = {}, startCreatorDraft?: () => void, outerClose?: () => void) {
   const store = createSnapshotStore<AgentPresetSectionState>({ status: 'ready', error: null,
     saving: false, rows: [{ id: 'standard', isDefault: true }, { id: 'mine', name: 'Mine', isDefault: false }],
     view: null, ...partial })
@@ -24,7 +23,6 @@ function view(partial: Partial<AgentPresetSectionState> = {}, startCreatorDraft?
     usePanelInfo: unusedHook, useSessions: unusedHook, useSessionStatus: unusedHook, useSessionRetainInfo: unusedHook,
     useWorkspaces: unusedHook, useResource: unusedHook,
     useAgentPresetSection: bindSnapshotSelector(store),
-    useDeveloperTools: bindSnapshotSelector(createSnapshotStore(developerTools)),
     t: key => translations.get(key) ?? key }
   render(outerClose === undefined ? <AgentPresetSection {...props} />
     : <Modal open onClose={outerClose} title="Settings" closeLabel="Close"><AgentPresetSection {...props} /></Modal>)
@@ -35,14 +33,9 @@ function rowFor(id: string): HTMLElement {
   if (row === null) throw new Error(`no card for ${id}`)
   return row
 }
-it('offers no selection switch and disables the card actions while Developer tools are off', () => {
-  view({}, undefined, false)
-
-  expect(screen.queryByRole('switch')).toBeNull()
-  expect(screen.getByRole<HTMLButtonElement>('button', { name: `${en.enableDevToolsToSetDefault}: Mine` }).disabled).toBe(true)
-})
 it('reads the roster once and sets a default from the card body', async () => {
   const actions = view()
+  expect(screen.queryByRole('switch')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: `${en.setDefault}: Mine` }))
   expect(actions.makeDefault).toHaveBeenCalledWith('mine')
   await waitFor(() =>{  expect(actions.load).toHaveBeenCalledOnce() })
@@ -82,15 +75,6 @@ it('offers no Creator entry without the conversation flow or the cordis preset',
   view({}, vi.fn())
   expect(screen.queryByRole('button', { name: en.creatorDraft })).toBeNull()
 })
-it('disables the Creator entry while Developer tools are off', () => {
-  const launch = vi.fn()
-  view({ rows: [{ id: 'cordis', isDefault: true }] }, launch, false)
-  const button = screen.getByRole<HTMLButtonElement>('button', { name: en.creatorDraft })
-  expect(button.disabled).toBe(true)
-  expect(button.title).toBe(en.enableDevToolsToCreate)
-  fireEvent.click(button)
-  expect(launch).not.toHaveBeenCalled()
-})
 it('reads a declared composition read-only from every card, broken ones included', () => {
   const actions = view({ rows: [{ id: 'standard', isDefault: true }, { id: 'broken', isDefault: false, broken: 'Missing plugin' }] })
   expect(screen.queryByRole('dialog')).toBeNull()
@@ -114,7 +98,7 @@ it('shows the open composition under the preset display name, without copy, and 
 })
 it('keeps Escape inside the composition viewer when Settings is also open', () => {
   const closeSettings = vi.fn()
-  const actions = view({}, undefined, true, closeSettings)
+  const actions = view({}, undefined, closeSettings)
   const trigger = within(rowFor('standard')).getByRole('button', { name: `${en.view}: ${en.presetStandardName}` })
   trigger.focus()
   fireEvent.click(trigger)
@@ -181,7 +165,7 @@ it.each([
 })
 it('keeps keyboard focus in help and dismisses only the reader on Escape', () => {
   const closeSettings = vi.fn()
-  const actions = view({}, undefined, true, closeSettings)
+  const actions = view({}, undefined, closeSettings)
   const trigger = within(rowFor('standard')).getByRole('button', { name: `${en.modeExplanation}: ${en.presetStandardName}` })
   trigger.focus()
   fireEvent.click(trigger)
@@ -224,12 +208,6 @@ it('does not attach built-in claims to named or unknown presets', () => {
   view({ rows: [{ id: 'ptc', name: 'My PTC', isDefault: false }, { id: 'third-party', isDefault: false }] })
   expect(screen.queryByRole('button', { name: new RegExp(en.modeExplanation) })).toBeNull()
   expect(screen.queryByRole('button', { name: new RegExp(en.howToUse) })).toBeNull()
-})
-it('leaves help usable while Developer tools are off', () => {
-  const actions = view({}, undefined, false)
-  fireEvent.click(within(rowFor('standard')).getByRole('button', { name: `${en.howToUse}: ${en.presetStandardName}` }))
-  expect(screen.getByRole('dialog', { name: en.presetStandardName })).toBeTruthy()
-  expect(actions.makeDefault).not.toHaveBeenCalled()
 })
 it('closes help even when the browser reports no previously focused element', () => {
   const descriptor: TypedPropertyDescriptor<Element | null> = Object.getOwnPropertyDescriptor(Document.prototype, 'activeElement')!

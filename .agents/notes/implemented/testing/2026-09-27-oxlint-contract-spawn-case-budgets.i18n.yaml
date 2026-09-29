@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-27-oxlint-contract-spawn-case-budgets.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/testing/2026-09-27-oxlint-contract-spawn-case-budgets.md
+/agent-note-oxlint-contract-cases-that-spawn-a-process-carry-a-90-s-ceiling:
+  en: 152f1e58efbf506e
+  zh: 889504ebfe5783ca
+/agent-note-oxlint-contract-cases-that-spawn-a-process-carry-a-90-s-ceiling/problem:
+  en: 08d6430c0b4e868f
+  zh: b98c15541bcea4ee
+/agent-note-oxlint-contract-cases-that-spawn-a-process-carry-a-90-s-ceiling/decision:
+  en: 34bd113b8c9228fb
+  zh: 99843bf33b703b5e
+/agent-note-oxlint-contract-cases-that-spawn-a-process-carry-a-90-s-ceiling/alternatives-considered:
+  en: 2b317170890802f7
+  zh: 2a5221dcfa8b9116
+/agent-note-oxlint-contract-cases-that-spawn-a-process-carry-a-90-s-ceiling/consequences:
+  en: e484a10680ca20b8
+  zh: 8fd9fcf13e3dbcd7

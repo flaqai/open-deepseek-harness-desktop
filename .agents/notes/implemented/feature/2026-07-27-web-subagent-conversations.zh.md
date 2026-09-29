@@ -28,7 +28,7 @@ Web 产品通过页头的当前 title 谱系区域公开选中会话中由会话
 
 ## 设计上下文
 
-Figma 中的 [subagent 列表](https://www.figma.com/design/jRBBK7zBgcszdVWQ0Fh5J8/Harness?node-id=383-14602&p=f)、[层级展开](https://www.figma.com/design/jRBBK7zBgcszdVWQ0Fh5J8/Harness?node-id=383-15917&p=f)与 [child 对话](https://www.figma.com/design/jRBBK7zBgcszdVWQ0Fh5J8/Harness?node-id=388-18584&p=f)画框是非规范性的交互与视觉参考。本记录负责生命周期、协议与失败语义。
+Figma 中的 subagent 列表、层级展开与 child 对话画框是非规范性的交互与视觉参考。本记录负责生命周期、协议与失败语义。
 
 | 设计意图 | 已交付约定 |
 | --- | --- |

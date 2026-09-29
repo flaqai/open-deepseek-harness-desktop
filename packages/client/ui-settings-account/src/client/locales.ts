@@ -33,7 +33,6 @@ export const en = {
   quotaDescription: 'DeepSeek Harness cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Connect to DeepSeek.',
   quotaTopUp: 'Top up',
   bonusNoticeTitle: 'Bonus credited',
-  bonusEmpty: 'No bonus available',
 } as const
 /** Account locale keys. */
 export type AccountKey = keyof typeof en
@@ -69,5 +68,4 @@ export const zh: Record<AccountKey, string> = {
   quotaDescription: '没有可用额度时，DeepSeek Harness 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 连接官方 进行充值。',
   quotaTopUp: '去充值',
   bonusNoticeTitle: '赠金已到账',
-  bonusEmpty: '暂无可用赠金',
 }

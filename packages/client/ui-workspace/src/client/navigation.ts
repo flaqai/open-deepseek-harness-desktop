@@ -55,9 +55,10 @@ export interface UiWorkspace {
   /**
    * Fork a Session without changing the current selection.
    * @param sessionId - source Session.
-   * @returns completion after child creation and inherited-title increment.
+   * @param onCreated - observer before the optional child-title update.
+   * @returns the child SessionId after creation and inherited-title increment.
    */
-  forkSession(sessionId: SessionId): Promise<void>
+  forkSession(sessionId: SessionId, onCreated?: (childId: SessionId) => void): Promise<SessionId>
   /**
    * Resolve the reusable or newly created blank Session for a Workspace.
    * @param workspaceId - target Workspace.
@@ -225,8 +226,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     this.replaceMain(sessionId, navigation, 'reveal', beforeOpen)
   }
 
-  async forkSession(sessionId: SessionId): Promise<void> {
-    await this.sessions.fork({ sessionId, increaseTitle: true })
+  async forkSession(sessionId: SessionId, onCreated?: (childId: SessionId) => void): Promise<SessionId> {
+    return this.sessions.fork({ sessionId, increaseTitle: true, ...onCreated === undefined ? {} : { onCreated } })
   }
 
   startSession(workspaceId?: WorkspaceId): void {

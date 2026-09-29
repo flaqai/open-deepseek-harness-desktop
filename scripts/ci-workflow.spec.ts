@@ -407,6 +407,24 @@ describe('CI workflow', () => {
     expect(observational?.env).toMatchObject({ DSH_GATE_FAIL_FAST: '' })
   })
 
+  it('runs the darwin unit parity inventory at the coverage lanes\' test budget', () => {
+    const coverage = workflowJob(loadWorkflow('.github/workflows/ci.yml'), 'node-24-coverage')
+    if (!isRecord(coverage.env) || typeof coverage.env.DSH_COVERAGE_TEST_TIMEOUT_MS !== 'string') {
+      throw new TypeError('node-24-coverage must grant DSH_COVERAGE_TEST_TIMEOUT_MS')
+    }
+    const unitDarwin = workflowJob(loadWorkflow('.github/workflows/sandbox.yml'), 'unit-darwin')
+    if (!Array.isArray(unitDarwin.steps)) throw new TypeError('unit-darwin job must define steps')
+    const unit = unitDarwin.steps.filter(isRecord).find(step => step.name === 'Unit tests (darwin parity)')
+    // The whole unit inventory on a shared macos-latest runner pays the same
+    // scheduling delay the coverage lanes absorb; the ci-unit aggregate is the
+    // `pnpm run test` path that consumes the variable, and the value is the
+    // coverage lane's so the two budget classes cannot drift apart.
+    expect(unit).toMatchObject({
+      run: 'pnpm run check:ci:unit',
+      env: { DSH_COVERAGE_TEST_TIMEOUT_MS: coverage.env.DSH_COVERAGE_TEST_TIMEOUT_MS },
+    })
+  })
+
   it('gates standalone keyless blacksmith jobs and benchmark tiers on the failover variables', () => {
     const expectedFilenames = workflowJob(loadWorkflow('.github/workflows/expected-filenames.yml'), 'expected-filenames')
     const sandbox = workflowJob(loadWorkflow('.github/workflows/sandbox.yml'), 'sandbox-e2e')
@@ -612,6 +630,16 @@ describe('CI workflow', () => {
 
     expect(config).not.toContain("pool: process.platform === 'win32' ? 'threads' : 'forks'")
     expect(config.match(/pool: 'forks'/g)).toHaveLength(2)
+  })
+
+  it('applies the lane test budget inside every Vitest project', () => {
+    // Each inline project spreads coverageTestTimeoutOptions, the only route
+    // for DSH_COVERAGE_TEST_TIMEOUT_MS into projects; the behavior itself is
+    // pinned by scripts/lane-test-budget.spec.ts.
+    const config = readFileSync(resolve(root, 'vitest.config.ts'), 'utf8')
+
+    expect(config).toContain('const laneTestBudget = coverageTestTimeoutOptions(process.env[COVERAGE_TEST_TIMEOUT_ENV])')
+    expect(config.match(/^ {10}\.\.\.laneTestBudget,$/gm)).toHaveLength(2)
   })
 })
 

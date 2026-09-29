@@ -21,7 +21,7 @@ import { toolRowModel } from '../src/client/tool/models/tool-call-model.ts'
 
 afterEach(cleanup)
 
-type Props = Parameters<typeof TodoRow>[0] & Parameters<typeof ReadImageRow>[0]
+type Props = Parameters<typeof TodoRow>[0] & Parameters<typeof ReadImageRow>[0] & Parameters<typeof AskQuestionRow>[0]
 
 function preparation(name: string): Props {
   return {
@@ -29,6 +29,7 @@ function preparation(name: string): Props {
     block: { phase: 'preparing', callId: 'call', name, turn: 1, step: 1, time: 1, subCalls: [] },
     t: makeTranslate(en, common), useDisclosure, useToolCallArgumentsPartial: vi.fn(() => ''), openFile: vi.fn(), loadImage: vi.fn(),
     useTodoHistory: vi.fn(), useSession: vi.fn(() => false), renderSlot: vi.fn(() => null),
+    useProjection: vi.fn(() => undefined), revealPanel: vi.fn(() => false), reviewPanel: vi.fn(() => false),
   } as Props
 }
 

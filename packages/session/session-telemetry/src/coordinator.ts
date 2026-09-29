@@ -178,15 +178,17 @@ export class SessionTelemetryCoordinator {
 
   /** Copy, redact, and hand one canonical event to the backend. */
   private captureEvent(session: Session, event: SessionEvent): void {
+    const { data, ...envelope } = event
     this.deliver(session, {
       record: this.redact({
+        sourceEvent: { sessionId: session.id, envelope: structuredClone(envelope) },
         channel: 'ledger',
         time: event.time,
         severity: severityOf(event),
         attributes: identityOf(session, event),
         // The canonical event object is mutable and the backend serializes
         // later; append-time validation guarantees this clone cannot throw.
-        body: structuredClone(event.data),
+        body: structuredClone(data),
       }),
       seq: event.seq,
     })

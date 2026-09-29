@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-28-detail-close-waits-on-observed-state.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/testing/2026-09-28-detail-close-waits-on-observed-state.md
+/agent-note-the-task-detail-close-waits-on-the-observed-state:
+  en: ffb94d33eb1c162c
+  zh: 32845a4113ab27c1
+/agent-note-the-task-detail-close-waits-on-the-observed-state/problem:
+  en: 0a3fa08f242a0f7e
+  zh: fb8c39531405952b
+/agent-note-the-task-detail-close-waits-on-the-observed-state/decision:
+  en: 3e4c20e32e3e9445
+  zh: 157750a7e1f1fd59
+/agent-note-the-task-detail-close-waits-on-the-observed-state/alternatives-considered:
+  en: 8ee7951bdf933b45
+  zh: 4736d42c1d52c9b0
+/agent-note-the-task-detail-close-waits-on-the-observed-state/consequences:
+  en: c0993f90f7af9c41
+  zh: 6a877cb1287000e3
+/agent-note-the-task-detail-close-waits-on-the-observed-state/related:
+  en: f35c1fe1c2ff83b3
+  zh: 56a3357ab5a67822

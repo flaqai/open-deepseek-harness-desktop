@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-28-desktop-login-shell-environment.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-28-desktop-login-shell-environment.md
+/agent-note-desktop-reads-the-login-shell-environment-once:
+  en: f3d08cb5b03f7032
+  zh: 2f117f42aed85bc3
+/agent-note-desktop-reads-the-login-shell-environment-once/problem:
+  en: 3a4b92c977e42f45
+  zh: 575d92a41e29ae7a
+/agent-note-desktop-reads-the-login-shell-environment-once/decision:
+  en: d2af1761d96c498a
+  zh: 8419dea042446494
+/agent-note-desktop-reads-the-login-shell-environment-once/alternatives-considered:
+  en: ed9ed8bb06a19d7f
+  zh: 52ceb0d70f0d05a7
+/agent-note-desktop-reads-the-login-shell-environment-once/consequences:
+  en: f3cd204ab6691f1d
+  zh: 00c9ae619065b4c3

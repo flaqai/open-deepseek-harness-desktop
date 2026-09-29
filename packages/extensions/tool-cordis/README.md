@@ -68,7 +68,7 @@ Unchanged tool schemas remain prefix-stable. Query results append to history; en
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Client queries wait for a responding page or cancellation. Inspection cannot invoke service methods, configure plugins, or execute generated code.
+- Client queries need a responding page and use the Host runner's [bounded wait and retry policy](../cordis-host-runner/README.md#client-inspection). Inspection cannot invoke service methods, configure plugins, or execute generated code.
 - `Config.listConfigs` walks the profile Loader tree only. Agent preset `plugins` lists mount in detached preset trees, so a plugin present only inside a preset declaration is not listed unless the profile tree also mounts it.
 
 <a id="dev-note"></a>

@@ -175,7 +175,7 @@ export function acceptedThrough(session: Session): SessionSeqCursor {
 }
 
 /**
- * Register the incremental `dsh_session_log` request contribution when enabled.
+ * Register the incremental request contribution; enablement is read for each request.
  * @param ctx - plugin context carrying Sessions and the DeepSeek request-extension registry.
  * @param config - validated configuration.
  */

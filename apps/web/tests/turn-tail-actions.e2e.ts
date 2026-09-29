@@ -11,7 +11,7 @@ import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
-import type { Browser, Page } from 'playwright'
+import type { Browser, Locator, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { afterEach, describe, expect, it, onTestFailed, vi } from 'vitest'
 import type { ReplayOverrideDoc } from '@deepseek-ai/dsh-llm-replay'
@@ -37,6 +37,22 @@ const MODE = webSnapshotMode()
 // the scenario would pass against either implementation.
 const NARRATION = 'Reading the workspace now.'
 const PROMPT = `Begin your reply with the plain sentence "${NARRATION}" as text, and in that same message call the bash tool with the command "echo alpha". After the tool result, reply with the single word DONE and stop.`
+
+/**
+ * Focus the Copy IconAction and wait for the tooltip the running golden records.
+ *
+ * `Tooltip` ignores focus while the last input came from a pointer, and any
+ * keydown clears that flag, so a focus that follows this scenario's own clicks
+ * raises no bubble. Clear the flag with a key that moves nothing, then focus
+ * and wait for the bubble rather than assuming its commit landed.
+ * @param page - page containing the Copy button.
+ * @param button - the Copy button to focus.
+ */
+async function expectFocusTooltip(page: Page, button: Locator): Promise<void> {
+  await page.keyboard.press('Shift')
+  await button.focus()
+  await page.getByRole('tooltip', { name: 'Copy', exact: true }).waitFor({ timeout: 10_000 })
+}
 
 describe('web e2e: assistant IconActions wait for the turn to end', () => {
   let scaffold: WebScaffold | undefined
@@ -144,11 +160,9 @@ describe('web e2e: assistant IconActions wait for the turn to end', () => {
     // so the first step's message and tool result are already durable.
     await expect.poll(() => existsSync(marker), { timeout: 20_000 }).toBe(true)
     const runningProcess = page.locator('[data-turn-process]')
-    expect(await runningProcess.count()).toBe(1)
-    expect(await runningProcess.isDisabled()).toBe(true)
-    expect(await runningProcess.getAttribute('aria-expanded')).toBe('true')
+    expect(await runningProcess.count()).toBe(0)
     await expect.poll(
-      () => page.getByRole('status').filter({ hasText: 'Deep diving...' }).isVisible(),
+      () => page.getByRole('status').filter({ hasText: 'Deep diving' }).isVisible(),
       { timeout: 10_000 },
     ).toBe(true)
     await page.locator('[data-streaming="true"]')
@@ -159,7 +173,7 @@ describe('web e2e: assistant IconActions wait for the turn to end', () => {
     const copyButtons = page.getByRole('button', { name: 'Copy' })
     await expect.poll(() => copyButtons.count(), { timeout: 10_000 }).toBe(1)
     expect(await page.getByRole('button', { name: 'Branch into a new conversation' }).count()).toBe(0)
-    await copyButtons.first().focus()
+    await expectFocusTooltip(page, copyButtons.first())
     const running = await captureStableAria(page, '[class*="centerCol"]', scaffold!.workspaceCwd)
     await compareOrRefreshGolden(RUNNING_EXPECTED, running, MODE)
 
@@ -172,6 +186,8 @@ describe('web e2e: assistant IconActions wait for the turn to end', () => {
     await page.locator('[data-turn-process]').waitFor({ timeout: 10_000 })
     await expect.poll(() => copyButtons.count(), { timeout: 10_000 }).toBe(2)
     await expect.poll(() => page.locator('[data-streaming="true"]').count(), { timeout: 10_000 }).toBe(0)
+    // The settled golden records no bubble: this focus follows the Stop click,
+    // which leaves the pointer owning the last input.
     await copyButtons.last().focus()
     const settledAria = await captureStableAria(page, '[class*="centerCol"]', scaffold!.workspaceCwd)
     await compareOrRefreshGolden(SETTLED_EXPECTED, settledAria, MODE)
@@ -235,7 +251,7 @@ describe('web e2e: assistant IconActions wait for the turn to end', () => {
       element.closest<HTMLElement>('[data-chat-flow-kind="turn-process"]')?.getBoundingClientRect().bottom)
     const answerTop = await page.getByText('DONE', { exact: true }).evaluate(element =>
       element.closest<HTMLElement>('[data-chat-flow-kind="assistant-step"]')?.getBoundingClientRect().top)
-    expect(answerTop).toBe((processBottom ?? 0) + 8)
+    expect(answerTop).toBe((processBottom ?? 0) + 16)
     await process.focus()
     const completed = await captureStableAria(page, '[class*="centerCol"]', scaffold!.workspaceCwd)
     await compareOrRefreshGolden(COMPLETED_EXPECTED, completed, MODE)
@@ -244,7 +260,7 @@ describe('web e2e: assistant IconActions wait for the turn to end', () => {
   }, 60_000)
 
   it.skipIf(MODE === 'record').each([
-    ['compact', 'Compact'], ['detailed', 'Detailed'], ['verbose', 'Verbose'],
+    ['compact', 'Compact'], ['standard', 'Standard'], ['verbose', 'Verbose'],
   ] as const)('applies whole-Turn presentation in %s mode', async (mode, label) => {
     await launch()
     onTestFailed(() => saveFailureShot(page, 'web-e2e-turn-process-setting'))
@@ -259,7 +275,7 @@ describe('web e2e: assistant IconActions wait for the turn to end', () => {
     await openSettings(page, 'en')
     const dialog = page.getByRole('dialog', { name: 'Settings' })
     await dialog.getByText('Work details', { exact: true }).locator('../..')
-      .getByRole('button', { name: 'Standard', exact: true }).click()
+      .getByRole('button', { name: 'Detailed', exact: true }).click()
     await page.getByRole('menuitem', { name: label, exact: true }).click()
     await page.keyboard.press('Escape')
 

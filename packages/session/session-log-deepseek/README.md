@@ -27,7 +27,7 @@ Incremental canonical session-log upload for official DeepSeek LLM API requests.
 
 | Key | Default | Meaning |
 |---|---:|---|
-| `enabled` | `true` | Register the `dsh_session_log` contribution. Set it to `false` to stop Session-log upload. |
+| `enabled` | `true` | Send the `dsh_session_log` contribution. Changes apply to the next request; `false` stops Session-log upload. |
 | `maxBytes` | 8 MiB | Largest serialized `dsh_session_log` field, in UTF-8 bytes, that one request carries. |
 
 Shipped profiles mount the plugin, so the default configuration registers the request field and appends the acceptance watermark. When the settings service is present, the Models settings page shows the effective state and writes the `session-log-deepseek.enabled` user override live; an overlay or user setting can opt out with `enabled: false`.

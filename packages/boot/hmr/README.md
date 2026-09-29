@@ -87,6 +87,7 @@ Reloading a contributing plugin can change later request prefixes; HMR does not 
 
 - Module replacement requires Node loader internals. Framework dependency changes call the host-provided `loader.exit()` hook; HMR itself does not restart the process.
 - Replacing installed package versions still requires a restart through Plugin Manager. The browser Client module graph retains its separate browser-side loading mechanism.
+- `watchConfig()` resolves when Chokidar reports readiness. On darwin, libuv starts the FSEvents stream afterwards on its own thread, so a write that lands within milliseconds of registration is not reported until the next event in that directory; edits made after startup are unaffected.
 
 ### Dev Note
 

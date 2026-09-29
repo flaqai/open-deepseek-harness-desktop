@@ -128,13 +128,16 @@ export class RequestFiles {
   }
 
   /**
-   * Invalidate rejected mappings; only the first stale-id response permits another request.
+   * Invalidate every rejected mapping in one index update; only the first stale-id response permits another request.
    * @param detail - provider error fields used for stale-id classification.
    * @returns whether the caller should serialize and dispatch again.
    */
   async retry(detail: string): Promise<boolean> {
     if (this.used.length === 0 || !providerRejectedFileId(detail)) return false
-    await Promise.all(staleMappings(this.used, detail).map(file => this.files.invalidate(file.version, file.fileId, this.connection)))
+    await this.files.invalidate(
+      staleMappings(this.used, detail).map(file => ({ variantId: file.version.variantId, fileId: file.fileId })),
+      this.connection,
+    )
     if (this.retried) return false
     this.retried = true
     return true

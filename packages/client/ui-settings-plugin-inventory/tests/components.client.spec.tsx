@@ -321,14 +321,14 @@ describe('PluginInventorySettingsTab', () => {
     })
     openGroup(globalToggle())
     expect(screen.getByText(en.metadataError.replace('{error}', error))).toBeTruthy()
-    const card = screen.getByRole('button', { name: 'legacy, include:legacy, Disabled' })
+    const card = screen.getByRole('button', { name: 'legacy, Disabled' })
     expect(card).toHaveProperty('disabled', false)
     expect(card.closest('li')?.getAttribute('data-failed')).toBeNull()
     fireEvent.click(card)
     expect(screen.getByText(en.moduleLabel).nextElementSibling?.textContent).toBe('@acme/dsh-legacy')
   })
 
-  it('shows the default preset first with both groups collapsed', async () => {
+  it('shows the default preset first with its group open and the global plane folded', async () => {
     const view = await renderReady()
 
     const switcher = screen.getByRole('button', { name: en.switcherLabel })
@@ -344,32 +344,34 @@ describe('PluginInventorySettingsTab', () => {
     expect(screen.getByText(en.presetSubtitle)).toBeTruthy()
     expect(view.container.querySelector('[data-preset-plugin-count]')?.getAttribute('data-preset-plugin-count')).toBe('6')
 
-    // Only the preset group lists rows while the global plane stays collapsed.
+    // The preset group starts open with its rows while the larger global plane stays folded.
+    expect(presetToggle().getAttribute('aria-expanded')).toBe('true')
     expect(screen.getAllByRole('listitem')).toHaveLength(6)
-    expect(screen.getAllByText(en.enabledTag)).toHaveLength(3)
+    // Only the states that depart from plainly enabled carry a tag.
+    expect(screen.queryByText(en.enabledTag)).toBeNull()
     expect(screen.getByText(en.conditionalTag)).toBeTruthy()
     expect(screen.getByText(en.disabledTag)).toBeTruthy()
     expect(screen.getByText(en.failedTag)).toBeTruthy()
-    // The enabled tag already communicates an active fiber; transient phases retain their dots.
-    expect(screen.queryByRole('img', { name: 'Running' })).toBeNull()
-    // No live fiber, no dot: file-state rows carry only their enablement tag.
-    expect(screen.queryByRole('img', { name: 'Not running' })).toBeNull()
+    // A settled row carries no phase dot: an active fiber and a row with no live
+    // fiber both render without one.
+    expect(screen.queryByRole('img', { name: en.active })).toBeNull()
+    expect(screen.queryByRole('img', { name: en.unobserved })).toBeNull()
 
     expect(globalToggle().getAttribute('aria-expanded')).toBe('false')
     expect(view.container.querySelector('[data-plugin-count]')?.getAttribute('data-plugin-count')).toBe('7')
     expect(screen.getByText(`1 ${en.failedCountLabel}`)).toBeTruthy()
 
     // A preset row expands into its source facts.
-    fireEvent.click(screen.getByRole('button', { name: 'pwsh, pwsh, Conditional' }))
+    fireEvent.click(screen.getByRole('button', { name: 'pwsh, Conditional' }))
     expect(screen.getByText(en.fromPreset)).toBeTruthy()
     expect(screen.getByText('标准模式')).toBeTruthy()
     expect(screen.getByText(en.condition)).toBeTruthy()
     expect(screen.getByText('process.platform === \'win32\'')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'pwsh, pwsh, Conditional' }))
+    fireEvent.click(screen.getByRole('button', { name: 'pwsh, Conditional' }))
     expect(screen.queryByText(en.condition)).toBeNull()
 
     // A failed preset row names its runtime state instead of a condition.
-    fireEvent.click(screen.getByRole('button', { name: 'crashy, crashy, Failed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'crashy, Failed' }))
     expect(screen.getByText(en.runtime)).toBeTruthy()
     expect(screen.getByText('Failed to start')).toBeTruthy()
 
@@ -379,7 +381,7 @@ describe('PluginInventorySettingsTab', () => {
     expect(screen.getByText(en.moduleLabel).nextElementSibling?.textContent).toBe('@fixture/anonymous')
   })
 
-  it('keeps the phase dot for a live phase the enablement tag does not state', async () => {
+  it('marks a live phase with a dot on an untagged enabled row', async () => {
     await renderReady({
       entries: [
         { entryId: 'booting', moduleName: '@fixture/booting', enabled: true, fiberPhase: 'loading' },
@@ -399,7 +401,8 @@ describe('PluginInventorySettingsTab', () => {
 
     openGroup(globalToggle())
     openGroup(presetToggle())
-    expect(screen.getAllByText(en.enabledTag)).toHaveLength(6)
+    expect(screen.getAllByRole('listitem')).toHaveLength(6)
+    expect(screen.queryByText(en.enabledTag)).toBeNull()
     expect(screen.getByRole('img', { name: en.loadingPhase })).toBeTruthy()
     expect(screen.getByRole('img', { name: en.pending })).toBeTruthy()
     expect(screen.getByRole('img', { name: en.unloading })).toBeTruthy()
@@ -440,6 +443,26 @@ describe('PluginInventorySettingsTab', () => {
     expect(filteredSecondary.getAttribute('aria-expanded')).toBe('true')
   })
 
+  it('shows the entry id only where it adds to the title', async () => {
+    await renderReady({
+      dependencyHealth: HEALTHY_DEPENDENCIES,
+      entries: [
+        { entryId: 'timer' as PluginEntryId, moduleName: 'cordis:timer', enabled: true, fiberPhase: 'active' },
+        { entryId: 'include:hmr' as PluginEntryId, moduleName: '@deepseek-ai/cordis-plugin-hmr', enabled: true, fiberPhase: 'active' },
+        { entryId: 'typert' as PluginEntryId, moduleName: '@fixture/typert-registry', enabled: true, fiberPhase: null },
+      ],
+    })
+    openGroup(globalToggle())
+
+    // An id equal to the title leaves both the card and its accessible name.
+    expect(screen.getByRole('button', { name: 'timer, Enabled' }).querySelector('code')).toBeNull()
+    // A composition id that matches the title once its include: marker drops is left out the same way.
+    expect(screen.getByRole('button', { name: 'hmr, Enabled' }).querySelector('code')).toBeNull()
+    const typert = screen.getByRole('button', { name: 'typert-registry, typert, Enabled' }).querySelector('code')
+    expect(typert?.textContent).toBe('typert')
+    expect(typert?.getAttribute('title')).toBe('typert')
+  })
+
   it('expands the global plane with failures first and preset-provided rows inline', async () => {
     const view = await renderReady()
 
@@ -454,13 +477,13 @@ describe('PluginInventorySettingsTab', () => {
     // Rows the presets took over sit inline, marked instead of plainly disabled.
     expect(screen.getAllByText(en.presetEnabledTag)).toHaveLength(2)
 
-    fireEvent.click(screen.getByRole('button', { name: 'tool-bash, bash-host, Enabled via presets' }))
+    fireEvent.click(screen.getByRole('button', { name: 'tool-bash, bash-host, Via presets' }))
     expect(screen.getByText(en.presetProvidedDetail)).toBeTruthy()
     expect(screen.getByText(en.enabledIn)).toBeTruthy()
     expect(screen.getByText('标准模式 · ptc')).toBeTruthy()
 
     // The failed global card reports its runtime state.
-    fireEvent.click(screen.getByRole('button', { name: 'telemetry, telemetry, Failed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'telemetry, Failed' }))
     expect(screen.getByText('Failed to start')).toBeTruthy()
 
     // An enabled entry with no live fiber says so in its details, dot-free.
@@ -468,7 +491,7 @@ describe('PluginInventorySettingsTab', () => {
     expect(screen.getByText('Not running')).toBeTruthy()
 
     // A disabled row outside every preset stays plainly disabled.
-    fireEvent.click(screen.getByRole('button', { name: 'dormant, dormant, Disabled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'dormant, Disabled' }))
     expect(screen.queryByText(en.presetProvidedDetail)).toBeNull()
 
     fireEvent.click(globalToggle())
@@ -494,14 +517,15 @@ describe('PluginInventorySettingsTab', () => {
     expect(view.container.querySelector('[data-preset-plugin-count]')?.getAttribute('data-preset-plugin-count')).toBe('0')
   })
 
-  it('collapses the preset group until a search forces it open', async () => {
+  it('folds the preset group on demand and reopens it for a search', async () => {
     const view = await renderReady()
     const toggle = screen.getByRole('button', { name: en.presetTitle })
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(view.container.querySelectorAll('[data-plugin-scope="preset"] li')).toHaveLength(6)
+    // The header keeps its count while the rows are folded away.
     fireEvent.click(toggle)
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
-    // The header keeps its count while the rows are folded away.
     expect(view.container.querySelector('[data-preset-plugin-count]')?.getAttribute('data-preset-plugin-count')).toBe('6')
     expect(view.container.querySelectorAll('[data-plugin-scope="preset"] li')).toHaveLength(0)
 
@@ -533,11 +557,11 @@ describe('PluginInventorySettingsTab', () => {
     ])
     fireEvent.keyDown(document, { key: 'Escape' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'pwsh, pwsh, Conditional' }))
+    fireEvent.click(screen.getByRole('button', { name: 'pwsh, Conditional' }))
     expect(screen.getByText(en.fromPreset).nextElementSibling?.textContent).toBe('Localized standard')
 
     fireEvent.click(globalToggle())
-    fireEvent.click(screen.getByRole('button', { name: 'tool-bash, bash-host, Enabled via presets' }))
+    fireEvent.click(screen.getByRole('button', { name: 'tool-bash, bash-host, Via presets' }))
     expect(screen.getByText('Localized standard · Localized ptc')).toBeTruthy()
   })
 
@@ -547,7 +571,7 @@ describe('PluginInventorySettingsTab', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'ptc' }))
 
     fireEvent.click(globalToggle())
-    fireEvent.click(screen.getByRole('button', { name: 'tool-bash, bash-host, Enabled via presets' }))
+    fireEvent.click(screen.getByRole('button', { name: 'tool-bash, bash-host, Via presets' }))
     fireEvent.click(screen.getByRole('button', { name: en.viewInPreset }))
     expect(screen.getByRole('button', { name: en.switcherLabel }).textContent)
       .toBe('标准模式 (default)')
@@ -596,10 +620,10 @@ describe('PluginInventorySettingsTab', () => {
     expect(globalToggle().getAttribute('aria-expanded')).toBe('true')
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
 
-    fireEvent.click(screen.getByRole('button', { name: 'hmr, hmr, Enabled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'hmr, Enabled' }))
     expect(screen.getByText(en.runtime)).toBeTruthy()
     expect(view.container.querySelector('[data-loader-entry]')?.textContent).toBe('hmr')
-    fireEvent.click(screen.getByRole('button', { name: 'off, off, Disabled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'off, Disabled' }))
     expect(screen.getAllByText(en.moduleLabel).length).toBeGreaterThan(0)
     expect(screen.queryByText(en.runtime)).toBeNull()
   })
@@ -671,7 +695,8 @@ describe('PluginInventorySettingsTab', () => {
 
     const deferred = Promise.withResolvers<Snapshot>()
     const pending = render(<PluginInventorySettingsTab {...props(() => deferred.promise)} />)
-    expect(screen.getByText(en.loading).querySelector('[data-state="ongoing"]')).not.toBeNull()
+    // Loading shows skeleton cards; the status region announces the label as visually hidden text.
+    expect(screen.getByRole('status').textContent).toBe(en.loading)
     pending.unmount()
     await act(async () => { deferred.resolve(SNAPSHOT) })
 

@@ -185,7 +185,7 @@ export function showOrbSelectionMenu(
   if (point === undefined) return false
   const chinese = /^zh(?:-|$)/iu.test(locale)
   Menu.buildFromTemplate([
-    { label: chinese ? '发送到悬浮聊天' : 'Send to floating chat', click: actions.attach },
+    { label: chinese ? '发送到悬浮聊天' : 'Send to floating chat', click: () => { actions.attach() } },
     { label: chinese ? '翻译成中文' : 'Translate into Chinese', click: () => { actions.translate('zh') } },
     { label: chinese ? '翻译成英文' : 'Translate into English', click: () => { actions.translate('en') } },
     { type: 'separator' },

@@ -21,8 +21,8 @@
   en: 5332d87e76037f07
   zh: db5d06e7e46b8429
 /deepseek-ai-dsh-client-ui-tool/use-this-package/built-in-views:
-  en: 4b69e36952574494
-  zh: 1f9842b40931adb6
+  en: 5bdd3af9df9b2b7c
+  zh: ff3517e71a2be98a
 /deepseek-ai-dsh-client-ui-tool/understand-the-implementation:
   en: 00bc7b0c84edc603
   zh: 1cfcf5b435248a91
@@ -30,11 +30,14 @@
   en: 2959b10b01e08a7b
   zh: 7084ca22650cbb5b
 /deepseek-ai-dsh-client-ui-tool/understand-the-implementation/cards:
-  en: 401a0118de2dba33
-  zh: 9efe590dd485c336
+  en: 936ae18b0927971f
+  zh: 170fb021d250fb58
+/deepseek-ai-dsh-client-ui-tool/understand-the-implementation/declared-optional-capabilities:
+  en: c1926deb4e5f3734
+  zh: c5845f465b94a459
 /deepseek-ai-dsh-client-ui-tool/further-exploration:
-  en: 886059e6bd594ebf
-  zh: 94cfe8d0a789f413
+  en: b37600769951cbca
+  zh: 816589549d21d176
 /deepseek-ai-dsh-client-ui-tool/model-experience:
   en: 1e5e72dd269855d5
   zh: 81a4756d460e3af9

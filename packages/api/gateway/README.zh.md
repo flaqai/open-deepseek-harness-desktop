@@ -42,6 +42,8 @@ Host 下行、Host 上行和 Client 上行泵的取消与停止状态归属单�
 
 Host 组合可通过 `registerRemoteEvents()` 注册唯一的应用事件 source。Gateway 为它保留内部 `$events` logical endpoint，只接受空 `args`，并在 source 撤回时中止该注册打开的流。事件名单、参数校验、每个 Client 的队列及 opening `{ type: 'ready', clientId, host: { home } }` frame 中的 Host home 由 API Remotes 拥有。source factory 在返回 iterable 前同步挂好增量 listener，因此 Client 只在增量投递就绪后发布 generation 并开始 baseline 读取。
 
+`hasLiveClient()` 检查已有 `$events` 记录中是否有未取消的流。已取消的流即使尚未完成 iterator 清理也不计入，单独的 WebSocket 也不计入。这一同步观察不保证后续投递成功或 Client Provider 已就绪。
+
 <a id="client-service-clientremote-ctx-key-remote"></a>
 ## Client 服务：`ClientRemote`（ctx key：`remote`）
 

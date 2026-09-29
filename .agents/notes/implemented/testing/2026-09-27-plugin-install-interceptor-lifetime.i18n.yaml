@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-27-plugin-install-interceptor-lifetime.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/testing/2026-09-27-plugin-install-interceptor-lifetime.md
+/agent-note-keep-plugin-install-interception-for-the-page-lifetime:
+  en: 2f732d10bfaf9f5b
+  zh: fff9f6cf8bcd86a7
+/agent-note-keep-plugin-install-interception-for-the-page-lifetime/problem:
+  en: 71b72bb5b13530bb
+  zh: b78170e3ac09cccf
+/agent-note-keep-plugin-install-interception-for-the-page-lifetime/decision:
+  en: 45d689dced9dad9f
+  zh: cb89fbbb7937ca8e
+/agent-note-keep-plugin-install-interception-for-the-page-lifetime/alternatives-considered:
+  en: 1027b59d76cd3ff7
+  zh: c4c60fb406acb1db
+/agent-note-keep-plugin-install-interception-for-the-page-lifetime/verification:
+  en: 0e7fbf7fbb47b07c
+  zh: 9b52991ad8b355ca
+/agent-note-keep-plugin-install-interception-for-the-page-lifetime/consequences:
+  en: 3583e26c8ec33e03
+  zh: 6080722751cf15e6

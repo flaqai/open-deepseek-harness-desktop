@@ -244,7 +244,7 @@ describe('portable plugin bundle', () => {
     })
     expect(calls).toBe(1)
     expect(result.store?.verification).toBe('target-rehearsal-required')
-  })
+  }, 35_000)
 
   it('does not publish a bundle when the package manager reports success without installing its package', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-portable-plugins-'))

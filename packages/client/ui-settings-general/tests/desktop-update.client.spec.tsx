@@ -152,3 +152,28 @@ it('shows fallback progress and error details when the shell omits optional fiel
     expect((await screen.findByRole('tooltip')).textContent).toBe('安装更新失败，请稍后重试。')
   } finally { f.view.unmount(); f.status.resolve({ phase: 'idle' }) }
 })
+
+it.each(['checking', 'verifying', 'installing'] as const)('shows only the version during %s in both locales', async (phase) => {
+  const f = fixture()
+  try {
+    await f.emit({ phase, version: '0.1.7-alpha.2' })
+    fireEvent.focus(screen.getByRole('button'))
+    expect((await screen.findByRole('tooltip')).textContent).toBe('0.1.7-alpha.2')
+    f.view.rerender(<f.Indicator dictionary={en} />)
+    fireEvent.focus(screen.getByRole('button'))
+    expect((await screen.findByRole('tooltip')).textContent).toBe('0.1.7-alpha.2')
+  } finally { f.view.unmount(); f.status.resolve({ phase: 'idle' }) }
+})
+
+it.each([
+  ['checking', '正在检查更新…'],
+  ['verifying', '正在校验更新文件…'],
+  ['installing', '正在准备重启…'],
+] as const)('retains the state label when %s has no version', async (phase, label) => {
+  const f = fixture()
+  try {
+    await f.emit({ phase })
+    fireEvent.focus(screen.getByRole('button', { name: label }))
+    expect((await screen.findByRole('tooltip')).textContent).toBe(label)
+  } finally { f.view.unmount(); f.status.resolve({ phase: 'idle' }) }
+})

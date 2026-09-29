@@ -72,7 +72,7 @@ interface SidebarRightTabParamsMap {}        // key: kind — a page type declar
 
 `openResource` 接受所有已声明资源形状的联合，`openTab<K>` 接受为 `K` 声明的形状；正文按自己所服务的协议或 kind 收窄 `navigation.params`。参数属于资源类型而非查看器，因为行号是关于文件位置的事实，不是关于文本预览的，任何认领 `file` 地址的类型收到同一形状。值必须可 JSON 序列化，一条记录必须只凭地址与参数就能重建，因为撤销、重做、刷新与 HMR 都在开启方已不在时重建 tab。
 
-除两种打开外，该面还有 `close(tabId)`、`active()`、`isExpanded()`、`toggleExpanded()`，以及四个操作型方法——`focus(tabId)`、`split(paneId?)`（返回新格，预算或宽度规则不允许分栏时返回 `undefined` 且不记账）、`float(tabId, rect?)` 与 `dock(paneId)`——每个记一条历史，目标不存在或已在目标态时为 no-op。没有布局快照、没有订阅、没有按地址查找：该面给的是对布局的控制权，不是布局的视图。座位挂载期间发布其绑定——自己的会话、其 store 的 action 与其面；公开面上的命令作用于已挂载会话，没有已挂载会话面时抛错。tab 自己的动作则到达其会话自己的 store：slot 运行时每个会话铸一个 store，插件在铸出时逐个收养，控制器按会话 id 路由，因此用户切换会话之后触发的动作照样落地，而 store 从未铸出的会话什么也不做。
+除两种打开外，该面还有 `close(tabId)`、`active()`、`isExpanded()`、`toggleExpanded()`，以及四个操作型方法——`focus(tabId)`、`split(paneId?)`（返回新格，预算或宽度规则不允许分栏时返回 `undefined` 且不记账）、`float(tabId, rect?)` 与 `dock(paneId)`——每个记一条历史，目标不存在或已在目标态时为 no-op。没有布局快照、没有订阅、没有按地址查找：该面给的是对布局的控制权，不是布局的视图。插件依据会话选择与主面板确定屏上会话——Conversation 占据主栏时的选中会话——并在 React 渲染这两者的变化之前将其发布为 `mounted`；公开面上的命令经该会话被收养的 store 作用于它，没有会话在屏上或其 store 尚未铸出时抛错。座位只上报它渲染时依据的事实：停靠套件测得的空间，以及框架宽度是否让面板自动全屏。tab 自己的动作则到达其会话自己的 store：slot 运行时每个会话铸一个 store，插件在铸出时逐个收养，控制器按会话 id 路由，因此用户切换会话之后触发的动作照样落地，而 store 从未铸出的会话什么也不做。
 
 ### 地址
 
@@ -100,6 +100,8 @@ interface SidebarRightTabParamsMap {}        // key: kind — a page type declar
 
 **用 Slot 优先级表达 extension 接管 builtin，随后是注册表铸造的坑位键。** 第一次尝试让覆盖方经一个导出常量以更低的 Slot 优先级注册正文——这是动态插件间的值引用，也是拿第二套规则（Slot 优先级）替注册表的规则站台。第二次尝试让注册表为每次注册铸一个键并从 `register()` 返回，这把注册变成了两步且顺序敏感的舞步。让实现自己声明 `id`——必填、唯一、与它注册坑位所用的同一个串——既不需要常量，也不需要铸键与顺序，还给了注册表拒绝重复所需的身份。
 
+**由座位在自己的 effect 里发布绑定。** 最初的形式由已挂载的座位在每次提交后发布自己的会话、action 与面，离开时释放。React 按树序运行一次提交的被动 effect，而框架先渲染 Conversation 列、后渲染右栏，于是在切换会话或从全局面板返回的那次提交里，从自己 effect 打开内容的 Conversation 组件运行时没有任何座位已绑定——在离开的座位释放之后、到来的座位绑定之前——打开随之抛错。会话选择与主面板都在 React 渲染之前变化，从它们推导屏上会话便消除了这一顺序依赖。分栏空间仍由座位测量，因为只有它渲染出的套件能测。
+
 ## Consequences
 
 - 一个类型 = 一个静态对象 + 一到两个 keyed 坑位注册；其实例信息通过注入的 `useTabInfo()` 读取。框架不长任何按类型的 API 面，仓外类型从 Sidebar 包只引类型。
@@ -116,5 +118,5 @@ interface SidebarRightTabParamsMap {}        // key: kind — a page type declar
 ## Deferred
 
 - `sidebar://<kind>` 之外的导航协议：页内子路由、点名实现、以及面向生态的其它导航 scheme 规则。
-- 从公开面往屏上会话之外的会话里打开；公开面只作用于已挂载的会话，而 tab 自己的动作已作用于其所在会话。
+- 从公开面往屏上会话之外的会话里打开；公开面只作用于屏上会话，而 tab 自己的动作已作用于其所在会话。
 - 从会话区打开失败时的本地化提示；目前是抛错文本本身。

@@ -62,6 +62,7 @@ import {
   type ProfileDiagnostic,
   type ProfilePluginSnapshotTrigger,
   type ProfileRepairReport,
+  type ProfilePnpmInvocation,
 } from '@deepseek-ai/dsh-app-boot'
 import { INSTALL_ANCHOR } from './install-anchor.ts'
 import { resolveDesktopBundledPluginArgs } from './desktop-bundled-plugin.ts'
@@ -260,7 +261,7 @@ function verifyRegistryPackageInstall(profileDir: string, packageName: string): 
  * @param args - pnpm arguments with relative path specs anchored to the invoking directory.
  * @returns the pnpm exit code.
  */
-function runPluginWithoutSnapshot(profile: string, args: readonly string[], quiet = false): number {
+function runPluginWithoutSnapshot(profile: string, args: readonly string[], quiet = false, packageManager?: ProfilePnpmInvocation): number {
   if (args[0] === 'batch') {
     if (args.length !== 2 || args[1] === undefined || args[1].length > 64 * 1024) throw new Error('dsh: invalid plugin mutation batch')
     const steps: unknown = JSON.parse(args[1])
@@ -277,7 +278,7 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
           || !step.acceptedExitCodes.every((code: unknown) => typeof code === 'number' && [0, 10, 11].includes(code))))) {
         throw new Error('dsh: invalid plugin mutation batch step')
       }
-      result = runPluginWithoutSnapshot(profile, step.args as string[])
+      result = runPluginWithoutSnapshot(profile, step.args as string[], false, packageManager)
       const accepted = step.acceptedExitCodes as number[] | undefined
       if (!(accepted ?? [0, 10, 11]).includes(result)) return result
     }
@@ -313,7 +314,7 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
           throw new Error('dsh: invalid snapshot materialization flags')
         }
         return withSnapshotMutation(profile, () => {
-          const result = runProfilePackageManager(resolveProfileDir(profile), ['install', ...flags])
+          const result = runProfilePackageManager(resolveProfileDir(profile), ['install', ...flags], { packageManager })
           if (result.diagnostic !== undefined) process.stderr.write(`${result.diagnostic}\n`)
           writeSnapshotJson({ installed: result.exitCode === 0 })
           return result.exitCode ?? 1
@@ -528,21 +529,21 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
         binName: NAME,
         profile,
         installAnchor: INSTALL_ANCHOR,
-        runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+        runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs, { packageManager }),
       }, packageName, issue)
     } else if (retryId !== undefined) {
       outcome = retryQuarantinedProfilePlugin({
         binName: NAME,
         profile,
         installAnchor: INSTALL_ANCHOR,
-        runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+        runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs, { packageManager }),
       }, retryId)
     } else if (repair) {
       outcome = repairProfileDependencies({
         binName: NAME,
         profile,
         installAnchor: INSTALL_ANCHOR,
-        runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+        runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs, { packageManager }),
       })
     } else {
       const orphanedBundles = inspectOrphanedProfileBundles({
@@ -640,7 +641,7 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
     binName: NAME,
     profile,
     installAnchor: INSTALL_ANCHOR,
-    runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+    runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs, { packageManager }),
   })
   if (preflight.status === 'failed') {
     process.stderr.write(`${NAME}: plugin dependency preflight failed: ${preflight.diagnostic ?? 'unknown error'}\n`)
@@ -666,6 +667,7 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
       ...(process.env.DSH_DESKTOP_INSTALL_PROGRESS_FILE === undefined
         ? {}
         : { progressFile: process.env.DSH_DESKTOP_INSTALL_PROGRESS_FILE }),
+      packageManager,
     },
   )
   if (result.diagnostic !== undefined) process.stderr.write(`${result.diagnostic}\n`)
@@ -676,7 +678,7 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
       binName: NAME,
       profile,
       installAnchor: INSTALL_ANCHOR,
-      runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs),
+      runPackageManager: pnpmArgs => runProfilePackageManager(dir, pnpmArgs, { packageManager }),
     })
     if (dependencyHealth.status === 'failed') {
       process.stderr.write(`${NAME}: plugin dependency repair failed: ${dependencyHealth.diagnostic ?? 'unknown error'}\n`)
@@ -737,6 +739,12 @@ function pluginInvocationMutates(args: readonly string[]): boolean {
   return !['list', 'ls', 'why', 'outdated'].includes(args[0] ?? '')
 }
 
+function requireDesktopProfile(dir: string): void {
+  if (!existsSync(join(dir, 'package.json'))) {
+    throw new Error('Open DeepSeek Harness Desktop once to initialize its profile, then fully quit it before running dsh plugin --profile desktop.')
+  }
+}
+
 /** Parse only DSH-owned commands; all other arguments remain pnpm's responsibility. */
 async function versionCommand(profile: string, args: readonly string[]): Promise<number | undefined> {
   const [command, ...rest] = args
@@ -765,9 +773,10 @@ async function versionCommand(profile: string, args: readonly string[]): Promise
       process.stderr.write('dsh: warning: allowing incompatible plugin versions can break the application or corrupt data. Approval applies only to the exact package and DSH versions.\n')
     }
     const dir = resolveProfileDir(profile)
-    await mkdir(dir, { recursive: true })
+    if (profile !== 'desktop') await mkdir(dir, { recursive: true })
     await withFileLock(join(dir, 'package.json'), async () => {
-      if (!existsSync(join(dir, 'package.json'))) initProfile(dir, PROFILE_TEMPLATES[profile]?.bundles ?? DEFAULT_PROFILE_BUNDLES)
+      if (profile === 'desktop') requireDesktopProfile(dir)
+      else if (!existsSync(join(dir, 'package.json'))) initProfile(dir, PROFILE_TEMPLATES[profile]?.bundles ?? DEFAULT_PROFILE_BUNDLES)
       if (request === undefined) {
         const { exemptions, warnings } = readProfileCompatibility(dir)
         for (const warning of warnings) process.stderr.write(`dsh: warning: ${warning}\n`)
@@ -790,7 +799,15 @@ async function versionCommand(profile: string, args: readonly string[]): Promise
  * @param args - pnpm or Doctor arguments.
  * @returns Process exit code.
  */
-export function runPlugin(profile: string, args: readonly string[]): number | Promise<number> {
+export function runPlugin(profile: string, args: readonly string[], packageManager?: ProfilePnpmInvocation): number | Promise<number> {
+  if (profile === 'desktop') {
+    try {
+      requireDesktopProfile(resolveProfileDir(profile))
+    } catch (error) {
+      process.stderr.write(`dsh: ${String(error)}\n`)
+      return 1
+    }
+  }
   if (['allow-version', 'revoke-version', 'version-exemptions'].includes(args[0] ?? '')) {
     return versionCommand(profile, args) as Promise<number>
   }
@@ -867,23 +884,23 @@ export function runPlugin(profile: string, args: readonly string[]): number | Pr
   const leaseToken = process.env.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN
   if (pluginInvocationMutates(args) && process.env.DSH_DESKTOP_MUTATION_OWNER_PID !== undefined
     && leaseToken === undefined && process.env.DSH_PLUGIN_SNAPSHOT_BATCH !== '1') {
-    return runDesktopStagedPluginMutation(profile, args)
+    return runDesktopStagedPluginMutation(profile, args, packageManager)
   }
   if (leaseToken !== undefined && pluginInvocationMutates(args)) {
     assertProfilePluginMutationLease({ profile, token: leaseToken, home: process.env.DSH_PLUGIN_TRANSACTION_ORIGIN ?? resolveDshHome() })
-    return runPluginWithoutSnapshot(profile, args)
+    return runPluginWithoutSnapshot(profile, args, false, packageManager)
   }
   if (!pluginInvocationMutates(args) || process.env.DSH_PLUGIN_SNAPSHOT_BATCH === '1') {
-    return runPluginWithoutSnapshot(profile, args)
+    return runPluginWithoutSnapshot(profile, args, false, packageManager)
   }
   return withAutomaticProfilePluginSnapshot({
     profile,
     trigger: pluginMutationTrigger(args),
     ...snapshotRuntimeMetadata(),
-  }, () => runPluginWithoutSnapshot(profile, args))
+  }, () => runPluginWithoutSnapshot(profile, args, false, packageManager))
 }
 
-function runDesktopStagedPluginMutation(profile: string, args: readonly string[]): number {
+function runDesktopStagedPluginMutation(profile: string, args: readonly string[], packageManager?: ProfilePnpmInvocation): number {
   const home = resolveDshHome()
   const ownerPid = Number(process.env.DSH_DESKTOP_MUTATION_OWNER_PID)
   if (!Number.isSafeInteger(ownerPid) || ownerPid <= 0) throw new Error('dsh: invalid desktop mutation owner')
@@ -904,9 +921,9 @@ function runDesktopStagedPluginMutation(profile: string, args: readonly string[]
     process.env.DSH_HOME = profilePluginCandidateHome(home, profile, transaction.id)
     process.env.DSH_PLUGIN_TRANSACTION_ORIGIN = home
     delete process.env.DSH_DESKTOP_MUTATION_OWNER_PID
-    const result = runPluginWithoutSnapshot(profile, args)
+    const result = runPluginWithoutSnapshot(profile, args, false, packageManager)
     if (![0, 10, 11].includes(result)) return result
-    if (runPluginWithoutSnapshot(profile, ['doctor'], true) !== 0) return 1
+    if (runPluginWithoutSnapshot(profile, ['doctor'], true, packageManager) !== 0) return 1
     readyProfilePluginTransaction(home, profile, transaction.id)
     beginProfilePluginMutationLease({ home, profile, ownerPid, token: transaction.id })
     handedOff = true

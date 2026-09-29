@@ -25,9 +25,10 @@ Send selected product usage events to an OTLP/HTTP collector. Events carry a nam
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the plugin in a Cordis composition with the application identity; override the collector endpoint when needed. The shipped profiles do not mount it. Set `DSH_APP_VERSION` to the running application release version in the launcher environment; the schema rejects an absent version.
+Mount the plugin in a Cordis composition with the application identity; override the collector endpoint when needed. The Desktop composition mounts it when [product analytics](../../client/product-analytics/README.md) is enabled; ordinary Web does not. The standalone example below reads `DSH_APP_VERSION`; Desktop supplies `DSH_CLIENT_VERSION` through its native launcher. Both must name the running release; the schema rejects an absent version.
 
 ```yaml
+- name: '@deepseek-ai/dsh-otel'
 - name: '@deepseek-ai/dsh-host-product-telemetry-otel'
   config:
     endpoint: https://dsh-otel-collector.deepseeksvc.com/v1/logs
@@ -47,11 +48,11 @@ Mount the plugin in a Cordis composition with the application identity; override
 | `scheduledDelayMillis` | `30000` | Partial-batch export interval |
 | `timeoutMillis` | `15000` | Exporter HTTP and retry deadline |
 | `exportTimeoutMillis` | `20000` | Processor batch export deadline |
-| `shutdownTimeoutMillis` | `21000` | Outer wait for shutdown; expiry reports possible loss |
+| `shutdownTimeoutMillis` | `21000` | Drain deadline; expiry cancels pending exports and reports possible loss |
 
 The default endpoint routes explicitly submitted events to the production product collector. Test and custom deployments must override it. Only `x-channel` and SDK protocol headers reach the collector; ambient OTel headers and client certificates are not inherited.
 
-The 30-second interval batches product events; the exporter has a 15-second retry window inside the processor’s 20-second batch deadline. The outer 21-second wait bounds plugin disposal, including SDK `forceFlush()` work that the processor deadline does not cover. An unreachable collector can delay disposal for the full 21 seconds. A full 2,048-record queue requires four 512-record batches and may not drain before that deadline. Interactive compositions needing a shorter exit should override these budgets; neither configuration guarantees delivery.
+The 30-second interval batches product events; the exporter has a 15-second retry window inside the processor’s 20-second batch deadline. The 21-second drain deadline covers SDK `forceFlush()` work that the processor deadline does not cover. Expiry cancels active HTTP requests and retry waits, then awaits transport cleanup before disposal completes. An unreachable collector can delay disposal for the full 21 seconds. A full 2,048-record queue requires four 512-record batches and may not drain before that deadline. Interactive compositions needing a shorter exit should override these budgets; neither configuration guarantees delivery.
 
 Consumers inject `productTelemetry` and call `emit()` with explicitly selected analytics fields. Event names and field semantics belong to their product and analytics owners. The plugin reads no Session, account, credential, or device identifier. Callers must exclude prompts, responses, file contents, credentials, and other unapproved values.
 
@@ -65,7 +66,7 @@ The collector expects a string body and attributes containing strings, numbers, 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-A private OTel logger feeds `BatchLogRecordProcessor` and the SDK HTTP delegate with its JSON log serializer. The delegate receives explicit headers and an HTTP agent; only shared timeout and compression settings use SDK environment resolution. The direct `@opentelemetry/core` dependency matches `sdk-logs` at 2.9.0 so exporter result enums share one TypeScript identity. The SDK owns queueing, transient-error retries, and compression; plugin disposal drains pending records with a bounded wait. Export completion is observed separately because SDK shutdown can resolve after a rejected export. No global OTel provider is installed.
+The adapter injects `otel` and creates an independent ordinary-event channel through `ctx.otel.createEventReporter()`. The [shared OTel plugin](../../telemetry/otel/README.md) owns transport and SDK batching; this adapter owns analytics configuration and its shutdown cancellation deadline. No global OTel provider is installed.
 
 [`src/index.ts`](src/index.ts) owns configuration and submission. No runtime invariant companion is published: delivery has no independent local acknowledgement to compare with the SDK's queue.
 

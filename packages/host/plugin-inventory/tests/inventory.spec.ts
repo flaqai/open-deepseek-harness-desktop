@@ -652,7 +652,7 @@ describe('PluginInventoryGateway', () => {
 
   it('installs and composes a reviewed Browser Use provider as one guarded recipe', async () => {
     const { inventory, subprocess } = await harness()
-    const packageSpec = '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.1.6-alpha.2'
+    const packageSpec = '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.0-rc.2'
     const started = inventory.startInstall({
       profile: 'web',
       packageSpec,
@@ -660,7 +660,7 @@ describe('PluginInventoryGateway', () => {
     })
     await expect.poll(() => inventory.getInstall(started.installId).phase).toBe('succeeded')
     expect(subprocess.spawns.map(spawn => spawn.argv.slice(-2))).toEqual([
-      ['add', '@deepseek-ai/dsh-browser-use@0.1.6-alpha.2'],
+      ['add', '@deepseek-ai/dsh-browser-use@0.2.0-rc.2'],
       ['add', packageSpec],
       ['configure-experimental-capability', 'browser-use-playwright-visible'],
     ])

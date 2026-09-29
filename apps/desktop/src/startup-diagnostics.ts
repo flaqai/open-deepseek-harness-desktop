@@ -9,6 +9,7 @@ export const STARTUP_DIAGNOSTIC_SCHEMA = 'dsh/desktop-startup-diagnostic/v1' as 
 export type StartupDiagnosticCode =
   | 'runtime.bundled-plugin-failed'
   | 'runtime.bundled-preset-version-marker-unavailable'
+  | 'runtime.schedule-migration-failed'
   | 'runtime.bundled-plugin-marker-mismatch'
   | 'runtime.bundled-plugin-timeout'
   | 'runtime.profile-check-timeout'
@@ -20,6 +21,7 @@ export type StartupDiagnosticCode =
 const STARTUP_DIAGNOSTIC_CODES = new Set<StartupDiagnosticCode>([
   'runtime.bundled-plugin-failed',
   'runtime.bundled-preset-version-marker-unavailable',
+  'runtime.schedule-migration-failed',
   'runtime.bundled-plugin-marker-mismatch',
   'runtime.bundled-plugin-timeout',
   'runtime.profile-check-timeout',

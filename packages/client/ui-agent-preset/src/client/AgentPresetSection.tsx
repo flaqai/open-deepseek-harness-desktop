@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Button, IconBrowseOutlineRegular, IconPlusOutlineRegular, Modal, Tag, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { AgentPresetSectionState } from './section-store.ts'
 import { isBuiltInPreset, presetDisplayText } from './locales.ts'
@@ -15,8 +15,6 @@ import css from './AgentPresetSection.module.css'
 export interface AgentPresetSectionInjected {
   hooks: {
     agentPresetSection: SnapshotStore<AgentPresetSectionState>
-    /** Shared Developer tools preference; off hides every selection action. */
-    developerTools: ObservableSnapshot<boolean>
   }
   /** Stage the `cordis` preset and start a Creator-mode task; absent without a conversation flow. */
   startCreatorDraft?: () => void
@@ -62,10 +60,9 @@ function CardDescription({ text }: { text: string }): ReactNode {
  */
 export function AgentPresetSection({
   useAgentPresetSection, load, view, closeView, makeDefault, startCreatorDraft,
-  close: closeSettings, useDeveloperTools, t,
+  close: closeSettings, t,
 }: AgentPresetSectionProps) {
   const state = useAgentPresetSection(value => value)
-  const developerTools = useDeveloperTools(enabled => enabled)
   const [guide, setGuide] = useState<{
     content: NonNullable<ReturnType<typeof presetGuide>>
     page: PresetGuidePage
@@ -90,8 +87,7 @@ export function AgentPresetSection({
       <button
         type="button"
         className={css.creatorButton}
-        disabled={!developerTools || state.saving}
-        title={developerTools ? undefined : t('enableDevToolsToCreate')}
+        disabled={state.saving}
         onClick={() => { creator(); closeSettings() }}
       >
         <IconPlusOutlineRegular size={14} />
@@ -113,15 +109,13 @@ export function AgentPresetSection({
             const display = presetDisplayText(row, t)
             const help = presetGuide(row.id, builtIn ? 'system' : 'user')
             const selectionAction = row.broken !== undefined ? t('brokenBadge')
-              : row.isDefault ? t('inUse')
-                : t(developerTools ? 'setDefault' : 'enableDevToolsToSetDefault')
+              : t(row.isDefault ? 'inUse' : 'setDefault')
             return <li key={row.id} data-agent-preset-id={row.id} className={[
               css.card, row.broken === undefined ? undefined : css.cardBroken,
               row.isDefault ? css.cardActive : undefined,
-              !developerTools && row.broken === undefined && !row.isDefault ? css.cardSelectionDisabled : undefined,
             ].filter(Boolean).join(' ')}>
               <button type="button" className={css.cardMain} aria-pressed={row.isDefault}
-                disabled={row.isDefault || (row.broken === undefined && (!developerTools || state.saving))}
+                disabled={row.isDefault || (row.broken === undefined && state.saving)}
                 aria-disabled={row.broken !== undefined} aria-label={`${selectionAction}: ${display.name}`} title={selectionAction}
                 onClick={() => { if (row.broken === undefined) void makeDefault(row.id) }}>
                 <span className={css.cardHead}>

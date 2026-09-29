@@ -16,6 +16,7 @@ import {
 } from '../src/onboarding-copy.ts'
 import { ModelsSection } from '../src/client/ModelsSection.tsx'
 import { SetupWizard } from '../src/client/SetupWizard.tsx'
+import { DeepSeekOnboardingDialog } from '../src/client/DeepSeekOnboardingDialog.tsx'
 import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
 import * as hostPlugin from '../src/index.ts'
 import { ONBOARDING_CONFIG_GLOBAL } from '../src/onboarding-config.ts'
@@ -80,7 +81,7 @@ describe('ui-settings-models apply', () => {
       for (const row of rows) if (row.kind === 'global') vi.stubGlobal(row.name, row.value)
       const plugin = ctx.plugin({ inject: [...inject], apply })
       await plugin.await()
-      expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).toEqual(['setup-wizard'])
+      expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).toEqual(['setup-wizard', 'deepseek-official'])
       expect(slots.entries('settings.onboarding')[0]?.component).toBe(SetupWizard)
       expect(slots.entries('settings.section').map(entry => entry.options.id)).toEqual(['models'])
       await plugin.dispose()
@@ -132,13 +133,26 @@ describe('ui-settings-models apply', () => {
     expect(injected.hooks.snapshot).toBe(injected.controller.store)
     expect(typeof injected.operations.writeSettings).toBe('function')
     const onboarding = before.slots.entries('settings.onboarding')
-    expect(onboarding).toHaveLength(1)
+    expect(onboarding).toHaveLength(2)
     const setup = onboarding.find(entry => entry.options.id === 'setup-wizard')!
     expect(setup.component).toBe(SetupWizard)
     expect(setup.options).toMatchObject({ id: 'setup-wizard', order: 0 })
     const setupInjected = (
       setup.inject as unknown as () => import('../src/client/SetupWizard.tsx').SetupWizardInjected
     )()
+    const deepSeek = onboarding.find(entry => entry.options.id === 'deepseek-official')!
+    expect(deepSeek.component).toBe(DeepSeekOnboardingDialog)
+    const analytics = (deepSeek.inject!() as object) as import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
+    analytics.track?.('api_key_save_click', {})
+    const track = vi.fn()
+    before.ctx.provide('productAnalytics', { track } as never)
+    analytics.track?.('api_key_save_click', {})
+    expect(track).toHaveBeenCalledWith('api_key_save_click', {})
+    expect(deepSeek.options).toMatchObject({ id: 'deepseek-official', order: 10 })
+    const deepSeekInjected = (
+      deepSeek.inject as unknown as () => import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
+    )()
+    expect(deepSeekInjected.controller).toBe(injected.controller)
     expect(setupInjected.hooks.models).toBe(injected.controller.store)
     expect(setupInjected.modelsController).toBe(injected.controller)
     expect(setupInjected.hooks.welcome).toBe(setupInjected.welcomeController.store)
@@ -153,7 +167,7 @@ describe('ui-settings-models apply', () => {
     declare(after.slots)
     await Promise.resolve()
     expect(after.slots.entries('settings.section')[0]!.component).toBe(ModelsSection)
-    expect(after.slots.entries('settings.onboarding')).toHaveLength(1)
+    expect(after.slots.entries('settings.onboarding')).toHaveLength(2)
     // The self-inflicted ledger notifications hit the duplicate guard.
     expect(after.slots.entries('settings.section')).toHaveLength(1)
   })
@@ -192,7 +206,7 @@ describe('ui-settings-models apply', () => {
     declare(b.slots)
     await Promise.resolve()
     expect(b.slots.entries('settings.section')[0]!.component).toBe(ModelsSection)
-    expect(b.slots.entries('settings.onboarding')).toHaveLength(1)
+    expect(b.slots.entries('settings.onboarding')).toHaveLength(2)
     // The locale path also recovers through the same ledger re-check.
     b.locale.setLocale('en')
     expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('Models')

@@ -236,7 +236,7 @@ describe('bundled plugin seed', () => {
       entry.managedUpgradeFrom === undefined ? [] : [[entry.packageName, entry.managedUpgradeFrom]]
     )))).toEqual({
       '@xmanrui/dsh-im': ['3.0.6'],
-      'dsh-better-sidebar': ['0.16.1'],
+      'dsh-better-sidebar': ['0.16.1', '0.21.1'],
       'dsh-pocket': ['1.14.5'],
     })
     expect(manifest.plugins.map(entry => entry.packageName)).not.toContain('@deepseek-ai/dsh-subagent-codex')

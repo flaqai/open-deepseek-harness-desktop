@@ -78,7 +78,7 @@ export async function recoverClientLoadFailure(
   const rpcId = globalThis.crypto.randomUUID()
   const origin = globalThis.location.origin
   if (origin === 'null') throw new Error('web boot recovery requires a served application origin')
-  const response = await send(new URL('/api/pluginInventory/recoverClientLoadFailure', origin), {
+  const response = await send(new URL('api/pluginInventory/recoverClientLoadFailure', document.baseURI), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     credentials: 'same-origin',

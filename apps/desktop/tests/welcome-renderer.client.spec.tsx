@@ -8,6 +8,7 @@ import type { WelcomeApi } from '../src/welcome-api.ts'
 function api(locale: string): WelcomeApi {
   return {
     ...resolveDesktopLocale(locale),
+    analyticsEnabled: async () => false,
     takeNotice: async () => undefined,
     startSignIn: async () => { throw new Error('not called during render') },
     cancelSignIn: async () => { throw new Error('not called during render') },

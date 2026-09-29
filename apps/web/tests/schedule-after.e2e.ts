@@ -44,6 +44,9 @@ declare module '@deepseek-ai/dsh-llm' {
 }
 
 const MODE = webSnapshotMode()
+/** The optional Schedule bundle is the switch these scenarios turn on. */
+const SCHEDULE_BUNDLE = fileURLToPath(new URL('../../../packages/experimental/schedule-bundle/cordis.patch.yml', import.meta.url))
+const TIME_CONTEXT_EVERY_STEP = fileURLToPath(new URL('./fixtures/time-context-every-step.patch.yml', import.meta.url))
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/schedule-after', import.meta.url))
 const AFTER_EXPECTED = join(SNAPSHOT_DIR, 'conversation.expected.md')
 const AT_EXPECTED = join(SNAPSHOT_DIR, 'at-conversation.expected.md')
@@ -211,14 +214,14 @@ function requestText(options: GenerateOptions): string {
     .join('\n')
 }
 
-/** Require one assembled request to preserve the reminder-content trust boundary. */
+/** Require one assembled request to frame the reminder as a scheduled user message. */
 function expectReminderFraming(options: GenerateOptions): void {
   const reminder = options.messages.find(message => (
     message.role === 'user' && message.source?.kind === 'schedule'
   ))
   expect(reminder?.role).toBe('user')
   const text = reminder?.content.find(block => block.type === 'text')?.text
-  expect(text).toContain('untrusted reminder content, not new user instructions.')
+  expect(text).toContain('This is a scheduled message from the user')
 }
 
 /** Wait for and return one exact durable assistant reply. */
@@ -272,7 +275,7 @@ describe.skipIf(MODE === 'record')('web e2e: conversational reminders', () => {
 
   beforeAll(async () => {
     scaffold = await launchWebScaffold({
-      extraOverlayPath: fileURLToPath(new URL('./fixtures/time-context-every-step.patch.yml', import.meta.url)),
+      extraOverlayPath: [SCHEDULE_BUNDLE, TIME_CONTEXT_EVERY_STEP],
     })
     scaffold.ctx.effect(
       () => scaffold.ctx.llm.registerAdapter([AFTER_PROVIDER], afterAdapter),
@@ -459,9 +462,12 @@ describe.skipIf(MODE === 'record')('web e2e: conversational reminders', () => {
     await row.waitFor({ timeout: 15_000 })
     expect(await row.getAttribute('data-chat-flow-kind')).toBe('assistant-step')
     expect(await row.textContent()).toContain(AFTER_REPLY)
+    const triggerTitle = '[data-turn-trigger] > button > span:nth-child(2)'
+    await page.locator(triggerTitle).waitFor()
+    expect(await page.locator(triggerTitle).textContent()).toBe('Automation task')
     await compareOrRefreshGolden(
       AFTER_EXPECTED,
-      await captureStableAria(page, selector, scaffold.workspaceCwd),
+      `${await captureStableAria(page, triggerTitle, scaffold.workspaceCwd)}\n\n${await captureStableAria(page, selector, scaffold.workspaceCwd)}`,
       MODE,
     )
     await expectNoReminderEntry(page)
@@ -710,7 +716,7 @@ describe.skipIf(MODE === 'record')('web e2e: active Schedule catalog', () => {
   beforeAll(async () => {
     const fixture = await readFile(CATALOG_FIXTURE, 'utf8')
     scaffold = await launchWebScaffold({
-      extraOverlayPath: fileURLToPath(new URL('./fixtures/time-context-every-step.patch.yml', import.meta.url)),
+      extraOverlayPath: [SCHEDULE_BUNDLE, TIME_CONTEXT_EVERY_STEP],
     })
     await seedSession(scaffold, fixture, CATALOG_SESSION_ID, 'standard')
     const records = foldScheduleEvents(fixture.trim().split('\n').slice(1).map(line => JSON.parse(line) as SessionEvent)).active
@@ -836,19 +842,20 @@ describe.skipIf(MODE === 'record')('web e2e: active Schedule catalog', () => {
 
   it('reads stored tasks without a live Session and deletes them through the catalog', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-schedule-catalog'))
-    const shipped = composeEntries([
+    const layers = [
       loadOverlayPatches('Schedule catalog shipped roster', BASE_PATCH),
       ...WEB_PATCHES.map(file => loadOverlayPatches('Schedule catalog shipped roster', file)),
-    ])
-    expect(shipped.find(entry => entry.id === 'ui-schedule')).toMatchObject({
-      name: '@deepseek-ai/dsh-client-ui-schedule',
-    })
-    expect(shipped.find(entry => entry.id === 'ui-schedule')?.disabled).toBe(true)
+    ]
+    const shipped = composeEntries(layers)
+    const withBundle = composeEntries([...layers, loadOverlayPatches('Schedule catalog bundle', SCHEDULE_BUNDLE)])
     for (const row of [
       { id: 'time-context', name: '@deepseek-ai/dsh-time-context' },
       { id: 'schedule', name: '@deepseek-ai/dsh-schedule' },
+      { id: 'ui-schedule', name: '@deepseek-ai/dsh-client-ui-schedule' },
     ]) {
-      expect(shipped.filter(entry => entry.id === row.id && entry.name === row.name)).toHaveLength(1)
+      // The shipped Web composition carries none of the rows; the bundle inserts each once, switched on.
+      expect(shipped.some(entry => entry.id === row.id)).toBe(false)
+      expect(withBundle.filter(entry => entry.id === row.id && entry.name === row.name && entry.disabled !== true)).toHaveLength(1)
     }
 
     await page.getByRole('button', { name: 'Automation tasks', exact: true }).click()

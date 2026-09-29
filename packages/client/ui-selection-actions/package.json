@@ -1,15 +1,8 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-selection-actions",
   "description": "Contextual actions for selected read-only conversation text",
-  "version": "0.1.7-rc.2",
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/client/ui-selection-actions"
-  },
+  "version": "0.2.0-rc.2",
+  "private": true,
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
