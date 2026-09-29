@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 [--version <version>] [--plan <path>] [--minimum-free-gib <gib>] [--retry-stage windows|macos|linux|download] [--reuse-run windows|macos|linux=<successful-run-id>] [--replace-existing] [--restart] <owner/repo>" >&2
+  echo "usage: $0 [--version <version>] [--plan <path>] [--minimum-free-gib <gib>] [--retry-stage windows|macos|linux|download] [--reuse-run windows|macos|linux=<successful-run-id>] [--reuse-windows-candidate-run <completed-run-id>] [--replace-existing] [--restart] <owner/repo>" >&2
   exit 2
 }
 
@@ -13,6 +13,7 @@ restart=0
 retry_stage=
 replace_existing=0
 reuse_runs=()
+windows_candidate_run_id=
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)
@@ -44,6 +45,11 @@ while [[ $# -gt 0 ]]; do
       reuse_runs+=("$2")
       shift 2
       ;;
+    --reuse-windows-candidate-run)
+      [[ $# -ge 2 ]] || usage
+      windows_candidate_run_id=$2
+      shift 2
+      ;;
     --replace-existing)
       replace_existing=1
       shift
@@ -56,7 +62,16 @@ done
 repository=$1
 [[ "$minimum_free_gib" =~ ^[0-9]+$ ]] || usage
 [[ -z "$retry_stage" || "$retry_stage" =~ ^(windows|macos|linux|download)$ ]] || usage
+[[ -z "$windows_candidate_run_id" || "$windows_candidate_run_id" =~ ^[0-9]+$ ]] || usage
 [[ "$restart" != 1 || -z "$retry_stage" ]] || { echo "--restart and --retry-stage are mutually exclusive" >&2; exit 2; }
+if [[ -n "$windows_candidate_run_id" ]]; then
+  for specification in ${reuse_runs[@]+"${reuse_runs[@]}"}; do
+    [[ "$specification" != windows=* ]] || {
+      echo "--reuse-windows-candidate-run cannot be combined with --reuse-run windows=..." >&2
+      exit 2
+    }
+  done
+fi
 
 script_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repository_root=$(git rev-parse --show-toplevel)
@@ -182,7 +197,7 @@ gh_retry() {
 }
 
 dispatch_run() {
-  local stage=$1 target=$2 refresh_plugins=$3 snapshot_run_id=${4:-} run_id lookup_attempt retry_count
+  local stage=$1 target=$2 refresh_plugins=$3 snapshot_run_id=${4:-} candidate_run_id=${5:-} run_id lookup_attempt retry_count
   retry_count=$(state_get "retries.$stage")
   retry_count=${retry_count:-0}
   local orchestration_id="odsh-${version}-${source_sha}-${stage}-r${retry_count}"
@@ -190,6 +205,9 @@ dispatch_run() {
   local args=(workflow run desktop-packages.yml --repo "$repository" --ref "$branch" -f "target=$target" -f "refresh_plugins=$refresh_plugins" -f "orchestration_id=$orchestration_id")
   if [[ -n "$snapshot_run_id" ]]; then
     args+=(-f "bundled_plugin_run_id=$snapshot_run_id")
+  fi
+  if [[ -n "$candidate_run_id" ]]; then
+    args+=(-f "windows_candidate_run_id=$candidate_run_id")
   fi
   find_run() {
     gh_retry run list --repo "$repository" --workflow desktop-packages.yml --branch "$branch" \
@@ -242,10 +260,10 @@ wait_run() {
 }
 
 ensure_dispatched() {
-  local stage=$1 target=$2 refresh_plugins=$3 snapshot_run_id=${4:-} run_id
+  local stage=$1 target=$2 refresh_plugins=$3 snapshot_run_id=${4:-} candidate_run_id=${5:-} run_id
   run_id=$(state_get "stages.$stage.runId")
   if [[ -z "$run_id" ]]; then
-    dispatch_run "$stage" "$target" "$refresh_plugins" "$snapshot_run_id"
+    dispatch_run "$stage" "$target" "$refresh_plugins" "$snapshot_run_id" "$candidate_run_id"
   else
     echo "release orchestration: resuming $stage run $run_id"
   fi
@@ -274,7 +292,25 @@ reuse_run() {
 
 for specification in ${reuse_runs[@]+"${reuse_runs[@]}"}; do reuse_run "$specification"; done
 
-ensure_dispatched windows windows-x64 true
+if [[ -n "$windows_candidate_run_id" ]]; then
+  existing_windows_run=$(state_get stages.windows.runId)
+  if [[ -z "$existing_windows_run" ]]; then
+    candidate_result=$(gh_retry run view "$windows_candidate_run_id" --repo "$repository" --json status,conclusion,headSha,url --jq '[.status, (.conclusion // ""), .headSha, .url] | join("\u001f")')
+    IFS=$'\x1f' read -r candidate_status candidate_conclusion candidate_sha candidate_url <<< "$candidate_result"
+    [[ "$candidate_status" == completed ]] || {
+      echo "Windows candidate run $windows_candidate_run_id has not completed: $candidate_url" >&2
+      exit 1
+    }
+    git merge-base --is-ancestor "$candidate_sha" "$source_sha" || {
+      echo "Windows candidate run $windows_candidate_run_id is not an ancestor of $source_sha" >&2
+      exit 1
+    }
+    echo "release orchestration: requalifying completed Windows candidate from run $windows_candidate_run_id ($candidate_conclusion); CI will verify its content and installer hashes"
+  fi
+  ensure_dispatched windows windows-x64 false "$windows_candidate_run_id" "$windows_candidate_run_id"
+else
+  ensure_dispatched windows windows-x64 true
+fi
 wait_run windows
 windows_run_id=$(state_get stages.windows.runId)
 windows_source_sha=$(state_get stages.windows.sourceSha)
@@ -307,7 +343,7 @@ if [[ "$download_status" == verified ]]; then
   echo "release orchestration: reused verified local artifacts"
 else
   # A pre-existing directory can belong to an older set of successful runs.
-  # Its own SHA256SUMS proves integrity, not provenance for the current run IDs.
+  # Its SHA256SUMS cannot establish that the files came from the current run IDs.
   # Retry the identity-checked downloader instead of accepting that directory.
   state_set stages.download.status running
   if [[ "$replace_existing" == 1 || -n "$retry_stage" ]]; then

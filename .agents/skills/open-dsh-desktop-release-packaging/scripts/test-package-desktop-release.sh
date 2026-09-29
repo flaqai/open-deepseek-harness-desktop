@@ -48,7 +48,7 @@ cat > "$temporary/bin/gh" <<'EOF'
 set -euo pipefail
 if [[ "$1 $2" == "run list" ]]; then
   case "$*" in
-    *"windows-x64"*) target=windows-x64; id=101 ;;
+    *"windows-x64"*) target=windows-x64; id=${ODSH_FIXTURE_WINDOWS_RETRY_ID:-101} ;;
     *"macos"*) target=macos; id=202 ;;
     *"linux-x64"*) target=linux-x64; id=303 ;;
     *) exit 0 ;;
@@ -59,12 +59,14 @@ elif [[ "$1 $2" == "workflow run" ]]; then
   target=
   refresh=
   snapshot=none
+  candidate=none
   while [[ $# -gt 0 ]]; do
     if [[ "$1" == -f ]]; then
       case "$2" in
         target=*) target=${2#target=} ;;
         refresh_plugins=*) refresh=${2#refresh_plugins=} ;;
         bundled_plugin_run_id=*) snapshot=${2#bundled_plugin_run_id=} ;;
+        windows_candidate_run_id=*) candidate=${2#windows_candidate_run_id=} ;;
       esac
       shift 2
     else
@@ -72,12 +74,12 @@ elif [[ "$1 $2" == "workflow run" ]]; then
     fi
   done
   case "$target" in
-    windows-x64) id=101 ;;
+    windows-x64) id=${ODSH_FIXTURE_WINDOWS_RETRY_ID:-101} ;;
     macos) id=202 ;;
     linux-x64) id=303 ;;
     *) exit 2 ;;
   esac
-  echo "dispatch $target $id refresh=$refresh snapshot=$snapshot" >> "$ODSH_FIXTURE_GH_LOG"
+  echo "dispatch $target $id refresh=$refresh snapshot=$snapshot candidate=$candidate" >> "$ODSH_FIXTURE_GH_LOG"
 elif [[ "$1 $2" == "run view" ]]; then
   id=$3
   run_sha=$ODSH_FIXTURE_SHA
@@ -91,6 +93,8 @@ elif [[ "$1 $2" == "run view" ]]; then
   echo $((count + 1)) > "$count_file"
   if [[ "$count" == 0 ]]; then
     printf 'in_progress\x1f\x1f%s\x1fhttps://github.test/actions/runs/%s\n' "$run_sha" "$id"
+  elif [[ "$id" == 101 && ${ODSH_FIXTURE_OLD_WINDOWS_FAILED:-0} == 1 ]]; then
+    printf 'completed\x1ffailure\x1f%s\x1fhttps://github.test/actions/runs/%s\n' "$run_sha" "$id"
   else
     printf 'completed\x1fsuccess\x1f%s\x1fhttps://github.test/actions/runs/%s\n' "$run_sha" "$id"
   fi
@@ -127,7 +131,7 @@ export ODSH_FIXTURE_VERIFY_LOG="$temporary/verify.log"
   "$scripts/package-desktop-release.sh" --version 9.8.7 --minimum-free-gib 0 fixture/repository
 )
 
-expected=$'dispatch windows-x64 101 refresh=true snapshot=none\nview 101\nview 101\ndispatch macos 202 refresh=false snapshot=101\ndispatch linux-x64 303 refresh=false snapshot=101\nview 202\nview 202\nview 303\nview 303'
+expected=$'dispatch windows-x64 101 refresh=true snapshot=none candidate=none\nview 101\nview 101\ndispatch macos 202 refresh=false snapshot=101 candidate=none\ndispatch linux-x64 303 refresh=false snapshot=101 candidate=none\nview 202\nview 202\nview 303\nview 303'
 [[ "$(cat "$ODSH_FIXTURE_GH_LOG")" == "$expected" ]] || {
   echo "unexpected orchestration order:" >&2
   cat "$ODSH_FIXTURE_GH_LOG" >&2
@@ -188,7 +192,7 @@ export ODSH_FIXTURE_SHA=$new_sha
   "$scripts/package-desktop-release.sh" --version 9.8.7 --minimum-free-gib 0 --restart \
     --reuse-run windows=101 --reuse-run linux=303 fixture/repository
 )
-[[ "$(grep '^dispatch ' "$ODSH_FIXTURE_GH_LOG")" == 'dispatch macos 202 refresh=true snapshot=none' ]] || {
+[[ "$(grep '^dispatch ' "$ODSH_FIXTURE_GH_LOG")" == 'dispatch macos 202 refresh=true snapshot=none candidate=none' ]] || {
   echo 'platform-scoped retry dispatched an unaffected target' >&2
   cat "$ODSH_FIXTURE_GH_LOG" >&2
   exit 1
@@ -196,5 +200,32 @@ export ODSH_FIXTURE_SHA=$new_sha
 [[ "$(node "$scripts/release-plan.mjs" get "$plan" platforms.windows.sourceSha)" == "$sha" ]]
 [[ "$(node "$scripts/release-plan.mjs" get "$plan" platforms.macos.sourceSha)" == "$new_sha" ]]
 [[ "$(node "$scripts/release-plan.mjs" get "$plan" platforms.linux.sourceSha)" == "$sha" ]]
+
+# A Windows smoke-only fix reruns qualification against the old candidate and
+# its bundled-plugin snapshot. It must not dispatch a fresh installer build.
+printf 'Windows smoke fix\n' > "$fixture/apps/desktop/scripts/smoke-windows-package.ps1"
+git -C "$fixture" add apps/desktop/scripts/smoke-windows-package.ps1
+git -C "$fixture" commit -qm 'fix Windows smoke only'
+smoke_sha=$(git -C "$fixture" rev-parse HEAD)
+mv "$plan" "$plan.previous"
+node "$scripts/release-plan.mjs" init "$plan" 9.8.7 fixture/repository fixture/cnb \
+  release/9.8.7 "$smoke_sha" odsh-v9.8.6 stable 1
+node "$scripts/release-plan.mjs" set "$plan" notes.status verified network.status verified
+rm -rf "$fixture/release/9.8.7"
+: > "$ODSH_FIXTURE_GH_LOG"
+export ODSH_FIXTURE_WINDOWS_RETRY_ID=404
+export ODSH_FIXTURE_OLD_WINDOWS_FAILED=1
+export ODSH_FIXTURE_SHA=$smoke_sha
+(
+  cd "$fixture"
+  "$scripts/package-desktop-release.sh" --version 9.8.7 --minimum-free-gib 0 --restart \
+    --reuse-windows-candidate-run 101 --reuse-run macos=202 --reuse-run linux=303 fixture/repository
+)
+[[ "$(grep '^dispatch ' "$ODSH_FIXTURE_GH_LOG")" == 'dispatch windows-x64 404 refresh=false snapshot=101 candidate=101' ]] || {
+  echo 'Windows smoke-only retry rebuilt an unaffected installer' >&2
+  cat "$ODSH_FIXTURE_GH_LOG" >&2
+  exit 1
+}
+[[ "$(node "$scripts/release-plan.mjs" get "$plan" platforms.windows.sourceSha)" == "$smoke_sha" ]]
 
 echo "package-desktop-release fixture test passed"

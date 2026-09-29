@@ -21,7 +21,7 @@ on:
         type: boolean
         default: true
       bundled_plugin_run_id:
-        description: Reuse the bundled plugin snapshot from this same-commit run ID
+        description: Reuse a same-commit plugin snapshot; Windows candidate requalification may use its originating run
         required: false
         type: string
         default: ''
@@ -31,7 +31,7 @@ on:
         type: string
         default: ''
       windows_candidate_run_id:
-        description: Reuse a Windows candidate artifact from this run ID (must have the same commit)
+        description: Requalify a Windows candidate from this completed run (content and installer hashes must match)
         required: false
         type: string
         default: ''
@@ -91,7 +91,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           snapshot_sha="$(gh api "repos/${{ github.repository }}/actions/runs/${{ inputs.bundled_plugin_run_id }}" --jq .head_sha)"
-          if [ "$snapshot_sha" != "${{ github.sha }}" ]; then
+          if [ "$snapshot_sha" != "${{ github.sha }}" ] && ! {
+            [ "${{ inputs.target }}" = windows-x64 ] &&
+            [ -n "${{ inputs.windows_candidate_run_id }}" ] &&
+            [ "${{ inputs.bundled_plugin_run_id }}" = "${{ inputs.windows_candidate_run_id }}" ];
+          }; then
             echo "Bundled plugin snapshot run ${{ inputs.bundled_plugin_run_id }} belongs to $snapshot_sha, expected ${{ github.sha }}" >&2
             exit 1
           fi
@@ -126,9 +130,13 @@ jobs:
 
   windows-preflight:
     name: Windows x64 fast preflight
-    if: ${{ inputs.windows_candidate_run_id == '' && (inputs.target == 'all' || inputs.target == 'windows-x64') }}
+    if: ${{ inputs.target == 'all' || inputs.target == 'windows-x64' }}
     runs-on: windows-2025
     steps:
+      - name: Reject candidate reuse outside Windows-only qualification
+        if: ${{ inputs.windows_candidate_run_id != '' && inputs.target != 'windows-x64' }}
+        run: exit 1
+
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
@@ -151,6 +159,13 @@ jobs:
 
       - name: Verify Windows runner protocol
         run: pnpm exec vitest run packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts packages/subprocess/subprocess-local/tests/windows-job.spec.ts
+
+      - name: Verify first-start candidate lifecycle
+        run: >-
+          pnpm exec vitest run
+          apps/desktop/tests/candidate-welcome-gate.spec.ts
+          apps/desktop/tests/first-start-preparation.spec.ts
+          apps/desktop/tests/recovery-candidate.spec.ts
 
   macos:
     name: macOS ${{ matrix.arch }}
@@ -304,9 +319,9 @@ jobs:
 
   windows-smoke:
     name: Smoke Windows x64 candidate
-    needs: [bundled-plugins, windows]
+    needs: [bundled-plugins, windows-preflight, windows]
     if: >-
-      ${{ always() && (inputs.target == 'all' || inputs.target == 'windows-x64') && (
+      ${{ always() && needs.bundled-plugins.result == 'success' && needs.windows-preflight.result == 'success' && (inputs.target == 'all' || inputs.target == 'windows-x64') && (
         (inputs.windows_candidate_run_id == '' && needs.windows.result == 'success') ||
         inputs.windows_candidate_run_id != ''
       ) }}
@@ -315,6 +330,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:

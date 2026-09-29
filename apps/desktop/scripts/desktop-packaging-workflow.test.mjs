@@ -46,3 +46,17 @@ test('native workflow isolates package phases, uses one registry, and reports on
   const linux = workflow.jobs.linux.steps.map(step => step.name)
   assert.ok(linux.indexOf('Prepare Linux Harness runtime and preset Profile') < linux.indexOf('Build Linux installers'))
 })
+
+test('Windows candidate reuse reruns fast preflight and strict installed smoke without rebuilding', async () => {
+  const workflow = parse(await readFile(resolve(root, '.github/workflows/desktop-packages.yml'), 'utf8'))
+  const preflight = workflow.jobs['windows-preflight']
+  assert.doesNotMatch(preflight.if, /windows_candidate_run_id == ''/u)
+  assert.ok(preflight.steps.some(step => step.name === 'Verify first-start candidate lifecycle'))
+  assert.match(workflow.jobs.windows.if, /windows_candidate_run_id == ''/u)
+  const smoke = workflow.jobs['windows-smoke']
+  assert.ok(smoke.needs.includes('windows-preflight'))
+  assert.match(smoke.if, /needs\.windows-preflight\.result == 'success'/u)
+  assert.equal(smoke.steps.find(step => step.uses === 'actions/checkout@v6')?.with?.['fetch-depth'], 0)
+  assert.ok(smoke.steps.some(step => step.name === 'Verify Windows candidate identity'))
+  assert.ok(smoke.steps.some(step => step.name === 'Smoke test installed Windows package'))
+})

@@ -138,6 +138,8 @@ The resource contract in `apps/desktop/scripts/packaged-resource-contract.json` 
 
 Windows adds a short native preflight before the expensive installer build. The reusable candidate artifact contains only the EXE and `windows-package-candidate.json`, not the unpacked application or dependency tree. Reuse is decided by the manifest's packaged-input digest, bundled-plugin digest and installer identity; do not restore a hand-maintained changed-file allowlist. Installed-package failure evidence remains a bounded metadata-only JSON artifact with three-day retention.
 
+After a Windows installed-smoke failure, a fix limited to qualification inputs can use `package-desktop-release.sh --restart --reuse-windows-candidate-run <completed-old-run-id> --reuse-run macos=<successful-id> --reuse-run linux=<successful-id> ...` with a new Doctor plan for the pushed source SHA. The old run may have failed smoke, but its candidate artifact and bundled-plugin snapshot must exist. The workflow first reruns Windows preflight, then downloads both artifacts from that same old run, verifies the current packaged-input digest, unchanged packaging workflow, snapshot contents and EXE hash, and runs the complete installed-package smoke. Any mismatch or failed preflight blocks qualification. Product or packaging-workflow changes require a fresh Windows build; an old successful Windows run uses `--reuse-run windows=<id>` only when the platform-impact check permits it. The candidate option dispatches a new Windows qualification run and cannot be combined with `--reuse-run windows=<id>`.
+
 ## 5. Bundled plugin consistency
 
 ### Prebuilt resource qualification

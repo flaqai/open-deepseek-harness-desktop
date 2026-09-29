@@ -61,6 +61,21 @@ test('rejects changed plugin and installer bytes', async () => {
   assert.throws(() => run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root), /installer/u)
 })
 
+test('allows a committed smoke-only fix but rejects a changed packaging workflow', async () => {
+  const item = await fixture()
+  run(process.execPath, [script, 'create', item.root, item.installer, item.plugins, item.manifest], item.root)
+  await writeFile(join(item.root, 'apps', 'desktop', 'scripts', 'smoke-windows-package.ps1'), 'Write-Host fixed-smoke\n')
+  run('git', ['add', '.'], item.root)
+  run('git', ['commit', '-qm', 'fix smoke'], item.root)
+  run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root)
+
+  await mkdir(join(item.root, '.github', 'workflows'), { recursive: true })
+  await writeFile(join(item.root, '.github', 'workflows', 'desktop-packages.yml'), 'jobs: changed\n')
+  run('git', ['add', '.'], item.root)
+  run('git', ['commit', '-qm', 'change packaging workflow'], item.root)
+  assert.throws(() => run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root), /candidate workflow changed/u)
+})
+
 test('creates a candidate identity when the Git index exceeds the default child-process buffer', async () => {
   const item = await fixture()
   const object = run('git', ['rev-parse', 'HEAD:apps/desktop/main.ts'], item.root).trim()

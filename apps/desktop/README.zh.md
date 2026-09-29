@@ -148,6 +148,8 @@ npm run package:desktop:win:x64
 
 安装程序写入 `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`。它包含官方 Windows x64 Node 24.21.0 可执行文件、pnpm 11.7.0，以及保留真实 `node_modules` 层级且无符号链接的 Harness 生产依赖闭包，用户无需在 `PATH` 中安装 Node 或 pnpm。Harness 环境会把内置运行时放在最前面，保证包含 `%SystemRoot%`、`System32`、Wbem 与 Windows PowerShell，再保留 Electron 启动时继承的用户 PATH。因此插件可以按裸命令名启动 Windows 系统程序和已继承的第三方命令。未出现在这份继承 PATH 中的第三方工具仍不可用；客户端运行期间修改注册表 PATH 或安装新命令后需要重启应用，客户端不会执行 PowerShell profile 来发现其他命令。Electron Builder 运行前，准备脚本会校验官方 Node 归档的 SHA-256、必需的 Windows 原生模块、内置 pnpm 版本，并实际启动 Harness 等待就绪。
 
+Windows CI 会在构建安装包前运行首次启动候选事务的聚焦测试和原生打包检查。安装版烟雾测试先检查首次启动，再检查升级与卸载。若只修改验收代码，已完成的候选安装包可免于重新构建，但打包输入指纹、打包工作流、预装插件内容和 EXE 哈希必须一致；快速预检和完整安装版烟雾测试仍会执行。产品代码或打包工作流有改动时必须重新构建安装包。
+
 在 Linux 上使用下列命令构建 Linux x64 软件包：
 
 ```sh

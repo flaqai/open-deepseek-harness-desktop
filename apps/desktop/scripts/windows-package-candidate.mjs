@@ -30,6 +30,20 @@ function runGit(root, args) {
   return result.stdout.trim()
 }
 
+function verifyCandidateSource(root, sourceSha) {
+  if (!/^[0-9a-f]{40}$/u.test(sourceSha)) throw new Error('candidate source SHA is invalid')
+  const currentSha = runGit(root, ['rev-parse', 'HEAD'])
+  if (sourceSha === currentSha) return
+  runGit(root, ['merge-base', '--is-ancestor', sourceSha, currentSha])
+  const workflowDiff = spawnSync('git', ['diff', '--quiet', sourceSha, currentSha, '--', '.github/workflows/desktop-packages.yml'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+  if (workflowDiff.error !== undefined) throw workflowDiff.error
+  if (workflowDiff.status === 1) throw new Error('candidate workflow changed since the installer was built')
+  if (workflowDiff.status !== 0) throw new Error(workflowDiff.stderr.trim() || 'cannot compare candidate workflow revisions')
+}
+
 function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex')
 }
@@ -94,6 +108,7 @@ async function createManifest(root, installer, plugins, output) {
 async function verifyManifest(root, installer, plugins, manifest) {
   const document = JSON.parse(await readFile(manifest, 'utf8'))
   if (document.schema !== SCHEMA) throw new Error('candidate manifest schema is unsupported')
+  verifyCandidateSource(root, document.sourceSha)
   const expected = {
     packagingInputDigest: packagingInputDigest(root),
     bundledPluginDigest: await directoryDigest(plugins),
