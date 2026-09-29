@@ -416,7 +416,7 @@ jobs:
       - name: Install package tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -yq rpm
+          sudo apt-get install -yq rpm pkg-config libx11-dev libxtst-dev libpng-dev
 
       - run: pnpm install --frozen-lockfile
 

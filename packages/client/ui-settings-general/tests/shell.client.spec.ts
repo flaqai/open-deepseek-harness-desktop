@@ -45,7 +45,7 @@ const CHILD_NAMES = Object.keys(CHILD_SPECS) as Array<keyof typeof CHILD_SPECS>
  * A plugin adding a section changes this list.
  */
 const PRODUCT_SECTIONS: readonly string[] = [
-  'general', 'models', 'plugins', 'external-tools', 'agent-presets', 'custom-instructions',
+  'general', 'models', 'plugins', 'external-tools', 'orb', 'agent-presets', 'custom-instructions',
   'diagnostics',
 ]
 /** Onboarding steps the web-app roster registers, in coordinator order. */

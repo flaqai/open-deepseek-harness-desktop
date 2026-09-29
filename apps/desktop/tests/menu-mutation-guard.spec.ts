@@ -53,10 +53,10 @@ describe('read-only plugin mutation guard', () => {
     const source = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8')
     const busy = source.slice(source.indexOf('function menuBusy()'), source.indexOf('function reportMenuError'))
     expect(busy).toContain('menuMutationActive(activeMenuHome)')
-    for (const route of ['dsh:desktop:recovery:enter', 'dsh:desktop:recovery:exit']) {
-      const handler = source.split(`ipcMain.handle('${route}',`)[1]?.split('\n  })')[0]
-      expect(handler).toContain('if (menuBusy()) throw new Error(menuCopy(menuLocale).busy)')
-    }
+    const enter = source.split('ipcMain.handle(DESKTOP_IPC.recoveryEnter,')[1]?.split('\n  })')[0]
+    const exit = source.split("ipcMain.handle('dsh:desktop:recovery:exit',")[1]?.split('\n  })')[0]
+    expect(enter).toContain('if (menuBusy()) throw new Error(menuCopy(menuLocale).busy)')
+    expect(exit).toContain('else if (menuBusy()) throw new Error(menuCopy(menuLocale).busy)')
     expect(source).toContain('if (!menuBusy()) return true')
   })
   it('allows a missing lease but blocks live and malformed leases', () => {

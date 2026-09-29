@@ -111,6 +111,35 @@ describe('Harness supervisor startup failures', () => {
     try { supervisor.start(); await ready.promise } finally { await supervisor.stop() }
   })
 
+  it('passes only the current Orb native generation credential to the local Host', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-orb-native-env-'))
+    roots.push(root)
+    const script = join(root, 'host.mjs')
+    await writeFile(script, `
+      const owner = process.env.DSH_DESKTOP_ORB_OWNER_SECRET
+      if (!/^[A-Za-z0-9_-]{43}$/.test(owner ?? '')) process.exit(21)
+      if (process.env.DSH_DESKTOP_ORB_NATIVE_SECRET !== owner) process.exit(22)
+      if (process.env.DSH_DESKTOP_ORB_NATIVE_ORIGIN !== 'http://127.0.0.1:45678') process.exit(23)
+      console.log('dsh web: http://127.0.0.1:43130')
+      setInterval(() => {}, 1000)
+    `)
+    const ready = Promise.withResolvers<string>()
+    const supervisor = new HarnessSupervisor({
+      launch: { command: process.execPath, args: [script] },
+      environment: { ...process.env, DSH_DESKTOP_ORB_NATIVE_SECRET: 'stale',
+        DSH_DESKTOP_ORB_NATIVE_ORIGIN: 'http://127.0.0.1:1' },
+      orbNativeOrigin: 'http://127.0.0.1:45678',
+      logPath: join(root, 'harness.log'), onReady: ready.resolve, onDiagnosticReady: () => {},
+      onState: () => {}, onFailure: ready.reject,
+    })
+    try {
+      supervisor.start()
+      await ready.promise
+      expect(supervisor.orbCallerSecret).toMatch(/^[A-Za-z0-9_-]{43}$/u)
+    } finally { await supervisor.stop() }
+    expect(supervisor.orbCallerSecret).toBeUndefined()
+  })
+
   it('cancels pending restart inspection on stop and ignores its late completion', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-restart-wait-'))
     roots.push(root)

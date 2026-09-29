@@ -38,6 +38,28 @@ export function verifyCodeSignature(app, run = execFileSync) {
   run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app], { timeout: 300000 })
 }
 
+/** Confirm that the Node addon and its @rpath-linked Swift library unpack together.
+ * @param {string} app Packaged application directory.
+ * @returns The two native paths to verify with codesign.
+ */
+export function verifyOrbSelectionLayout(app) {
+  const directory = join(app, 'Contents/Resources/app.asar.unpacked/lib')
+  const files = ['orb-selection-macos-napi.node', 'liborb-selection-macos.dylib']
+    .map(name => join(directory, name))
+  for (const file of files) accessSync(file, constants.R_OK)
+  return files
+}
+
+/** Confirm the foreground Computer Use helper is executable after asar unpacking.
+ * @param {string} app Packaged application directory.
+ * @returns Executable native helper path.
+ */
+export function verifyOrbComputerUseLayout(app) {
+  const executable = join(app, 'Contents/Resources/app.asar.unpacked/lib/orb-computer-use-macos')
+  accessSync(executable, constants.X_OK)
+  return executable
+}
+
 /** Check a final DMG, ZIP, or app on a native macOS runner.
  * @param {string} input Final package or extracted application.
  */
@@ -67,6 +89,12 @@ export function smokeMacPackage(input) {
     const app = directory ? join(directory, apps[0]) : source
     const executable = verifyHelperLayout(app)
     verifyCodeSignature(app)
+    const orbSelectionNative = verifyOrbSelectionLayout(app)
+    const orbComputerUseNative = verifyOrbComputerUseLayout(app)
+    for (const file of orbSelectionNative) {
+      execFileSync('/usr/bin/codesign', ['--verify', '--strict', file], { timeout: 30000 })
+    }
+    execFileSync('/usr/bin/codesign', ['--verify', '--strict', orbComputerUseNative], { timeout: 30000 })
     execFileSync(process.execPath, [fileURLToPath(new URL('./verify-prebuilt-profile.mjs', import.meta.url)), join(app, 'Contents/Resources')], { timeout: 300000, stdio: 'inherit' })
     const env = { ...process.env }
     delete env.ELECTRON_RUN_AS_NODE

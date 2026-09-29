@@ -174,18 +174,21 @@ export function apply(ctx: ClientContext): void {
       ctx.slots.entries('main').some(entry => entry.options.key === id), panelInfo)
     const disposePanelInfo = ctx.slots.provideRoot({ hooks: { panelInfo: layout.panelInfo } })
     const disposeService = ctx.reflect.provide('layout', layout)
-    const disposeRegistration = ctx.slots.register({
-      name: 'root',
-      locale: 'common',
-      children: {
-        'sidebar': { kind: 'single', scope: 'root' },
-        'main': { kind: 'keyed', scope: 'root' },
-        'rightbar': { kind: 'single', scope: 'root' },
-        'shell.overlay': { kind: 'list', scope: 'root' },
-        'shell.leading': { kind: 'single', scope: 'root' },
-      },
-      store,
-    }, AppFrame)
+    const disposeRegistration = typeof window !== 'undefined'
+      && new URLSearchParams(window.location.search).get('surface') === 'orb'
+      ? () => {}
+      : ctx.slots.register({
+        name: 'root',
+        locale: 'common',
+        children: {
+          'sidebar': { kind: 'single', scope: 'root' },
+          'main': { kind: 'keyed', scope: 'root' },
+          'rightbar': { kind: 'single', scope: 'root' },
+          'shell.overlay': { kind: 'list', scope: 'root' },
+          'shell.leading': { kind: 'single', scope: 'root' },
+        },
+        store,
+      }, AppFrame)
     const disposeShortcut = ctx.shortcuts.register({
       id: 'sidebar.left.toggle' as ShortcutCommandId, label: () => t('toggle'), aliases: ['sidebar', 'toggle left sidebar'],
       defaults: {

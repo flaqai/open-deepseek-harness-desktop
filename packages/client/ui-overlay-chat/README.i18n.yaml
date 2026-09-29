@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-overlay-chat/README.md
+/:
+  en: a04aa8b9c92f07cb
+  zh: 50ca63ac55671325
+/deepseek-ai-dsh-client-ui-overlay-chat:
+  en: 3d65f64f85715224
+  zh: 79d1ed229552a266
+/deepseek-ai-dsh-client-ui-overlay-chat/summary:
+  en: c4d9e4188436d7ef
+  zh: f18535317a9ce9ab
+/deepseek-ai-dsh-client-ui-overlay-chat/table-of-contents:
+  en: 76368b6b1da79c80
+  zh: 24d4ba05067db51e
+/deepseek-ai-dsh-client-ui-overlay-chat/use-this-package:
+  en: c1b520932c03e355
+  zh: bad96e6d4d065c2a
+/deepseek-ai-dsh-client-ui-overlay-chat/understand-the-implementation:
+  en: fc9ed44b152ca3a5
+  zh: 3d0e41885001b006
+/deepseek-ai-dsh-client-ui-overlay-chat/model-experience:
+  en: 3a5eef28f7f71be1
+  zh: 47fd282271c87e98
+/deepseek-ai-dsh-client-ui-overlay-chat/model-experience/kv-cache-effect:
+  en: cd1ff6639377071f
+  zh: e013560363d16b9c
+/deepseek-ai-dsh-client-ui-overlay-chat/known-limitations-and-deferred-work:
+  en: 7316c54fba07f8b5
+  zh: 8b59771b7e2783ff
+/deepseek-ai-dsh-client-ui-overlay-chat/known-limitations-and-deferred-work/dev-note:
+  en: e9ec377cddcf3cee
+  zh: 7858bac6fdd5608c

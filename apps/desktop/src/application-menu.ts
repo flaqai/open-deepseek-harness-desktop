@@ -8,7 +8,7 @@ import { DESKTOP_PRODUCT_NAME } from './product-name.ts'
 export const DESKTOP_COMMANDS = [
   'about', 'settings', 'updates', 'new-session', 'open-config', 'open-web', 'close', 'quit',
   'undo', 'redo', 'cut', 'copy', 'paste', 'select-all', 'zoom-in', 'zoom-out', 'zoom-reset',
-  'fullscreen', 'market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools',
+  'fullscreen', 'orb-toggle', 'orb-settings', 'market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools',
   'phone', 'im', 'data-home', 'restart', 'show', 'minimize', 'maximize',
   'docs', 'repository', 'feedback', 'logs', 'devtools', 'emoji',
 ] as const
@@ -17,7 +17,7 @@ export type DesktopCommand = typeof DESKTOP_COMMANDS[number]
 /** Product navigation commands delivered only to the Harness renderer. */
 export const CLIENT_COMMANDS = [
   'new-session', 'settings', 'updates', 'market', 'plugin-restore', 'diagnostics',
-  'snapshots', 'external-tools', 'phone', 'im', 'data-home',
+  'snapshots', 'external-tools', 'orb-settings', 'phone', 'im', 'data-home',
 ] as const satisfies readonly DesktopCommand[]
 
 const en = {
@@ -26,7 +26,7 @@ const en = {
   'new-session': 'New Conversation', 'open-config': 'Open Configuration File', 'open-web': 'Open in Browser', close: 'Close Window', quit: 'Quit Completely',
   undo: 'Undo', redo: 'Redo', cut: 'Cut', copy: 'Copy', paste: 'Paste', 'select-all': 'Select All',
   'zoom-in': 'Zoom In', 'zoom-out': 'Zoom Out', 'zoom-reset': 'Actual Size', fullscreen: 'Enter Full Screen',
-  'leave-fullscreen': 'Exit Full Screen', market: 'Plugin Market', 'plugin-restore': 'Plugin Recovery',
+  'leave-fullscreen': 'Exit Full Screen', 'orb-toggle': 'Show/Hide Floating Ball', 'orb-settings': 'Floating Ball Settings', market: 'Plugin Market', 'plugin-restore': 'Plugin Recovery',
   diagnostics: 'Diagnostics', snapshots: 'Plugin Snapshots', 'external-tools': 'Tools & Capabilities',
   phone: 'Phone Access', im: 'IM Bots', 'data-home': 'Switch Data Directory…', restart: 'Quick Restart',
   show: 'Show Main Window', minimize: 'Minimize', maximize: 'Maximize', restore: 'Restore',
@@ -46,7 +46,7 @@ const zh: typeof en = {
   about: `关于 ${DESKTOP_PRODUCT_NAME}`, settings: '设置…', updates: '检查更新…', 'new-session': '新对话',
   'open-config': '打开配置文件', 'open-web': '在浏览器中打开', close: '关闭窗口', quit: '完整退出', undo: '撤销', redo: '重做', cut: '剪切',
   copy: '复制', paste: '粘贴', 'select-all': '全选', 'zoom-in': '放大', 'zoom-out': '缩小', 'zoom-reset': '实际大小',
-  fullscreen: '进入全屏', 'leave-fullscreen': '退出全屏', market: '插件市场', 'plugin-restore': '插件恢复',
+  fullscreen: '进入全屏', 'leave-fullscreen': '退出全屏', 'orb-toggle': '显示/隐藏悬浮球', 'orb-settings': '悬浮球设置', market: '插件市场', 'plugin-restore': '插件恢复',
   diagnostics: '诊断中心', snapshots: '插件快照', 'external-tools': '工具与能力', phone: '手机访问', im: 'IM 机器人',
   'data-home': '切换配置目录…', restart: '快速重启', show: '显示主窗口', minimize: '最小化', maximize: '最大化',
   restore: '还原', docs: '使用文档', repository: '项目仓库', feedback: '反馈问题', logs: '打开日志目录',
@@ -63,7 +63,7 @@ const ru: typeof en = {
   about: `Об ${DESKTOP_PRODUCT_NAME}`, settings: 'Настройки…', updates: 'Проверить обновления…', 'new-session': 'Новый диалог',
   'open-config': 'Открыть файл конфигурации', 'open-web': 'Открыть в браузере', close: 'Закрыть окно', quit: 'Полностью выйти', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать',
   copy: 'Копировать', paste: 'Вставить', 'select-all': 'Выбрать всё', 'zoom-in': 'Увеличить', 'zoom-out': 'Уменьшить', 'zoom-reset': 'Реальный размер',
-  fullscreen: 'Во весь экран', 'leave-fullscreen': 'Выйти из полноэкранного режима', market: 'Плагины', 'plugin-restore': 'Восстановление плагинов',
+  fullscreen: 'Во весь экран', 'leave-fullscreen': 'Выйти из полноэкранного режима', 'orb-toggle': 'Показать/скрыть плавающий шар', 'orb-settings': 'Настройки плавающего шара', market: 'Плагины', 'plugin-restore': 'Восстановление плагинов',
   diagnostics: 'Диагностика', snapshots: 'Снимки плагинов', 'external-tools': 'Инструменты и возможности', phone: 'Доступ с телефона', im: 'IM-боты',
   'data-home': 'Сменить каталог данных…', restart: 'Быстрый перезапуск', show: 'Показать главное окно', minimize: 'Свернуть', maximize: 'Развернуть',
   restore: 'Восстановить', docs: 'Документация', repository: 'Репозиторий проекта', feedback: 'Сообщить о проблеме', logs: 'Открыть каталог журналов',
@@ -90,6 +90,7 @@ export interface DesktopMenuState {
   maximized: boolean
   fullscreen: boolean
   development: boolean
+  orbAvailable?: boolean
 }
 /** Validate an IPC command. @param value - Wire input. @returns Whether it is allowlisted. */
 export function isDesktopCommand(value: unknown): value is DesktopCommand {
@@ -102,6 +103,8 @@ export function isDesktopCommand(value: unknown): value is DesktopCommand {
  */
 export function commandEnabled(command: DesktopCommand, state: DesktopMenuState): boolean {
   if (command === 'settings') return state.clientAvailable && !state.busy
+  if (command === 'orb-toggle') return state.orbAvailable === true
+  if (command === 'orb-settings') return state.orbAvailable === true && state.ready && !state.busy
   if ((CLIENT_COMMANDS as readonly string[]).includes(command)) return state.ready && !state.busy
   // Loading and titlebar pages share file://; never write that origin's zoom preference.
   if (command === 'zoom-in' || command === 'zoom-out' || command === 'zoom-reset') return state.ready
@@ -148,7 +151,7 @@ export function applicationMenuTemplate(
       ...(!mac ? [item('settings'), separator] : []), item('close'), ...(!mac ? [item('quit')] : [])]),
     group('edit', [item('undo'), item('redo'), separator, item('cut'), item('copy'), item('paste'), item('select-all'),
       ...(mac ? [separator, item('emoji')] : [])]),
-    group('view', [item('zoom-in'), item('zoom-out'), item('zoom-reset'), separator, item('fullscreen'),
+    group('view', [item('zoom-in'), item('zoom-out'), item('zoom-reset'), separator, item('fullscreen'), item('orb-toggle'),
       ...(state.development ? [separator, item('devtools')] : [])]),
     group('tools', ['market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools', 'phone', 'im', 'data-home', 'restart'].map(command => item(command as DesktopCommand))),
     group('window', [item('show'), item('minimize'), item('maximize')]),

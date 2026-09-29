@@ -10,6 +10,8 @@
   "references": [
     { "path": "../../vendor/cordis" },
     { "path": "../../packages/core/agent" },
+    { "path": "../../packages/computer-use/orb-native" },
+    { "path": "../../packages/bundle/web-app" },
     { "path": "../../packages/jobs/jobs" },
     { "path": "../../packages/core/tools" },
     { "path": "../../packages/schedule/schedule" },

@@ -70,6 +70,12 @@ macOS 使用名为 Open DeepSeek Harness Desktop 的系统原生菜单。Windows
 
 macOS 开发启动器会在 `.artifacts/desktop-dev/` 中按版本创建 ad-hoc 签名的 Open DeepSeek Harness Desktop.app，其 Bundle 显示名和运行时进程标题使用统一产品名，内部启动文件则保留为 `Electron`，让 Electron 继续将它识别为源码开发版。共享 Electron 安装、Bundle 标识、Helper 布局、数据位置和已保存的自定义图标均不改变。macOS 安装版从同一 `productName` 生成应用、主进程与 Helper 名称；Windows 从它生成可执行文件和全新安装目录；Linux 使用对应的 `open-deepseek-harness-desktop` 可执行文件名。为保证升级兼容，应用标识、数据目录、软件包身份和 Release 资产名保持不变。实现与平台验证限制记录在[应用菜单决策](../../.agents/notes/implemented/feature/2026-09-03-desktop-application-menus.zh.md)中。
 
+## 悬浮球
+
+可选的悬浮球复用当前桌面版拥有的 Profile 与会话。设置中有独立的“悬浮球”页面，“视图”菜单可显示或隐藏悬浮球，隐藏不会删除聊天或停止后台工作。新安装默认选择 Orb 前台 Computer Use 后端，已有用户的官方 Cua Driver 选择保持不变。切换后端属于受管 Profile 变更，待当前工作结束并快速重启后生效；官方驱动仍需另行安装。Orb 前台提供者仅向 Host 拥有的调用会话公开观察、点击和文字输入；每次操作都重新检查本机模式、系统权限、前台窗口身份和截图时效。截图时临时隐藏悬浮窗，随后恢复且不抢焦点。
+
+本机 Host 还通过已认证的同源路由提供标准后台会话。工具、计划和提问仍按普通审批流程处理；隐藏悬浮球不会取消它们。NAS 模式只允许远程聊天，禁用本机截图、输入、划词发送和本机后台任务。macOS 前台操作需要屏幕录制与辅助功能授权；Windows 原生辅助程序需要交互式桌面；Linux 目前只支持有可用显示连接的 X11。GNOME Wayland 明确不支持，即使存在 Xwayland 的 `DISPLAY` 也不会启用。安装版、多显示器缩放、全屏、系统权限拒绝与撤销以及真实 NAS 仍需对应平台验收；macOS 源码构建不能代替 Windows 或 Linux 安装包证据。
+
 ## 独立数据目录与复制
 
 安装版使用平台应用数据根下的 `open-deepseek-harness-desktop/dsh-home`，源码开发版使用其中的 `development/dsh-home`。两者的 Electron 偏好、浏览器会话数据、日志、解压运行时和 Harness 状态彼此独立，也不再与官方 CLI 共用。自动化和高级启动显式设置的 `DSH_HOME` 仍具有最高优先级。

@@ -27,6 +27,8 @@ import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-shell-env'
 import { installDesktopQuitInspectionRoute, mayExposeDesktopQuitInspection } from './desktop-quit-inspection.ts'
+import { consumeDesktopOrbSecret, installDesktopOrbCallerRoute } from './desktop-orb-caller.ts'
+import { installDesktopOrbBackgroundRoute } from './desktop-orb-background.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'web-app'
@@ -256,6 +258,7 @@ export const internals: {
  * @param config - validated {@link Config}.
  */
 export function apply(ctx: Context, config: Config): void {
+  const orbSecret = consumeDesktopOrbSecret(process.env)
   const runtime = resolveLanTrust(ctx.webServer.host, config.trustedHosts, config.nas)
   // Only the community Desktop supervisor sets this marker, and it binds its Web Host
   // to loopback. NAS deployments must not gain a Desktop-only inspection endpoint.
@@ -263,6 +266,12 @@ export function apply(ctx: Context, config: Config): void {
     process.env.DSH_DESKTOP_WEB_RESTART_OWNER, ctx.webServer.host, config.nas !== undefined,
   )) {
     installDesktopQuitInspectionRoute(ctx)
+    if (orbSecret !== undefined && process.env.DSH_HOME !== undefined) {
+      installDesktopOrbCallerRoute(ctx, process.env.DSH_HOME, orbSecret)
+      installDesktopOrbBackgroundRoute(ctx, process.env.DSH_HOME, () => mayExposeDesktopQuitInspection(
+        process.env.DSH_DESKTOP_WEB_RESTART_OWNER, ctx.webServer.host, config.nas !== undefined,
+      ))
+    }
   }
   // The loopback URL belongs to this host. Under SSH, the operator reaches it
   // through a local forwarding address that this process cannot derive.

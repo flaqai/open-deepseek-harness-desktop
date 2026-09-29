@@ -52,7 +52,7 @@ it('boots every bundled preload before DOM globals are available with only Elect
           shell: { openLogDirectory(): Promise<{ error: string }> }
         }
         expect(Object.keys(exposed)).toEqual([
-          'menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes', 'icons', 'downloadNetwork',
+          'externalBrowser', 'menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes', 'orb', 'icons', 'downloadNetwork',
           'bundledPlugins', 'externalTools', 'importedPlugins', 'diagnosticLab', 'pluginSnapshots', 'startupDiagnostics', 'processes',
           'chatBackground',
         ])
@@ -78,7 +78,7 @@ it('boots every bundled preload before DOM globals are available with only Elect
         const remoteExposed = remoteExposeInMainWorld.mock.calls.find(([name]) => name === 'deepSeekHarnessDesktop')?.[1] as {
           shell: Record<string, unknown>
         } & Record<string, unknown>
-        expect(Object.keys(remoteExposed)).toEqual(['menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes'])
+        expect(Object.keys(remoteExposed)).toEqual(['externalBrowser', 'menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes', 'orb'])
         expect(Object.keys(remoteExposed.shell)).toEqual([
           'getCapabilities', 'getPreferences', 'updatePreferences', 'onPreferences', 'restart', 'reportReadiness',
         ])
@@ -89,6 +89,7 @@ it('boots every bundled preload before DOM globals are available with only Elect
         expect(remoteExposed.shell).not.toHaveProperty('enterRecoveryMode')
         expect(remoteExposed).not.toHaveProperty('icons')
         expect(remoteExposed).not.toHaveProperty('downloadNetwork')
+        expect(remoteExposed.orb).not.toHaveProperty('selectBackend')
         const remoteWorkspaceRuntimes = remoteExposed.workspaceRuntimes as {
           get(): Promise<{ capabilities: { office: { phase: string }; ptc: { phase: string } } }>
           start(capability: string): Promise<never>

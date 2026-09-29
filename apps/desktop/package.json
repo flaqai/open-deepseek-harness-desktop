@@ -24,7 +24,7 @@
     "ws": "^8.21.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && pnpm --config.verifyDepsBeforeRun=false exec tsdown --config tsdown.preload.config.ts && node scripts/copy-assets.mjs && node scripts/build-welcome.mjs",
+    "build": "tsc -p tsconfig.json && pnpm --config.verifyDepsBeforeRun=false exec tsdown --config tsdown.preload.config.ts && node scripts/copy-assets.mjs && node scripts/build-orb-selection.mjs && node scripts/build-orb-computer-use-macos.mjs && node scripts/build-orb-computer-use-windows.mjs && node scripts/build-orb-computer-use-linux.mjs && node scripts/build-welcome.mjs",
     "dev": "node scripts/dev-watch.mjs",
     "dev:once": "pnpm run build && node scripts/start-electron.mjs",
     "package:win:x64": "pnpm --dir ../.. run prepare:desktop:bundled-plugins && pnpm --dir ../.. run build:community-desktop && pnpm exec tsx scripts/prepare-workspace-runtime.ts win-x64 && node scripts/prepare-windows-runtime.mjs && node node_modules/electron-builder/out/cli/cli.js --win nsis --x64 --publish never",

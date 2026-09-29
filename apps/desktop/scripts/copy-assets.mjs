@@ -31,6 +31,10 @@ copyFileSync(
   fileURLToPath(new URL('../lib/titlebar.html', import.meta.url)),
 )
 copyFileSync(
+  fileURLToPath(new URL('../src/orb-shell.html', import.meta.url)),
+  fileURLToPath(new URL('../lib/orb-shell.html', import.meta.url)),
+)
+copyFileSync(
   fileURLToPath(new URL('../src/question-outline-14.svg', import.meta.url)),
   fileURLToPath(new URL('../lib/question-outline-14.svg', import.meta.url)),
 )

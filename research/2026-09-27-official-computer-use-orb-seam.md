@@ -1,6 +1,6 @@
 # Orb reference and official Computer Use: desktop integration assessment
 
-Checked 2026-09-27 against the official tag `dsh-v0.1.7-rc.2` and the reference project's `main` at `72f1d738458a223696685a909e806b683eff5885`. The local community checkout's Computer Use service and provider files have no committed diff from the official tag. The reference checkout is at `../../reference/deepseek-harness-orb`.
+Checked 2026-09-27 against the official tag [`dsh-v0.1.7-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.7-rc.2) and the reference project's `main` at `72f1d738458a223696685a909e806b683eff5885`. The local community checkout's Computer Use service and provider files have no committed diff from the official tag. The reference checkout is at `../../reference/deepseek-harness-orb`.
 
 ## Reference project architecture
 

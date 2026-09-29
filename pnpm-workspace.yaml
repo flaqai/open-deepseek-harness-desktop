@@ -35,6 +35,10 @@ supportedArchitectures:
     - x64
 
 overrides:
+  # mdast-util-from-markdown still resolves 2.0.2 while the renderer's
+  # micromark extensions resolve 2.0.3; their distinct token maps are not
+  # assignable under exactOptionalPropertyTypes. Keep one grammar type ABI.
+  'micromark-util-types': '2.0.3'
   # electron-builder 26.15 uses the cache-mode API introduced in @electron/get
   # 3.1 while declaring ^3.0; pin the first compatible 3.x release.
   '@electron/get': '3.1.0'
