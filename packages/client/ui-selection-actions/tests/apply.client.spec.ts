@@ -5,6 +5,21 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
 import { SelectionActions, type SelectionActionsInjected } from '../src/client/SelectionActions.tsx'
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isSelectionActionsInjected(value: unknown): value is SelectionActionsInjected {
+  if (!isRecord(value) || !isRecord(value.hooks) || !isRecord(value.hooks.appendAvailable)) return false
+  const appendAvailable = value.hooks.appendAvailable
+  return typeof appendAvailable.getSnapshot === 'function'
+    && typeof appendAvailable.subscribe === 'function'
+    && typeof value.copy === 'function'
+    && typeof value.askInNewConversation === 'function'
+    && typeof value.appendToCurrent === 'function'
+    && (value.restartDesktop === undefined || typeof value.restartDesktop === 'function')
+}
+
 function observable<T>(initial: T) {
   let value = initial
   const listeners = new Set<() => void>()
@@ -57,7 +72,8 @@ async function bench() {
   } as never, () => null)
   await ctx.plugin({ inject: [...inject], apply }).await()
   const entry = slots.entries('shell.overlay')[0]!
-  const injected = (entry.inject as unknown as () => SelectionActionsInjected)()
+  const injected: unknown = entry.inject?.()
+  if (!isSelectionActionsInjected(injected)) throw new TypeError('selection actions fixture injection is invalid')
   return { ctx, slots, entry, injected, list, sessionStatus, input, setDraft, openWorkspace }
 }
 

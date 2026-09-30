@@ -28,13 +28,18 @@ const inboxFields = {
   'next-step': z.array(z.custom<UserMessage>()).readonly(),
 }
 
+const inboxWireFields = {
+  'next-turn': z.array(z.json()).readonly(),
+  'next-step': z.array(z.json()).readonly(),
+}
+
 /** Validation for pending agent input and its fork-owned replay boundary. */
 export const inboxProjectionSchema = z.object({
   ...inboxFields,
   inheritedEventCount: z.number().int().nonnegative().transform(SessionLogOffset),
 }).readonly() satisfies z.ZodType<InboxProjectionState>
 
-const inboxWireSchema = z.object(inboxFields).readonly()
+const inboxWireSchema = z.object(inboxWireFields).readonly()
 
 /** Standard fold that reconstructs pending input and rejects invalid durable splice history. */
 export const inboxProjectionDefinition = {
@@ -75,10 +80,10 @@ export const inboxProjectionDefinition = {
   wire: {
     // The client sees only pending messages; the inherited-event cut remains
     // internal state used to prevent parent work from becoming child work.
-    viewSchema: inboxWireSchema as unknown as z.ZodType<InboxWireState>,
+    viewSchema: inboxWireSchema satisfies z.ZodType<InboxWireState>,
     view: (state: InboxProjectionState): InboxWireState => ({
-      'next-turn': state['next-turn'] as unknown as InboxWireState['next-turn'],
-      'next-step': state['next-step'] as unknown as InboxWireState['next-step'],
+      'next-turn': state['next-turn'].map(message => z.json().parse(message)),
+      'next-step': state['next-step'].map(message => z.json().parse(message)),
     }),
   },
   stateVersion: 2,

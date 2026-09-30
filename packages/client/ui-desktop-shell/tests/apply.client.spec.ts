@@ -12,15 +12,17 @@ import { DesktopBrowserReturnButton } from '../src/client/DesktopBrowserReturnBu
 import { DesktopLogDirectoryAction } from '../src/client/DesktopLogDirectoryAction.tsx'
 import { NasRuntimeSection } from '../src/client/NasRuntimeSection.tsx'
 
+let desktopBridge: { shell: Record<string, unknown>; [key: string]: unknown }
+
 afterEach(() => {
-  delete (globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop
+  Reflect.deleteProperty(globalThis, 'deepSeekHarnessDesktop')
   window.sessionStorage.clear()
   window.history.replaceState(null, '', '/')
 })
 
 function installBridge(): ReturnType<typeof vi.fn> {
   const reportReadiness = vi.fn()
-  ;(globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop = {
+  desktopBridge = {
     shell: {
       getCapabilities: vi.fn(() => Promise.resolve({
         runtimeKind: 'local', platform: 'darwin', packaged: true, launchAtLoginAvailable: true, sourceUpdateAvailable: false,
@@ -56,6 +58,7 @@ function installBridge(): ReturnType<typeof vi.fn> {
       onStatus: vi.fn(() => () => {}),
     },
   }
+  Object.defineProperty(globalThis, 'deepSeekHarnessDesktop', { configurable: true, value: desktopBridge })
   return reportReadiness
 }
 
@@ -132,7 +135,7 @@ describe('ui-desktop-shell apply', () => {
 
   it('owns one native menu subscription and reports connection readiness through service injection', async () => {
     installBridge()
-    const bridge = (globalThis as unknown as { deepSeekHarnessDesktop: Record<string, unknown> }).deepSeekHarnessDesktop
+    const bridge = desktopBridge
     let command: ((value: string) => void) | undefined
     const unsubscribe = vi.fn()
     const reportState = vi.fn()
@@ -203,9 +206,7 @@ describe('ui-desktop-shell apply', () => {
 
   it('does not register device-local log actions for a reduced NAS shell bridge', async () => {
     installBridge()
-    const bridge = (globalThis as unknown as {
-      deepSeekHarnessDesktop: { shell: Record<string, unknown> }
-    }).deepSeekHarnessDesktop
+    const bridge = desktopBridge
     bridge.shell.getCapabilities = vi.fn(() => Promise.resolve({
       runtimeKind: 'nas', platform: 'darwin', packaged: true, launchAtLoginAvailable: true,
       sourceUpdateAvailable: false, commandLineAvailable: false, developmentRecoveryAvailable: false,
@@ -230,7 +231,7 @@ describe('ui-desktop-shell apply', () => {
 
   it('registers the NAS settings page only when the desktop host exposes its narrow bridge', async () => {
     installBridge()
-    const bridge = (globalThis as unknown as { deepSeekHarnessDesktop: Record<string, unknown> }).deepSeekHarnessDesktop
+    const bridge = desktopBridge
     bridge.nas = {
       get: vi.fn(() => Promise.resolve({ selection: { kind: 'local' }, servers: [], secureStorageAvailable: true })),
       discover: vi.fn(), inspect: vi.fn(), pair: vi.fn(), select: vi.fn(), remove: vi.fn(), test: vi.fn(),

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 import type { PluginInstallId, PluginInstallSnapshot } from '@deepseek-ai/dsh-host-plugin-inventory/types'
+import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   PluginDiagnosticsSection,
   type PluginDiagnosticsSectionProps,
@@ -12,11 +13,18 @@ import { en, type PluginInventoryLocaleKey } from '../src/client/locales.ts'
 afterEach(cleanup)
 
 const t = ((key: PluginInventoryLocaleKey): string => en[key]) as PluginDiagnosticsSectionProps['t']
+const unused = (): never => { throw new Error('PluginDiagnosticsSection does not consume framework hooks') }
+const globals: GlobalStandardProps = {
+  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  useSessionRetainInfo: unused, useResource: unused, useWorkspaces: unused,
+}
 
 function props(snapshot: PluginInventorySnapshot): PluginDiagnosticsSectionProps {
   const unexpected = async (): Promise<never> => { throw new Error('unexpected mutation') }
   return {
+    ...globals,
     t,
+    close: vi.fn(),
     list: async () => snapshot,
     startDependencyDoctor: unexpected,
     getDependencyDoctor: unexpected,
@@ -30,7 +38,7 @@ function props(snapshot: PluginInventorySnapshot): PluginDiagnosticsSectionProps
     uninstallQuarantine: async () => true,
     dismissDependencyHealth: async () => true,
     openPluginMarket: vi.fn(),
-  } as unknown as PluginDiagnosticsSectionProps
+  } satisfies PluginDiagnosticsSectionProps
 }
 
 describe('PluginDiagnosticsSection', () => {
@@ -82,7 +90,7 @@ describe('PluginDiagnosticsSection', () => {
           attribution: { rootPackage: '@fixture/legacy-session' }, actions: ['open-config', 'export'], evidence: [],
         }],
       },
-    } as unknown as PluginInventorySnapshot)} />)
+    })} />)
     expect(await screen.findByText(en['diagnostics.issue.sessionApi'])).toBeTruthy()
     expect(screen.queryByRole('button', { name: en['health.quarantine.action.findUpdate'] })).toBeNull()
   })
@@ -98,7 +106,7 @@ describe('PluginDiagnosticsSection', () => {
           attribution: { rootPackage: '@fixture/frozen-input' }, actions: ['isolate', 'export'], evidence: [],
         }],
       },
-    } as unknown as PluginInventorySnapshot)} />)
+    })} />)
     expect(await screen.findByText(en['diagnostics.issue.immutableAgentInput'])).toBeTruthy()
     expect(screen.getByText('@fixture/frozen-input')).toBeTruthy()
   })
@@ -134,7 +142,7 @@ describe('PluginDiagnosticsSection', () => {
         }],
         issues: [],
       },
-    } as unknown as PluginInventorySnapshot)} startHostVersionOverride={startHostVersionOverride} />)
+    })} startHostVersionOverride={startHostVersionOverride} />)
 
     expect(await screen.findAllByText('0.1.2-rc.1')).toHaveLength(2)
     expect(screen.getAllByText('0.1.2-alpha.5').length).toBeGreaterThanOrEqual(2)
@@ -188,7 +196,7 @@ describe('PluginDiagnosticsSection', () => {
           evidence: [],
         }],
       },
-    } as unknown as PluginInventorySnapshot)} />)
+    })} />)
 
     expect(await screen.findByText(`Dependency does not export the API required by the plugin: ${missingExport}`))
       .toBeTruthy()

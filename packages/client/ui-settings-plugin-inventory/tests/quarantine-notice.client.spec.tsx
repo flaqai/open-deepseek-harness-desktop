@@ -15,12 +15,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const HEALTHY = {
+const HEALTHY: PluginInventorySnapshot = {
   entries: [],
   dependencyHealth: { lastRepair: null, quarantined: [], issues: [], diagnosticMode: null },
-} as unknown as PluginInventorySnapshot
+}
 
-const QUARANTINED = {
+const QUARANTINED: PluginInventorySnapshot = {
   entries: [],
   dependencyHealth: {
     lastRepair: { status: 'quarantined', conflicts: [], issues: [] },
@@ -37,7 +37,7 @@ const QUARANTINED = {
     issues: [],
     diagnosticMode: null,
   },
-} as unknown as PluginInventorySnapshot
+}
 
 const t = (key: PluginInventoryLocaleKey): string => en[key]
 

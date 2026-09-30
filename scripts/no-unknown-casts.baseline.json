@@ -23,65 +23,6 @@
   "apps/cli/tests/web-auth.e2e.ts": {
     "a2b9a35fdf6552ba148d15436c9b3f98ed5763a2b91a95f579b951fd6613e75c": 1
   },
-  "apps/desktop-host/tests/office.spec.ts": {
-    "3f8653cd87f99ebd70765379dae51ab308ed9c280e831d39e1abd469bfcdc6e3": 1
-  },
-  "apps/desktop/scripts/installed-update-qualification.ts": {
-    "5a8270cf9b1e554ae0cff6eaf7086e44c22f61a08e5f91dc7e1397eccaa726a5": 2
-  },
-  "apps/desktop/scripts/macos-cache-policy.ts": {
-    "00e53c563f3bdaa56ac8a598ca2f46622277dd1f37af9c02a7c92abf475ddc3d": 1
-  },
-  "apps/desktop/scripts/macos-runtime.ts": {
-    "04bc8a44533574365dfedf563e2356458bcf95f990a00906938c977c1d683356": 1
-  },
-  "apps/desktop/src/main.ts": {
-    "e3362213edd415fbb267d8e6b94f1b3ae77e047b3a4609ccf9e08063fac7a7bd": 1
-  },
-  "apps/desktop/src/runtime-tree.ts": {
-    "bd54ced9c67761b49e3d039cb8eb6cbcb22f1e9e51b903a3b98ed8364863fac0": 1
-  },
-  "apps/desktop/tests/desktop-policy-environment.spec.ts": {
-    "d021e1acc96493233ec8a9cba000e9847acded67c39d913fa893761aaf917250": 1
-  },
-  "apps/desktop/tests/directory-picker.spec.ts": {
-    "326597b335539db945b2e3b7c86638d40849d2077c0a5670d064e45486f4e407": 1,
-    "f085ad10d79aed4354f06c71f72760cae58e097b15c83f13a96176f27529e638": 1
-  },
-  "apps/desktop/tests/host-update-tasks.spec.ts": {
-    "46197efe57255c9d92d64476470c89d0602c7333bf98ad75509bf43c1b357a3b": 1,
-    "f6c86f29edc554d5fda72589a77b006468b174a428a5345ce7e88dec698b9829": 1
-  },
-  "apps/desktop/tests/main-startup.spec.ts": {
-    "4fb87a7468d8632606fe338680cfcdec41051b543052a0ec14c55862b43ed928": 1,
-    "bb108d5dfeed36030bc4cf80fbbef2ef0cbcc72ab603bad208560b55bbf54875": 1
-  },
-  "apps/desktop/tests/preload-windows.client.spec.ts": {
-    "fdbd843bccc38b95f572f49587aacc29b9b0c67390d922ab5404a5935c747487": 1
-  },
-  "apps/desktop/tests/update-attention.spec.ts": {
-    "326597b335539db945b2e3b7c86638d40849d2077c0a5670d064e45486f4e407": 1,
-    "69a4620ccedea854de695bc105dc5028ca85dc34ff0f9f762160207cf029dff6": 1
-  },
-  "apps/desktop/tests/update-coordinator.spec.ts": {
-    "187ad4724635a2d845592799c3a2600437c0d2fe17e0d1c3018018d5e8b0b863": 1
-  },
-  "apps/desktop/tests/update-dialog.spec.ts": {
-    "3226b936a41e00f2cfd8b9563d3bfcc8eaef7cf04996abe74fb981169a07b91b": 1,
-    "4000017f1f3dabd4bdf8eb91120cf4ff0dd09bad89d4683151f4785974d204a5": 1
-  },
-  "apps/desktop/tests/update-http-executor.spec.ts": {
-    "e46a2f88f5bcac6be4336f4a9b106f5cb17c1eec4610b29145dc413254471a94": 1
-  },
-  "apps/desktop/tests/update-schedule.spec.ts": {
-    "d8502ebfa0f7381727d04f3999c1a1e85c27ca770ef336e6cbe9dfd41d6b53bd": 1
-  },
-  "apps/desktop/tests/windows-sign.spec.ts": {
-    "7fe58280287ff63d40e979e72329f975e11015a95e9a8eec207a5a78748d3c89": 2
-  },
-  "apps/desktop/tests/windows-update-publisher.spec.ts": {
-    "166d96cf5548261d768f2ca6566611cfed9b98c954cbf1abfb6349e5f6a1f16e": 1
-  },
   "apps/web/tests/assembled-boot.ts": {
     "203f87d9e4f18ce1f00bf575fe96f724975341cbb67b8c51ea45d4cbb8e60005": 1,
     "56cede35ce34488cdae4b19aec217c9c939377eb891fe68827fbd64cd019170c": 1,
@@ -647,13 +588,7 @@
     "6b8b0a920c558092d20bc17623b7050e0f7403f896fde7da17bb45677899b910": 1
   },
   "packages/client/ui-settings-plugin-inventory/tests/browser-plugin.client.spec.tsx": {
-    "04984a2ce1486250236e638e0197da0a1a840855ed3975c59130a85358c7e5fe": 1,
     "85f4d0d762126e709ae2178ca656f586dac1ba425eb1d8dd402cb5577d6e8225": 1
-  },
-  "packages/client/ui-settings-plugin-inventory/tests/components.client.spec.tsx": {
-    "0d78ec7c8ca39f70a4033ff4d330f8ef26832bb89932f98d1c87d76b4ce16d00": 1,
-    "79c53da50aa08004e201cebca842267ae2650a543b435a7906960f6492c2398b": 1,
-    "a3c1509d552d0102e118f3071a234002a5c83c30ca6923f8a87e9e3733ce0dcf": 1
   },
   "packages/client/ui-settings/tests/schema.client.spec.ts": {
     "0584be4cde4cd33049ef7c02e9d1562a30ec48ef2176f2f22b328b5be2903407": 1
@@ -861,10 +796,6 @@
   },
   "packages/context/tmux-context/tests/tmux-context.spec.ts": {
     "5e3fc1855973e9e446f90c73a47d0cef895eb497cd26b00f5a5f7dce394a66ac": 1
-  },
-  "packages/core/agent-loop/src/inbox.ts": {
-    "ac3a6c2bec4be0657823b6adf699a6e56e05fbc68a3250d3d98f05df1c81e101": 1,
-    "f7d46b129c95cc2d52a940d4ccab8c913b24394647a8197a7a3cc80075769e19": 1
   },
   "packages/core/agent-loop/tests/agent.spec.ts": {
     "f0f9e71eb2182866cc4cca844d07ecc66244a1643b49e66db197b1528aca0030": 1
@@ -1574,13 +1505,6 @@
     "746ebc5aade01a50cc9a74fc07b1023addf021aef80b62c069a437ac140c9e64": 1,
     "c920d88f6eb309ef5991608642a1ab0fd972690538b33c34d86c68d07ddd6edf": 1
   },
-  "packages/session-query/session-log-export/tests/dialog.client.spec.tsx": {
-    "a9b1969d76db0b05f87c862956f8ff45c52f1f4a5b32a206339de0c9fee99a77": 1
-  },
-  "packages/session-query/session-log-export/tests/header-action.client.spec.tsx": {
-    "238a292bbe3a61acbc4f2d96fff474df5fba1577357219a88c914813786b56a7": 1,
-    "47d3a14a42ef7142ea22071677b42265f02fba5a2a0cf4210f4f9c7c5a876d10": 1
-  },
   "packages/session-query/session-log-export/tests/loader-composition.host.spec.ts": {
     "59c63f734e8bba862325f776e3fcbebd78a84cfb4161f8df41c216950d9bf351": 1,
     "e12d49327a6708ae3ace371e28ed0deb471dc8895c584ba94a86af344c15cec3": 1
@@ -1636,10 +1560,6 @@
   },
   "packages/session/session-format-v1-to-v2/src/codec.ts": {
     "2f0518625bbdab01bbc850976f318cc6f494dc24cf0e28cbc4384913020abc77": 1
-  },
-  "packages/session/session-format-v1-to-v2/src/migration.ts": {
-    "644ba038e149e90e206e2f6ae7aaa8358c58bb1aaac693a47573f665ad9c299d": 1,
-    "ea8caef1fb547da0ca05ffd04585a7ed4c9c10e95361350fd7dddf4ff63563d4": 1
   },
   "packages/session/session-format-v1-to-v2/src/testing/validation.ts": {
     "adcd8dc459ad3c190a68b66794c16e43e13ace92aeef7b0511510b004a338f12": 1

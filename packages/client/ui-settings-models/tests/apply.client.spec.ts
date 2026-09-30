@@ -137,9 +137,18 @@ describe('ui-settings-models apply', () => {
     const setup = onboarding.find(entry => entry.options.id === 'setup-wizard')!
     expect(setup.component).toBe(SetupWizard)
     expect(setup.options).toMatchObject({ id: 'setup-wizard', order: 0 })
-    const setupInjected = (
-      setup.inject as unknown as () => import('../src/client/SetupWizard.tsx').SetupWizardInjected
-    )()
+    const setupInjected = setup.inject?.()
+    if (typeof setupInjected?.setLocale !== 'function') throw new Error('setup wizard injection was not registered')
+    const setLocale = setupInjected.setLocale as import('../src/client/SetupWizard.tsx').SetupWizardInjected['setLocale']
+    const hooks = setupInjected.hooks
+    if (typeof hooks !== 'object' || hooks === null || !('models' in hooks)
+      || !('welcome' in hooks) || !('locale' in hooks)) {
+      throw new Error('setup wizard hooks were not registered')
+    }
+    const welcomeController = setupInjected.welcomeController
+    if (typeof welcomeController !== 'object' || welcomeController === null || !('store' in welcomeController)) {
+      throw new Error('setup wizard welcome controller was not registered')
+    }
     const deepSeek = onboarding.find(entry => entry.options.id === 'deepseek-official')!
     expect(deepSeek.component).toBe(DeepSeekOnboardingDialog)
     const analytics = (deepSeek.inject!() as object) as import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
@@ -153,11 +162,11 @@ describe('ui-settings-models apply', () => {
       deepSeek.inject as unknown as () => import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
     )()
     expect(deepSeekInjected.controller).toBe(injected.controller)
-    expect(setupInjected.hooks.models).toBe(injected.controller.store)
+    expect(hooks.models).toBe(injected.controller.store)
     expect(setupInjected.modelsController).toBe(injected.controller)
-    expect(setupInjected.hooks.welcome).toBe(setupInjected.welcomeController.store)
-    expect(setupInjected.hooks.locale).toBe(before.locale)
-    setupInjected.setLocale('en')
+    expect(hooks.welcome).toBe(welcomeController.store)
+    expect(hooks.locale).toBe(before.locale)
+    setLocale('en')
     expect(before.locale.getLocale().active).toBe('en')
 
     const after = await bench()

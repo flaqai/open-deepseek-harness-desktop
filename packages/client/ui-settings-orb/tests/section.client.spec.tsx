@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import type {} from '../src/client/index.ts'
 import { OrbSettingsSection, type OrbSettingsSectionProps } from '../src/client/OrbSettingsSection.tsx'
 import type { OrbRuntimeStatus, OrbSettingsView } from '../src/client/orb-bridge.ts'
 import { zh } from '../src/client/locales.ts'
@@ -20,21 +23,22 @@ const ready: OrbRuntimeStatus = {
   selectionAvailable: true, backgroundAvailable: true,
 }
 
+const unused = (): never => { throw new Error('OrbSettingsSection does not consume framework hooks') }
+const globals: GlobalStandardProps = {
+  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  useSessionRetainInfo: unused, useResource: unused, useWorkspaces: unused,
+}
+
 function mount(view: OrbSettingsView, canSelectBackend = true) {
   const update = vi.fn(async () => {})
   const selectBackend = vi.fn(async () => {})
   const restart = vi.fn(async () => {})
   const openTools = vi.fn()
-  const messages: Readonly<Record<string, string>> = zh
-  const t = (key: string, params?: Readonly<Record<string, string | number>>) => {
-    const raw = messages[key] ?? key
-    return Object.entries(params ?? {}).reduce((value, [name, replacement]) =>
-      value.replaceAll(`{${name}}`, String(replacement)), raw)
-  }
-  const props = {
-    t, useOrb: (select: (state: OrbSettingsView) => unknown) => select(view),
+  const props: OrbSettingsSectionProps = {
+    ...globals,
+    t: makeTranslate(zh), useOrb: <T,>(select: (state: OrbSettingsView) => T): T => select(view),
     update, selectBackend, canSelectBackend, restart, canRestart: true, openTools, reload: vi.fn(), close: vi.fn(),
-  } as unknown as OrbSettingsSectionProps
+  }
   render(<OrbSettingsSection {...props} />)
   return { update, selectBackend, restart, openTools }
 }

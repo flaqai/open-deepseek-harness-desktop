@@ -178,7 +178,8 @@ export class FilePersistentServiceAuthorizer {
 
   private read(): PersistentServiceDocument {
     try {
-      return parseDocument(JSON.parse(readFileSync(this.#path, 'utf8')) as unknown)
+      const value: unknown = JSON.parse(readFileSync(this.#path, 'utf8'))
+      return parseDocument(value)
     } catch (error) {
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
         return { schema: SCHEMA, records: [] }
@@ -283,7 +284,7 @@ export class FilePersistentServiceRuntimeRegistry {
   private read(): PersistentServiceRuntimeDocument {
     let raw: unknown
     try {
-      raw = JSON.parse(readFileSync(this.#path, 'utf8')) as unknown
+      raw = JSON.parse(readFileSync(this.#path, 'utf8'))
     } catch (error) {
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
         return { schema: 'open-dsh-desktop/persistent-service-runtime/v1', records: [] }

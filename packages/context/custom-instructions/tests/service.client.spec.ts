@@ -10,7 +10,7 @@ function bench() {
     diagnosticExport: { preference: 'ask' },
   }
   let revision = 1
-  const mutate = vi.fn(async (ops: readonly { op: string; path: readonly string[]; value?: unknown }[]) => {
+  const mutate = vi.fn<ConfigForm<CustomInstructionSettings>['mutate']>(async (ops) => {
     for (const op of ops) {
       if (op.path[0] === 'global' && op.op === 'set') value = { ...value, global: op.value as never }
       if (op.path[0] === 'workspaces' && op.path[1] !== undefined) {
@@ -20,7 +20,7 @@ function bench() {
           : { ...value.workspaces, [workspaceId]: op.value as never }
         value = { ...value, workspaces }
       }
-      if (op.path.join('.') === 'diagnosticExport.preference') {
+      if (op.path.join('.') === 'diagnosticExport.preference' && op.op === 'set') {
         value = { ...value, diagnosticExport: { preference: op.value as never } }
       }
     }
@@ -30,13 +30,13 @@ function bench() {
   const snapshot = (): ConfigFormSnapshot<CustomInstructionSettings> => ({
     status: 'ready', value, base: undefined, user: value, revision, writable: true, mode: 'host',
   })
-  const scope = {
+  const scope: ConfigForm<CustomInstructionSettings> = {
     getSnapshot: snapshot,
     subscribe: () => () => {},
     mutate,
-    set: vi.fn(),
-    unset: vi.fn(),
-  } as unknown as ConfigForm<CustomInstructionSettings>
+    set: vi.fn(async () => true),
+    unset: vi.fn(async () => true),
+  }
   const open = vi.fn()
   const client = createCustomInstructionsClient(scope, { open } as never)
   return { client, mutate, open, value: () => value }

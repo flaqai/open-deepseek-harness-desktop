@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { BlockAssembler, expandAssistantStream } from '@deepseek-ai/dsh-llm'
+import { BlockAssembler, expandAssistantStream, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { AssistantStreamRecord, ContentBlock } from '@deepseek-ai/dsh-llm'
 import { repairLegacyToolStream } from '../src/legacy-tool-stream.ts'
 
 function fixture() {
   const stream = [
-    { type: 'tool-call-chunks', time0: 1, index: 7, id: 'original-id', name: 'read', dt: [], args: ['{'] },
-    { type: 'chunk', time: 2, chunk: { type: 'tool-call-delta', index: 7, id: '', argumentsDelta: '}' } },
-    { type: 'chunk', time: 3, chunk: { type: 'block-end', index: 7, block: { type: 'tool-call', id: '', name: '', arguments: '{}' } } },
-  ] as unknown as AssistantStreamRecord[]
-  const content = [{ type: 'tool-call', id: 'legacy-empty-tool-call:fixture:8', name: 'legacy_invalid_tool', arguments: '{}' }] as unknown as ContentBlock[]
+    { type: 'tool-call-chunks', time0: 1, index: 7, id: ToolCallId('original-id'), name: 'read', dt: [], args: ['{'] },
+    { type: 'chunk', time: 2, chunk: { type: 'tool-call-delta', index: 7, id: ToolCallId(''), argumentsDelta: '}' } },
+    { type: 'chunk', time: 3, chunk: { type: 'block-end', index: 7, block: { type: 'tool-call', id: ToolCallId(''), name: '', arguments: '{}' } } },
+  ] satisfies AssistantStreamRecord[]
+  const content = [{ type: 'tool-call', id: ToolCallId('legacy-empty-tool-call:fixture:8'), name: 'legacy_invalid_tool', arguments: '{}' }] satisfies ContentBlock[]
   return { stream, content }
 }
 

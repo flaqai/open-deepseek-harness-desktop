@@ -7,8 +7,20 @@ import { SessionLogDownloadController } from '../src/client/controller.ts'
 import { SessionLogDownloadDialog } from '../src/client/Dialog.tsx'
 import type { SessionLogDownloadDialogProps } from '../src/client/Dialog.tsx'
 import { en } from '../src/client/locales.ts'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 
 const SID = 'session-export-dialog' as SessionId
+const unused = (): never => { throw new Error('unused dialog fixture prop') }
+const standardProps = {
+  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
+  useSession: unused, useProjection: unused, useConversation: unused, useInput: unused,
+  useChat: unused, useTrajectory: unused,
+  inputActions: {
+    captureInsertion: unused, insertText: unused, setDraft: unused,
+    addAttachments: unused, removeAttachment: unused, pruneAttachments: unused, submit: unused,
+  },
+}
 
 function bench(
   controller = new SessionLogDownloadController(
@@ -22,10 +34,12 @@ function bench(
       () => selector(controller.store.getSnapshot()),
     )
   }
-  const t = (key: keyof typeof en): string => en[key]
+  const t = makeTranslate(en)
   const props = {
+    ...standardProps,
     sessionId: SID,
     useSessionLogDownload,
+    request: (sessionId: SessionId) => controller.download(sessionId),
     dismiss,
     setIncludeCustomInstructions: (sessionId: SessionId, include: boolean) => {
       controller.setIncludeCustomInstructions(sessionId, include)
@@ -33,7 +47,7 @@ function bench(
     setRemember: (sessionId: SessionId, remember: boolean) => { controller.setRemember(sessionId, remember) },
     confirm: (sessionId: SessionId) => controller.confirm(sessionId),
     t,
-  } as unknown as SessionLogDownloadDialogProps
+  } satisfies SessionLogDownloadDialogProps
   const view = render(<SessionLogDownloadDialog {...props} />)
   return { controller, dismiss, view }
 }

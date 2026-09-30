@@ -7,7 +7,7 @@ import {
 
 beforeEach(() => {
   localStorage.clear()
-  delete (globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop
+  Reflect.deleteProperty(globalThis, 'deepSeekHarnessDesktop')
 })
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -42,9 +42,9 @@ describe('chat background persistence', () => {
   it('uses the optional desktop bridge for cross-origin persistence', async () => {
     const read = vi.fn().mockResolvedValue({ id: 'custom', url: 'data:image/webp;base64,AAAA' })
     const write = vi.fn().mockResolvedValue(undefined)
-    ;(globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop = {
+    Object.defineProperty(globalThis, 'deepSeekHarnessDesktop', { configurable: true, value: {
       chatBackground: { read, write },
-    }
+    } })
 
     await expect(readDesktopChatBackground()).resolves.toEqual({
       id: 'custom', url: 'data:image/webp;base64,AAAA',

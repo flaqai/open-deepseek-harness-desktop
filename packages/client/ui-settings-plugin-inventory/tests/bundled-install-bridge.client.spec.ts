@@ -29,8 +29,12 @@ import type {
 } from '../src/client/bundled-install-bridge.ts'
 
 afterEach(() => {
-  delete (globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop
+  Reflect.deleteProperty(globalThis, 'deepSeekHarnessDesktop')
 })
+
+function setDesktopBridge(value: object): void {
+  Object.defineProperty(globalThis, 'deepSeekHarnessDesktop', { configurable: true, value })
+}
 
 const request: PluginInstallRequest = { profile: 'web', packageSpec: 'dsh-better-sidebar' }
 const desktopSnapshot = {
@@ -63,9 +67,9 @@ describe('desktop bundled install bridge', () => {
   it('uses an allowlisted desktop job and polls it through Electron', async () => {
     const startInstall = vi.fn(async () => ({ handled: true as const, snapshot: desktopSnapshot }))
     const getInstall = vi.fn(async () => ({ ...desktopSnapshot, phase: 'succeeded' as const }))
-    ;(globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop = {
+    setDesktopBridge({
       bundledPlugins: { startInstall, getInstall },
-    }
+    })
     const fallbackStart = vi.fn<(_: PluginInstallRequest) => Promise<PluginInstallSnapshot>>()
     await expect(startPluginInstall(request, fallbackStart)).resolves.toBe(desktopSnapshot)
     expect(fallbackStart).not.toHaveBeenCalled()
@@ -75,9 +79,9 @@ describe('desktop bundled install bridge', () => {
 
   it('falls back to Host Remote for non-bundled requests and ids', async () => {
     const hostSnapshot = { ...desktopSnapshot, installId: 'host-one' as PluginInstallId }
-    ;(globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop = {
+    setDesktopBridge({
       bundledPlugins: { startInstall: vi.fn(async () => ({ handled: false as const })), getInstall: vi.fn() },
-    }
+    })
     const fallbackStart = vi.fn(async () => hostSnapshot)
     await expect(startPluginInstall(request, fallbackStart)).resolves.toBe(hostSnapshot)
     const fallbackGet = vi.fn(async () => hostSnapshot)
@@ -90,10 +94,10 @@ describe('desktop bundled install bridge', () => {
     const getInstall = vi.fn(async () => desktopSnapshot)
     const openLog = vi.fn(async () => ({ opened: true }))
     const restart = vi.fn(async () => ({ restarting: true }))
-    ;(globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop = {
+    setDesktopBridge({
       bundledPlugins: { startInstall: vi.fn(), startDeferred, getInstall },
       shell: { openLog, restart },
-    }
+    })
     await expect(startDeferredPluginInstall(request)).resolves.toBe(desktopSnapshot)
     await expect(getDeferredPluginInstall(desktopSnapshot.installId)).resolves.toBe(desktopSnapshot)
     await expect(openDesktopHarnessLog()).resolves.toBe(true)
@@ -119,9 +123,9 @@ describe('desktop bundled install bridge', () => {
     const restoreAll = vi.fn(async () => ({ ...labSnapshot, phase: 'restored' as const }))
     const exportReport = vi.fn(async () => '{"schema":2}')
     const onStatus = vi.fn(() => () => {})
-    ;(globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop = {
+    setDesktopBridge({
       diagnosticLab: { catalog, current: vi.fn(async () => labSnapshot), start, getRun, cancel, restoreAll, exportReport, onStatus },
-    }
+    })
     expect(desktopDiagnosticLabAvailable()).toBe(true)
     await expect(listDesktopDiagnosticLabScenarios()).resolves.toEqual([labScenario])
     await expect(getCurrentDesktopDiagnosticLabRun()).resolves.toBe(labSnapshot)
@@ -135,7 +139,7 @@ describe('desktop bundled install bridge', () => {
     const unsubscribe = subscribeDesktopDiagnosticLab(vi.fn())
     expect(onStatus).toHaveBeenCalledOnce()
     unsubscribe()
-    ;(globalThis as unknown as Record<string, unknown>).deepSeekHarnessDesktop = { shell: {}, bundledPlugins: {} }
+    setDesktopBridge({ shell: {}, bundledPlugins: {} })
     expect(desktopDiagnosticLabAvailable()).toBe(false)
     await expect(startDesktopDiagnosticLab({
       scenarioIds: [labScenario.id], target: 'isolated',

@@ -78,9 +78,8 @@ const SECTION_SORT_ANIMATION_MS = 180
 
 /** Query motion preference while tolerating DOM test hosts without matchMedia. */
 function prefersReducedMotion(): boolean {
-  const matchMedia = Reflect.get(window, 'matchMedia') as unknown
-  return typeof matchMedia === 'function'
-    && (matchMedia.call(window, '(prefers-reduced-motion: reduce)') as MediaQueryList).matches
+  return typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 type SectionDragState = {

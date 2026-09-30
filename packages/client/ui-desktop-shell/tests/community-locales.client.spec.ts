@@ -1,5 +1,6 @@
-import type { Context } from '@deepseek-ai/cordis'
+import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
+import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { DESKTOP_LANGUAGE_DEFINITIONS, registerDesktopLanguages } from '../src/client/community-locales.ts'
 
 describe('community desktop locales', () => {
@@ -10,61 +11,31 @@ describe('community desktop locales', () => {
   })
 
   it('registers each locale namespace exactly once after merging desktop additions', () => {
-    const registrations = new Set<string>()
-    const dictionaries = new Map<string, Record<string, string>>()
-    const ctx = {
-      locale: {
-        getSnapshot: () => ({ active: 'en', revision: 0, locales: [] }),
-        addLanguage: () => () => undefined,
-        register: (namespace: string, locale: string, dictionary: Record<string, string>) => {
-          const key = `${namespace}/${locale}`
-          if (registrations.has(key)) throw new Error(`duplicate locale registration: ${key}`)
-          registrations.add(key)
-          dictionaries.set(key, dictionary)
-          return () => { registrations.delete(key) }
-        },
-      },
-    } as unknown as Context
+    const ctx = new Context()
+    const locale = new LocaleRuntime(ctx)
+    ctx.provide('locale', locale)
 
     const dispose = registerDesktopLanguages(ctx)
     for (const definition of DESKTOP_LANGUAGE_DEFINITIONS) {
-      expect(registrations).toContain(`desktop-shell/${definition.id}`)
-      expect(dictionaries.get(`desktop-shell/${definition.id}`)?.['nas.title']).toBeTruthy()
-      expect(dictionaries.get(`desktop-shell/${definition.id}`)?.['nas.address.placeholder']).toContain('https://')
+      locale.setLocale(definition.id)
+      expect(locale.bind('desktop-shell')('nas.title')).toBeTruthy()
+      expect(locale.bind('desktop-shell')('nas.address.placeholder')).toContain('https://')
     }
     dispose()
-    expect(registrations).toHaveLength(0)
+    expect(locale.getLocale().locales.map(language => language.id)).toEqual(['zh', 'en'])
   })
 
   it('leaves a locale owned by an installed language pack untouched', () => {
-    const added: string[] = []
-    const registered: string[] = []
-    const ctx = {
-      locale: {
-        getSnapshot: () => ({
-          active: 'es', revision: 1,
-          locales: [
-            { id: 'zh', label: '中文', fallback: 'en' },
-            { id: 'en', label: 'English' },
-            { id: 'es', label: 'Español', fallback: 'en' },
-          ],
-        }),
-        addLanguage: ({ id }: { id: string }) => {
-          added.push(id)
-          return () => undefined
-        },
-        register: (namespace: string, locale: string) => {
-          registered.push(`${namespace}/${locale}`)
-          return () => undefined
-        },
-      },
-    } as unknown as Context
+    const ctx = new Context()
+    const locale = new LocaleRuntime(ctx)
+    ctx.provide('locale', locale)
+    locale.addLanguage({ id: 'es', label: 'Español', fallback: 'en' })
+    locale.register('desktop-shell', 'es', { 'nas.title': 'Owned by language pack' })
 
     registerDesktopLanguages(ctx)
 
-    expect(added).not.toContain('es')
-    expect(registered.some(key => key.endsWith('/es'))).toBe(false)
-    expect(added).toContain('ru')
-    expect(registered).toContain('desktop-shell/ru')
+    locale.setLocale('es')
+    expect(locale.bind('desktop-shell')('nas.title')).toBe('Owned by language pack')
+    expect(locale.getLocale().locales.map(language => language.id)).toContain('ru')
   })
 })

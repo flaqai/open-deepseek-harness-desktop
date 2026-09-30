@@ -25,6 +25,27 @@ const OLDER = 'older' as SessionId
 const BLANK = 'blank' as SessionId
 const CHILD = 'child' as SessionId
 const t = makeTranslate(zh, commonZh)
+const unused = (): never => { throw new Error('unused onboarding fixture prop') }
+const globalProps = {
+  useSessions: unused,
+  usePanelInfo: unused,
+  useSessionStatus: unused,
+  useSessionRetainInfo: unused,
+  useWorkspaces: unused,
+  useResource: unused,
+}
+const sessionProps = {
+  useSession: unused,
+  useProjection: unused,
+  useConversation: unused,
+  useInput: unused,
+  useChat: unused,
+  useTrajectory: unused,
+  inputActions: {
+    captureInsertion: unused, insertText: unused, setDraft: unused,
+    addAttachments: unused, removeAttachment: unused, pruneAttachments: unused, submit: unused,
+  },
+}
 
 function sessionState() {
   return {
@@ -65,11 +86,12 @@ describe('Agent Teams onboarding', () => {
   it('hands an enabled bundle to the recent conversation', () => {
     const startUse = vi.fn()
     const props = {
+      ...globalProps,
       enabled: true,
       useSessions: bindSnapshotSelector(createSnapshotStore(sessionState())),
       startUse,
       t,
-    } as unknown as ComponentProps<typeof AgentTeamUseAction>
+    } satisfies ComponentProps<typeof AgentTeamUseAction>
     render(<AgentTeamUseAction {...props} />)
     fireEvent.click(screen.getByRole('button', { name: zh.useNow }))
     expect(startUse).toHaveBeenCalledExactlyOnceWith(SESSION)
@@ -79,12 +101,14 @@ describe('Agent Teams onboarding', () => {
     const fillPrompt = vi.fn()
     const dismissOnboarding = vi.fn()
     const props = {
+      ...globalProps,
+      ...sessionProps,
       sessionId: SESSION,
       useAgentTeamOnboarding: bindSnapshotSelector(createSnapshotStore({ targetSessionId: SESSION, sequence: 1 })),
       fillPrompt,
       dismissOnboarding,
       t,
-    } as unknown as ComponentProps<typeof AgentTeamComposerHint>
+    } satisfies ComponentProps<typeof AgentTeamComposerHint>
     render(<AgentTeamComposerHint {...props} />)
     fireEvent.click(screen.getByRole('button', { name: zh.composerHint }))
     expect(fillPrompt).toHaveBeenCalledExactlyOnceWith(SESSION)

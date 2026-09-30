@@ -1,23 +1,28 @@
 import { isDeepStrictEqual } from 'node:util'
-import { AssistantStreamAccumulator, BlockAssembler, expandAssistantStream } from '@deepseek-ai/dsh-llm'
+import { AssistantStreamAccumulator, BlockAssembler, ToolCallId, expandAssistantStream } from '@deepseek-ai/dsh-llm'
 import type { AssistantStreamRecord, ContentBlock } from '@deepseek-ai/dsh-llm'
 import { SessionFormatError } from '@deepseek-ai/dsh-session-format'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
 /**
  * Mirror proven legacy failed-call identities into their stream without changing other content.
  * @param stream - historical timed stream, never mutated.
- * @param content - message blocks already repaired by the failed-call normalizer.
+ * @param content - validated released message blocks already repaired by the failed-call normalizer.
  * @param sessionId - source Session identity used by the normalizer.
  * @returns the unchanged stream or a detached stream with aligned final blocks.
  * @throws {SessionFormatError} when content, ordering or final blocks cannot be aligned exactly.
  */
 export function repairLegacyToolStream(
   stream: readonly AssistantStreamRecord[],
-  content: readonly ContentBlock[],
+  content: readonly unknown[],
   sessionId: string,
 ): readonly AssistantStreamRecord[] {
   const prefix = `legacy-empty-tool-call:${sessionId}:`
-  if (!content.some(b => b.type === 'tool-call' && b.name === 'legacy_invalid_tool' && b.id.startsWith(prefix))) return stream
+  if (!content.some(b => isRecord(b) && b.type === 'tool-call'
+    && b.name === 'legacy_invalid_tool' && typeof b.id === 'string' && b.id.startsWith(prefix))) return stream
   const timed = expandAssistantStream(stream)
   if (timed.length === 0) return stream
   const assembler = new BlockAssembler()
@@ -35,12 +40,19 @@ export function repairLegacyToolStream(
   const aligned = blocks.map((block, position) => {
     const target = content[position]
     if (block.type !== 'tool-call' || block.id !== '' || block.name !== ''
-      || target?.type !== 'tool-call' || target.name !== 'legacy_invalid_tool'
-      || !target.id.startsWith(prefix) || block.arguments !== target.arguments) return block
+      || !isRecord(target) || target.type !== 'tool-call' || target.name !== 'legacy_invalid_tool'
+      || typeof target.id !== 'string' || !target.id.startsWith(prefix)
+      || typeof target.arguments !== 'string' || block.arguments !== target.arguments) return block
     const index = order[position]
     if (index === undefined) throw new SessionFormatError('legacy repaired tool stream lacks a block index')
-    replacements.set(index, target)
-    return target
+    const repaired = {
+      type: 'tool-call' as const,
+      id: ToolCallId(target.id),
+      name: target.name,
+      arguments: target.arguments,
+    }
+    replacements.set(index, repaired)
+    return repaired
   })
   if (!isDeepStrictEqual(aligned, content)) throw new SessionFormatError('legacy repaired tool stream disagrees with message content')
   const output = new AssistantStreamAccumulator()

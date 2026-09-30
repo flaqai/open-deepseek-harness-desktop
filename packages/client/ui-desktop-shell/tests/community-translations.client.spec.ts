@@ -14,10 +14,15 @@ import { en as feedback } from '../../ui-message-feedback/src/client/locales.ts'
 const localeIds = ['ja', 'ko', 'es', 'fr', 'de', 'pt-BR', 'ru'] as const
 type TranslationDictionary = Record<string, string>
 type TranslationCatalog = Record<string, TranslationDictionary>
-const translations = Object.fromEntries(localeIds.map(locale => [locale, {
-  ...COMMUNITY_TRANSLATIONS[locale],
-  ...COMMUNITY_SURFACE_TRANSLATIONS[locale],
-}])) as unknown as Record<(typeof localeIds)[number], TranslationCatalog>
+const translations: Record<(typeof localeIds)[number], TranslationCatalog> = {
+  ja: { ...COMMUNITY_TRANSLATIONS.ja, ...COMMUNITY_SURFACE_TRANSLATIONS.ja },
+  ko: { ...COMMUNITY_TRANSLATIONS.ko, ...COMMUNITY_SURFACE_TRANSLATIONS.ko },
+  es: { ...COMMUNITY_TRANSLATIONS.es, ...COMMUNITY_SURFACE_TRANSLATIONS.es },
+  fr: { ...COMMUNITY_TRANSLATIONS.fr, ...COMMUNITY_SURFACE_TRANSLATIONS.fr },
+  de: { ...COMMUNITY_TRANSLATIONS.de, ...COMMUNITY_SURFACE_TRANSLATIONS.de },
+  'pt-BR': { ...COMMUNITY_TRANSLATIONS['pt-BR'], ...COMMUNITY_SURFACE_TRANSLATIONS['pt-BR'] },
+  ru: { ...COMMUNITY_TRANSLATIONS.ru, ...COMMUNITY_SURFACE_TRANSLATIONS.ru },
+}
 
 const currentSurfaceKeys: TranslationCatalog = {
   sidebarRight,

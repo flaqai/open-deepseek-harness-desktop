@@ -91,13 +91,21 @@ export function createCustomInstructionsClient(
           const version = { id: versionId(), text: normalized, createdAt: Date.now() }
           return { activeVersion: version.id, versions: [...history.versions, version] }
         })()
+      const value: JsonValue = {
+        ...(next.activeVersion === undefined ? {} : { activeVersion: next.activeVersion }),
+        versions: next.versions.map(version => ({
+          id: version.id,
+          text: version.text,
+          createdAt: version.createdAt,
+        })),
+      }
       if (target === 'global') {
-        if (!await scope.mutate([{ op: 'set', path: ['global'], value: next as unknown as JsonValue }], expectedRevision)) {
+        if (!await scope.mutate([{ op: 'set', path: ['global'], value }], expectedRevision)) {
           throw new Error('custom instructions profile edit was refused')
         }
         return
       }
-      if (!await scope.mutate([{ op: 'set', path: ['workspaces', String(target)], value: next as unknown as JsonValue }], expectedRevision)) {
+      if (!await scope.mutate([{ op: 'set', path: ['workspaces', String(target)], value }], expectedRevision)) {
         throw new Error('custom instructions profile edit was refused')
       }
     },

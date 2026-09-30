@@ -26,6 +26,19 @@ afterEach(() => {
 })
 
 const EMPTY = { entries: [], dependencyHealth: { lastRepair: null, quarantined: [] } }
+
+function isInventoryInjected(value: unknown): value is PluginInventorySettingsTabInjected {
+  return typeof value === 'object' && value !== null
+    && 'resolveText' in value && typeof value.resolveText === 'function'
+    && 'retryClient' in value && typeof value.retryClient === 'function'
+    && 'list' in value && typeof value.list === 'function'
+    && 'presetName' in value && typeof value.presetName === 'function'
+}
+
+function isDiagnosticsInjected(value: unknown): value is PluginDiagnosticsSectionInjected {
+  return typeof value === 'object' && value !== null
+    && 'openPluginMarket' in value && typeof value.openPluginMarket === 'function'
+}
 type ListResult =
   | { readonly ok: true; readonly value: typeof EMPTY }
   | { readonly ok: false; readonly error: { readonly code: string; readonly message: string } }
@@ -169,7 +182,8 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     expect(diagnostics.component).toBe(PluginDiagnosticsSection)
     expect(diagnostics.options).toMatchObject({ id: 'diagnostics', order: 25 })
     expect(resolveSlotLabel(diagnostics.options.label)).toBe('诊断')
-    const diagnosticsInjected = (diagnostics.inject as unknown as () => PluginDiagnosticsSectionInjected)()
+    const diagnosticsInjected = diagnostics.inject?.()
+    if (!isDiagnosticsInjected(diagnosticsInjected)) throw new Error('diagnostics injection was not registered')
     expect(diagnosticsInjected.diagnosticLab).toBeUndefined()
     diagnosticsInjected.openPluginMarket('@linxin666/dsh-client-ui-task-board')
     expect(b.settingsOpen).toHaveBeenCalledWith({
@@ -182,7 +196,8 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     expect(overlays[0]?.component).toBe(QuarantineNotice)
     expect(b.list).not.toHaveBeenCalled()
 
-    const injected = (entry.inject as unknown as () => PluginInventorySettingsTabInjected)()
+    const injected = entry.inject?.()
+    if (!isInventoryInjected(injected)) throw new Error('inventory injection was not registered')
     const text = { en: 'Local tools', zh: '本地工具' }
     expect(injected.resolveText(text)).toBe('本地工具')
     b.locale.setLocale('en')
@@ -223,7 +238,8 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
 
     const diagnostics = b.slots.entries('settings.section')
       .find(section => section.options.id === 'diagnostics')!
-    const injected = (diagnostics.inject as unknown as () => PluginDiagnosticsSectionInjected)()
+    const injected = diagnostics.inject?.()
+    if (!isDiagnosticsInjected(injected)) throw new Error('diagnostics injection was not registered')
     await expect(injected.diagnosticLab?.listScenarios()).resolves.toEqual([
       expect.objectContaining({ id: 'orphaned-bundle' }),
     ])

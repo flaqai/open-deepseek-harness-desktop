@@ -5,12 +5,30 @@ import { useSyncExternalStore } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ConversationHeaderMenuItemOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { SessionLogDownloadController } from '../src/client/controller.ts'
 import { SessionLogDownloadHeaderAction } from '../src/client/HeaderAction.tsx'
 import type { SessionLogDownloadHeaderProps } from '../src/client/HeaderAction.tsx'
 import { en } from '../src/client/locales.ts'
 
 const SID = 'session-export-header' as SessionId
+function hasMenuRegistration(value: unknown): value is ConversationHeaderMenuItemOwnerProps {
+  return typeof value === 'object' && value !== null
+    && 'registerMenuItem' in value && typeof value.registerMenuItem === 'function'
+}
+const unused = (): never => { throw new Error('unused header-action fixture prop') }
+const SessionProvider: SessionLogDownloadHeaderProps['SessionProvider'] = ({ children }) => children
+const standardProps = {
+  SessionProvider,
+  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
+  useSession: unused, useProjection: unused, useConversation: unused, useInput: unused,
+  useChat: unused, useTrajectory: unused,
+  inputActions: {
+    captureInsertion: unused, insertText: unused, setDraft: unused,
+    addAttachments: unused, removeAttachment: unused, pruneAttachments: unused, submit: unused,
+  },
+}
 
 function bindSnapshot<State>(store: ObservableSnapshot<State>) {
   return function useSnapshot<T>(selector: (state: State) => T): T {
@@ -30,18 +48,30 @@ function bench(feedbackAvailable = false) {
   const feedback = createSnapshotStore(feedbackAvailable)
   const useSessionLogDownload = bindSnapshot(controller.store)
   const props = {
+    ...standardProps,
     sessionId: SID,
     useSessionLogDownload,
     useFeedbackAvailable: bindSnapshot(feedback),
     openFeedback,
     request,
     dismiss,
-    renderSlot: (_key: string, owner: ConversationHeaderMenuItemOwnerProps) => {
-      menuOwner = owner
+    renderSlot: ((_key, owner) => {
+      if (hasMenuRegistration(owner)) {
+        const register = owner.registerMenuItem
+        menuOwner = { registerMenuItem: (contribution) => {
+          const remove = register(contribution)
+          return () => { remove() }
+        } }
+      }
       return null
+    }) satisfies SessionLogDownloadHeaderProps['renderSlot'],
+    setIncludeCustomInstructions: (sessionId: SessionId, include: boolean) => {
+      controller.setIncludeCustomInstructions(sessionId, include)
     },
-    t: (key: keyof typeof en): string => en[key],
-  } as unknown as SessionLogDownloadHeaderProps
+    setRemember: (sessionId: SessionId, remember: boolean) => { controller.setRemember(sessionId, remember) },
+    confirm: (sessionId: SessionId) => controller.confirm(sessionId),
+    t: makeTranslate(en),
+  } satisfies SessionLogDownloadHeaderProps
   const view = render(<SessionLogDownloadHeaderAction {...props} />)
   return { controller, request, openFeedback, feedback, view, menuOwner: () => menuOwner! }
 }
@@ -130,15 +160,21 @@ describe('Session export Header action', () => {
     const controller = new SessionLogDownloadController(() => pending, vi.fn())
     const useSessionLogDownload = bindSnapshot(controller.store)
     b.view.rerender(<SessionLogDownloadHeaderAction {...({
+      ...standardProps,
       sessionId: SID,
       useSessionLogDownload,
       useFeedbackAvailable: bindSnapshot(b.feedback),
       openFeedback: b.openFeedback,
       request: (sessionId: SessionId) => controller.download(sessionId),
       dismiss: (sessionId: SessionId) => { controller.dismiss(sessionId) },
+      setIncludeCustomInstructions: (sessionId: SessionId, include: boolean) => {
+        controller.setIncludeCustomInstructions(sessionId, include)
+      },
+      setRemember: (sessionId: SessionId, remember: boolean) => { controller.setRemember(sessionId, remember) },
+      confirm: (sessionId: SessionId) => controller.confirm(sessionId),
       renderSlot: () => null,
-      t: (key: keyof typeof en): string => en[key],
-    } as unknown as SessionLogDownloadHeaderProps)} />)
+      t: makeTranslate(en),
+    } satisfies SessionLogDownloadHeaderProps)} />)
 
     const download = controller.download(SID)
     const button = b.view.getByRole('button', { name: 'More actions' })

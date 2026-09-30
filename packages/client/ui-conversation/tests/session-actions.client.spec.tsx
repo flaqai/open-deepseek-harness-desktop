@@ -8,7 +8,7 @@ import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-tes
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { EMPTY_CHAT_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { ConversationSnapshot } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { ConversationSnapshot, ConversationViewSnapshotMap } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ConversationHeaderMenuContribution } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
@@ -19,6 +19,17 @@ import {
 
 const SID = 'session-actions' as SessionId
 const t = makeTranslate(zh, commonZh)
+const unused = (): never => { throw new Error('unused session-actions fixture prop') }
+const standardProps = {
+  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
+  useSession: unused, useProjection: unused, useInput: unused,
+  useChat: unused, useTrajectory: unused,
+  inputActions: {
+    captureInsertion: unused, insertText: unused, setDraft: unused,
+    addAttachments: unused, removeAttachment: unused, pruneAttachments: unused, submit: unused,
+  },
+}
 
 const nodes = [
   { kind: 'user', seq: 1, time: 1, content: [{ type: 'text', text: '检查项目' }], source: null },
@@ -30,8 +41,12 @@ const nodes = [
 
 function snapshot(partial: typeof EMPTY_CHAT_SNAPSHOT.legacy.partial = null): ConversationSnapshot {
   const chat = { ...EMPTY_CHAT_SNAPSHOT, legacy: { ...EMPTY_CHAT_SNAPSHOT.legacy, nodes, partial } }
+  const viewsByTarget: Partial<ConversationViewSnapshotMap> = { chat }
   return {
-    views: { get: (target: string) => target === 'chat' ? chat : undefined } as unknown as ConversationSnapshot['views'],
+    views: {
+      get: <Target extends Extract<keyof ConversationViewSnapshotMap, string>>(target: Target) => viewsByTarget[target],
+      grouped: () => undefined,
+    },
     activeTargets: new Set(['chat']),
   }
 }
@@ -48,10 +63,11 @@ function sessionSnapshot(running = false): SessionSnapshot {
 function mountCopy() {
   const conversation = createSnapshotStore(snapshot())
   const props = {
+    ...standardProps,
     sessionId: SID,
     useConversation: bindSnapshotSelector(conversation),
     t,
-  } as unknown as ComponentProps<typeof SessionActions>
+  } satisfies ComponentProps<typeof SessionActions>
   render(<SessionActions {...props} />)
 }
 
@@ -60,6 +76,8 @@ function mountRemoval(running = false) {
   const archive = vi.fn(() => Promise.resolve())
   let contribution: ConversationHeaderMenuContribution | undefined
   const props = {
+    ...standardProps,
+    useConversation: unused,
     sessionId: SID,
     useSession: bindSnapshotSelector(session),
     archive,
@@ -68,7 +86,7 @@ function mountRemoval(running = false) {
       return () => { if (contribution === next) contribution = undefined }
     },
     t,
-  } as unknown as ComponentProps<typeof SessionRemovalMenuItem>
+  } satisfies ComponentProps<typeof SessionRemovalMenuItem>
   render(<SessionRemovalMenuItem {...props} />)
   return { archive, contribution: () => contribution! }
 }

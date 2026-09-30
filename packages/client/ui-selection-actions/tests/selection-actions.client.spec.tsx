@@ -1,28 +1,55 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
+import { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import { SelectionActions, type SelectionActionsProps } from '../src/client/SelectionActions.tsx'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
-const sessionState = {
-  byId: { 'session-1': { id: 'session-1', retainedBy: { mainView: 1 } } },
+const sessionId = SessionId('session-1')
+const workspaceId = WorkspaceId('workspace-1')
+const sessionState: SessionListState = {
+  ids: [sessionId],
+  byId: {
+    [sessionId]: {
+      id: sessionId, displayTitle: 'Session 1', running: false, retainedBy: { mainView: 1 },
+      blank: false, updatedAt: 1,
+    },
+  },
+  phase: 'ready',
+  projectionsBySession: {},
 }
-const workspaceState = {
-  items: [{ workspaceId: 'workspace-1', sessionIds: ['session-1'] }],
+const workspaceState: WorkspaceSnapshot = {
+  items: [{
+    workspaceId, path: '/workspace-1', title: 'Workspace 1', sessionIds: [sessionId],
+    createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+  }],
+  archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null,
 }
+const sessions = createSnapshotStore(sessionState)
+const workspaces = createSnapshotStore(workspaceState)
+const unused = (): never => { throw new Error('unused selection-actions fixture prop') }
 
-function props(appendAvailable = true, restartDesktop?: () => Promise<void>) {
+function props(appendAvailable = true, restartDesktop?: () => Promise<void>): SelectionActionsProps {
   return {
-    useSessions: (selector: (state: typeof sessionState) => unknown) => selector(sessionState),
-    useWorkspaces: (selector: (state: typeof workspaceState) => unknown) => selector(workspaceState),
-    useAppendAvailable: (selector: (value: boolean) => unknown) => selector(appendAvailable),
+    useSessions: bindSnapshotSelector(sessions),
+    useWorkspaces: bindSnapshotSelector(workspaces),
+    usePanelInfo: unused,
+    useSessionStatus: unused,
+    useSessionRetainInfo: unused,
+    useResource: unused,
+    useAppendAvailable: bindSnapshotSelector(createSnapshotStore(appendAvailable)),
     copy: vi.fn(async () => true),
     askInNewConversation: vi.fn(async () => {}),
     appendToCurrent: vi.fn(),
     ...(restartDesktop === undefined ? {} : { restartDesktop }),
-    t: (key: keyof typeof en) => en[key],
+    t: makeTranslate(en),
   }
 }
 
@@ -55,7 +82,7 @@ describe('SelectionActions', () => {
 
   it('opens a horizontal toolbar after selection and runs all three actions', async () => {
     const injected = props()
-    render(<SelectionActions {...injected as unknown as SelectionActionsProps} />)
+    render(<SelectionActions {...injected} />)
     selectText(text)
     fireEvent.pointerUp(text, { button: 0 })
 
@@ -82,7 +109,7 @@ describe('SelectionActions', () => {
   })
 
   it('uses a vertical menu for context click and hides append while input is unavailable', () => {
-    render(<SelectionActions {...props(false) as unknown as SelectionActionsProps} />)
+    render(<SelectionActions {...props(false)} />)
     selectText(text)
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 90, clientY: 70 })
     fireEvent(text, event)
@@ -97,7 +124,7 @@ describe('SelectionActions', () => {
 
   it('puts the desktop quick restart at the bottom of the context menu', () => {
     const restartDesktop = vi.fn(async () => {})
-    render(<SelectionActions {...props(true, restartDesktop) as unknown as SelectionActionsProps} />)
+    render(<SelectionActions {...props(true, restartDesktop)} />)
     selectText(text)
     fireEvent.contextMenu(text, { clientX: 90, clientY: 70 })
 
@@ -110,7 +137,7 @@ describe('SelectionActions', () => {
   })
 
   it('keeps the native context menu without an eligible selection and dismisses on Escape', () => {
-    render(<SelectionActions {...props() as unknown as SelectionActionsProps} />)
+    render(<SelectionActions {...props()} />)
     const native = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
     fireEvent(text, native)
     expect(native.defaultPrevented).toBe(false)
@@ -135,7 +162,7 @@ describe('SelectionActions', () => {
     const button = document.createElement('button')
     button.textContent = 'interactive text'
     scope.appendChild(button)
-    render(<SelectionActions {...props() as unknown as SelectionActionsProps} />)
+    render(<SelectionActions {...props()} />)
     selectText(button)
     fireEvent.pointerUp(button, { button: 0 })
     expect(screen.queryByRole('toolbar')).toBeNull()

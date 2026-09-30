@@ -65,16 +65,18 @@ function localizedProps(list: PluginInventorySettingsTabInjected['list']) {
 }
 
 /** A deployment with a roster: one failed global row, two preset-provided rows. */
-const SNAPSHOT = {
+const entryId = (value: string): PluginEntryId => value as PluginEntryId
+
+const SNAPSHOT: Snapshot = {
   dependencyHealth: HEALTHY_DEPENDENCIES,
   entries: [
-    { entryId: 'telemetry', moduleName: '@fixture/telemetry', enabled: true, fiberPhase: 'failed' },
-    { entryId: 'timer', moduleName: 'cordis:timer', enabled: true, fiberPhase: 'active' },
-    { entryId: '8a1b2c3d', moduleName: '@deepseek-ai/cordis-plugin-hmr', enabled: true, fiberPhase: 'active' },
-    { entryId: 'unobserved', moduleName: '@fixture/unobserved-name', enabled: true, fiberPhase: null },
-    { entryId: 'bash-host', moduleName: '@deepseek-ai/dsh-tool-bash', enabled: false, fiberPhase: null },
-    { entryId: 'fs-host', moduleName: '@deepseek-ai/dsh-tool-fs', enabled: false, fiberPhase: null },
-    { entryId: 'dormant', moduleName: '@fixture/dormant', enabled: false, fiberPhase: null },
+    { entryId: entryId('telemetry'), moduleName: '@fixture/telemetry', enabled: true, fiberPhase: 'failed' },
+    { entryId: entryId('timer'), moduleName: 'cordis:timer', enabled: true, fiberPhase: 'active' },
+    { entryId: entryId('8a1b2c3d'), moduleName: '@deepseek-ai/cordis-plugin-hmr', enabled: true, fiberPhase: 'active' },
+    { entryId: entryId('unobserved'), moduleName: '@fixture/unobserved-name', enabled: true, fiberPhase: null },
+    { entryId: entryId('bash-host'), moduleName: '@deepseek-ai/dsh-tool-bash', enabled: false, fiberPhase: null },
+    { entryId: entryId('fs-host'), moduleName: '@deepseek-ai/dsh-tool-fs', enabled: false, fiberPhase: null },
+    { entryId: entryId('dormant'), moduleName: '@fixture/dormant', enabled: false, fiberPhase: null },
   ],
   agentPresets: [
     {
@@ -107,7 +109,7 @@ const SNAPSHOT = {
     },
     { id: 'shattered', name: '坏预设', isDefault: false, broken: 'the composition file is missing', rows: [] },
   ],
-} as unknown as Snapshot
+}
 
 async function renderReady(snapshot: Snapshot = SNAPSHOT): Promise<ReturnType<typeof render>> {
   const view = render(<PluginInventorySettingsTab {...props(async () => snapshot)} />)
@@ -384,10 +386,10 @@ describe('PluginInventorySettingsTab', () => {
   it('marks a live phase with a dot on an untagged enabled row', async () => {
     await renderReady({
       entries: [
-        { entryId: 'booting', moduleName: '@fixture/booting', enabled: true, fiberPhase: 'loading' },
-        { entryId: 'waiting', moduleName: '@fixture/waiting', enabled: true, fiberPhase: 'pending' },
-        { entryId: 'running', moduleName: '@fixture/running', enabled: true, fiberPhase: 'active' },
-        { entryId: 'unobserved', moduleName: '@fixture/unobserved', enabled: true, fiberPhase: null },
+        { entryId: entryId('booting'), moduleName: '@fixture/booting', enabled: true, fiberPhase: 'loading' },
+        { entryId: entryId('waiting'), moduleName: '@fixture/waiting', enabled: true, fiberPhase: 'pending' },
+        { entryId: entryId('running'), moduleName: '@fixture/running', enabled: true, fiberPhase: 'active' },
+        { entryId: entryId('unobserved'), moduleName: '@fixture/unobserved', enabled: true, fiberPhase: null },
       ],
       agentPresets: [{
         id: 'standard',
@@ -397,7 +399,8 @@ describe('PluginInventorySettingsTab', () => {
           { entryId: 'preset-running', moduleName: '@fixture/preset-running', enabled: true, fiberPhase: 'active' },
         ],
       }],
-    } as unknown as Snapshot)
+      dependencyHealth: HEALTHY_DEPENDENCIES,
+    })
 
     openGroup(globalToggle())
     openGroup(presetToggle())
@@ -611,10 +614,11 @@ describe('PluginInventorySettingsTab', () => {
   it('renders a rosterless deployment as one expanded global list', async () => {
     const view = await renderReady({
       entries: [
-        { entryId: 'hmr', moduleName: '@deepseek-ai/cordis-plugin-hmr', enabled: true, fiberPhase: 'active' },
-        { entryId: 'off', moduleName: '@fixture/off', enabled: false, fiberPhase: null },
+        { entryId: entryId('hmr'), moduleName: '@deepseek-ai/cordis-plugin-hmr', enabled: true, fiberPhase: 'active' },
+        { entryId: entryId('off'), moduleName: '@fixture/off', enabled: false, fiberPhase: null },
       ],
-    } as unknown as Snapshot)
+      dependencyHealth: HEALTHY_DEPENDENCIES,
+    })
 
     expect(screen.queryByRole('button', { name: en.switcherLabel })).toBeNull()
     expect(globalToggle().getAttribute('aria-expanded')).toBe('true')
@@ -656,9 +660,9 @@ describe('PluginInventorySettingsTab', () => {
     const startUninstall = vi.fn(async () => succeeded)
     render(<PluginInventorySettingsTab
       {...props(async () => ({
-        entries: [{ entryId: 'dsh-market', moduleName: 'dshmarket', enabled: true, fiberPhase: 'active' }],
+        entries: [{ entryId: entryId('dsh-market'), moduleName: 'dshmarket', enabled: true, fiberPhase: 'active' }],
         dependencyHealth: HEALTHY_DEPENDENCIES,
-      } as unknown as Snapshot))}
+      }))}
       startUninstall={startUninstall}
     />)
 

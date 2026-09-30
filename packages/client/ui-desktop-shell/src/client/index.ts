@@ -31,6 +31,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'desktop-shell'
 export const inject = ['slots', 'locale', 'connection']
 
+function hasStartSession(value: unknown): value is { startSession(): void } {
+  return typeof value === 'object' && value !== null
+    && 'startSession' in value && typeof value.startSession === 'function'
+}
+
 export function apply(ctx: Context): void {
   ctx.effect(() => registerDesktopLanguages(ctx), 'ui-desktop-shell: community languages')
   const bridge = readDesktopBridge()
@@ -66,7 +71,13 @@ export function apply(ctx: Context): void {
       }) }
       const removeCommand = menu.onCommand((command) => {
         navigateDesktopMenu(command, {
-          startSession: () => { (inner.get('uiWorkspace') as unknown as { startSession(): void }).startSession() },
+          startSession: () => {
+            const workspace: unknown = inner.get('uiWorkspace')
+            if (!hasStartSession(workspace)) {
+              throw new TypeError('desktop shell: Workspace navigation is unavailable')
+            }
+            workspace.startSession()
+          },
           open: (request) => { inner.settingsNavigation.open(request) },
           hasSection: id => inner.slots.entries('settings.section').some(entry => entry.options.id === id),
           general: (destination) => { controller.navigate(destination) },

@@ -1,9 +1,10 @@
-import { AssistantStreamAccumulator } from '@deepseek-ai/dsh-llm'
-import type { AssistantStreamRecord, ContentBlock } from '@deepseek-ai/dsh-llm'
+import { AssistantStreamAccumulator, ToolCallId } from '@deepseek-ai/dsh-llm'
+import type { AssistantStreamRecord } from '@deepseek-ai/dsh-llm'
 import {
   SessionFormatUnsupportedMigrationError,
   defineSessionFormatMigration,
   sessionFormatCount,
+  snapshotSessionFormatJson,
 } from '@deepseek-ai/dsh-session-format'
 import type {
   SessionFormatEvent,
@@ -235,7 +236,7 @@ function transformReleasedRun(
   flushAccumulator(state.pending.group)
   appendStreamRecord(
     state.pending.group,
-    run.stream as unknown as AssistantStreamRecord,
+    packedStreamRecord(run.stream),
     run.lastTime,
   )
   recordChunkSpan(state.pending.group, run.firstSeq, run.eventCount, run.lastTime)
@@ -565,23 +566,54 @@ function flushAccumulator(group: AttemptGroup): void {
   delete group.accumulator
 }
 
+function packedStreamRecord(value: SessionFormatJsonObject): AssistantStreamRecord {
+  const { type, time0, index, dt } = value
+  if (typeof time0 !== 'number' || !Number.isSafeInteger(time0)
+    || typeof index !== 'number' || !Number.isSafeInteger(index)
+    || !Array.isArray(dt) || !dt.every(gap => typeof gap === 'number' && Number.isSafeInteger(gap))) {
+    throw refusal('released assistant chunk run has invalid coordinates')
+  }
+  if (type === 'tool-call-chunks') {
+    const { id, name, args } = value
+    if (typeof id !== 'string' || (name !== undefined && typeof name !== 'string')
+      || !Array.isArray(args) || !args.every(argument => typeof argument === 'string')) {
+      throw refusal('released assistant tool-call run has invalid values')
+    }
+    return {
+      type, time0, index, dt,
+      id: ToolCallId(id),
+      ...(name === undefined ? {} : { name }),
+      args,
+    }
+  }
+  if (type === 'text-chunks' || type === 'reasoning-chunks') {
+    const { texts } = value
+    if (!Array.isArray(texts) || !texts.every(text => typeof text === 'string')) {
+      throw refusal('released assistant text run has invalid values')
+    }
+    return { type, time0, index, dt, texts }
+  }
+  throw refusal('released assistant chunk run has an unsupported type')
+}
+
 function streamOf(group: AttemptGroup) {
   flushAccumulator(group)
-  return group.stream.map(({ record }) => record) as unknown as SessionFormatJsonValue
+  return group.stream.map(({ record }) => record)
 }
 
 function messageEvent(source: SessionFormatEvent, group: AttemptGroup, sessionId?: string): SessionFormatEvent {
   const data = record(source.data)
   const stream = streamOf(group)
-  const repaired = sessionId === undefined ? stream : repairLegacyToolStream(
-    stream as unknown as AssistantStreamRecord[],
-    record(data['message'])['content'] as unknown as ContentBlock[],
-    sessionId,
-  ) as unknown as SessionFormatJsonValue
+  let repaired: readonly AssistantStreamRecord[] = stream
+  if (sessionId !== undefined) {
+    const content = record(data['message'])['content']
+    if (!Array.isArray(content)) throw refusal('assistant message content is not an array')
+    repaired = repairLegacyToolStream(stream, content, sessionId)
+  }
   const { sourceEventSeqs: _sourceEventSeqs, ...event } = source
   return {
     ...event,
-    data: { ...data, stream: repaired },
+    data: { ...data, stream: snapshotSessionFormatJson(repaired, 'assistant stream') },
   }
 }
 
@@ -590,7 +622,7 @@ function attemptEvent(group: AttemptGroup): SessionFormatEvent {
     type: 'assistant/attempt',
     seq: group.lastChunkSeq as number,
     time: group.lastChunkTime as number,
-    data: { turn: group.turn, step: group.step, stream: streamOf(group) },
+    data: { turn: group.turn, step: group.step, stream: snapshotSessionFormatJson(streamOf(group), 'assistant stream') },
   }
 }
 
