@@ -470,7 +470,7 @@ export interface ConnectionConfig {
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
   /** Enable the authenticated NAS deployment carrier and its pairing routes. */
-  nas?: Omit<NasDeploymentConfig, 'trustedHosts'>
+  nas?: Omit<NasDeploymentConfig, 'trustedHosts'> | undefined
 }
 
 /** Timing for generation readiness and automatic reconnection. */
@@ -4298,7 +4298,7 @@ export interface Config {
     deviceLifetimeDays: number
     /** Optional fixed eight-digit code; omission generates and logs one. */
     pairingCode?: string
-  }
+  } | undefined
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-web-app -->
