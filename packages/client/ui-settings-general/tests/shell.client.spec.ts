@@ -51,6 +51,7 @@ const PRODUCT_SECTIONS: readonly string[] = [
 /** Onboarding steps the web-app roster registers, in coordinator order. */
 const PRODUCT_ONBOARDING: readonly { id: string; order: number }[] = [
   { id: 'setup-wizard', order: 0 },
+  { id: 'deepseek-official', order: 10 },
 ]
 
 describe('ui-settings-general shell', () => {

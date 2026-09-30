@@ -516,7 +516,8 @@ describe('RightbarSeat presentation', () => {
     h.open()
     // Narrowed below the automatic fullscreen width, the command closes the panel.
     h.view.update({ width: 420, viewportWidth: 700, canShow: false })
-    fireEvent.click(element(h.view.container, '[data-sidebar-right-mode]'))
+    expect(h.view.container.querySelector('[data-sidebar-right-mode]')).toBeNull()
+    act(() => { h.controller.toggleFullscreen(h.controller.commandTarget()!) })
     expect(h.layout().expanded).toBe(false)
     expect(h.layout().mode).toBe('push')
     // Widened again, the command switches the recorded mode.

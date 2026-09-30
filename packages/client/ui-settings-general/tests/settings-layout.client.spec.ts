@@ -22,9 +22,9 @@ function declarations(selector: string): Map<string, string> {
 }
 
 describe('SettingsRoot.module.css geometry', () => {
-  it('uses the renderer viewport without a desktop-titlebar offset', () => {
+  it('uses the frame overlay inset while retaining the full renderer viewport', () => {
     expect(declarations('.overlay').get('inset')).toBe('0')
-    expect(declarations('.panel').get('height')).toBe('min(800px, calc(100vh - 2 * max(24px, var(--dsh-frame-top-clearance, 24px))))')
+    expect(declarations('.panel').get('height')).toBe('min(800px, calc(100vh - 2 * max(24px, var(--dsh-frame-overlay-top, 24px))))')
     expect(declarations('.onboardingPanel').get('height')).toBe('min(820px, calc(100vh - 48px))')
     expect(declarations('.header').get('align-items')).toBe('center')
     expect(declarations('.actions').get('align-items')).toBe('center')
