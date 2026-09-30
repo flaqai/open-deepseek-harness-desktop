@@ -101,7 +101,7 @@ export async function fetchCnbReleaseIndex(fetchImpl: ReleaseFetch = fetch, time
     if (Number.isFinite(declared) && declared > MAX_INDEX_BYTES) throw new Error('CNB update index is too large')
     const body = await response.text()
     if (Buffer.byteLength(body) > MAX_INDEX_BYTES) throw new Error('CNB update index is too large')
-    return parseCnbReleaseIndex(JSON.parse(body) as unknown)
+    return parseCnbReleaseIndex(JSON.parse(body))
   } catch (error) {
     if (controller.signal.aborted) throw new Error(`CNB update index request timed out after ${Math.ceil(timeoutMs / 1_000)} seconds`)
     throw error

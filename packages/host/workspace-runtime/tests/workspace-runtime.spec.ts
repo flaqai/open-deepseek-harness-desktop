@@ -89,13 +89,19 @@ describe('host workspace-runtime adapter', () => {
         ['agents', AgentRegistry], ['systemPrompt', SystemPrompt], ['tools', ToolRuntime],
         ['skills', SkillRegistry], ['workspace-runtime', workspaceRuntime],
       ])
+      const unexpected = (): never => { throw new Error('unexpected internal loader operation') }
       ctx.loader.internal = {
         version: 'v2',
+        loadCache: new Map(),
         async import(specifier: string) {
           if (!modules.has(specifier)) throw new Error(`unexpected plugin ${specifier}`)
           return modules.get(specifier)
         },
-      } as unknown as NonNullable<typeof ctx.loader.internal>
+        register: unexpected,
+        getOrCreateModuleJob: unexpected,
+        resolveSync: unexpected,
+        load: unexpected,
+      }
       const config = join(value.root, 'cordis.yml')
       await writeFile(config, [
         '- name: agents', '- name: systemPrompt', '- name: tools', '- name: skills',

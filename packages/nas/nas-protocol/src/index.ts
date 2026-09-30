@@ -100,7 +100,17 @@ function parseHealth(raw: unknown): NasHealthDocument {
     || (raw.pairingExpiresAt !== undefined && !isoDate(raw.pairingExpiresAt))) {
     throw new NasProtocolViolation('health')
   }
-  return raw as unknown as NasHealthDocument
+  return {
+    schema: HEALTH_SCHEMA,
+    instanceId: raw.instanceId,
+    name: raw.name,
+    version: raw.version,
+    protocolVersion: raw.protocolVersion,
+    platform: raw.platform,
+    architecture: raw.architecture,
+    pairingAvailable: raw.pairingAvailable,
+    ...(raw.pairingExpiresAt === undefined ? {} : { pairingExpiresAt: raw.pairingExpiresAt }),
+  }
 }
 
 function parsePairRequest(raw: unknown): NasPairRequest {

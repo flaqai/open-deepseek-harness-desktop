@@ -148,12 +148,20 @@ function reference(value: unknown): RuntimeReference | undefined {
       && (typeof record.officePayloadDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(record.officePayloadDigest)))
     || typeof record.desktopVersion !== 'string'
     || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u.test(record.desktopVersion)
-    || !['pending-enable', 'enabled', 'pending-remove', 'cleaning'].includes(String(record.state))
+    || (record.state !== 'pending-enable' && record.state !== 'enabled'
+      && record.state !== 'pending-remove' && record.state !== 'cleaning')
     || (record.source !== undefined && record.source !== 'managed' && record.source !== 'custom')
     || (record.python !== undefined && typeof record.python !== 'string')) {
     throw new TypeError('desktop: invalid workspace-runtime state')
   }
-  return record as unknown as RuntimeReference
+  return {
+    payloadDigest: record.payloadDigest,
+    ...(record.officePayloadDigest === undefined ? {} : { officePayloadDigest: record.officePayloadDigest }),
+    desktopVersion: record.desktopVersion,
+    state: record.state,
+    ...(record.source === undefined ? {} : { source: record.source }),
+    ...(record.python === undefined ? {} : { python: record.python }),
+  }
 }
 
 function persistedState(value: unknown): PersistedState {
@@ -170,14 +178,27 @@ function persistedState(value: unknown): PersistedState {
       throw new TypeError('desktop: invalid workspace-runtime state')
     }
     const pythonRecord = source.python === undefined ? undefined : object(source.python)
-    if (pythonRecord !== undefined && (pythonRecord.implementation !== 'CPython' || typeof pythonRecord.executable !== 'string'
-      || typeof pythonRecord.requestedPath !== 'string' || typeof pythonRecord.version !== 'string'
-      || typeof pythonRecord.architecture !== 'string' || typeof pythonRecord.pipVersion !== 'string'
-      || typeof pythonRecord.sitePackages !== 'string'
-      || typeof pythonRecord.writable !== 'boolean' || pythonRecord.packages === null || typeof pythonRecord.packages !== 'object')) {
-      throw new TypeError('desktop: invalid workspace-runtime Python selection')
+    let python: PythonEnvironmentProbe | undefined
+    if (pythonRecord !== undefined) {
+      const { implementation, executable, requestedPath, version, architecture, pipVersion, sitePackages, writable } = pythonRecord
+      const packageValue = pythonRecord.packages
+      if (implementation !== 'CPython' || typeof executable !== 'string'
+        || typeof requestedPath !== 'string' || typeof version !== 'string'
+        || typeof architecture !== 'string' || typeof pipVersion !== 'string'
+        || typeof sitePackages !== 'string' || typeof writable !== 'boolean'
+        || packageValue === null || typeof packageValue !== 'object' || Array.isArray(packageValue)) {
+        throw new TypeError('desktop: invalid workspace-runtime Python selection')
+      }
+      const packageEntries: [string, string][] = []
+      for (const [name, value] of Object.entries(packageValue)) {
+        if (typeof value !== 'string') throw new TypeError('desktop: invalid workspace-runtime Python selection')
+        packageEntries.push([name, value])
+      }
+      python = {
+        implementation, executable, requestedPath, version, architecture, pipVersion, sitePackages, writable,
+        packages: Object.fromEntries(packageEntries),
+      }
     }
-    const python = pythonRecord as unknown as PythonEnvironmentProbe | undefined
     const record = { office: reference(source.office), ptc: reference(source.ptc) }
     homes[home] = {
       ...(python === undefined ? {} : { python }),
@@ -225,7 +246,7 @@ export class OptionalRuntimeManager {
   async #readState(): Promise<PersistedState> {
     if (this.#state !== undefined) return this.#state
     try {
-      const state = persistedState(JSON.parse(await readFile(this.#options.stateFile, 'utf8')) as unknown)
+      const state = persistedState(JSON.parse(await readFile(this.#options.stateFile, 'utf8')))
       this.#state = state
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error

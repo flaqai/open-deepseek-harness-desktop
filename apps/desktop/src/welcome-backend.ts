@@ -98,7 +98,7 @@ export async function connectDesktopWelcome(
       }
       const namespace: unknown = namespaces.find((item: unknown) => record(item) && item.ns === provider.settingsNs)
       let value: unknown = record(namespace) ? namespace.value : undefined
-      for (const key of provider.settingsPath as unknown[]) {
+      for (const key of provider.settingsPath) {
         if (typeof key !== 'string') throw new Error('desktop welcome: invalid provider settings path')
         value = record(value) ? value[key] : undefined
       }

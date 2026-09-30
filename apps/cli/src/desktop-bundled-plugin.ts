@@ -66,7 +66,7 @@ function addTargetIndex(args: readonly string[]): number | undefined {
 
 function profileHasDependency(profileDir: string, packageName: string): boolean {
   try {
-    const manifest = JSON.parse(readFileSync(join(profileDir, 'package.json'), 'utf8')) as unknown
+    const manifest: unknown = JSON.parse(readFileSync(join(profileDir, 'package.json'), 'utf8'))
     return isRecord(manifest)
       && isRecord(manifest.dependencies)
       && typeof manifest.dependencies[packageName] === 'string'
@@ -118,9 +118,10 @@ export function resolveDesktopBundledPluginArgs(
   const target = args[targetIndex]
   if (target === undefined) return args
 
-  const manifest = parseManifest(JSON.parse(
+  const manifestValue: unknown = JSON.parse(
     readFileSync(join(resourcesDirectory, 'manifest.json'), 'utf8'),
-  ) as unknown)
+  )
+  const manifest = parseManifest(manifestValue)
   const entry = manifest.plugins.find((candidate) => {
     if (candidate.installPolicy === 'diagnostic' || candidate.profile !== profile) return false
     const exactSpec = candidate.registrySpec ?? `${candidate.packageName}@${candidate.version}`

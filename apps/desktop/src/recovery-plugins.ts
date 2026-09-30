@@ -41,7 +41,7 @@ interface DiagnosticReport {
 async function readJson(path: string): Promise<unknown> {
   const stat = await lstat(path)
   if (!stat.isFile() || stat.size > MAX_MANIFEST_BYTES) throw new Error('desktop: recovery metadata is unavailable')
-  return JSON.parse(await readFile(path, 'utf8')) as unknown
+  return JSON.parse(await readFile(path, 'utf8'))
 }
 
 function classifySource(spec: string, dshHome: string): RecoveryPluginSource {

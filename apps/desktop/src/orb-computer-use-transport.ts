@@ -47,7 +47,7 @@ async function readJson(request: IncomingMessage, signal: AbortSignal): Promise<
     chunks.push(chunk)
   }
   signal.throwIfAborted()
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown }
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) }
   catch { throw new Error('invalid JSON request body') }
 }
 

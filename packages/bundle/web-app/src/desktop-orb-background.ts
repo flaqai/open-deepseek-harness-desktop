@@ -282,7 +282,10 @@ export function installDesktopOrbBackgroundRoute(ctx: Context, home: string, loc
             return Response.json({ error: 'invalid_request' }, { status: 400 })
           }
           let parsed: ReturnType<typeof requestBody>
-          try { parsed = requestBody(JSON.parse(await boundedBody(request)) as unknown) }
+          try {
+            const body: unknown = JSON.parse(await boundedBody(request))
+            parsed = requestBody(body)
+          }
           catch { return Response.json({ error: 'invalid_request' }, { status: 400 }) }
           if (parsed.operation === 'submit') {
             const result = await tasks.submit({

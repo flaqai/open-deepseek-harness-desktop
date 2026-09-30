@@ -1,14 +1,13 @@
-import { EventEmitter } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { app, BrowserWindow, ipcMain, Menu, webContents, type MenuItemConstructorOptions } from 'electron'
 import { ApplicationMenuController } from '../src/application-menu-controller.ts'
-import type { DesktopWindowSurface } from '../src/desktop-window-surface.ts'
+import { createDesktopWindowSurface } from '../src/desktop-window-surface.ts'
 import type { DesktopMenuState } from '../src/application-menu.ts'
 
 vi.mock('electron', async () => {
   const { EventEmitter } = await import('node:events')
   class NativeMenu extends EventEmitter {
-    items: { id?: string; label?: string; submenu?: NativeMenu }[]
+    items: { id?: string; label?: string; submenu?: NativeMenu | null }[]
     popup = vi.fn()
     closePopup = vi.fn()
     constructor(template: MenuItemConstructorOptions[]) {
@@ -16,7 +15,7 @@ vi.mock('electron', async () => {
       // Native Electron uses null for leaves, unlike its TypeScript declarations.
       this.items = template.map(item => ({
         ...item, submenu: Array.isArray(item.submenu) ? new NativeMenu(item.submenu) : null,
-      })) as unknown as typeof this.items
+      }))
     }
     getMenuItemById(id: string): typeof this.items[number] | undefined {
       for (const item of this.items) {
@@ -27,9 +26,38 @@ vi.mock('electron', async () => {
       return undefined
     }
   }
+  class NativeWebContents extends EventEmitter {
+    focus = vi.fn()
+    isDestroyed = () => false
+    copy = vi.fn()
+    getZoomLevel = () => 0
+    setZoomLevel = vi.fn()
+    send = vi.fn()
+    loadURL = vi.fn(async () => {})
+    loadFile = vi.fn(async () => {})
+    close = vi.fn()
+  }
+  class NativeWindow extends EventEmitter {
+    static getFocusedWindow = vi.fn()
+    webContents = new NativeWebContents()
+    contentView = { addChildView: vi.fn(), removeChildView: vi.fn() }
+    setMenu = vi.fn()
+    setMenuBarVisibility = vi.fn()
+    getContentSize = () => [800, 600]
+    close = vi.fn()
+    isDestroyed = () => false
+    setBackgroundColor = vi.fn()
+    loadFile = vi.fn(async () => {})
+    destroy = vi.fn()
+  }
+  class NativeWebContentsView {
+    webContents = new NativeWebContents()
+    setBounds = vi.fn()
+    setBackgroundColor = vi.fn()
+  }
   return {
     app: Object.assign(new EventEmitter(), { showEmojiPanel: vi.fn() }),
-    ipcMain: new EventEmitter(), BrowserWindow: { getFocusedWindow: vi.fn() },
+    ipcMain: new EventEmitter(), BrowserWindow: NativeWindow, WebContentsView: NativeWebContentsView,
     webContents: { getFocusedWebContents: vi.fn() },
     Menu: { buildFromTemplate: vi.fn((template: MenuItemConstructorOptions[]) => new NativeMenu(template)), setApplicationMenu: vi.fn() },
   }
@@ -37,13 +65,20 @@ vi.mock('electron', async () => {
 afterEach(() => { vi.clearAllMocks(); ipcMain.removeAllListeners(); app.removeAllListeners() })
 function bench() {
   let state: DesktopMenuState = { platform: 'win32', locale: 'en', clientAvailable: true, ready: true, busy: false, maximized: false, fullscreen: false, development: false }
-  const renderer = Object.assign(new EventEmitter(), {
-    focus: vi.fn(), isDestroyed: () => false, copy: vi.fn(), getZoomLevel: () => 0, setZoomLevel: vi.fn(),
+  const surface = createDesktopWindowSurface({
+    platform: 'win32', window: {}, rendererPreferences: {}, titlebarPreferences: {},
+    titlebarPage: 'titlebar.html', onSplitFailure: (error) => { throw error },
   })
-  const titlebar = Object.assign(new EventEmitter(), { focus: vi.fn(), setZoomLevel: vi.fn() })
-  const window = { setMenu: vi.fn(), setMenuBarVisibility: vi.fn(), getContentSize: () => [800, 600], close: vi.fn() }
-  const sendTitlebar = vi.fn()
-  const surface = { window, renderer, titlebarRenderer: titlebar, split: true, sendTitlebar } as unknown as DesktopWindowSurface
+  const { renderer, titlebarRenderer: titlebar, window } = surface
+  if (titlebar === undefined) throw new Error('expected a split desktop surface')
+  const copy = vi.spyOn(renderer, 'copy')
+  const zoom = vi.spyOn(renderer, 'setZoomLevel')
+  const rendererFocus = vi.spyOn(renderer, 'focus')
+  const titlebarZoom = vi.spyOn(titlebar, 'setZoomLevel')
+  const titlebarFocus = vi.spyOn(titlebar, 'focus')
+  const menuBarVisibility = vi.spyOn(window, 'setMenuBarVisibility')
+  const close = vi.spyOn(window, 'close')
+  const sendTitlebar = vi.spyOn(surface, 'sendTitlebar')
   const execute = vi.fn()
   const error = vi.fn()
   const controller = new ApplicationMenuController({
@@ -52,20 +87,21 @@ function bench() {
   controller.register(ipcMain)
   controller.refresh()
   controller.attach(surface)
-  return { controller, renderer, titlebar, window, surface, sendTitlebar, execute, error,
+  return { controller, renderer, titlebar, window, surface, copy, zoom, rendererFocus,
+    titlebarZoom, titlebarFocus, menuBarVisibility, close, sendTitlebar, execute, error,
     state: (patch: Partial<DesktopMenuState>) => { state = { ...state, ...patch } } }
 }
 describe('native menu ownership', () => {
   it('keeps editing and zoom on the content even when the titlebar has focus', async () => {
     const b = bench()
-    vi.spyOn(webContents, 'getFocusedWebContents').mockReturnValue(b.titlebar as never)
+    vi.spyOn(webContents, 'getFocusedWebContents').mockReturnValue(b.titlebar)
     b.controller.execute('copy')
     b.controller.execute('zoom-in')
     await Promise.resolve()
-    expect(b.renderer.copy).toHaveBeenCalledOnce()
-    expect(b.renderer.setZoomLevel).toHaveBeenCalledWith(0.5)
-    expect(b.titlebar.setZoomLevel).not.toHaveBeenCalled()
-    expect(b.window.setMenuBarVisibility).toHaveBeenCalledWith(false)
+    expect(b.copy).toHaveBeenCalledOnce()
+    expect(b.zoom).toHaveBeenCalledWith(0.5)
+    expect(b.titlebarZoom).not.toHaveBeenCalled()
+    expect(b.menuBarVisibility).toHaveBeenCalledWith(false)
   })
   it('only accepts finite, clamped popup coordinates from the titlebar', () => {
     const b = bench()
@@ -78,9 +114,9 @@ describe('native menu ownership', () => {
     ipcMain.emit('dsh:menu:popup', { sender: b.titlebar }, { group: 'file', x: 99999, y: 99999 })
     expect(popup).toHaveBeenCalledWith(expect.objectContaining({ x: 800, y: 36 }))
     ipcMain.emit('dsh:menu:focus-content', { sender: {} })
-    expect(b.renderer.focus).not.toHaveBeenCalled()
+    expect(b.rendererFocus).not.toHaveBeenCalled()
     ipcMain.emit('dsh:menu:focus-content', { sender: b.titlebar })
-    expect(b.renderer.focus).toHaveBeenCalledOnce()
+    expect(b.rendererFocus).toHaveBeenCalledOnce()
   })
   it('rechecks live state after opening menus, with no duplicate rebuilds', async () => {
     const b = bench()
@@ -99,7 +135,7 @@ describe('native menu ownership', () => {
     const event = { preventDefault: vi.fn() }
     b.renderer.emit('before-input-event', event, { type: 'keyDown', key: 'Alt', control: false, meta: false, shift: false })
     expect(event.preventDefault).toHaveBeenCalledOnce()
-    expect(b.titlebar.focus).toHaveBeenCalledOnce()
+    expect(b.titlebarFocus).toHaveBeenCalledOnce()
     expect(b.sendTitlebar).toHaveBeenCalledWith('dsh:menu:activate')
   })
   it('closes the focused independent window, not an unrelated main window', () => {
@@ -108,6 +144,6 @@ describe('native menu ownership', () => {
     vi.spyOn(BrowserWindow, 'getFocusedWindow').mockReturnValue(chooser as never)
     b.controller.execute('close')
     expect(chooser.close).toHaveBeenCalledOnce()
-    expect(b.window.close).not.toHaveBeenCalled()
+    expect(b.close).not.toHaveBeenCalled()
   })
 })

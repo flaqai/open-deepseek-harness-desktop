@@ -325,7 +325,7 @@ interface BundledPluginSeedMarker {
 
 async function readSeedMarker(path: string): Promise<BundledPluginSeedMarker | undefined> {
   try {
-    const parsed = JSON.parse(await readFile(path, 'utf8')) as unknown
+    const parsed: unknown = JSON.parse(await readFile(path, 'utf8'))
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return { schema: 0, damaged: true }
     }

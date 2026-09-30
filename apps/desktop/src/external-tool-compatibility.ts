@@ -136,11 +136,11 @@ export class ExternalToolCompatibilityManager {
     manifestBytes: Uint8Array,
     bundleBytes: Uint8Array,
   ): Promise<ExternalToolCompatibilityManifest> {
-    const bundle = JSON.parse(Buffer.from(bundleBytes).toString('utf8')) as unknown
+    const bundle: unknown = JSON.parse(Buffer.from(bundleBytes).toString('utf8'))
     await (this.options.verifyBundle ?? defaultVerifyBundle)(bundle, this.options.cacheDirectory)
     assertAttestedManifest(bundle, manifestName(this.options.desktopVersion), manifestBytes)
     const manifest = parseExternalToolCompatibilityManifest(
-      JSON.parse(Buffer.from(manifestBytes).toString('utf8')) as unknown,
+      JSON.parse(Buffer.from(manifestBytes).toString('utf8')),
     )
     this.assertCompatible(manifest)
     return manifest

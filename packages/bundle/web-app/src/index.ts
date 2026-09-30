@@ -72,24 +72,24 @@ export interface Config {
     deviceLifetimeDays: number
     /** Optional fixed eight-digit code; omission generates and logs one. */
     pairingCode?: string
-  }
+  } | undefined
 }
 
-export const Config: z<Config> = z.object({
+export const Config = z.object({
   openBrowser: z.boolean().default(true),
   printUrl: z.boolean().default(true),
   surfaceContext: z.boolean().default(true),
   trustedHosts: z.array(String).default([]),
   // Preserve omission explicitly. A bare Schemastery object defaults to `{}`
   // and would make every ordinary non-NAS launch fail its required fields.
-  nas: z.object({
+  nas: z.union([z.object({
     enabled: z.const(true),
     name: String,
     version: String,
     protocolVersion: z.natural().min(1),
     deviceLifetimeDays: z.natural().min(1),
     pairingCode: z.string(),
-  }).default(undefined as unknown as Required<NonNullable<Config['nas']>>),
+  }), z.const(undefined)]),
 })
 
 /** Bind-dependent Web values shared by the trust fence and URL display. */

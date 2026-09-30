@@ -164,7 +164,7 @@ async function readPersistentRuntimeIdentities(path: string | undefined): Promis
     throw error
   })
   if (source === undefined) return []
-  const value = JSON.parse(source) as unknown
+  const value: unknown = JSON.parse(source)
   if (value === null || typeof value !== 'object'
     || (value as { schema?: unknown }).schema !== 'open-dsh-desktop/persistent-service-runtime/v1'
     || !Array.isArray((value as { records?: unknown }).records)) {
@@ -203,7 +203,7 @@ export async function readProcessRecoveryJournal(path: string): Promise<unknown>
   if (source === undefined) return undefined
   let value: unknown
   try {
-    value = JSON.parse(source.charCodeAt(0) === 0xFEFF ? source.slice(1) : source) as unknown
+    value = JSON.parse(source.charCodeAt(0) === 0xFEFF ? source.slice(1) : source)
   } catch (error) {
     await quarantineProcessRecoveryJournal(path)
     console.warn('desktop: quarantined unreadable process recovery journal', error)
@@ -321,7 +321,7 @@ export async function loadProcessObserver(
       const failures = [...nativeOutcomes, ...observerOutcome]
         .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
       if (journalFailure !== undefined) failures.push({ status: 'rejected', reason: journalFailure })
-      if (failures.length > 0) throw new AggregateError(failures.map(result => result.reason as unknown), 'desktop: managed process cleanup failed')
+      if (failures.length > 0) throw new AggregateError(failures.map((result): unknown => result.reason), 'desktop: managed process cleanup failed')
       if (recoveryPath !== undefined) await rm(recoveryPath, { force: true })
       await closeGuardian()
     },

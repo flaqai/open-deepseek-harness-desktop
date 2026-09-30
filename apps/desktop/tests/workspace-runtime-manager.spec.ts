@@ -63,11 +63,16 @@ async function fixture(options: {
       url: 'https://registry.npmjs.org/@deepseek-ai/libreoffice-kit-darwin-arm64/-/libreoffice-kit-darwin-arm64-0.0.1.tgz',
     },
   }
-  const manifest = {
+  const manifest: WorkspaceRuntimeManifest = {
     schema: 'dsh/desktop-workspace-runtimes/v2', desktopVersion: '0.1.6-alpha.2.1',
     issuedAt: new Date(Date.now() - 1_000).toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    artifacts: { 'darwin-arm64': artifact },
-  } as unknown as WorkspaceRuntimeManifest
+    artifacts: {
+      'darwin-arm64': artifact,
+      'darwin-x64': { ...artifact, target: 'darwin-x64' },
+      'linux-x64': { ...artifact, target: 'linux-x64' },
+      'win32-x64': { ...artifact, target: 'win32-x64' },
+    },
+  }
   let home = join(root, 'home-one')
   const bundledOfficePath = options.bundledOfficePath
   const stateFile = join(root, 'user-data', 'state.json')

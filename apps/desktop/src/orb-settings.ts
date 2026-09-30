@@ -157,7 +157,7 @@ export function createOrbSettingsStore(home: string): {
     },
     readPendingBackend() {
       let value: unknown
-      try { value = JSON.parse(readFileSync(pendingPath, 'utf8')) as unknown }
+      try { value = JSON.parse(readFileSync(pendingPath, 'utf8')) }
       catch (error) {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
         throw error

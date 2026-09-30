@@ -97,7 +97,7 @@ export function parsePortablePluginBundleManifest(value: unknown): PortablePlugi
   const artifacts: PortablePluginArtifact[] = []
   const names = new Set<string>()
   const files = new Set<string>()
-  for (const item of value.artifacts as unknown[]) {
+  for (const item of value.artifacts) {
     if (!record(item) || typeof item.packageName !== 'string' || !PACKAGE_NAME.test(item.packageName)
       || typeof item.version !== 'string' || semver.valid(item.version) !== item.version
       || typeof item.file !== 'string' || !ARTIFACT_FILE.test(item.file)

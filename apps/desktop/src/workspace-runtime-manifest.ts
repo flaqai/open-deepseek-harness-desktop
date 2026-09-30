@@ -173,9 +173,12 @@ export function parseWorkspaceRuntimeManifest(value: unknown): WorkspaceRuntimeM
     desktopVersion: string(source, 'desktopVersion', VERSION),
     issuedAt,
     expiresAt,
-    artifacts: Object.fromEntries(
-      WORKSPACE_RUNTIME_TARGETS.map(target => [target, parseWorkspaceRuntimeArtifact(artifacts[target], target, schema)]),
-    ) as unknown as Readonly<Record<WorkspaceRuntimeTarget, WorkspaceRuntimeArtifact>>,
+    artifacts: {
+      'win32-x64': parseWorkspaceRuntimeArtifact(artifacts['win32-x64'], 'win32-x64', schema),
+      'darwin-arm64': parseWorkspaceRuntimeArtifact(artifacts['darwin-arm64'], 'darwin-arm64', schema),
+      'darwin-x64': parseWorkspaceRuntimeArtifact(artifacts['darwin-x64'], 'darwin-x64', schema),
+      'linux-x64': parseWorkspaceRuntimeArtifact(artifacts['linux-x64'], 'linux-x64', schema),
+    },
   }
 }
 

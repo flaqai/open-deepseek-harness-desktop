@@ -70,7 +70,13 @@ function parseDocument(record: CredentialRecord | undefined): DeviceDocument {
       || typeof value.expiresAt !== 'string') {
       throw new Error('client-connection: NAS device credential record contains an invalid device')
     }
-    devices.push(value as unknown as DeviceRecord)
+    devices.push({
+      id: value.id,
+      name: value.name,
+      tokenHash: value.tokenHash,
+      createdAt: value.createdAt,
+      expiresAt: value.expiresAt,
+    })
   }
   return {
     version: RECORD_VERSION,
@@ -108,7 +114,7 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
     if (total > MAX_PAIRING_BODY_BYTES) throw new Error('request body is too large')
     chunks.push(chunk)
   }
-  return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
 function generatedCode(): string {

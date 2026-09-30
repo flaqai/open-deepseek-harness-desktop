@@ -8,7 +8,7 @@ import {
   withDesktopWindowMetadata,
 } from '../src/window-frame.ts'
 
-const readUtf8 = readFileSync as unknown as (path: URL, encoding: 'utf8') => string
+const readUtf8 = (path: URL, encoding: 'utf8'): string => readFileSync(path, encoding)
 
 describe('desktop window frame policy', () => {
   it.each(['win32', 'linux'] as const)('uses Harness window chrome on %s', (platform) => {

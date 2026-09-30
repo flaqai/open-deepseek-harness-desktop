@@ -58,7 +58,7 @@ async function boundedMetadata(response: Response): Promise<unknown> {
     if (bytes > MAX_METADATA_BYTES) throw new Error('desktop: plugin registry metadata is too large')
     chunks.push(chunk)
   }
-  return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
 function packageDistribution(value: unknown, name: string, version: string, registry: URL): { tarball: URL; integrity: Buffer } {

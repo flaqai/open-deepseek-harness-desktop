@@ -119,7 +119,7 @@ async function boundedResponse(response: Response, signal: AbortSignal): Promise
   } finally { await reader.cancel().catch(() => {}) }
   signal.throwIfAborted()
   const body = Buffer.concat(chunks, bytes).toString('utf8')
-  try { return JSON.parse(body) as unknown }
+  try { return JSON.parse(body) }
   catch { throw new Error('orb native client: malformed response') }
 }
 

@@ -1,30 +1,56 @@
-import type { IpcMain, WebContents } from 'electron'
-import { describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { ipcMain, type WebContents } from 'electron'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DESKTOP_IPC } from '../src/desktop-ipc-protocol.ts'
-import type { DesktopNasRuntimeAuthority } from '../src/nas-runtime-authority.ts'
+import { DesktopNasRuntimeAuthority } from '../src/nas-runtime-authority.ts'
+import { NasRuntimeStore } from '../src/nas-runtime.ts'
 import { registerNasRuntimeIpc } from '../src/nas-runtime-ipc.ts'
 
 type Handler = (event: { sender: WebContents }, ...args: unknown[]) => unknown
+const electron = vi.hoisted(() => ({ handlers: new Map<string, Handler>() }))
+vi.mock('electron', () => ({ ipcMain: {
+  handle: (channel: string, handler: Handler) => { electron.handlers.set(channel, handler) },
+} }))
+const roots: string[] = []
+afterEach(() => {
+  electron.handlers.clear()
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+})
 
 function bench() {
-  const handlers = new Map<string, Handler>()
-  const ipc = {
-    handle: (channel: string, handler: Handler) => { handlers.set(channel, handler) },
-  } as unknown as IpcMain
-  const execute = vi.fn((operation: { kind: string }) => Promise.resolve(operation))
-  const authority = {
-    status: vi.fn(() => ({ selection: { kind: 'local' }, servers: [], secureStorageAvailable: true })),
-    execute,
-  } as unknown as DesktopNasRuntimeAuthority
+  const root = mkdtempSync(join(tmpdir(), 'dsh-nas-ipc-'))
+  roots.push(root)
+  const store = new NasRuntimeStore(join(root, 'runtimes.json'), join(root, 'secrets.json'), {
+    available: true,
+    seal: value => Buffer.from(value).toString('base64'),
+    open: value => Buffer.from(value, 'base64').toString('utf8'),
+  })
+  const authority = new DesktopNasRuntimeAuthority({
+    store,
+    network: {
+      discover: async () => [], inspectCertificate: async () => 'AA'.repeat(32),
+      health: async () => { throw new Error('unexpected health request') },
+      pair: async () => { throw new Error('unexpected pairing request') },
+      devices: async () => [], revokeDevice: async () => [],
+    },
+    connection: {
+      capture: () => undefined, begin: () => {}, ready: () => {}, fail: async () => {},
+    },
+    lifecycle: { stopActiveProfileServices: async () => {}, restartAfter: () => {} },
+    publishStatus: () => {},
+  })
+  const execute = vi.spyOn(authority, 'execute')
   const assertRenderer = vi.fn()
-  registerNasRuntimeIpc(ipc, { authority, assertRenderer })
+  registerNasRuntimeIpc(ipcMain, { authority, assertRenderer })
   const sender = {} as WebContents
   const invoke = (channel: string, ...args: unknown[]): unknown => {
-    const handler = handlers.get(channel)
+    const handler = electron.handlers.get(channel)
     if (handler === undefined) throw new Error(`Missing handler for ${channel}`)
     return handler({ sender }, ...args)
   }
-  return { handlers, execute, assertRenderer, sender, invoke }
+  return { handlers: electron.handlers, execute, assertRenderer, sender, invoke }
 }
 
 describe('NAS runtime IPC adapter', () => {
@@ -35,9 +61,8 @@ describe('NAS runtime IPC adapter', () => {
       DESKTOP_IPC.nasSelect, DESKTOP_IPC.nasRemove, DESKTOP_IPC.nasTest, DESKTOP_IPC.nasDevices,
       DESKTOP_IPC.nasRevokeDevice,
     ])
-    await expect(b.invoke(DESKTOP_IPC.nasSelect, { kind: 'nas', serverId: 'nas-1' })).resolves.toEqual({
-      kind: 'select', selection: { kind: 'nas', serverId: 'nas-1' },
-    })
+    await expect(b.invoke(DESKTOP_IPC.nasSelect, { kind: 'local' })).resolves.toEqual({ restarting: true })
+    expect(b.execute).toHaveBeenCalledWith({ kind: 'select', selection: { kind: 'local' } })
     expect(b.assertRenderer).toHaveBeenCalledWith(b.sender)
   })
 

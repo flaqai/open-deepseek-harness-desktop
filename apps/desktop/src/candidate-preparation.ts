@@ -11,7 +11,7 @@ const PLUGIN_SNAPSHOT_JSON_MARKER = 'dsh:plugin-snapshot-json '
 export function parsePluginCommandJson(output: string): unknown {
   const line = output.split(/\r?\n/u).find(candidate => candidate.startsWith(PLUGIN_SNAPSHOT_JSON_MARKER))
   if (line === undefined) throw new Error('desktop: plugin command returned no structured result')
-  return JSON.parse(line.slice(PLUGIN_SNAPSHOT_JSON_MARKER.length)) as unknown
+  return JSON.parse(line.slice(PLUGIN_SNAPSHOT_JSON_MARKER.length))
 }
 
 /** Validate journal ownership and return whether rollback must use the desktop lease. */

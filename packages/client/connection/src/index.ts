@@ -108,24 +108,24 @@ export interface ConnectionConfig {
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
   /** Enable the authenticated NAS deployment carrier and its pairing routes. */
-  nas?: Omit<NasDeploymentConfig, 'trustedHosts'>
+  nas?: Omit<NasDeploymentConfig, 'trustedHosts'> | undefined
 }
 
-export const Config: z<ConnectionConfig> = z.object({
+export const Config = z.object({
   recovery: ConnectionRecoveryConfigSchema.default({}),
   trustedHosts: z.array(String).default([]),
   cookieMaxAgeDays: z.natural().min(1).default(30),
   maxRequestBodyBytes: z.natural().min(1).default(DEFAULT_MAX_REQUEST_BODY_BYTES),
   // Keep an omitted NAS carrier undefined. Schemastery object schemas default
   // to `{}`, which would reject every ordinary local launch on `nas.name`.
-  nas: z.object({
+  nas: z.union([z.object({
     enabled: z.boolean().default(false),
     name: String,
     version: String,
     protocolVersion: z.natural().min(1).default(NAS_PROTOCOL_V1.version),
     deviceLifetimeDays: z.natural().min(1).default(90),
     pairingCode: z.string(),
-  }).default(undefined as unknown as Required<NonNullable<ConnectionConfig['nas']>>),
+  }), z.const(undefined)]),
 })
 
 /**

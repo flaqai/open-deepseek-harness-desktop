@@ -273,7 +273,7 @@ async function recognizedDesktopDataEntries(dshHome: string): Promise<readonly s
 
 async function hasCommunityProfileIdentity(dshHome: string): Promise<boolean> {
   try {
-    const value = JSON.parse(await readFile(join(dshHome, COMMUNITY_PROFILE_IDENTITY_FILE), 'utf8')) as unknown
+    const value: unknown = JSON.parse(await readFile(join(dshHome, COMMUNITY_PROFILE_IDENTITY_FILE), 'utf8'))
     return typeof value === 'object'
       && value !== null
       && 'schema' in value

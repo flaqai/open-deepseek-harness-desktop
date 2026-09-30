@@ -197,7 +197,7 @@ export class HarnessSupervisor {
         const marker = line.indexOf(OPTIONAL_STARTUP_FAILURES_MARKER)
         if (marker !== -1) {
           try {
-            const parsed = JSON.parse(line.slice(marker + OPTIONAL_STARTUP_FAILURES_MARKER.length)) as unknown
+            const parsed: unknown = JSON.parse(line.slice(marker + OPTIONAL_STARTUP_FAILURES_MARKER.length))
             if (Array.isArray(parsed)) {
               const failures = parsed.filter((value): value is OptionalStartupFailure => (
                 typeof value === 'object' && value !== null

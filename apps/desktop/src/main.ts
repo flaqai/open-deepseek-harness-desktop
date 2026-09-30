@@ -1270,7 +1270,7 @@ const PLUGIN_SNAPSHOT_JSON_MARKER = 'dsh:plugin-snapshot-json '
 function parsePluginSnapshotJson(output: string): unknown {
   const line = output.split(/\r?\n/u).find(candidate => candidate.startsWith(PLUGIN_SNAPSHOT_JSON_MARKER))
   if (line === undefined) throw new Error(`desktop: plugin snapshot command returned no structured result: ${output.slice(-2000)}`)
-  return JSON.parse(line.slice(PLUGIN_SNAPSHOT_JSON_MARKER.length)) as unknown
+  return JSON.parse(line.slice(PLUGIN_SNAPSHOT_JSON_MARKER.length))
 }
 
 function parseDiagnosticLabDoctorOutput(output: string): DiagnosticLabDoctorResult {
@@ -3489,7 +3489,7 @@ async function startApplication(): Promise<void> {
       ]))
       const taskFailures = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected')
       if (taskFailures.length > 0) {
-        throw new AggregateError(taskFailures.map(outcome => outcome.reason as unknown), 'desktop: managed task cleanup failed')
+        throw new AggregateError(taskFailures.map((outcome): unknown => outcome.reason), 'desktop: managed task cleanup failed')
       }
       // Do not stop Harness until every authorized persistent identity has
       // been removed from both normal and crash-recovery cleanup scopes.
@@ -3508,7 +3508,7 @@ async function startApplication(): Promise<void> {
         status: 'rejected', reason: new Error('desktop: process identity registration failed', { cause: processObservationFailure }),
       })
       const failures = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected')
-      if (failures.length > 0) throw new AggregateError(failures.map(outcome => outcome.reason as unknown), 'desktop: process cleanup failed')
+      if (failures.length > 0) throw new AggregateError(failures.map((outcome): unknown => outcome.reason), 'desktop: process cleanup failed')
       publishStartupProgress({ stage: 'checking-shutdown', progress: 100 })
     },
     releaseQuit: () => {
@@ -3675,7 +3675,7 @@ async function startApplication(): Promise<void> {
   }
   const bundledDirectory = resolveBundledPluginResourcesDirectory(app.isPackaged, process.resourcesPath, DEFAULT_SOURCE_ROOT)
   const bundledManifestSource = await readFile(join(bundledDirectory, 'manifest.json'), 'utf8')
-  const manifest = parseBundledPluginManifest(JSON.parse(bundledManifestSource) as unknown)
+  const manifest = parseBundledPluginManifest(JSON.parse(bundledManifestSource))
   let prebuiltDirectory: string | undefined
   if (app.isPackaged && firstStartPending) {
     const prebuiltRoot = packagedPrebuiltProfileArchiveRoot(process.platform, process.arch)

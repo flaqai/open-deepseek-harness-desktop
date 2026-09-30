@@ -616,7 +616,7 @@ describe('profile plugin package manager', () => {
     try {
       expect(runPlugin('web', ['add', `${packageName}@1.0.0`])).toBe(0)
       expect(stderr).toHaveBeenCalledWith(expect.stringContaining('loader-module-unresolvable'))
-      const quarantineState = JSON.parse(readFileSync(join(home, 'quarantine', 'profile-plugins.json'), 'utf8')) as unknown
+      const quarantineState: unknown = JSON.parse(readFileSync(join(home, 'quarantine', 'profile-plugins.json'), 'utf8'))
       const profileState = JSON.parse(readFileSync(join(home, 'profiles', 'web', 'package.json'), 'utf8')) as {
         dependencies?: Record<string, string>
         dsh?: { profile?: { bundles?: string[] } }
@@ -666,8 +666,8 @@ describe('profile plugin package manager', () => {
     try {
       expect(runPlugin('web', ['add', `${packageName}@1.0.0`])).toBe(0)
       expect(stderr).toHaveBeenCalledWith(expect.stringContaining('loader-dependency-unavailable'))
-      const quarantineState = JSON.parse(readFileSync(join(home, 'quarantine', 'profile-plugins.json'), 'utf8')) as unknown
-      const report = JSON.parse(readFileSync(join(home, 'profile-health', 'web.json'), 'utf8')) as unknown
+      const quarantineState: unknown = JSON.parse(readFileSync(join(home, 'quarantine', 'profile-plugins.json'), 'utf8'))
+      const report: unknown = JSON.parse(readFileSync(join(home, 'profile-health', 'web.json'), 'utf8'))
       expect(quarantineState).toMatchObject({
         plugins: [{ packageName, reason: 'loader-dependency-unavailable' }],
       })
@@ -741,10 +741,10 @@ describe('profile plugin package manager', () => {
         .find(entry => /^[0-9a-f-]{36}$/u.test(entry))
       expect(snapshotId).toBeDefined()
       if (snapshotId === undefined) throw new Error('manual snapshot directory was not created')
-      const record = JSON.parse(readFileSync(
+      const record: unknown = JSON.parse(readFileSync(
         join(home, 'plugin-snapshots', 'v1', snapshotId, 'snapshot.json'),
         'utf8',
-      )) as unknown
+      ))
       expect(record).toMatchObject({
         label: 'Known good',
         applicationVersion: '0.1.2-alpha.4',

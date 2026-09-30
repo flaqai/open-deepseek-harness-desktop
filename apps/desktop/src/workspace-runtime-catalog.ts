@@ -151,7 +151,7 @@ export class WorkspaceRuntimeCatalog {
     const bundle: unknown = JSON.parse(Buffer.from(bundleBytes).toString('utf8'))
     await (this.#options.verifyBundle ?? verifyBundle)(bundle, this.#options.cacheDirectory)
     attested(bundle, name, manifestBytes)
-    const manifest = parseWorkspaceRuntimeManifest(JSON.parse(Buffer.from(manifestBytes).toString('utf8')) as unknown)
+    const manifest = parseWorkspaceRuntimeManifest(JSON.parse(Buffer.from(manifestBytes).toString('utf8')))
     const now = (this.#options.now ?? (() => new Date()))().getTime()
     if (manifest.desktopVersion !== this.#options.desktopVersion
       || Date.parse(manifest.issuedAt) > now + 10 * 60_000 || Date.parse(manifest.expiresAt) <= now) {

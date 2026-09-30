@@ -78,7 +78,7 @@ const manifestVersions = (await readdir(manifestsDirectory, { withFileTypes: tru
 for (const version of manifestVersions) {
   const archived = parseExternalToolCompatibilityManifest(JSON.parse(await readFile(
     resolve(manifestsDirectory, version, 'external-tools-compatibility.v2.json'), 'utf8',
-  )) as unknown)
+  )))
   assert.equal(archived.desktopVersion, version, 'external-tool gate: immutable manifest directory must match desktopVersion')
 }
 const manifestPath = resolve(manifestsDirectory, desktopPackage.version, 'external-tools-compatibility.v2.json')
@@ -96,7 +96,7 @@ const browserFallbackSpecs = Object.fromEntries(fallbackEntries.map(match => [ma
 assert.deepEqual(Object.keys(browserFallbackSpecs).sort(), [...EXTERNAL_TOOL_IDS].sort(),
   'external-tool gate: browser fallback identities must match the reviewed Desktop manifest')
 const manifest = parseExternalToolCompatibilityManifest(
-  JSON.parse(await readFile(manifestPath, 'utf8')) as unknown,
+  JSON.parse(await readFile(manifestPath, 'utf8')),
 )
 assert.equal(manifest.desktopVersion, desktopPackage.version, 'external-tool gate: current Desktop requires an exact manifest')
 assert.deepEqual(manifest, EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY, 'embedded pins must exactly match the signed source manifest')

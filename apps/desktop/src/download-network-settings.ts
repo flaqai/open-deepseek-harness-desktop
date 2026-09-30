@@ -179,7 +179,7 @@ export class DownloadNetworkSettingsStore {
 
   #read(): PersistedSettings {
     try {
-      const raw = JSON.parse(readFileSync(this.filePath, 'utf8')) as unknown
+      const raw: unknown = JSON.parse(readFileSync(this.filePath, 'utf8'))
       if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new TypeError('Download network settings must be an object')
       const source = raw as Record<string, unknown>
       if (source.schema !== 'open-dsh-desktop/download-network/v1') throw new TypeError('Unsupported download network settings schema')

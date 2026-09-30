@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import type { NativeImage } from 'electron'
+import { nativeImage } from 'electron'
 import { TestIconImage } from './icon-test-image.ts'
 import { DesktopIconManager } from '../src/desktop-icons.ts'
 import { encodeIconIco, inspectIconImage, orientIconBitmap, renderIconPresentation, validateIconCrop } from '../src/icon-image.ts'
@@ -44,8 +44,8 @@ function setup(platform = 'darwin') {
   const root = mkdtempSync(join(tmpdir(), 'desktop-icon-test-')); temporary.push(root)
   const options = {
     directory: join(root, 'icons'), platform, packaged: true,
-    defaultApplication: new TestIconImage(64, 64, 8) as unknown as NativeImage,
-    defaultTray: new TestIconImage(22, 22, 9) as unknown as NativeImage,
+    defaultApplication: nativeImage.createFromBuffer(new TestIconImage(64, 64, 8).toPNG()),
+    defaultTray: nativeImage.createFromBuffer(new TestIconImage(22, 22, 9).toPNG()),
     apply: vi.fn((): IconSurfaceResult[] => [{ surface: 'application', status: 'applied' }]), notify: vi.fn(), now: () => 100,
   }
   return { root, options, manager: new DesktopIconManager(options) }
@@ -64,7 +64,7 @@ describe('desktop icon persistence and authority', () => {
     const { options } = setup()
     const bitmap = Buffer.alloc(512 * 512 * 4)
     bitmap[(256 * 512 + 256) * 4 + 3] = 255
-    const application = new TestIconImage(512, 512, 8, bitmap) as unknown as NativeImage
+    const application = nativeImage.createFromBitmap(bitmap, { width: 512, height: 512 })
     const defaults = { ...options, packaged, defaultApplication: application }
     const manager = new DesktopIconManager(defaults)
     expect(manager.images().application).toBe(application)
@@ -199,7 +199,7 @@ describe('bounded icon image protocol', () => {
     ['darwin', 'tray', 16, 80],
     ['win32', 'tray', 16, 80],
   ] as const)('renders %s %s with transparent padding and antialiased corners', (platform, target, inset, radius) => {
-    const source = new TestIconImage(512, 512, 120) as unknown as NativeImage
+    const source = nativeImage.createFromBuffer(new TestIconImage(512, 512, 120).toPNG())
     const image = renderIconPresentation(source, platform, target)
     const bitmap = image.toBitmap()
     const alpha = (x: number, y: number): number => bitmap.readUInt8((y * 512 + x) * 4 + 3)
@@ -271,7 +271,7 @@ describe('bounded icon image protocol', () => {
     }
   })
   it('generates exact Windows DPI sizes as indexed PNG frames in an ICO', () => {
-    const bytes = encodeIconIco(new TestIconImage(512, 512) as unknown as NativeImage)
+    const bytes = encodeIconIco(nativeImage.createFromBuffer(new TestIconImage(512, 512).toPNG()))
     const sizes = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
     expect(bytes.readUInt16LE(2)).toBe(1)
     expect(bytes.readUInt16LE(4)).toBe(sizes.length)

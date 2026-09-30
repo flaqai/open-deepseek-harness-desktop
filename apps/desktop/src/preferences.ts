@@ -96,7 +96,7 @@ export function createDesktopPreferencesStore(
   return {
     read() {
       try {
-        return normalizeDesktopPreferences(JSON.parse(readFileSync(filePath, 'utf8')) as unknown)
+        return normalizeDesktopPreferences(JSON.parse(readFileSync(filePath, 'utf8')))
       } catch (error) {
         const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
         if (code !== 'ENOENT') reportReadFailure(error)

@@ -108,7 +108,8 @@ export function extractGitPrepareBuildKey(diagnostic: string): string | undefine
   const candidates = [diagnostic, diagnostic.replaceAll('\\n', '\n').replaceAll('\\"', '"')]
   for (const line of diagnostic.split(/\r?\n/u)) {
     try {
-      diagnosticStrings(JSON.parse(line) as unknown, candidates)
+      const value: unknown = JSON.parse(line)
+      diagnosticStrings(value, candidates)
     } catch {
       // A reporter may mix ordinary text with NDJSON; only complete JSON lines add candidates.
     }
@@ -132,7 +133,8 @@ export function extractIgnoredBuildKey(diagnostic: string): string | undefined {
   const candidates = [diagnostic, diagnostic.replaceAll('\\n', '\n').replaceAll('\\"', '"')]
   for (const line of diagnostic.split(/\r?\n/u)) {
     try {
-      diagnosticStrings(JSON.parse(line) as unknown, candidates)
+      const value: unknown = JSON.parse(line)
+      diagnosticStrings(value, candidates)
     } catch {
       // A reporter may mix ordinary text with NDJSON.
     }

@@ -3,27 +3,9 @@
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
+import { Context } from '@deepseek-ai/cordis'
+import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
 import { NasAccess } from '../src/nas-access.ts'
-
-class RecordMap {
-  readonly records = new Map<string, CredentialRecord>()
-
-  readRecord(key: unknown): Promise<CredentialRecord | undefined> {
-    return Promise.resolve(this.records.get(String(key)))
-  }
-
-  async modifyRecord(
-    key: unknown,
-    mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>,
-  ): Promise<CredentialRecord | undefined> {
-    const id = String(key)
-    const next = await mutate(this.records.get(id))
-    if (next === undefined) this.records.delete(id)
-    else this.records.set(id, next)
-    return next
-  }
-}
 
 const close: Array<() => Promise<void>> = []
 afterEach(async () => {
@@ -48,13 +30,13 @@ async function serve(access: NasAccess): Promise<string> {
 
 describe('NasAccess', () => {
   it('pairs once, authenticates a device, revokes it, and preserves server identity', async () => {
-    const records = new RecordMap()
+    const records = new MemoryCredentials(new Context())
     const config = {
       enabled: true, name: 'Studio NAS', version: '0.1.6-alpha.1', protocolVersion: 1,
       trustedHosts: ['harness.local'], deviceLifetimeDays: 90, pairingCode: '12345678',
     }
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const access = await NasAccess.create(records as unknown as CredentialProvider, config)
+    const access = await NasAccess.create(records, config)
     const origin = await serve(access)
     const request = (path: string, init: RequestInit = {}) => {
       const headers = new Headers(init.headers)
@@ -88,7 +70,7 @@ describe('NasAccess', () => {
     expect(await revoked.json()).toEqual({ devices: [] })
     expect((await request('/nas/devices', { headers: auth })).status).toBe(401)
 
-    const reloaded = await NasAccess.create(records as unknown as CredentialProvider, config)
+    const reloaded = await NasAccess.create(records, config)
     const reloadedOrigin = await serve(reloaded)
     const next = await fetch(`${reloadedOrigin}/nas/health`, { headers: { host: 'harness.local' } })
       .then(response => response.json()) as { instanceId: string }
@@ -98,7 +80,7 @@ describe('NasAccess', () => {
   it('rate limits repeated invalid pairing codes', async () => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'info').mockImplementation(() => {})
-    const access = await NasAccess.create(new RecordMap() as unknown as CredentialProvider, {
+    const access = await NasAccess.create(new MemoryCredentials(new Context()), {
       enabled: true, name: 'Studio NAS', version: '0.1.6-alpha.1', protocolVersion: 1,
       trustedHosts: ['harness.local'], deviceLifetimeDays: 90, pairingCode: '12345678',
     })

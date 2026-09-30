@@ -262,7 +262,7 @@ export class NasRuntimeStore {
   ) {}
 
   read(): NasRuntimeDirectory {
-    try { return normalizeDirectory(JSON.parse(readFileSync(this.directoryPath, 'utf8')) as unknown) } catch (error) {
+    try { return normalizeDirectory(JSON.parse(readFileSync(this.directoryPath, 'utf8'))) } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') this.reportReadFailure(error)
       return EMPTY_DIRECTORY
     }
@@ -338,7 +338,7 @@ export class NasRuntimeStore {
 
   private readSecrets(): NasSecretDocument {
     try {
-      const raw = JSON.parse(readFileSync(this.secretPath, 'utf8')) as unknown
+      const raw: unknown = JSON.parse(readFileSync(this.secretPath, 'utf8'))
       if (!isRecord(raw) || raw.schema !== 'open-deepseek-harness-desktop/nas-secrets/v1' || !isRecord(raw.records)) {
         throw new Error('desktop: NAS secret store has an unsupported format')
       }
