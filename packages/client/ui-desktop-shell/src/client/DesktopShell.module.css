@@ -1,4 +1,14 @@
 .group { width: 100%; }
+.aboutIntro, .feedbackSection { display: grid; gap: 10px; padding: 18px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
+.aboutIntro h2, .feedbackSection h2 { margin: 0; color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 24px; }
+.aboutIntro p, .feedbackSection p { margin: 0; }
+.aboutIntro > p { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.aboutLinks { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.feedbackForm { display: grid; gap: 10px; min-width: 0; }
+.feedbackForm label { display: grid; gap: 5px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.feedbackForm input, .feedbackForm select, .feedbackForm textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; }
+.feedbackForm textarea { resize: vertical; }
+.feedbackForm input:focus-visible, .feedbackForm select:focus-visible, .feedbackForm textarea:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 1px; }
 .row { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
 .text { flex: 1; min-width: 0; padding-right: 24px; }
 .title { color: var(--dsw-alias-label-primary); font-size: 14px; line-height: 22px; }
@@ -12,6 +22,9 @@
 .toggle[data-enabled='true'] > span { transform: translateX(18px); }
 .toggle:disabled { cursor: not-allowed; opacity: .48; }
 .actions { display: flex; gap: 8px; }
+.aboutUpdateRow { flex-wrap: wrap; }
+.aboutUpdateRow .text { flex: 1 1 220px; padding-right: 0; }
+.aboutUpdateRow .actions { flex-wrap: wrap; }
 .networkSection { display: grid; gap: 12px; padding: 18px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
 .networkCard { display: grid; gap: 14px; min-width: 0; padding: 16px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 14px; background: color-mix(in srgb, var(--dsw-alias-bg-module-platform) 42%, transparent); }
 .networkHeading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }

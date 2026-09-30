@@ -160,10 +160,27 @@ export interface DesktopCapabilities {
   runtimeKind: 'local' | 'nas'
   platform: string
   packaged: boolean
+  desktopVersion: string
   launchAtLoginAvailable: boolean
   sourceUpdateAvailable: boolean
   commandLineAvailable: boolean
   developmentRecoveryAvailable: boolean
+}
+
+/** User-authored fields accepted by the Desktop community feedback host. */
+export interface CommunityFeedbackInput {
+  kind: 'bug' | 'idea' | 'other'
+  title: string
+  body: string
+  replyEmail?: string
+  requestId: string
+}
+
+/** Fixed-destination feedback and mail operations. */
+export interface CommunityFeedbackBridge {
+  status(): Promise<{ enabled: boolean }>
+  submit(input: CommunityFeedbackInput): Promise<{ status: 'received' | 'unavailable' | 'rate-limited' | 'failed'; id?: string }>
+  openMail(input?: Omit<CommunityFeedbackInput, 'requestId'>): Promise<void>
 }
 
 /** Active Harness home and the two built-in switch targets. */
@@ -283,6 +300,8 @@ export interface DesktopReleasesBridge {
 
 /** Complete Electron-only browser bridge consumed by this plugin. */
 export interface DesktopBridge {
+  communityFeedback?: CommunityFeedbackBridge
+  externalBrowser?: { open(url: string): Promise<void> }
   menu?: {
     reportState(state: { available: boolean; ready: boolean; locale: string }): void
     onCommand(callback: (command: string) => void | Promise<void>): () => void
@@ -312,10 +331,14 @@ export function readDesktopBridge(): DesktopBridge | null {
     processes?: DesktopProcessesBridge
     nas?: DesktopNasBridge
     menu?: DesktopBridge['menu']
+    communityFeedback?: CommunityFeedbackBridge
+    externalBrowser?: DesktopBridge['externalBrowser']
   } | undefined
   return candidate?.shell === undefined || candidate.releases === undefined || candidate.desktopWeb === undefined
     ? null
     : { shell: candidate.shell, releases: candidate.releases, desktopWeb: candidate.desktopWeb,
+      ...(candidate.communityFeedback === undefined ? {} : { communityFeedback: candidate.communityFeedback }),
+      ...(candidate.externalBrowser === undefined ? {} : { externalBrowser: candidate.externalBrowser }),
       ...(candidate.downloadNetwork === undefined ? {} : { downloadNetwork: candidate.downloadNetwork }),
       ...(candidate.nas === undefined ? {} : { nas: candidate.nas }),
       ...(candidate.menu === undefined ? {} : { menu: candidate.menu }),

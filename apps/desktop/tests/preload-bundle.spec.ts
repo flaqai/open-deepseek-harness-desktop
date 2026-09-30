@@ -52,7 +52,7 @@ it('boots every bundled preload before DOM globals are available with only Elect
           shell: { openLogDirectory(): Promise<{ error: string }> }
         }
         expect(Object.keys(exposed)).toEqual([
-          'externalBrowser', 'menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes', 'orb', 'icons', 'downloadNetwork',
+          'communityFeedback', 'externalBrowser', 'menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes', 'orb', 'icons', 'downloadNetwork',
           'bundledPlugins', 'externalTools', 'importedPlugins', 'diagnosticLab', 'pluginSnapshots', 'startupDiagnostics', 'processes',
           'chatBackground',
         ])
@@ -78,7 +78,7 @@ it('boots every bundled preload before DOM globals are available with only Elect
         const remoteExposed = remoteExposeInMainWorld.mock.calls.find(([name]) => name === 'deepSeekHarnessDesktop')?.[1] as {
           shell: Record<string, unknown>
         } & Record<string, unknown>
-        expect(Object.keys(remoteExposed)).toEqual(['externalBrowser', 'menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes', 'orb'])
+        expect(Object.keys(remoteExposed)).toEqual(['communityFeedback', 'externalBrowser', 'menu', 'shell', 'releases', 'nas', 'desktopWeb', 'workspaceRuntimes', 'orb'])
         expect(Object.keys(remoteExposed.shell)).toEqual([
           'getCapabilities', 'getPreferences', 'updatePreferences', 'onPreferences', 'restart', 'reportReadiness',
         ])

@@ -74,10 +74,27 @@ export interface DesktopCapabilities {
   runtimeKind: 'local' | 'nas'
   platform: NodeJS.Platform
   packaged: boolean
+  desktopVersion: string
   launchAtLoginAvailable: boolean
   sourceUpdateAvailable: boolean
   commandLineAvailable: boolean
   developmentRecoveryAvailable: boolean
+}
+
+/** Community feedback intent; the host owns destination, environment facts and validation. */
+export interface CommunityFeedbackInput {
+  kind: 'bug' | 'idea' | 'other'
+  title: string
+  body: string
+  replyEmail?: string
+  requestId: string
+}
+
+/** Restricted community feedback bridge. */
+export interface CommunityFeedbackBridge {
+  status(): Promise<{ enabled: boolean }>
+  submit(input: CommunityFeedbackInput): Promise<{ status: 'received' | 'unavailable' | 'rate-limited' | 'failed'; id?: string }>
+  openMail(input?: Omit<CommunityFeedbackInput, 'requestId'>): Promise<void>
 }
 
 /** Device-local shell operations that must never cross the NAS renderer boundary implicitly. */
@@ -588,6 +605,11 @@ const remoteDesktopWebBridge: DesktopWebBridge = {
 }
 
 const commonDesktopBridge = {
+  communityFeedback: Object.freeze({
+    status: () => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackStatus) as Promise<{ enabled: boolean }>,
+    submit: (input: CommunityFeedbackInput) => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackSubmit, input) as ReturnType<CommunityFeedbackBridge['submit']>,
+    openMail: (input?: Omit<CommunityFeedbackInput, 'requestId'>) => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackMail, input) as Promise<void>,
+  } satisfies CommunityFeedbackBridge),
   externalBrowser: Object.freeze({
     open: (url: string): Promise<void> => ipcRenderer.invoke(DESKTOP_IPC.externalBrowserOpen, url) as Promise<void>,
   }),

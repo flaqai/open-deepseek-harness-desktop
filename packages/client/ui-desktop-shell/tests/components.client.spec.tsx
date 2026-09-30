@@ -2,10 +2,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type {
-  DesktopBridge, DesktopCliStatus, DesktopDownloadNetworkBridge, DesktopReleaseDownloadStatus, DesktopReleaseStatus, DesktopWebStatus,
+  CommunityFeedbackBridge, DesktopBridge, DesktopCliStatus, DesktopDownloadNetworkBridge,
+  DesktopReleaseDownloadStatus, DesktopReleaseStatus, DesktopWebStatus,
 } from '../src/client/bridge.ts'
 import { DesktopShellController } from '../src/client/controller.ts'
 import { DesktopPreferencesRow, type DesktopPreferencesRowProps } from '../src/client/DesktopPreferencesRow.tsx'
+import { DesktopAboutSection, type DesktopAboutSectionProps } from '../src/client/DesktopAboutSection.tsx'
 import { DesktopUpdateBadge, type DesktopUpdateBadgeProps } from '../src/client/DesktopUpdateBadge.tsx'
 import {
   DesktopSidebarUpdateButton, type DesktopSidebarUpdateButtonProps,
@@ -80,7 +82,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
     shell: {
       getCapabilities: () => Promise.resolve({
         runtimeKind: 'local' as const,
-        platform, packaged, launchAtLoginAvailable: true, sourceUpdateAvailable: false,
+        platform, packaged, desktopVersion: '0.1.7-rc.2', launchAtLoginAvailable: true, sourceUpdateAvailable: false,
         commandLineAvailable: true, developmentRecoveryAvailable: !packaged,
       }),
       getDataHome: () => Promise.resolve({
@@ -128,7 +130,78 @@ function setup(releaseStatus: DesktopReleaseStatus = {
   }
 }
 
+function aboutProps(controller: DesktopShellController, downloadNetwork?: DownloadNetworkProjection): DesktopAboutSectionProps {
+  return { controller, downloadNetwork, feedback: undefined, openLink: vi.fn(), t } as DesktopAboutSectionProps
+}
+
 describe('desktop shell components', () => {
+  it('uses email drafts without an online submission button before service verification', async () => {
+    const b = setup()
+    const openMail = vi.fn(async () => {})
+    const submitFeedback = vi.fn()
+    const feedback: CommunityFeedbackBridge = {
+      status: vi.fn(async () => ({ enabled: false })), submit: submitFeedback, openMail,
+    }
+    const openLink = vi.fn(async () => {})
+    render(<DesktopAboutSection {...aboutProps(b.controller)} feedback={feedback} openLink={openLink} />)
+    expect(await screen.findByText('Desktop version: 0.1.7-rc.2')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en['about.feedback.submit'] })).toBeNull()
+    fireEvent.change(screen.getByLabelText(en['about.feedback.subject']), { target: { value: 'Update failed' } })
+    fireEvent.change(screen.getByLabelText(en['about.feedback.body']), { target: { value: 'The update button did not respond.' } })
+    fireEvent.click(screen.getByRole('button', { name: en['about.feedback.mail'] }))
+    await waitFor(() => { expect(openMail).toHaveBeenCalledWith({ kind: 'bug', title: 'Update failed', body: 'The update button did not respond.' }) })
+    expect(await screen.findByText(en['about.feedback.mailOpened'])).toBeTruthy()
+    expect(screen.queryByText(en['about.feedback.received'])).toBeNull()
+    for (const [label, kind] of [[en['about.github'], 'github'], [en['about.cnb'], 'cnb'], [en['about.feedback.issues'], 'issues']]) {
+      fireEvent.click(screen.getByRole('button', { name: label! }))
+      expect(openLink).toHaveBeenCalledWith(kind)
+    }
+    expect(submitFeedback).not.toHaveBeenCalled()
+    b.controller.dispose()
+  })
+
+  it('preserves the email draft and exposes the address when the email app cannot open', async () => {
+    const b = setup()
+    const feedback: CommunityFeedbackBridge = {
+      status: vi.fn(async () => ({ enabled: false })), submit: vi.fn(),
+      openMail: vi.fn(async () => { throw new Error('No email app') }),
+    }
+    render(<DesktopAboutSection {...aboutProps(b.controller)} feedback={feedback} />)
+    await screen.findByText('Desktop version: 0.1.7-rc.2')
+    fireEvent.change(screen.getByLabelText(en['about.feedback.body']), { target: { value: 'My feedback draft' } })
+    fireEvent.click(screen.getByRole('button', { name: en['about.feedback.mail'] }))
+    expect(await screen.findByText(en['about.feedback.mailFailed'])).toBeTruthy()
+    expect(screen.getByLabelText<HTMLTextAreaElement>(en['about.feedback.body']).value).toBe('My feedback draft')
+    expect(screen.getByText('Email: odsh_hecoococ@163.com')).toBeTruthy()
+    expect(screen.queryByText(en['about.feedback.mailOpened'])).toBeNull()
+    b.controller.dispose()
+  })
+
+  it.each(['received', 'failed', 'rate-limited'] as const)('shows %s only after the service responds and retains the draft', async (status) => {
+    const b = setup()
+    let resolve!: (result: { status: typeof status }) => void
+    const submitFeedback = vi.fn(() => new Promise<{ status: typeof status }>((done) => { resolve = done }))
+    const feedback: CommunityFeedbackBridge = {
+      status: vi.fn(async () => ({ enabled: true })),
+      submit: submitFeedback, openMail: vi.fn(async () => {}),
+    }
+    render(<DesktopAboutSection {...aboutProps(b.controller)} feedback={feedback} />)
+    await screen.findByText('Desktop version: 0.1.7-rc.2')
+    fireEvent.change(screen.getByLabelText(en['about.feedback.subject']), { target: { value: 'Update failed' } })
+    fireEvent.change(screen.getByLabelText(en['about.feedback.body']), { target: { value: 'The update button did not respond.' } })
+    const submit = await screen.findByRole('button', { name: en['about.feedback.submit'] })
+    await waitFor(() => { expect(submit.hasAttribute('disabled')).toBe(false) })
+    fireEvent.click(submit)
+    expect(screen.getByText(en['about.feedback.sending'])).toBeTruthy()
+    expect(submit.hasAttribute('disabled')).toBe(true)
+    expect(screen.queryByText(en['about.feedback.received'])).toBeNull()
+    await act(async () => { resolve({ status }) })
+    expect(screen.getByText(en[`about.feedback.${status}`])).toBeTruthy()
+    expect(screen.getByLabelText<HTMLTextAreaElement>(en['about.feedback.body']).value).toBe('The update button did not respond.')
+    expect(submitFeedback).toHaveBeenCalledWith(expect.objectContaining({ kind: 'bug', title: 'Update failed' }))
+    b.controller.dispose()
+  })
+
   it('opens the fixed persistent diagnostic log and permits retry after an error', async () => {
     const openLog = vi.fn()
       .mockResolvedValueOnce({ error: 'permission denied' })
@@ -226,7 +299,7 @@ describe('desktop shell components', () => {
     const notifications = await screen.findByRole('switch', { name: 'System notifications' })
     fireEvent.click(notifications)
     await waitFor(() => { expect(b.updatePreferences).toHaveBeenCalledWith({ notificationsEnabled: false }) })
-    expect(screen.getByText('Version 0.1.0-rc.8 is available')).toBeTruthy()
+    expect(screen.queryByText('Version 0.1.0-rc.8 is available')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Open in browser' }))
     await waitFor(() => { expect(b.openDesktopWeb).toHaveBeenCalledOnce() })
     fireEvent.click(screen.getByRole('switch', { name: 'Open browser after startup' }))
@@ -269,7 +342,7 @@ describe('desktop shell components', () => {
     }))
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
     const b = setup()
-    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
     await screen.findAllByText('Check for updates')
     const updateRegion = screen.getByRole('region', { name: 'Check for updates' })
     const scrollIntoView = vi.fn()
@@ -286,9 +359,9 @@ describe('desktop shell components', () => {
     b.controller.dispose()
   })
 
-  it('downloads and opens a verified installer inside General Settings', async () => {
+  it('downloads and opens a verified installer inside About', async () => {
     const b = setup()
-    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
     expect(await screen.findByText('Version 0.1.0-rc.8 is available')).toBeTruthy()
     expect(screen.getByText('Choose Replace when installing. If macOS says the app is in use, quit it completely from the menu bar first.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Download in app' }))
@@ -307,7 +380,7 @@ describe('desktop shell components', () => {
       totalBytes: 100,
       percent: 25,
     })
-    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
     expect(await screen.findByText('Downloading 25% · 25 B / 100 B')).toBeTruthy()
     expect(screen.getByRole('progressbar', { name: 'Installer download progress' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel download' }))
@@ -321,9 +394,7 @@ describe('desktop shell components', () => {
       fileName: 'DeepSeek-Harness-macos-arm64.dmg',
       transferredBytes: 25, totalBytes: 100, resumeFromBytes: 25,
     })
-    const fallbackView = render(<DesktopPreferencesRow {...({
-      controller: fallback.controller, t,
-    } as DesktopPreferencesRowProps)} />)
+    const fallbackView = render(<DesktopAboutSection {...aboutProps(fallback.controller)} />)
     expect(await screen.findByText('The system network failed. Switching to the fallback channel…')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel download' }))
     await waitFor(() => { expect(fallback.cancelDownload).toHaveBeenCalledOnce() })
@@ -335,14 +406,14 @@ describe('desktop shell components', () => {
       fileName: 'DeepSeek-Harness-macos-arm64.dmg',
       transferredBytes: 25, totalBytes: 100, resumeFromBytes: 0,
     })
-    render(<DesktopPreferencesRow {...({ controller: restart.controller, t } as DesktopPreferencesRowProps)} />)
+    render(<DesktopAboutSection {...aboutProps(restart.controller)} />)
     expect(await screen.findByText('The fallback channel cannot resume this transfer. Downloading again…')).toBeTruthy()
     restart.controller.dispose()
   })
 
-  it('keeps the update check inside General Settings when the client is current', async () => {
+  it('keeps the update check inside About when the client is current', async () => {
     const b = setup({ phase: 'current', currentVersion: '0.1.0-rc.8' })
-    render(<DesktopPreferencesRow {...({ controller: b.controller, t } as DesktopPreferencesRowProps)} />)
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
     expect(await screen.findByText('This is the latest version')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Check for updates' })).toBeTruthy()
     b.controller.dispose()
@@ -355,9 +426,7 @@ describe('desktop shell components', () => {
     projection.start()
     const openUpdates = vi.fn()
     render(<>
-      <DesktopPreferencesRow {...({
-        controller: b.controller, downloadNetwork: projection, t,
-      } as DesktopPreferencesRowProps)} />
+      <DesktopAboutSection {...aboutProps(b.controller, projection)} />
       <DesktopUpdateBadge {...({ controller: b.controller, openUpdates, t } as DesktopUpdateBadgeProps)} />
       <DesktopSidebarUpdateButton {...({
         controller: b.controller, openUpdates, t, wide: true,
@@ -365,7 +434,7 @@ describe('desktop shell components', () => {
     </>)
 
     expect(await screen.findByText('Development mode: this is the latest version')).toBeTruthy()
-    expect(screen.getByRole('region', { name: 'Check for updates' }).contains(screen.getByText('Application updates'))).toBe(true)
+    expect(screen.getByRole('region', { name: 'Check for updates' }).contains(screen.getAllByText('Application updates')[0]!)).toBe(true)
     fireEvent.change(screen.getAllByRole('combobox')[0]!, { target: { value: 'cnb' } })
     fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!)
     await waitFor(() => { expect(network.update).toHaveBeenCalledWith(expect.objectContaining({ target: 'application' })) })

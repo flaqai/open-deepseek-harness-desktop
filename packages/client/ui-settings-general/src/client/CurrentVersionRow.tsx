@@ -1,4 +1,4 @@
-/** Installed release version in General Settings for Web and Desktop. */
+/** Installed core version in General Settings when Desktop About is absent. */
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import css from './CurrentVersionRow.module.css'
 
@@ -8,6 +8,10 @@ import css from './CurrentVersionRow.module.css'
  * @returns the current release label, or nothing when build metadata is absent.
  */
 export function CurrentVersionRow({ t }: PropsRuntime<'settings.general.item'> & PropsLocale<'settings'>) {
+  const desktop = (globalThis as typeof globalThis & {
+    deepSeekHarnessDesktop?: { shell?: unknown; releases?: unknown }
+  }).deepSeekHarnessDesktop
+  if (desktop?.shell !== undefined && desktop.releases !== undefined) return null
   const version = process.env.DSH_CLIENT_VERSION
   if (version === undefined) return null
   return <div className={css.row}>{t('general.currentVersion', { version })}</div>

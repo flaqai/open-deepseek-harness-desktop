@@ -60,6 +60,9 @@ import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
 import { ensureWorkspacePtcPlugin, hasManagedWorkspacePtcBlock, isWorkspacePtcPluginInstalled, PTC_PLUGIN_NAME } from './workspace-ptc-plugin.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
 import {
+  COMMUNITY_FEEDBACK_ENDPOINT, communityFeedbackMailto, parseCommunityFeedbackInput, submitCommunityFeedback,
+} from './community-feedback.ts'
+import {
   createOrbSettingsStore, nasOrbSettingsHome, parseNasOrbSettingsPatch, parseOrbSettingsPatch,
   type ManagedOrbComputerBackend, type OrbSettings, type OrbSettingsPatch,
 } from './orb-settings.ts'
@@ -886,6 +889,7 @@ interface DesktopCapabilities {
   runtimeKind: 'local' | 'nas'
   platform: NodeJS.Platform
   packaged: boolean
+  desktopVersion: string
   launchAtLoginAvailable: boolean
   sourceUpdateAvailable: boolean
   commandLineAvailable: boolean
@@ -914,6 +918,7 @@ function desktopCapabilities(): DesktopCapabilities {
     runtimeKind: bootNasRuntime() === undefined ? 'local' : 'nas',
     platform: process.platform,
     packaged: app.isPackaged,
+    desktopVersion: app.getVersion(),
     launchAtLoginAvailable: app.isPackaged && process.platform === 'darwin',
     sourceUpdateAvailable: !app.isPackaged,
     // Keep the row discoverable in source builds as well. DesktopCliManager
@@ -2914,6 +2919,31 @@ async function startApplication(): Promise<void> {
       throw new Error('desktop: external browser request must come from the Harness main frame')
     }
     await shell.openExternal(parseExternalBrowserUrl(value, harnessOrigin))
+  })
+  ipcMain.handle(DESKTOP_IPC.communityFeedbackStatus, (event) => {
+    assertMainRenderer(event.sender)
+    return { enabled: COMMUNITY_FEEDBACK_ENDPOINT !== null }
+  })
+  ipcMain.handle(DESKTOP_IPC.communityFeedbackSubmit, (event, value: unknown) => {
+    assertMainRenderer(event.sender)
+    if (event.senderFrame === null || event.senderFrame !== event.sender.mainFrame
+      || harnessOrigin === undefined || new URL(event.senderFrame.url).origin !== harnessOrigin) {
+      throw new Error('desktop: feedback request must come from the Harness main frame')
+    }
+    const input = parseCommunityFeedbackInput(value, true)
+    return submitCommunityFeedback(input, app.getVersion(), process.platform,
+      COMMUNITY_FEEDBACK_ENDPOINT, fetch)
+  })
+  ipcMain.handle(DESKTOP_IPC.communityFeedbackMail, async (event, value: unknown): Promise<void> => {
+    assertMainRenderer(event.sender)
+    if (event.senderFrame === null || event.senderFrame !== event.sender.mainFrame
+      || harnessOrigin === undefined || new URL(event.senderFrame.url).origin !== harnessOrigin) {
+      throw new Error('desktop: feedback mail request must come from the Harness main frame')
+    }
+    const input = value === undefined
+      ? { kind: 'other' as const, title: 'Community feedback', body: 'Describe your feedback here.' }
+      : parseCommunityFeedbackInput(value, false)
+    await shell.openExternal(communityFeedbackMailto(input, app.getVersion(), process.platform))
   })
   ipcMain.handle(DESKTOP_IPC.bundledPluginsStart, (event, request: unknown): BundledPluginStartResult => {
     assertMainRenderer(event.sender)

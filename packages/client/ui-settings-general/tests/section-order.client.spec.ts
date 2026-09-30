@@ -21,6 +21,11 @@ describe('settings section order', () => {
     ])
   })
 
+  it('adds About without rearranging the saved section order', () => {
+    expect(orderSettingsSections([...rows, { id: 'about', order: 100, label: 'About' }], ['plugins', 'general', 'models'])
+      .map(row => row.id)).toEqual(['plugins', 'general', 'models', 'about'])
+  })
+
   it('inserts the new orb page after tools without rearranging a saved navigation order', () => {
     const extended = [
       { id: 'agent-presets', order: 20, label: 'Presets' },

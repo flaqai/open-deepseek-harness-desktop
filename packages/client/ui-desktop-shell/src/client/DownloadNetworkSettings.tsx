@@ -54,10 +54,12 @@ function TestResult({ target, status, t }: { target: DownloadNetworkTarget; stat
 export function DownloadNetworkSettings({
   projection,
   t,
+  scope = 'all',
   marketSettingsAvailable = false,
 }: {
   projection: DownloadNetworkProjection
   t: Translate
+  scope?: 'all' | 'application' | 'packages'
   /** The official market does not currently expose a host-managed network-policy capability. */
   marketSettingsAvailable?: boolean
 }) {
@@ -73,8 +75,8 @@ export function DownloadNetworkSettings({
   </div>
 
   return <section className={css.networkSection}>
-    <div><div className={css.title}>{t('network.title')}</div><div className={css.description}>{t('network.description')}</div></div>
-    <article className={css.networkCard}>
+    <div><div className={css.title}>{scope === 'application' ? t('network.application.title') : t('network.title')}</div><div className={css.description}>{t(scope === 'application' ? 'network.application.description' : scope === 'packages' ? 'network.packages.description' : 'network.description')}</div></div>
+    {scope !== 'packages' && <article className={css.networkCard}>
       <div className={css.networkHeading}><div><strong>{t('network.application.title')}</strong><small>{t('network.application.description')}</small></div><span>{t(`network.application.source.${saved.application.source}`)}</span></div>
       <div className={css.networkFields}><label><span>{t('network.source')}</span><select value={draft.application.source} onChange={(event) => {
         projection.setApplicationSource(event.target.value as 'github' | 'cnb')
@@ -85,8 +87,8 @@ export function DownloadNetworkSettings({
         onProxy={(proxy) => { projection.setProxy('application', proxy) }}
         onPassword={(value) => { projection.setPassword('application', value) }} />
       <TestResult target="application" status={test} t={t} />{actions('application')}
-    </article>
-    <article className={css.networkCard}>
+    </article>}
+    {scope !== 'application' && <article className={css.networkCard}>
       <div className={css.networkHeading}><div><strong>{t('network.npm.title')}</strong><small>{t('network.npm.description')}</small></div><span>{t(`network.npm.registry.${saved.npm.registry}`)}</span></div>
       <div className={css.networkFields}><label><span>{t('network.registry')}</span><select value={draft.npm.registry} onChange={(event) => {
         projection.setNpmRegistry(event.target.value as Settings['npm']['registry'])
@@ -99,8 +101,8 @@ export function DownloadNetworkSettings({
         onProxy={(proxy) => { projection.setProxy('npm', proxy) }}
         onPassword={(value) => { projection.setPassword('npm', value) }} />
       <TestResult target="npm" status={test} t={t} />{actions('npm')}
-    </article>
-    {marketSettingsAvailable ? <>
+    </article>}
+    {scope !== 'application' && marketSettingsAvailable ? <>
       <article className={css.networkCard}>
         <div className={css.networkHeading}><div><strong>{t('network.github.title')}</strong><small>{t('network.github.description')}</small></div><span>{t(`network.github.download.${saved.github.download}`)}</span></div>
         <div className={css.networkFields}><label><span>{t('network.github.route')}</span><select value={draft.github.download} onChange={(event) => {

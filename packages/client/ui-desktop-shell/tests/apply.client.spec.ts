@@ -6,6 +6,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SettingsNavigation } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { apply, inject } from '../src/client/index.ts'
 import { DesktopPreferencesRow } from '../src/client/DesktopPreferencesRow.tsx'
+import { DesktopAboutSection } from '../src/client/DesktopAboutSection.tsx'
 import { DesktopUpdateBadge } from '../src/client/DesktopUpdateBadge.tsx'
 import { DesktopSidebarUpdateButton } from '../src/client/DesktopSidebarUpdateButton.tsx'
 import { DesktopBrowserReturnButton } from '../src/client/DesktopBrowserReturnButton.tsx'
@@ -193,6 +194,7 @@ describe('ui-desktop-shell apply', () => {
     b.connect()
     expect(reportReadiness).toHaveBeenCalledWith('event-dispatch')
     expect(b.slots.entries('settings.general.item')[0]?.component).toBe(DesktopPreferencesRow)
+    expect(b.slots.entries('settings.section').find(entry => entry.options.id === 'about')?.component).toBe(DesktopAboutSection)
     expect(b.slots.entries('settings.action').map(entry => entry.component)).toEqual([
       DesktopUpdateBadge,
       DesktopLogDirectoryAction,
@@ -202,6 +204,7 @@ describe('ui-desktop-shell apply', () => {
     expect(b.slots.entries('settings.general.item')).toEqual([])
     expect(b.slots.entries('settings.action')).toEqual([])
     expect(b.slots.entries('sidebar.settings.action')).toEqual([])
+    expect(b.slots.entries('settings.section')).toEqual([])
   })
 
   it('does not register device-local log actions for a reduced NAS shell bridge', async () => {

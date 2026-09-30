@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { Button, IconChevronDownOutline14, Menu, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { DEVELOPMENT_RELEASE_VERSION, type DesktopShellController } from './controller.ts'
+import type { DesktopShellController } from './controller.ts'
 import type { DesktopIconsBridge } from './icon-protocol.ts'
 import type { DesktopProcessesBridge } from './bridge.ts'
 import type { DownloadNetworkProjection } from './download-network-projection.ts'
@@ -45,31 +45,25 @@ function Toggle({ enabled, disabled, label, onChange }: {
   )
 }
 
-function formatBytes(value: number): string {
-  if (value < 1024) return `${value} B`
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`
-}
-
 export function DesktopPreferencesRow({ controller, icons, processes, openLog, downloadNetwork, t }: DesktopPreferencesRowProps) {
   const subscribe = useCallback((listener: () => void) => controller.subscribe(listener), [controller])
   const getSnapshot = useCallback(() => controller.getSnapshot(), [controller])
   const state = useSyncExternalStore(subscribe, getSnapshot)
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmingCommandLine, setConfirmingCommandLine] = useState(false)
+  const networkRow = useRef<HTMLDivElement>(null)
   const preferences = state.preferences
-  const updateRow = useRef<HTMLElement>(null)
   useEffect(() => {
-    if (state.preferences === null || state.capabilities === null || state.menuDestination === undefined) return
-    if (state.menuDestination === 'data-home') {
-      void controller.openDataHomeChooser()
-      controller.navigate()
-      return
-    }
+    if (state.preferences === null || state.capabilities === null || state.menuDestination !== 'data-home') return
+    void controller.openDataHomeChooser()
+    controller.navigate()
+  }, [controller, state.preferences, state.capabilities, state.menuDestination, state.dataHome])
+  useEffect(() => {
+    if (state.capabilities === null || state.menuDestination !== 'download-network') return
     let secondFrame = 0
     const firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
-        updateRow.current?.scrollIntoView({ block: 'center' })
+        networkRow.current?.scrollIntoView({ block: 'center' })
         controller.navigate()
       })
     })
@@ -77,61 +71,14 @@ export function DesktopPreferencesRow({ controller, icons, processes, openLog, d
       window.cancelAnimationFrame(firstFrame)
       if (secondFrame !== 0) window.cancelAnimationFrame(secondFrame)
     }
-  }, [controller, state.preferences, state.capabilities, state.menuDestination, state.dataHome])
+  }, [controller, state.capabilities, state.menuDestination])
   if (preferences === null || state.capabilities === null) return null
-  const release = state.release
-  const releaseDownload = state.releaseDownload
   const commandLine = state.commandLine
   const dataHome = state.dataHome
   const commandLineActionUnavailable = commandLine?.phase === 'unsupported'
     || commandLine?.phase === 'unsupported-shell'
     || commandLine?.phase === 'setup-required'
-  const releaseText = release.phase === 'unsupported'
-    ? state.simulatedReleaseAvailable
-      ? t('release.developmentAvailable', { version: DEVELOPMENT_RELEASE_VERSION })
-      : t('release.developmentCurrent')
-    : release.phase === 'checking'
-      ? t('release.checking')
-      : release.phase === 'available'
-        ? t('release.available', { version: release.latestVersion })
-        : release.phase === 'current'
-          ? t('release.current')
-          : t('release.error')
-  const installerDownloadSupported = state.capabilities.packaged
-    && (state.capabilities.platform === 'darwin' || state.capabilities.platform === 'win32')
   const desktopWebSupported = state.capabilities.platform === 'darwin' || state.capabilities.platform === 'win32'
-  const selectedDownload = release.phase === 'available'
-    && 'version' in releaseDownload
-    && releaseDownload.version === release.latestVersion
-    ? releaseDownload
-    : releaseDownload.phase === 'idle' || releaseDownload.phase === 'unsupported'
-      ? releaseDownload
-      : { phase: 'idle' as const }
-  const downloadActive = selectedDownload.phase === 'resolving'
-    || selectedDownload.phase === 'switching'
-    || selectedDownload.phase === 'downloading'
-    || selectedDownload.phase === 'verifying'
-  const downloadText = selectedDownload.phase === 'resolving'
-    ? t('release.download.resolving')
-    : selectedDownload.phase === 'switching'
-      ? t(selectedDownload.resumeFromBytes === 0 && selectedDownload.transferredBytes > 0
-        ? 'release.download.restarting'
-        : 'release.download.switching')
-      : selectedDownload.phase === 'downloading'
-        ? t('release.download.progress', {
-          percent: selectedDownload.percent,
-          transferred: formatBytes(selectedDownload.transferredBytes),
-          total: formatBytes(selectedDownload.totalBytes),
-        })
-        : selectedDownload.phase === 'verifying'
-          ? t('release.download.verifying')
-          : selectedDownload.phase === 'ready'
-            ? t('release.download.ready', { file: selectedDownload.fileName })
-            : selectedDownload.phase === 'cancelled'
-              ? t('release.download.cancelled')
-              : selectedDownload.phase === 'error'
-                ? t('release.download.error', { message: selectedDownload.message })
-                : null
 
   return (
     <section className={css.group}>
@@ -298,78 +245,7 @@ export function DesktopPreferencesRow({ controller, icons, processes, openLog, d
           onChange={(enabled) => { controller.setLaunchAtLogin(enabled) }}
         />
       </div>
-      <section ref={updateRow} aria-labelledby="desktop-release-settings-title">
-        {downloadNetwork !== undefined && <DownloadNetworkSettings projection={downloadNetwork} t={t} />}
-        <div className={css.row}>
-          <div className={css.text}>
-            <div id="desktop-release-settings-title" className={css.title}>{t('release.title')}</div>
-            <div className={release.phase === 'error' ? css.error : css.description}>{releaseText}</div>
-            {release.phase === 'available'
-            && state.capabilities.platform === 'darwin'
-            && state.capabilities.packaged && (
-              <div className={css.description}>{t('release.macosInstallHint')}</div>
-            )}
-            {release.phase === 'available' && downloadText !== null && (
-              <div className={selectedDownload.phase === 'error' ? css.error : css.description}>{downloadText}</div>
-            )}
-            {selectedDownload.phase === 'downloading' && (
-              <progress
-                className={css.progress}
-                aria-label={t('release.download.progressLabel')}
-                value={selectedDownload.transferredBytes}
-                max={selectedDownload.totalBytes}
-              />
-            )}
-          </div>
-          {release.phase === 'unsupported' ? (
-            <div className={css.actions}>
-              <Button
-                variant={state.simulatedReleaseAvailable ? 'primary' : 'outline'}
-                onClick={() => { controller.toggleSimulatedRelease() }}
-              >
-                {t(state.simulatedReleaseAvailable ? 'release.developmentOpen' : 'release.check')}
-              </Button>
-            </div>
-          ) : (
-            <div className={css.actions}>
-              <Button
-                variant="outline"
-                disabled={release.phase === 'checking' || downloadActive}
-                onClick={() => { void controller.checkRelease() }}
-              >
-                {t('release.check')}
-              </Button>
-              {selectedDownload.phase === 'error' && state.release.phase === 'available'
-              && controller.downloadNetwork !== undefined && (
-                <Button variant="outline" disabled={state.busy} onClick={() => { void controller.switchReleaseSource() }}>
-                  {t('release.download.switchSource')}
-                </Button>
-              )}
-              {release.phase === 'available' && (
-                installerDownloadSupported ? (
-                  selectedDownload.phase === 'ready' ? (
-                    <Button variant="primary" onClick={() => { void controller.openInstaller() }}>
-                      {t('release.download.open')}
-                    </Button>
-                  ) : downloadActive ? (
-                    <Button variant="outline" onClick={() => { void controller.cancelReleaseDownload() }}>
-                      {t('release.download.cancel')}
-                    </Button>
-                  ) : (
-                    <Button variant="primary" onClick={() => { void controller.downloadRelease() }}>
-                      {t(selectedDownload.phase === 'error' || selectedDownload.phase === 'cancelled'
-                        ? 'release.download.retry'
-                        : 'release.download.start')}
-                    </Button>
-                  )
-                ) : (
-                  <Button variant="primary" onClick={() => { void controller.openRelease() }}>{t('release.open')}</Button>
-                )
-              )}
-            </div>
-          )}
-        </div>
-      </section>
+      {downloadNetwork !== undefined && <div ref={networkRow}><DownloadNetworkSettings projection={downloadNetwork} t={t} scope="packages" /></div>}
       {state.error !== null && <div className={css.error} role="alert">{state.error}</div>}
       <Modal
         open={confirmingCommandLine}

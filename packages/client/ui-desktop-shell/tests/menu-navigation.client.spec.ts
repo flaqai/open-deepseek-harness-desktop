@@ -26,7 +26,7 @@ describe('desktop product navigation', () => {
     for (const command of ['updates', 'data-home']) {
       navigateDesktopMenu(command, navigation)
       expect(navigation.general).toHaveBeenCalledWith(command)
-      expect(navigation.open).toHaveBeenLastCalledWith({ sectionId: 'general' })
+      expect(navigation.open).toHaveBeenLastCalledWith({ sectionId: command === 'updates' ? 'about' : 'general' })
     }
   })
   it('reports absent plugin pages and rejects arbitrary destinations without installing', () => {

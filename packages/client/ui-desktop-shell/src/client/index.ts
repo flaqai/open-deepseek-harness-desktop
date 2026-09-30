@@ -7,6 +7,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { DesktopPreferencesRow } from './DesktopPreferencesRow.tsx'
+import { DesktopAboutSection } from './DesktopAboutSection.tsx'
 import { DesktopBrowserReturnButton } from './DesktopBrowserReturnButton.tsx'
 import { DesktopLogDirectoryAction } from './DesktopLogDirectoryAction.tsx'
 import { DesktopSidebarUpdateButton } from './DesktopSidebarUpdateButton.tsx'
@@ -104,6 +105,20 @@ export function apply(ctx: Context): void {
       ...(localShell === undefined ? {} : { openLog: () => localShell.openLog() }),
     }),
   }, DesktopPreferencesRow))
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section', id: 'about', order: 100, label: () => ctx.locale.bind(NS)('about.nav'), locale: NS,
+    inject: () => ({
+      controller, feedback: bridge.communityFeedback, downloadNetwork: controller.downloadNetwork,
+      openLink: (kind: 'github' | 'cnb' | 'issues') => {
+        const links = {
+          github: 'https://github.com/flaqai/open-deepseek-harness-desktop',
+          cnb: 'https://cnb.cool/hecoococ/open-deepseek-harness-desktop',
+          issues: 'https://github.com/flaqai/open-deepseek-harness-desktop/issues',
+        }
+        return bridge.externalBrowser?.open(links[kind]) ?? Promise.reject(new Error('External browser is unavailable'))
+      },
+    }),
+  }, DesktopAboutSection))
   const nasBridge = bridge.nas
   if (nasBridge !== undefined) ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'nas-runtime', order: 45, label: () => ctx.locale.bind(NS)('nas.nav'), locale: NS,
@@ -115,7 +130,7 @@ export function apply(ctx: Context): void {
   }, DesktopLogDirectoryAction))
   ctx.inject(['settingsNavigation'], (inner) => {
     const openUpdates = (): void => {
-      inner.settingsNavigation.open({ sectionId: 'general' })
+      inner.settingsNavigation.open({ sectionId: 'about' })
       controller.navigate('updates')
     }
     inner.effect(() => {
