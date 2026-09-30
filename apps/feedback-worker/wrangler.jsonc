@@ -1,0 +1,21 @@
+{
+  "name": "odsh-community-feedback",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-30",
+  "vars": {
+    "MAIL_FROM": "feedback@REPLACE_WITH_VERIFIED_DOMAIN",
+    "FEEDBACK_TO_EMAIL": "odsh_hecoococ@163.com"
+  },
+  "send_email": [{ "name": "EMAIL", "destination_address": "odsh_hecoococ@163.com" }],
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "odsh-community-feedback",
+    "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+  }],
+  "ratelimits": [{
+    "name": "RATE_LIMIT",
+    "namespace_id": "1001",
+    "simple": { "limit": 10, "period": 60 }
+  }],
+  "triggers": { "crons": ["0 2 * * *"] }
+}
