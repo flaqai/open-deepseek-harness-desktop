@@ -28,6 +28,8 @@ Only first-party Settings and Workspace controls can edit this namespace. Agents
 
 The Web bundle mounts the package after Workspace support. Open **Settings → Custom prompts** to edit either scope, or use a Workspace's more-actions menu to open that Workspace directly. Each non-empty save creates an immutable revision; saving an empty value disables the scope without rewriting previous revisions.
 
+The editor and Workspace settings row use shared theme colors for fields, labels, status messages, and keyboard focus, following the application's light and dark appearance.
+
 | Scope | Applies to | Precedence |
 |---|---|---|
 | Global | Every Agent, including sessions without a registered Workspace | After Workspace file instructions |
