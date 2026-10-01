@@ -47,6 +47,8 @@ A failed read renders the shared error marker inside the tab. Loading shows skel
 
 The Plugin list also shows synchronization failures on the current page. Its retry reapplies the latest client graph without changing Host enablement or refreshing the page.
 
+The browser contribution explicitly depends on the `modules` service for synchronization status and retry. Its tests publish that service from a sibling plugin, matching application startup, so a missing dependency cannot silently leave the inventory page blank.
+
 -----
 
 <a id="understand-the-implementation"></a>

@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import * as UiRenderer from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { StandardSourceBinding } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ClientModuleLoader } from '@deepseek-ai/dsh-client-modules/client'
@@ -54,7 +57,7 @@ const restoreBridge = {
   ignore: vi.fn(),
 }
 
-async function bench(options: { desktopRestore?: boolean; diagnosticLab?: boolean } = {}) {
+async function bench(options: { desktopRestore?: boolean; diagnosticLab?: boolean; renderer?: boolean } = {}) {
   const diagnosticLabCatalog = vi.fn(async () => [{
     id: 'orphaned-bundle' as const,
     title: 'Orphaned bundle',
@@ -82,8 +85,13 @@ async function bench(options: { desktopRestore?: boolean; diagnosticLab?: boolea
   const ctx = new Context()
   onTestFinished(async () => { await ctx.fiber.dispose() })
   const retryClient = vi.fn(async () => {})
-  ctx.provide('modules', { entries: { state: createSnapshotStore({ syncing: false, failures: [] }), retry: retryClient } } as unknown as ClientModuleLoader)
-  await ctx.plugin(SlotRegistry).await()
+  // Production publishes modules from a sibling plugin, not the root context.
+  // Root-provided services hide a missing Cordis inject declaration.
+  await ctx.plugin({ apply(serviceCtx: Context) {
+    serviceCtx.provide('modules', { entries: { state: createSnapshotStore({ syncing: false, failures: [] }), retry: retryClient } } as unknown as ClientModuleLoader)
+  } }).await()
+  if (options.renderer) await ctx.plugin({ inject: UiRenderer.inject, apply: UiRenderer.apply }).await()
+  else await ctx.plugin(SlotRegistry).await()
   const locale = new LocaleRuntime(ctx)
   ctx.provide('locale', locale)
   class RemoteService extends Service {
@@ -156,7 +164,30 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
   })
 
   it('declares only the services used by the Settings Remote contribution', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory', 'settingsNavigation'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory', 'settingsNavigation', 'modules'])
+  })
+
+  it('mounts the inventory with sibling services and recovers from a failed read', async () => {
+    const b = await bench({ renderer: true, desktopRestore: false })
+    b.slots.installLocale(b.locale)
+    const current = createSnapshotStore<StandardSourceBinding>({ key: undefined, hooks: {}, keyedHooks: {}, props: {} })
+    b.slots.installScope('session', { current, bindingSource: () => current })
+    b.slots.register({
+      name: 'root',
+      children: { 'settings.plugins.tab': { kind: 'list', scope: 'root' } },
+    }, ({ renderSlot }: PropsRenderSlots<'settings.plugins.tab'>) => renderSlot('settings.plugins.tab', {}, { only: 'all' }))
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    b.list.mockResolvedValueOnce({ ok: false, error: { code: 'REMOTE_ERROR', message: 'fixture unavailable' } })
+
+    const view = render(<>{b.slots.renderSlot('root', {})}</>)
+    expect(view.container.querySelector('[aria-busy="true"]')).not.toBeNull()
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(view.container.querySelector('[data-slot-error]')).toBeNull()
+    fireEvent.click(screen.getByRole('button'))
+    await vi.waitFor(() => { expect(b.list).toHaveBeenCalledTimes(2) })
+    await vi.waitFor(() => { expect(view.container.querySelector('[aria-busy="false"]')).not.toBeNull() })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(view.container.textContent).not.toBe('')
   })
 
   it('registers a localized tab without reading the Remote eagerly', async () => {

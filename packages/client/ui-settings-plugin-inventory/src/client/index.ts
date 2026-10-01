@@ -66,7 +66,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const NS = 'settings.pluginInventory'
 
 /** Services required by the Settings registration and generated Remote face. */
-export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory', 'settingsNavigation']
+export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory', 'settingsNavigation', 'modules']
 
 /** Contribute the lazy inventory tab and new-session discovery entry. */
 export function apply(ctx: ClientContext): void {

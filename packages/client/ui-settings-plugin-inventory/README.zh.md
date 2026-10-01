@@ -47,6 +47,8 @@ kind: "package-reference"
 
 插件列表还显示当前页面的同步失败。重试会重新应用最新客户端图，不改变 Host 启用状态，也不刷新页面。
 
+浏览器贡献为同步状态与重试显式依赖 `modules` 服务。测试与应用启动一致，从兄弟插件提供该服务，避免漏声明依赖时清单页面静默空白。
+
 -----
 
 <a id="understand-the-implementation"></a>
