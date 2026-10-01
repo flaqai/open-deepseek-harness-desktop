@@ -66,10 +66,26 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
   let captureExclusions = 0
 
   const live = (): BrowserWindow | undefined => window !== undefined && !window.isDestroyed() ? window : undefined
+  // Fixed metadata only: never include page URLs, console text, chat, or error messages.
+  const record = (event: string, target = live(), detail: Record<string, string | number | boolean> = {}): void => {
+    if (target === undefined || target.isDestroyed()) {
+      console.info('[desktop:orb-window]', JSON.stringify({ event, windowAlive: false, ...detail }))
+      return
+    }
+    const bounds = target.getBounds()
+    const display = screen.getDisplayNearestPoint({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 })
+    console.info('[desktop:orb-window]', JSON.stringify({
+      event, windowAlive: true, visible: target.isVisible(), minimized: target.isMinimized(),
+      opacity: target.getOpacity(), alwaysOnTop: target.isAlwaysOnTop(),
+      allWorkspaces: target.isVisibleOnAllWorkspaces(), contentProtection: target.isContentProtected(),
+      bounds, workArea: display.workArea, expanded, captureExclusions, ...detail,
+    }))
+  }
   const dock = (target: BrowserWindow): void => {
     const current = target.getBounds()
     const display = screen.getDisplayNearestPoint({ x: current.x + current.width / 2, y: current.y + current.height / 2 })
     target.setBounds(orbDockBounds(display.workArea, options.getSettings().anchor, expanded))
+    record('dock', target)
   }
   const create = (): BrowserWindow => {
     const settings = options.getSettings()
@@ -91,7 +107,22 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
         preload: options.preload,
       },
     })
-    target.setContentProtection(true)
+    // Remote desktop viewers need to capture this window; owned Computer Use captures hide it temporarily.
+    target.setContentProtection(false)
+    target.on('show', () => { record('show', target) })
+    target.on('hide', () => { record('hide', target) })
+    target.on('minimize', () => { record('minimize', target) })
+    target.on('restore', () => { record('restore', target) })
+    target.on('move', () => { record('move', target) })
+    target.webContents.on('did-fail-load', (_event, code, _description, _url, mainFrame) => {
+      record('load-failed', target, { code, mainFrame })
+    })
+    target.webContents.on('preload-error', () => { record('preload-failed', target) })
+    target.webContents.on('render-process-gone', (_event, details) => {
+      record('renderer-gone', target, { reason: details.reason, exitCode: details.exitCode })
+    })
+    target.webContents.on('unresponsive', () => { record('renderer-unresponsive', target) })
+    target.webContents.on('responsive', () => { record('renderer-responsive', target) })
     target.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     target.webContents.on('will-navigate', (event, url) => {
       if (isTrustedOrbPage(url, options.shellPage, options.getHarnessOrigin())) return
@@ -107,13 +138,38 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
         { label: chinese ? '退出' : 'Quit', click: options.quit },
       ]).popup({ window: target })
     })
-    target.on('closed', () => { if (window === target) window = undefined })
+    target.on('closed', () => {
+      record('closed')
+      if (window === target) window = undefined
+    })
     window = target
+    record('created', target)
     return target
   }
 
+  const inspectShell = async (target: BrowserWindow): Promise<void> => {
+    // Probe only our fixed local shell, never the chat document. Codes: missing/layout/style/ready.
+    try {
+      const result: unknown = await target.webContents.executeJavaScript(`(() => {
+        const ball = document.getElementById('orb-expand');
+        if (!ball) return 0;
+        const rect = ball.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return 1;
+        const style = getComputedStyle(ball);
+        if (style.display === 'none' || style.visibility !== 'visible' || Number(style.opacity) === 0
+          || style.backgroundImage === 'none') return 2;
+        return 3;
+      })()`)
+      record('shell-paint-probe', target, { code: typeof result === 'number' && [0, 1, 2, 3].includes(result) ? result : -1 })
+    } catch (_error) {
+      record('shell-paint-probe-failed', target)
+    }
+  }
   const loadShell = async (target: BrowserWindow): Promise<void> => {
+    record('shell-load-start', target)
     await target.loadFile(options.shellPage)
+    record('shell-load-complete', target)
+    void inspectShell(target)
   }
   const controller: OrbWindowController = {
     get webContentsId() { return live()?.webContents.id },
@@ -121,6 +177,7 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
     async show() {
       if (disposed) throw new Error('desktop: floating window is disposed')
       const target = live() ?? create()
+      record('show-request', target)
       if (target.webContents.getURL() === '') {
         try { await loadShell(target) }
         catch (error) {
@@ -130,13 +187,15 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
         }
       }
       if (captureExclusions === 0) target.show()
+      record('show-result', target)
     },
-    hide() { live()?.hide() },
+    hide() { record('hide-request'); live()?.hide() },
     excludeFromCapture() {
       const target = live()
       const wasVisible = target?.isVisible() === true
       captureExclusions++
       target?.hide()
+      record('capture-exclude', target)
       let restored = false
       return () => {
         if (restored) return
@@ -144,6 +203,7 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
         captureExclusions--
         if (captureExclusions === 0 && wasVisible && target === live()
           && options.getSettings().visible) target.showInactive()
+        record('capture-restore', target)
       }
     },
     async expand() {
@@ -189,6 +249,7 @@ export function createOrbWindowController(options: OrbWindowOptions): OrbWindowC
       else target.hide()
       dock(target)
       target.webContents.send(DESKTOP_IPC.orbChanged, settings)
+      record('settings-applied', target, { requestedVisible: settings.visible })
     },
     dispose() {
       disposed = true
