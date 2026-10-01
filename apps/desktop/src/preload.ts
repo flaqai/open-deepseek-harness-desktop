@@ -75,6 +75,7 @@ export interface DesktopCapabilities {
   platform: NodeJS.Platform
   packaged: boolean
   desktopVersion: string
+  harnessVersion: string
   launchAtLoginAvailable: boolean
   sourceUpdateAvailable: boolean
   commandLineAvailable: boolean

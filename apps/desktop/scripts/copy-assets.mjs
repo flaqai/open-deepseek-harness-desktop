@@ -13,7 +13,8 @@ for (const name of [
   for (const extension of ['js', 'js.map']) rmSync(new URL(`../lib/${name}.${extension}`, import.meta.url), { force: true })
 }
 const { version } = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'))
-writeFileSync(new URL('../lib/harness-version.json', import.meta.url), `${JSON.stringify({ version })}\n`)
+const { version: desktopVersion } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+writeFileSync(new URL('../lib/harness-version.json', import.meta.url), `${JSON.stringify({ version, desktopVersion })}\n`)
 copyFileSync(
   fileURLToPath(new URL('../src/loading.html', import.meta.url)),
   fileURLToPath(new URL('../lib/loading.html', import.meta.url)),

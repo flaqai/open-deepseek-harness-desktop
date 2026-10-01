@@ -161,6 +161,7 @@ export interface DesktopCapabilities {
   platform: string
   packaged: boolean
   desktopVersion: string
+  harnessVersion: string
   launchAtLoginAvailable: boolean
   sourceUpdateAvailable: boolean
   commandLineAvailable: boolean

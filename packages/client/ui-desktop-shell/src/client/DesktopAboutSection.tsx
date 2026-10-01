@@ -75,7 +75,8 @@ export function DesktopAboutSection({ controller, feedback, downloadNetwork, ope
       <h2>{t('about.title')}</h2>
       <p>{t('about.description')}</p>
       <p>{t('about.version', { version: state.capabilities.desktopVersion })}</p>
-      <p>{t('about.harnessVersion', { version: process.env.DSH_CLIENT_VERSION ?? '—' })}</p>
+      <p>{t(state.capabilities.runtimeKind === 'nas' ? 'about.bundledHarnessVersion' : 'about.harnessVersion',
+        { version: state.capabilities.harnessVersion })}</p>
       <div className={css.aboutLinks}>
         <Button variant="outline" onClick={() => { void openLink('github') }}>{t('about.github')}</Button>
         <Button variant="outline" onClick={() => { void openLink('cnb') }}>{t('about.cnb')}</Button>

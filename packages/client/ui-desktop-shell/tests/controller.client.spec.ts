@@ -40,7 +40,7 @@ function bench(initialRelease: DesktopReleaseStatus = { phase: 'idle', currentVe
   }))
   const getDesktopWebStatus = vi.fn(() => Promise.resolve({ phase: 'ready' as const }))
   const getCapabilities = vi.fn((): Promise<DesktopCapabilities> => Promise.resolve({
-    runtimeKind: 'local' as const, platform: 'darwin', packaged: true, desktopVersion: '0.1.7-rc.2', launchAtLoginAvailable: true,
+    runtimeKind: 'local' as const, platform: 'darwin', packaged: true, desktopVersion: '0.1.7-rc.2', harnessVersion: '0.2.0-rc.2', launchAtLoginAvailable: true,
     sourceUpdateAvailable: false, commandLineAvailable: true, developmentRecoveryAvailable: false,
   }))
   const bridge: DesktopBridge = {
@@ -111,7 +111,7 @@ describe('DesktopShellController', () => {
   it('does not request local Profile, CLI, or browser-handoff state in NAS mode', async () => {
     const b = bench()
     b.getCapabilities.mockResolvedValue({
-      runtimeKind: 'nas', platform: 'darwin', packaged: true, desktopVersion: '0.1.7-rc.2', launchAtLoginAvailable: true,
+      runtimeKind: 'nas', platform: 'darwin', packaged: true, desktopVersion: '0.1.7-rc.2', harnessVersion: '0.2.0-rc.2', launchAtLoginAvailable: true,
       sourceUpdateAvailable: false, commandLineAvailable: false, developmentRecoveryAvailable: false,
     })
     delete b.bridge.shell.getDataHome

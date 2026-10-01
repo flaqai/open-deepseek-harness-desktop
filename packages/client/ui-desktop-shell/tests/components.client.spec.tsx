@@ -59,7 +59,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
   phase: 'uninstalled', commandPath: '/desktop/cli/bin/dsh', dataHome: '/desktop/dsh-home',
 }, downloadStatus: DesktopReleaseDownloadStatus = { phase: 'idle' }, desktopWebStatus: DesktopWebStatus = {
   phase: 'ready',
-}, platform: 'darwin' | 'win32' | 'linux' = 'darwin', packaged = true) {
+}, platform: 'darwin' | 'win32' | 'linux' = 'darwin', packaged = true, runtimeKind: 'local' | 'nas' = 'local') {
   const updatePreferences = vi.fn((patch: Record<string, unknown>) => Promise.resolve({
     closeBehavior: patch.closeBehavior === 'quit' ? 'quit' as const : 'tray' as const,
     notificationsEnabled: patch.notificationsEnabled !== false,
@@ -81,8 +81,8 @@ function setup(releaseStatus: DesktopReleaseStatus = {
   const bridge: DesktopBridge = {
     shell: {
       getCapabilities: () => Promise.resolve({
-        runtimeKind: 'local' as const,
-        platform, packaged, desktopVersion: '0.1.7-rc.2', launchAtLoginAvailable: true, sourceUpdateAvailable: false,
+        runtimeKind,
+        platform, packaged, desktopVersion: '0.1.7-rc.2', harnessVersion: '0.2.0-rc.2', launchAtLoginAvailable: true, sourceUpdateAvailable: false,
         commandLineAvailable: true, developmentRecoveryAvailable: !packaged,
       }),
       getDataHome: () => Promise.resolve({
@@ -135,6 +135,21 @@ function aboutProps(controller: DesktopShellController, downloadNetwork?: Downlo
 }
 
 describe('desktop shell components', () => {
+  it.each([false, true])('shows host-provided core identity without client build metadata (packaged=%s)', async (packaged) => {
+    const b = setup(undefined, undefined, undefined, undefined, 'darwin', packaged)
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
+    expect(await screen.findByText('Desktop version: 0.1.7-rc.2')).toBeTruthy()
+    expect(screen.getByText('Harness core version: 0.2.0-rc.2')).toBeTruthy()
+    b.controller.dispose()
+  })
+
+  it('labels the embedded core separately from the NAS server', async () => {
+    const b = setup(undefined, undefined, undefined, undefined, 'darwin', true, 'nas')
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
+    expect(await screen.findByText('Bundled Harness core version (not the NAS server): 0.2.0-rc.2')).toBeTruthy()
+    b.controller.dispose()
+  })
+
   it('uses email drafts without an online submission button before service verification', async () => {
     const b = setup()
     const openMail = vi.fn(async () => {})

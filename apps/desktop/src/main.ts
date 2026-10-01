@@ -59,6 +59,7 @@ import { clearDeadModuleFallbackLock, inspectModuleFallbackLock } from './module
 import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
 import { ensureWorkspacePtcPlugin, hasManagedWorkspacePtcBlock, isWorkspacePtcPluginInstalled, PTC_PLUGIN_NAME } from './workspace-ptc-plugin.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
+import { desktopVersionIdentity } from './version-identity.ts'
 import {
   COMMUNITY_FEEDBACK_ENDPOINT, communityFeedbackMailto, parseCommunityFeedbackInput, submitCommunityFeedback,
 } from './community-feedback.ts'
@@ -265,6 +266,11 @@ const SNAPSHOT_COMMAND_TIMEOUT_MS = 15_000
 const IMPORTED_PLUGIN_INSTALL_TIMEOUT_MS = 10 * 60_000
 const BOOTABLE_SNAPSHOT_DELAY_MS = 30_000
 const DEFAULT_SOURCE_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
+const VERSION_IDENTITY = desktopVersionIdentity(
+  JSON.parse(await readFile(new URL('./harness-version.json', import.meta.url), 'utf8')),
+  app.isPackaged,
+  app.getVersion(),
+)
 const DESKTOP_APPLICATION_DATA_ROOT = resolveDesktopApplicationDataRoot(
   app.getPath('appData'),
   app.isPackaged,
@@ -496,10 +502,9 @@ async function executeProductMenu(command: DesktopCommand): Promise<void> {
       return
     }
     case 'about': {
-      const manifest = JSON.parse(await readFile(new URL('./harness-version.json', import.meta.url), 'utf8')) as { version: string }
       await dialog.showMessageBox({ type: 'info', title: menuCopy(menuLocale).about,
         message: shellMessages(menuLocale).productName,
-        detail: `${app.getVersion()}\nHarness ${manifest.version}\n\n${menuCopy(menuLocale).community}` })
+        detail: `${VERSION_IDENTITY.desktopVersion}\nHarness ${VERSION_IDENTITY.harnessVersion}\n\n${menuCopy(menuLocale).community}` })
       return
     }
     case 'docs': await shell.openExternal('https://github.com/flaqai/open-deepseek-harness-desktop#readme'); return
@@ -890,6 +895,7 @@ interface DesktopCapabilities {
   platform: NodeJS.Platform
   packaged: boolean
   desktopVersion: string
+  harnessVersion: string
   launchAtLoginAvailable: boolean
   sourceUpdateAvailable: boolean
   commandLineAvailable: boolean
@@ -918,7 +924,7 @@ function desktopCapabilities(): DesktopCapabilities {
     runtimeKind: bootNasRuntime() === undefined ? 'local' : 'nas',
     platform: process.platform,
     packaged: app.isPackaged,
-    desktopVersion: app.getVersion(),
+    ...VERSION_IDENTITY,
     launchAtLoginAvailable: app.isPackaged && process.platform === 'darwin',
     sourceUpdateAvailable: !app.isPackaged,
     // Keep the row discoverable in source builds as well. DesktopCliManager
@@ -2931,7 +2937,7 @@ async function startApplication(): Promise<void> {
       throw new Error('desktop: feedback request must come from the Harness main frame')
     }
     const input = parseCommunityFeedbackInput(value, true)
-    return submitCommunityFeedback(input, app.getVersion(), process.platform,
+    return submitCommunityFeedback(input, VERSION_IDENTITY.desktopVersion, process.platform,
       COMMUNITY_FEEDBACK_ENDPOINT, fetch)
   })
   ipcMain.handle(DESKTOP_IPC.communityFeedbackMail, async (event, value: unknown): Promise<void> => {
@@ -2943,7 +2949,7 @@ async function startApplication(): Promise<void> {
     const input = value === undefined
       ? { kind: 'other' as const, title: 'Community feedback', body: 'Describe your feedback here.' }
       : parseCommunityFeedbackInput(value, false)
-    await shell.openExternal(communityFeedbackMailto(input, app.getVersion(), process.platform))
+    await shell.openExternal(communityFeedbackMailto(input, VERSION_IDENTITY.desktopVersion, process.platform))
   })
   ipcMain.handle(DESKTOP_IPC.bundledPluginsStart, (event, request: unknown): BundledPluginStartResult => {
     assertMainRenderer(event.sender)
