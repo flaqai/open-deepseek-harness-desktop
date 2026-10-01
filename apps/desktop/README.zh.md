@@ -32,7 +32,7 @@ pnpm run dev:desktop
 
 普通启动采用上游的必需/可选插件分类。可选插件失败时，客户端会列出包名和激活阶段，并在核心功能可用时继续进入界面；核心服务、根配置、未结事务或 Profile 锁失败仍进入诊断模式，不会显示为健康启动。桌面自有候选操作还会严格验证目标插件：指定版本、Bundle 注册和激活任一失败，受管依赖文件与 seed marker 都恢复到操作前状态；无关可选插件失败不会回滚已成功激活的目标。
 
-“模型”页面展示 DeepSeek 官方会话事件上报设置；官方端点默认开启，用户可立即关闭。说明会明确列出请求可能包含会话消息、工具事件与结果以及工作目录路径；自定义提供方不会收到该扩展。新建桌面 Profile 默认使用官方终端，并通过 Better Sidebar 的公开设置关闭重复终端入口；导入或复用 Profile 保留用户已有选择。已归档会话继续使用社区版分组、搜索、Workspace 筛选、单项及批量恢复页面，底层采用上游 Workspace 恢复操作。
+“模型”页面展示 DeepSeek 官方会话事件上报设置；官方端点默认开启，用户可立即关闭。说明会明确列出请求可能包含会话消息、工具事件与结果以及工作目录路径；自定义提供方不会收到该扩展。新建桌面 Profile 默认使用官方终端；Better Sidebar 0.24.1 不再提供单独的终端标签。导入或复用 Profile 保留用户已有设置。已归档会话继续使用社区版分组、搜索、Workspace 筛选、单项及批量恢复页面，底层采用上游 Workspace 恢复操作。
 
 在 macOS 和 Windows 安装版中，通用设置、文件菜单和托盘菜单都可以在系统浏览器中打开当前 Harness 启动代次。主进程校验并保留带认证的回环 URL，不向渲染层暴露该地址；浏览器接受启动令牌后会重定向到干净 URL，并继续使用同一 Profile 和进程。该页面可通过“设置”旁的“返回客户端”唤醒同一个 Electron 客户端。用户可保存“每次 Harness 成功启动后打开一个浏览器页面”的偏好。交接成功且托盘可用时，桌面窗口会隐藏；交接失败时，窗口保持或恢复显示。完整退出 Desktop 会停止共用 Harness，并断开浏览器页面。
 
@@ -56,6 +56,8 @@ pnpm 生成的本地来源定位随激活重新计算相对位置；manifest 原
 已有的本机 `web` Profile 如果曾开启 Schedule，或保留活动定时任务且没有明确关闭，桌面端会通过同一启动候选事务添加可选的“自动化任务” bundle。新建 Profile 仍默认关闭。候选事务会在 Profile 清单中记录 `odsh.scheduleMigration: 1`，避免用户日后主动关闭时被旧任务数据重新开启。NAS 连接和用户的补丁 YAML 不会被修改；CLI 与普通 Web Profile 仍按[手动升级指南](../../docs/upgrade-guide/v0.1.7-rc.2/schedule-optional-bundle/guide.zh.md)操作。
 
 启动预装集合还包含原始 `@weibaohui/skills-management` 归档。其技能市场可管理本机发现的 coding agent 技能，并浏览在线技能目录。插件默认在启动后于后台同步目录，此后每天再次同步；用户可在插件设置中关闭这些同步选项。`@dsh-plugins/mcp-panel` 归档提供 MCP 服务设置面板；这个私有 workspace 包尚未发布到 npm，因此归档由[固定的 dsh-pluginHive 源码](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel)构建。归档元数据补齐了上游 `files` 清单遗漏的生成 Host 文件，未改动插件运行源码。随包提供插件归档不等于把在线技能目录或普通传递依赖也一并预装。
+
+预装的 `dsh-better-sidebar` 0.24.1 支持 DSH 0.2.0。[上游发布说明](https://github.com/omdsh-dev/DSH-better-sidebar/releases/tag/v0.24.1)指出，其文件路由不再把访问范围限制在所选工作区，而是受当前操作系统用户的权限约束。不要把所选工作区视为该插件的文件访问范围上限。
 
 <a id="application-menus"></a>
 ## 应用菜单

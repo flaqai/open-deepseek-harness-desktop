@@ -4,33 +4,33 @@
     {
       "seedId": "dshmarket",
       "packageName": "dshmarket",
-      "version": "1.66.2",
+      "version": "1.66.7",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "dshmarket@1.66.2",
-      "archive": "dshmarket-1.66.2.tgz",
-      "integrity": "sha512-BPA03LIJvxBIn+zw2cqTOmpY0Ua6pCeO94iIL4Jg5Y18xXX8niQbyJU9fTkxZRWhm7mpFczPlpuHjYaIRG0vgw=="
+      "registrySpec": "dshmarket@1.66.7",
+      "archive": "dshmarket-1.66.7.tgz",
+      "integrity": "sha512-GeiZ+97aPscNPTR8tp3udV2F6uHIDbzFWcqIoJPW4paU7HuGVobHw9t4z9vbBqATh95Z/dz2YuERu8hwO05tAQ=="
     },
     {
       "seedId": "xmanrui-dsh-im",
       "packageName": "@xmanrui/dsh-im",
-      "version": "4.28.1",
+      "version": "4.34.0",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "@xmanrui/dsh-im@4.28.1",
+      "registrySpec": "@xmanrui/dsh-im@4.34.0",
       "managedUpgradeFrom": [
         "3.0.6"
       ],
-      "archive": "xmanrui-dsh-im-4.28.1.tgz",
-      "integrity": "sha512-wrKufO3V+OGFOPuBjbYNHeRI26YqYktiZt/ZdplK3wbgTRKV/4bvfnAobYGvWNh9kcyIkxPxC4cZuOX+PDrjXQ=="
+      "archive": "xmanrui-dsh-im-4.34.0.tgz",
+      "integrity": "sha512-ovNSMes+NtejJu+RlUjFyTywS5ta5dX4hkmokn/hpe4TpDRn40ZdvoCmAVvPUtTFhKbR3D2qmS/uv/+OVIFrEQ=="
     },
     {
       "seedId": "dsh-better-sidebar",
       "packageName": "dsh-better-sidebar",
-      "version": "0.22.1",
+      "version": "0.24.1",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "dsh-better-sidebar@0.22.1",
+      "registrySpec": "dsh-better-sidebar@0.24.1",
       "refreshPolicy": "pinned",
       "managedUpgradeFrom": [
         "0.16.1",
@@ -39,8 +39,8 @@
       "approvedBuilds": [
         "node-pty"
       ],
-      "archive": "dsh-better-sidebar-0.22.1.tgz",
-      "integrity": "sha512-5Gr2LFu8aay74osaDEQ4IZNRGMRDhs5XMyHc6a7q1BF6xGFfuz1s2+XW3hEdDknO9rgi/7Ax2XQ1MvwEBthNEQ=="
+      "archive": "dsh-better-sidebar-0.24.1.tgz",
+      "integrity": "sha512-X5tdu07Ub0isxruG559o46891F7MjxM+CzR6QoGpHZtN5J8gz6FA8Dq632lLI77c4IjL2GP+N6PuWaDnoKPuPQ=="
     },
     {
       "seedId": "dsh-pocket",
@@ -88,22 +88,22 @@
     {
       "seedId": "dsh-whale-widget",
       "packageName": "dsh-whale-widget",
-      "version": "0.3.16",
+      "version": "0.3.17",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "dsh-whale-widget@0.3.16",
-      "archive": "dsh-whale-widget-0.3.16.tgz",
-      "integrity": "sha512-I6gHmH951u2dhDRn+BI6QZpbAyYkB2+OCgVC+QGR3L90op3Z826XsfdAg1FSLjBVGDk22rE1r4y940q32jOL5A=="
+      "registrySpec": "dsh-whale-widget@0.3.17",
+      "archive": "dsh-whale-widget-0.3.17.tgz",
+      "integrity": "sha512-eHB3MNbMyhv1y4Wd5JOB2qyYXQjSKJUZc2Yh8bZZldEzo4LxFCpixQWVeF9K29Bseje/8w59RfBM4+sKbB/Z1w=="
     },
     {
       "seedId": "weibaohui-skills-management",
       "packageName": "@weibaohui/skills-management",
-      "version": "0.6.11",
+      "version": "0.9.0",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "@weibaohui/skills-management@0.6.11",
-      "archive": "weibaohui-skills-management-0.6.11.tgz",
-      "integrity": "sha512-oW2NddfnU8o4qC8i7ulA60Wi8eLVIlKuQzs3/sl9vbAeM4EhN5uNZ5IAfp5suKXELqm3wS/qp8eeLTYcmyJYhA=="
+      "registrySpec": "@weibaohui/skills-management@0.9.0",
+      "archive": "weibaohui-skills-management-0.9.0.tgz",
+      "integrity": "sha512-6aO9DpSd7eyueITBu6m+65IsmAdEeMlve/Jsz+fTm4Sby7DYz14+Orue0hUPgLsurKNkZb+KYcyKYVR0+/Dz7w=="
     },
     {
       "seedId": "dsh-plugins-mcp-panel",

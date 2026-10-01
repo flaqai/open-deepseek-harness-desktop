@@ -206,9 +206,9 @@ describe('bundled plugin seed', () => {
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-mermaid'))
       .toMatchObject({ version: '0.4.1', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-whale-widget'))
-      .toMatchObject({ version: '0.3.16', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.3.17', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@weibaohui/skills-management'))
-      .toMatchObject({ version: '0.6.11', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.9.0', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel'))
       .toMatchObject({ version: '0.1.0', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel')?.registrySpec)
@@ -230,8 +230,8 @@ describe('bundled plugin seed', () => {
     expect(generatedHostChunk).toBeDefined()
     expect(archivePaths).toContain(`package/lib/${generatedHostChunk}`)
     expect(new Set(manifest.plugins.map(entry => entry.seedId)).size).toBe(manifest.plugins.length)
-    expect(manifest.plugins.find(entry => entry.packageName === 'dsh-better-sidebar')?.approvedBuilds)
-      .toEqual(['node-pty'])
+    expect(manifest.plugins.find(entry => entry.packageName === 'dsh-better-sidebar'))
+      .toMatchObject({ version: '0.24.1', refreshPolicy: 'pinned', approvedBuilds: ['node-pty'] })
     expect(Object.fromEntries(manifest.plugins.flatMap(entry => (
       entry.managedUpgradeFrom === undefined ? [] : [[entry.packageName, entry.managedUpgradeFrom]]
     )))).toEqual({
