@@ -60,7 +60,7 @@ The directory and file adapters supply application metadata and operations to [`
 - [dsh-session-log-export](../../session-query/session-log-export/README.md) — the sibling Session-header action.
 - [ui-sidebar-documentpreview](../ui-sidebar-documentpreview/README.md) — the document preview declaring the header and empty-state child slots the file controls occupy.
 - [ui-deliverables](../ui-deliverables/README.md) — the delivery cards, which still open declared files through their own routes.
-- [Web client architecture](../../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.md) — how browser plugin rows load and register slots.
+- [Web client architecture](../../../docs/subsystems/web-client.md) — how browser plugin rows load and register slots.
 
 -----
 
@@ -82,7 +82,7 @@ The Host verifies the path through the composed filesystem before opening or rev
 - **The dictionaries gate the menu.** A host catalog extension without a matching `app.<id>` entry in both dictionaries stays invisible instead of showing a raw id; extending the catalog means extending [`dsh-host-open-in-app`](../../host/open-in-app/README.md) and this package's locales together.
 - **Availability is read once per page.** An application installed while the page is open appears after a reload (and, host-side, after a host restart); the desktop answer behind the file controls is read once per page as well.
 - **One reveal label for every platform.** The Session Remote reports whether a desktop exists, not which file manager it runs, so the menu says "Show file location" rather than naming Finder or File Explorer as the delivery cards do.
-- **The delivery cards keep their own opener.** [`ui-deliverables`](../ui-deliverables/README.md) still opens declared files through its own Session-and-event routes; folding those cards onto the file controls here is deferred to the [Agent Note](../../../.agents/notes/implemented/feature/2026-09-16-open-in-default-app-for-sidebar-files.md).
+- **The delivery cards keep their own opener.** [`ui-deliverables`](../ui-deliverables/README.md) still opens declared files through its own Session-and-event routes; folding those cards onto the file controls here remains deferred.
 
 <a id="dev-note"></a>
 ### Dev Note
@@ -90,8 +90,6 @@ The Host verifies the path through the composed filesystem before opening or rev
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The feature-level decisions, including the split into the host package and this surface, are recorded in the [promotion Agent Note](../../../.agents/notes/implemented/feature/2026-08-25-promote-open-anywhere-plugin.md); the document preview's file controls are recorded in the [default-application Agent Note](../../../.agents/notes/implemented/feature/2026-09-16-open-in-default-app-for-sidebar-files.md).
+The feature-level decisions, including the split into the host package and this surface, are recorded in the [historical promotion Agent Note](../../../.agents/notes/archived/feature/2026-08-25-promote-open-anywhere-plugin.md); the document preview's file controls are recorded in the [historical default-application Agent Note](../../../.agents/notes/archived/feature/2026-09-16-open-in-default-app-for-sidebar-files.md).
 
 </details>
-
-**Runtime invariant:** No companion is published. The plugin registers one dictionary effect and six slot entries whose disposal the HMR-safety spec proves; application availability, the choice, and the desktop answer live in the controllers' snapshot stores with no second copy to diverge.

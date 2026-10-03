@@ -1,14 +1,16 @@
 /**
  * The web app's command-line provider: it parses the `dsh --profile web` flag
- * family (`--host`, `--port`, `--trusted-host`, `--no-open`) and its `--help`
- * text, then provides the immutable values as {@link WEB_STARTUP_SERVICE}.
- * Ordinary rows inject that service before reading it from lazy config.
+ * family (`--host`, `--port`, `--public-url`, `--trusted-host`, `--no-open`)
+ * and its `--help` text, then provides the immutable values as
+ * {@link WEB_STARTUP_SERVICE}. Ordinary rows inject that service before
+ * reading it from lazy config.
  * @module @deepseek-ai/dsh-web-app/startup
  */
 
 import { Command } from 'commander'
 import type { Context } from '@deepseek-ai/cordis'
 import { parseCmdline } from '@deepseek-ai/dsh-cmdline'
+import { parsePublicUrl } from './public-url.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'web-startup'
@@ -27,6 +29,11 @@ export interface WebStartupValues {
   host?: string
   /** `--port`, absent when the invocation did not name one. */
   port?: number
+  /**
+   * `--public-url`, absent when not specified: the advertised HTTP(S) root.
+   * See [public deployments](../README.md#public-deployments).
+   */
+  publicUrl?: string
   /** Explicit `--trusted-host` authorities, in argument order. */
   trustedHosts: string[]
   /** Whether this invocation is the NAS deployment carrier. */
@@ -44,6 +51,7 @@ interface WebOptions {
   host?: string
   open: boolean
   port?: string
+  publicUrl?: string
   trustedHost?: string[]
   nas?: boolean
   nasName?: string
@@ -63,6 +71,7 @@ function webCommand(): Command {
     .option('--host <host>', 'bind host')
     .option('--no-open', 'do not open the Web UI in the default browser')
     .option('--port <port>', 'listen port; pass 0 to let the OS pick a free one')
+    .option('--public-url <url>', 'advertise this HTTP(S) root in the printed, opened, web-surface, and DSH_WEB_URL forms; grants no trust')
     .option('--trusted-host <authority...>', 'extra authority the /api browser-trust fence accepts (host or host:port; repeatable)')
     .option('--nas', 'serve as a remote NAS runtime behind a trusted HTTPS reverse proxy')
     .option('--nas-name <name>', 'operator-visible NAS name')
@@ -73,14 +82,16 @@ Examples:
   dsh --profile web                          serve on the composed host and port
   dsh --profile web --no-open                serve without opening a browser
   dsh --profile web --port 8080              serve on another port
+  dsh --profile web --public-url https://app.example/ui/ --trusted-host app.example
+                                             advertise a prefix-stripping HTTPS proxy entry and admit its authority
 `)
 }
 
 /**
  * Parse and provide the Web invocation as an ordinary Cordis service. The
- * command's action publishes the flags this invocation named; `--host 0.0.0.0`
- * or a non-numeric `--port` is a usage error, so on rejection (and on `--help`)
- * nothing is provided.
+ * command's action publishes the flags this invocation named; `--host 0.0.0.0`,
+ * a non-numeric `--port`, or a malformed `--public-url` is a usage error, so on
+ * rejection (and on `--help`) nothing is provided.
  * @param ctx - plugin context carrying the command line.
  */
 export function apply(ctx: Context): void {
@@ -103,10 +114,18 @@ export function apply(ctx: Context): void {
       || Number(options.deviceLifetimeDays) < 1) {
       program.error('error: --device-lifetime-days must be a positive integer')
     }
+    if (options.publicUrl !== undefined) {
+      try {
+        parsePublicUrl(options.publicUrl, '--public-url')
+      } catch (error) {
+        program.error(`error: ${(error as Error).message}`)
+      }
+    }
     ctx.provide(WEB_STARTUP_SERVICE, {
       openBrowser: options.open,
       ...options.host !== undefined && { host: options.host },
       ...options.port !== undefined && { port: Number(options.port) },
+      ...options.publicUrl !== undefined && { publicUrl: options.publicUrl },
       trustedHosts: options.trustedHost ?? [],
       nas: options.nas === true,
       ...options.nasName !== undefined && { nasName: options.nasName },

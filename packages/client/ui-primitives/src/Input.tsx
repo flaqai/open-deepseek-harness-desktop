@@ -1,5 +1,5 @@
-// Input: single-line text input atom (search boxes, inline forms). Composer
-// textareas are NOT this atom — they live with the conversation package.
+// Input: single-line text input atom (search boxes, inline forms). Multi-line
+// inline edits use InlineEditor; the composer is owned by the conversation package.
 
 import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react'
 import clsx from 'clsx'

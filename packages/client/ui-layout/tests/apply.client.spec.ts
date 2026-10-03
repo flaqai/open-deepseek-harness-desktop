@@ -82,7 +82,7 @@ describe('ui-layout client apply', () => {
     expect(inject).toEqual(['slots', 'theme', 'locale', 'shortcuts'])
   })
 
-  it('provides ctx.layout and declares the five root-scoped frame slots', async () => {
+  it('provides ctx.layout and declares the root-scoped frame slots', async () => {
     const { ctx, slots } = await bench()
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -91,6 +91,7 @@ describe('ui-layout client apply', () => {
     expect(slots.spec('sidebar')).toEqual({ kind: 'single', scope: 'root' })
     expect(slots.spec('main')).toEqual({ kind: 'keyed', scope: 'root' })
     expect(slots.spec('rightbar')).toEqual({ kind: 'single', scope: 'root' })
+    expect(slots.spec('shell.bottom')).toEqual({ kind: 'single', scope: 'root' })
     expect(slots.spec('shell.overlay')).toEqual({ kind: 'list', scope: 'root' })
     expect(slots.spec('shell.leading')).toEqual({ kind: 'single', scope: 'root' })
   })
@@ -124,6 +125,24 @@ describe('ui-layout client apply', () => {
     const pending = layout.beginNavigation()
     await fiber.dispose()
     expect(pending.aborted).toBe(true)
+  })
+
+  it('provides layout policy without claiming the floating renderer root', async () => {
+    const originalUrl = window.location.href
+    window.history.replaceState(null, '', '?surface=orb')
+    try {
+      const { ctx, slots } = await bench()
+      const fiber = ctx.plugin({ inject: [...inject], apply })
+      await fiber.await()
+      expect(ctx.get('layout')).toBeInstanceOf(LayoutController)
+      expect(slots.entries('root')).toHaveLength(0)
+      expect(slots.spec('main')).toBeUndefined()
+      expect(slots.spec('shell.bottom')).toBeUndefined()
+      await fiber.dispose()
+      expect(ctx.get('layout')).toBeUndefined()
+    } finally {
+      window.history.replaceState(null, '', originalUrl)
+    }
   })
 
   it('theme presenter applies the initial snapshot, follows theme/change, and unwinds on dispose', async () => {
@@ -163,6 +182,7 @@ describe('ui-layout client apply', () => {
     expect(slots.spec('sidebar')).toBeUndefined()
     expect(slots.spec('main')).toBeUndefined()
     expect(slots.spec('rightbar')).toBeUndefined()
+    expect(slots.spec('shell.bottom')).toBeUndefined()
     expect(slots.spec('shell.overlay')).toBeUndefined()
     expect(slots.spec('shell.leading')).toBeUndefined()
     expect(host.root.getSnapshot().hooks.panelInfo).toBeUndefined()

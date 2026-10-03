@@ -59,7 +59,7 @@ Client 查询在 `clientInspectTimeoutMs` 内接受首个有效页面响应。�
 
 ### 信任立场
 
-沙箱隔离全局变量，但不是安全边界：Node 全局变量不存在，或重定向到 Cordis 服务（`ctx.fs`、`ctx.web`、`ctx.bash` 与定时器 helper），host 半收到的是不含框架内部机制的 façade，但它声明的服务仍会触达存活运行时。对待动态包要像对待 bash 访问一样，参见[自引用工具集 Agent Note](../../../.agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.zh.md)。
+沙箱隔离全局变量，但不是安全边界：Node 全局变量不存在，或重定向到 Cordis 服务（`ctx.fs`、`ctx.web`、`ctx.bash` 与定时器 helper），host 半收到的是不含框架内部机制的 façade，但它声明的服务仍会触达存活运行时。对待动态包要像对待 bash 访问一样，参见[自引用工具集 参考](README.zh.md)。
 
 -----
 
@@ -105,7 +105,7 @@ runner 基于两项职责划分。**注册表与沙箱是同一个服务。** `D
 - [UI 包](../ui-cordis/README.zh.md)——用户批准并操作运行的面板。
 - [生成的配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-cordis-host-runner)——每个受支持配置字段。
 - [extensions 子系统](../../../docs/subsystems/extensions.zh.md)——生成的 `ctx.cordisInspect` 与 `ctx.dynamicCordisRunner` API 及 `cordis/*` 事件。
-- [自引用 Cordis 工具集 Agent Note](../../../.agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.zh.md)——沙箱语义、生命周期与组合的理由。
+- [历史自引用 Cordis 工具集 Agent Note](../../../.agents/notes/archived/feature/2026-07-08-self-referential-cordis-toolset.md)——沙箱语义、生命周期与组合的理由。
 
 -----
 
@@ -150,5 +150,3 @@ runner 基于两项职责划分。**注册表与沙箱是同一个服务。** `D
 无。
 
 </details>
-
-**运行时不变式：** 不发布伴生入口。definition registry 位于进程内存中且没有可观察的事件流；它唯一负责的关系是运行中的 definition 拥有已结算的 host-half fiber 及其 handler table，该关系在单个等待完成的操作中建立和解除，因此由包测试直接断言。

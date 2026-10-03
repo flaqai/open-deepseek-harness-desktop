@@ -112,5 +112,3 @@ source 不实现任何裁决钩子，也没有引用 codec：pick 落下字面�
 无。
 
 </details>
-
-**运行时不变式：** 不发布伴生入口。slash source、locale dictionary 与 keyed toolview 都是由注册表持有的注册项，其释放行为已由 HMR（热模块替换）安全规范证明；它们不发出 Cordis 事件或持有跨插件可变状态。

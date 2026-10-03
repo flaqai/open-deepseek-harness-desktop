@@ -37,7 +37,7 @@ import { sidebarTargetFromElement, type SidebarRightTarget } from './focus.ts'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { FloatRect, PaneId, TabId, TabRecord } from '@deepseek-ai/dsh-client-ui-dockkit'
-import { activeDockPaneId, canSplit, findContentTab, dockPaneIds, findTabPane, getPane } from '@deepseek-ai/dsh-client-ui-dockkit'
+import { activeDockPaneId, canSplit, findContentTab, findPaneContentTab, dockPaneIds, findTabPane, getPane } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SidebarRightNavigationParams, SidebarRightResourceParams, SidebarRightTabParamsFor } from './contract/params.ts'
@@ -440,8 +440,11 @@ export class SidebarRightController implements ISidebarRight {
     }, (tabId) => { this.tabDomain.navigate(sessionId, tabId, { address, params }) }) }
     const layout = surface?.layout
     const replaced = placement.replaceTab === undefined ? undefined : layout?.tabs[placement.replaceTab]
-    const revealed = layout === undefined || placement.revealIfOpened === false
-      ? undefined : findContentTab(layout, claim.contentId, claim.kind)
+    const replacementPane = replaced === undefined || layout === undefined ? undefined : findTabPane(layout, replaced.id)
+    const revealed = layout === undefined ? undefined
+      : claim.contentId === pageAddress(claim.kind)
+        ? findPaneContentTab(layout, replacementPane?.host === 'dock' ? replacementPane.id : placement.paneId ?? activeDockPaneId(layout), claim.contentId, claim.kind)
+        : placement.revealIfOpened === false ? undefined : findContentTab(layout, claim.contentId, claim.kind)
     if (replaced === undefined || replaced.id === revealed) { commit(); return }
     this.removeAfterCleanup(sessionId, replaced, commit)
   }

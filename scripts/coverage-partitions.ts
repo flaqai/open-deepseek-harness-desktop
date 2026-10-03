@@ -1,4 +1,8 @@
-/** Coordinate single-worker Vitest coverage partitions and one merged report. */
+/**
+ * Coordinate single-worker Vitest coverage partitions and one merged report.
+ * Separate processes preserve worker isolation; only the complete merged
+ * inventory can enforce per-file coverage thresholds.
+ */
 import { spawn } from 'node:child_process'
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
 import { lstat, mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'

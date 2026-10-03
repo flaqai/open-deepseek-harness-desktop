@@ -22,7 +22,7 @@ import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
 import { FirstStartPreparation } from './first-start-preparation.ts'
 import { BundledPresetVersionGate } from './bundled-preset-version-gate.ts'
 import { applyFreshProfileDefaults } from './fresh-profile-defaults.ts'
-import { legacyScheduleMigrationNeeded, migrateLegacyScheduleCandidate, SCHEDULE_BUNDLE } from './legacy-schedule-migration.ts'
+import { legacyScheduleMigrationNeeded, migrateLegacyScheduleCandidate } from './legacy-schedule-migration.ts'
 import { deployPrebuiltProfile, readPrebuiltProfile, readProfileBuildApprovals, type PrebuiltProfileManifest } from './prebuilt-profile.ts'
 import {
   BundledPluginInstaller,
@@ -4198,7 +4198,6 @@ async function startApplication(): Promise<void> {
   }
   const applyRuntimePending = (hasRuntimePending || ptcNeedsInstall) && startupProfileMutationAllowed && !preserveCopiedPlugins
   let legacySchedulePending = firstStartPending
-  let legacyScheduleActivationExpected = false
   if (!firstStartPending && startupProfileMutationAllowed && !preserveCopiedPlugins) {
     try {
       legacySchedulePending = await legacyScheduleMigrationNeeded(dshHome)
@@ -4292,11 +4291,10 @@ async function startApplication(): Promise<void> {
         try {
           const result = await desktopMutations.applyAtStartup({
             operation: 'legacy-schedule-bundle-migration',
-            run: context => migrateLegacyScheduleCandidate(context.home, dshHome, !firstStartPending),
+            run: context => migrateLegacyScheduleCandidate(context.home),
           })
-          legacyScheduleActivationExpected = result === 'enabled'
-          if (result === 'enabled') {
-            await appendDesktopStartupLog('Enabled the optional Schedule bundle in the startup candidate for an existing local Profile; stored tasks and user patches were not changed.')
+          if (result === 'converted') {
+            await appendDesktopStartupLog('Removed the retired Schedule bundle from the startup candidate; Web provides the official Schedule service. Stored tasks and user patches were not changed.')
           }
         } catch (error) {
           legacySchedulePending = false
@@ -4462,7 +4460,6 @@ async function startApplication(): Promise<void> {
     else {
       await desktopMutations.finishStartup([
         ...(firstStartPending ? manifest.plugins.filter(entry => entry.installPolicy === 'startup').map(entry => entry.packageName) : []),
-        ...(legacyScheduleActivationExpected ? [SCHEDULE_BUNDLE] : []),
       ])
     }
   } catch (error) {

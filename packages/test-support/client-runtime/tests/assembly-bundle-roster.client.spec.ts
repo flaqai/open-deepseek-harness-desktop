@@ -35,7 +35,7 @@ describe('webApp (the real web profile)', () => {
     const names = webApp.rows.map(row => row.name)
     expect(names).toContain('@deepseek-ai/dsh-client-ui-settings-general')
     expect(names).not.toContain('@deepseek-ai/dsh-llm') // Host only
-    expect(names).not.toContain('@deepseek-ai/dsh-client-ui-schedule')
+    expect(names).toContain('@deepseek-ai/dsh-client-ui-schedule')
     expect(names).not.toContain('@deepseek-ai/dsh-web-app') // Host runtime glue, its `/startup` row is a subpath
   })
 })
@@ -87,6 +87,22 @@ describe('bundleRoster on a scratch installation', () => {
     symlinkSync(bundle, join(linked.root, 'app', 'node_modules', '@t', 'linked'), 'junction')
     linked.bundle('@t/base', '- insert: []\n')
     expect(linked.roster(['@t/base', '@t/linked'])).toEqual(['@t/theme'])
+  })
+
+  it('resolves a linked bundle self row before an unrelated ancestor package', () => {
+    const linked = new Scratch()
+    onTestFinished(() => { rmSync(linked.root, { recursive: true, force: true }) })
+    const bundle = join(linked.root, 'workspace', 'bundle')
+    mkdirSync(bundle, { recursive: true })
+    writeFileSync(join(bundle, 'package.json'), JSON.stringify({ name: '@t/self', dsh: { bundle: { patch: './cordis.patch.yml' } } }))
+    writeFileSync(join(bundle, 'cordis.patch.yml'), "- insert:\n    - id: self\n      name: '@t/self'\n")
+    linked.bundle('@t/base', '- insert: []\n')
+    symlinkSync(bundle, join(linked.root, 'app', 'node_modules', '@t', 'self'), 'junction')
+    expect(linked.roster(['@t/base', '@t/self'])).toEqual([])
+    const ancestor = join(linked.root, 'workspace', 'node_modules', '@t', 'self')
+    mkdirSync(ancestor, { recursive: true })
+    writeFileSync(join(ancestor, 'package.json'), JSON.stringify({ name: '@t/self', dsh: { client: { platform: 'web' } } }))
+    expect(linked.roster(['@t/base', '@t/self'])).toEqual([])
   })
 
   it('applies the layers in order and keeps enabled browser rows once, with their dsh.client declaration', () => {

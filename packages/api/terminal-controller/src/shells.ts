@@ -1,5 +1,5 @@
 /** Shell selection and executable verification use the target execution provider. */
-import { SubprocessExecutableNotFoundError, type SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
+import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import type { TerminalShell } from './types.ts'
 
 /**
@@ -51,7 +51,8 @@ export async function discoverShells(
   const found = await Promise.all(candidates.map(async (candidate) => {
     try { return await resolveShell(subprocess, profile(candidate), signal) }
     catch (error) {
-      if (error instanceof SubprocessExecutableNotFoundError) return undefined
+      if (typeof error === 'object' && error !== null
+        && 'name' in error && error.name === 'SubprocessExecutableNotFoundError') return undefined
       throw error
     }
   }))

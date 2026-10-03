@@ -128,4 +128,4 @@ None.
 
 </details>
 
-**Runtime invariant:** The Host Session projection is authoritative for durable timed questions. Browser storage only preserves unfinished input and never creates or keeps a question open. No runtime invariant companion is published because the Host validates and projects the durable state before this client package renders it.
+The Host Session projection is authoritative for durable timed questions. Browser storage only preserves unfinished input and never creates or keeps a question open.

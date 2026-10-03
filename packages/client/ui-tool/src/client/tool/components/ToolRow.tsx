@@ -39,10 +39,9 @@ export interface ToolRowProps {
   summary: string
   /**
    * Trailing summary fragment rendered outside the ellipsized summary text, so
-   * a narrow row clips the summary before this. For a fragment whose whole
-   * value is surviving that clip — the todo row's parallel-active count.
-   * null/absent = the summary is the whole collapsed content. Dropped on an
-   * error row, whose collapsed summary is the failure line instead.
+   * a narrow row clips the summary before this. Appears before diff totals
+   * when both are present. null/absent omits this fragment. Error and stopped
+   * rows omit both the suffix and diff totals.
    */
   summarySuffix?: string | null | undefined
   /** Original argument JSON formatted only while the row is expanded. */
@@ -182,11 +181,11 @@ export const ToolRow = memo(function ToolRow({
   // amber while retaining the business icon and hidden state announcement.
   const failureLine = state === 'error' ? errorSummary ?? normalSummary : null
   const summaryText = failureLine ?? normalSummary
-  // The tool row keeps the diff's +/- totals visible while its body is collapsed.
-  // An explicit summarySuffix overrides the diff totals.
+  // Diff totals remain visible after the optional summary suffix.
   const diffStat = useMemo(() => diffBody === null ? null : diffTotals(diffBody.card.diffs), [diffBody])
   const settledWithCue = state === 'error' || state === 'stopped'
-  const suffix = settledWithCue ? null : summarySuffix ?? diffStat
+  const suffix = settledWithCue ? null : summarySuffix ?? null
+  const totals = settledWithCue ? null : diffStat
   const openFile = useMemo(() => filePath !== undefined && onOpenFile !== undefined && !settledWithCue
     ? (event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation()
@@ -243,12 +242,15 @@ export const ToolRow = memo(function ToolRow({
         </span>
       )}
       {suffix !== null && (
-        <TextShimmer className={clsx(css.summarySuffix, typeof suffix !== 'string' && css.diffStat)}>
-          {typeof suffix === 'string' ? suffix : <><span className={css.diffAdded}>{`+${suffix.added}`}</span>{' '}<span className={css.diffRemoved}>{`-${suffix.removed}`}</span></>}
+        <TextShimmer className={css.summarySuffix}>{suffix}</TextShimmer>
+      )}
+      {totals !== null && (
+        <TextShimmer className={clsx(css.summarySuffix, css.diffStat)}>
+          <span className={css.diffAdded}>{`+${totals.added}`}</span>{' '}<span className={css.diffRemoved}>{`-${totals.removed}`}</span>
         </TextShimmer>
       )}
     </>
-  ), [summaryLinkKeyDown, linkHref, openFile, state, suffix, summaryText])
+  ), [summaryLinkKeyDown, linkHref, openFile, state, suffix, totals, summaryText])
   const expandedContent = useMemo(() => open ? (
     <div className={clsx(css.bodyWrap, detailsBody !== null && css.detailsBodyWrap)}>
       {askQuestionBody !== null

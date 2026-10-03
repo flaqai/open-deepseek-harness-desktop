@@ -7,7 +7,7 @@ export interface AccountView {
     readonly phase: 'initializing' | 'waiting-browser' | 'exchanging' | 'committing' | 'succeeded' | 'cancelled' | 'expired' | 'failed'
     readonly authorizeUrl?: string
     readonly expiresAt?: number
-    readonly errorCode?: 'network' | 'protocol' | 'expired' | 'storage'
+    readonly errorCode?: 'no-response' | 'network' | 'protocol' | 'expired' | 'storage'
   }
 }
 

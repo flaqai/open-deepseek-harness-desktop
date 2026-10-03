@@ -90,5 +90,3 @@ None; this package neither assembles nor sends a provider request.
 None.
 
 </details>
-
-**Runtime invariant:** No companion is published. The catalog and binding index are derived together from the private registry; there is no independently maintained runtime relationship to inspect.

@@ -137,7 +137,9 @@ export async function openWelcomeWindow(
   if (active && !window.isDestroyed()) {
     if (maximized) window.maximize()
     window.show()
-    void operations.analytics?.('auth_page_view', {})
+    void Promise.resolve().then(() => operations.analytics?.('auth_page_view', {})).catch((error: unknown) => {
+      console.warn('desktop welcome: initial analytics submission failed', error)
+    })
   }
   return window
 }

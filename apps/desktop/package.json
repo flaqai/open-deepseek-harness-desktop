@@ -36,6 +36,9 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@deepseek-ai/dsh-api-gateway": "workspace:*",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@deepseek-ai/dsh-typert-registry": "workspace:*",
     "@electron/notarize": "2.5.0",
     "@types/semver": "^7.7.1",
     "@types/node": "^22.20.0",

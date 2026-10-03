@@ -442,8 +442,6 @@ listPackages(filter: TypertPackageFilter = {}): TypertPackageRecord[]
 toJSONSchema(key: string, params?: z.core.ToJSONSchemaParams): z.core.JSONSchema.BaseSchema
 ```
 
-Types: [TypertContribution](invariants.zh.md) · [TypertFace](invariants.zh.md) · [TypertPackageFilter](invariants.zh.md) · [TypertPackageRecord](invariants.zh.md) · [TypertSchemaFilter](invariants.zh.md) · [TypertSchemaRecord](invariants.zh.md)
-
 Source: [`packages/typert/registry/src/service.ts`](../../packages/typert/registry/src/service.ts)
 
 <a id="ctxtypertgateway--typertgatewayservice"></a>

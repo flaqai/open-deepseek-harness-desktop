@@ -134,7 +134,7 @@ Reading a default does not automatically save configuration. When the user chang
 
 A closed group's header names the first three categories from its ranked summary, without displaying counts. A group without categories uses the thinking label. A running header names its live tool category, otherwise thinking; Standard appends live detail. Live titles remain visible for at least 150ms, retaining only the newest pending title.
 
-All three stages share the tool-name classification below. A preparing Tool node uses its category's preparation label: read files for `read`, read images for `read_image`, write files for `write`, edit files for `edit` and `apply_patch`, and update the plan for `todo_write` and goal tools. Only the generic “Preparing tool calls” category appends the wire tool name in Standard mode; other categories omit it. It contributes one call without parsing arguments and renders one non-expandable row. A named live delta can create this node; historical calls start directly from tool/call without replaying preparation.
+All three stages share the tool-name classification below. A preparing Tool node uses its category's preparation label: read files for `read`, read images for `read_image`, write files for `write`, edit files for `edit` and `apply_patch`, and update the plan for `todo_write` and goal tools. Standard mode appends available argument detail using the same readers as dispatched calls. It contributes one call and renders one non-expandable row. A named live delta can create this node; historical calls start directly from tool/call without replaying preparation.
 
 The labels below describe recorded activity, not successful outcomes. For example, a failed read still participates in the “Read files” category.
 
@@ -276,7 +276,11 @@ Exact-name rules also mean that a recorded name such as `functions.read`, `mcp.r
 
 ### Live activity and detail
 
-Preparing calls use their first named delta time; only the generic tool category provides the tool name as detail. Dispatched calls use their tool/call time and complete arguments.
+Preparing calls use their first named delta time; dispatched calls use their tool/call time. Both read detail from the block's lazy `args` view.
+
+The Tool Definition alone retains streamed argument fragments. Assistant blocks keep tool identity and timing without accumulating argument deltas; `block-end` and the durable message supply their complete text. A Tool reader compares its fragments directly against `block-end` and `tool/call` arguments, retaining its indexed fields only for an exact match. Final text replaces missing or conflicting deltas.
+
+TurnProcess and TurnTail retain tool-argument Matches as Location evidence when the Turn start is outside the loaded window, even when those fragments do not change their State.
 
 Among running calls, the greatest `time` selects the live category and detail; equal times select the later visited call. With no running call, the category is absent and detail comes from the last nonempty reasoning paragraph of the latest running Assistant with nonempty reasoning, in member order. Reasoning detail removes `**` markers and does not require a newline-terminated first line; the individual reasoning-row preview has separate rules.
 
@@ -291,7 +295,7 @@ Live selection uses call start `time`, not the latest output/progress time. A ca
 | No running tool or usable running reasoning; the group is not closed | No live tool category and empty detail, even when category counts are nonzero. |
 | A reply or another group boundary closes the group while a tool still lacks a result | Published live category and detail are cleared. Group closure takes precedence over the unfinished call. |
 
-Tool detail uses the first nonempty supported argument field in this priority order: `title`, `description`, `objective`, `task`, `task_name`, `name`, `question`, `questions`, `prompt`, `message`, `command`, `cmd`, `queries`, `query`, `pattern`, `url`, `uri`, `file_path`, `path`, `target`, `action`, `status`. Strings and arrays consisting entirely of strings are supported; arrays join with `, `. The `questions` field instead selects the first nonempty `question` in its object array. Invalid, partial, or free-form JSON and arguments without usable detail fall back to the tool name.
+Tool detail uses the first nonempty supported argument field in this priority order: `title`, `description`, `objective`, `task`, `task_name`, `name`, `question`, `questions`, `prompt`, `message`, `command`, `cmd`, `queries`, `query`, `pattern`, `url`, `uri`, `file_path`, `path`, `target`, `action`, `status`. Strings may still be streaming; arrays become available when complete and must contain only strings, joined with `, `. The `questions` field instead selects the first nonempty `question` in its object array. Without usable detail, every category stays empty while fields can still arrive and falls back to the tool name only once the view is closed, invalid, or sealed after dispatch.
 
 The priority list is shared by every tool, not specialized per category. For example, `description` can override `command` on a shell call, and `title` can override a file path. The first field whose supported value remains nonempty after whitespace normalization wins; unsupported values are skipped.
 
@@ -309,6 +313,6 @@ The priority list is shared by every tool, not specialized per category. For exa
 | `run_code` with only `{"code":"print(1)"}` | `run_code`; `code` is not in the detail-field list. |
 | `apply_patch` with raw patch text rather than a JSON object | `apply_patch`; no patch-path extraction. |
 | Any tool with `{"description":" ","command":42,"path":"src/app.ts"}` | `src/app.ts`; whitespace-only strings and numbers are skipped. |
-| Partial JSON, a JSON scalar, a mixed-type array, or only unsupported fields | Use the tool name if no other usable field exists. No partial-argument guessing. |
+| No usable field yet | Empty while arguments can grow; otherwise the tool name. |
 
-All live detail collapses whitespace, trims its ends, and is limited to 160 grapheme clusters, including a final `…` when truncated. A closed group's published summary clears its live category and detail while retaining category counts.
+All live detail collapses whitespace, trims its ends, and is limited to 160 grapheme clusters, including a final `…` when truncated. String arguments initially supply at most 512 decoded UTF-16 units; normalization expands that prefix only when whitespace or multi-unit clusters leave too little text to determine truncation. Each truncation pass reads at most 161 clusters. A closed group's published summary clears its live category and detail while retaining category counts.

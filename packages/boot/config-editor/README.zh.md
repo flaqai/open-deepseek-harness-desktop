@@ -42,8 +42,6 @@ kind: "package-reference"
 
 读取配置时，没有 profile config 覆盖项的条目共用一次组合结果。有覆盖项的条目分别组合，仅移除自身的覆盖项；profile 插入的条目和其他条目的覆盖项仍然生效。返回的配置为独立副本，组合结果不跨读取缓存。
 
-此包不发布 invariant companion：编辑器不维护独立配置投影。Loader 和持久化的 profile patch 拥有配置状态。
-
 </details>
 
 <a id="further-exploration"></a>

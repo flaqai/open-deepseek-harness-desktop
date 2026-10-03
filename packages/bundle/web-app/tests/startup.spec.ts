@@ -3,7 +3,7 @@
  * releases a consumer whose config reads `ctx.webStartup` directly.
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -13,12 +13,13 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import { internals, provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { afterEach, describe, expect, it } from 'vitest'
 import { apply, WEB_STARTUP_SERVICE, type WebStartupValues } from '../src/startup.ts'
+import { Config as WebRuntimeConfig } from '../src/index.ts'
 
 /** What one fixture boot observed. */
 interface Observed {
   exits: number[]
   out: string
-  readerConfig?: unknown
+  readerConfig?: WebStartupValues & { nasRuntime?: WebRuntimeConfig['nas'] }
 }
 
 const disposers: (() => Promise<void>)[] = []
@@ -36,15 +37,21 @@ afterEach(async () => {
 /**
  * Mount the real provider and a consumer using injection-ordered config.
  * @param args - the invocation's inner arguments.
+ * @param readBundleNas - whether the consumer evaluates the shipped NAS expression.
  * @returns the service value and observed consumer/process effects.
  */
-async function bootProvider(args: string[]): Promise<{
+async function bootProvider(args: string[], readBundleNas = false): Promise<{
   values: WebStartupValues | undefined
   observed: Observed
 }> {
   const dir = mkdtempSync(join(tmpdir(), 'dsh-web-startup-'))
   tempDirs.push(dir)
   const observed: Observed = { exits: [], out: '' }
+  const nasRow = readBundleNas
+    ? readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
+      .split('\n').find(line => /^\s+nas: !!js /.test(line))
+    : undefined
+  if (readBundleNas && nasRow === undefined) throw new Error('Web bundle is missing its NAS runtime expression')
   writeFileSync(join(dir, 'reader.mjs'), `
 export function apply(_ctx, config) { globalThis.__webStartupObserved.readerConfig = config }
 `)
@@ -63,9 +70,11 @@ export const apply = ctx => globalThis.__webStartupApply(ctx)
     '    host: !!js "ctx.webStartup.host ?? (ctx.webStartup.nas ? \'0.0.0.0\' : \'127.0.0.1\')"',
     '    openBrowser: !!js ctx.webStartup.openBrowser',
     '    port: !!js ctx.webStartup.port ?? 3080',
+    '    publicUrl: !!js ctx.webStartup.publicUrl',
     '    trustedHosts: !!js ctx.webStartup.trustedHosts',
     '    nas: !!js ctx.webStartup.nas',
     '    deviceLifetimeDays: !!js ctx.webStartup.deviceLifetimeDays',
+    ...nasRow === undefined ? [] : [nasRow.replace(/^\s+nas:/, '    nasRuntime:')],
     '- id: provider',
     `  name: ${pathToFileURL(join(dir, 'provider.mjs')).href}`,
     '',
@@ -131,6 +140,7 @@ describe('web command-line provider', () => {
     const { values, observed } = await bootProvider(['--help'])
     expect(observed.out).toContain('dsh --profile web')
     expect(observed.out).toContain('--no-open')
+    expect(observed.out).toContain('--public-url')
     expect(observed.out).toContain('--trusted-host')
     expect(values).toBeUndefined()
     expect(observed.readerConfig).toBeUndefined()
@@ -169,6 +179,55 @@ describe('web command-line provider', () => {
     expect(observed.exits).toEqual([])
   })
 
+  it('requires explicit NAS trust even when a public URL is advertised', async () => {
+    const { values, observed } = await bootProvider([
+      '--nas', '--public-url', 'https://nas.example/ui',
+    ])
+    expect(observed.out).toContain('--nas requires at least one --trusted-host authority')
+    expect(values).toBeUndefined()
+    expect(observed.readerConfig).toBeUndefined()
+    expect(observed.exits).toEqual([1])
+  })
+
+  it('resolves the shipped NAS expression into the required runtime configuration', async () => {
+    const { observed } = await bootProvider([
+      '--nas', '--trusted-host', 'nas.example', '--nas-name', 'Studio NAS',
+      '--pairing-code', '12345678', '--device-lifetime-days', '30',
+    ], true)
+    expect(observed.exits).toEqual([])
+    const nas = observed.readerConfig?.nasRuntime
+    expect(nas).toMatchObject({
+      enabled: true, name: 'Studio NAS',
+      protocolVersion: 1, pairingCode: '12345678', deviceLifetimeDays: 30,
+    })
+    expect(nas?.version).toBeTypeOf('string')
+    expect(new WebRuntimeConfig({ nas }).nas).toEqual(nas)
+  })
+
+  it('publishes --public-url as advertisement only, leaving the fence to --trusted-host', async () => {
+    const { values, observed } = await bootProvider([
+      '--public-url', 'https://web.example/ui',
+      '--trusted-host', 'lab.internal',
+    ])
+    expect(values).toEqual({
+      openBrowser: true,
+      publicUrl: 'https://web.example/ui',
+      trustedHosts: ['lab.internal'],
+      nas: false,
+      deviceLifetimeDays: 90,
+    })
+    expect(observed.readerConfig).toEqual({
+      host: '127.0.0.1',
+      openBrowser: true,
+      port: 3080,
+      publicUrl: 'https://web.example/ui',
+      trustedHosts: ['lab.internal'],
+      nas: false,
+      deviceLifetimeDays: 90,
+    })
+    expect(observed.exits).toEqual([])
+  })
+
   it('defaults an explicitly enabled NAS deployment to all interfaces', async () => {
     const { values, observed } = await bootProvider([
       '--trusted-host', 'harness.example.com',
@@ -182,5 +241,15 @@ describe('web command-line provider', () => {
     })
     expect(observed.readerConfig).toMatchObject({ host: '0.0.0.0', nas: true })
     expect(observed.exits).toEqual([])
+  })
+
+  it('rejects a malformed --public-url before the consumer activates', async () => {
+    // The parser's own suite owns the exhaustive spellings; the provider only
+    // has to fail the invocation before any consumer activates.
+    const { values, observed } = await bootProvider(['--public-url', '/web/ui'])
+    expect(observed.out).toContain('error: --public-url must be an absolute http or https URL of the form http(s)://host[/prefix]')
+    expect(values).toBeUndefined()
+    expect(observed.readerConfig).toBeUndefined()
+    expect(observed.exits).toEqual([1])
   })
 })

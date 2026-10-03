@@ -72,7 +72,7 @@ Selection is by platform first, probes second: each platform has a runner chain 
 
 ### Platform profiles
 
-The bwrap profile combines a read-only host root, a fresh `/dev`, and `/proc` from a private PID namespace — commands manage their descendants but cannot see host processes, so procfs magic links cannot bypass the mounts; `workspace-write` adds an ephemeral `/tmp` and a writable workspace bind. The [private-PID note](../../../.agents/notes/implemented/bug-fix/2026-08-06-bwrap-private-pid-namespace.md) records the boundary.
+The bwrap profile combines a read-only host root, a fresh `/dev`, and `/proc` from a private PID namespace — commands manage their descendants but cannot see host processes, so procfs magic links cannot bypass the mounts; `workspace-write` adds an ephemeral `/tmp` and a writable workspace bind. The [historical private-PID note](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md) records the boundary.
 
 The `@deepseek-ai/node-addon-system/landlock-run` API supplies the platform launcher, functional probe, and grant vocabulary; this provider maps mode to grants only, keeping path resolution and probe parsing with the versioned binary.
 
@@ -94,7 +94,6 @@ Each runner's kernel speaks its own denial dialect, carried on every wrap as `de
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: runner chain selection, functional probes, per-call wrap, ACL grant lifecycle |
 | [`src/profiles.ts`](src/profiles.ts) | Per-platform profile builders: bwrap mounts, Landlock grants, Seatbelt SBPL |
-| — | No runtime invariant companion is published; this package exposes no independent event sequence or mutable data relation beyond contracts enforced at its owning seam. |
 
 </details>
 
@@ -109,7 +108,7 @@ Start with the subsystem reference for the shared vocabulary, then the seam cont
 - [Sandbox seam package](../sandbox/README.md) — the service contract this provider implements.
 - [Bash sandbox executor](../../shell/bash-sandbox/README.md) — the confined bash consumer.
 - [Windows ACL restricted-token rung](../sandbox-windows-acl/README.md) — the win32 backend this provider mounts.
-- [The subprocess sandbox decision](../../../.agents/notes/implemented/feature/2026-07-06-sandbox.md) — capability boundary and runner selection semantics.
+- [The historical subprocess sandbox decision](../../../.agents/notes/archived/feature/2026-07-06-sandbox.md) — capability boundary and runner selection semantics.
 
 -----
 
@@ -145,6 +144,6 @@ This Dev Note is working context for maintainers: undecided directions and open 
 
 #### Future: environment-coherent groups
 
-The [sandbox decision](../../../.agents/notes/implemented/feature/2026-07-06-sandbox.md) lists an environment-coherent capability group example (for example bash plus fs against one container) as a deferred phase; it is not decided.
+An environment-coherent capability group example, such as bash plus fs against one container, remains undecided.
 
 </details>

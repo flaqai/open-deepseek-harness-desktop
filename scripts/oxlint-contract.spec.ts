@@ -1,3 +1,7 @@
+/**
+ * Process-spawning cases set Vitest's case timeout to 90 seconds, including
+ * plain local runs without a CI override. Configuration-only cases keep the default.
+ */
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'

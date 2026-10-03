@@ -138,5 +138,3 @@ Models 页面包含 **DeepSeek 账号**（`deepseek-account`，英文为 **DeepS
 无。
 
 </details>
-
-**运行时不变式：** 不发布伴生入口。这是只贡献 nav entry 的 section 插件，渲染固定空 content column，不发出 Cordis 事件，也不持有跨插件可变关系。

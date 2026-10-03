@@ -75,5 +75,3 @@ None.
 The page refresh shortcut refreshes the focused file tree through its ordinary directory reader. The reload control displays the effective binding on hover and keyboard focus.
 
 </details>
-
-**Runtime invariant:** No companion is published. The tab-owned face keeps directory reads and watches private, and writes displayed state through its Slot store; tab cancellation releases both. The package exposes no independent observation for a runtime comparison.

@@ -4,11 +4,14 @@ English | [中文](development.zh.md)
 
 The setup tutorial takes a new contributor from prerequisites to a checked checkout. The contributor reference that follows covers repository layout, daily workflow, and CI organization. Design rationale and implementation details belong to the linked Agent Notes and scripts.
 
+<a id="setup-tutorial"></a>
+
 ## Setup tutorial
 
 ### Prerequisites
 
 - Node.js supports 22.19+ and 24+. CI covers 22.19, 24, and 26; see the [Node engine floor Agent Note](../.agents/notes/implemented/process/2026-07-06-node-engine-floor.md).
+- Node.js TypeScript type stripping enabled. The repository build scripts load `tsdown.config.ts` with tsdown's native config loader, so they fail when `--no-experimental-strip-types` is in `NODE_OPTIONS` or the Node.js build lacks TypeScript support; `pnpm run build` checks this first and names the cause.
 - Corepack-enabled pnpm. The repo pins `pnpm@11.7.0` in `package.json`; run `corepack enable` if `pnpm --version` does not resolve through Corepack.
 - Git 2.26 or newer; hook setup enables Git's worktree-specific configuration extension.
 - Optional: a DeepSeek API key for the Web, headless, and ACP automation demos and real-API e2e tests.
@@ -23,6 +26,8 @@ Install dependencies separately in each environment because native binaries and 
 
 ### First-time setup
 
+pnpm uses its strict symlinked linker so undeclared dependencies fail instead of relying on hoisting. Keep dependency build scripts explicitly allowlisted in `pnpm-workspace.yaml`.
+
 Install dependencies from the repo root:
 
 ```sh
@@ -32,6 +37,8 @@ node scripts/install-dependencies.mjs
 Public npm packages may resolve through `registry.npmjs.org` or `registry.npmmirror.com`. The installer tries the configured one first and, if that attempt fails, retries once through the other public registry. A custom registry remains the only candidate because it may own private packages or authentication. The lockfile keeps the exact package version and SHA-512 integrity but omits ordinary tarball URLs from either public registry, so either can supply the same verified bytes. Nonstandard tarball hosts stay explicit and integrity-pinned; a content mismatch fails before lifecycle scripts run. `pnpm run verify-lockfile-registry-portability` enforces this rule.
 
 The install also configures worktree-local Lefthook hooks through `scripts/install-lefthook.mjs`. The [worktree-local hooks Agent Note](../.agents/notes/implemented/process/2026-07-27-worktree-local-lefthook.md) owns the hook-path safety contract.
+
+The [DevTools frontend](../packages/experimental/inspector/README.md#use-this-package) is compiled locally from a pinned npm source package and Vite. After dependencies are installed, its build needs no network access or browser installation. Workspace and published-package installation run no DevTools resource-download hook; published Inspector packages contain the built frontend.
 
 If the hooks are missing because dependencies were restored from cache or `postinstall` was skipped, install them manually:
 
@@ -73,6 +80,8 @@ Setup is complete when `pnpm run typecheck` exits successfully.
 
 ## Contributor reference
 
+<a id="typescript-project-layout"></a>
+
 ### TypeScript project layout
 
 The repository uses isolated Host and Client aggregates. An ordinary package is registered in exactly one aggregate: Host packages in `tsconfig.host.json` and Client packages in `tsconfig.client.json`; three packages (`host/webserver`, `compaction/compaction`, `typert/registry`) are referenced by both aggregates as shared leaves so each side type-checks the same source.
@@ -109,7 +118,7 @@ Typert runs only during Host tsdown, seeded by `tsconfig.host.json`. It analyzes
 
 `pnpm run build` embeds the root package version, the seven-character source commit, and a dirty marker when Git reports local changes; it also inherits other caller-supplied `DSH_CLIENT_*` values. `pnpm run build:official` is the cross-platform local equivalent of the CI and release artifact build and omits the local dirty marker. Each successful complete build writes a gitignored record that binds the exact public values to the Vite output and dynamic client bundles; release packing and built Web tests reject a missing record or artifacts changed by a later partial build. `pnpm run dev:web` runs that complete build first (`--skip-build` reuses an existing artifact tree instead), then samples the current version and Git state once and shares that environment across every watcher stage for the session; it does not validate the complete-build record because the watcher stages rewrite its recorded artifacts.
 
-Static analysis and tests resolve workspace imports through the base `paths` map to `src` and must pass on a clean tree; gates that consume built `lib/` output declare that dependency explicitly. Generated Host-for-Client Remote declarations are the deliberate exception: the public `typecheck`, `lint`, and `doc-typecheck` commands generate them first, while internal `*:contracts-ready` scripts assume that an invoking public command or scheduler gate already depends on the Typert contract-generation pass or the complete build. See the [ts-build-config note](../.agents/notes/implemented/process/2026-06-17-ts-build-config.md) for tsc-first emit ownership and the [Typert Remote note](../.agents/notes/implemented/architecture/2026-08-02-typert-remote-method-calls.md) for the gate-preparation contract.
+Static analysis and tests resolve workspace imports through the base `paths` map to `src` and must pass on a clean tree; gates that consume built `lib/` output declare that dependency explicitly. Generated Host-for-Client Remote declarations are the deliberate exception: the public `typecheck`, `lint`, and `doc-typecheck` commands generate them first, while internal `*:contracts-ready` scripts assume that an invoking public command or scheduler gate already depends on the Typert contract-generation pass or the complete build. See the [Typert Remote note](../.agents/notes/implemented/architecture/2026-08-02-typert-remote-method-calls.md) for the gate-preparation contract.
 
 Business services declare callable methods on the Host with `@Remote` or `@RemoteScope`; the Host build generates Host-for-Client types and runtime contributions, and the Client's `api-remotes` composition loads those contributions under `ctx.remote` and scoped `agentCtx.remote` namespaces. See [API Gateway](api-gateway.md) for the generated artifacts on both sides, their assembly relationships, the SRC development fallback, and the Web build order.
 
@@ -198,6 +207,8 @@ Use one of three comment tags to flag known issues in the code, ordered by urgen
 - `XXX` — an issue that we may fix someday; lowest priority, no commitment.
 
 Pick the tag that matches the urgency so anyone scanning the code can tell a release blocker from a someday-maybe.
+
+<a id="documenting-types-verbatim-ts-type-equiv"></a>
 
 ### Documenting types verbatim (`ts type-equiv`)
 

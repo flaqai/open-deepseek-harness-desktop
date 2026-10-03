@@ -1,7 +1,7 @@
 .frame {
   position: relative; /* anchors the drag handles, which straddle column borders */
   display: grid;
-  grid-template-rows: 100%;
+  grid-template-rows: minmax(0, 1fr) auto;
   height: 100%;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
@@ -27,7 +27,6 @@
   --dsh-windows-content-radius: 16px;
   box-sizing: border-box;
   padding-top: var(--dsh-windows-titlebar-height);
-  grid-template-rows: minmax(0, 1fr);
   background: var(--dsw-specific-sidebar-fill);
 }
 
@@ -48,10 +47,6 @@
 
 :global([data-windows-titlebar]) .sidebarCol {
   border-right: none;
-}
-
-:global([data-windows-titlebar]) .handle {
-  top: var(--dsh-windows-titlebar-height);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -245,6 +240,7 @@
    over the centre. */
 .handle {
   position: absolute;
+  grid-area: 1 / 1 / 2 / -1;
   top: 0;
   bottom: 0;
   width: 8px;
@@ -290,6 +286,14 @@
   position: relative;
   min-width: 0;
   overflow: visible;
+}
+
+.bottomRow {
+  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--dsw-alias-bg-base);
 }
 
 .overlayLayer {

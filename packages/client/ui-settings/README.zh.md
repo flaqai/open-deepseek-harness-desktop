@@ -114,5 +114,3 @@ Web 客户端功能通过本包获得基于 Host 设置文档的命名空间偏�
 无。
 
 </details>
-
-**运行时不变式：** 不发布伴生入口。本包只把 `settings.section` ledger 投影为导航，不发出 Cordis 事件，也不持有跨插件可变关系；slot core 会在加载时拒绝冲突。

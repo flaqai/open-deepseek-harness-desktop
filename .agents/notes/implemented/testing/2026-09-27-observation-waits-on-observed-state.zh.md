@@ -30,7 +30,7 @@ loader-composition 的结算层级断言把记录到的结算原因与一份逐 
 
 在负载较高的 runner 上，两个插件管理器记录用例现在都能在该 run 仍在进行时观测到记录，而真正缺失的记录仍会以同一条断言失败。只有在操作始终不写记录时，这段有界等待才会付出 2 秒。
 
-[任务详情关闭断言](2026-09-28-detail-close-waits-on-observed-state.zh.md) 把同一条规则用在 web 客户端用例上：被采样的状态落在该用例已经等待过的那个列表之后一个 commit 的被动 effect 里。
+[已归档的任务详情关闭诊断](../../archived/testing/2026-09-28-detail-close-waits-on-observed-state.md)记录了同一条规则在 Web 客户端用例中的应用：被采样的状态落在该用例等待的列表之后一个 commit 的被动 effect 里。
 
 ## Deferred
 

@@ -42,8 +42,6 @@ The [editor](src/index.ts) reconciles external changes before deriving a candida
 
 Configuration reads share one composition for entries without profile config overrides. Overridden entries are composed separately with only their own override removed; profile inserts and other entries' overrides remain effective. Returned configs are detached, and compositions are not cached between reads.
 
-No invariant companion is published: the editor keeps no independent configuration projection. Loader and the persisted profile patch own configuration state.
-
 </details>
 
 <a id="further-exploration"></a>

@@ -34,7 +34,7 @@ Three build artifacts and one source-owned process layer:
 
 Acceptance lives in `apps/web/tests/preview-boot.e2e.ts`, which serves the real built pages and drives the pre-boot chooser plus Worker activation in headless Chromium. The empty selection exercises first-run startup. The `vfs-example` overlay supplies ordinary workspace files and plaintext persistence artifacts for cold Workspace/Session discovery, tool presentation, subagent navigation, and history paging without a model request. The [packer](../webworker-packer/README.md) prepares current-generation successors from committed historical logs in Node; those source logs remain byte-identical in the overlay. The fixture generator owns the acceptance test's current projection cache. The chooser reserves WebFS as a separate user-authorized source; that provider does not read the built-in fixture.
 
-The [built-bundle import sweep](tests/compile/transform-corpus-check.ts) checks bare Node imports after the library build. Its Dockkit exception accepts Node’s unknown-`.css`-extension refusal for any stylesheet rather than one pinned path; another extension, error code, or message, and an unexpectedly successful exempt import, remain errors. See the [stylesheet exemption decision](../../../.agents/notes/implemented/bug-fix/2026-09-10-built-bundle-css-exemption.md).
+The [built-bundle import sweep](tests/compile/transform-corpus-check.ts) checks bare Node imports after the library build. Its Dockkit exception accepts Node’s unknown-`.css`-extension refusal for any stylesheet rather than one pinned path; another extension, error code, or message, and an unexpectedly successful exempt import, remain errors.
 
 -----
 
@@ -53,6 +53,7 @@ None; this package neither assembles nor sends a provider request.
 
 - **The worker composition writes plaintext session logs** (`compression: 'none'` boot patch): it carries no Zstandard codec, so exported logs are `.jsonl`, never `.jsonl.zstd`.
 - **`node:dns/promises`, `node:vm`, `node:net`, `node:sqlite`, `node:worker_threads` are structural stubs**: every call reports its refusal on the console and throws. Rows needing native DNS, a real process, or realm isolation cannot run here.
+- **`node:assert/strict` supports truthiness assertions only**: for falsy values, the callable default and `ok` throw `ERR_ASSERTION` with the supplied message or generic text, or rethrow a supplied Error unchanged. Other assertion APIs are absent.
 - **Desktop product telemetry is unavailable**: `got.post` reports an explicit worker-host refusal. Got and its Node HTTP dependencies are excluded from the browser image; Desktop reporting remains disabled in the preview composition.
 - **Host package commands are unavailable**: `execa` reports an explicit worker-host refusal; the preview cannot run pnpm, install plugins, or install native dependencies.
 - **PTC Node programs are unavailable**: the process shim exposes `/dsh/bin/node` as its executable identity so the provider can activate, but the Worker has neither a Node executable nor `stripTypeScriptTypes`. Program execution fails before launching a child.
@@ -74,5 +75,3 @@ None; this package neither assembles nor sends a provider request.
 None.
 
 </details>
-
-**Runtime invariant:** No companion is published. This package is pre-Cordis platform glue — the tree it boots runs the product packages' own invariants, and the assembly's contracts (image contract gate, tunnel refusals) fail loud at boot rather than drifting at run time.

@@ -98,5 +98,3 @@ kind: "package-reference"
 无。
 
 </details>
-
-**运行时不变式：** 不发布伴生入口。浏览器插件只贡献由 effect 持有的 Conversation Definition、keyed renderer 与 dictionary；测试证明资源释放时会撤销这三项贡献；Host tool 包负责持久事件不变式。

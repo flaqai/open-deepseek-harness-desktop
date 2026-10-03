@@ -97,6 +97,6 @@ Client 在分配前将每条 Session/内容与终端身份的关联保存到独�
 <details>
 <summary>维护说明</summary>
 
-不发布运行时 invariant companion。终端元数据与屏幕更新由同一对象按序写入，没有独立的进程尺寸观测可供比较。
+无。
 
 </details>

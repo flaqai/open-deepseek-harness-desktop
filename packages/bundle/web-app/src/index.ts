@@ -5,9 +5,10 @@
  * the built frontend dist (workspace knowledge of this bundle, never user
  * config), mounts the `frontend-static` fallback owner over it, registers the
  * harness-source and web-surface prompt sections, the bash-visible web runtime
- * variable, the process-token URL line, and the default-browser handoff. The
- * model and shell retain the clean URL. App command-line values arrive through
- * the `webStartup` service expressions in the bundle patch.
+ * variable, the process-token URL line, and the default-browser handoff. An
+ * advertised `publicUrl` replaces the published root — the loopback URL
+ * otherwise. App command-line values arrive through the `webStartup` service
+ * expressions in the bundle patch.
  * @module @deepseek-ai/dsh-web-app
  */
 
@@ -29,6 +30,7 @@ import type {} from '@deepseek-ai/dsh-shell-env'
 import { installDesktopQuitInspectionRoute, mayExposeDesktopQuitInspection } from './desktop-quit-inspection.ts'
 import { consumeDesktopOrbSecret, installDesktopOrbCallerRoute } from './desktop-orb-caller.ts'
 import { installDesktopOrbBackgroundRoute } from './desktop-orb-background.ts'
+import { parsePublicUrl } from './public-url.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'web-app'
@@ -56,6 +58,14 @@ export interface Config {
    * orientation text would be false.
    */
   surfaceContext: boolean
+  /**
+   * Canonical HTTP(S) root to advertise in the printed and opened URL,
+   * `DSH_WEB_URL`, and the web-surface orientation, e.g.
+   * `https://app.example/ui/`, normalized to end in `/`. Advertisement only;
+   * see [public deployments](../README.md#public-deployments). Absent or YAML
+   * `null` advertises the loopback URL.
+   */
+  publicUrl?: string
   /** Explicit `--trusted-host` authorities from this invocation. */
   trustedHosts: string[]
   /** NAS deployment values, absent for an ordinary local Web app. */
@@ -79,6 +89,7 @@ export const Config = z.object({
   openBrowser: z.boolean().default(true),
   printUrl: z.boolean().default(true),
   surfaceContext: z.boolean().default(true),
+  publicUrl: z.transform(z.string(), value => parsePublicUrl(value).href),
   trustedHosts: z.array(String).default([]),
   // Preserve omission explicitly. A bare Schemastery object defaults to `{}`
   // and would make every ordinary non-NAS launch fail its required fields.
@@ -102,7 +113,7 @@ export interface WebRuntimeValues {
   nas?: Config['nas']
 }
 
-/** Environment variable naming the canonical local URL of this Web GUI. */
+/** Environment variable naming the advertised URL of this Web GUI. */
 const DSH_WEB_URL = 'DSH_WEB_URL' as const
 
 // Display-only mirror of the webserver schema's loopback host: the address the
@@ -181,6 +192,11 @@ function localWebUrl(ctx: Context): string {
   const port = ctx.get('webServer')?.port
   if (port === undefined) throw new Error('web-app: webServer service missing while resolving Web runtime')
   return `http://${LOOPBACK_HOST}:${String(port)}`
+}
+
+function appRootUrl(ctx: Context, publicUrl: string | undefined): string {
+  if (publicUrl !== undefined) return publicUrl
+  return localWebUrl(ctx)
 }
 
 /**
@@ -273,6 +289,9 @@ export function apply(ctx: Context, config: Config): void {
       ))
     }
   }
+  // The schema validates a present string; an explicit YAML `null` bypasses
+  // the string transform and reaches here, meaning unset.
+  const publicUrl = config.publicUrl ?? undefined
   // The loopback URL belongs to this host. Under SSH, the operator reaches it
   // through a local forwarding address that this process cannot derive.
   const handoffBrowser = config.openBrowser && !launchedThroughSsh(launchEnvironmentOf(ctx))
@@ -285,16 +304,16 @@ export function apply(ctx: Context, config: Config): void {
       promptCtx.systemPrompt.section({
         name: 'app:web-surface',
         order: promptCtx.systemPrompt.getSectionOrder('WEB_SURFACE'),
-        text: () => webSurfacePrompt(localWebUrl(promptCtx)),
+        text: () => webSurfacePrompt(appRootUrl(promptCtx, publicUrl)),
       })
     })
     ctx.inject(['shellEnv'], (runtimeCtx) => {
       runtimeCtx.shellEnv.register({
         name: 'web-runtime',
         variables: {
-          [DSH_WEB_URL]: { description: 'Canonical local URL of the DeepSeek Harness Web GUI serving this session.' },
+          [DSH_WEB_URL]: { description: 'Advertised URL of the DeepSeek Harness Web GUI serving this session.' },
         },
-        resolve: () => ({ [DSH_WEB_URL]: localWebUrl(runtimeCtx) }),
+        resolve: () => ({ [DSH_WEB_URL]: appRootUrl(runtimeCtx, publicUrl) }),
       })
     })
   }
@@ -307,7 +326,7 @@ export function apply(ctx: Context, config: Config): void {
       // hand-built tree without a Loader is already the complete tree.
       const announceReady = (): void => {
         if (ANNOUNCED_ROOTS.has(connectionCtx.root)) return
-        const webUrl = localWebUrl(connectionCtx)
+        const webUrl = appRootUrl(connectionCtx, publicUrl)
         const authenticatedUrl = connectionCtx.connection.authenticatedUrl(webUrl)
         // Reuse the exact LAN snapshot provided to the /api trust fence.
         const lanCandidate = runtime.lanAddresses[0]

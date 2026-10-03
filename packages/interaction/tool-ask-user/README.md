@@ -89,7 +89,6 @@ The observable behavior is covered in [Use this package](#use-this-package); thi
 |---|---|
 | [`src/index.ts`](src/index.ts) | Default blocking tool definition and mode selection |
 | [`src/timed.ts`](src/timed.ts) | Opt-in timed tool definition and result rendering |
-| — | No runtime invariant companion is published; this model-facing adapter has no independent lifecycle stream; execution relations are owned by the capability seam it calls. |
 
 ### Consumer role
 

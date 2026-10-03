@@ -30,7 +30,7 @@ import css from './AppFrame.module.css'
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'main' | 'rightbar' | 'shell.overlay' | 'shell.leading'>
+  & PropsRenderSlots<'sidebar' | 'main' | 'rightbar' | 'shell.bottom' | 'shell.overlay' | 'shell.leading'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
 
@@ -313,6 +313,18 @@ export function AppFrame({
           {renderSlot('rightbar', { width: normal.rightbar, viewportWidth: viewport, canShow: normal.rightbar > 0 })}
         </RightbarColumn>
       </>
+      <div
+        ref={(node) => {
+          if (node === null) return
+          if (phone && layoutInfo.phoneDrawerOpen) node.setAttribute('inert', '')
+          else node.removeAttribute('inert')
+        }}
+        className={css.bottomRow}
+        data-shell-bottom
+        aria-hidden={phone && layoutInfo.phoneDrawerOpen || undefined}
+      >
+        {renderSlot('shell.bottom', {})}
+      </div>
       <div className={css.overlayLayer} data-shell-overlay>
         {overlays}
       </div>

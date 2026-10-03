@@ -79,8 +79,8 @@ Node 半部注册[模型体验](#model-experience)所述的静态 `ui:deliverabl
 
 - [workspace-changes](../../deliverables/workspace-changes/README.zh.md)——记录并提供卡片所渲染摘要的 Host 插件。
 - [ui-chat](../ui-chat/README.zh.md)——声明 `conversation.chat.turnTail` 洞并渲染收尾正文。
-- [本轮改动文件卡片](../../../.agents/notes/implemented/feature/2026-09-11-turn-changed-files-card.zh.md)——用 git 记录的摘要取代修改调用行背后的决策。
-- [工作区文件链接](../../../.agents/notes/implemented/feature/2026-07-31-web-workspace-file-links.zh.md)——早先产出文件行背后的决策；其 Host 打开路径已被[右侧 Sidebar](../../../.agents/notes/implemented/feature/2026-09-04-right-sidebar-docking-infrastructure.zh.md)取代。
+- [历史本轮改动文件卡片](../../../.agents/notes/archived/feature/2026-09-11-turn-changed-files-card.md)——用 git 记录的摘要取代修改调用行背后的决策。
+- [历史工作区文件链接](../../../.agents/notes/archived/feature/2026-07-31-web-workspace-file-links.md)——早先产出文件行背后的决策；其 Host 打开路径已被[右侧 Sidebar](../../../.agents/notes/implemented/feature/2026-09-04-right-sidebar-docking-infrastructure.zh.md)取代。
 - [行内文件提及](../../../.agents/notes/archived/feature/2026-08-07-web-inline-file-mentions.md)——收尾正文可点击提及背后的决策。
 - [客户端包映射](../README.zh.md)——相邻的浏览器 UI 包。
 
@@ -128,5 +128,3 @@ Node 半部注册[模型体验](#model-experience)所述的静态 `ui:deliverabl
 无。
 
 </details>
-
-**运行时不变式：** 不发布伴生入口。提示词、slot、dictionary、文件操作路由与可选 service 注册归 effect 所有；Session 日志拥有声明，文件系统拥有文件内容。

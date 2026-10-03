@@ -19,6 +19,7 @@ import { AskQuestionRow, askQuestionToolview } from '../src/client/tool/toolview
 import type { UserQuestionPanels } from '../src/client/contract/slots.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { zh } from '@deepseek-ai/dsh-client-ui-conversation/src/client/locales.ts'
+import { PartialArguments } from '@deepseek-ai/dsh-util-values'
 
 afterEach(cleanup)
 
@@ -30,15 +31,19 @@ const READABLE_ARGS = JSON.stringify({ questions: [
 ] })
 const PENDING_RESULT = JSON.stringify({ pending: true, callId: 'c1' })
 
-const resultNode = (argsRaw: string, resultText: string | null, over?: Partial<ToolResultNode>): ToolResultNode => ({
-  kind: 'tool-result', seq: 10, time: 2_000, callTime: 1_000, callId: 'c1',
-  call: { name: 'ask_user_question', argsRaw },
-  content: resultText === null ? [] : [{ type: 'text', text: resultText }],
-  isError: false, subCalls: [], ...over,
-})
+const resultNode = (argsRaw: string, resultText: string | null, over?: Partial<ToolResultNode>): ToolResultNode => {
+  const call = over?.call === undefined ? { name: 'ask_user_question', argsRaw } : over.call
+  return {
+    kind: 'tool-result', seq: 10, time: 2_000, callTime: 1_000, callId: 'c1',
+    name: call?.name ?? '', args: call === null ? PartialArguments.EMPTY : PartialArguments.fromText(call.argsRaw),
+    call,
+    content: resultText === null ? [] : [{ type: 'text', text: resultText }],
+    isError: false, subCalls: [], ...over,
+  }
+}
 
 const runningCall = (argsRaw: string): ToolCallBlock =>
-  ({ phase: 'start', callId: 'c1', name: 'ask_user_question', argsRaw, turn: 1, step: 1, time: 1_000, subCalls: [] })
+  ({ phase: 'start', args: PartialArguments.fromText(argsRaw), callId: 'c1', name: 'ask_user_question', argsRaw, turn: 1, step: 1, time: 1_000, subCalls: [] })
 
 const t = makeTranslate(zh, commonZh)
 
@@ -66,7 +71,6 @@ function rowProps(block: ToolCallBlock, env: RowEnvironment = {}): Parameters<ty
   const props = {
     useDisclosure, callId: 'c1', toolName: 'ask_user_question', t,
     ...('kind' in block ? { phase: 'result', block } : { phase: block.phase, block }),
-    useToolCallArgumentsPartial: () => '',
     openFile: vi.fn(),
     loadImage: vi.fn(async () => ''),
     sessionId: 's1' as SessionId,

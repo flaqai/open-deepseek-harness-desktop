@@ -66,9 +66,41 @@
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
+}
+
+.addMenu {
+  width: 320px;
+  max-width: calc(100vw - 48px);
+}
+
+.addMenu [role='menuitem'] {
+  height: 72px;
+  box-sizing: border-box;
+  gap: 10px;
+  padding: 6px 12px;
+}
+
+.addMenuItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: normal;
+}
+
+.addMenuDescription {
+  display: -webkit-box;
+  max-height: 36px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .status,
@@ -368,12 +400,33 @@
 }
 
 /* The toolbar's Add plugin action, one step up from the 28px sm capsule. */
-.addButton {
+.addButton,
+.addPrimary,
+.addMore {
   height: 32px;
   font-size: 13px;
   line-height: 20px;
   padding: 0 12px;
   border-radius: var(--dsw-radius-md);
+}
+
+.addGroup {
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+}
+
+.addPrimary {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.addMore {
+  width: 32px;
+  padding: 0;
+  border-left: 0.5px solid color-mix(in srgb, var(--dsw-alias-label-primary-foreground) 30%, transparent);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .iconWrap {
@@ -1193,8 +1246,8 @@ label.registryOption {
   line-height: 22px;
 }
 
-/* The package or row identity under the title: the exact spec that installs the
-   package elsewhere, where a title of its own or a shortened name hides it. */
+/* The package or row identity under the title, where a title of its own or a
+   shortened name hides it. */
 .detailName {
   margin: 0;
   font-size: 12px;
@@ -1242,6 +1295,46 @@ label.registryOption {
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-secondary);
+}
+
+/* A bundle's source facts: label at the start, value at the end, one ruled line each. */
+.facts {
+  margin: 0;
+}
+
+.facts div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  padding: 8px 2px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.facts dt {
+  flex: none;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.facts dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.facts code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-decoration-break: clone;
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
 }
 
 /* The way into a package's page. */

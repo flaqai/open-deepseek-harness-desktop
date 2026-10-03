@@ -513,8 +513,10 @@ it.skipIf(process.platform === 'win32')('runs a real interactive shell with comp
 
 it('discovers installed shells once per path, preserves default arguments, and refuses unlisted paths', async () => {
   const h = fixture({ shellCandidates: ['bash', 'zsh', 'missing'] })
+  const missing = Object.assign(new Error('absent'), { name: 'SubprocessExecutableNotFoundError' })
+  expect(missing).not.toBeInstanceOf(SubprocessExecutableNotFoundError)
   h.subprocess.resolveExecutable.mockImplementation(async (path) => {
-    if (path === 'missing') throw new SubprocessExecutableNotFoundError('absent')
+    if (path === 'missing') throw missing
     return path.startsWith('/') ? path : `/bin/${path}`
   })
   const shells = await h.controller.shells(h.agent, signal())

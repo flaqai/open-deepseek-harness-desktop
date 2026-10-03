@@ -22,7 +22,7 @@ Windows 签名打包通过受监督的签名阶段覆盖第一方运行时和应
 
 Desktop ZIP 解压通过定向依赖覆盖为 `extract-zip` 固定 `yauzl` 3.4.0。2.x 读取器在 Node 26 上可能无法完成较大 deflate 条目的读取（[上游问题](https://github.com/thejoshwolfe/yauzl/issues/176)）；保留现有解压器可保留其路径校验和 wheel 条目检查。开发启动器使用顶层 await，避免准备未完成却成功退出。大压缩 wheel 回归测试检查完整的解压字节。
 
-[共享运行时决策](../architecture/2026-09-17-shared-office-runtime.zh.md)持有 Desktop 与 SDK 载体的构建器、锁文件和查询包归属，覆盖 GNU/Linux x64 与 Python-only payload。Desktop 保留本文的安装与签名行为，并要求完整的 Python、Node.js 和 pnpm payload。
+[共享运行时参考](../../../../packages/skill/tool-workspace-dependencies/README.zh.md)持有 Desktop 与 SDK 载体的构建器、锁文件和查询包归属，覆盖 GNU/Linux x64 与 Python-only payload。Desktop 保留本文的安装与签名行为，并要求完整的 Python、Node.js 和 pnpm payload。
 
 ## Alternatives considered
 

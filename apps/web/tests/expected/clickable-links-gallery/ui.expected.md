@@ -10,30 +10,30 @@
 - status: Completed
 - button "Completed in {{duration}}" [expanded]
 - button "Wrote files, called tools, searched code, etc." [expanded]
-- button "Write site/report.html +1 -0":
+- button "Write site/report.html 1KB +1 -0":
   - text: Write
   - button "site/report.html"
-  - text: +1 -0
-- button "Write a/style.css +1 -0":
+  - text: 1KB +1 -0
+- button "Write a/style.css 1KB +1 -0":
   - text: Write
   - button "a/style.css"
-  - text: +1 -0
-- button "Write b/style.css +1 -0":
+  - text: 1KB +1 -0
+- button "Write b/style.css 1KB +1 -0":
   - text: Write
   - button "b/style.css"
-  - text: +1 -0
-- button "Write site/index.html +1 -0":
+  - text: 1KB +1 -0
+- button "Write site/index.html 1KB +1 -0":
   - text: Write
   - button "site/index.html"
-  - text: +1 -0
-- button "Write site/app.js +1 -0":
+  - text: 1KB +1 -0
+- button "Write site/app.js 1KB +1 -0":
   - text: Write
   - button "site/app.js"
-  - text: +1 -0
-- button "Edit src/tokens.css +1 -1" [expanded]:
+  - text: 1KB +1 -0
+- button "Edit src/tokens.css 1KB +1 -1" [expanded]:
   - text: Edit
   - button "src/tokens.css"
-  - text: +1 -1
+  - text: 1KB +1 -1
 - text: css
 - button "Wrap lines"
 - button "Copy"

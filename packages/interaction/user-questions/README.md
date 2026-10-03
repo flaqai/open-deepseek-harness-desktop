@@ -67,4 +67,4 @@ None.
 
 </details>
 
-**Runtime invariant:** the `userQuestions` projection is derived from recorded tool calls, PTC dispatches, and admitted user messages; no separate question state is stored. A continued question can create a new user turn, but it cannot resume a finished tool call. No runtime invariant companion is published because the projection fold and the continued-only Remote methods enforce this boundary at their owners.
+**Runtime invariant:** the `userQuestions` projection is derived from recorded tool calls, PTC dispatches, and admitted user messages; no separate question state is stored. A continued question can create a new user turn, but it cannot resume a finished tool call.

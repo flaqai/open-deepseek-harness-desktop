@@ -113,5 +113,3 @@ None.
 The embedder supplies effective close keycaps and ARIA combinations for tab and floating close controls. Close controls expose the same tooltip on hover and keyboard focus. Tab close tooltips stay hidden while their pane's context menu is open.
 
 </details>
-
-**Runtime invariant:** No companion is published. The engine is pure functions over plain data and the components report intents only; the operation sequence's invertibility and the settle rule are asserted directly by this package's engine specs, and no cordis service is provided or observed.

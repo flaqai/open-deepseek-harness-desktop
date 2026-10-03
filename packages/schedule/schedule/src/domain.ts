@@ -79,7 +79,7 @@ export class ScheduleLogError extends Error {
   }
 }
 
-/** Error from a model-supplied Schedule rule that cannot become a record. */
+/** Error from a model-supplied Schedule rule or target Session that cannot become a record. */
 export class ScheduleInputError extends Error {
   /** Stable public Schedule input code. */
   readonly code:
@@ -90,6 +90,7 @@ export class ScheduleInputError extends Error {
     | 'not_future'
     | 'time_out_of_range'
     | 'frequency_too_high'
+    | 'subagent_session'
 
   /**
    * Construct a stable input failure.
@@ -105,7 +106,8 @@ export class ScheduleInputError extends Error {
       | 'invalid_time_zone'
       | 'not_future'
       | 'time_out_of_range'
-      | 'frequency_too_high',
+      | 'frequency_too_high'
+      | 'subagent_session',
     message: string,
     options?: ErrorOptions,
   ) {

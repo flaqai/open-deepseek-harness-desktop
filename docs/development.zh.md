@@ -11,6 +11,7 @@
 ### 前置条件
 
 - Node.js 支持 22.19+ 与 24+。CI 覆盖 22.19、24 和 26；见 [Node 引擎下限 Agent Note](../.agents/notes/implemented/process/2026-07-06-node-engine-floor.zh.md)。
+- 启用 Node.js TypeScript 类型剥离。仓库构建脚本用 tsdown 的 native 配置加载器加载 `tsdown.config.ts`，因此当 `NODE_OPTIONS` 含 `--no-experimental-strip-types` 或 Node.js 构建缺少 TypeScript 支持时会失败；`pnpm run build` 会先检查这一条件并指出原因。
 - 启用了 Corepack 的 pnpm。仓库在 `package.json` 中固定使用 `pnpm@11.7.0`；如果 `pnpm --version` 无法通过 Corepack 解析，请先运行 `corepack enable`。
 - Git 2.26 或更高版本；钩子设置会启用 Git 的 worktree 专属配置扩展。
 - 可选：一个 DeepSeek API key，用于 Web、headless 和 ACP（Agent Client Protocol）自动化 agent（智能体）演示以及真实 API 的 e2e 测试。
@@ -25,6 +26,8 @@
 
 ### 首次搭建
 
+pnpm 使用严格的符号链接布局，让未声明的依赖直接失败，而不是依赖提升。依赖的构建脚本必须明确列入 `pnpm-workspace.yaml` 的允许列表。
+
 在仓库根目录安装依赖：
 
 ```sh
@@ -34,6 +37,8 @@ node scripts/install-dependencies.mjs
 公开 npm 包可以通过 `registry.npmjs.org` 或 `registry.npmmirror.com` 解析。安装器先尝试当前配置的公共 registry；该次失败后，会切换到另一个公共 registry 重试一次。自定义 registry 可能承载私有包或认证，因此不会被自动替换。锁文件保留精确包版本和 SHA-512 integrity，但省略来自两个公共 registry 的普通 tarball URL，使任一公共 registry 都可以提供通过同一内容校验的文件。非标准 tarball 主机仍需显式记录并固定 integrity；内容不一致时，pnpm 会在运行生命周期脚本前失败。`pnpm run verify-lockfile-registry-portability` 负责检查这项规则。
 
 安装过程还会通过 `scripts/install-lefthook.mjs` 配置 worktree 本地的 Lefthook 钩子。[worktree 本地钩子 Agent Note](../.agents/notes/implemented/process/2026-07-27-worktree-local-lefthook.zh.md) 负责钩子路径的安全约定。
+
+[DevTools 前端](../packages/experimental/inspector/README.zh.md#use-this-package)通过固定版本的 npm 源码包和 Vite 在本地编译。依赖安装完成后，构建不需要网络连接或安装浏览器。workspace 与发布包的安装过程都不运行 DevTools 资源下载 hook；发布的 Inspector 包包含已构建的前端。
 
 如果依赖是从缓存恢复或 `postinstall` 被跳过而导致钩子缺失，请手动安装：
 
@@ -113,7 +118,7 @@ Typert 只在 Host tsdown 中以 `tsconfig.host.json` 为种子运行。它分�
 
 `pnpm run build` 会内联根包版本、七位源码 commit，并在 Git 报告本地变化时内联 dirty 标记；调用方提供的其他 `DSH_CLIENT_*` 值也会被继承。`pnpm run build:official` 是与 CI 和 release 产物构建等价的跨平台本地命令，并省略本地 dirty 标记。每次完整构建成功后都会写入一份被 gitignore 的记录，把精确公开值与 Vite 输出及动态 client bundle 绑定；release 打包和 built Web 测试会拒绝缺少记录或被后续局部构建改动的产物。`pnpm run dev:web` 会先执行这次完整构建（`--skip-build` 则复用现有产物树），再读取一次当前版本和 Git 状态，并在本次会话的所有 watcher stage 之间共享该环境；它不会校验完整构建记录，因为 watcher stage 会重写记录覆盖的产物。
 
-静态分析和测试通过 base 的 `paths` 映射把工作区 import 解析到 `src`，且必须在干净树上通过；消费构建产物 `lib/` 的门禁显式声明该依赖。生成的 Host-for-Client Remote 声明是有意设置的例外：公共 `typecheck`、`lint` 和 `doc-typecheck` 命令会先生成这些声明，而内部 `*:contracts-ready` 脚本假定调用它的公共命令或调度器门禁已经依赖 Typert 约定生成阶段或完整构建。tsc-first 发射职责见 [ts-build-config Note](../.agents/notes/implemented/process/2026-06-17-ts-build-config.zh.md)，门禁准备约定见 [Typert Remote Agent Note](../.agents/notes/implemented/architecture/2026-08-02-typert-remote-method-calls.zh.md)。
+静态分析和测试通过 base 的 `paths` 映射把工作区 import 解析到 `src`，且必须在干净树上通过；消费构建产物 `lib/` 的门禁显式声明该依赖。生成的 Host-for-Client Remote 声明是有意设置的例外：公共 `typecheck`、`lint` 和 `doc-typecheck` 命令会先生成这些声明，而内部 `*:contracts-ready` 脚本假定调用它的公共命令或调度器门禁已经依赖 Typert 约定生成阶段或完整构建。门禁准备约定见 [Typert Remote Agent Note](../.agents/notes/implemented/architecture/2026-08-02-typert-remote-method-calls.zh.md)。
 
 业务服务在 Host 使用 `@Remote` 或 `@RemoteScope` 声明可调用方法；Host 构建生成 Host-for-Client 类型与运行时贡献，Client 的 `api-remotes` 组合加载这些贡献并挂到 `ctx.remote` 与作用域 `agentCtx.remote` namespace。两侧的生成产物、装配关系、SRC 开发回退和 Web 构建顺序见 [API Gateway](api-gateway.zh.md)。
 

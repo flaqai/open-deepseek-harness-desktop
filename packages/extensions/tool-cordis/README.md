@@ -35,7 +35,7 @@ Creator mode includes this toolset. Other compositions mount `@deepseek-ai/dsh-t
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-Host providers combine generated Service/Event catalogs, the live Loader tree projected through the app-boot Config projector, and the requesting agent's tool registry. Client providers synchronize their manifests through the existing inspection registry and answer queries from a connected page. The host entry owns the Host provider registrations and the preset row owns the two tools, each through Cordis effects; the registry rejects a duplicate provider id, which is why the providers register once per process rather than per preset. No invariant companion is published because inspection reads its providers directly and maintains no independent runtime projection.
+Host providers combine generated Service/Event catalogs, the live Loader tree projected through the app-boot Config projector, and the requesting agent's tool registry. Client providers synchronize their manifests through the existing inspection registry and answer queries from a connected page. The host entry owns the Host provider registrations and the preset row owns the two tools, each through Cordis effects; the registry rejects a duplicate provider id, which is why the providers register once per process rather than per preset.
 
 </details>
 

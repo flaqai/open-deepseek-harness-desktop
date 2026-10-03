@@ -67,4 +67,4 @@ kind: "package-reference"
 
 </details>
 
-**运行时不变式：** `userQuestions` projection 由已记录的工具调用、PTC 子调用和准入的用户消息推导，不存储单独的问题状态。已继续的问题可以创建新的用户轮次，但不能恢复已结束的工具调用。此包不发布运行时不变量 companion，因为 projection 折叠和只接受已继续问题的 Remote 方法已在各自归属处保证这一边界。
+**运行时不变式：** `userQuestions` projection 由已记录的工具调用、PTC 子调用和准入的用户消息推导，不存储单独的问题状态。已继续的问题可以创建新的用户轮次，但不能恢复已结束的工具调用。

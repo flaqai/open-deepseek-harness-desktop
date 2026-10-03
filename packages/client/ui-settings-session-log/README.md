@@ -62,7 +62,6 @@ None; the setting controls request metadata outside model input.
 <a id="known-limitations-and-deferred-work"></a>
 
 - The row is unavailable when the Host does not expose the `session-log-deepseek` namespace.
-- No runtime invariant companion is published: accepted enablement comes directly from the shared configuration form, without an independent copy.
 
 <a id="dev-note"></a>
 ### Dev Note

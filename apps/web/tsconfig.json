@@ -22,6 +22,7 @@
   // this client-registered project must not also hold them (one program
   // cannot see both sides of the cordis Context merges).
   "exclude": [
+    "tests/layout-bottom.e2e.ts",
     "tests/shortcuts-desktop.e2e.ts",
     "tests/shortcuts-workspace.e2e.ts",
     "tests/shortcuts-panels.e2e.ts",
@@ -68,11 +69,17 @@
     "tests/plugin-config.e2e.ts",
     "tests/input-plugin-extensions.e2e.ts",
     "tests/plugin-manager.e2e.ts",
+    "tests/session-inspector.e2e.ts",
+    "tests/shared-inspector.e2e.ts",
+    "tests/devtools-frontend.e2e.ts",
+    "tests/inspector-panels.e2e.ts",
+    "tests/inspector-source-build.e2e.ts",
     "tests/plugin-install-cancel.e2e.ts",
     "tests/plugin-install-approve.e2e.ts",
     "tests/plugin-install-registry.e2e.ts",
     "tests/plugin-install-github.e2e.ts",
     "tests/client-plugin-live.e2e.ts",
+    "tests/draft-initialization.e2e.ts",
     "tests/settings-chrome.e2e.ts",
     "tests/session-log-upload.e2e.ts",
     "tests/caption-overlays.e2e.ts",

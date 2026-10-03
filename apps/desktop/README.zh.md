@@ -6,7 +6,7 @@
 
 ## 运行时与会话兼容性
 
-本次集成使用 Harness 0.1.7-rc.2 和外部 Node 24.21.0，Electron 固定为 44.0.0，pnpm 固定为 11.7.0。macOS 安装版要求 macOS 13.5 或更高版本；这是内置 Node 二进制的最低要求，不能只根据 Electron 推断系统兼容性。
+本次集成使用 Harness 0.2.1-alpha.1 和外部 Node 24.21.0，Electron 固定为 44.0.0，pnpm 固定为 11.7.0。macOS 安装版要求 macOS 13.5 或更高版本；这是内置 Node 二进制的最低要求，不能只根据 Electron 推断系统兼容性。
 
 会话历史遵循完整的 V0 → V1 → V2 → V3 → V4 迁移链。迁移保留旧代文件并写入经过校验的后继文件，但不能假设旧客户端能理解新写入的 V4 数据。插件快照不包含会话，也不能撤销会话格式升级。复用重要历史数据前，应使用数据目录的隔离副本验证升级。
 
@@ -53,7 +53,7 @@ pnpm 生成的本地来源定位随激活重新计算相对位置；manifest 原
 
 新建桌面托管 Profile 必须准备全部启动预设插件后才打开客户端。各平台原生构建提供带校验清单的可迁移 Profile 模板。归档哈希、条目路径与链接安全检查及解压共用一次流式读取；加载页与持久日志会标明这项首次启动操作并记录耗时。匹配的模板复制到同磁盘的一个候选目录，适配路径、执行只读 Doctor 后统一激活，不运行 pnpm 安装。存在明确构建拒绝或模板不适配时，改用一次有界的本地归档批量安装；模板损坏则停止准备。持久化待完成标记跨中断保留。确认旧所有者已退出后，相同模板的准备任务可以复用已校验的完整文件，激活前重新验证。只有正常就绪且事务提交后才清除标记。已有及复用 Profile 保留用户主动更新、卸载和版本选择；同一桌面版本的后续启动不会再次预装插件。模板不与应用资源共享可写文件，不包含 pnpm store、凭据或会话。
 
-已有的本机 `web` Profile 如果曾开启 Schedule，或保留活动定时任务且没有明确关闭，桌面端会通过同一启动候选事务添加可选的“自动化任务” bundle。新建 Profile 仍默认关闭。候选事务会在 Profile 清单中记录 `odsh.scheduleMigration: 1`，避免用户日后主动关闭时被旧任务数据重新开启。NAS 连接和用户的补丁 YAML 不会被修改；CLI 与普通 Web Profile 仍按[手动升级指南](../../docs/upgrade-guide/v0.1.7-rc.2/schedule-optional-bundle/guide.zh.md)操作。
+Web Profile 内置 Schedule 服务与任务页面，提醒工具属于 `standard`、`cordis` 与 `ptc` 预设。新建 Profile 不会自动创建定时任务。升级保留已有任务数据和用户在补丁 YAML 中明确关闭条目的选择；Desktop 不再安装已退役的可选“自动化任务” bundle。NAS 连接继续使用远端 Profile 的配置。
 
 启动预装集合还包含原始 `@weibaohui/skills-management` 归档。其技能市场可管理本机发现的 coding agent 技能，并浏览在线技能目录。插件默认在启动后于后台同步目录，此后每天再次同步；用户可在插件设置中关闭这些同步选项。`@dsh-plugins/mcp-panel` 归档提供 MCP 服务设置面板；这个私有 workspace 包尚未发布到 npm，因此归档由[固定的 dsh-pluginHive 源码](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel)构建。归档元数据补齐了上游 `files` 清单遗漏的生成 Host 文件，未改动插件运行源码。随包提供插件归档不等于把在线技能目录或普通传递依赖也一并预装。
 

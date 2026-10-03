@@ -92,6 +92,7 @@ function bashDescription(background: boolean, promote: boolean, escalationModes:
     + 'Each call runs in a fresh shell; pass `workdir` instead of using `cd`. '
     + `Managed \`$${DSH_ENV_PREFIX}*\` variables expose current harness environment facts. `
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
+    + 'Provide `description` before `command` in the arguments. '
     + 'Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. '
     + 'An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`. '
     + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way. '
@@ -389,7 +390,6 @@ export function apply(ctx: Context, config: Config = {}): void {
       name: 'bash',
       description: bashDescription(background, promote, escalationModes),
       parameters: {
-        command: { type: 'string', required: true, description: 'The bash command to execute.' },
         description: {
           type: 'string',
           required: true,
@@ -397,6 +397,7 @@ export function apply(ctx: Context, config: Config = {}): void {
             + '5-10 words (shown in the UI). Use the language of the user\'s latest request unless the user explicitly asks for another language. Examples: "ls" → "List files in current directory"; '
             + '"git status" → "Show working tree status"; "npm install" → "Install package dependencies".',
         },
+        command: { type: 'string', required: true, description: 'The bash command to execute.' },
         timeoutMs: {
           type: 'number',
           description: promote

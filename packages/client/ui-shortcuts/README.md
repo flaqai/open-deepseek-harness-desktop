@@ -85,5 +85,3 @@ None; this package neither assembles nor sends a provider request.
 None.
 
 </details>
-
-**Runtime invariant:** No companion is published. Slot registration validates ownership; the view derives its rows from the shortcut catalog without a second mutable registry.

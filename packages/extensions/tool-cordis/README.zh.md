@@ -35,7 +35,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-Host provider 结合生成的 Service/Event 目录、经 app-boot Config 投影器投影的运行中 Loader 树，以及请求 agent 的工具注册表。Client provider 通过现有检查注册表同步清单，并从已连接页面回答查询。宿主入口持有 Host provider 的注册，preset 行持有两个工具，都通过 Cordis effect；注册表拒绝重复的 provider id，所以 provider 按进程注册一次而不是按 preset 注册。检查直接读取 provider，不维护独立运行时投影，因此不发布不变式配套插件。
+Host provider 结合生成的 Service/Event 目录、经 app-boot Config 投影器投影的运行中 Loader 树，以及请求 agent 的工具注册表。Client provider 通过现有检查注册表同步清单，并从已连接页面回答查询。宿主入口持有 Host provider 的注册，preset 行持有两个工具，都通过 Cordis effect；注册表拒绝重复的 provider id，所以 provider 按进程注册一次而不是按 preset 注册。
 
 </details>
 

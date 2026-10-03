@@ -100,6 +100,4 @@ Client waterfall 的 Context 解析保持同步。解析器可以返回借用的
 
 </details>
 
-**运行时不变式：** 不发布伴生入口。Host 调用会重新读取权威的 Cordis 与 Typert 状态，Client 方法、描述符与 `$on` 订阅的变更则统一归属同一个 effect。
-
 ./stream-protocol 导出为原生桌面调用方提供共享的 Remote 流帧格式和解析器。它们与浏览器客户端使用同一个经过认证的 WebSocket 端点。

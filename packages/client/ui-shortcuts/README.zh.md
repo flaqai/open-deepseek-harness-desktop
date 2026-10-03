@@ -85,5 +85,3 @@ Web 应用 bundle 将此包与 `shortcuts` 一同挂载。速查仅展示已注�
 无。
 
 </details>
-
-**Runtime invariant:** 不发布配套检查模块。slot 注册验证所有权，界面从快捷键目录派生列表，不维护第二份可变注册表。

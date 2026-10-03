@@ -62,7 +62,6 @@ Host 提供 `session-log-deepseek` 时，配套插件贡献一个 `settings.gene
 <a id="known-limitations-and-deferred-work"></a>
 
 - Host 不提供 `session-log-deepseek` 命名空间时，该行不可用。
-- 不发布运行时不变量配套插件：已接受的启用状态直接来自共享配置表单，没有独立副本。
 
 <a id="dev-note"></a>
 ### 开发备注

@@ -1887,21 +1887,6 @@
       "source": "packages/plan/plan-mode/src/index.ts"
     },
     {
-      "doc": "docs/subsystems/invariants.md",
-      "symbol": "Config",
-      "source": "packages/runtime-diagnostics/invariants/src/index.ts"
-    },
-    {
-      "doc": "docs/subsystems/invariants.md",
-      "symbol": "InvariantFailure",
-      "source": "packages/runtime-diagnostics/invariants/src/index.ts"
-    },
-    {
-      "doc": "docs/subsystems/invariants.md",
-      "symbol": "InvariantInstaller",
-      "source": "packages/runtime-diagnostics/invariants/src/index.ts"
-    },
-    {
       "doc": "docs/subsystems/web-server.md",
       "symbol": "WebRouteKind",
       "source": "packages/host/webserver/src/index.ts"

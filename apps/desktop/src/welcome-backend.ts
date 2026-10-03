@@ -14,7 +14,7 @@ export interface WelcomeState {
 
 /** Narrow operations available to the native welcome flow. */
 export interface DesktopWelcomeBackend {
-  /** @returns the current Host policy; every read observes live configuration. */
+  /** @returns the current Host policy, or false when this Profile omits analytics. */
   analyticsEnabled(): Promise<boolean>
   readonly account: DesktopAccountBackend
   /** @param event - desktop-owned fields. @returns after local Host intake. */
@@ -32,6 +32,12 @@ export interface DesktopWelcomeBackend {
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+class WebRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`desktop welcome: Web request failed (${String(status)})`)
+  }
 }
 
 /**
@@ -60,7 +66,7 @@ export async function connectDesktopWelcome(
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId, method, payload: { args: request.args } }),
     })
-    if (!response.ok) throw new Error('desktop welcome: Web request failed')
+    if (!response.ok) throw new WebRequestError(response.status)
     const envelope: unknown = await response.json()
     if (!record(envelope) || envelope.type !== 'server-response' || envelope.rpcId !== rpcId
       || !record(envelope.result) || envelope.result.ok !== true) {
@@ -124,7 +130,14 @@ export async function connectDesktopWelcome(
     account,
     read,
     async analyticsEnabled() {
-      const enabled = await invoke({ namespace: 'productAnalytics', method: 'enabled', args: {} }, AbortSignal.timeout(1000))
+      let enabled: unknown
+      try {
+        enabled = await invoke({ namespace: 'productAnalytics', method: 'enabled', args: {} }, AbortSignal.timeout(1000))
+      } catch (error) {
+        // The community Web profile omits the optional Desktop collector.
+        if (error instanceof WebRequestError && error.status === 404) return false
+        throw error
+      }
       if (typeof enabled !== 'boolean') throw new Error('desktop analytics: invalid collection policy')
       return enabled
     },

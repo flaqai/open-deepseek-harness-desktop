@@ -126,6 +126,7 @@ function pwshDescription(windowsSandbox: boolean): string {
     + 'Managed `$env:DSH_*` variables expose current harness environment facts. '
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
     + 'On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. '
+    + 'Provide `description` before `command` in the arguments. '
     + 'Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. '
     + 'Do not assign to automatic variables such as `$HOME`; variable names are case-insensitive, so `$home` is the same read-only variable. '
     + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.'
@@ -397,7 +398,6 @@ export function apply(ctx: Context, config: Config = {}): void {
       description: pwshDescription(escalationModes.length > 0),
       /* jscpd:ignore-start -- deliberate mirror of dsh-tool-bash's parameter surface (pwsh-tool-and-executor Agent Note). */
       parameters: {
-        command: { type: 'string', required: true, description: 'The PowerShell command to execute.' },
         description: {
           type: 'string',
           required: true,
@@ -405,6 +405,7 @@ export function apply(ctx: Context, config: Config = {}): void {
             + '5-10 words (shown in the UI). Use the language of the user\'s latest request unless the user explicitly asks for another language. Examples: "ls" → "List files in current directory"; '
             + '"git status" → "Show working tree status"; "Get-Process" → "List running processes".',
         },
+        command: { type: 'string', required: true, description: 'The PowerShell command to execute.' },
         timeoutMs: {
           type: 'number',
           description: promote

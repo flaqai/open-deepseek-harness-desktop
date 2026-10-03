@@ -118,5 +118,3 @@ iframe 提供方记录 toolbar 提交和 typed tab 打开。导航状态机把�
 无。
 
 </details>
-
-**运行时不变量：** 不发布 companion。每个导航 provider 拥有自身的实时状态并直接发布检查点；UI 通过 controller 消费同一份 provider 状态。

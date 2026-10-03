@@ -1,5 +1,6 @@
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 
 const load = vi.hoisted(() => ({ path: '', shown: false, destroyed: false, maximized: false }))
@@ -34,6 +35,30 @@ import { openWelcomeWindow, welcomeWindowOptions } from '../src/welcome-window.t
 import { WELCOME_IPC } from '../src/welcome-api.ts'
 
 describe('native desktop welcome file', () => {
+  it('contains a rejected initial analytics request while keeping the welcome visible', async () => {
+    load.shown = false
+    load.destroyed = false
+    const error = new Error('desktop welcome: Web request failed (500)')
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await openWelcomeWindow(resolveDesktopLocale('en'), {
+        analyticsEnabled: async () => true,
+        analytics: async () => { throw error },
+        takeNotice: async () => undefined,
+        startSignIn: async () => { throw new Error('unused') },
+        cancelSignIn: async () => { throw new Error('unused') },
+        copySignInLink: async () => undefined,
+        saveApiKey: async () => ({ ok: false }),
+        skip: async () => undefined,
+      }, { x: 0, y: 0, width: 1440, height: 920 }, async () => undefined)
+      await vi.waitFor(() => { expect(warning).toHaveBeenCalledWith('desktop welcome: initial analytics submission failed', error) })
+      expect(load.shown).toBe(true)
+      expect(load.destroyed).toBe(false)
+    } finally {
+      warning.mockRestore()
+    }
+  })
+
   it('uses the workspace window bounds instead of the upstream fixed-size dialog', () => {
     const options = welcomeWindowOptions('darwin', resolveDesktopLocale('en'), { x: 80, y: 40, width: 1100, height: 760 })
     expect(options).toMatchObject({ x: 80, y: 40, width: 1100, height: 760, minWidth: 960, minHeight: 640, resizable: true })
@@ -53,7 +78,7 @@ describe('native desktop welcome file', () => {
       saveApiKey: async () => ({ ok: false }),
       skip: async () => undefined,
     }, { x: 0, y: 0, width: 1440, height: 920 }, async () => { recordedBeforeShow = !load.shown }, true)
-    expect(load.path).toBe(join(process.cwd(), 'apps', 'desktop', 'renderer', 'welcome.html'))
+    expect(load.path).toBe(fileURLToPath(new URL('../renderer/welcome.html', import.meta.url)))
     expect(recordedBeforeShow).toBe(true)
     expect(load.shown).toBe(true)
     expect(load.maximized).toBe(true)

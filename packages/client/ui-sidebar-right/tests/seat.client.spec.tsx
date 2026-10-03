@@ -168,6 +168,103 @@ async function mountSeat(viewportWidth = 1440, canShow = true, entryCount = 0, o
   }
 }
 
+it('keeps duplicate Session Tabs independent and preserves a body through docking and float focus', async () => {
+  const h = await mountSeat()
+  await act(async () => {
+    h.runtime.ctx.sidebarRightTabs.register({ id: 'test/shared', kind: 'shared', keepMounted: true, title: () => 'Shared' })
+    h.runtime.slots.register({ name: 'sidebar.right.pane.tab', key: 'test/shared' }, () => <input data-page-input />)
+  })
+  act(() => { h.controller.openTab('shared') })
+  const tab = h.controller.active()!
+  const body = document.querySelector<HTMLInputElement>('[data-page-input]')!
+  const cell = body.closest('[data-dockkit-host]')
+  const close = vi.fn()
+  h.runtime.ctx.effect(() => h.controller.registerCloseHandler('shared', close))
+  act(() => { h.controller.openTab('shared', { replaceTab: tab.id, revealIfOpened: false }) })
+  expect(close).not.toHaveBeenCalled()
+  let otherPane: PaneId | undefined
+  act(() => { otherPane = h.controller.split() })
+  fireEvent.click(body)
+  expect(h.controller.active()?.id).toBe(tab.id)
+  expect(otherPane).toBeDefined()
+  act(() => { h.controller.openTab('shared', { paneId: otherPane!, revealIfOpened: false, preferNewPane: true }) })
+  expect(h.controller.tabsIn(SESSION).filter(tab => tab.kind === 'shared')).toHaveLength(2)
+  const duplicate = h.controller.active()!
+  expect(duplicate.id).not.toBe(tab.id)
+  expect(document.querySelectorAll('[data-page-input]')).toHaveLength(2)
+  act(() => { h.controller.close(duplicate.id) })
+  act(() => { h.controller.float(tab.id) })
+  expect(document.querySelector('[data-page-input]')).toBe(body)
+  expect(body.closest('[data-dockkit-host]')).toBe(cell)
+  const floating = h.controller.focusedTarget(body)!
+  expect(floating.host).toBe('float')
+  act(() => { h.actions.setExpanded(SESSION, false) })
+  expect(body.closest('[hidden]')).toBeNull()
+  expect(body.closest('[aria-hidden="true"]')).toBeNull()
+  act(() => { body.focus() })
+  expect(h.controller.focusedTarget()?.tabId).toBe(tab.id)
+  act(() => { h.controller.dock(floating.paneId) })
+  expect(document.querySelector('[data-page-input]')).toBe(body)
+  expect(body.closest('[aria-hidden="true"]')).not.toBeNull()
+  act(() => { h.controller.toggleExpanded() })
+  expect(body.closest('[data-dockkit-host]')).toBe(cell)
+})
+
+it('retains a collapsed Session Tab and remounts an unretained hidden body', async () => {
+  const h = await mountSeat()
+  let latest: SidebarRightTabInfo | undefined
+  function Body(props: PropsRuntime<'sidebar.right.pane.tab'>) {
+    latest = props.useTabInfo()
+    return <input data-retention-parity />
+  }
+  await act(async () => {
+    h.runtime.ctx.sidebarRightTabs.register({ id: 'test/retention', kind: 'retention', title: () => 'Retention' })
+    h.runtime.slots.register({ name: 'sidebar.right.pane.tab', key: 'test/retention' }, Body)
+  })
+  act(() => { h.controller.openTab('retention') })
+  const tab = h.controller.active()!
+  const body = document.querySelector('[data-retention-parity]')!
+  const signal = latest!.tab.signal
+  act(() => { h.controller.toggleExpanded() })
+  expect(body.isConnected).toBe(true)
+  expect(latest!.sidebar.expanded).toBe(false)
+  expect(latest!.tab.visible).toBe(false)
+  act(() => { h.controller.toggleExpanded() })
+  expect(document.querySelector('[data-retention-parity]')).toBe(body)
+  act(() => { h.controller.openTab('guide') })
+  expect(body.isConnected).toBe(false)
+  expect(signal.aborted).toBe(false)
+  act(() => { h.controller.focus(tab.id) })
+  expect(document.querySelector('[data-retention-parity]')).not.toBe(body)
+  expect(latest!.tab.signal).toBe(signal)
+})
+
+it('rebinds a restored Session Tab lifetime even when close and undo share one render', async () => {
+  const h = await mountSeat()
+  let lifetime: AbortSignal | undefined
+  function Body(props: PropsRuntime<'sidebar.right.pane.tab'>) {
+    lifetime = props.useTabInfo().tab.signal
+    const [count, setCount] = useState(0)
+    return <button data-restored-tab onClick={() => { setCount(value => value + 1) }}>{count}</button>
+  }
+  await act(async () => {
+    h.runtime.ctx.sidebarRightTabs.register({ id: 'test/restored', kind: 'restored', keepMounted: true, title: () => 'Restored' })
+    h.runtime.slots.register({ name: 'sidebar.right.pane.tab', key: 'test/restored' }, Body)
+  })
+  act(() => { h.controller.openTab('restored') })
+  const tab = h.controller.active()!
+  const original = document.querySelector('[data-restored-tab]')!
+  const before = lifetime!
+  fireEvent.click(original)
+  act(() => { h.controller.close(tab.id); h.controller._undo() })
+  expect(h.controller.active()?.id).toBe(tab.id)
+  expect(before.aborted).toBe(true)
+  expect(lifetime).not.toBe(before)
+  expect(document.querySelector('[data-restored-tab]')).not.toBe(original)
+  expect(original.isConnected).toBe(false)
+  expect(document.querySelector('[data-restored-tab]')?.textContent).toBe('0')
+})
+
 function element(container: HTMLElement, selector: string): HTMLElement {
   const node = container.querySelector<HTMLElement>(selector)
   if (node === null) throw new Error(`expected ${selector}`)
@@ -805,6 +902,7 @@ describe('slot-owned useTabInfo', () => {
       h.controller.split()
     })
     const anchor = element(h.view.container, '[data-dockkit-split-button]').parentElement!
+    fireEvent.keyDown(anchor, { key: 'Tab' })
     fireEvent.focus(anchor)
     expect(document.querySelector('[role="tooltip"]')?.getAttribute('aria-label')).toBe('Two panes is the limit ⌘ \\')
     act(() => { h.catalog.set([{ ...split, binding: { code: 'KeyG', modifiers: ['control'] },

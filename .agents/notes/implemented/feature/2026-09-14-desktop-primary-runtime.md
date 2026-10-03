@@ -22,7 +22,7 @@ Windows signed packaging separates materialization from execution with supervise
 
 Desktop ZIP extraction pins `extract-zip` to `yauzl` 3.4.0 through a scoped dependency override. The 2.x reader can leave large deflate entries unfinished on Node 26 ([upstream issue](https://github.com/thejoshwolfe/yauzl/issues/176)); retaining the existing extractor preserves its path validation and wheel-entry checks. The development launcher uses top-level await so unfinished preparation cannot exit successfully. A large compressed wheel regression checks the complete extracted bytes.
 
-The [shared-runtime decision](../architecture/2026-09-17-shared-office-runtime.md) owns builder, lock and query-package placement for Desktop and SDK carriers, including GNU/Linux x64 and Python-only payloads. Desktop retains the installation and signing behavior described here and requires the full Python, Node.js and pnpm payload.
+The [shared-runtime reference](../../../../packages/skill/tool-workspace-dependencies/README.md) owns builder, lock and query-package placement for Desktop and SDK carriers, including GNU/Linux x64 and Python-only payloads. Desktop retains the installation and signing behavior described here and requires the full Python, Node.js and pnpm payload.
 
 ## Alternatives considered
 

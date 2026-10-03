@@ -224,8 +224,12 @@ describe('AppFrame', () => {
     expect(sidebarOwner()).toMatchObject({ collapsed: false, presentation: 'drawer' })
     expect(getByTestId('main-content').parentElement?.hasAttribute('inert')).toBe(true)
     expect(getByTestId('main-content').parentElement?.getAttribute('aria-hidden')).toBe('true')
+    expect(getByTestId('shell.bottom-content').parentElement?.hasAttribute('inert')).toBe(true)
+    expect(getByTestId('shell.bottom-content').parentElement?.getAttribute('aria-hidden')).toBe('true')
     act(() => { sidebarOwner().dismiss() })
     expect(getByTestId('main-content').parentElement?.hasAttribute('inert')).toBe(false)
+    expect(getByTestId('shell.bottom-content').parentElement?.hasAttribute('inert')).toBe(false)
+    expect(getByTestId('shell.bottom-content').parentElement?.hasAttribute('aria-hidden')).toBe(false)
   })
 
   it.each([375, 390, 430, 667, 680])('keeps the sidebar overlay-only at %ipx', (width) => {
@@ -244,12 +248,13 @@ describe('AppFrame', () => {
     expect(sidebarOwner()).toMatchObject({ collapsed: true, presentation: 'column', width: 56 })
   })
 
-  it('renders the main, sidebar, and root-scoped rightbar outlets without a current Session', () => {
+  it('renders the column and bottom outlets without a current Session', () => {
     selectedSession = undefined
     const { frame, getByTestId } = mountFrame()
     expect(getByTestId('main-content').getAttribute('data-entry-key')).toBe('conversation')
     expect(getByTestId('sidebar-content')).toBeTruthy()
     expect(getByTestId('rightbar-content')).toBeTruthy()
+    expect(getByTestId('shell.bottom-content').parentElement?.hasAttribute('data-shell-bottom')).toBe(true)
     expect(tracks(frame)).toEqual([280, 0])
   })
 

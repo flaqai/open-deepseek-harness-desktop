@@ -111,5 +111,3 @@ composer 的 `ModelSelect` 与 `/model` 选项构建器共用[提供方排序](s
 无。
 
 </details>
-
-**运行时不变式：** 不发布伴生入口。插件只注册一个 command contribution，HMR（热模块替换）安全性测试证明该注册的 dispose 能正确完成；它不发出 Cordis 事件，也不持有跨插件可变状态。
