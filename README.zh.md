@@ -363,16 +363,16 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 ### 预设插件
 
-安装包携带八个启动预设的完整性校验归档及按平台预构建的完整 Profile：插件市场、`dsh-im`、Better Sidebar、`dsh-pocket`、`@ychris12138/dsh-usage-stats`、`dsh-smooth-stream`、`dsh-mermaid` 和 `dsh-whale-widget`；Usage Stats 提供 Token 用量、Provider 账户、会话费用估算、预算与导出能力，Smooth Stream 为回复中的 Markdown、代码块、表格和工具结果提供平滑流式渲染与滚动，Mermaid 可将 Mermaid 代码块渲染为可切换、缩放和导出的 SVG 图表，小鲸鱼挂件则在 Web 界面显示余额、今日用量与每轮消耗。首次准备优先部署完整模板，不需要临时联网或逐个运行插件安装；包内归档仍用于维修和兼容回退。普通传递依赖继续由 Profile 的 pnpm 解析规则管理。
+安装包携带十个启动预设的完整性校验归档及按平台预构建的完整 Profile，其中包括插件市场、`dsh-im`、Better Sidebar 和 `@agents-anywhere/dsh-bridge-next`。Agents Anywhere 默认关闭；在“工具 → 远程控制”主动启用后，可选择 AA Cloud 或自建服务，登录并连接手机。它只连接本机 Profile；NAS 模式不启动本机 Connector。首次准备优先部署完整模板，不需要临时联网或逐个运行插件安装；包内归档仍用于维修和兼容回退。普通传递依赖继续由 Profile 的 pnpm 解析规则管理。
 
 #### 预设插件致谢
 
-感谢这些启动预设的作者与维护者：[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) 和 [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)。本项目负责桌面集成和经过校验的原样归档分发；各插件的代码、素材、许可证与后续维护归各自项目。
+感谢这些启动预设的作者与维护者：[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) 和 [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)。本项目负责桌面集成和经过校验的原样归档分发；各插件的代码、素材、许可证与后续维护归各自项目。
 
 <p align="center">
-  <img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="通过 dsh-pocket 的二维码和局域网地址连接手机">
+  <img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="旧版 dsh-pocket 手机访问界面">
   <br>
-  <sub>手机访问：在同一网络中扫码打开，也可以按需启用公网访问</sub>
+  <sub>旧版 Pocket 手机访问界面；升级后现有 Pocket 配置继续保留，可在插件管理中手动卸载</sub>
 </p>
 
 <p align="center">
@@ -551,11 +551,11 @@ API Key 由 Harness 凭据服务管理，请勿提交凭据。选择任何兼容
 
 感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 上游维护核心运行时与官方 Provider，并感谢 [OpenAI Codex](https://github.com/openai/codex) 和 [Anthropic Claude Code](https://github.com/anthropics/claude-code) 提供产品运行时。
 
-感谢以下八个预设社区插件的作者与维护者：
+感谢预设社区插件的作者与维护者：
 
 - [`dsh-im`](https://github.com/xmanrui/dsh-im)，由 [xmanrui](https://github.com/xmanrui) 维护：连接微信、飞书等十二种 IM 机器人。
 - [`dsh-market`](https://github.com/dsh-market/dsh-market)，由 [dsh-market](https://github.com/dsh-market) 社区维护：在 Harness 内浏览、搜索、安装和管理插件。
-- [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)：提供 Pocket 扩展。
+- [`Agents Anywhere DSH Bridge`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next)：提供登录、设备绑定与本机 Connector 远控。旧版 Pocket 用户的安装与配置继续保留。
 - [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)：提供增强侧边栏。
 - [`DSH Usage Stats`](https://github.com/Ychris12138/dsh-usage-stats)：提供 Token 用量、账户、费用估算、预算和导出能力。
 - [`DSH Smooth Stream`](https://github.com/Laplace-bit/dsh-smooth-stream)：提供更平滑的流式渲染与滚动。
