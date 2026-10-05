@@ -43,6 +43,7 @@ test('Windows unpacked probe checks packaged peers, Electron entries, and manage
   assert.match(entry, /lifecycle: 'client'/u)
   assert.match(entry, /DSH_MANAGED_CLIENT_SMOKE_READY/u)
   assert.match(entry, /handle\.waitForExit/u)
+  assert.match(entry, /console\.log\('DSH_MANAGED_CLI_SMOKE_READY'\)/u)
 })
 
 test('Windows readiness fails on terminal supervisor errors but permits recoverable plugin errors', async () => {
