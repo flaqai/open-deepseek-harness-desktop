@@ -75,7 +75,8 @@ async function runManagedCliSmoke(): Promise<void> {
       signal: new AbortController().signal,
       managedRuntime: observer,
     })
-    console.log(`DSH_MANAGED_CLI_SMOKE_READY ${output.trim()}`)
+    console.log(output.trim())
+    console.log('DSH_MANAGED_CLI_SMOKE_READY')
   } finally {
     await observer.stopAll()
   }
