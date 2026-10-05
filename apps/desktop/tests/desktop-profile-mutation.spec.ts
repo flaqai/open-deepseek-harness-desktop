@@ -157,22 +157,6 @@ describe('Desktop Profile mutation interface', () => {
     ]))
   })
 
-  it('routes a closed Computer Use choice through the startup candidate and safety snapshot', async () => {
-    const fixture = createFixture()
-    await fixture.mutations.applyAtStartup({
-      operation: 'orb-computer-use-backend-switch',
-      run: async (context) => {
-        await context.write({ kind: 'set-computer-use-backend', backend: 'official-native',
-          operation: 'orb-computer-use-backend-switch', timeoutMs: 60_000 })
-      },
-    })
-    expect(fixture.calls).toEqual(expect.arrayContaining([
-      'snapshot:create-safety',
-      'orb-computer-use-backend-switch:set-computer-use-backend official-native',
-    ]))
-    await fixture.mutations.abortStartup()
-  })
-
   it('reports activation failure as a completed rollback instead of mutation success', async () => {
     const fixture = createFixture()
     const result = fixture.mutations.applyManaged({

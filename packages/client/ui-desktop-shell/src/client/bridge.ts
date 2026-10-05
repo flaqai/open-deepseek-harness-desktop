@@ -181,7 +181,7 @@ export interface CommunityFeedbackInput {
 export interface CommunityFeedbackBridge {
   status(): Promise<{ enabled: boolean }>
   submit(input: CommunityFeedbackInput): Promise<{ status: 'received' | 'unavailable' | 'rate-limited' | 'failed'; id?: string }>
-  openMail(input?: Omit<CommunityFeedbackInput, 'requestId'>): Promise<void>
+  openMail(input: Omit<CommunityFeedbackInput, 'requestId'>): Promise<void>
 }
 
 /** Active Harness home and the two built-in switch targets. */

@@ -27,15 +27,6 @@ interface MainSelection {
   readonly subagentAddress?: SubagentAddress
 }
 
-/** Keep the floating renderer's navigation separate from the main window's last Session.
- * @param search - Current document's query string, never used directly as a storage key.
- * @returns One of two fixed selection keys.
- */
-export function sessionSelectionPersistKey(search: string): string {
-  const parameters = new URLSearchParams(search)
-  return parameters.size === 1 && parameters.get('surface') === 'orb'
-    ? 'dsh.sessions.current.orb' : 'dsh.sessions.current'
-}
 /** Optional content preparation for the resolved target Session. */
 export type StartSessionOptions = DraftInitializationOptions
 
@@ -143,7 +134,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
   private readonly lifetime = new AbortController()
   private readonly selection = createSnapshotStore<MainSelection>(
-    {}, { persist: { name: sessionSelectionPersistKey(typeof window === 'undefined' ? '' : window.location.search) } },
+    {}, { persist: { name: 'dsh.sessions.current' } },
   )
   private mainReference: SessionReference | undefined
 

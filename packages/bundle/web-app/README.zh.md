@@ -100,9 +100,7 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 
 由社区 Desktop 管理、只绑定 loopback 的 Web 调用会通过 Connection 的认证 API 路由注册 `GET /api/desktop.quit-inspection`；普通 Web 和 NAS 调用不会注册。它读取运行中的 Agent 回合、排队中的 inbox 工作、运行中的 job，以及 Schedule 完整持久目录内的活动任务，不会激活 Session。Schedule 默认禁用，因此服务缺失表示没有已启用的提醒计时器；必要服务不可用或目录读取失败时返回 503，不会报告为空闲。路由随 Web 插件 fiber 释放。
 
-同一仅供 Desktop 使用的启动过程，在具有代际密钥和数据目录时，还可注册 `POST /api/desktop.orb-caller`。此私有路由确保一个持久的标准 Orb 调用者 Session，并将主机所属身份作为 `ctx.desktopOrbCaller` 发布；私有 Desktop Host 使用 `ownsCaller()` 授权原生电脑操作调用。普通 Web 与 NAS 启动不暴露该路由或身份。
 
-本机 Desktop Host 在普通 Connection Cookie 与来源检查之后注册 `GET` 和 `POST /api/desktop.orb-background`。该路由从 `ctx.desktopOrbCaller` 获取调用者 Session，不接受渲染器传入的调用者 ID。它创建标准 worker Session，通过普通 Session 控制器排队文本，在 Host 重启后列出归属该调用者的 worker，并且只取消正在执行的轮次。worker 归属记录保存在本地数据目录下。每个 worker 的标准 Session 仍按普通流程处理审批、计划和用户提问。普通 Web 与 NAS 启动不注册此路由。
 
 ### LAN 信任采样
 
@@ -115,16 +113,12 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 | [`src/index.ts`](src/index.ts) | `web-app` 粘合插件：dist 解析、公告应用 URL、LAN 信任采样、提示词段落、bash 变量、URL 行、浏览器交接 |
 | [`src/public-url.ts`](src/public-url.ts) | 公告根的校验与尾斜杠归一化；供本地导入的叶子模块，不属于包 API |
 | [`src/desktop-quit-inspection.ts`](src/desktop-quit-inspection.ts) | 仅供 Desktop 使用的认证任务检查路由 |
-| [`src/desktop-orb-caller.ts`](src/desktop-orb-caller.ts) | 仅供 Desktop 使用的调用者 Session 路由与主机所属身份 |
-| [`src/desktop-orb-background.ts`](src/desktop-orb-background.ts) | 本地 Host worker 归属与标准 Session 操作 |
 | [`src/startup.ts`](src/startup.ts) | `web-startup` 提供方：`--host`、`--port`、`--public-url`、`--trusted-host`、`--no-open`、`--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | Web patch：重述的基础值、Web 宿主行、浏览器名录、preset 注册表 |
 | [`presets/`](presets) | 每个随发行版交付的 preset（`standard`、`ptc`、`minimal`、`cordis`）各一条 `@deepseek-ai/dsh-agent-preset` 声明，各自一个补丁文件 |
 | — | 不发布运行时不变式伴生入口；每项贡献（frontend-static 子插件、提示词段落、bashEnv 注册）都会随 fiber 由注册表释放，且每个所属注册表的包负责该关系的不变式；本包不持有需要审计的可变状态。 |
 | [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | dist 解析、回退席位、提示词段落、就绪宣告 |
 | [`tests/desktop-quit-inspection.spec.ts`](tests/desktop-quit-inspection.spec.ts) | 任务检查、禁用的 Schedule、路由限制与失败响应 |
-| [`tests/desktop-orb-caller.spec.ts`](tests/desktop-orb-caller.spec.ts) | 持久 Orb 调用者身份、路由权限与释放 |
-| [`tests/desktop-orb-background.spec.ts`](tests/desktop-orb-background.spec.ts) | worker 归属、重启、排队与取消行为 |
 | [`tests/startup.spec.ts`](tests/startup.spec.ts) | 在真实 Loader 树上的命令行解析 |
 | [`tests/public-url.spec.ts`](tests/public-url.spec.ts) | 公告根的解析与归一化 |
 | [`tests/trusted-hosts.spec.ts`](tests/trusted-hosts.spec.ts) | LAN 信任采样 |

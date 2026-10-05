@@ -10,9 +10,6 @@ export type ExperimentalCapabilityRecipe =
   | 'computer-use-native'
   | 'computer-use-mcp'
 
-/** Supported Computer Use compositions; the author-style provider is not loadable yet. */
-export type ComputerUseBackendSelection = 'official-native' | 'official-mcp' | 'off'
-
 interface Recipe {
   readonly owner: 'browser-use' | 'computer-use'
   readonly yaml: string
@@ -158,16 +155,6 @@ function replaceOwnedBlock(text: string, recipe: Recipe): string {
   return `${text.slice(0, span.from)}${block}${text.slice(span.through)}`
 }
 
-function removeOwnedBlock(text: string, owner: Recipe['owner']): string {
-  const span = ownedBlock(text, owner)
-  if (span === undefined) return text
-  const before = text.slice(0, span.from).replace(/\r?\n$/u, '')
-  const after = text.slice(span.through).replace(/^\r?\n/u, '')
-  const retained = `${before}${before !== '' && after !== '' ? '\n' : ''}${after}`.trimEnd()
-  const active = retained.replace(/^\s*#.*$/gmu, '').trim()
-  return `${retained}${active === '' ? `${retained === '' ? '' : '\n'}[]` : ''}\n`
-}
-
 function writeAtomic(filename: string, content: string): void {
   mkdirSync(dirname(filename), { recursive: true, mode: 0o700 })
   const temporary = `${filename}.${randomUUID()}.tmp`
@@ -204,30 +191,6 @@ export function configureExperimentalCapability(
   const text = existsSync(filename) ? readFileSync(filename, 'utf8') : '[]\n'
   if (existsSync(filename)) loadOptionalPatches('dsh', filename)
   const after = replaceOwnedBlock(text, recipe)
-  if (after === text) return false
-  writeAtomic(filename, after)
-  return true
-}
-
-/**
- * Select one official Computer Use provider, or remove only its community-owned block.
- * Desktop callers run this through the Profile mutation transaction and restart after tasks settle.
- * The author-style provider stays unavailable until it is a loadable Cordis plugin.
- * @param profile - Profile whose patch owns the single Computer Use block.
- * @param backend - Closed provider choice or `off`.
- * @returns Whether the Profile patch changed.
- */
-export function setComputerUseBackend(profile: string, backend: ComputerUseBackendSelection): boolean {
-  if (backend === 'official-native') return configureExperimentalCapability(profile, 'computer-use-native')
-  if (backend === 'official-mcp') return configureExperimentalCapability(profile, 'computer-use-mcp')
-  // Keep a runtime guard for untyped CLI or IPC callers even though TypeScript narrows the union here.
-  const selected: unknown = backend
-  if (selected !== 'off') throw new Error('dsh: unsupported Computer Use backend')
-  const filename = join(resolveProfileDir(profile), 'cordis.patch.yml')
-  if (!existsSync(filename)) return false
-  const text = readFileSync(filename, 'utf8')
-  loadOptionalPatches('dsh', filename)
-  const after = removeOwnedBlock(text, 'computer-use')
   if (after === text) return false
   writeAtomic(filename, after)
   return true

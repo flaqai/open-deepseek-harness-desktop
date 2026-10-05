@@ -204,7 +204,6 @@ export function apply(ctx: ClientContext): void {
   })
   const externalToolsInjected = (): ExternalToolsSectionInjected => ({
     ...workspaceRuntimeInjected(),
-    openOrbSettings: () => { ctx.settingsNavigation.open({ sectionId: 'orb' }) },
     list,
     restart: restartDesktopApplication,
     getInstall,

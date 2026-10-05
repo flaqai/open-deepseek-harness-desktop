@@ -55,7 +55,6 @@ export type DesktopProfileWriteCommand =
   | { readonly kind: 'approve-build'; readonly packageName: string; readonly operation: string; readonly timeoutMs: number }
   | { readonly kind: 'add'; readonly packageSpecs: readonly string[]; readonly exact?: boolean; readonly operation: string; readonly timeoutMs: number }
   | { readonly kind: 'remove'; readonly packageName: string; readonly operation: string; readonly timeoutMs: number }
-  | { readonly kind: 'set-computer-use-backend'; readonly backend: 'official-native' | 'official-mcp' | 'off'; readonly operation: string; readonly timeoutMs: number }
   | { readonly kind: 'install-frozen-offline'; readonly operation: string; readonly timeoutMs: number }
 
 export interface DesktopProfileMutationContext {
@@ -564,9 +563,6 @@ export class DesktopProfileMutation {
         )
       case 'remove':
         return this.#options.commands.run(this.#options.environment, ['remove', command.packageName], command.operation, command.timeoutMs)
-      case 'set-computer-use-backend':
-        return this.#options.commands.run(this.#options.environment,
-          ['set-computer-use-backend', command.backend], command.operation, command.timeoutMs)
       case 'install-frozen-offline':
         return this.#options.commands.run(this.#options.environment, ['install', '--offline', '--frozen-lockfile'], command.operation, command.timeoutMs)
     }

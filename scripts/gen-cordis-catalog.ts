@@ -204,7 +204,6 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   sidebarRight: 'client-side right-Sidebar navigation face — packages/client/ui-sidebar-right/README.md owns the API',
   sidebarRightTabs: 'client-side right-Sidebar tab-type registry — packages/client/ui-sidebar-right/README.md owns the API',
   documentPreviews: 'client-side document renderer registry — docs/subsystems/sidebar-right.md owns the API',
-  desktopOrbCaller: 'Desktop-only launch-provided Orb Session owner — packages/bundle/web-app/README.md owns the private Host API',
 }
 
 /**

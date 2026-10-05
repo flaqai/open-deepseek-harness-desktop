@@ -74,14 +74,6 @@ Quick Restart and Quit Completely wait until active plugin mutations and recover
 
 The macOS development launcher creates an ad-hoc-signed, version-keyed Open DeepSeek Harness Desktop.app under `.artifacts/desktop-dev/`. Its Bundle display name and runtime process title use the canonical product name, while its internal launcher remains named `Electron` so Electron continues to identify it as a source build. The shared Electron installation, bundle identifier, Helper layout, data locations, and saved custom icons remain unchanged. Packaged macOS builds derive the app, main process, and Helper names from the same `productName`. Windows derives its executable and fresh-install directory from that value; Linux uses the matching `open-deepseek-harness-desktop` executable slug. Stable application identifiers, data directories, package identities, and Release asset names remain unchanged for upgrades. Implementation and platform verification limits are recorded in the [application-menu decision](../../.agents/notes/implemented/feature/2026-09-03-desktop-application-menus.md).
 
-## Floating Orb
-
-Floating-window diagnostics use the `[desktop:orb-window]` prefix in `harness.log`: creation, loading, visibility, bounds, capture exclusion, and renderer failures contain only fixed window metadata, not page URLs, console text, chat, or credentials. The local shell paint probe reports 0 for a missing button, 1 for zero dimensions, 2 for hidden or missing styles, and 3 for a styled button; this checks DOM layout, not actual screen visibility. The Orb does not enable screen-capture protection: remote desktop, recording, and screen sharing can include floating chat content. Owned Orb Computer Use captures temporarily hide the window instead. Displaying the Orb does not require screen-recording or Accessibility permission.
-
-The optional floating Orb uses the current Desktop-owned Profile and Sessions. Settings has a separate Floating Orb page; View can show or hide it without deleting chat or stopping background work. New installations select the Orb foreground Computer Use backend, while existing official Cua Driver selections remain unchanged. Switching backends is a managed Profile change applied after current work ends and a quick restart. The official driver still requires its own installation. The Orb's foreground provider exposes only observation, click, and text input to its Host-owned caller Session; each action rechecks local mode, system rights, focused-window identity, and a fresh screenshot. The Orb overlays are temporarily excluded from capture and then restored without taking focus.
-
-The local Host also offers standard background Sessions through an authenticated, same-origin route. They retain ordinary tool, plan, and question approvals; hiding the Orb does not cancel them. NAS mode supports remote chat only: local screenshots, input, selection transfer, and local background tasks are disabled. On macOS, screen recording and Accessibility grants are required before foreground actions. On Windows, the native helper requires an interactive desktop; on Linux it currently supports X11 with a reachable display. GNOME Wayland remains explicitly unsupported, including when an Xwayland `DISPLAY` is present. Native installation, multi-display scaling, full-screen behavior, permission denial and revocation, and real NAS still need platform qualification; a macOS source build is not evidence for Windows or Linux packages.
-
 ## Independent data home and copying
 
 Installed builds use the platform application-data root `open-deepseek-harness-desktop/dsh-home`; source runs use its `development/dsh-home` child. Their Electron preferences, browser session data, logs, extracted runtime, and Harness state are therefore separate from each other and from the official CLI. An explicit `DSH_HOME` remains authoritative for automation and advanced launches.
@@ -139,6 +131,8 @@ The launcher always uses the app's embedded Node, Harness, and pnpm paths. It re
 
 ## Desktop packages
 
+From the repository root, use `node apps/desktop/scripts/desktop-smoke.mjs <contracts|unpacked|package> <windows-x64|macos-arm64|macos-x64|linux-x64> --plan` to preview the fixed qualification commands without executing them. `contracts` checks qualification rules; `unpacked` checks only the Windows unpacked application; `package` checks the existing target artifacts on a matching native host. Windows retains installed startup, upgrade, uninstall, CLI and plugin acceptance. macOS checks the final DMG and ZIP through the native entry; Linux checks packaged resources only, without installation acceptance.
+
 Build the ad-hoc-signed, unnotarized macOS packages on a matching Mac with:
 
 macOS keeps the generated `CFBundleName` aligned with `productName` and all Helper executables; display branding uses `CFBundleDisplayName`. Before upload, the packaging workflow checks both final DMG and ZIP with [the native package smoke](scripts/smoke-macos-package.mjs). Its `--dsh-native-smoke` entry waits for Electron readiness and exits before loading the desktop host; it does not establish Harness or UI readiness.
@@ -168,7 +162,7 @@ Build the Linux x64 packages on Linux with:
 npm run package:desktop:linux:x64
 ```
 
-The DEB and RPM files are written to `.artifacts/desktop-linux/`. Like macOS, they carry a target-native Node, pnpm, and production Harness runtime archive. The `Desktop packages` workflow builds all four native jobs, uploads the five installer variants, and produces `SHA256SUMS`. Manual runs remain artifact-only unless publication is explicitly requested from a `dsh-v*` tag; a tag push creates or updates the matching GitHub Release with fixed platform filenames.
+The DEB and RPM files are written to `.artifacts/desktop-linux/`. Like macOS, they carry a target-native Node, pnpm, and production Harness runtime archive. The manually dispatched `Desktop packages` workflow builds the selected native targets and produces `SHA256SUMS`. With all targets selected, it uploads seven package assets: four macOS DMG/ZIP files, one Windows EXE, and two Linux DEB/RPM files. Outputs remain Actions artifacts; the workflow has no GitHub Release publication permission.
 
 <a id="nas-runtime-mode"></a>
 ## NAS runtime mode
@@ -258,4 +252,4 @@ The next desktop milestones are signed installers, native notifications for appr
 - The macOS arm64 and x64 DMG and ZIP packages use ad-hoc signing and are not notarized; Gatekeeper requires explicit user approval on first launch.
 - The Windows x64 installer is unsigned, and the Linux x64 packages are not repository-signed; users must verify `SHA256SUMS` and the release source.
 - Developer ID signing, notarization, packaged automatic installation, Windows/Linux login launch, deep links, and IM control are not implemented. The source updater accepts only a clean fast-forward from official `master`; local divergence stays a manual Git operation.
-- The Windows package job verifies installation and Harness readiness on its build runner. macOS and Linux package jobs still prove native assembly only and require installation and runtime validation.
+- The Windows package job verifies installation and Harness readiness on its build runner. macOS checks the final DMG and ZIP through the native entry; Linux checks packaged resources only. macOS and Linux still require full installation and Harness runtime qualification.

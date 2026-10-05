@@ -3,6 +3,7 @@ import { accessSync, constants, mkdtempSync, readdirSync, rmSync } from 'node:fs
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { runElectronPackageProbe } from './electron-package-probe.mjs'
 
 const suffixes = ['', ' (GPU)', ' (Plugin)', ' (Renderer)']
 
@@ -38,32 +39,10 @@ export function verifyCodeSignature(app, run = execFileSync) {
   run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app], { timeout: 300000 })
 }
 
-/** Confirm that the Node addon and its @rpath-linked Swift library unpack together.
- * @param {string} app Packaged application directory.
- * @returns The two native paths to verify with codesign.
- */
-export function verifyOrbSelectionLayout(app) {
-  const directory = join(app, 'Contents/Resources/app.asar.unpacked/lib')
-  const files = ['orb-selection-macos-napi.node', 'liborb-selection-macos.dylib']
-    .map(name => join(directory, name))
-  for (const file of files) accessSync(file, constants.R_OK)
-  return files
-}
-
-/** Confirm the foreground Computer Use helper is executable after asar unpacking.
- * @param {string} app Packaged application directory.
- * @returns Executable native helper path.
- */
-export function verifyOrbComputerUseLayout(app) {
-  const executable = join(app, 'Contents/Resources/app.asar.unpacked/lib/orb-computer-use-macos')
-  accessSync(executable, constants.X_OK)
-  return executable
-}
-
 /** Check a final DMG, ZIP, or app on a native macOS runner.
  * @param {string} input Final package or extracted application.
  */
-export function smokeMacPackage(input) {
+export async function smokeMacPackage(input) {
   if (process.platform !== 'darwin') throw new Error('macOS package smoke requires macOS')
   const source = resolve(input)
   const temp = mkdtempSync(join(tmpdir(), 'dsh-macos-smoke-'))
@@ -89,26 +68,22 @@ export function smokeMacPackage(input) {
     const app = directory ? join(directory, apps[0]) : source
     const executable = verifyHelperLayout(app)
     verifyCodeSignature(app)
-    const orbSelectionNative = verifyOrbSelectionLayout(app)
-    const orbComputerUseNative = verifyOrbComputerUseLayout(app)
-    for (const file of orbSelectionNative) {
-      execFileSync('/usr/bin/codesign', ['--verify', '--strict', file], { timeout: 30000 })
-    }
-    execFileSync('/usr/bin/codesign', ['--verify', '--strict', orbComputerUseNative], { timeout: 30000 })
     execFileSync(process.execPath, [fileURLToPath(new URL('./verify-prebuilt-profile.mjs', import.meta.url)), join(app, 'Contents/Resources')], { timeout: 300000, stdio: 'inherit' })
-    const env = { ...process.env }
-    delete env.ELECTRON_RUN_AS_NODE
-    delete env.NODE_OPTIONS
-    const output = execFileSync(join(app, 'Contents/MacOS', executable), ['--dsh-native-smoke', `--user-data-dir=${join(temp, 'user-data')}`], { env, encoding: 'utf8', timeout: 15000, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024 })
-    if (!/^DSH_NATIVE_SMOKE_READY$/m.test(output)) throw new Error(`Missing native Electron readiness output: ${output}`)
-    console.log(`PASS ${basename(source)}: Helper layout, deep signature, native Electron startup (${output.trim()})`)
+    const result = await runElectronPackageProbe({
+      executable: join(app, 'Contents/MacOS', executable), args: ['--dsh-native-smoke'],
+      marker: 'DSH_NATIVE_SMOKE_READY', timeoutMs: 15000,
+    })
+    console.log(`PASS ${basename(source)}: Helper layout, deep signature, native Electron startup (${result.stdout.trim()})`)
   } finally {
-    if (mounted) execFileSync('/usr/bin/hdiutil', ['detach', mount], { timeout: 30000 })
-    rmSync(temp, { recursive: true, force: true })
+    try {
+      if (mounted) execFileSync('/usr/bin/hdiutil', ['detach', mount], { timeout: 30000 })
+    } finally {
+      rmSync(temp, { recursive: true, force: true })
+    }
   }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   if (process.argv.length < 3) throw new Error('Usage: node smoke-macos-package.mjs <dmg|zip|app> [...]')
-  for (const input of process.argv.slice(2)) smokeMacPackage(input)
+  for (const input of process.argv.slice(2)) await smokeMacPackage(input)
 }

@@ -65,11 +65,4 @@ describe('platform application menus', () => {
     expect(isDesktopCommand('__proto__')).toBe(false)
     expect(isDesktopCommand('copy')).toBe(true)
   })
-  it('keeps the floating-ball recovery command local and unavailable in NAS mode', () => {
-    const items = flatten(applicationMenuTemplate({ ...state, orbAvailable: true }, vi.fn()))
-    expect(items.find(item => item.id === 'orb-toggle')?.label).toBe('Show/Hide Floating Ball')
-    expect(commandEnabled('orb-toggle', { ...state, orbAvailable: true })).toBe(true)
-    expect(commandEnabled('orb-toggle', { ...state, orbAvailable: false })).toBe(false)
-    expect(commandEnabled('orb-settings', { ...state, orbAvailable: false })).toBe(false)
-  })
 })

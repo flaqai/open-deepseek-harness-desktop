@@ -1,8 +1,6 @@
 appId: ai.flaq.deepseek-harness
 productName: Open DeepSeek Harness Desktop
 asar: true
-asarUnpack:
-  - lib/orb-computer-use-linux
 npmRebuild: false
 directories:
   buildResources: build

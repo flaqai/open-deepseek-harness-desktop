@@ -57,6 +57,24 @@ test('Windows candidate reuse reruns fast preflight and strict installed smoke w
   assert.ok(smoke.needs.includes('windows-preflight'))
   assert.match(smoke.if, /needs\.windows-preflight\.result == 'success'/u)
   assert.equal(smoke.steps.find(step => step.uses === 'actions/checkout@v6')?.with?.['fetch-depth'], "${{ inputs.windows_candidate_run_id != '' && '0' || '1' }}")
-  assert.ok(smoke.steps.some(step => step.name === 'Verify Windows candidate identity'))
-  assert.ok(smoke.steps.some(step => step.name === 'Smoke test installed Windows package'))
+  assert.equal(smoke.steps.find(step => step.name === 'Smoke test installed Windows package')?.run,
+    'node apps/desktop/scripts/desktop-smoke.mjs package windows-x64')
+})
+
+test('workflow routes native smoke stages through one runner without repeating evidence tests', async () => {
+  const workflow = parse(await readFile(resolve(root, '.github/workflows/desktop-packages.yml'), 'utf8'))
+  const step = (job, name) => workflow.jobs[job].steps.find(item => item.name === name)
+  assert.equal(step('windows-preflight', 'Verify Windows packaging and candidate contracts')?.run,
+    'node apps/desktop/scripts/desktop-smoke.mjs contracts windows-x64')
+  assert.equal(step('windows', 'Probe unpacked app.asar and Electron entries')?.run,
+    'node apps/desktop/scripts/desktop-smoke.mjs unpacked windows-x64')
+  assert.equal(step('macos', 'Smoke final macOS DMG and ZIP')?.run,
+    'node apps/desktop/scripts/desktop-smoke.mjs package macos-${{ matrix.arch }}')
+  assert.equal(step('linux', 'Verify packaged preset resources')?.run,
+    'node apps/desktop/scripts/desktop-smoke.mjs package linux-x64')
+  assert.ok(!workflow.jobs['windows-smoke'].steps.some(item => item.name === 'Verify Windows smoke evidence interface'))
+  assert.ok(!workflow.jobs['windows-smoke'].steps.some(item => item.name === 'Collect Windows smoke evidence'))
+  const evidence = step('windows-smoke', 'Preserve Windows smoke evidence')
+  assert.equal(evidence.if, '${{ always() }}')
+  assert.equal(evidence.with.path, '.artifacts/windows-smoke-evidence')
 })

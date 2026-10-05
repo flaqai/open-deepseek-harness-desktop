@@ -13,7 +13,7 @@ describe('desktop product navigation', () => {
   })
   it.each([
     ['market', 'market'], ['plugin-restore', 'plugin-restore'], ['diagnostics', 'diagnostics'],
-    ['external-tools', 'external-tools'], ['orb-settings', 'orb'], ['im', 'xmanrui-dsh-im'],
+    ['external-tools', 'external-tools'], ['im', 'xmanrui-dsh-im'],
   ])('opens %s through settings navigation', async (command, sectionId) => {
     const navigation = bench()
     await navigateDesktopMenu(command, navigation)

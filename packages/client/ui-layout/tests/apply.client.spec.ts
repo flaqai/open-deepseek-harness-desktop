@@ -127,24 +127,6 @@ describe('ui-layout client apply', () => {
     expect(pending.aborted).toBe(true)
   })
 
-  it('provides layout policy without claiming the floating renderer root', async () => {
-    const originalUrl = window.location.href
-    window.history.replaceState(null, '', '?surface=orb')
-    try {
-      const { ctx, slots } = await bench()
-      const fiber = ctx.plugin({ inject: [...inject], apply })
-      await fiber.await()
-      expect(ctx.get('layout')).toBeInstanceOf(LayoutController)
-      expect(slots.entries('root')).toHaveLength(0)
-      expect(slots.spec('main')).toBeUndefined()
-      expect(slots.spec('shell.bottom')).toBeUndefined()
-      await fiber.dispose()
-      expect(ctx.get('layout')).toBeUndefined()
-    } finally {
-      window.history.replaceState(null, '', originalUrl)
-    }
-  })
-
   it('theme presenter applies the initial snapshot, follows theme/change, and unwinds on dispose', async () => {
     const { ctx } = await bench()
     const fiber = ctx.plugin({ inject: [...inject], apply })

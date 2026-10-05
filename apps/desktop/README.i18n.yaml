@@ -17,9 +17,6 @@
 /open-deepseek-harness-desktop/application-menus:
   en: f9d934c8388af1e7
   zh: 5a819336166ad092
-/open-deepseek-harness-desktop/floating-orb:
-  en: e4f29f5e758f0c95
-  zh: 57ff4fdd54a7c9b9
 /open-deepseek-harness-desktop/independent-data-home-and-copying:
   en: c4624589707e6432
   zh: 4cfd61ddc2066f9b
@@ -30,8 +27,8 @@
   en: 2b9eb28340fb1051
   zh: 3ba8d85a69901ba3
 /open-deepseek-harness-desktop/desktop-packages:
-  en: ab8d8cce1ac3535f
-  zh: b18b127c3fd9a0cd
+  en: 244871ae544b11d9
+  zh: 3e300719e6254f6f
 /open-deepseek-harness-desktop/nas-runtime-mode:
   en: a3a13f1535b735f7
   zh: e7e8fa989bf14f83
@@ -57,5 +54,5 @@
   en: 134aa1521dbfc597
   zh: 90c1f277264eb182
 /open-deepseek-harness-desktop/limitations:
-  en: 3af613d67ac8748e
-  zh: 71b3f78d8c6a0a13
+  en: 55e6a7ee013e7753
+  zh: 6c65bcf236e147be

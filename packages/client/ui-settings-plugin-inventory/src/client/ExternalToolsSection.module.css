@@ -501,17 +501,3 @@
     grid-template-columns: 1fr;
   }
 }
-.orbSettingsLink {
-  align-self: flex-start;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--dsw-alias-link);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.orbSettingsLink:hover,
-.orbSettingsLink:focus-visible { text-decoration: underline dotted; text-underline-offset: 3px; }

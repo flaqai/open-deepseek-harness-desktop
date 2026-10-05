@@ -60,10 +60,7 @@ const communityPrivatePackageDirectories = new Set([
   'apps/desktop',
   'packages/client/ui-brand-community-desktop',
   'packages/client/ui-desktop-shell',
-  'packages/client/ui-overlay-chat',
   'packages/client/ui-selection-actions',
-  'packages/client/ui-settings-orb',
-  'packages/computer-use/orb-native',
 ])
 /** Ordinary directories whose packages this repository publishes: one release member each. */
 const standardReleaseMemberDirectory = /^(?:packages\/(?!experimental\/)[^/]+\/[^/]+|apps\/(?!desktop(?:-host)?$)[^/]+|vendor\/[^/]+)$/

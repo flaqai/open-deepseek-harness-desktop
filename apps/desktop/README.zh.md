@@ -74,14 +74,6 @@ macOS 使用名为 Open DeepSeek Harness Desktop 的系统原生菜单。Windows
 
 macOS 开发启动器会在 `.artifacts/desktop-dev/` 中按版本创建 ad-hoc 签名的 Open DeepSeek Harness Desktop.app，其 Bundle 显示名和运行时进程标题使用统一产品名，内部启动文件则保留为 `Electron`，让 Electron 继续将它识别为源码开发版。共享 Electron 安装、Bundle 标识、Helper 布局、数据位置和已保存的自定义图标均不改变。macOS 安装版从同一 `productName` 生成应用、主进程与 Helper 名称；Windows 从它生成可执行文件和全新安装目录；Linux 使用对应的 `open-deepseek-harness-desktop` 可执行文件名。为保证升级兼容，应用标识、数据目录、软件包身份和 Release 资产名保持不变。实现与平台验证限制记录在[应用菜单决策](../../.agents/notes/implemented/feature/2026-09-03-desktop-application-menus.zh.md)中。
 
-## 悬浮球
-
-悬浮窗诊断在 `harness.log` 中使用 `[desktop:orb-window]` 前缀：创建、加载、可见性、位置、截图排除与渲染进程失败仅记录固定窗口元数据，不记录页面 URL、控制台文本、聊天或凭据。本地页面绘制探针用 0 表示按钮缺失、1 表示尺寸为零、2 表示隐藏或样式缺失、3 表示按钮已有样式；它检查 DOM 布局，不证明屏幕上实际可见。悬浮球不启用截图保护，远程控制、录屏和屏幕共享可以包含悬浮聊天内容；Orb 拥有的 Computer Use 截图改用临时隐藏窗口。仅显示悬浮球不需要屏幕录制或辅助功能权限。
-
-可选的悬浮球复用当前桌面版拥有的 Profile 与会话。设置中有独立的“悬浮球”页面，“视图”菜单可显示或隐藏悬浮球，隐藏不会删除聊天或停止后台工作。新安装默认选择 Orb 前台 Computer Use 后端，已有用户的官方 Cua Driver 选择保持不变。切换后端属于受管 Profile 变更，待当前工作结束并快速重启后生效；官方驱动仍需另行安装。Orb 前台提供者仅向 Host 拥有的调用会话公开观察、点击和文字输入；每次操作都重新检查本机模式、系统权限、前台窗口身份和截图时效。截图时临时隐藏悬浮窗，随后恢复且不抢焦点。
-
-本机 Host 还通过已认证的同源路由提供标准后台会话。工具、计划和提问仍按普通审批流程处理；隐藏悬浮球不会取消它们。NAS 模式只允许远程聊天，禁用本机截图、输入、划词发送和本机后台任务。macOS 前台操作需要屏幕录制与辅助功能授权；Windows 原生辅助程序需要交互式桌面；Linux 目前只支持有可用显示连接的 X11。GNOME Wayland 明确不支持，即使存在 Xwayland 的 `DISPLAY` 也不会启用。安装版、多显示器缩放、全屏、系统权限拒绝与撤销以及真实 NAS 仍需对应平台验收；macOS 源码构建不能代替 Windows 或 Linux 安装包证据。
-
 ## 独立数据目录与复制
 
 安装版使用平台应用数据根下的 `open-deepseek-harness-desktop/dsh-home`，源码开发版使用其中的 `development/dsh-home`。两者的 Electron 偏好、浏览器会话数据、日志、解压运行时和 Harness 状态彼此独立，也不再与官方 CLI 共用。自动化和高级启动显式设置的 `DSH_HOME` 仍具有最高优先级。
@@ -139,6 +131,8 @@ Windows 与 macOS 安装版可以注册由桌面客户端管理的 `dsh` 命令�
 
 ## 桌面发行包
 
+在仓库根目录运行 `node apps/desktop/scripts/desktop-smoke.mjs <contracts|unpacked|package> <windows-x64|macos-arm64|macos-x64|linux-x64> --plan`，可预览固定验收命令而不执行。`contracts` 检查验收规则；`unpacked` 仅检查 Windows 未压缩应用；`package` 在匹配的原生宿主上检查已有目标产物。Windows 保留安装后启动、升级、卸载、CLI 和插件验收。macOS 通过原生入口检查最终 DMG 与 ZIP；Linux 只校验打包资源，不代表完成安装验收。
+
 在架构匹配的 Mac 上使用下列命令构建 ad-hoc 签名、未公证的 macOS 软件包：
 
 macOS 保持自动生成的 `CFBundleName` 与 `productName` 和所有 Helper 可执行文件名称一致，显示品牌使用 `CFBundleDisplayName`。上传前，打包工作流对最终 DMG 和 ZIP 都运行[原生安装包检查](scripts/smoke-macos-package.mjs)。专用 `--dsh-native-smoke` 入口等待 Electron 就绪后退出，不加载桌面宿主；该检查不代表 Harness 或界面已就绪。
@@ -168,7 +162,7 @@ Windows CI 会在构建安装包前运行首次启动候选事务的聚焦测试
 npm run package:desktop:linux:x64
 ```
 
-DEB 与 RPM 文件写入 `.artifacts/desktop-linux/`。与 macOS 相同，它们包含目标平台原生的 Node、pnpm 与 Harness 生产运行时归档。`Desktop packages` 工作流会运行四个原生任务，上传五种安装包并生成 `SHA256SUMS`。手动运行默认只保留 Actions artifact；仅从 `dsh-v*` 标签明确要求发布，或推送该标签时，才会使用固定平台文件名创建或更新对应 GitHub Release。
+DEB 与 RPM 文件写入 `.artifacts/desktop-linux/`。与 macOS 相同，它们包含目标平台原生的 Node、pnpm 与 Harness 生产运行时归档。手动触发的 `Desktop packages` 工作流会构建所选原生目标并生成 `SHA256SUMS`。选择全部目标时上传七个安装包资产：四个 macOS DMG/ZIP 文件、一个 Windows EXE，以及两个 Linux DEB/RPM 文件。产物只保留为 Actions artifact；工作流没有发布 GitHub Release 的权限。
 
 <a id="nas-runtime-mode"></a>
 ## NAS 运行端模式
@@ -258,4 +252,4 @@ Windows 验证会在构建前检查 runner 协议，再在未压缩的应用目�
 - macOS arm64 与 x64 的 DMG 和 ZIP 使用 ad-hoc 签名且未公证；首次启动时需要用户在 Gatekeeper 中明确授权。
 - Windows x64 安装程序未签名，Linux x64 软件包也没有仓库签名；用户必须核对 `SHA256SUMS` 与发布来源。
 - Developer ID 签名、公证、安装包自动安装、Windows/Linux 登录启动、深链接和 IM 控制尚未实现。源码升级器只接受来自官方 `master` 的干净快进更新；本地分叉仍需人工处理。
-- Windows 打包任务会在构建运行器上验证安装和 Harness 就绪；macOS 与 Linux 打包任务仍只证明原生组装完成，还需安装与运行时验证。
+- Windows 打包任务会在构建运行器上验证安装和 Harness 就绪；macOS 通过原生入口检查最终 DMG 与 ZIP，Linux 只校验打包资源。macOS 与 Linux 仍需完整安装及 Harness 运行时验收。

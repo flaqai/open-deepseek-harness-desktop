@@ -3,7 +3,6 @@
 import { mkdirSync, createWriteStream, type WriteStream } from 'node:fs'
 import { dirname } from 'node:path'
 import { spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
 import type { Readable, Writable } from 'node:stream'
 import { LineBuffer, parseHarnessReadyLine } from './readiness.ts'
 import type { HarnessLaunch } from './launch.ts'
@@ -20,8 +19,6 @@ const ONE_SHOT_ENVIRONMENT = new Set([
   'DSH_DESKTOP_MUTATION_OWNER_PID', 'DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN',
   'DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID', 'DSH_PLUGIN_SNAPSHOT_BATCH', 'DSH_PLUGIN_TRANSACTION_ORIGIN',
   'DSH_DESKTOP_WEB_GENERATION', 'DSH_DESKTOP_WEB_RESTART_OWNER',
-  'DSH_DESKTOP_ORB_OWNER_SECRET',
-  'DSH_DESKTOP_ORB_NATIVE_ORIGIN', 'DSH_DESKTOP_ORB_NATIVE_SECRET',
 ])
 
 /** Observable lifecycle states for the desktop chrome. */
@@ -74,8 +71,6 @@ export interface HarnessSupervisorOptions {
   beforeRestart?(signal: AbortSignal): Promise<void>
   /** Report the settled optional-entry failures for candidate target validation. */
   onOptionalStartupFailures?(failures: readonly OptionalStartupFailure[]): void
-  /** Desktop-only loopback endpoint, passed only to the local Host child. */
-  orbNativeOrigin?: string
 }
 
 /** Owns one restartable Harness child and its durable combined log. */
@@ -92,7 +87,6 @@ export class HarnessSupervisor {
   #stopping = false
   #restartCheck: AbortController | undefined
   #generation = 0
-  #orbCallerSecret: string | undefined
 
   constructor(options: HarnessSupervisorOptions) {
     this.#options = options
@@ -106,9 +100,6 @@ export class HarnessSupervisor {
   }
 
   /** Private authority for the current local Host generation; never exposed to a renderer. */
-  get orbCallerSecret(): string | undefined {
-    return this.#child !== undefined && !this.#diagnosticMode ? this.#orbCallerSecret : undefined
-  }
 
   #reportStartupFailure(message: string, logMessage: string): void {
     const notify = (): void => {
@@ -143,19 +134,10 @@ export class HarnessSupervisor {
       ...(this.#diagnosticMode ? { DSH_PROFILE_DIAGNOSTIC_MODE: '1' } : {}),
     }).filter(([key]) => !ONE_SHOT_ENVIRONMENT.has(key.toUpperCase()))) as Record<string, string>
     environment.DSH_DESKTOP_WEB_RESTART_OWNER = String(process.pid)
-    this.#orbCallerSecret = this.#diagnosticMode ? undefined : randomBytes(32).toString('base64url')
-    if (this.#orbCallerSecret !== undefined) {
-      environment.DSH_DESKTOP_ORB_OWNER_SECRET = this.#orbCallerSecret
-      if (this.#options.orbNativeOrigin !== undefined) {
-        environment.DSH_DESKTOP_ORB_NATIVE_ORIGIN = this.#options.orbNativeOrigin
-        environment.DSH_DESKTOP_ORB_NATIVE_SECRET = this.#orbCallerSecret
-      }
-    }
     let child: RunningHarness
     try {
       child = this.#spawn(environment)
     } catch (error) {
-      this.#orbCallerSecret = undefined
       this.#failed = true
       const failure = error instanceof Error ? error : new Error(String(error))
       const message = `Harness process owner could not start: ${failure.message}`
@@ -230,7 +212,6 @@ export class HarnessSupervisor {
       this.#writeLog('info', `Harness exited code=${String(code)} signal=${String(signal)}`)
       if (this.#child?.token === child.token) {
         this.#child = undefined
-        this.#orbCallerSecret = undefined
       }
       if (generation !== this.#generation) return
       if (this.#stopping) {

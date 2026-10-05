@@ -27,7 +27,6 @@ Choose one provider and mount the shared registration service.
 | Package | Role | ctx key |
 |---|---|---|
 | [`computer-use`](computer-use/README.md) | Exclusive named provider registration | `ctx.computerUse` |
-| [`orb-native`](orb-native/README.md) | Desktop-only, user-selected Orb foreground tools and Host authorization | `ctx.computerUse` |
 
 <a id="related-documentation"></a>
 ## Related documentation

@@ -10,8 +10,6 @@ import type {
 import type { DesktopIconsBridge, DesktopIconStatus, IconSelection } from './icon-protocol.ts'
 import type { OpenLogResult } from './log-reveal.ts'
 import type { DesktopPreferences, DesktopPreferencesPatch } from './preferences.ts'
-import type { OrbComputerBackend, OrbSettings, OrbSettingsPatch } from './orb-settings.ts'
-import type { OrbRuntimeStatus } from './orb-runtime-status.ts'
 import type { DesktopReleaseStatus } from './release-checker.ts'
 import type { DesktopReleaseDownloadStatus } from './release-downloader.ts'
 import type { SourceUpdateResult, SourceUpdateStatus } from './source-updater.ts'
@@ -96,7 +94,7 @@ export interface CommunityFeedbackInput {
 export interface CommunityFeedbackBridge {
   status(): Promise<{ enabled: boolean }>
   submit(input: CommunityFeedbackInput): Promise<{ status: 'received' | 'unavailable' | 'rate-limited' | 'failed'; id?: string }>
-  openMail(input?: Omit<CommunityFeedbackInput, 'requestId'>): Promise<void>
+  openMail(input: Omit<CommunityFeedbackInput, 'requestId'>): Promise<void>
 }
 
 /** Device-local shell operations that must never cross the NAS renderer boundary implicitly. */
@@ -153,15 +151,6 @@ export interface DesktopWebBridge {
   getStatus(): Promise<DesktopWebStatus>
   open(): Promise<DesktopWebOpenResult>
   onStatus(callback: (status: DesktopWebStatus) => void): () => void
-}
-
-/** Floating-chat presentation controls; NAS exposes only the safe subset. */
-export interface DesktopOrbBridge {
-  get(): Promise<OrbSettings>
-  getStatus(): Promise<OrbRuntimeStatus>
-  selectBackend(backend: OrbComputerBackend): Promise<OrbSettings>
-  update(patch: OrbSettingsPatch): Promise<OrbSettings>
-  onChanged(callback: (settings: OrbSettings) => void): () => void
 }
 
 /** Saved NAS runtimes and fixed pairing operations; tokens never reach the renderer. */
@@ -610,7 +599,7 @@ const commonDesktopBridge = {
   communityFeedback: Object.freeze({
     status: () => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackStatus) as Promise<{ enabled: boolean }>,
     submit: (input: CommunityFeedbackInput) => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackSubmit, input) as ReturnType<CommunityFeedbackBridge['submit']>,
-    openMail: (input?: Omit<CommunityFeedbackInput, 'requestId'>) => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackMail, input) as Promise<void>,
+    openMail: (input: Omit<CommunityFeedbackInput, 'requestId'>) => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackMail, input) as Promise<void>,
   } satisfies CommunityFeedbackBridge),
   externalBrowser: Object.freeze({
     open: (url: string): Promise<void> => ipcRenderer.invoke(DESKTOP_IPC.externalBrowserOpen, url) as Promise<void>,
@@ -637,20 +626,6 @@ const commonDesktopBridge = {
   desktopWeb: Object.freeze(nasMode ? remoteDesktopWebBridge : desktopWebBridge),
   workspaceRuntimes: Object.freeze(nasMode ? remoteWorkspaceRuntimesBridge : workspaceRuntimesBridge),
 }
-const orbPresentationBridge = Object.freeze({
-  get: () => ipcRenderer.invoke(DESKTOP_IPC.orbGet) as Promise<OrbSettings>,
-  getStatus: () => ipcRenderer.invoke(DESKTOP_IPC.orbStatus) as Promise<OrbRuntimeStatus>,
-  update: (patch: OrbSettingsPatch) => ipcRenderer.invoke(DESKTOP_IPC.orbUpdate, patch) as Promise<OrbSettings>,
-  onChanged(callback: (settings: OrbSettings) => void) {
-    const listener = (_event: Electron.IpcRendererEvent, settings: OrbSettings): void => { callback(settings) }
-    ipcRenderer.on(DESKTOP_IPC.orbChanged, listener)
-    return () => { ipcRenderer.removeListener(DESKTOP_IPC.orbChanged, listener) }
-  },
-})
-const orbBridge: DesktopOrbBridge = Object.freeze({
-  ...orbPresentationBridge,
-  selectBackend: (backend: OrbComputerBackend) => ipcRenderer.invoke(DESKTOP_IPC.orbSelectBackend, backend) as Promise<OrbSettings>,
-})
 const browserBridge: DesktopBrowserBridge = {
   acquire: workspace => ipcRenderer.invoke(DESKTOP_IPC.browserAcquire, workspace) as ReturnType<DesktopBrowserBridge['acquire']>,
   release: lease => ipcRenderer.invoke(DESKTOP_IPC.browserRelease, lease) as Promise<void>,
@@ -691,9 +666,7 @@ const shortcutBridge = Object.freeze({
 contextBridge.exposeInMainWorld('dshDesktop', shortcutBridge)
 contextBridge.exposeInMainWorld('deepSeekHarnessDesktop', Object.freeze({
   ...commonDesktopBridge,
-  ...(nasMode ? { orb: orbPresentationBridge } : {}),
   ...(nasMode ? {} : {
-    orb: orbBridge,
     icons: Object.freeze(iconsBridge),
     downloadNetwork: Object.freeze(downloadNetworkBridge),
     bundledPlugins: Object.freeze(bundledPluginsBridge),

@@ -2405,7 +2405,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'the runtime itself (built in; always present)',
     occupants: [
       'client-ui-layout AppFrame',
-      'client-ui-overlay-chat OverlayChatRoot',
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'root\', () => ctx.slots.register(\n      { name: \'root\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
@@ -2885,7 +2884,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-settings-account AccountSection id \'account\'',
       'client-ui-settings-general GeneralSection id \'general\'',
       'client-ui-settings-models ModelsSection id \'models\'',
-      'client-ui-settings-orb OrbSettingsSection id \'orb\'',
       'client-ui-settings-plugin-inventory ExternalToolsSection id \'external-tools\'',
       'client-ui-settings-plugin-inventory ImportedPluginRestoreSection id \'plugin-restore\'',
       'client-ui-settings-plugin-inventory PluginDiagnosticsSection id \'diagnostics\'',

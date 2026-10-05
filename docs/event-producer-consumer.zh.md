@@ -73,7 +73,7 @@
 | `subagent/provider-added` | `emit` | [`packages/subagent/subagent/src/index.ts:148`](../packages/subagent/subagent/src/index.ts) | [`subagent`](../packages/subagent/subagent) (`emit`) | [`tool-subagent`](../packages/subagent/tool-subagent) |
 | `subagent/provider-removed` | `emit` | [`packages/subagent/subagent/src/index.ts:154`](../packages/subagent/subagent/src/index.ts) | [`subagent`](../packages/subagent/subagent) (`events.dispatch`) | [`tool-subagent`](../packages/subagent/tool-subagent) |
 | `subagent/start` | `emit` | [`packages/subagent/subagent/src/index.ts:164`](../packages/subagent/subagent/src/index.ts) | [`subagent`](../packages/subagent/subagent) (`events.dispatch`) | [`hooks-claude-code`](../packages/hooks/hooks-claude-code) |
-| `system-prompt/assemble` | `waterfall` | [`packages/core/system-prompt/src/index.ts:31`](../packages/core/system-prompt/src/index.ts) | [`system-prompt`](../packages/core/system-prompt) (`waterfall`) | [`agent`](../packages/core/agent), `browser-use-runtime`, `orb-native`, [`session-reference`](../packages/context/session-reference) |
+| `system-prompt/assemble` | `waterfall` | [`packages/core/system-prompt/src/index.ts:31`](../packages/core/system-prompt/src/index.ts) | [`system-prompt`](../packages/core/system-prompt) (`waterfall`) | [`agent`](../packages/core/agent), `browser-use-runtime`, [`session-reference`](../packages/context/session-reference) |
 | `system-prompt/change` | `emit` | [`packages/core/system-prompt/src/index.ts:37`](../packages/core/system-prompt/src/index.ts) | [`system-prompt`](../packages/core/system-prompt) (`emit`) | - |
 | `tools/change` | `emit` | [`packages/core/tools/src/index.ts:208`](../packages/core/tools/src/index.ts) | [`agent-preset-registry`](../packages/preset/agent-preset-registry) (`emit`), [`tools`](../packages/core/tools) (`emit`) | `browser-use-runtime`, [`tool-subagent`](../packages/subagent/tool-subagent) |
 | `tools/execute` | `waterfall` | [`packages/core/tools/src/index.ts:164`](../packages/core/tools/src/index.ts) | [`tools`](../packages/core/tools) (`waterfall`) | `browser-use-runtime`, `browser-use-stagehand-native`, `claude-code-mods`, `computer-use-cua-driver-native`, [`session-checkpoint-policy`](../packages/session/session-checkpoint-policy), `timeout-policy` |
@@ -100,7 +100,7 @@
 | --- | --- | --- |
 | `internal/config` | [`config-editor`](../packages/boot/config-editor) (`waterfall`) | [`llm-pi-ai`](../packages/llm/llm-pi-ai) |
 | `internal/dispatch` | - | [`terminal-bash`](../packages/terminal/terminal-bash) |
-| `internal/plugin` | - | `computer-use-cua-driver-native`, `inspector`, `loader`, [`lsp-stdio`](../packages/lsp/lsp-stdio), [`mcp-client`](../packages/mcp/mcp-client), `modules`, `orb-native` |
+| `internal/plugin` | - | `computer-use-cua-driver-native`, `inspector`, `loader`, [`lsp-stdio`](../packages/lsp/lsp-stdio), [`mcp-client`](../packages/mcp/mcp-client), `modules` |
 | `internal/service` | - | `gateway` |
 | `internal/status` | - | [`agent`](../packages/core/agent), `inspector`, [`web`](../packages/web/web) |
 | `internal/update` | - | [`app-boot`](../packages/boot/app-boot) |

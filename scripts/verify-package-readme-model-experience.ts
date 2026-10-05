@@ -45,8 +45,6 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
  * blocks. A package moves on or off this list with its context behavior.
  */
 const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
-  'packages/client/ui-overlay-chat': { kind: 'none', reason: 'This client-only conversation view reuses existing Session presentation and contributes no model prompt, tool, or result.' },
-  'packages/client/ui-settings-orb': { kind: 'none', reason: 'The Desktop settings view only submits local presentation preferences and contributes no model-facing context.' },
   'packages/client/product-analytics': { kind: 'none', reason: 'Desktop analytics observes selected interactions without contributing model context or Session events.' },
   'packages/experimental/speech-to-text': { kind: 'none', reason: 'Routes transient recognition without adding model requests or Session events.' },
   'packages/experimental/api-speech-to-text': { kind: 'none', reason: 'Transports audio and preparation state; ordinary user submission owns model-visible text.' },

@@ -133,7 +133,6 @@ export interface ExternalToolsSectionInjected extends WorkspaceRuntimeInjected {
   cancelInstall: (installId: PluginInstallId) => Promise<PluginInstallSnapshot>
   restart: () => Promise<boolean>
   activateAutoReview: () => Promise<'switched' | 'no-session'>
-  openOrbSettings?: () => void
 }
 
 /** Full props assembled by the Settings section slot. */
@@ -458,7 +457,6 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
               <div className={css.cardBody}>
                 <div className={css.toolTitle}><h3>{capability.name}</h3></div>
                 <p>{t(capability.descriptionKey)}</p>
-                {capability.id === 'computer-use' && props.openOrbSettings !== undefined && <button className={css.orbSettingsLink} type="button" onClick={props.openOrbSettings}>{t('external.capability.computer.orbSettings')}</button>}
               </div>
               <div className={css.cardAction}>
                 {active ? (

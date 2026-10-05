@@ -151,11 +151,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Verify Windows packaging and candidate contracts
-        run: >-
-          node --test
-          apps/desktop/scripts/runtime-deploy-config.test.mjs
-          apps/desktop/scripts/collect-windows-smoke-evidence.test.mjs
-          apps/desktop/scripts/windows-package-candidate.test.mjs
+        run: node apps/desktop/scripts/desktop-smoke.mjs contracts windows-x64
 
       - name: Verify Windows runner protocol
         run: pnpm exec vitest run packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts packages/subprocess/subprocess-local/tests/windows-job.spec.ts
@@ -226,13 +222,10 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY=false node apps/desktop/node_modules/electron-builder/out/cli/cli.js --projectDir apps/desktop --config electron-builder.macos.yml --mac dmg zip --${{ matrix.arch }} --publish never
 
       - name: Verify macOS Helper lookup regression
-        run: node --test apps/desktop/scripts/smoke-macos-package.test.mjs
+        run: node apps/desktop/scripts/desktop-smoke.mjs contracts macos-${{ matrix.arch }}
 
       - name: Smoke final macOS DMG and ZIP
-        run: >-
-          node apps/desktop/scripts/smoke-macos-package.mjs
-          .artifacts/desktop-macos/DeepSeek-Harness-macos-${{ matrix.arch }}.dmg
-          .artifacts/desktop-macos/DeepSeek-Harness-macos-${{ matrix.arch }}.zip
+        run: node apps/desktop/scripts/desktop-smoke.mjs package macos-${{ matrix.arch }}
 
       - name: Record qualified macOS installer sizes
         run: >-
@@ -297,7 +290,7 @@ jobs:
         run: node node_modules/electron-builder/out/cli/cli.js --win nsis --x64 --publish never
 
       - name: Probe unpacked app.asar and Electron entries
-        run: node apps/desktop/scripts/smoke-windows-unpacked.mjs
+        run: node apps/desktop/scripts/desktop-smoke.mjs unpacked windows-x64
 
       - name: Record Windows candidate identity
         run: >-
@@ -336,12 +329,6 @@ jobs:
         with:
           node-version: ${{ env.PRIMARY_NODE_VERSION }}
 
-      - name: Verify Windows smoke evidence interface
-        shell: pwsh
-        run: |
-          & apps/desktop/scripts/windows-smoke-journal.test.ps1
-          node --test apps/desktop/scripts/collect-windows-smoke-evidence.test.mjs
-
       - uses: actions/download-artifact@v4
         with:
           name: bundled-plugin-snapshot
@@ -354,21 +341,8 @@ jobs:
           run-id: ${{ inputs.windows_candidate_run_id || github.run_id }}
           github-token: ${{ github.token }}
 
-      - name: Verify Windows candidate identity
-        run: >-
-          node apps/desktop/scripts/windows-package-candidate.mjs verify .
-          .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe
-          .artifacts/bundled-plugin-snapshot
-          .artifacts/desktop-windows/windows-package-candidate.json
-
       - name: Smoke test installed Windows package
-        shell: pwsh
-        run: apps/desktop/scripts/smoke-windows-package.ps1
-
-      - name: Collect Windows smoke evidence
-        if: ${{ always() }}
-        continue-on-error: true
-        run: node apps/desktop/scripts/collect-windows-smoke-evidence.mjs
+        run: node apps/desktop/scripts/desktop-smoke.mjs package windows-x64
 
       - name: Preserve Windows smoke evidence
         if: ${{ always() }}
@@ -445,7 +419,7 @@ jobs:
         run: node apps/desktop/node_modules/electron-builder/out/cli/cli.js --projectDir apps/desktop --config electron-builder.linux.yml --linux deb rpm --x64 --publish never
 
       - name: Verify packaged preset resources
-        run: node apps/desktop/scripts/verify-prebuilt-profile.mjs .artifacts/desktop-linux/linux-unpacked/resources
+        run: node apps/desktop/scripts/desktop-smoke.mjs package linux-x64
 
       - name: Record qualified Linux installer sizes
         run: >-

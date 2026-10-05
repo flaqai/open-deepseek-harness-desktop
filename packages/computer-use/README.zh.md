@@ -27,7 +27,6 @@ kind: "package-group"
 | 包 | 职责 | ctx 键 |
 |---|---|---|
 | [`computer-use`](computer-use/README.zh.md) | 按名称独占注册提供方 | `ctx.computerUse` |
-| [`orb-native`](orb-native/README.zh.md) | 仅用于桌面版、由用户选择的 Orb 前台工具与 Host 授权 | `ctx.computerUse` |
 
 <a id="related-documentation"></a>
 ## 相关文档

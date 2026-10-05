@@ -1,8 +1,16 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const outputDirectory = fileURLToPath(new URL('../lib/', import.meta.url))
 mkdirSync(outputDirectory, { recursive: true })
+// TypeScript does not prune removed sources; never ship stale Orb output from a prior build.
+for (const directory of [outputDirectory, fileURLToPath(new URL('../lib/types/', import.meta.url))]) {
+  if (!existsSync(directory)) continue
+  for (const name of readdirSync(directory)) {
+    if (/^(?:orb-|liborb-)/u.test(name)) rmSync(join(directory, name), { force: true, recursive: true })
+  }
+}
 // tsc does not delete outputs for removed sources. Do not ship stale standalone
 // desktop carrier or updater modules after building this community checkout.
 for (const name of [
@@ -30,10 +38,6 @@ copyFileSync(
 copyFileSync(
   fileURLToPath(new URL('../src/titlebar.html', import.meta.url)),
   fileURLToPath(new URL('../lib/titlebar.html', import.meta.url)),
-)
-copyFileSync(
-  fileURLToPath(new URL('../src/orb-shell.html', import.meta.url)),
-  fileURLToPath(new URL('../lib/orb-shell.html', import.meta.url)),
 )
 copyFileSync(
   fileURLToPath(new URL('../src/question-outline-14.svg', import.meta.url)),

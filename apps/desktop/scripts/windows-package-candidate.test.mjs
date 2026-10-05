@@ -69,6 +69,13 @@ test('allows a committed smoke-only fix but rejects a changed packaging workflow
   run('git', ['commit', '-qm', 'fix smoke'], item.root)
   run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root)
 
+  for (const name of ['desktop-smoke', 'electron-package-probe', 'smoke-macos-package', 'smoke-windows-unpacked']) {
+    await writeFile(join(item.root, 'apps', 'desktop', 'scripts', `${name}.mjs`), 'export const qualificationOnly = true\n')
+  }
+  run('git', ['add', '.'], item.root)
+  run('git', ['commit', '-qm', 'unify qualification runners'], item.root)
+  run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root)
+
   await mkdir(join(item.root, '.github', 'workflows'), { recursive: true })
   await writeFile(join(item.root, '.github', 'workflows', 'desktop-packages.yml'), 'jobs: changed\n')
   run('git', ['add', '.'], item.root)

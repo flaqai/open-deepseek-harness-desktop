@@ -18,15 +18,12 @@
 | `dsh plugin --profile <name> <pnpm args>` | 通过在 profile 目录中转发给 pnpm 来管理该 profile 的插件。 |
 | `dsh plugin --profile <name> approve-build <package-name>` | 允许一个已审核的 registry 依赖运行生命周期脚本，但不覆盖显式拒绝。 |
 | `dsh plugin --profile <name> doctor [--repair]` | 检查共享 Host 依赖身份，或修复并隔离冲突。 |
-| `dsh plugin --profile <name> set-computer-use-backend <official-native\|official-mcp\|off>` | 选择一种官方 Computer Use 后端，或移除社区受管的 Profile 配置块。 |
 
 运行命令时所在的目录将作为默认 workspace 根目录。`web`、`headless`、`sdk`、`sdk-minimal` 和 `acp` profile 在首次使用时会从随附模板自动初始化。使用 `--from-default-profile` 可以基于这些模板之一，在尚未使用的非内置名称处创建其他 profile；通过 `dsh plugin` 则可以初始化一个以 base 为基础的 profile。`desktop` 名称保留给 Electron 持有的 profile，因此 CLI（命令行界面）会拒绝针对它的启动和配置 dump 请求。npm CLI 也会拒绝其插件管理请求；[Desktop 内置命令](../desktop/README.zh.md#bundled-command-runtime)可以使用该安装的运行时管理已初始化的 Desktop profile。
 
 ## 插件变更
 
 获得社区桌面显式事务授权时，修改插件的命令会验证同磁盘候选状态，再将激活工作交给桌面进程。`batch` 将构建授权与重试保留在同一个事务中；`transaction status`、`activate`、`commit` 和 `rollback` 只操作经过校验的日志 ID 与插件受管状态。候选目录拥有的内置插件归档引用会跨本机分隔符和 pnpm 规范化分隔符迁回持久桌面 home；后续事务只在对应保留归档存在时修复旧版指向已删除候选目录的引用。调用方持有现有 Profile 锁，pnpm 在执行软件包代码前登记工作进程 PID。独立 CLI 命令保留普通同步行为。就绪与回滚行为见[桌面说明](../desktop/README.zh.md#plugin-changes)。
-
-`set-computer-use-backend` 只接受 `official-native`、`official-mcp` 或 `off`。它只修改所选 Profile patch 中唯一的 `community-desktop:computer-use` 配置块，保留其他 YAML 和注释；标记重复或残缺时拒绝写入。重复选择不会改写文件。作者式悬浮球 Computer Use 后端在 Cordis 插件可加载前不作为 CLI 选项。
 
 Profile 插件操作将 pnpm 缓存保存在 `$DSH_HOME/.pnpm-store`（默认 `~/.dsh/.pnpm-store`），修复和快照恢复也使用该位置。使用相同 store 格式的本地依赖树保留已安装文件和构建结果，只原子更新缓存位置记录。共享旧缓存不会被移动或删除。不同 store 格式与外置虚拟依赖目录仍由 pnpm 执行兼容性检查。未缓存的包仍需要原始本地归档或联网获取；更改缓存位置不会让离线快照自动变得完整。
 

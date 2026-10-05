@@ -44,16 +44,7 @@ export function orderSettingsSections(
   const ordered = normalized.flatMap(id => byId.get(id) ?? [])
   const known = new Set(normalized)
   const newRows = rows.filter(row => !known.has(row.id))
-  for (const row of newRows) {
-    if (row.id !== 'orb') {
-      ordered.push(row)
-      continue
-    }
-    const tools = ordered.findIndex(candidate => candidate.id === 'external-tools')
-    const presets = ordered.findIndex(candidate => candidate.id === 'agent-presets')
-    const position = tools >= 0 ? tools + 1 : presets >= 0 ? presets : ordered.length
-    ordered.splice(position, 0, row)
-  }
+  ordered.push(...newRows)
   return ordered
 }
 

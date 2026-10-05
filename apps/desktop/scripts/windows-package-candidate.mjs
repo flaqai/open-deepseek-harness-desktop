@@ -13,7 +13,7 @@ const QUALIFICATION_ONLY = [
   /^\.github\//u,
   /(?:^|\/)tests?\//u,
   /(?:^|\/)[^/]+\.(?:spec|test)\.[^/]+$/u,
-  /^apps\/desktop\/scripts\/(?:collect-windows-smoke-evidence|smoke-windows-package|windows-smoke-journal)\./u,
+  /^apps\/desktop\/scripts\/(?:collect-windows-smoke-evidence|desktop-smoke|electron-package-probe|smoke-macos-package|smoke-windows-package|smoke-windows-unpacked|windows-smoke-journal)\./u,
   /^(?:CONTEXT|AGENTS|README)(?:\.[^/]+)?$/u,
 ]
 

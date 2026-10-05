@@ -1,9 +1,8 @@
 import { createRequire } from 'node:module'
-import { spawn } from 'node:child_process'
-import { access, mkdtemp, readFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { access } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import process from 'node:process'
+import { runElectronPackageProbe } from './electron-package-probe.mjs'
 
 if (process.platform !== 'win32') throw new Error(`Windows package probe requires win32, received ${process.platform}`)
 
@@ -32,37 +31,8 @@ for (const packageName of requiredPackages) {
 }
 
 async function runProbe(argument, marker, timeoutMs = 30_000) {
-  const root = await mkdtemp(join(tmpdir(), 'odsh-windows-package-probe-'))
-  try {
-    const result = await new Promise((resolvePromise, reject) => {
-      const child = spawn(executable, [argument, `--dsh-package-smoke-root=${root}`], {
-        env: { ...process.env, ELECTRON_ENABLE_LOGGING: '1' },
-        windowsHide: true,
-      })
-      let stdout = ''
-      let stderr = ''
-      let timedOut = false
-      child.stdout.on('data', chunk => { stdout += chunk })
-      child.stderr.on('data', chunk => { stderr += chunk })
-      const timeout = setTimeout(() => {
-        timedOut = true
-        child.kill()
-      }, timeoutMs)
-      child.once('error', error => { clearTimeout(timeout); reject(error) })
-      child.once('close', code => {
-        clearTimeout(timeout)
-        resolvePromise({ code, stdout, stderr, timedOut })
-      })
-    })
-    const entryLogPath = join(root, 'desktop-entry.log')
-    const entryLog = await readFile(entryLogPath, 'utf8').catch(() => '')
-    if (result.timedOut || result.code !== 0 || !result.stdout.includes(marker)) {
-      throw new Error(`${argument} failed with ${result.code} (timedOut=${result.timedOut})\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}\nentry:\n${entryLog}`)
-    }
-    console.log(`${marker}\n${entryLog}`)
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
+  const result = await runElectronPackageProbe({ executable, args: [argument], marker, timeoutMs })
+  console.log(`${marker}\n${result.entryLog}`)
 }
 
 await runProbe('--dsh-native-smoke', 'DSH_NATIVE_SMOKE_READY')

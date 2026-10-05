@@ -100,9 +100,7 @@ The URL line and browser handoff are readiness signals: supervisors RPC as soon 
 
 A community Desktop-owned, loopback-only Web invocation registers `GET /api/desktop.quit-inspection` through Connection's authenticated API router; ordinary Web and NAS invocations do not register it. It reports live Agent turns, queued inbox work, running jobs, and active rows from Schedule's full persistent catalog without activating a Session. Schedule is disabled by default, so its absence means no reminder timer is armed; unavailable required services or a failed catalog read return 503 rather than an idle result. The route is released with the Web plugin fiber.
 
-The same Desktop-only launch may register `POST /api/desktop.orb-caller` when its generation secret and data home are available. The private route ensures one durable standard Orb caller Session and publishes its Host-owned identity as `ctx.desktopOrbCaller`; the private Desktop Host uses `ownsCaller()` to authorize native Computer Use calls. Ordinary Web and NAS launches expose neither route nor owner.
 
-The local Desktop Host registers `GET` and `POST /api/desktop.orb-background` behind ordinary Connection cookie and origin checks. The route derives its caller Session from `ctx.desktopOrbCaller` instead of accepting a caller ID from the renderer. It creates standard worker Sessions, queues text through the ordinary Session Controller, lists owned workers after a Host restart, and cancels only an active turn. Worker ownership records live under the local data home. Ordinary approval, plan, and user-question handling remains with each worker's standard Session. Web and NAS launches do not register this route.
 
 ### LAN trust sampling
 
@@ -115,16 +113,12 @@ The local Desktop Host registers `GET` and `POST /api/desktop.orb-background` be
 | [`src/index.ts`](src/index.ts) | The `web-app` glue plugin: dist resolution, advertised application URL, LAN trust sampling, prompt sections, bash variable, URL line, browser handoff |
 | [`src/public-url.ts`](src/public-url.ts) | Advertised-root validation and trailing-slash normalization; a leaf module for local imports, not package API |
 | [`src/desktop-quit-inspection.ts`](src/desktop-quit-inspection.ts) | Desktop-only authenticated task inspection route |
-| [`src/desktop-orb-caller.ts`](src/desktop-orb-caller.ts) | Desktop-only caller Session route and Host-owned identity |
-| [`src/desktop-orb-background.ts`](src/desktop-orb-background.ts) | Local Host worker ownership and standard Session operations |
 | [`src/startup.ts`](src/startup.ts) | The `web-startup` provider: `--host`, `--port`, `--public-url`, `--trusted-host`, `--no-open`, `--help` |
 | [`cordis.patch.yml`](cordis.patch.yml) | The web patch: restated base values, web host rows, browser roster, preset registry |
 | [`presets/`](presets) | One `@deepseek-ai/dsh-agent-preset` declaration per shipped preset (`standard`, `ptc`, `minimal`, `cordis`), each its own patch file |
 | — | No runtime invariant companion is published; every contribution (frontend-static child plugin, prompt section, bashEnv registration) is registry-disposed with the fiber, and each owning registry's package carries that relation's invariant; the package holds no mutable state of its own to audit. |
 | [`tests/web-app.spec.ts`](tests/web-app.spec.ts) | Dist resolution, fallback seat, prompt sections, readiness |
 | [`tests/desktop-quit-inspection.spec.ts`](tests/desktop-quit-inspection.spec.ts) | Task inspection, disabled Schedule, route restrictions, and failure response |
-| [`tests/desktop-orb-caller.spec.ts`](tests/desktop-orb-caller.spec.ts) | Durable Orb caller identity, route authority, and disposal |
-| [`tests/desktop-orb-background.spec.ts`](tests/desktop-orb-background.spec.ts) | Worker ownership, restart, queue, and cancel behavior |
 | [`tests/startup.spec.ts`](tests/startup.spec.ts) | Command-line parsing over a real Loader tree |
 | [`tests/public-url.spec.ts`](tests/public-url.spec.ts) | Advertised-root parsing and normalization |
 | [`tests/trusted-hosts.spec.ts`](tests/trusted-hosts.spec.ts) | LAN-trust sampling |

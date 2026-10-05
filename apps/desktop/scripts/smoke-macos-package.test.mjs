@@ -3,8 +3,15 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { parse } from 'yaml'
-import { verifyCodeSignature, verifyHelperLayout, verifyOrbComputerUseLayout, verifyOrbSelectionLayout } from './smoke-macos-package.mjs'
+import { verifyCodeSignature, verifyHelperLayout } from './smoke-macos-package.mjs'
+
+test('macOS native startup shares the isolated probe and keeps its fifteen-second deadline', () => {
+  const source = readFileSync(new URL('./smoke-macos-package.mjs', import.meta.url), 'utf8')
+  assert.match(source, /await runElectronPackageProbe\(/u)
+  assert.match(source, /marker: 'DSH_NATIVE_SMOKE_READY', timeoutMs: 15000/u)
+  assert.match(source, /verify-prebuilt-profile\.mjs/u)
+  assert.match(source, /for \(const input of process\.argv\.slice\(2\)\) await smokeMacPackage\(input\)/u)
+})
 
 test('deep signature verification tolerates a large final app while remaining bounded', () => {
   const app = '/tmp/DeepSeek Harness Desktop.app'
@@ -22,47 +29,6 @@ test('deep signature verification tolerates a large final app while remaining bo
   }
   assert.doesNotThrow(() => verifyCodeSignature(app, run))
   assert.equal(attempts, 1)
-})
-
-test('macOS packaging unpacks both AX-only native libraries', () => {
-  const config = parse(readFileSync(new URL('../electron-builder.macos.yml', import.meta.url), 'utf8'))
-  assert.deepEqual(config.asarUnpack, [
-    'lib/orb-selection-macos-napi.node',
-    'lib/liborb-selection-macos.dylib',
-    'lib/orb-computer-use-macos',
-  ])
-})
-
-test('foreground Computer Use helper must be executable in the unpacked lib directory', () => {
-  const app = mkdtempSync(join(tmpdir(), 'dsh-orb-computer-use-layout-'))
-  const directory = join(app, 'Contents/Resources/app.asar.unpacked/lib')
-  try {
-    mkdirSync(directory, { recursive: true })
-    const helper = join(directory, 'orb-computer-use-macos')
-    writeFileSync(helper, 'test')
-    assert.throws(() => verifyOrbComputerUseLayout(app), /EACCES/)
-    chmodSync(helper, 0o755)
-    assert.equal(verifyOrbComputerUseLayout(app), helper)
-  } finally {
-    rmSync(app, { recursive: true, force: true })
-  }
-})
-
-test('AX-only selection native pair must share the unpacked lib directory', () => {
-  const app = mkdtempSync(join(tmpdir(), 'dsh-orb-native-layout-'))
-  const directory = join(app, 'Contents/Resources/app.asar.unpacked/lib')
-  try {
-    mkdirSync(directory, { recursive: true })
-    const addon = join(directory, 'orb-selection-macos-napi.node')
-    const dylib = join(directory, 'liborb-selection-macos.dylib')
-    writeFileSync(addon, 'test')
-    writeFileSync(dylib, 'test')
-    assert.deepEqual(verifyOrbSelectionLayout(app), [addon, dylib])
-    rmSync(dylib)
-    assert.throws(() => verifyOrbSelectionLayout(app), /ENOENT/)
-  } finally {
-    rmSync(app, { recursive: true, force: true })
-  }
 })
 
 test('native Helper lookup accepts display branding but rejects CFBundleName mismatch and missing helpers', { skip: process.platform !== 'darwin' }, () => {
