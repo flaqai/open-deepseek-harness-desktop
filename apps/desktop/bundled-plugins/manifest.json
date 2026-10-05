@@ -4,25 +4,25 @@
     {
       "seedId": "dshmarket",
       "packageName": "dshmarket",
-      "version": "1.66.7",
+      "version": "1.66.8",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "dshmarket@1.66.7",
-      "archive": "dshmarket-1.66.7.tgz",
-      "integrity": "sha512-GeiZ+97aPscNPTR8tp3udV2F6uHIDbzFWcqIoJPW4paU7HuGVobHw9t4z9vbBqATh95Z/dz2YuERu8hwO05tAQ=="
+      "registrySpec": "dshmarket@1.66.8",
+      "archive": "dshmarket-1.66.8.tgz",
+      "integrity": "sha512-zOYCijI/du6qlcmUbx47aaUv6OM7Z/akIQ8n3f9Q2ihtV3U3sbRI5nG0guS+8npsb/vhA2turyEf9Yblg6LweQ=="
     },
     {
       "seedId": "xmanrui-dsh-im",
       "packageName": "@xmanrui/dsh-im",
-      "version": "4.34.0",
+      "version": "4.34.2",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "@xmanrui/dsh-im@4.34.0",
+      "registrySpec": "@xmanrui/dsh-im@4.34.2",
       "managedUpgradeFrom": [
         "3.0.6"
       ],
-      "archive": "xmanrui-dsh-im-4.34.0.tgz",
-      "integrity": "sha512-ovNSMes+NtejJu+RlUjFyTywS5ta5dX4hkmokn/hpe4TpDRn40ZdvoCmAVvPUtTFhKbR3D2qmS/uv/+OVIFrEQ=="
+      "archive": "xmanrui-dsh-im-4.34.2.tgz",
+      "integrity": "sha512-6t3Epsq8ZqCqAEhmJzvtBgwjUKC2bBxsfnJj26uqWOAGDt+6jpBlaDZFr/So1RTS0SJ3SbfW9KDJ5verP4iHCQ=="
     },
     {
       "seedId": "dsh-better-sidebar",
@@ -58,12 +58,12 @@
     {
       "seedId": "ychris12138-dsh-usage-stats",
       "packageName": "@ychris12138/dsh-usage-stats",
-      "version": "0.3.4",
+      "version": "0.3.5",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "@ychris12138/dsh-usage-stats@0.3.4",
-      "archive": "ychris12138-dsh-usage-stats-0.3.4.tgz",
-      "integrity": "sha512-aHh2jqK89NymscB5Ooc3oKqMH1R61irpDNOKm19drvLtNK7YbqqTFj3IC/338nME556KLq63k3YBAc9nDjXY7g=="
+      "registrySpec": "@ychris12138/dsh-usage-stats@0.3.5",
+      "archive": "ychris12138-dsh-usage-stats-0.3.5.tgz",
+      "integrity": "sha512-R1eqlPP901e64pv+VEmWIm5gEJY45vZUHap6jv2Fs508kUlVUwAJvOselnmbG4K/3rf7E0ksRAeRc6BgPcbLnQ=="
     },
     {
       "seedId": "dsh-smooth-stream",
@@ -88,12 +88,12 @@
     {
       "seedId": "dsh-whale-widget",
       "packageName": "dsh-whale-widget",
-      "version": "0.3.17",
+      "version": "0.3.18",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "dsh-whale-widget@0.3.17",
-      "archive": "dsh-whale-widget-0.3.17.tgz",
-      "integrity": "sha512-eHB3MNbMyhv1y4Wd5JOB2qyYXQjSKJUZc2Yh8bZZldEzo4LxFCpixQWVeF9K29Bseje/8w59RfBM4+sKbB/Z1w=="
+      "registrySpec": "dsh-whale-widget@0.3.18",
+      "archive": "dsh-whale-widget-0.3.18.tgz",
+      "integrity": "sha512-2RMevYiKTa2P+FzLutXlpTmQ9coWRbRQ7eG1b07MbkxB1HXXWbN/lqn0MZgDu49AILeJqmGivwB0S0H09pc9xQ=="
     },
     {
       "seedId": "weibaohui-skills-management",
