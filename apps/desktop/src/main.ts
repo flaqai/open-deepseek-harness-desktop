@@ -60,6 +60,7 @@ import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
 import { ensureWorkspacePtcPlugin, hasManagedWorkspacePtcBlock, isWorkspacePtcPluginInstalled, PTC_PLUGIN_NAME } from './workspace-ptc-plugin.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
 import { DesktopBrowserGuests } from './browser-guests.ts'
+import { AGENTS_ANYWHERE_PACKAGE, configureNewAgentsAnywhere, hasLegacyPocket } from './agents-anywhere-profile.ts'
 import { desktopVersionIdentity } from './version-identity.ts'
 import {
   COMMUNITY_FEEDBACK_ENDPOINT, communityFeedbackMailto, parseCommunityFeedbackInput, submitCommunityFeedback,
@@ -4234,6 +4235,7 @@ async function startApplication(): Promise<void> {
     }
   }
   let presetUpgradeNeeded = false
+  let showPocketUpgradeNotice = false
   let presetVersionMarkerUnavailable = false
   if (!firstStartPending && (startupProfileMutationAllowed || preserveCopiedPlugins)) {
     try {
@@ -4304,6 +4306,10 @@ async function startApplication(): Promise<void> {
           )
           publishStartupProgress({ ...mapped, detail: `${progress.entry.packageName} (${progress.index + 1}/${progress.total})` })
         })
+        if (seedResults.some(item => item.entry.packageName === AGENTS_ANYWHERE_PACKAGE && item.result === 'installed')) {
+          await configureNewAgentsAnywhere(dshHome, dshHome)
+          showPocketUpgradeNotice = await hasLegacyPocket(dshHome)
+        }
         const count = (result: NonNullable<(typeof seedResults)[number]['result']>): number => (
           seedResults.filter(item => item.result === result).length
         )
@@ -4313,6 +4319,9 @@ async function startApplication(): Promise<void> {
         await appendDesktopStartupLog(presetVersionMarkerUnavailable
           ? 'Skipped bundled plugin provisioning: the desktop version marker is unavailable; inspect startup diagnostics.'
           : 'Skipped bundled plugin provisioning: this desktop version was already attempted for the Profile.')
+      }
+      if (firstStartPending) {
+        await configureNewAgentsAnywhere(dshHome, desktopMutations.mutationHome)
       }
       if (legacySchedulePending) {
         try {
@@ -4619,6 +4628,10 @@ async function startApplication(): Promise<void> {
         ...notificationCopy.startupWarning,
         body: `${notificationCopy.startupWarning.body}\n${startupWarnings.slice(0, 3).join('\n')}`,
       })
+      if (showPocketUpgradeNotice) {
+        showPocketUpgradeNotice = false
+        showNotification('pocket-upgrade', notificationCopy.pocketUpgrade)
+      }
     },
     onDiagnosticReady: (url, failure) => {
       recoveryHarnessSuspended = false

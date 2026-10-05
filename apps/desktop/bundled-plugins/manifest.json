@@ -43,17 +43,18 @@
       "integrity": "sha512-X5tdu07Ub0isxruG559o46891F7MjxM+CzR6QoGpHZtN5J8gz6FA8Dq632lLI77c4IjL2GP+N6PuWaDnoKPuPQ=="
     },
     {
-      "seedId": "dsh-pocket",
-      "packageName": "dsh-pocket",
-      "version": "2.10.6",
+      "seedId": "agents-anywhere-dsh-bridge-next",
+      "packageName": "@agents-anywhere/dsh-bridge-next",
+      "version": "2.0.2",
       "profile": "web",
       "installPolicy": "startup",
-      "registrySpec": "dsh-pocket@2.10.6",
-      "managedUpgradeFrom": [
-        "1.14.5"
+      "registrySpec": "@agents-anywhere/dsh-bridge-next@2.0.2",
+      "refreshPolicy": "pinned",
+      "approvedBuilds": [
+        "@dataiku/uv"
       ],
-      "archive": "dsh-pocket-2.10.6.tgz",
-      "integrity": "sha512-yqybeWWutozi1yBLDpSs6ien9SndFPVNK6HlmhJf8q0AOLauzcLntmFyGQ0/v3EzS3V8ftM4yvqcc/o6LcGcGA=="
+      "archive": "agents-anywhere-dsh-bridge-next-2.0.2.tgz",
+      "integrity": "sha512-ceSsvY2XF+NSee4nZRWvCjEeL6oMi3mo/r+czMcrX9ZK0bOjPhpvy4VCHJEuNKwgdovHFE/QJX7Dpu6Xvm8VuQ=="
     },
     {
       "seedId": "ychris12138-dsh-usage-stats",

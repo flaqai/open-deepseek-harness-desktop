@@ -165,7 +165,7 @@ describe('bundled plugin seed', () => {
       ['dshmarket', 'startup'],
       ['@xmanrui/dsh-im', 'startup'],
       ['dsh-better-sidebar', 'startup'],
-      ['dsh-pocket', 'startup'],
+      ['@agents-anywhere/dsh-bridge-next', 'startup'],
       ['@ychris12138/dsh-usage-stats', 'startup'],
       ['dsh-smooth-stream', 'startup'],
       ['dsh-mermaid', 'startup'],
@@ -200,13 +200,13 @@ describe('bundled plugin seed', () => {
     expect(manifest.plugins.find(entry => entry.packageName === '@dsh-diagnostic-lab/immutable-agent-input-mutation'))
       .toMatchObject({ version: '1.0.0', installPolicy: 'diagnostic' })
     expect(manifest.plugins.find(entry => entry.packageName === '@ychris12138/dsh-usage-stats'))
-      .toMatchObject({ version: '0.3.4', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.3.5', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-smooth-stream'))
       .toMatchObject({ version: '0.6.1', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-mermaid'))
       .toMatchObject({ version: '0.4.1', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-whale-widget'))
-      .toMatchObject({ version: '0.3.17', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.3.18', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@weibaohui/skills-management'))
       .toMatchObject({ version: '0.9.0', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel'))
@@ -237,7 +237,6 @@ describe('bundled plugin seed', () => {
     )))).toEqual({
       '@xmanrui/dsh-im': ['3.0.6'],
       'dsh-better-sidebar': ['0.16.1', '0.21.1'],
-      'dsh-pocket': ['1.14.5'],
     })
     expect(manifest.plugins.map(entry => entry.packageName)).not.toContain('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.plugins.map(entry => entry.packageName)).not.toContain('@deepseek-ai/dsh-subagent-claude-code')
@@ -253,7 +252,7 @@ describe('bundled plugin seed', () => {
     }
     const resourcesDirectory = fileURLToPath(new URL('../bundled-plugins/', import.meta.url))
     const historical = manifest.plugins.filter(entry => entry.managedUpgradeFrom !== undefined)
-    expect(historical).toHaveLength(3)
+    expect(historical).toHaveLength(2)
 
     for (const entry of historical) {
       const root = await mkdtemp(join(tmpdir(), 'dsh-historical-preset-'))

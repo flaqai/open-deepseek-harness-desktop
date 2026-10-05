@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import { DesktopPreferencesRow } from './DesktopPreferencesRow.tsx'
 import { DesktopAboutSection } from './DesktopAboutSection.tsx'
 import { DesktopBrowserReturnButton } from './DesktopBrowserReturnButton.tsx'
@@ -71,7 +72,7 @@ export function apply(ctx: Context): void {
         available: true, ready: connection.state.getSnapshot() === 'connected', locale: inner.locale.getSnapshot().active,
       }) }
       const removeCommand = menu.onCommand((command) => {
-        navigateDesktopMenu(command, {
+        return navigateDesktopMenu(command, {
           startSession: () => {
             const workspace: unknown = inner.get('uiWorkspace')
             if (!hasStartSession(workspace)) {
@@ -82,6 +83,14 @@ export function apply(ctx: Context): void {
           open: (request) => { inner.settingsNavigation.open(request) },
           hasSection: id => inner.slots.entries('settings.section').some(entry => entry.options.id === id),
           general: (destination) => { controller.navigate(destination) },
+          openRemoteControl: async () => {
+            if ((await bridge.shell.getCapabilities()).runtimeKind === 'nas') {
+              throw new Error(inner.locale.bind(NS)('remote.nasUnavailable'))
+            }
+            const plugins = inner.get('pluginNavigation')
+            if (plugins === undefined) throw new Error(inner.locale.bind(NS)('menu.unavailable'))
+            plugins.openBundle('@agents-anywhere/dsh-bridge-next')
+          },
           unavailable: () => inner.locale.bind(NS)('menu.unavailable'),
         })
       })

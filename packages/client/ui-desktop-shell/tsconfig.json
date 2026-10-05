@@ -9,6 +9,7 @@
     { "path": "../locale/tsconfig.client.json" },
     { "path": "../ui-slots" },
     { "path": "../ui-primitives" },
+    { "path": "../ui-plugin-manager/tsconfig.client.json" },
     { "path": "../ui-settings/tsconfig.client.json" },
     { "path": "../ui-sidebar" }
   ]
