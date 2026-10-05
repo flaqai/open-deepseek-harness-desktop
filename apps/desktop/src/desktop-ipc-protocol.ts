@@ -2,6 +2,9 @@
 
 /** Exact channels exposed through named Desktop capabilities. */
 export const DESKTOP_IPC = {
+  browserAcquire: 'dsh:desktop:browser:acquire',
+  browserRelease: 'dsh:desktop:browser:release',
+  browserOpenRequested: 'dsh:desktop:browser:open-requested',
   bundledPluginsGet: 'dsh:desktop:bundled-plugins:get',
   bundledPluginsStart: 'dsh:desktop:bundled-plugins:start',
   bundledPluginsStartDeferred: 'dsh:desktop:bundled-plugins:start-deferred',

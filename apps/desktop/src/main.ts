@@ -59,6 +59,7 @@ import { clearDeadModuleFallbackLock, inspectModuleFallbackLock } from './module
 import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
 import { ensureWorkspacePtcPlugin, hasManagedWorkspacePtcBlock, isWorkspacePtcPluginInstalled, PTC_PLUGIN_NAME } from './workspace-ptc-plugin.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
+import { DesktopBrowserGuests } from './browser-guests.ts'
 import { desktopVersionIdentity } from './version-identity.ts'
 import {
   COMMUNITY_FEEDBACK_ENDPOINT, communityFeedbackMailto, parseCommunityFeedbackInput, submitCommunityFeedback,
@@ -316,6 +317,7 @@ let lifecycle: DesktopLifecycle | undefined
 let sessionEnding = false
 let applicationMenu: ApplicationMenuController | undefined
 let desktopShortcuts: ReturnType<typeof installDesktopShortcuts> | undefined
+let browserGuests: DesktopBrowserGuests | undefined
 let disposeApplicationMenu: (() => void) | undefined
 let activeMenuHome: string | undefined
 let menuLocale = 'en'
@@ -1702,7 +1704,7 @@ function configureNavigation(renderer: WebContents): void {
     callback({ cancel: blockEmbeddedRequest(details.url, harnessOrigin, details.resourceType,
       details.frame?.parent !== null && details.frame?.parent !== undefined) })
   })
-  renderer.on('will-attach-webview', (event) => { event.preventDefault() })
+  // Approved Sidebar guests are checked by DesktopBrowserGuests before attachment.
   renderer.on('login', (event, _details, _authInfo, callback) => {
     event.preventDefault()
     callback()
@@ -1760,6 +1762,7 @@ function createWindow(): BrowserWindow {
     contextIsolation: true,
     nodeIntegration: false,
     sandbox: true,
+    webviewTag: true,
     preload: PRELOAD,
     additionalArguments: [
       app.isPackaged ? '--dsh-packaged' : '--dsh-source',
@@ -1799,6 +1802,12 @@ function createWindow(): BrowserWindow {
     // A cancelled macOS shutdown must not suppress later ordinary confirmations.
     window.on('focus', () => { sessionEnding = false })
     window.on('show', () => { sessionEnding = false })
+  }
+  if (bootNasRuntime() === undefined) {
+    browserGuests?.bind(surface.renderer, (guest, name) =>
+      desktopShortcuts?.attachGuest(window, guest, name) ?? (() => {}))
+  } else {
+    surface.renderer.on('will-attach-webview', (event) => { event.preventDefault() })
   }
   configureNavigation(surface.renderer)
   surface.renderer.session.webRequest.onCompleted({ urls: ['http://127.0.0.1/*', 'https://*/*'] }, (details) => {
@@ -1882,6 +1891,7 @@ function createWindow(): BrowserWindow {
 async function startApplication(): Promise<void> {
   if (process.platform === 'win32') app.setAppUserModelId('ai.flaq.deepseek-harness')
   await app.whenReady()
+  browserGuests = new DesktopBrowserGuests(() => harnessOrigin === undefined ? [] : [harnessOrigin])
   desktopShortcuts = installDesktopShortcuts(
     () => mainWindow, () => mainSurface?.renderer,
     (rawUrl) => {
@@ -2269,6 +2279,23 @@ async function startApplication(): Promise<void> {
   ipcMain.handle(DESKTOP_IPC.capabilities, (event) => {
     assertMainRenderer(event.sender)
     return desktopCapabilities()
+  })
+  const assertBrowserRenderer = (event: IpcMainInvokeEvent): void => {
+    assertMainRenderer(event.sender)
+    if (bootNasRuntime() !== undefined || event.senderFrame !== event.sender.mainFrame
+      || harnessOrigin === undefined || new URL(event.senderFrame.url).origin !== harnessOrigin) {
+      throw new Error('desktop browser: rejected renderer')
+    }
+  }
+  ipcMain.handle(DESKTOP_IPC.browserAcquire, (event, workspace: unknown) => {
+    assertBrowserRenderer(event)
+    if (browserGuests === undefined) throw new Error('desktop browser: guest manager unavailable')
+    return browserGuests.acquire(event.sender, workspace)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserRelease, (event, lease: unknown) => {
+    assertBrowserRenderer(event)
+    if (browserGuests === undefined) throw new Error('desktop browser: guest manager unavailable')
+    return browserGuests.release(event.sender, lease)
   })
   const assertOrbRenderer = (event: IpcMainInvokeEvent): void => {
     if (event.sender.id !== orbWindowController?.webContentsId || event.senderFrame !== event.sender.mainFrame) {

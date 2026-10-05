@@ -10,6 +10,7 @@
   },
   "include": ["src"],
   "references": [
+    { "path": "../../packages/client/ui-sidebar-browser/tsconfig.host.json" },
     { "path": "../../packages/client/shortcuts/tsconfig.host.json" },
     { "path": "../../packages/client/product-analytics/tsconfig.host.json" },
     { "path": "../../packages/util/atomic-write" },

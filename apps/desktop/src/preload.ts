@@ -3,6 +3,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CLIENT_COMMANDS } from './application-menu.ts'
 import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
+import type { DesktopBrowserBridge } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
 import type {
   DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutDefinition, ShortcutEdit, ShortcutRevision, ShortcutSaveResult,
 } from '@deepseek-ai/dsh-client-shortcuts/protocol'
@@ -650,8 +651,22 @@ const orbBridge: DesktopOrbBridge = Object.freeze({
   ...orbPresentationBridge,
   selectBackend: (backend: OrbComputerBackend) => ipcRenderer.invoke(DESKTOP_IPC.orbSelectBackend, backend) as Promise<OrbSettings>,
 })
+const browserBridge: DesktopBrowserBridge = {
+  acquire: workspace => ipcRenderer.invoke(DESKTOP_IPC.browserAcquire, workspace) as ReturnType<DesktopBrowserBridge['acquire']>,
+  release: lease => ipcRenderer.invoke(DESKTOP_IPC.browserRelease, lease) as Promise<void>,
+  onOpenRequested(lease, listener) {
+    const handler = (_event: Electron.IpcRendererEvent, request: unknown): void => {
+      if (typeof request !== 'object' || request === null || !('lease' in request) || !('url' in request)
+        || request.lease !== lease || typeof request.url !== 'string') return
+      listener(request.url)
+    }
+    ipcRenderer.on(DESKTOP_IPC.browserOpenRequested, handler)
+    return () => { ipcRenderer.removeListener(DESKTOP_IPC.browserOpenRequested, handler) }
+  },
+}
 const shortcutBridge = Object.freeze({
   protocolVersion: 1,
+  ...(nasMode ? {} : { browser: Object.freeze(browserBridge) }),
   keyboard: Object.freeze({
     closeWindow: (revision: ShortcutRevision) => ipcRenderer.invoke(DESKTOP_IPC.shortcutsCloseWindow, revision) as Promise<void>,
     subscribe(listener: (input: DesktopShortcutInput) => void): () => void {
