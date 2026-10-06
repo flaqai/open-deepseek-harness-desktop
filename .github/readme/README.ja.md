@@ -14,9 +14,9 @@
 
 > [!IMPORTANT]
 >
-> **[v0.1.5-rc.2.3 を公開しました](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.5-rc.2.3)。** 公式 DeepSeek Harness `0.1.5-rc.2` を基盤に、スマートフォンと小さいウィンドウのレイアウト、モデル検索と長い応答の性能、コミュニティ設定のインポート、プリセットプラグインの更新と復旧、プラグイン市場の再起動確認、永続的な診断ログを改善しました。
+> **[v0.2.1-alpha.1 を公開しました](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1)。** 公式 DeepSeek Harness `0.2.1-alpha.1` を基盤に、会話とプラグインの操作を改善し、Workspace ごとに分離されたデスクトップのサイドバーブラウザーを追加しました。プリセットプラグインと必要時にインストールするオプションツールも更新しています。
 >
-> バージョン名には `rc` が残っていますが、GitHub では通常の Release として公開しています。アップグレード前に重要な設定をバックアップし、問題を報告する際はログまたは診断レポートを添付してください。
+> バージョン名には `alpha` が含まれていますが、GitHub では通常の Release として公開しています。アップグレード前に重要な設定と会話をバックアップし、問題を報告する際はログまたは診断レポートを添付してください。
 
 Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) を基盤とする、コミュニティ運営の独立したデスクトップ配布版です。Node.js、pnpm、Harness ランタイムをインストーラーに同梱し、モデル設定、コーディングセッション、実行履歴、プラグイン、Skill、外部コーディングツール、IM ボットを一つのアプリで扱えます。
 
@@ -210,7 +210,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 ## ダウンロードとインストール
 
-[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.5-rc.2.3) から対象パッケージを入手してください。
+[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1) から対象パッケージを入手してください。
 
 | OS | アーキテクチャ | パッケージ |
 | --- | --- | --- |

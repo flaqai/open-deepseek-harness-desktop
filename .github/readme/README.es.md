@@ -10,9 +10,9 @@ Idiomas: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.1.5-rc.2.3 ya está disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.5-rc.2.3).** Basada en DeepSeek Harness `0.1.5-rc.2`, esta versión mejora el diseño para móviles y ventanas pequeñas, la búsqueda de modelos y el rendimiento de respuestas largas, la importación de configuraciones comunitarias, la actualización y recuperación de plugins incluidos, la confirmación de reinicio del mercado y los registros de diagnóstico persistentes.
+> **[v0.2.1-alpha.1 ya está disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1).** Basada en DeepSeek Harness `0.2.1-alpha.1`, esta versión mejora las conversaciones y los flujos de plugins, añade un navegador lateral de escritorio aislado por Workspace y actualiza los plugins incluidos y las herramientas opcionales instaladas bajo demanda.
 >
-> Aunque el nombre conserva `rc`, se publica como una versión normal en GitHub. Haz una copia de seguridad de la configuración importante antes de actualizar y adjunta registros o informes de diagnóstico al comunicar problemas.
+> Aunque el nombre contiene `alpha`, se publica como una versión normal en GitHub. Haz una copia de seguridad de las conversaciones y la configuración importante antes de actualizar y adjunta registros o informes de diagnóstico al comunicar problemas.
 
 Open DeepSeek Harness Desktop es una distribución independiente y mantenida por la comunidad de [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Los instaladores incluyen Node.js, pnpm y el runtime de Harness, de modo que puedes configurar modelos, ejecutar sesiones de programación, inspeccionar la ejecución, administrar plugins y Skills, y conectar herramientas externas o bots IM sin preparar un entorno de desarrollo.
 
@@ -188,7 +188,7 @@ Admite sistema, claro, oscuro y ocho temas de producto, ocho ilustraciones inclu
 
 ## Descargar e instalar
 
-Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.5-rc.2.3).
+Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1).
 
 | Sistema | Arquitectura | Paquete |
 | --- | --- | --- |

@@ -12,7 +12,7 @@ Languages: [简体中文](../../README.md) · English · [日本語](README.ja.m
 
 > [!IMPORTANT]
 >
-> **[v0.1.6-alpha.2 is now available](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.6-alpha.2).** This release synchronizes the official [DeepSeek Harness `dsh-v0.1.6-alpha.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.6-alpha.2), adding plugin management, end-of-turn file review, Office and Web sidebar previews, Subagent conversations, and plan previews while retaining the community desktop's independent data directories, diagnostic recovery, bundled plugins, and update channels.
+> **[v0.2.1-alpha.1 is now available](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1).** Built on official [DeepSeek Harness `dsh-v0.2.1-alpha.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1), this release improves sessions and plugin workflows, adds a Workspace-isolated desktop sidebar browser, and updates bundled plugins and optional tools installed on demand.
 >
 > Although the version contains `alpha`, the community build is published as a regular GitHub Release. Back up important configuration before upgrading, and include relevant logs or diagnostic reports when reporting problems.
 
@@ -286,11 +286,9 @@ When the current session is waiting for a choice, confirmation, or answer, or wh
 
 ### Bundled work runtimes
 
-Each desktop installer contains managed CPython 3.12 for its platform together with NumPy, pandas, Pillow, lxml, python-docx, python-pptx, openpyxl, XlsxWriter, and their locked transitive dependencies. **Settings → Tools & capabilities → Work runtimes** still separates Python selection, the Office toolkit, and Python PTC, and advanced users may select an existing CPython 3.10+ installation. Office downloads and verifies only the official platform-specific `@deepseek-ai/libreoffice-kit-*` engine from npm; it does not discover or invoke a system LibreOffice installation. The managed Python already contains the Office Python dependencies, while changes to existing packages in a custom interpreter require confirmation. Selecting Python alone exposes no model tool. Office and experimental PTC are activated independently, and PTC remains available only on macOS and Linux with a separate non-sandbox execution warning.
+Each desktop installer contains managed CPython 3.12 for its platform together with NumPy, pandas, Pillow, lxml, python-docx, python-pptx, openpyxl, XlsxWriter, and their locked transitive dependencies. **Settings → Tools & capabilities → Work runtimes** still separates Python selection, the Office toolkit, and Python PTC, and advanced users may select an existing CPython 3.10+ installation. The installer also includes the official platform-specific LibreOffice Kit engine; Office document previews can use it without first enabling the Office toolkit for a Profile. The app does not discover or invoke a system LibreOffice installation. The managed Python already contains the Office Python dependencies, while changes to existing packages in a custom interpreter require confirmation. Selecting Python alone exposes no model tool. Office and experimental PTC are activated independently, and PTC remains available only on macOS and Linux with a separate non-sandbox execution warning.
 
-On first activation, the app verifies and extracts the bundled Python archive into its application cache. Office and PTC remain independently enabled per `DSH_HOME`. Office engine downloads use the app's npm network settings and support pause, resume, cancellation, and bounded logs. The user then chooses **Quick restart to enable**. Both cards are disabled in NAS mode because this release does not extend the NAS remote-install protocol. Disabling a capability removes only its managed Profile configuration and never removes Python from the installed application.
-
-Verified payloads are cached once per desktop installation while Office and PTC are enabled independently for each `DSH_HOME`. Downloads use the application's network and proxy settings and support progress, pause, resume, stop, and bounded terminal output. Activation waits for **Quick Restart**; both cards remain unavailable in NAS mode because this release does not implement remote runtime installation.
+On first activation, the app verifies and extracts the bundled Python archive into its application cache. Office and PTC remain independently enabled per `DSH_HOME`. Office uses the verified engine in the installer rather than downloading it; the experimental PTC adapter may still require a network install for this release. The user then chooses **Quick restart to enable**. Both cards are disabled in NAS mode because this release does not extend the NAS remote-install protocol. Disabling a capability removes only its managed Profile configuration and never removes Python from the installed application.
 
 ### Official 0.1.6 experiments
 
@@ -425,9 +423,9 @@ Switch between system, light, dark, and eight product themes; pair them with eig
   </tr>
 </table>
 
-### Synchronized with DeepSeek Harness 0.1.6-alpha.2
+### Synchronized with DeepSeek Harness 0.2.1-alpha.1
 
-The community Release uses official [`dsh-v0.1.6-alpha.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.6-alpha.2) as its core baseline. Upstream supplies the Plugins page, end-of-turn file-change cards, Office and Web sidebar previews, Subagent and plan previews, directory-grouped Workspaces, persistent sidebar layouts, and fixes for startup, vision inputs, Inbox recovery, Messages API requests, and Windows command execution. The community desktop continues to own environment selection, the NAS runtime, on-demand work runtimes, candidate plugin transactions, diagnostic recovery, bundled plugins, installers, and GitHub/CNB update channels.
+The community Release uses official [`dsh-v0.2.1-alpha.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1) as its core baseline. Compared with the previous public Desktop release, `0.1.7-rc.2.1`, it improves model search, draft and reference preservation, Markdown previews, tool-call progress, large session lists, and styles after plugin toggles. The community desktop adds a Workspace-isolated sidebar browser and continues to own independent data directories, the NAS runtime, work runtimes, candidate plugin transactions, diagnostic recovery, bundled plugins, installers, and GitHub/CNB update channels. Back up important conversations, workspaces, and configuration before upgrading; older clients are not guaranteed to read conversations written by the new version.
 
 ## What you can do
 
@@ -440,17 +438,17 @@ The community Release uses official [`dsh-v0.1.6-alpha.2`](https://github.com/de
 
 ## Installation
 
-Download builds only from this project's [`v0.1.6-alpha.2` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.6-alpha.2):
+Download builds only from this project's [`v0.2.1-alpha.1` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1):
 
 | Platform | Architecture | Release package | Status |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon (`arm64`) | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-macos-arm64.zip) | Available |
-| macOS | Intel (`x64`) | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-macos-x64.zip) | Available |
-| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-windows-x64.exe) | Available |
-| Linux | Debian / Ubuntu (`x64`) | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-linux-x64.deb) | Available |
-| Linux | Fedora / RHEL (`x64`) | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-linux-x64.rpm) | Available |
+| macOS | Apple Silicon (`arm64`) | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-arm64.zip) | Available |
+| macOS | Intel (`x64`) | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-x64.zip) | Available |
+| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-windows-x64.exe) | Available |
+| Linux | Debian / Ubuntu (`x64`) | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-linux-x64.deb) | Available |
+| Linux | Fedora / RHEL (`x64`) | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-linux-x64.rpm) | Available |
 
-The Release also includes [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/SHA256SUMS). Verify downloads before installation; only files actually present on this project's Releases page are public release artifacts.
+The Release also includes [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/SHA256SUMS). Verify downloads before installation; only files actually present on this project's Releases page are public release artifacts.
 
 ### macOS
 

@@ -12,7 +12,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.1.6-alpha.2 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.6-alpha.2)。** 本版本同步官方 [DeepSeek Harness `dsh-v0.1.6-alpha.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.6-alpha.2)，加入插件管理、回合文件改动审阅、Office 与网页侧栏预览、Subagent 会话和计划预览，并保留社区桌面的独立数据目录、诊断恢复、预置插件与更新渠道。
+> **[v0.2.1-alpha.1 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.1-alpha.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1) 为核心，改进会话与插件操作，提供按工作区隔离的桌面侧边栏浏览器，并更新预置插件和按需安装的可选工具。
 >
 > 虽然版本名包含 `alpha`，社区构建已在 GitHub 上按正式 Release 发布。升级前仍建议备份重要配置，并将遇到的问题连同日志或诊断报告反馈给我们。
 
@@ -300,7 +300,7 @@ Electron 不只是包住 Web 页面的外壳。桌面宿主负责运行时准备
 - **快速重启**：macOS 菜单栏与 Windows/Linux 托盘菜单都提供快速重启入口。
 - **通知与日志**：Harness 异常退出、连续启动失败和恢复正常时可发送原生通知；启动页和托盘菜单都能打开固定日志位置。
 - **启动状态**：加载页展示真实运行时、Profile、预设插件和 Harness 里程碑。启动超过 15 秒会显示日志入口；连续三次提前退出则停止盲目重试。
-- **应用内更新**：“通用设置”可以检查 GitHub Release、显示下载进度、校验 `SHA256SUMS` 并通过系统打开已验证的安装包。
+- **应用内更新**：“设置 → 关于”可以检查 GitHub Release、显示下载进度、校验 `SHA256SUMS` 并通过系统打开已验证的安装包。
 - **命令行注册**：可将客户端内置的 `dsh` 命令注册到系统 `PATH`，也可以从同一设置项安全移除。
 - **跨平台标题栏**：Windows 和 Linux 使用独立的原生标题栏视图与 Harness 内容视图。插件的 `100vh`、固定定位和高层 Overlay 只覆盖内容区域，无法遮挡最小化、最大化和关闭按钮；macOS 保留原生窗口行为。
 - **桌面复制**：消息、代码和对话复制按钮通过受限剪贴板桥正常工作；页面无法获得剪贴板读取或通用系统权限。
@@ -335,9 +335,9 @@ Electron 不只是包住 Web 页面的外壳。桌面宿主负责运行时准备
 
 ### 内置工作运行时
 
-桌面安装包包含与当前平台匹配的托管 CPython 3.12、NumPy、pandas、Pillow、lxml、python-docx、python-pptx、openpyxl、XlsxWriter 及锁定的传递依赖。“设置 → 工具与能力 → 工作运行时”仍把 Python 环境、Office 工具包和 Python PTC 分开，也允许高级用户选择本机已有的 CPython 3.10+。启用 Office 时，应用只从官方 npm 下载并校验平台对应的 `@deepseek-ai/libreoffice-kit-*` 引擎；应用不会寻找或调用用户自行安装的 LibreOffice。Office Python 依赖已包含在托管 Python 中；自定义解释器需要变更已有包时，应用会先展示变更并再次确认。仅选择 Python 不会向模型开放工具；Office 与实验性 PTC 分别启用，PTC 仍只支持 macOS 与 Linux 并保留非沙箱风险确认。
+桌面安装包包含与当前平台匹配的托管 CPython 3.12、NumPy、pandas、Pillow、lxml、python-docx、python-pptx、openpyxl、XlsxWriter 及锁定的传递依赖。“设置 → 工具与能力 → 工作运行时”仍把 Python 环境、Office 工具包和 Python PTC 分开，也允许高级用户选择本机已有的 CPython 3.10+。安装包还包含对应平台的官方 LibreOffice Kit 引擎；Office 文档预览可直接使用它，不需要先为 Profile 启用 Office 工具包，也不会寻找或调用用户自行安装的 LibreOffice。Office Python 依赖已包含在托管 Python 中；自定义解释器需要变更已有包时，应用会先展示变更并再次确认。仅选择 Python 不会向模型开放工具；Office 与实验性 PTC 分别启用，PTC 仍只支持 macOS 与 Linux 并保留非沙箱风险确认。
 
-应用首次启用能力时会把安装包内的 Python 归档校验并解压到应用缓存，Office 与 PTC 则按每个 `DSH_HOME` 独立启用。Office 引擎下载复用应用的 npm 网络设置，并支持暂停、续传、停止和有界日志；准备完成后等待用户点击“快速重启以启用”。连接 NAS 时两张卡片都会禁用，因为当前版本没有扩展 NAS 远程安装协议。停用能力只移除对应 Profile 配置，不会删除安装包内的 Python。
+应用首次启用能力时会把安装包内的 Python 归档校验并解压到应用缓存，Office 与 PTC 则按每个 `DSH_HOME` 独立启用。Office 使用安装包中经过校验的引擎，无需为引擎联网下载；准备完成后等待用户点击“快速重启以启用”。实验性 PTC 仍可能需要联网安装与本版匹配的适配包。连接 NAS 时两张卡片都会禁用，因为当前版本没有扩展 NAS 远程安装协议。停用能力只移除对应 Profile 配置，不会删除安装包内的 Python。
 
 ### 官方 0.1.6 实验能力
 
@@ -408,23 +408,23 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
   </tr>
 </table>
 
-## 同步 DeepSeek Harness 0.1.6-alpha.2
+## 同步 DeepSeek Harness 0.2.1-alpha.1
 
-当前社区 Release 以官方 [`dsh-v0.1.6-alpha.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.6-alpha.2) 为核心基线。上游提供插件管理页、回合结束文件改动卡片、Office 与网页侧栏预览、Subagent 会话和计划预览、目录层级 Workspace、持久化侧栏布局，以及启动、视觉模型、Inbox、Messages API 与 Windows 命令执行修复；社区桌面继续负责环境选择、NAS 运行端、内置工作运行时、候选插件事务、诊断恢复、预置插件、安装器和 GitHub/CNB 更新渠道。
+当前社区 Release 以官方 [`dsh-v0.2.1-alpha.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1) 为核心基线。相较上一公开桌面版 `0.1.7-rc.2.1`，本版改进模型搜索、草稿与引用保留、Markdown 预览、工具调用进度、大量会话列表，以及插件启停后的界面样式；社区桌面新增按工作区隔离的右侧浏览器，并继续负责独立数据目录、NAS 运行端、工作运行时、候选插件事务、诊断恢复、预置插件、安装器和 GitHub/CNB 更新渠道。升级前请备份重要会话、工作区和配置；旧版客户端不保证能读取新版写入的会话数据。
 
 ## 下载安装
 
-请只从本项目的 [`v0.1.6-alpha.2` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.1.6-alpha.2) 页面下载安装包：
+请只从本项目的 [`v0.2.1-alpha.1` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1) 页面下载安装包：
 
 | 平台 | 架构 | 发行包 | 状态 |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
-| macOS | Intel（`x64`） | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-macos-x64.zip) | 已提供 |
-| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-windows-x64.exe) | 已提供 |
-| Linux | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-linux-x64.deb) | 已提供 |
-| Linux | Fedora / RHEL（`x64`） | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
+| macOS | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
+| macOS | Intel（`x64`） | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-x64.zip) | 已提供 |
+| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-windows-x64.exe) | 已提供 |
+| Linux | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-linux-x64.deb) | 已提供 |
+| Linux | Fedora / RHEL（`x64`） | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
 
-Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.1.6-alpha.2/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
+Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
 
 ### macOS
 
