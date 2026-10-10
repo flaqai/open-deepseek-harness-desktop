@@ -538,6 +538,13 @@ const documentRoot = typeof document === 'undefined' ? null : document.documentE
 if (documentRoot === null) window.addEventListener('DOMContentLoaded', markDesktopPlatform, { once: true })
 else markDesktopPlatform()
 
+if (process.platform === 'darwin') {
+  // Native fullscreen hides the traffic lights; reapply after every page load.
+  ipcRenderer.on(DESKTOP_IPC.windowFullscreen, (_event, fullscreen: boolean) => {
+    document.documentElement.toggleAttribute('data-fullscreen', fullscreen)
+  })
+}
+
 if (!nasMode && location.protocol === 'dsh-app:' && location.hostname === 'app') {
   contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', Object.freeze({
     pick: () => ipcRenderer.invoke(DESKTOP_IPC.directoryPick) as Promise<string | null>,

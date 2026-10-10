@@ -110,6 +110,7 @@ export const DESKTOP_IPC = {
   startupDiagnosticsList: 'dsh:desktop:startup-diagnostics:list',
   startupDiagnosticsRetry: 'dsh:desktop:startup-diagnostics:retry',
   themeSource: 'dsh:desktop:theme-source',
+  windowFullscreen: 'dsh:desktop:window-fullscreen',
   webGet: 'dsh:desktop:web:get',
   webOpen: 'dsh:desktop:web:open',
   webStatus: 'dsh:desktop:web:status',

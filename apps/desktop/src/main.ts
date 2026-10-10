@@ -111,6 +111,7 @@ import { WELCOME_IPC } from './welcome-api.ts'
 import { resolveDesktopLocale as resolveWelcomeLocale } from './locale.ts'
 import { inspectLocalHarnessQuit } from './quit-inspection-client.ts'
 import { ApplicationMenuController } from './application-menu-controller.ts'
+import { DesktopCliMenu } from './desktop-cli-menu.ts'
 import { installDesktopShortcuts } from './keyboard.ts'
 import { CLIENT_COMMANDS, menuCopy, type DesktopCommand } from './application-menu.ts'
 import { inspectProfileMutationLock, menuMutationActive } from './menu-mutation-guard.ts'
@@ -458,6 +459,10 @@ async function executeProductMenu(command: DesktopCommand): Promise<void> {
   }
   switch (command) {
     case 'show': lifecycle?.showWindow(); return
+    case 'cli-command':
+      if (desktopCliMenu === undefined) throw new Error(menuCopy(menuLocale).unavailable)
+      await desktopCliMenu.show()
+      return
     case 'open-web':
       if (desktopWebAccess === undefined) throw new Error(menuCopy(menuLocale).unavailable)
       await desktopWebAccess.open()
@@ -475,12 +480,6 @@ async function executeProductMenu(command: DesktopCommand): Promise<void> {
     case 'logs': {
       const error = await shell.openPath(DESKTOP_DATA_HOME.logs)
       if (error !== '') throw new Error(error)
-      return
-    }
-    case 'about': {
-      await dialog.showMessageBox({ type: 'info', title: menuCopy(menuLocale).about,
-        message: shellMessages(menuLocale).productName,
-        detail: `${VERSION_IDENTITY.desktopVersion}\nHarness ${VERSION_IDENTITY.harnessVersion}\n\n${menuCopy(menuLocale).community}` })
       return
     }
     case 'docs': await shell.openExternal('https://github.com/flaqai/open-deepseek-harness-desktop#readme'); return
@@ -521,6 +520,7 @@ let bundledPluginInstaller: BundledPluginInstaller | undefined
 let bundledPluginCooldown: BundledPluginStartupCooldown | undefined
 let importedPluginRestoreManager: ImportedPluginRestoreManager | undefined
 let desktopCliManager: DesktopCliManager | undefined
+let desktopCliMenu: DesktopCliMenu | undefined
 let chatBackgroundStore: DesktopChatBackgroundStore | undefined
 let diagnosticLabManager: DiagnosticLabManager | undefined
 let pluginSnapshotManager: PluginSnapshotManager | undefined
@@ -567,7 +567,7 @@ function applyDesktopThemeSource(source: DesktopThemeSource): void {
     const background = desktopThemeBackground(source, nativeTheme.shouldUseDarkColors)
     mainSurface?.setBackgroundColor(background)
     mainSurface?.sendTitlebar('dsh:window:theme', nativeTheme.shouldUseDarkColors)
-    if (mainSurface === undefined) window.setBackgroundColor(background)
+    if (mainSurface === undefined && process.platform !== 'darwin') window.setBackgroundColor(background)
   }
 }
 
@@ -3058,7 +3058,8 @@ async function startApplication(): Promise<void> {
       }
       return inspectLocalHarnessQuit(origin, surface.renderer.session.cookies, fetch)
     },
-    show: options => dialog.showMessageBox(options),
+    show: options => mainWindow !== undefined && !mainWindow.isDestroyed()
+      ? dialog.showMessageBox(mainWindow, options) : dialog.showMessageBox(options),
     locale: () => menuLocale,
     focus: () => {
       if (mainWindow === undefined || mainWindow.isDestroyed()) return
@@ -3255,6 +3256,12 @@ async function startApplication(): Promise<void> {
     environment: process.env,
     ...(desktopShellPath === '' ? {} : { shellPath: desktopShellPath }),
     ...(desktopCliRuntime === undefined ? {} : { runtime: desktopCliRuntime }),
+  })
+  desktopCliMenu = new DesktopCliMenu({
+    manager: desktopCliManager,
+    platform: process.platform,
+    locale: () => menuLocale,
+    show: options => dialog.showMessageBox(options),
   })
   try {
     await desktopCliManager.refresh()

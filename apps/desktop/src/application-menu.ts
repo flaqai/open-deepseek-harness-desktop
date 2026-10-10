@@ -10,13 +10,13 @@ export const DESKTOP_COMMANDS = [
   'undo', 'redo', 'cut', 'copy', 'paste', 'select-all', 'zoom-in', 'zoom-out', 'zoom-reset',
   'fullscreen', 'market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools',
   'phone', 'im', 'data-home', 'restart', 'show', 'minimize', 'maximize',
-  'docs', 'repository', 'feedback', 'logs', 'devtools', 'emoji',
+  'docs', 'repository', 'feedback', 'logs', 'devtools', 'emoji', 'cli-command',
 ] as const
 /** Whitelisted desktop command identifier. */
 export type DesktopCommand = typeof DESKTOP_COMMANDS[number]
 /** Product navigation commands delivered only to the Harness renderer. */
 export const CLIENT_COMMANDS = [
-  'new-session', 'settings', 'updates', 'market', 'plugin-restore', 'diagnostics',
+  'new-session', 'about', 'settings', 'updates', 'market', 'plugin-restore', 'diagnostics',
   'snapshots', 'external-tools', 'phone', 'im', 'data-home',
 ] as const satisfies readonly DesktopCommand[]
 
@@ -31,7 +31,7 @@ const en = {
   phone: 'Remote Control', im: 'IM Bots', 'data-home': 'Switch Data Directory…', restart: 'Quick Restart',
   show: 'Show Main Window', minimize: 'Minimize', maximize: 'Maximize', restore: 'Restore',
   docs: 'Documentation', repository: 'Project Repository', feedback: 'Report an Issue', logs: 'Open Log Directory',
-  devtools: 'Developer Tools', services: 'Services', hide: `Hide ${DESKTOP_PRODUCT_NAME}`, 'hide-others': 'Hide Others',
+  devtools: 'Developer Tools', 'cli-command': 'Manage dsh Command…', services: 'Services', hide: `Hide ${DESKTOP_PRODUCT_NAME}`, 'hide-others': 'Hide Others',
   unhide: 'Show All', emoji: 'Emoji & Symbols', error: 'Unable to Complete Action',
   unavailable: 'This action is unavailable while the client is starting, disconnected, or recovering.',
   busy: 'A plugin operation or recovery is in progress. Wait for it to finish before restarting or quitting.',
@@ -50,7 +50,7 @@ const zh: typeof en = {
   diagnostics: '诊断中心', snapshots: '插件快照', 'external-tools': '工具与能力', phone: '远程控制', im: 'IM 机器人',
   'data-home': '切换配置目录…', restart: '快速重启', show: '显示主窗口', minimize: '最小化', maximize: '最大化',
   restore: '还原', docs: '使用文档', repository: '项目仓库', feedback: '反馈问题', logs: '打开日志目录',
-  devtools: '开发者工具', services: '服务', hide: `隐藏 ${DESKTOP_PRODUCT_NAME}`, 'hide-others': '隐藏其他应用',
+  devtools: '开发者工具', 'cli-command': '管理 dsh 命令…', services: '服务', hide: `隐藏 ${DESKTOP_PRODUCT_NAME}`, 'hide-others': '隐藏其他应用',
   unhide: '显示全部', emoji: '表情与符号', error: '无法完成操作',
   unavailable: '客户端正在启动、已断开连接或正在恢复，暂时无法执行此操作。',
   busy: '插件操作或恢复正在进行，请等待完成后再重启或退出。',
@@ -67,7 +67,7 @@ const ru: typeof en = {
   diagnostics: 'Диагностика', snapshots: 'Снимки плагинов', 'external-tools': 'Инструменты и возможности', phone: 'Удалённое управление', im: 'IM-боты',
   'data-home': 'Сменить каталог данных…', restart: 'Быстрый перезапуск', show: 'Показать главное окно', minimize: 'Свернуть', maximize: 'Развернуть',
   restore: 'Восстановить', docs: 'Документация', repository: 'Репозиторий проекта', feedback: 'Сообщить о проблеме', logs: 'Открыть каталог журналов',
-  devtools: 'Инструменты разработчика', services: 'Службы', hide: `Скрыть ${DESKTOP_PRODUCT_NAME}`, 'hide-others': 'Скрыть остальные',
+  devtools: 'Инструменты разработчика', 'cli-command': 'Управление командой dsh…', services: 'Службы', hide: `Скрыть ${DESKTOP_PRODUCT_NAME}`, 'hide-others': 'Скрыть остальные',
   unhide: 'Показать все', emoji: 'Эмодзи и символы', error: 'Не удалось выполнить действие',
   unavailable: 'Действие недоступно, пока клиент запускается, отключён или восстанавливается.',
   busy: 'Идёт операция с плагинами или восстановление. Дождитесь завершения перед перезапуском или выходом.',
@@ -101,12 +101,13 @@ export function isDesktopCommand(value: unknown): value is DesktopCommand {
  * @returns Whether execution is allowed.
  */
 export function commandEnabled(command: DesktopCommand, state: DesktopMenuState): boolean {
-  if (command === 'settings') return state.clientAvailable && !state.busy
+  if (command === 'settings' || command === 'about') return state.clientAvailable && !state.busy
   if ((CLIENT_COMMANDS as readonly string[]).includes(command)) return state.ready && !state.busy
   // Loading and titlebar pages share file://; never write that origin's zoom preference.
   if (command === 'zoom-in' || command === 'zoom-out' || command === 'zoom-reset') return state.ready
   if (command === 'open-web') return state.ready && (state.platform === 'darwin' || state.platform === 'win32')
   if (command === 'quit' || command === 'restart') return !state.busy
+  if (command === 'cli-command') return !state.busy
   if (command === 'devtools') return state.development
   return true
 }
@@ -150,7 +151,7 @@ export function applicationMenuTemplate(
       ...(mac ? [separator, item('emoji')] : [])]),
     group('view', [item('zoom-in'), item('zoom-out'), item('zoom-reset'), separator, item('fullscreen'),
       ...(state.development ? [separator, item('devtools')] : [])]),
-    group('tools', ['market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools', 'phone', 'im', 'data-home', 'restart'].map(command => item(command as DesktopCommand))),
+    group('tools', ['market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools', 'phone', 'im', 'data-home', 'cli-command', 'restart'].map(command => item(command as DesktopCommand))),
     group('window', [item('show'), item('minimize'), item('maximize')]),
     group('help', [item('docs'), item('repository'), item('feedback'), item('logs'), ...(!mac ? [separator, item('updates'), item('about')] : [])]),
   ]

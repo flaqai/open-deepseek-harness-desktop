@@ -35,6 +35,13 @@ describe('desktop product navigation', () => {
       expect(navigation.open).toHaveBeenLastCalledWith({ sectionId: command === 'updates' ? 'about' : 'general' })
     }
   })
+  it('opens About directly without scrolling to or starting an update check', async () => {
+    const navigation = bench()
+    await navigateDesktopMenu('about', navigation)
+    expect(navigation.open).toHaveBeenCalledOnce()
+    expect(navigation.open).toHaveBeenCalledWith({ sectionId: 'about' })
+    expect(navigation.general).not.toHaveBeenCalled()
+  })
   it('reports absent plugin pages and rejects arbitrary destinations without installing', () => {
     const navigation = bench()
     navigation.hasSection.mockReturnValue(false)

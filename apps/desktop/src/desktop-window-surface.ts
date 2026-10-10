@@ -8,6 +8,7 @@ import {
   type WebPreferences,
 } from 'electron'
 import { harnessContentBounds, usesCustomWindowFrame } from './window-frame.ts'
+import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
 
 type LoadFileOptions = Parameters<WebContents['loadFile']>[1]
 
@@ -38,12 +39,31 @@ export interface DesktopWindowSurface {
 }
 
 function createNativeSurface(options: DesktopWindowSurfaceOptions): DesktopWindowSurface {
+  const macOS = options.platform === 'darwin'
   const window = new BrowserWindow({
     ...options.window,
     frame: true,
+    ...(macOS ? {
+      // Match upstream's inset traffic lights and translucent system sidebar.
+      titleBarStyle: 'hiddenInset' as const,
+      trafficLightPosition: { x: 16, y: 18 },
+      vibrancy: 'sidebar' as const,
+      visualEffectState: 'active' as const,
+      backgroundColor: '#00000000',
+    } : {}),
     webPreferences: options.rendererPreferences,
   })
   const renderer = window.webContents
+  if (macOS) {
+    const sendFullscreen = (): void => {
+      if (!window.isDestroyed() && !renderer.isDestroyed()) {
+        renderer.send(DESKTOP_IPC.windowFullscreen, window.isFullScreen())
+      }
+    }
+    window.on('enter-full-screen', sendFullscreen)
+    window.on('leave-full-screen', sendFullscreen)
+    renderer.on('did-finish-load', sendFullscreen)
+  }
   return {
     window,
     renderer,
@@ -55,7 +75,8 @@ function createNativeSurface(options: DesktopWindowSurfaceOptions): DesktopWindo
       if (!renderer.isDestroyed()) renderer.send(channel, ...args)
     },
     sendTitlebar: () => {},
-    setBackgroundColor: (color) => { window.setBackgroundColor(color) },
+    // An opaque theme update would mask the native macOS sidebar material.
+    setBackgroundColor: (color) => { if (!macOS) window.setBackgroundColor(color) },
     layout: () => {},
     dispose: () => {},
   }

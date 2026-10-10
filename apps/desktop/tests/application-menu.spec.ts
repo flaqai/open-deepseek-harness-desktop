@@ -12,7 +12,7 @@ describe('platform application menus', () => {
     const menu = applicationMenuTemplate({ ...state, platform }, vi.fn())
     expect(menu.map(item => item.id)).toEqual([...(platform === 'darwin' ? ['app'] : []), 'file', 'edit', 'view', 'tools', 'window', 'help'])
     const items = flatten(menu)
-    for (const id of ['new-session', 'settings', 'updates', 'market', 'snapshots', 'phone', 'im', 'restart', 'quit']) {
+    for (const id of ['about', 'new-session', 'settings', 'updates', 'market', 'snapshots', 'phone', 'im', 'cli-command', 'restart', 'quit']) {
       expect(items.filter(item => item.id === id)).toHaveLength(1)
     }
     expect(items.some(item => item.id === 'open-web')).toBe(platform !== 'linux')
@@ -25,9 +25,19 @@ describe('platform application menus', () => {
     const items = flatten(applicationMenuTemplate({ ...state, locale: 'zh', maximized: true, fullscreen: true, development: true }, execute))
     expect(items.find(item => item.id === 'maximize')?.label).toBe('还原')
     expect(items.find(item => item.id === 'fullscreen')?.label).toBe('退出全屏')
+    expect(items.find(item => item.id === 'cli-command')?.label).toBe('管理 dsh 命令…')
     expect(items.some(item => item.id === 'devtools')).toBe(true)
     items.find(item => item.id === 'updates')?.click?.({} as never, undefined, {})
     expect(execute).toHaveBeenCalledWith('updates')
+    items.find(item => item.id === 'about')?.click?.({} as never, undefined, {})
+    expect(execute).toHaveBeenCalledWith('about')
+  })
+  it.each(['darwin', 'win32'] as const)('routes the %s About menu item to the client', (platform) => {
+    const execute = vi.fn()
+    const items = flatten(applicationMenuTemplate({ ...state, platform }, execute))
+    items.find(item => item.id === 'about')?.click?.({} as never, undefined, {})
+    expect(execute).toHaveBeenCalledOnce()
+    expect(execute).toHaveBeenCalledWith('about')
   })
   it.each([
     ['ja-JP', 'ファイル'], ['ko-KR', '파일'], ['es-ES', 'Archivo'], ['fr-FR', 'Fichier'],
@@ -60,7 +70,12 @@ describe('platform application menus', () => {
     expect(commandEnabled('open-web', { ...state, platform: 'linux' })).toBe(false)
     expect(commandEnabled('restart', { ...state, busy: true })).toBe(false)
     expect(commandEnabled('quit', { ...state, busy: true })).toBe(false)
-    for (const command of ['about', 'logs', 'docs'] as const) expect(commandEnabled(command, { ...state, ready: false, busy: true })).toBe(true)
+    expect(commandEnabled('cli-command', { ...state, busy: true })).toBe(false)
+    expect(commandEnabled('cli-command', { ...state, ready: false, platform: 'linux' })).toBe(true)
+    expect(commandEnabled('about', { ...state, ready: false, clientAvailable: true })).toBe(true)
+    expect(commandEnabled('about', { ...state, ready: false, clientAvailable: false })).toBe(false)
+    expect(commandEnabled('about', { ...state, busy: true })).toBe(false)
+    for (const command of ['logs', 'docs'] as const) expect(commandEnabled(command, { ...state, ready: false, busy: true })).toBe(true)
     expect(isDesktopCommand('file:///private')).toBe(false)
     expect(isDesktopCommand('__proto__')).toBe(false)
     expect(isDesktopCommand('copy')).toBe(true)

@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DESKTOP_IPC } from '../src/desktop-ipc-protocol.ts'
 
 interface MockRenderer {
   readonly close: ReturnType<typeof vi.fn>
   readonly loadFile: ReturnType<typeof vi.fn>
   readonly loadURL: ReturnType<typeof vi.fn>
   readonly send: ReturnType<typeof vi.fn>
+  emit(event: string): void
 }
 
 interface MockView {
@@ -19,10 +21,20 @@ interface MockWindow {
     readonly removeChildView: ReturnType<typeof vi.fn>
   }
   readonly destroy: ReturnType<typeof vi.fn>
-  readonly options: { readonly frame?: boolean; readonly webPreferences?: unknown }
+  readonly options: {
+    readonly frame?: boolean
+    readonly webPreferences?: unknown
+    readonly titleBarStyle?: string
+    readonly trafficLightPosition?: { readonly x: number; readonly y: number }
+    readonly vibrancy?: string
+    readonly visualEffectState?: string
+    readonly backgroundColor?: string
+  }
+  readonly setBackgroundColor: ReturnType<typeof vi.fn>
   readonly webContents: MockRenderer
   emit(event: string): void
   setContentSize(width: number, height: number): void
+  setFullScreen(fullscreen: boolean): void
 }
 
 const electron = vi.hoisted(() => ({
@@ -39,6 +51,12 @@ vi.mock('electron', () => {
     loadFile = vi.fn<(path: string) => Promise<void>>(async () => {})
     loadURL = vi.fn(async () => {})
     send = vi.fn()
+    private readonly listeners = new Map<string, Set<() => void>>()
+    on(event: string, listener: () => void): void {
+      const current = this.listeners.get(event)
+      this.listeners.set(event, current === undefined ? new Set([listener]) : current.add(listener))
+    }
+    emit(event: string): void { this.listeners.get(event)?.forEach((listener) => { listener() }) }
   }
 
   class BrowserWindow {
@@ -50,6 +68,7 @@ vi.mock('electron', () => {
     private readonly listeners = new Map<string, Set<() => void>>()
     private contentSize: [number, number] = [1440, 920]
     private destroyed = false
+    private fullscreen = false
 
     constructor(options: { readonly frame?: boolean; readonly webPreferences?: unknown }) {
       this.options = options
@@ -58,6 +77,7 @@ vi.mock('electron', () => {
 
     getContentSize(): [number, number] { return this.contentSize }
     isDestroyed(): boolean { return this.destroyed }
+    isFullScreen(): boolean { return this.fullscreen }
     loadFile(path: string): Promise<void> { return this.webContents.loadFile(path) }
     on(event: string, listener: () => void): void {
       const listeners = this.listeners.get(event) ?? new Set()
@@ -67,6 +87,7 @@ vi.mock('electron', () => {
     removeListener(event: string, listener: () => void): void { this.listeners.get(event)?.delete(listener) }
     emit(event: string): void { this.listeners.get(event)?.forEach((listener) => { listener() }) }
     setContentSize(width: number, height: number): void { this.contentSize = [width, height] }
+    setFullScreen(fullscreen: boolean): void { this.fullscreen = fullscreen }
   }
 
   class WebContentsView {
@@ -105,15 +126,32 @@ describe('DesktopWindowSurface', () => {
     electron.windows.length = 0
   })
 
-  it('keeps macOS on one native-frame renderer', async () => {
+  it('uses the upstream macOS inset frame and retains vibrancy through theme changes', async () => {
     const surface = createDesktopWindowSurface(options('darwin'))
     const window = electron.windows[0] as MockWindow
 
     expect(surface.split).toBe(false)
     expect(window.options.frame).toBe(true)
+    expect(window.options).toMatchObject({
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 16, y: 18 },
+      vibrancy: 'sidebar',
+      visualEffectState: 'active',
+      backgroundColor: '#00000000',
+    })
     expect(surface.renderer).toBe(window.webContents)
+    surface.setBackgroundColor('#fff')
+    expect(window.setBackgroundColor).not.toHaveBeenCalled()
     await surface.loadURL('http://127.0.0.1:1/')
     expect(window.webContents.loadURL).toHaveBeenCalledWith('http://127.0.0.1:1/')
+    window.webContents.emit('did-finish-load')
+    expect(window.webContents.send).toHaveBeenLastCalledWith(DESKTOP_IPC.windowFullscreen, false)
+    window.setFullScreen(true)
+    window.emit('enter-full-screen')
+    expect(window.webContents.send).toHaveBeenLastCalledWith(DESKTOP_IPC.windowFullscreen, true)
+    window.setFullScreen(false)
+    window.emit('leave-full-screen')
+    expect(window.webContents.send).toHaveBeenLastCalledWith(DESKTOP_IPC.windowFullscreen, false)
   })
 
   it('loads Harness below the Windows title bar and relays to the correct renderer', async () => {
@@ -123,6 +161,7 @@ describe('DesktopWindowSurface', () => {
 
     expect(surface.split).toBe(true)
     expect(window.options.frame).toBe(false)
+    expect(window.options.titleBarStyle).toBeUndefined()
     expect(view.setBounds).toHaveBeenLastCalledWith({ x: 0, y: 36, width: 1440, height: 884 })
     await surface.initialize()
     await surface.loadFile('/loading.html')
