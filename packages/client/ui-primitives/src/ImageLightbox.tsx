@@ -56,28 +56,30 @@ export function ImageLightbox({ src, alt, labels, actions, onClose }: {
       aria-modal="true"
       aria-label={labels.dialog}
     >
-      <div className={css.mask} aria-hidden="true" onMouseDown={onClose} />
-      <img className={css.image} src={src} alt={alt} />
-      {actions !== undefined && actions.length > 0 && (
-        <div className={css.actions}>
-          {actions.map(action => (
-            <button
-              key={action.label}
-              type="button"
-              className={css.action}
-              onClick={() => {
-                action.onSelect()
-                onClose()
-              }}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      )}
-      <button ref={closeRef} type="button" className={css.close} aria-label={labels.close} onClick={onClose}>
-        <IconCloseOutlineRegular size={16} />
-      </button>
+      <div className={css.stage}>
+        <div className={css.mask} aria-hidden="true" onMouseDown={onClose} />
+        <img className={css.image} src={src} alt={alt} />
+        {actions !== undefined && actions.length > 0 && (
+          <div className={css.actions}>
+            {actions.map(action => (
+              <button
+                key={action.label}
+                type="button"
+                className={css.action}
+                onClick={() => {
+                  action.onSelect()
+                  onClose()
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <button ref={closeRef} type="button" className={css.close} aria-label={labels.close} onClick={onClose}>
+          <IconCloseOutlineRegular size={16} />
+        </button>
+      </div>
     </div>,
     document.body,
   )

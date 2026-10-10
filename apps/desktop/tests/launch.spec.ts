@@ -68,7 +68,7 @@ describe('desktop Harness launch', () => {
     expect(resolveHarnessInvocation({
       DSH_HOME: '/desktop/dsh-home',
       DSH_DESKTOP_APPLICATION_VERSION: '0.1.2-alpha.4',
-      DSH_DESKTOP_PNPM_VERSION: '11.7.0',
+      DSH_DESKTOP_PNPM_VERSION: '11.28.5',
       DSH_DESKTOP_CODEX_PROXY: 'http://system.example:8080/',
       DSH_DESKTOP_BUNDLED_PLUGINS_DIR: '/desktop/bundled plugins',
       DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN: 'lease-token',
@@ -82,7 +82,7 @@ describe('desktop Harness launch', () => {
     }).environment).toEqual({
       DSH_HOME: '/desktop/dsh-home',
       DSH_DESKTOP_APPLICATION_VERSION: '0.1.2-alpha.4',
-      DSH_DESKTOP_PNPM_VERSION: '11.7.0',
+      DSH_DESKTOP_PNPM_VERSION: '11.28.5',
       DSH_DESKTOP_CODEX_PROXY: 'http://system.example:8080/',
       DSH_DESKTOP_BUNDLED_PLUGINS_DIR: '/desktop/bundled plugins',
       DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN: 'lease-token',

@@ -7,14 +7,15 @@ import type {
 } from '@deepseek-ai/dsh-experimental-agent-team/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import {
-  IconChevronDownOutlineRegular,
+  IconChevronDownOutlineRegular, IconCloseOutline16,
   IconUserOutlineRegular, IconUsersOutlineRegular, StateDot, Tag, Tooltip,
   useAnchoredPosition, useDismissOnOutsidePointer, type StateDotState,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { NS, type TeamKey } from './locales.ts'
+import type { AgentTeamOnboardingInjected } from './AgentTeamOnboarding.tsx'
 import css from './TeamAction.module.css'
 
 /** Business actions injected by the browser plugin. */
@@ -29,6 +30,7 @@ type MemberStatus = 'running' | 'inactive' | 'provisioning' | 'failed'
 /** Full props of the Team conversation-header action. */
 export type TeamActionProps =
   PropsRuntime<'conversation.session.header.actions'> & TeamActionInjected & PropsLocale<typeof NS>
+  & InjectFace<Pick<AgentTeamOnboardingInjected, 'hooks' | 'offerOnboarding' | 'dismissOnboarding'>>
 
 function statusKey(status: TeamTask['status']): TeamKey {
   switch (status) {
@@ -177,7 +179,8 @@ function TaskCard({ task, t }: { task: TeamTask; t: TranslateNS<typeof NS> }) {
 
 /** Render the Team roster and read-only task board. */
 export function TeamAction({
-  sessionId, useSession, useSessions, useSessionStatus, openTeammate, t,
+  sessionId, useSession, useSessions, useSessionStatus, openTeammate, useAgentTeamOnboarding,
+  offerOnboarding, dismissOnboarding, t,
 }: TeamActionProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -192,9 +195,15 @@ export function TeamAction({
   const leadSessionId = useSession(snapshot => snapshot.subagent?.address.parentSessionId) ?? sessionId
   const team = useSessions(state => state.projectionsBySession[leadSessionId]?.values.agentTeam)
   const opening = useSession(snapshot => snapshot.openState === 'loading')
+  const blank = useSession(snapshot => snapshot.blank)
+  const onboardingVisible = useAgentTeamOnboarding(state => state.targetSessionId === sessionId)
   const listing = useSessions(state => state.phase === 'pending')
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const pinnedRef = useRef(false)
+
+  useEffect(() => {
+    if (!opening) offerOnboarding(sessionId, blank)
+  }, [sessionId, blank, opening, offerOnboarding])
 
   const cancelHoverChange = (): void => {
     clearTimeout(hoverTimer.current)
@@ -273,11 +282,12 @@ export function TeamAction({
         type="button"
         ref={triggerRef}
         onMouseEnter={scheduleHoverOpen}
-        className={css.trigger}
+        className={onboardingVisible ? `${css.trigger} ${css.triggerOnboarding}` : css.trigger}
         aria-label={t('trigger')}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => {
+          dismissOnboarding(sessionId)
           cancelHoverChange()
           pinnedRef.current = true
           if (!open) changeOpen(true)
@@ -287,6 +297,14 @@ export function TeamAction({
         <IconUsersOutlineRegular size={14} />
         <span ref={triggerLabelRef} className={css.triggerLabel}>{t('trigger')}</span>
       </button>
+      {onboardingVisible && !open && (
+        <div className={css.coachmark} role="status" data-agent-team-location-cue>
+          <span>{t('onboardingLocation')}</span>
+          <button type="button" aria-label={t('onboardingDismiss')} onClick={() => { dismissOnboarding(sessionId) }}>
+            <IconCloseOutline16 size={13} aria-hidden="true" />
+          </button>
+        </div>
+      )}
       {open && createPortal(
         <div
           ref={panelRef}

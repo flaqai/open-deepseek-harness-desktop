@@ -13,10 +13,11 @@ import { offeredRegistries, packageView, PluginManagerController, rowKey, sortPa
 const INCOMPATIBLE = { name: 'dsh-late', version: '2.0.0', runtimeVersion: '0.1.0', peers: { '@deepseek-ai/dsh': '^0.2.0' } }
 const ROW_ENTRY = 'include:sidebar' as PluginEntryId
 const AGENT_TEAM = '@deepseek-ai/dsh-experimental-agent-team-profile'
-const AGENT_TEAM_WEB = '@deepseek-ai/dsh-experimental-agent-team-web-profile'
 
 const BUNDLE: BundleInfo = {
   name: 'dsh-better-sidebar',
+  official: false,
+  availability: 'profile',
   version: '0.16.0',
   description: 'A sidebar.',
   enabled: false,
@@ -119,7 +120,7 @@ describe('packageView', () => {
   it('joins a bundle with the entries its rows run as', () => {
     expect(packageView(BUNDLE, PLUGINS)).toEqual({
       name: 'dsh-better-sidebar', version: '0.16.0', description: 'A sidebar.', source: 'dsh-better-sidebar@^0.16.0',
-      installed: true, optional: false, removable: true, enabled: false,
+      installed: true, official: false, availability: 'profile', optional: false, removable: true, enabled: false,
       rows: [
         { rowId: 'sidebar', moduleName: 'dsh-better-sidebar', entryId: ROW_ENTRY, enabled: true, phase: 'active' },
         { rowId: 'theme', moduleName: 'dsh-better-sidebar/theme', enabled: false, phase: null },
@@ -127,13 +128,13 @@ describe('packageView', () => {
     })
     // A row the inventory no longer lists, a protected row, and a bundle the Host cannot read.
     const protectedBundle: BundleInfo = {
-      name: '@deepseek-ai/dsh-base', enabled: true, installed: false, optional: false, removable: false, readOnlyReason: 'management-required',
+      name: '@deepseek-ai/dsh-base', enabled: true, installed: false, official: false, availability: 'installation', optional: false, removable: false, readOnlyReason: 'management-required',
       error: { code: 'operation-error', diagnostic: 'broken' },
       rows: [{ rowId: 'core', moduleName: '@deepseek-ai/dsh-base', entryId: 'include:core' as PluginEntryId }, { rowId: 'gone', moduleName: 'x', entryId: 'include:gone' as PluginEntryId }],
       overrides: [],
     }
     expect(packageView(protectedBundle, PLUGINS)).toEqual({
-      name: '@deepseek-ai/dsh-base', installed: false, optional: false, removable: false, enabled: true, readOnlyReason: 'management-required',
+      name: '@deepseek-ai/dsh-base', installed: false, official: false, availability: 'installation', optional: false, removable: false, enabled: true, readOnlyReason: 'management-required',
       error: { code: 'operation-error', diagnostic: 'broken' },
       rows: [
         { rowId: 'core', moduleName: '@deepseek-ai/dsh-base', entryId: 'include:core', enabled: true, phase: 'active', readOnlyReason: 'management-required' },
@@ -145,7 +146,7 @@ describe('packageView', () => {
 
 describe('sortPackages', () => {
   it('orders packages by the short name a person reads, not by the Host order or enablement', async () => {
-    const plain = { enabled: true, installed: true, optional: false, removable: true, rows: [], overrides: [] }
+    const plain = { enabled: true, installed: true, official: false, availability: 'profile' as const, optional: false, removable: true, rows: [], overrides: [] }
     const zeta: BundleInfo = { ...plain, name: 'dsh-zeta' }
     const alpha: BundleInfo = { ...plain, name: '@acme/dsh-alpha', enabled: false }
     const views = [zeta, BUNDLE, alpha].map(bundle => packageView(bundle, PLUGINS))
@@ -500,55 +501,55 @@ describe('PluginManagerController', () => {
     await vi.waitFor(() => { expect(state().notice).toEqual({ kind: 'overridden', packageName: BUNDLE.name, seq: 2 }) })
   })
 
-  it('keeps the Agent Teams Host and panel layers in a usable dependency state', async () => {
+  it('switches the unified Agent Teams capability and UI layer together', async () => {
     const optional = (name: string, enabled: boolean): BundleInfo => ({
-      name, enabled, installed: false, optional: true, removable: false, rows: [], overrides: [],
+      name, enabled, installed: false, official: true, availability: 'installation',
+      optional: true, removable: false, rows: [], overrides: [],
     })
     const { plugins, face, state, controller } = bench({
       listBundles: vi.fn(() => Promise.resolve(ok([
-        optional(AGENT_TEAM, false), optional(AGENT_TEAM_WEB, false),
+        optional(AGENT_TEAM, false),
       ]))),
     })
     await controller.load()
 
-    face.setEnabled(AGENT_TEAM_WEB, true)
+    face.setEnabled(AGENT_TEAM, true)
     await vi.waitFor(() => {
       expect(plugins.setBundleEnabled.mock.calls).toEqual([
         [AGENT_TEAM, true],
-        [AGENT_TEAM_WEB, true],
       ])
+      expect(state().busy).toEqual([])
     })
-    expect(state().busy).toEqual([])
 
     plugins.listBundles.mockResolvedValue(ok([
-      optional(AGENT_TEAM, true), optional(AGENT_TEAM_WEB, true),
+      optional(AGENT_TEAM, true),
     ]))
     await controller.load()
     plugins.setBundleEnabled.mockClear()
     face.setEnabled(AGENT_TEAM, false)
     await vi.waitFor(() => {
       expect(plugins.setBundleEnabled.mock.calls).toEqual([
-        [AGENT_TEAM_WEB, false],
         [AGENT_TEAM, false],
       ])
+      expect(state().busy).toEqual([])
     })
-    expect(state().busy).toEqual([])
   })
 
-  it('stops a dependent Agent Teams change before it can create an invalid combination', async () => {
+  it('reports a rejected unified Agent Teams activation without a second layer operation', async () => {
     const optional = (name: string, enabled: boolean): BundleInfo => ({
-      name, enabled, installed: false, optional: true, removable: false, rows: [], overrides: [],
+      name, enabled, installed: false, official: true, availability: 'installation',
+      optional: true, removable: false, rows: [], overrides: [],
     })
     const { plugins, face, state, controller } = bench({
       listBundles: vi.fn(() => Promise.resolve(ok([
-        optional(AGENT_TEAM, false), optional(AGENT_TEAM_WEB, false),
+        optional(AGENT_TEAM, false),
       ]))),
       setBundleEnabled: vi.fn().mockResolvedValueOnce(ok(failed({ code: 'operation-error', diagnostic: 'host failed' }))),
     })
     await controller.load()
-    face.setEnabled(AGENT_TEAM_WEB, true)
+    face.setEnabled(AGENT_TEAM, true)
     await vi.waitFor(() => {
-      expect(state().notice).toMatchObject({ kind: 'failed', packageName: AGENT_TEAM_WEB, reason: 'host failed' })
+      expect(state().notice).toMatchObject({ kind: 'failed', packageName: AGENT_TEAM, reason: 'host failed' })
     })
     expect(plugins.setBundleEnabled).toHaveBeenCalledExactlyOnceWith(AGENT_TEAM, true)
   })
@@ -693,7 +694,7 @@ describe('PluginManagerController', () => {
   })
 
   it('refuses a spec the list already shows without asking the Host, and words what the Host refused', async () => {
-    const shipped: BundleInfo = { ...BUNDLE, name: '@deepseek-ai/dsh-official', installed: false, optional: true, removable: false }
+    const shipped: BundleInfo = { ...BUNDLE, name: '@deepseek-ai/dsh-official', installed: false, official: true, availability: 'installation', optional: true, removable: false }
     const { plugins, face, state, controller } = bench({
       listBundles: vi.fn(() => Promise.resolve(ok([BUNDLE, shipped]))),
       inspect: vi.fn()
@@ -1853,4 +1854,206 @@ it('reports a successful install with only documented result fields', async () =
   expect(results).toEqual([['install_plugin_result', {
     input_value: 'dsh-new', is_success: true, duration: expect.any(Number) as number, plugin_name: 'dsh-new',
   }]])
+})
+
+
+const CATALOG: BundleInfo = {
+  name: '@deepseek-ai/dsh-subagent-codex', official: true, availability: 'missing', installed: false, optional: false,
+  enabled: false, removable: false, rows: [], overrides: [],
+  installTarget: { spec: '@deepseek-ai/dsh-subagent-codex@2.0.0', version: '2.0.0' },
+}
+
+it('installs an absent Official entry directly at the host target and enables it through the normal installer', async () => {
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([CATALOG])) })
+  await controller.load()
+  face.setEnabled(CATALOG.name, true)
+  await vi.waitFor(() => { expect(plugins.installBundle).toHaveBeenCalledOnce() })
+  expect(plugins.inspect).not.toHaveBeenCalled()
+  expect(plugins.installBundle).toHaveBeenCalledWith(CATALOG.installTarget!.spec, {
+    enabled: true, saveExact: true, requestId: state().install.requestId, registry: null,
+  })
+  expect(state().install.subject).toMatchObject({ selection: true, saveExact: true, version: '2.0.0' })
+})
+
+it('installs the unified Agent Teams layer with selection without toggling the removed UI companion', async () => {
+  const entry: BundleInfo = {
+    ...CATALOG, name: AGENT_TEAM,
+    installTarget: { spec: `${AGENT_TEAM}@2.0.0`, version: '2.0.0' },
+  }
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([entry])) })
+  await controller.load()
+  face.setEnabled(AGENT_TEAM, true)
+  await vi.waitFor(() => { expect(plugins.installBundle).toHaveBeenCalledOnce() })
+  expect(plugins.installBundle).toHaveBeenCalledWith(entry.installTarget!.spec, {
+    enabled: true, saveExact: true, requestId: state().install.requestId, registry: null,
+  })
+  expect(plugins.setBundleEnabled).not.toHaveBeenCalled()
+})
+
+it.each(['before', 'after'] as const)('reports one Official toggle when inventory refresh finishes %s installation', async (order) => {
+  const installing = deferred<ReturnType<typeof ok<ChangeResult>>>()
+  const refreshing = deferred<ReturnType<typeof ok<BundleInfo[]>>>()
+  const installed: BundleInfo = { ...CATALOG, availability: 'profile', installed: true, enabled: true, removable: true, version: '2.0.0' }
+  const result = ok({ ...APPLIED, bundle: CATALOG.name })
+  const listBundles = vi.fn().mockResolvedValue(ok([installed]))
+    .mockResolvedValueOnce(ok([CATALOG])).mockReturnValueOnce(refreshing.promise)
+  const { controller, face, state, started, track } = bench({ listBundles, installBundle: vi.fn(() => installing.promise) })
+  const reads: Promise<void>[] = []
+  onTestFinished(async () => { installing.resolve(result); refreshing.resolve(ok([installed])); await Promise.all(reads) })
+  await controller.load()
+  face.setEnabled(CATALOG.name, true)
+  await started()
+  const refresh = controller.load()
+  reads.push(refresh)
+  await vi.waitFor(() => { expect(listBundles).toHaveBeenCalledTimes(2) })
+  expect(state().packages.find(pkg => pkg.name === CATALOG.name)?.availability).toBe('missing')
+  if (order === 'before') {
+    refreshing.resolve(ok([installed]))
+    await refresh
+  }
+  installing.resolve(result)
+  await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
+  expect(track.mock.calls.filter(([event]) => event === 'plugin_toggle')).toEqual([['plugin_toggle', {
+    plugin_name: CATALOG.name, plugin_type: 'bundle', is_enabled: true, is_builtin: false,
+  }]])
+  refreshing.resolve(ok([installed]))
+  await refresh
+  await controller.load()
+  expect(track.mock.calls.filter(([event]) => event === 'plugin_toggle')).toHaveLength(1)
+})
+
+it.each([true, false])('updates an Official entry with enabled=%s through the same exact installer', async (enabled) => {
+  const installed: BundleInfo = { ...CATALOG, availability: 'profile', installed: true, version: '1.0.0', enabled, removable: true }
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([installed])),
+    installBundle: vi.fn().mockResolvedValue(ok({ ...APPLIED, bundle: CATALOG.name, application: 'restart-required' })),
+  })
+  await controller.load()
+  face.update(CATALOG.name)
+  await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
+  expect(plugins.inspect).not.toHaveBeenCalled()
+  expect(plugins.installBundle).toHaveBeenCalledWith(CATALOG.installTarget!.spec, {
+    enabled, saveExact: true, requestId: state().install.requestId, registry: null,
+  })
+  expect(state().install.restartRequired).toBe(true)
+})
+
+it('preserves the Official exact target and selection when script approval retries an installation', async () => {
+  const install = vi.fn().mockResolvedValueOnce(ok({ ...APPLIED, application: 'failed', stage: 'install',
+    error: { code: 'operation-error' }, pendingBuilds: ['native-provider'],
+  })).mockResolvedValueOnce(ok({ ...APPLIED, bundle: CATALOG.name }))
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([CATALOG])), installBundle: install })
+  await controller.load()
+  face.setEnabled(CATALOG.name, true)
+  await vi.waitFor(() => { expect(state().install.phase).toBe('failed') })
+  face.approveBuildsAndRetry()
+  await vi.waitFor(() => { expect(install).toHaveBeenCalledTimes(2) })
+  expect(plugins.inspect).not.toHaveBeenCalled()
+  expect(install).toHaveBeenLastCalledWith(CATALOG.installTarget!.spec, {
+    enabled: true, saveExact: true, requestId: state().install.requestId, registry: null, approvedBuilds: ['native-provider'],
+  })
+})
+
+it('retains a failed Official install target while changing its registry', async () => {
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([CATALOG])),
+    installBundle: vi.fn().mockResolvedValueOnce(ok({ ...APPLIED, application: 'failed', stage: 'install', error: { code: 'operation-error' } }))
+      .mockResolvedValue(ok({ ...APPLIED, bundle: CATALOG.name })),
+  })
+  await controller.load()
+  face.setEnabled(CATALOG.name, true)
+  await vi.waitFor(() => { expect(state().install.phase).toBe('failed') })
+  face.changeRegistry()
+  face.chooseRegistry({ kind: 'custom', url: CORP })
+  face.runInstall()
+  await vi.waitFor(() => { expect(plugins.installBundle).toHaveBeenCalledTimes(2) })
+  expect(plugins.installBundle).toHaveBeenLastCalledWith(CATALOG.installTarget!.spec, {
+    enabled: true, saveExact: true, requestId: state().install.requestId, registry: CORP,
+  })
+  expect(plugins.inspect).not.toHaveBeenCalled()
+  await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
+  face.closeInstall()
+  face.setEnabled(CATALOG.name, true)
+  await vi.waitFor(() => { expect(plugins.installBundle).toHaveBeenCalledTimes(3) })
+  expect(plugins.installBundle).toHaveBeenLastCalledWith(CATALOG.installTarget!.spec, {
+    enabled: true, saveExact: true, requestId: state().install.requestId, registry: CORP,
+  })
+})
+
+it('keeps Official disablement on the existing selection operation', async () => {
+  const { controller, plugins, face } = bench({ listBundles: vi.fn().mockResolvedValue(ok([{ ...CATALOG, enabled: true }])) })
+  await controller.load()
+  face.setEnabled(CATALOG.name, false)
+  await vi.waitFor(() => { expect(plugins.setBundleEnabled).toHaveBeenCalledWith(CATALOG.name, false) })
+  expect(plugins.installBundle).not.toHaveBeenCalled()
+})
+
+it('reopens one Official operation through registry preparation and installation instead of starting duplicates', async () => {
+  const registries = deferred<ReturnType<typeof ok<typeof REGISTRIES>>>()
+  const installing = deferred<ReturnType<typeof ok<ChangeResult>>>()
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([CATALOG])),
+    registries: vi.fn().mockReturnValue(registries.promise), installBundle: vi.fn().mockReturnValue(installing.promise),
+  })
+  await controller.load()
+  face.setEnabled(CATALOG.name, true)
+  expect(state().install.phase).toBe('checking')
+  face.setEnabled(CATALOG.name, true)
+  expect(plugins.registries).toHaveBeenCalledOnce()
+  registries.resolve(ok(REGISTRIES))
+  await vi.waitFor(() => { expect(state().install.phase).toBe('starting') })
+  face.update(CATALOG.name)
+  expect(plugins.installBundle).toHaveBeenCalledOnce()
+  installing.resolve(ok({ ...APPLIED, bundle: CATALOG.name }))
+  await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
+})
+
+it('ignores a stale update target and prevents a disposed tab from beginning an Official install', async () => {
+  const { controller, plugins, face } = bench({ listBundles: vi.fn().mockResolvedValue(ok([CATALOG, BUNDLE])) })
+  await controller.load()
+  face.update('removed')
+  face.update(BUNDLE.name)
+  expect(plugins.installBundle).not.toHaveBeenCalled()
+  controller.dispose()
+  face.setEnabled(CATALOG.name, true)
+  expect(plugins.installBundle).not.toHaveBeenCalled()
+})
+
+
+it('installs a source Official entry as a local path through the ordinary installer', async () => {
+  const spec = 'link:/development/dsh/packages/subagent/subagent-codex'
+  const entry = { ...CATALOG, installTarget: { spec, version: '2.0.0' } }
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([entry])) })
+  await controller.load()
+  face.setEnabled(entry.name, true)
+  await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
+  expect(plugins.inspect).not.toHaveBeenCalled()
+  expect(plugins.installBundle).toHaveBeenCalledWith(spec, {
+    enabled: true, requestId: state().install.requestId, registry: null,
+  })
+  expect(state().install.subject).toMatchObject({ kind: 'path', spec, selection: true })
+  expect(state().install.subject?.saveExact).toBeUndefined()
+})
+
+it.each([true, false])('replaces a same-version registry package with its source link and preserves enabled=%s', async (enabled) => {
+  const spec = 'link:/development/dsh/packages/subagent/subagent-codex'
+  const entry: BundleInfo = { ...CATALOG, installTarget: { spec, version: '2.0.0' }, availability: 'profile',
+    installed: true, version: '2.0.0', source: `${CATALOG.name}@2.0.0`, enabled, removable: true }
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([entry])),
+    installBundle: vi.fn().mockResolvedValue(ok({ ...APPLIED, bundle: CATALOG.name, application: 'restart-required' })),
+  })
+  await controller.load()
+  face.update(entry.name)
+  await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
+  expect(plugins.installBundle).toHaveBeenCalledWith(spec, { enabled, requestId: state().install.requestId, registry: null })
+  expect(state().install.subject).toMatchObject({ kind: 'path', spec, selection: enabled })
+  expect(state().install.restartRequired).toBe(true)
+})
+
+it('deselects a source bundle whose target is unavailable without starting installation', async () => {
+  const { installTarget: _target, ...withoutTarget } = CATALOG
+  const entry: BundleInfo = { ...withoutTarget, enabled: true,
+    error: { code: 'operation-error', diagnostic: 'Source package is not built' } }
+  const { controller, plugins, face } = bench({ listBundles: vi.fn().mockResolvedValue(ok([entry])) })
+  await controller.load()
+  face.setEnabled(entry.name, false)
+  await vi.waitFor(() => { expect(plugins.setBundleEnabled).toHaveBeenCalledWith(entry.name, false) })
+  expect(plugins.installBundle).not.toHaveBeenCalled()
 })

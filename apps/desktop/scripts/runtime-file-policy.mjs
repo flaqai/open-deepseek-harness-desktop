@@ -1,7 +1,7 @@
 /** Remove package files that cannot be used by one packaged Desktop target. */
 
 import { existsSync } from 'node:fs'
-import { readFile, readdir, rm } from 'node:fs/promises'
+import { readFile, readdir, rm, unlink } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative } from 'node:path'
 
 function packageAllows(values, target) {
@@ -13,6 +13,31 @@ function packageAllows(values, target) {
 
 function packageSupportsTarget(manifest, target) {
   return packageAllows(manifest.os, target.platform) && packageAllows(manifest.cpu, target.arch)
+}
+
+/** Remove only legacy-deploy links to known workspace packages outside the production closure. */
+export async function removeExtraneousWorkspaceLinks(nodeModules, workspaceNames, productionNames) {
+  if (!isAbsolute(nodeModules) || basename(nodeModules) !== 'node_modules') throw new Error('workspace link policy requires an absolute node_modules path')
+  const workspace = new Set(workspaceNames)
+  const production = new Set(productionNames)
+  let removed = 0
+  async function visit(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      if (entry.isSymbolicLink()) {
+        const parts = relative(nodeModules, path).split(/[\\/]/u)
+        const packageParts = parts.slice(parts.lastIndexOf('node_modules') + 1)
+        const nameParts = packageParts[0]?.startsWith('@') ? 2 : 1
+        const name = packageParts.join('/')
+        if (packageParts.length === nameParts && workspace.has(name) && !production.has(name)) {
+          await unlink(path)
+          removed += 1
+        }
+      } else if (entry.isDirectory()) await visit(path)
+    }
+  }
+  await visit(nodeModules)
+  return removed
 }
 
 /**

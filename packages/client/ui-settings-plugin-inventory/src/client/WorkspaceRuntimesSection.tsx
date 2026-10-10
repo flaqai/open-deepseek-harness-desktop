@@ -222,6 +222,7 @@ export function WorkspaceRuntimesSection(props: Props): ReactNode {
               running={selected.phase === 'running'}
               maxLines={Infinity}
               labels={{
+                commandLine: line => props.t('external.terminal.commandLine').replace('{line}', String(line)),
                 signal: signal => props.t('external.terminal.signal').replace('{signal}', signal),
                 exitCode: code => props.t('external.terminal.exitCode').replace('{code}', String(code)),
                 noExitCode: props.t('external.terminal.noExitCode'),

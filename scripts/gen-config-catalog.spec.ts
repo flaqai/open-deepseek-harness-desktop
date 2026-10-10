@@ -75,6 +75,24 @@ describe('shared config schema catalog', () => {
     expect(() => collectConfigCatalog(root)).toThrow("schema validates key 'hidden' but config type 'Config' declares no such member")
   })
 
+  it('retains declared-field validation through a root transform', () => {
+    const transformed = sharedSchema.replace('export const Shared = Schema.union', 'export const Shared = Schema.transform(Schema.union')
+      .replace('])\n', ']), value => value)\n')
+    const { root } = fixture(transformed)
+    const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')
+    expect(new Set(provider?.schemaKeys)).toEqual(new Set(['mode', 'headless', 'endpoint']))
+    const invalid = fixture(transformed.replace('headless: Schema.boolean()', 'headless: Schema.boolean(), hidden: Schema.string()'))
+    expect(() => collectConfigCatalog(invalid.root)).toThrow("schema validates key 'hidden' but config type 'Config' declares no such member")
+  })
+
+  it('collects nested object fields through a transformed property', () => {
+    const nested = sharedSchema.replace('headless: boolean', 'headless: { inner: boolean }')
+      .replace('headless: Schema.boolean()', 'headless: Schema.transform(Schema.object({ inner: Schema.boolean() }), value => value)')
+    const { root } = fixture(nested)
+    const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')
+    expect(new Set(provider?.schemaKeys)).toEqual(new Set(['mode', 'headless', 'headless.inner', 'endpoint']))
+  })
+
   it('follows a local const alias without treating a completed branch as a cycle', () => {
     const { root } = fixture(sharedSchema.replace('export const Shared = Schema.union', 'export const Shared = Base\nconst Base = Schema.union'))
     const provider = collectConfigCatalog(root).find(entry => entry.pkg === '@test/provider')

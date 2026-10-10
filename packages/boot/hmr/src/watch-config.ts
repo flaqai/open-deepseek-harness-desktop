@@ -28,7 +28,7 @@ async function findWatchRoot(filename: string): Promise<{ filename: string; root
  * Watch one patch path, including missing parents, and serialize refresh callbacks.
  * @param ctx Context that owns watcher disposal and receives refresh failures.
  * @param filename Absolute patch-file path.
- * @param options Deployment watcher options; configuration watches enable write stabilization by default.
+ * @param options Deployment watcher options; `interval` sets the exact-path stat-poll cadence.
  * @param refresh Callback for additions, changes, and removals.
  * @param inTransaction Whether disposal is running inside the refresh being removed.
  * @returns A disposer that closes the watcher and drains its current refresh.
@@ -57,13 +57,14 @@ export async function watchConfig(
   // when the file or an intermediate parent does not exist yet. It also avoids
   // macOS's low per-app kqueue descriptor ceiling in packaged launches.
   let previous = await readStamp()
-  const state = { dirty: false }
+  const state = { dirty: false, disposed: false }
   let running: Promise<void> | undefined
   const onChange = () => {
+    if (state.disposed) return
     state.dirty = true
     if (running) return
     running = (async () => {
-      while (state.dirty) {
+      while (state.dirty && !state.disposed) {
         state.dirty = false
         try {
           await refresh()
@@ -77,21 +78,24 @@ export async function watchConfig(
   }
   let polling: Promise<void> | undefined
   const timer = setInterval(() => {
-    if (polling !== undefined) return
+    if (state.disposed || polling !== undefined) return
     polling = (async () => {
       try {
         const current = await readStamp()
+        if (state.disposed) return
         if (current === previous) return
         previous = current
         onChange()
       } catch (error) {
-        ctx.logger.warn(error)
+        if (!state.disposed) ctx.logger.warn(error)
       }
     })().finally(() => { polling = undefined })
   }, interval)
   timer.unref()
   paths.add(target.filename)
   const dispose = async () => {
+    state.disposed = true
+    state.dirty = false
     clearInterval(timer)
     paths.delete(target.filename)
     await polling

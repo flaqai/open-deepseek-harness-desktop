@@ -56,6 +56,25 @@ function props(overrides: Partial<ExternalToolsSectionInjected> = {}): ExternalT
 }
 
 describe('ExternalToolsSection download progress', () => {
+  it('renders the workspace-runtime download terminal with the shared localized labels', async () => {
+    const startWorkspaceRuntime = vi.fn(async () => ({
+      jobId: 'workspace-office-download',
+      capabilityId: 'office' as const,
+      phase: 'paused' as const,
+      stage: 'downloading' as const,
+      transferredBytes: 512,
+    }))
+    render(<ExternalToolsSection {...props({ startWorkspaceRuntime })} />)
+    const title = await screen.findByRole('heading', { name: en['external.runtime.office.title'] })
+    const card = within(title.closest('li')!)
+    fireEvent.click(card.getByRole('button', { name: en['external.runtime.action.install'] }))
+    const dialog = await screen.findByRole('dialog', { name: en['external.runtime.progress.title'] })
+    expect(startWorkspaceRuntime).toHaveBeenCalledWith('office')
+    expect(within(dialog).getByText('downloading')).toBeTruthy()
+    expect(within(dialog).getByText(en['external.terminal.noOutput'])).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: en['external.action.resume'] })).toBeTruthy()
+  })
+
   it('places the 0.1.6 experimental capabilities above the aligned external-tools grid', async () => {
     render(<ExternalToolsSection {...props()} />)
 

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-test-runtime",
   "description": "Browser test runtimes: a jsdom slot bench with test-owned Session and Workspace doubles, and a whole-client tier that boots the web roster through the production bootClient over an endpoint-named Remote mock",
-  "version": "0.2.1-alpha.1",
+  "version": "0.2.1-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -24,9 +24,9 @@
   "license": "MIT",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.2",
-    "js-yaml": "^4.2.0",
-    "vitest": "^4.1.8"
+    "@testing-library/react": "^16.3.3",
+    "js-yaml": "^4.3.2",
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",

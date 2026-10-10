@@ -1,34 +1,37 @@
-/** Single-sample LAN-trust resolution for the /api browser-trust fence (`resolveLanTrust`). */
-
+/** NAS-only LAN authority sampling alongside explicit invocation trust. */
 import { describe, expect, it, vi } from 'vitest'
-import { resolveLanTrust } from '../src/index.ts'
+import { resolveLanTrust, type Config } from '../src/index.ts'
 
 vi.mock('node:os', () => ({
   networkInterfaces: () => ({
-    lo0: [
-      { family: 'IPv4', internal: true, address: '127.0.0.1' },
-    ],
+    lo0: [{ family: 'IPv4', internal: true, address: '127.0.0.1' }],
     en0: [
       { family: 'IPv6', internal: false, address: 'fe80::1' },
       { family: 'IPv4', internal: false, address: '192.168.1.5' },
     ],
-    en1: [
-      { family: 'IPv4', internal: false, address: '10.0.0.7' },
-    ],
+    en1: [{ family: 'IPv4', internal: false, address: '10.0.0.7' }],
     utun0: undefined,
   }),
 }))
 
+const nas: NonNullable<Config['nas']> = {
+  enabled: true, name: 'Studio NAS', version: 'test', protocolVersion: 1, deviceLifetimeDays: 90,
+}
+
 describe('resolveLanTrust', () => {
-  it('samples non-internal IPv4 addresses once for an all-interfaces bind: trust and display share them', () => {
-    const { lanAddresses, trustedHosts } = resolveLanTrust('0.0.0.0', ['harness.internal:3080'])
-    expect(lanAddresses).toEqual(['192.168.1.5', '10.0.0.7'])
-    expect(trustedHosts).toEqual(['192.168.1.5', '10.0.0.7', 'harness.internal:3080'])
+  it('samples non-internal IPv4 addresses only for an explicit NAS all-interface bind', () => {
+    expect(resolveLanTrust('0.0.0.0', ['harness.internal:3080'], nas)).toEqual({
+      lanAddresses: ['192.168.1.5', '10.0.0.7'],
+      trustedHosts: ['192.168.1.5', '10.0.0.7', 'harness.internal:3080'],
+      nas,
+    })
   })
 
-  it('derives nothing for a loopback bind — extras alone stand, no LAN URL to print', () => {
-    expect(resolveLanTrust('127.0.0.1', [])).toEqual({ lanAddresses: [], trustedHosts: [] })
-    expect(resolveLanTrust('127.0.0.1', ['lab.internal']))
-      .toEqual({ lanAddresses: [], trustedHosts: ['lab.internal'] })
+  it('preserves explicit authorities without deriving LAN trust for ordinary Web', () => {
+    for (const host of ['127.0.0.1', '10.0.0.7', '0.0.0.0']) {
+      expect(resolveLanTrust(host, ['lab.internal'])).toEqual({
+        lanAddresses: [], trustedHosts: ['lab.internal'],
+      })
+    }
   })
 })

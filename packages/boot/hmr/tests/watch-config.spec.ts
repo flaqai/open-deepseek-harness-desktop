@@ -223,7 +223,7 @@ describe('HMR exact config paths', () => {
     release.resolve(undefined)
     await disposal
     expect(maxActive).toBe(1)
-    expect(calls).toBe(2)
+    expect(calls).toBe(1)
   })
 
   it('rejects a patch path whose parent is a regular file', async () => {
@@ -261,6 +261,33 @@ describe('HMR exact config paths', () => {
     await watchConfig(ctx, filename, {}, () => {})
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
     onTestFinished(() => { warn.mockRestore() })
+  })
+
+  it('drains a pending poll and suppresses its error after disposal', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dsh-patch-close-error-'))
+    hmrRoots.push(dir)
+    const filename = join(dir, 'plugins.yml')
+    const ctx = await bootHmr(dir)
+    onTestFinished(() => ctx.fiber.dispose())
+    const refresh = vi.fn()
+    const dispose = await watchConfig(ctx, filename, { interval: 10 }, refresh)
+    const started = Promise.withResolvers<undefined>()
+    const inspect = Promise.withResolvers<never>()
+    vi.mocked(fsPromises.stat).mockImplementationOnce(() => {
+      started.resolve(undefined)
+      return inspect.promise
+    })
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    onTestFinished(() => { warn.mockRestore() })
+    await started.promise
+    let drained = false
+    const disposal = dispose().then(() => { drained = true })
+    await Promise.resolve()
+    expect(drained).toBe(false)
+    inspect.reject(Object.assign(new Error('file removed during teardown'), { code: 'EPERM' }))
+    await disposal
+    expect(refresh).not.toHaveBeenCalled()
+    expect(warn).not.toHaveBeenCalled()
   })
 
   it('closes a ready watcher when its context has already been disposed', async () => {

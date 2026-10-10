@@ -35,6 +35,25 @@ function dependencies(profile: string): Record<string, string> {
   return (JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8')) as { dependencies: Record<string, string> }).dependencies
 }
 describe('staged Profile activation', () => {
+  it.each([true, false])('activates and rolls back the home patch with its prior existence %s', (existed) => {
+    const f = fixture()
+    settleProfilePluginTransaction(f.home, 'web', f.record.id, false)
+    const active = join(f.home, 'cordis.patch.yml')
+    const original = 'plugins: []\n# original home patch\n'
+    if (existed) writeFileSync(active, original)
+    const record = prepareProfilePluginTransaction(f.home, 'web')
+    const candidate = profilePluginCandidateHome(f.home, 'web', record.id)
+    expect(existsSync(join(candidate, 'cordis.patch.yml'))).toBe(existed)
+    writeFileSync(join(candidate, 'cordis.patch.yml'), 'plugins: []\n# migrated home patch\n')
+    readyProfilePluginTransaction(f.home, 'web', record.id)
+    activateProfilePluginTransaction(f.home, 'web', record.id)
+    expect(readFileSync(active, 'utf8')).toContain('migrated home patch')
+    settleProfilePluginTransaction(f.home, 'web', record.id, false)
+    expect(existsSync(active)).toBe(existed)
+    if (existed) expect(readFileSync(active, 'utf8')).toBe(original)
+    expect(readFileSync(join(f.home, 'settings.yaml'), 'utf8')).toBe('secret: keep\n')
+  })
+
   it('retains a different transaction when a preallocated prepare request is rejected', () => {
     const f = fixture()
     vi.stubEnv('DSH_HOME', f.home)

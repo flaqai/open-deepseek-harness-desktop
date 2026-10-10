@@ -9,7 +9,7 @@
 import { getDshRuntimeVersion, loadLayeredEnv, StartupError } from '@deepseek-ai/dsh-app-boot'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { parseDshArgs } from './args.ts'
-import { claimDesktopWebLaunch } from './desktop-web-launch.ts'
+import { claimDesktopWebLaunch, waitForDesktopWebRestart } from './desktop-web-launch.ts'
 import { reportStartupFailure } from './startup-diagnostics.ts'
 import type { RunProfileOptions } from './profile-boot.ts'
 
@@ -33,6 +33,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
     case 'profile': {
       if (!claimDesktopWebLaunch(invocation.profile, resolveDshHome(), process.env)) {
         console.error('dsh: Web replacement delegated to Desktop supervisor; no second service started')
+        await waitForDesktopWebRestart(process.env)
         return
       }
       const { runProfile } = await import('./profile-boot.ts')

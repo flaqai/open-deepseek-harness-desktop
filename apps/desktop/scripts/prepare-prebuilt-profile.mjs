@@ -105,6 +105,25 @@ export async function pruneForeignNodePtyPrebuilds(home, target) {
   }
 }
 
+/** Only disposable qualification copies may call this; it does not make cold-cache offline edits work. */
+export async function qualifyOfflinePluginRemoval(home, packageName, command) {
+  const cache = await mkdtemp(join(dirname(home), 'prebuilt-metadata-cache-'))
+  const lockfile = join(home, 'profiles/web/pnpm-lock.yaml')
+  const flags = [`--config.cache-dir=${cache}`, '--config.registry=https://registry.npmjs.org/']
+  try {
+    const before = await readFile(lockfile)
+    // pnpm's supply-chain check needs full packuments beyond the installed graph.
+    // Warm only this disposable copy. Never relax trust/release-age policy or
+    // publish the cache, and reject any lock change even with lockfile-only mode.
+    await command(home, ['install', '--frozen-lockfile', '--ignore-scripts', '--lockfile-only', ...flags])
+    if (!before.equals(await readFile(lockfile))) throw new Error('prebuilt metadata qualification changed the frozen lockfile')
+    await command(home, ['remove', packageName, '--config.offline=true', ...flags])
+    console.log('prebuilt-profile: warm-cache offline mutation passed; cold-cache offline editing is not qualified')
+  } finally {
+    await rm(cache, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  }
+}
+
 /** Build scripts provide a bounded child runner and the platform's packaged executables. */
 export async function preparePrebuiltProfile({ destination: published, harnessRoot, node, pnpm, resources, target, nodeVersion, pnpmVersion, run }) {
   if (!/^desktop-prebuilt-(?:darwin-(?:arm64|x64)|linux-x64|win32-x64)$/u.test(basename(published))) throw new Error('invalid prebuilt output directory')
@@ -149,10 +168,11 @@ export async function preparePrebuiltProfile({ destination: published, harnessRo
     await deployPrebuiltProfile(destination, relocated, verified, new AbortController().signal, () => {})
     await command(relocated, ['doctor'])
     await smokeRelocatedProfile(relocated, harnessRoot, node, environment(relocated))
-    // Exercise the installed dependency graph without accessing a registry.
+    // Qualify policy-verified warm-cache offline editing separately from the
+    // preceding cold-cache, installation-free normal Harness startup.
     const removable = manifest.plugins.find(entry => entry.installPolicy === 'startup')
     if (removable === undefined) throw new Error('prebuilt Profile has no startup plugins')
-    await command(relocated, ['remove', removable.packageName, '--config.offline=true'])
+    await qualifyOfflinePluginRemoval(relocated, removable.packageName, command)
   } finally {
     // Startup plugins may finish writing their temporary Git metadata just after
     // Harness exits; retry only transient directory-not-empty cleanup races.

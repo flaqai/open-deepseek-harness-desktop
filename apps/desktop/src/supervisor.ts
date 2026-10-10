@@ -1,7 +1,7 @@
 /** Supervise the local Harness process for the lifetime of the desktop app. */
 
-import { mkdirSync, createWriteStream, type WriteStream } from 'node:fs'
-import { dirname } from 'node:path'
+import { mkdirSync, mkdtempSync, lstatSync, openSync, closeSync, unlinkSync, createWriteStream, writeFileSync, renameSync, type WriteStream } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { spawn } from 'node:child_process'
 import type { Readable, Writable } from 'node:stream'
 import { LineBuffer, parseHarnessReadyLine } from './readiness.ts'
@@ -19,6 +19,7 @@ const ONE_SHOT_ENVIRONMENT = new Set([
   'DSH_DESKTOP_MUTATION_OWNER_PID', 'DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN',
   'DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID', 'DSH_PLUGIN_SNAPSHOT_BATCH', 'DSH_PLUGIN_TRANSACTION_ORIGIN',
   'DSH_DESKTOP_WEB_GENERATION', 'DSH_DESKTOP_WEB_RESTART_OWNER',
+  'DSH_DESKTOP_WEB_RESTART_STATE', 'DSH_DESKTOP_WEB_OWNER_GENERATION',
 ])
 
 /** Observable lifecycle states for the desktop chrome. */
@@ -87,9 +88,15 @@ export class HarnessSupervisor {
   #stopping = false
   #restartCheck: AbortController | undefined
   #generation = 0
+  #listenPort: string | undefined
+  readonly #restartState: string
+  readonly #restartDirectory: { dev: number; ino: number }
 
   constructor(options: HarnessSupervisorOptions) {
     this.#options = options
+    mkdirSync(dirname(options.logPath), { recursive: true })
+    this.#restartState = join(mkdtempSync(join(dirname(options.logPath), '.desktop-web-restart-')), 'state.json')
+    this.#restartDirectory = lstatSync(dirname(this.#restartState))
     this.#diagnosticMode = options.initialDiagnosticMode ?? false
     this.#primaryStartupFailure = options.initialDiagnosticReason
   }
@@ -102,6 +109,9 @@ export class HarnessSupervisor {
   /** Private authority for the current local Host generation; never exposed to a renderer. */
 
   #reportStartupFailure(message: string, logMessage: string): void {
+    try { this.#writeRestartState('failed') } catch (error) {
+      this.#writeLog('error', `failed to record restart failure: ${error instanceof Error ? error.message : String(error)}`)
+    }
     const notify = (): void => {
       this.#options.onState('failed')
       this.#options.onFailure({ message })
@@ -117,10 +127,52 @@ export class HarnessSupervisor {
     this.#log?.write(formatPersistentLogLine('desktop-supervisor', level, message))
   }
 
+  #writeRestartState(phase: 'starting' | 'ready' | 'failed' | 'stopped'): void {
+    const directory = lstatSync(dirname(this.#restartState))
+    if (!directory.isDirectory() || directory.isSymbolicLink() || directory.dev !== this.#restartDirectory.dev
+      || directory.ino !== this.#restartDirectory.ino || (process.platform !== 'win32'
+        && ((directory.mode & 0o777) !== 0o700 || directory.uid !== process.getuid?.()))) {
+      throw new Error('desktop: restart coordination directory ownership changed')
+    }
+    const temporary = `${this.#restartState}.tmp`
+    let descriptor: number | undefined
+    let created = false
+    try {
+      descriptor = openSync(temporary, 'wx', 0o600)
+      created = true
+      writeFileSync(descriptor, JSON.stringify({ ownerPid: process.pid, generation: this.#generation, phase }))
+      closeSync(descriptor)
+      descriptor = undefined
+      renameSync(temporary, this.#restartState)
+    } finally {
+      if (descriptor !== undefined) closeSync(descriptor)
+      if (created) {
+        try { unlinkSync(temporary) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+      }
+    }
+  }
+
+  #launchArgs(): string[] {
+    const args = [...this.#options.launch.args]
+    if (this.#listenPort === undefined || this.#diagnosticMode) return args
+    let index = -1
+    for (let i = 0; i < args.length; i++) if (args[i] === '--port' || args[i]?.startsWith('--port=')) index = i
+    if (index !== -1) {
+      if (args[index] === '--port=0') args[index] = `--port=${this.#listenPort}`
+      else if (args[index] === '--port' && args[index + 1] === '0') args[index + 1] = this.#listenPort
+    }
+    return args
+  }
+
   /** Start the child process; repeated calls while it is running are ignored. */
   start(): void {
     if (this.#child !== undefined || this.#stopping || this.#failed || this.#restartCheck !== undefined) return
     const generation = ++this.#generation
+    try { this.#writeRestartState('starting') } catch (error) {
+      this.#failed = true
+      this.#reportStartupFailure('Harness restart coordination could not start.', `Restart coordination failed: ${error instanceof Error ? error.message : String(error)}`)
+      return
+    }
     mkdirSync(dirname(this.#options.logPath), { recursive: true })
     this.#log ??= createWriteStream(this.#options.logPath, { flags: 'a' })
     this.#options.onState(this.#diagnosticMode
@@ -134,6 +186,8 @@ export class HarnessSupervisor {
       ...(this.#diagnosticMode ? { DSH_PROFILE_DIAGNOSTIC_MODE: '1' } : {}),
     }).filter(([key]) => !ONE_SHOT_ENVIRONMENT.has(key.toUpperCase()))) as Record<string, string>
     environment.DSH_DESKTOP_WEB_RESTART_OWNER = String(process.pid)
+    environment.DSH_DESKTOP_WEB_RESTART_STATE = this.#restartState
+    environment.DSH_DESKTOP_WEB_OWNER_GENERATION = String(generation)
     let child: RunningHarness
     try {
       child = this.#spawn(environment)
@@ -165,6 +219,14 @@ export class HarnessSupervisor {
             message: this.#primaryStartupFailure ?? 'The active Profile could not start.',
           })
         } else {
+          const port = new URL(url).port
+          if (port !== '') this.#listenPort = port
+          try { this.#writeRestartState('ready') } catch (error) {
+            this.#failed = true
+            this.#reportStartupFailure('Harness restart readiness could not be recorded.', `Restart readiness failed: ${error instanceof Error ? error.message : String(error)}`)
+            void this.stop().catch((stopError: unknown) => { this.#writeLog('error', `Restart coordination cleanup failed: ${String(stopError)}`) })
+            return
+          }
           this.#restartCount = 0
           this.#preReadyExitCount = 0
           this.#options.onState('ready')
@@ -202,6 +264,14 @@ export class HarnessSupervisor {
       stdoutLines.flush()
       const stderrTail = stderrLines.flush()
       if (stderrTail?.includes(DIAGNOSTIC_MODE_ELIGIBLE_MARKER) === true) diagnosticModeEligible = true
+      // Direct exit does not imply an empty Job/scope/group. In particular a
+      // detached market helper can remain in a Linux scope while waiting for
+      // the next generation. Retire only this owned range before admitting a
+      // replacement; the native owner's bounded escalation and idle proof
+      // remain authoritative. Deliberate stop already initiated termination.
+      if (this.#options.managedRuntime !== undefined && !this.#stopping && generation === this.#generation) {
+        await child.terminate(false)
+      }
       const rangeStopped = await child.waitForExit()
       if (!rangeStopped) {
         this.#failed = true
@@ -304,7 +374,7 @@ export class HarnessSupervisor {
       const launched = this.#options.managedRuntime.launch({
         label: 'Harness',
         lifecycle: 'client',
-        argv: [this.#options.launch.command, ...this.#options.launch.args],
+        argv: [this.#options.launch.command, ...this.#launchArgs()],
         cwd: this.#options.launch.cwd ?? process.cwd(),
         env: environment,
         stdio: { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe' },
@@ -322,7 +392,7 @@ export class HarnessSupervisor {
         waitForExit: () => handle.waitForExit(AbortSignal.timeout(15_000)),
       }
     }
-    const processChild = spawn(this.#options.launch.command, this.#options.launch.args, {
+    const processChild = spawn(this.#options.launch.command, this.#launchArgs(), {
       env: environment, cwd: this.#options.launch.cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
     })
     processChild.once('spawn', () => {
@@ -365,6 +435,11 @@ export class HarnessSupervisor {
   async stop(): Promise<void> {
     this.#stopping = true
     this.#generation++
+    let stateFailure: Error | undefined
+    try { this.#writeRestartState('stopped') } catch (error) {
+      stateFailure = error instanceof Error ? error : new Error(String(error))
+      this.#writeLog('error', `failed to record restart stop: ${stateFailure.message}`)
+    }
     this.#log?.write('[desktop] Deliberate Harness stop; cancelling automatic restart.\n')
     this.#restartCheck?.abort()
     this.#restartCheck = undefined
@@ -411,6 +486,7 @@ export class HarnessSupervisor {
     this.#log?.end()
     this.#log = undefined
     this.#options.onState('stopped')
+    if (stateFailure !== undefined) throw stateFailure
   }
 
   /** Resume a child after a deliberate bounded stop for desktop maintenance. */
@@ -421,6 +497,7 @@ export class HarnessSupervisor {
     this.#restartCount = 0
     this.#preReadyExitCount = 0
     this.#diagnosticMode = false
+    this.#listenPort = undefined
     this.#primaryStartupFailure = undefined
     this.start()
     return true

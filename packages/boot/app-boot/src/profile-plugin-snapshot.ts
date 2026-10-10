@@ -149,6 +149,7 @@ const FIXED_FILES = [
   'cordis.patch.yml',
 ] as const
 const HOME_FILES = [
+  'cordis.patch.yml',
   'quarantine/profile-plugins.json',
   'quarantine/host-version-overrides.json',
   'imported-plugin-restore.v1.json',

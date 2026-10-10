@@ -23,6 +23,7 @@ import { FirstStartPreparation } from './first-start-preparation.ts'
 import { BundledPresetVersionGate } from './bundled-preset-version-gate.ts'
 import { applyFreshProfileDefaults } from './fresh-profile-defaults.ts'
 import { legacyScheduleMigrationNeeded, migrateLegacyScheduleCandidate } from './legacy-schedule-migration.ts'
+import { inspectLegacyConfig, legacyConfigExternalWriterActive, migrateLegacyConfigCandidate } from './legacy-config-migration.ts'
 import { deployPrebuiltProfile, readPrebuiltProfile, readProfileBuildApprovals, type PrebuiltProfileManifest } from './prebuilt-profile.ts'
 import {
   BundledPluginInstaller,
@@ -233,7 +234,7 @@ const TITLEBAR_PAGE = fileURLToPath(new URL('./titlebar.html', import.meta.url))
 const TITLEBAR_PRELOAD = fileURLToPath(new URL('./titlebar-preload.cjs', import.meta.url))
 const DATA_HOME_PAGE = fileURLToPath(new URL('./data-home.html', import.meta.url))
 const DATA_HOME_PRELOAD = fileURLToPath(new URL('./data-home-preload.cjs', import.meta.url))
-const DESKTOP_PNPM_VERSION = '11.7.0'
+const DESKTOP_PNPM_VERSION = '11.28.5'
 const PROFILE_CHECK_TIMEOUT_MS = 15_000
 const PROFILE_LOCK_WAIT_MS = 5_000
 const PROFILE_REPAIR_TIMEOUT_MS = 60_000
@@ -3504,6 +3505,38 @@ async function startApplication(): Promise<void> {
   const profileMutationBlocked = profileMutationLock.active
     && !(desktopMutations.hasCandidate && profileMutationLock.pid === process.pid && profileMutationLock.workerPid === undefined)
   let startupProfileMutationAllowed = !profileMutationBlocked && !desktopMutations.recoveryRequired
+  if (startupProfileMutationAllowed) {
+    if (await legacyConfigExternalWriterActive(dshHome)) {
+      recoveryRestartRequired = true
+      showLoading('failed', { message: 'Another Profile writer is active; shared configuration was preserved.',
+        diagnosticCode: 'desktop.legacy-config-writer', logPath: harnessLogPath })
+      return
+    }
+    const legacy = await inspectLegacyConfig(dshHome, dshHome, harnessEnvironment.DSH_TOOLS_MODE)
+    const issue = legacy.issues.at(0)
+    if (issue !== undefined) {
+      const detail = legacy.issues.map(value => `${value.code}: ${value.file}; row=${value.row}`).join('\n')
+      await appendDesktopStartupLog(`Legacy configuration preserved. Review the named row before retrying:\n${detail}`)
+      recoveryRestartRequired = true
+      showLoading('failed', { message: detail, diagnosticCode: issue.code, evidence: detail, logPath: harnessLogPath })
+      return
+    }
+    if (legacy.changes.length > 0) {
+      try {
+        await desktopMutations.prepareStartup()
+        await desktopMutations.applyAtStartup({
+          operation: 'legacy-instruction-home-migration',
+          run: async context => migrateLegacyConfigCandidate(context.home, dshHome,
+            await inspectLegacyConfig(context.home, dshHome, harnessEnvironment.DSH_TOOLS_MODE)),
+        })
+        await appendDesktopStartupLog('Removed equivalent legacy instruction-home fields in the startup candidate. Original configuration bytes are retained in diagnostics/config-backups.')
+      } catch (error) {
+        await desktopMutations.abortStartup()
+        showIncompletePreparation(error instanceof Error ? error.message : String(error))
+        return
+      }
+    }
+  }
   let profileNeedsRepair = prebuilt === undefined && !profileInitialized && startupProfileMutationAllowed
   if (profileMutationBlocked) {
     const created = profileMutationLock.createdAt === undefined

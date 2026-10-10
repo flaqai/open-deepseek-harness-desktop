@@ -36,6 +36,7 @@ import {
 } from '../input/editor/view-binding.ts'
 import { resolveSubmitMode } from '../input/submission-policy.ts'
 import { attachmentErrorText, imageSizeText } from '../image-labels.ts'
+import { isImageMediaType } from '../service.ts'
 import { ContextMeter } from './ContextMeter.tsx'
 import { observeControlRow } from './control-row-layout.ts'
 import css from './InputBar.module.css'
@@ -209,8 +210,13 @@ export const InputBar = memo(function InputBar({
   // The host enforces the same image limits at submit for callers that bypass
   // this composer.
   const intakeFiles = useCallback((files: readonly File[], directories?: ReadonlySet<File>): void => {
-    if (subagent !== null || addFiles === undefined || files.length === 0) return
+    if (locked || machineBusy || (subagent !== null && !continuable) || addFiles === undefined || files.length === 0) return
     const rejected = ((): string | null => {
+      // Child prompts support images, but not generic file receipts or the
+      // Desktop path-reference fallback. Refuse mixed batches before intake.
+      if (continuable && files.some(file => directories?.has(file) || !isImageMediaType(file.type))) {
+        return t('image.unsupportedType')
+      }
       if (imageLimits !== undefined) {
         const mediaTypes = imageLimits.mediaTypes as readonly string[]
         const images = files.filter(file => mediaTypes.includes(file.type))
@@ -230,9 +236,9 @@ export const InputBar = memo(function InputBar({
       return addFiles(files, directories)
     })()
     if (rejected !== null) showToast(rejected)
-  }, [subagent, addFiles, attachments, imageLimits, showToast, t])
+  }, [locked, machineBusy, subagent, continuable, addFiles, attachments, imageLimits, showToast, t])
 
-  const canAcceptDrop = subagent === null && !locked && !machineBusy && addFiles !== undefined
+  const canAcceptDrop = (subagent === null || continuable) && !locked && !machineBusy && addFiles !== undefined
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const onPickFiles = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -269,6 +275,20 @@ export const InputBar = memo(function InputBar({
   // not moved, and the next keystroke gets the browser's native one.
   const keepFocus = (e: MouseEvent<HTMLButtonElement>): void => {
     keepDraftFocus(e, editor)
+  }
+
+  const onCardMouseDown = (e: MouseEvent<HTMLDivElement>): void => {
+    if (!editable || editor === null || e.button !== 0 || e.defaultPrevented) return
+    const target = e.target
+    if (!(target instanceof Element) || !e.currentTarget.contains(target)) return
+    if (target.closest('[data-composer-overlay]') !== null) return
+    if (scrollRef.current?.contains(target)) return
+    const control = target.closest('button, a, input, select, textarea, [role="button"], [contenteditable], [tabindex]')
+    if (control !== null && e.currentTarget.contains(control)) return
+    e.preventDefault()
+    // Lexical's stored selection can lag behind native caret moves, so calling
+    // editor.focus() on a focused editor can restore an older caret.
+    if (document.activeElement !== editor.getRootElement()) focusDraftEditor(editor, revealSelection)
   }
 
   const onToggleCommandMenu = (): void => {
@@ -378,9 +398,10 @@ export const InputBar = memo(function InputBar({
         data-composer-card
         onClick={workspaceTrigger ? onRequestWorkspace : undefined}
         onPointerDown={workspaceTrigger ? (e) => { e.stopPropagation() } : undefined}
+        onMouseDown={onCardMouseDown}
       >
         {sessionId !== undefined && (
-          <div className={css.overlayAnchor}>{renderSlot('conversation.input.overlay', {})}</div>
+          <div className={css.overlayAnchor} data-composer-overlay>{renderSlot('conversation.input.overlay', {})}</div>
         )}
         {accessory !== undefined && <div className={css.accessory}>{accessory}</div>}
         {renderSlot('conversation.input.attachments', {

@@ -41,6 +41,12 @@ With a roster composed, `agentPresets` carries one group per preset in roster or
 
 The inventory is a snapshot for display and diagnostics: a client can render the roster, flag failed entries, and detect changes by comparing snapshots. It cannot enable, disable, add, or remove plugins, and it carries no history — a fiber that already failed and was removed is absent. Because the service reads the Loader on every call, the answer always reflects the current composition rather than a cached view.
 
+### External coding tools
+
+The separate `externalTools` and `setExternalTool` Remotes read and update the Codex/Claude Code connection flags for complete presets; their payloads remain boolean connection preferences, not activation or model-selection settings. The preset registry owns persistence and safe-boundary mounting. This gateway binds each enabled product to its named `tool-subagent` tool with provider-managed recursion and local child model selection explicitly disabled: these backends own their models and do not support child `agentOptions`.
+
+Delegation now always returns a managed activation; external backends still execute one task, and completion reaches the parent through runtime notices. There is no replacement `activationMode` configuration. Existing user presets, patches, and overlays must remove obsolete `backgroundMode` and `enableRunInBackground` keys while preserving providers, tool names, and other supported configuration, as described in the [activation upgrade guide](../../../docs/upgrade-guide/v0.2.1-alpha.1/subagent-activations/guide.md). The gateway does not rewrite user configuration or translate these retired keys into model-selection preferences.
+
 -----
 
 <a id="understand-the-implementation"></a>

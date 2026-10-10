@@ -15,7 +15,8 @@ import type {
   SubprocessTerminalSpawnSpec,
 } from '@deepseek-ai/dsh-subprocess'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
-import type { AgentPresetRegistry } from '@deepseek-ai/dsh-agent-preset-registry'
+import type { AgentPresetRegistry, ExternalToolProjector } from '@deepseek-ai/dsh-agent-preset-registry'
+import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import PluginInventoryGateway, { readPluginInventory } from '../src/index.ts'
 import type { PluginDiagnosticExport } from '../src/types.ts'
 
@@ -324,6 +325,37 @@ describe('PluginInventoryGateway', () => {
       .rejects.toThrow(/agent preset roster is unavailable/)
     await expect(inventory.setExternalTool({ tool: 'hermes' as 'codex', enabled: true }))
       .rejects.toThrow(/unsupported external tool/)
+  })
+
+  it('projects external backend tools into managed activations without local model selection', async () => {
+    const { ctx } = await harness()
+    let projector: ExternalToolProjector | undefined
+    const unregister = vi.fn()
+    ctx.provide('agentPresets', {
+      registerExternalToolProjector(value: ExternalToolProjector) {
+        projector = value
+        return unregister
+      },
+    } as unknown as AgentPresetRegistry)
+    await vi.waitFor(() => { expect(projector).toBeTypeOf('function') })
+    const dispose = vi.fn()
+    const plugin = vi.fn((_plugin: typeof ToolSubagent, _config: ToolSubagent.Config) => ({ dispose }))
+    const agent = { ctx: { plugin } } as unknown as Parameters<ExternalToolProjector>[0]
+    for (const tool of ['codex', 'claude-code'] as const) {
+      const unmount = projector!(agent, tool)
+      expect(plugin).toHaveBeenLastCalledWith(ToolSubagent, expect.objectContaining({
+        provider: tool,
+        toolName: tool === 'codex' ? 'subagent_codex' : 'subagent_claude_code',
+        modelSelectionSettings: false,
+        maxDepth: 'provider-managed',
+      }))
+      const config = plugin.mock.calls.at(-1)![1]
+      expect(config).not.toHaveProperty('backgroundMode')
+      await unmount()
+    }
+    expect(dispose).toHaveBeenCalledTimes(2)
+    await ctx.fiber.dispose()
+    expect(unregister).toHaveBeenCalledOnce()
   })
 
   it('projects declared Host compatibility without exposing package paths', async () => {

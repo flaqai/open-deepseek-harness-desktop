@@ -279,20 +279,24 @@ const EXPERIMENTAL_CAPABILITY_RECIPES = {
   readonly dependencies: readonly string[]
 }>
 
-/** Product-specific tool bindings kept out of the generic preset package. */
+/**
+ * Product-specific tool bindings kept out of the generic preset package.
+ * Every call uses tool-subagent's managed activation lifecycle; external
+ * backends own their models and do not support local child model selection.
+ */
 const EXTERNAL_TOOL_CONFIGS = {
   codex: {
     provider: 'codex',
     toolName: 'subagent_codex',
     usageHint: 'Codex is connected through the subagent_codex tool. When the user asks to use Codex or asks for work to be done in Codex, call subagent_codex instead of searching for or invoking a Codex CLI through shell tools.',
-    backgroundMode: 'one-shot',
+    modelSelectionSettings: false,
     maxDepth: 'provider-managed',
   },
   'claude-code': {
     provider: 'claude-code',
     toolName: 'subagent_claude_code',
     usageHint: 'Claude Code is connected through the subagent_claude_code tool. When the user asks to use Claude Code or asks for work to be done in Claude Code, call subagent_claude_code instead of searching for or invoking a Claude CLI through shell tools.',
-    backgroundMode: 'one-shot',
+    modelSelectionSettings: false,
     maxDepth: 'provider-managed',
   },
 } as const satisfies Record<ExternalToolId, ToolSubagent.Config>

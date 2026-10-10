@@ -82,7 +82,7 @@ function connectThroughProxy(
     if (upstream.authorization !== undefined) lines.push(`Proxy-Authorization: ${upstream.authorization}`)
     socket.write(`${lines.join('\r\n')}\r\n\r\n`)
   }
-  const socket = upstream.url.protocol === 'https:'
+  const socket: Socket = upstream.url.protocol === 'https:'
     ? connectTls({ host: upstream.url.hostname, port, servername: upstream.url.hostname }, connected)
     : connectTcp({ host: upstream.url.hostname, port }, connected)
   let response = Buffer.alloc(0)

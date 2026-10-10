@@ -41,6 +41,12 @@ kind: "package-reference"
 
 该清单是供展示与诊断的快照：客户端可以渲染名单、标出失败条目，并通过比较快照检测变化。它不能启用、停用、添加或移除插件，也不携带历史——已经失败并被移除的 fiber 缺席。由于服务每次调用都读取 Loader，答案总是反映当前组合，而不是缓存视图。
 
+### 外部编程工具
+
+独立的 `externalTools` 与 `setExternalTool` Remote 读取和更新完整预设的 Codex/Claude Code 连接开关；其 payload 仍是布尔连接偏好，不是 activation 或模型选择设置。预设注册表负责持久化和安全边界挂载。本网关把启用的产品绑定到具名 `tool-subagent` 工具，使用提供方管理的递归深度，并明确禁用本地子级模型选择：这些后端自行管理模型，不支持子级 `agentOptions`。
+
+委派现在统一返回受管 activation；外部后端仍执行单个任务，完成结果由运行时通知送达父级。不存在替代的 `activationMode` 配置。现有用户预设、补丁与覆盖文件需要移除废弃的 `backgroundMode` 和 `enableRunInBackground`，保留提供方、工具名及其余受支持配置，详见 [activation 升级指南](../../../docs/upgrade-guide/v0.2.1-alpha.1/subagent-activations/guide.zh.md)。本网关不会改写用户配置，也不会把这些废弃键转成模型选择偏好。
+
 -----
 
 <a id="understand-the-implementation"></a>

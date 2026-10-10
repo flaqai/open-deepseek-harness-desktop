@@ -75,6 +75,7 @@ export const apply = ctx => globalThis.__webStartupApply(ctx)
     '    nas: !!js ctx.webStartup.nas',
     '    deviceLifetimeDays: !!js ctx.webStartup.deviceLifetimeDays',
     ...nasRow === undefined ? [] : [nasRow.replace(/^\s+nas:/, '    nasRuntime:')],
+    '    tls: !!js ctx.webStartup.tls',
     '- id: provider',
     `  name: ${pathToFileURL(join(dir, 'provider.mjs')).href}`,
     '',
@@ -110,6 +111,8 @@ describe('web command-line provider', () => {
       '--port', '8080',
       '--trusted-host', 'lab.internal', 'lab-2.internal',
       '--trusted-host', '10.0.0.9',
+      '--tls-cert', 'fullchain.pem',
+      '--tls-key', 'private-key.pem',
     ])
     expect(values).toEqual({
       host: '127.0.0.1',
@@ -118,9 +121,20 @@ describe('web command-line provider', () => {
       trustedHosts: ['lab.internal', 'lab-2.internal', '10.0.0.9'],
       nas: false,
       deviceLifetimeDays: 90,
+      tls: { certFile: 'fullchain.pem', keyFile: 'private-key.pem' },
     })
     expect(observed.readerConfig).toEqual(values)
     expect(observed.exits).toEqual([])
+  })
+
+  // The webserver suite owns the wildcard spellings; the CLI only has to
+  // refuse them by address value before any consumer activates.
+  it.each(['0.0.0.0', '::ffff:0.0.0.0'])('rejects wildcard --host %s before activating consumers', async (host) => {
+    const { values, observed } = await bootProvider(['--host', host])
+    expect(observed.out).toContain(`error: --host ${host} is an unspecified (wildcard) address`)
+    expect(values).toBeUndefined()
+    expect(observed.readerConfig).toBeUndefined()
+    expect(observed.exits).toEqual([1])
   })
 
   it('leaves deployment values to each consumer when flags omit them', async () => {
@@ -157,7 +171,7 @@ describe('web command-line provider', () => {
 
   it('rejects the intentionally unsupported all-interfaces host before the consumer activates', async () => {
     const { values, observed } = await bootProvider(['--host', '0.0.0.0'])
-    expect(observed.out).toContain('--host 0.0.0.0 requires --nas')
+    expect(observed.out).toContain('--host 0.0.0.0 is an unspecified (wildcard) address')
     expect(values).toBeUndefined()
     expect(observed.readerConfig).toBeUndefined()
     expect(observed.exits).toEqual([1])
@@ -189,6 +203,12 @@ describe('web command-line provider', () => {
     expect(observed.exits).toEqual([1])
   })
 
+  it.each(['::', '::ffff:0.0.0.0'])('rejects NAS wildcard spelling %s outside the IPv4 carrier', async (host) => {
+    const { values, observed } = await bootProvider(['--nas', '--trusted-host', 'nas.example', '--host', host])
+    expect(values).toBeUndefined()
+    expect(observed.exits).toEqual([1])
+  })
+
   it('resolves the shipped NAS expression into the required runtime configuration', async () => {
     const { observed } = await bootProvider([
       '--nas', '--trusted-host', 'nas.example', '--nas-name', 'Studio NAS',
@@ -203,7 +223,6 @@ describe('web command-line provider', () => {
     expect(nas?.version).toBeTypeOf('string')
     expect(new WebRuntimeConfig({ nas }).nas).toEqual(nas)
   })
-
   it('publishes --public-url as advertisement only, leaving the fence to --trusted-host', async () => {
     const { values, observed } = await bootProvider([
       '--public-url', 'https://web.example/ui',
@@ -241,6 +260,14 @@ describe('web command-line provider', () => {
     })
     expect(observed.readerConfig).toMatchObject({ host: '0.0.0.0', nas: true })
     expect(observed.exits).toEqual([])
+  })
+
+  it.each(['--tls-cert', '--tls-key'])('rejects an unpaired %s before activating consumers', async (flag) => {
+    const { values, observed } = await bootProvider([flag, 'server.pem'])
+    expect(observed.out).toContain('--tls-cert and --tls-key must be supplied together')
+    expect(values).toBeUndefined()
+    expect(observed.readerConfig).toBeUndefined()
+    expect(observed.exits).toEqual([1])
   })
 
   it('rejects a malformed --public-url before the consumer activates', async () => {

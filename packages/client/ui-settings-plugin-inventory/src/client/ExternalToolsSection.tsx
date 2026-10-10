@@ -877,6 +877,7 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
               : { exitCode: progressInstall.exitCode })}
             maxLines={Infinity}
             labels={{
+              commandLine: line => t('external.terminal.commandLine', { line: String(line) }),
               signal: signal => t('external.terminal.signal').replace('{signal}', signal),
               exitCode: code => t('external.terminal.exitCode').replace('{code}', String(code)),
               noExitCode: t('external.terminal.noExitCode'),

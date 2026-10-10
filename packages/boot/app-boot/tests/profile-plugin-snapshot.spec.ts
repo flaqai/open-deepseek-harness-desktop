@@ -35,6 +35,24 @@ function fixture() {
 }
 
 describe('Profile plugin snapshots', () => {
+  it('restores the home configuration byte for byte without changing credentials', () => {
+    const { home } = fixture()
+    try {
+      const patch = join(home, 'cordis.patch.yml')
+      const original = '# keep comments\nplugins: []\n'
+      writeFileSync(patch, original)
+      writeFileSync(join(home, 'credentials.json'), '{"keep":"private"}')
+      const snapshot = createProfilePluginSnapshot({ home, profile: 'web', kind: 'manual', trigger: 'manual' })
+      expect(snapshot.files.some(file => file.relativePath === 'cordis.patch.yml' && file.existed)).toBe(true)
+      writeFileSync(patch, 'plugins: []\n')
+      restoreProfilePluginSnapshotFiles({ home, profile: 'web', snapshotId: snapshot.snapshotId })
+      expect(readFileSync(patch, 'utf8')).toBe(original)
+      expect(readFileSync(join(home, 'credentials.json'), 'utf8')).toBe('{"keep":"private"}')
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
   it('publishes only complete owners and refuses a concurrent contender', () => {
     const { home } = fixture()
     const originalLink = filesystem.linkSync

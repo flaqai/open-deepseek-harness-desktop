@@ -1335,7 +1335,8 @@ export function WorkspaceBrowser({
           side="right"
           onPick={(workspaceId) => {
             closeAddWorkspace()
-            startAndDismiss(workspaceId)
+            startSession(workspaceId, { clearPreviousDraft: false })
+            dismissSidebar()
           }}
           onClose={() => { closeAddWorkspace() }}
         />

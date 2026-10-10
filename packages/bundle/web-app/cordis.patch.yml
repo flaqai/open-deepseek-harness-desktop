@@ -7,15 +7,15 @@
 #
 # The web-startup plugin injects `cmdlineArgs` and provides `webStartup` as an
 # ordinary Cordis service. Rows configured from flags inject that service, so
-# Loader resolves their expressions only after it exists. The web runtime then
-# provides bind-dependent `webRuntime` values to the trust fence.
+# Loader resolves their expressions only after it exists. The web-runtime row
+# validates the advertised public URL; Connection reads invocation authorities
+# directly from `webStartup`.
 # `dsh --profile web --help` provides no `webStartup`, so no server binds.
 
 # ── surface-specific values the base deliberately omits ─────────────────────
 
 - id: system-prompt
   config:
-    personaSuffix: Your working directory is {{cwd}}.
     personaPrefix: >-
       You are a coding agent powered by the {{model}} model.
 
@@ -31,7 +31,7 @@
 
 - id: tools
   config:
-    # TEMPORARY workaround: DSH_TOOLS_MODE (native|ptc|both) opts a whole dsh
+    # TEMPORARY workaround: DSH_TOOLS_MODE (native|ptc) opts a whole dsh
     # process into PTC mode while per-session tool-presentation selection is being
     # designed; unset keeps the schema default (native). Remove the env seam
     # once the web UI owns the choice per session.
@@ -179,13 +179,16 @@
     # webStartup provider, with these deployment fallbacks. The dist is served
     # by the web-runtime row below through the fallback seat. Routing and
     # browser-facing asset paths do not depend on the advertised URL, which the
-    # web-runtime row owns.
+    # web-runtime row owns; Connection reads trust authorities from webRuntime.
+    # Ordinary Web rejects wildcard binds; explicit NAS permits only 0.0.0.0.
     - id: webserver
       name: '@deepseek-ai/dsh-host-webserver'
       inject: [webStartup]
       config:
         host: !!js "ctx.webStartup.host ?? (ctx.webStartup.nas ? '0.0.0.0' : '127.0.0.1')"
+        nasRuntime: !!js ctx.webStartup.nas
         port: !!js ctx.webStartup.port ?? 3080
+        tls: !!js ctx.webStartup.tls
         compression: gzip
         compressionLevel: 1
         compressionThresholdBytes: 1024
@@ -196,9 +199,8 @@
     # section and the bash runtime variable, prints the URL line, and opens the
     # canonical URL after the full Loader tree settles and the required-
     # entry audit passes. Invocation-only values come from the webStartup
-    # provider; the advertised application URL is this row's `publicUrl` (the
-    # loopback URL when unset). After the server binds, this row samples LAN
-    # trust once and provides `webRuntime`. A complete agent-preset persona
+    # provider; the advertised application URL is this row's `publicUrl`,
+    # otherwise the bind-address URL. A complete agent-preset persona
     # suppresses the prompt section for that agent while retaining the
     # host-owned shell variable.
     - id: web-runtime
@@ -230,8 +232,8 @@
 
     # Owns both ends of the web transport: node half binds the gateway to the
     # webserver under /api; browser half is the fetch/SSE client. Every API
-    # request and upgrade passes the loopback plus trustedHosts policy; an
-    # advertised public URL contributes nothing to it.
+    # request and upgrade passes the loopback, listener-bind, or trustedHosts
+    # policy; an advertised public URL contributes nothing to it.
     - id: connection
       name: '@deepseek-ai/dsh-client-connection'
       # Connection keeps its service carrier-neutral, but this Web composition
@@ -495,8 +497,8 @@
   disabled: true
 
 # The background-job REGISTRY stays on the host plane; only the model-facing
-# `job_*` controls move. Its producers — `tool-bash` here, `tool-terminal` and a
-# non-continuable `tool-subagent` elsewhere — are preset rows that resolve it
+# `job_*` controls move. Its producers — `tool-bash` here and `tool-terminal`
+# elsewhere — are preset rows that resolve it
 # with `ctx.get`, and an entry-local realm around the registry is invisible to
 # every sibling row outside that realm, so `run_in_background` answered
 # "background jobs unavailable" while the controls sat in the catalog. That is
@@ -579,12 +581,6 @@
   disabled: true
 
 - id: tool-workflow
-  disabled: true
-
-# `base` ships this row disabled; the preset-plane gate reads declared row ids
-# without regard to `disabled`, so this row must stay to keep `tool-ralph` off
-# the host plane and out of collision with every preset's row.
-- id: tool-ralph
   disabled: true
 
 - id: agent-instructions

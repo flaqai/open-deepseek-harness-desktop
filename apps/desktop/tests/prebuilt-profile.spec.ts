@@ -15,7 +15,7 @@ async function fixture() {
   await mkdir(join(source, 'profiles/web/node_modules/demo'), { recursive: true })
   await writeFile(join(source, 'profiles/web/package.json'), JSON.stringify({ path: source }))
   await writeFile(join(source, 'profiles/web/node_modules/demo/index.js'), 'export const value = 1\n')
-  const identity = { target: 'darwin-arm64', nodeVersion: '24.21.0', pnpmVersion: '11.7.0', runtimeVersion: '0.1.5', pluginManifestSha256: 'a'.repeat(64) }
+  const identity = { target: 'darwin-arm64', nodeVersion: '24.21.0', pnpmVersion: '11.28.5', runtimeVersion: '0.1.5', pluginManifestSha256: 'a'.repeat(64) }
   const manifest = await sealPrebuiltProfile(source, identity, {}, join(root, 'runtime'))
   return { root, source, target, manifest }
 }

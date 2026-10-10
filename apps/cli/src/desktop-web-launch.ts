@@ -1,10 +1,12 @@
 /** Prevent inherited self-restart commands from competing with the Desktop supervisor. */
 import { resolve } from 'node:path'
+import { readFile } from 'node:fs/promises'
 
 interface DesktopWebGeneration {
   ownerPid: number
   home: string
   hostPid: number
+  generation?: number
 }
 
 /**
@@ -30,6 +32,52 @@ export function claimDesktopWebLaunch(profile: string, home: string, environment
     }
     return normalize(record.home) !== normalize(home)
   }
-  environment.DSH_DESKTOP_WEB_GENERATION = JSON.stringify({ ownerPid, home: normalize(home), hostPid: process.pid })
+  const generation = environment.DSH_DESKTOP_WEB_OWNER_GENERATION
+  if (environment.DSH_DESKTOP_WEB_RESTART_STATE !== undefined
+    && (generation === undefined || !Number.isSafeInteger(Number(generation)) || Number(generation) <= 0)) {
+    throw new Error('dsh: invalid Desktop restart generation')
+  }
+  environment.DSH_DESKTOP_WEB_GENERATION = JSON.stringify({ ownerPid, home: normalize(home), hostPid: process.pid,
+    ...(generation === undefined ? {} : { generation: Number(generation) }) })
   return true
+}
+
+/**
+ * Keep a delegated replacement alive until its owner has a new normal listener.
+ * Helpers interpret early process exit as failed boot and may bind a recovery
+ * server. This wait initializes no Profile and carries no authentication data.
+ * @param environment - Inherited generation and private Supervisor state path.
+ * @param timeoutMs - Bounded wait, shorter than the market helper's boot budget.
+ */
+export async function waitForDesktopWebRestart(environment: NodeJS.ProcessEnv, timeoutMs = 45_000): Promise<void> {
+  const path = environment.DSH_DESKTOP_WEB_RESTART_STATE
+  if (path === undefined) return
+  const inherited = JSON.parse(environment.DSH_DESKTOP_WEB_GENERATION ?? 'null') as DesktopWebGeneration | null
+  const previousGeneration = inherited?.generation
+  if (inherited === null || typeof previousGeneration !== 'number' || !Number.isSafeInteger(previousGeneration) || previousGeneration <= 0) {
+    throw new Error('dsh: invalid Desktop restart generation')
+  }
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try { process.kill(inherited.ownerPid, 0) } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ESRCH') return
+      throw error
+    }
+    let source: string | undefined
+    try { source = await readFile(path, 'utf8') } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+    if (source !== undefined) {
+      const state = JSON.parse(source) as { ownerPid?: number; generation?: number; phase?: string } | null
+      const generation = state?.generation
+      if (state === null || state.ownerPid !== inherited.ownerPid || typeof generation !== 'number' || !Number.isSafeInteger(generation)
+        || generation <= 0 || !['starting', 'ready', 'failed', 'stopped'].includes(state.phase ?? '')) {
+        throw new Error('dsh: invalid Desktop restart state')
+      }
+      if (state.phase === 'failed' || state.phase === 'stopped') return
+      if (state.phase === 'ready' && generation > previousGeneration) return
+    }
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  throw new Error('dsh: Desktop restart readiness timed out')
 }

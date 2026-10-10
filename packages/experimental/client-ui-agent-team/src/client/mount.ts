@@ -13,7 +13,7 @@ import { AgentTeamComposerHint, AgentTeamUseAction, type AgentTeamOnboardingInje
 import { en, NS, zh, type TeamKey } from './locales.ts'
 import { AgentTeamOnboardingController } from './onboarding.ts'
 
-const AGENT_TEAM_WEB_BUNDLE = '@deepseek-ai/dsh-experimental-agent-team-web-profile'
+const AGENT_TEAM_BUNDLE = '@deepseek-ai/dsh-experimental-agent-team-profile'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -82,7 +82,7 @@ export function registerAgentTeamUi(ctx: ClientContext): void {
       id: 'agent-team',
       order: -20,
       locale: NS,
-      inject: () => actions,
+      inject: () => ({ ...actions, ...onboardingActions }),
     }, TeamAction),
   )
   ctx.slots.inject(
@@ -99,7 +99,7 @@ export function registerAgentTeamUi(ctx: ClientContext): void {
     'plugins.bundle.action',
     () => ctx.slots.register({
       name: 'plugins.bundle.action',
-      key: AGENT_TEAM_WEB_BUNDLE,
+      key: AGENT_TEAM_BUNDLE,
       locale: NS,
       inject: () => onboardingActions,
     }, AgentTeamUseAction),

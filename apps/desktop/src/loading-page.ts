@@ -23,6 +23,22 @@ interface LocalizedFailure {
 }
 
 const recoveryFailures: Readonly<Record<string, LocalizedFailure>> = {
+  'desktop.legacy-config-writer': {
+    zh: ['其他 Profile 正在修改配置', '另一 Profile 的写入尚未结束，因此共享主目录配置未读取或改写。请等待操作完成后重启；锁无法读取时请导出诊断，不要删除活动写锁。'],
+    en: ['Another Profile is modifying configuration', 'Another Profile writer has not finished, so the shared home configuration was not read or rewritten. Restart after that operation finishes; export diagnostics if its lock is unreadable and keep active writer locks intact.'],
+  },
+  'desktop.legacy-tools-mode': {
+    zh: ['旧工具模式需要选择', '配置中的 both 已不受支持。请按下方文件和行标识编辑配置，明确选择 native（直接工具）或 ptc（程序调用），然后重启。原配置未改写；也可切换配置目录。'],
+    en: ['Choose a supported tools mode', 'The configured both mode is unsupported. Edit the file and row identified below, choose native for direct tools or ptc for program calls, then restart. Original configuration is preserved; you can also switch data directories.'],
+  },
+  'desktop.legacy-instruction-home': {
+    zh: ['旧指令目录需要确认', 'agent-instructions 的 dshHome 已不再生效。该值无法明确等同当前配置目录，因此原配置被保留。请检查下方文件和行标识，确认指令应跟随当前 DSH_HOME 后删除该字段，或切换配置目录，然后重启。'],
+    en: ['Review the legacy instruction directory', 'The agent-instructions dshHome field no longer takes effect. Its value cannot be confirmed equivalent to this data directory, so the original configuration is preserved. Review the file and row below, remove the field after confirming instructions should follow the current DSH_HOME, or switch data directories, then restart.'],
+  },
+  'desktop.legacy-config-invalid': {
+    zh: ['无法安全检查旧配置', '下方配置文件无法安全解析。请检查 YAML、文件权限或符号链接后重启，也可导出诊断或切换配置目录。原文件未改写。'],
+    en: ['Legacy configuration could not be inspected', 'The configuration file below could not be parsed safely. Check its YAML, permissions, or symbolic links and restart, or export diagnostics or switch data directories. The original file is preserved.'],
+  },
   'session.persistence-corrupt': {
     zh: ['会话日志损坏', '一个历史会话文件无法读取。卸载重装不会删除或修复用户数据；请先导出诊断，再备份会话或切换配置目录。'],
     en: ['Corrupt session log', 'A stored session cannot be read. Reinstalling does not remove or repair user data; export diagnostics, then back up the sessions or switch data directories.'],

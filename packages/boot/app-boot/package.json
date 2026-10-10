@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-app-boot",
   "description": "Shared boot glue for the app bins: .env loading, fail-loud Loader guards, snapshot-aware config resolution, and the Loader boot sequence",
-  "version": "0.2.1-alpha.1",
+  "version": "0.2.1-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -36,10 +36,9 @@
     "@deepseek-ai/dsh-package-manifest": "workspace:*",
     "@eslint-community/regexpp": "^4.12.2",
     "ajv": "^8.20.0",
-    "chokidar": "4.0.3",
     "es-module-lexer": "^2.1.0",
-    "js-yaml": "^4.2.0",
-    "node-addon-require-builtin": "^0.1.6",
+    "js-yaml": "^4.3.2",
+    "node-addon-require-builtin": "0.1.9",
     "resolve.exports": "^2.0.3",
     "semver": "^7.8.5",
     "yaml": "^2.9.0"

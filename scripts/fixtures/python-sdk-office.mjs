@@ -15,7 +15,7 @@ export async function apply(ctx, config) {
     if (json === undefined) throw new Error('Office skill did not supply CLI paths')
     const { libreofficeKit: { node, cli } } = JSON.parse(json)
     const options = { env: { ...process.env, PATH: '' }, timeout: 120_000 }
-    const capabilities = await promisify(execFile)(node, [cli, 'capabilities'], options)
+    const capabilities = await promisify(execFile)(node, [cli, 'capabilities', '--json'], options)
     await promisify(execFile)(node, [cli, 'convert', '--input', config.input, '--output', config.output + '.cli.pdf'], options)
     const pdf = await readFile(config.output + '.cli.pdf')
     if (pdf.subarray(0, 5).toString() !== '%PDF-') throw new Error('Skill CLI did not create a PDF')

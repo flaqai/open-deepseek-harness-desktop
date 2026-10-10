@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { zipSync } from 'fflate'
@@ -61,7 +61,11 @@ it('extracts a hash-verified cached library without a Python installer or networ
     const hash = createHash('sha256').update(libraryWheel).digest('hex')
     const archive = join(root, hash)
     await writeFile(archive, libraryWheel)
+    const original = await stat(archive)
     expect(await downloadPrimaryRuntimeAsset('https://unused.invalid/library.whl', hash, root)).toBe(archive)
+    const reused = await stat(archive)
+    expect(reused.ino).toBe(original.ino)
+    expect(reused.mtimeMs).toBe(original.mtimeMs)
     await unpackPrimaryRuntimeWheel(archive, join(root, 'site-packages'))
     expect(await readFile(join(root, 'site-packages/sample.py'), 'utf8')).toBe('sample = 42\n')
     await writeFile(archive, 'corrupt archive')
@@ -86,7 +90,8 @@ it('fully extracts a large deflate-compressed wheel entry', async () => {
     const archive = join(root, 'large.whl')
     await writeFile(archive, zipSync({ 'large.bin': expected }, { level: 6 }))
     await unpackPrimaryRuntimeWheel(archive, root)
-    expect(await readFile(join(root, 'large.bin'))).toEqual(expected)
+    // Native byte equality avoids a per-byte matcher traversal for this 1 MiB expected output.
+    expect((await readFile(join(root, 'large.bin'))).equals(expected)).toBe(true)
   } finally {
     await rm(root, { recursive: true, force: true })
   }

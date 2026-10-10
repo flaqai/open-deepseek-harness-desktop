@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { preparePrebuiltProfile } from './prepare-prebuilt-profile.mjs'
 import { nodeRuntimeArchivesByTarget, nodeVersion } from './node-runtime-pins.mjs'
 import { createPackagedArchive } from './create-packaged-archive.mjs'
-import { pruneDesktopRuntime } from './runtime-file-policy.mjs'
+import { pruneDesktopRuntime, removeExtraneousWorkspaceLinks } from './runtime-file-policy.mjs'
 import { preservePnpmWorkspaceState } from '../../../scripts/preserve-pnpm-workspace-state.mjs'
 import { officePackageDirectories, selectOfficeEngine, verifyBundledOfficeIdentity } from '../../../scripts/libreoffice-packages.mjs'
 
@@ -22,7 +22,7 @@ const prebuiltArchive = join(repositoryRoot, '.artifacts', 'desktop-prebuilt-win
 const harnessRoot = join(outputRoot, 'harness')
 const runtimeRoot = join(outputRoot, 'runtime', 'win32-x64')
 const downloads = join(repositoryRoot, '.artifacts', 'downloads')
-const pnpmVersion = '11.7.0'
+const pnpmVersion = '11.28.5'
 const nodeArchiveName = nodeRuntimeArchivesByTarget['win32-x64'].name
 const nodeArchiveSha256 = nodeRuntimeArchivesByTarget['win32-x64'].sha256
 const nodeArchive = join(downloads, nodeArchiveName)
@@ -169,6 +169,8 @@ async function injectWorkspaceClosure() {
     })
   }
   console.log(`prepare-windows-runtime: injected ${injected.size} workspace packages`)
+  const removed = await removeExtraneousWorkspaceLinks(join(harnessRoot, 'node_modules'), packages.keys(), injected)
+  console.log(`prepare-windows-runtime: unlinked ${removed} non-production workspace links`)
 }
 
 async function injectVendoredDependencies() {
@@ -380,6 +382,8 @@ async function verifyRuntime(selectedOfficePackage) {
     '@img/sharp-win32-x64/sharp.node',
     'node-addon-require-builtin-win32-x64-msvc',
     '@deepseek-ai/dsh-scope',
+    '@deepseek-ai/dsh-ptc-runtime-node/process',
+    '@deepseek-ai/dsh-subprocess-local/runner',
     '@deepseek-ai/dsh-web-frontend/dist/index.html',
   ]) require.resolve(packagePath)
   for (const path of [nodeExecutable, pnpmCommand, stagedPnpmEntry]) {
@@ -441,8 +445,8 @@ await preservePnpmWorkspaceState(repositoryRoot, () => run(process.execPath, [
   '--config.link-workspace-packages=true',
   harnessRoot,
 ]))
-await materializeLinks()
 await injectWorkspaceClosure()
+await materializeLinks()
 await injectVendoredDependencies()
 await pruneForeignNativePackages()
 const officeEngine = await pruneRuntimeBloat()

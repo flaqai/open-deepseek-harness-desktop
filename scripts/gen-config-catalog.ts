@@ -501,7 +501,7 @@ function unwrapExpr(expr: ts.Expression): ts.Expression {
  * Statically walk a schemastery schema expression to its key paths plus the
  * packages whose schemas an intersect composes. A key path is the top-level
  * key or a nested path through object/array compositions (`agents[].id`).
- * Handles object/union calls, chained refinements, named const schema imports
+ * Handles object/union calls, transforms, chained refinements, named const schema imports
  * through public workspace source paths, and `z.intersect([X.Config, …])`; errors on
  * anything else, so a schema the walk cannot see fails the gate instead of
  * silently thinning it. Nested values that are neither `object` nor `array`
@@ -536,6 +536,10 @@ function walkSchemaExpr(
       collectValuePaths(call.arguments[0], `${base}[]`)
       return
     }
+    if (method === 'transform' && call.arguments[0]) {
+      collectValuePaths(call.arguments[0], base)
+      return
+    }
     const inner = unwrapExpr(call.expression.expression)
     if (ts.isCallExpression(inner)) collectValuePaths(inner, base)
   }
@@ -562,6 +566,10 @@ function walkSchemaExpr(
       return
     }
     const method = call.expression.name.text
+    if (method === 'transform' && call.arguments[0]) {
+      visit(call.arguments[0])
+      return
+    }
     if (method === 'object' && call.arguments[0] && ts.isObjectLiteralExpression(call.arguments[0])) {
       for (const prop of call.arguments[0].properties) {
         if (ts.isPropertyAssignment(prop) || ts.isShorthandPropertyAssignment(prop)) {

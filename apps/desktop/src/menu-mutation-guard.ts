@@ -15,8 +15,9 @@ export interface ProfileMutationLockStatus {
 }
 
 /** Inspect a Profile lock without deleting, rewriting, or acquiring it. */
-export function inspectProfileMutationLock(home: string): ProfileMutationLockStatus {
-  const lockPath = join(home, 'plugin-snapshots', 'v1', '.profile-plugin-mutation.web.lock')
+export function inspectProfileMutationLock(home: string, profile = 'web'): ProfileMutationLockStatus {
+  if (!/^[A-Za-z0-9._~-]{1,64}$/u.test(profile)) throw new Error('desktop: invalid Profile lock identity')
+  const lockPath = join(home, 'plugin-snapshots', 'v1', `.profile-plugin-mutation.${profile}.lock`)
   let source: string
   try { source = readFileSync(lockPath, 'utf8') } catch (error) {
     return error instanceof Error && 'code' in error && error.code === 'ENOENT'

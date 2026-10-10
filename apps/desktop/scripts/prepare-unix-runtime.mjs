@@ -11,7 +11,7 @@ import { parseArgs } from 'node:util'
 import { preparePrebuiltProfile } from './prepare-prebuilt-profile.mjs'
 import { nodeRuntimeArchivesByTarget, nodeVersion } from './node-runtime-pins.mjs'
 import { createPackagedArchive } from './create-packaged-archive.mjs'
-import { pruneDesktopRuntime } from './runtime-file-policy.mjs'
+import { pruneDesktopRuntime, removeExtraneousWorkspaceLinks } from './runtime-file-policy.mjs'
 import { preservePnpmWorkspaceState } from '../../../scripts/preserve-pnpm-workspace-state.mjs'
 import { officePackageDirectories, selectOfficeEngine, verifyBundledOfficeIdentity } from '../../../scripts/libreoffice-packages.mjs'
 
@@ -56,7 +56,7 @@ const archive = join(repositoryRoot, '.artifacts', `${runtimeName}.tar`)
 const prebuilt = join(repositoryRoot, '.artifacts', `desktop-prebuilt-${target}`)
 const prebuiltArchive = join(repositoryRoot, '.artifacts', `desktop-prebuilt-${target}.tar`)
 const runtimeMarker = '.desktop-runtime-v3'
-const pnpmVersion = '11.7.0'
+const pnpmVersion = '11.28.5'
 const nodeArchiveName = nodeRuntimeArchivesByTarget[target].name
 const nodeArchiveSha256 = nodeRuntimeArchivesByTarget[target].sha256
 const downloads = join(repositoryRoot, '.artifacts', 'downloads')
@@ -178,6 +178,8 @@ async function injectWorkspaceClosure() {
     })
   }
   console.log(`prepare-unix-runtime: injected ${injected.size} workspace packages`)
+  const removed = await removeExtraneousWorkspaceLinks(join(staging, 'node_modules'), packages.keys(), injected)
+  console.log(`prepare-unix-runtime: unlinked ${removed} non-production workspace links`)
 }
 
 async function pruneOtherOfficeEngines(selectedPackage, directory = join(staging, 'node_modules')) {
@@ -220,6 +222,8 @@ async function verifyRuntime(selectedPackage) {
     ...targetConfig.nativePackages,
     '@deepseek-ai/cosmokit',
     '@deepseek-ai/cordis-plugin-group',
+    '@deepseek-ai/dsh-ptc-runtime-node/process',
+    '@deepseek-ai/dsh-subprocess-local/runner',
     '@deepseek-ai/dsh-web-frontend/dist/index.html',
   ]) require.resolve(packagePath)
   for (const secretName of ['.env', 'auth.json']) {

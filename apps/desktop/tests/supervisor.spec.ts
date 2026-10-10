@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -12,6 +12,213 @@ afterEach(async () => {
 })
 
 describe('Harness supervisor startup failures', () => {
+  it('terminates surviving owned range members after direct exit before awaiting restart admission', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-supervisor-surviving-range-'))
+    roots.push(root)
+    const done = Promise.withResolvers<{ exitCode: number | null; signal: NodeJS.Signals | null }>()
+    const stdout = new PassThrough()
+    const stderr = new PassThrough()
+    const events: string[] = []
+    const inspection = Promise.withResolvers<undefined>()
+    const terminate = vi.fn(() => { events.push('terminate') })
+    const waitForExit = vi.fn(async () => {
+      events.push('idle')
+      if (!terminate.mock.calls.length) throw new Error('surviving helper cannot exit until owner takes over')
+      return true
+    })
+    const supervisor = new HarnessSupervisor({
+      launch: { command: 'node', args: [] }, environment: {}, logPath: join(root, 'harness.log'),
+      onReady: () => {}, onDiagnosticReady: () => {}, onState: () => {}, onFailure: inspection.reject,
+      beforeRestart: async () => { events.push('inspect'); inspection.resolve(undefined) },
+      managedRuntime: { register: () => 'owner', preserve: async () => {}, stopAll: async () => {},
+        stop: async () => {}, stopRecovered: async () => {}, list: () => [],
+        launch: () => ({ containment: 'linux-scope', handle: {
+          stdin: undefined, stdout, stderr, done: done.promise, waitForExit, terminate,
+        } }),
+      },
+    })
+    try {
+      supervisor.start()
+      stdout.write('dsh web: http://127.0.0.1:43129\n')
+      done.resolve({ exitCode: 0, signal: null })
+      await inspection.promise
+      expect(events).toEqual(['terminate', 'idle', 'inspect'])
+    } finally { terminate(); await supervisor.stop(); stdout.destroy(); stderr.destroy() }
+  })
+
+  it.each(['process-group', 'windows-job', 'linux-scope'])('keeps restart admission fenced until the old managed range is idle (%s)', async (containment) => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-supervisor-range-admission-'))
+    roots.push(root)
+    const done = Promise.withResolvers<{ exitCode: number | null; signal: NodeJS.Signals | null }>()
+    const range = Promise.withResolvers<boolean>()
+    const observed = Promise.withResolvers<undefined>()
+    const stdout = new PassThrough()
+    const stderr = new PassThrough()
+    const launch = vi.fn(() => ({ containment, handle: {
+      stdin: undefined, stdout, stderr, done: done.promise,
+      waitForExit: async () => { observed.resolve(undefined); return range.promise }, terminate: vi.fn(),
+    } }))
+    const inspection = vi.fn(async () => {})
+    const supervisor = new HarnessSupervisor({
+      launch: { command: 'node', args: [] }, environment: {}, logPath: join(root, 'harness.log'),
+      onReady: () => {}, onDiagnosticReady: () => {}, onState: () => {}, onFailure: () => {},
+      beforeRestart: inspection,
+      managedRuntime: { register: () => 'owner', preserve: async () => {}, stopAll: async () => {},
+        stop: async () => {}, stopRecovered: async () => {}, list: () => [], launch },
+    })
+    try {
+      supervisor.start()
+      stdout.write('dsh web: http://127.0.0.1:43129\n')
+      done.resolve({ exitCode: 0, signal: null })
+      await observed.promise
+      expect(launch).toHaveBeenCalledTimes(1)
+      expect(inspection).not.toHaveBeenCalled()
+      const stopping = supervisor.stop()
+      range.resolve(true)
+      await stopping
+      await new Promise(resolve => setTimeout(resolve, 550))
+      expect(launch).toHaveBeenCalledTimes(1)
+      expect(inspection).not.toHaveBeenCalled()
+    } finally { range.resolve(true); await supervisor.stop(); stdout.destroy(); stderr.destroy() }
+  })
+
+  it('publishes terminal failure instead of starting a competing service when managed range remains active', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-supervisor-active-range-'))
+    roots.push(root)
+    const done = Promise.withResolvers<{ exitCode: number | null; signal: NodeJS.Signals | null }>()
+    const reported = Promise.withResolvers<HarnessFailure>()
+    const stdout = new PassThrough()
+    const stderr = new PassThrough()
+    const waitForExit = vi.fn().mockResolvedValue(false)
+    const launch = vi.fn(() => ({ containment: 'linux-scope', handle: {
+      stdin: undefined, stdout, stderr, done: done.promise, waitForExit, terminate: vi.fn(),
+    } }))
+    const supervisor = new HarnessSupervisor({
+      launch: { command: 'node', args: [] }, environment: {}, logPath: join(root, 'harness.log'),
+      onReady: () => {}, onDiagnosticReady: () => {}, onState: () => {}, onFailure: reported.resolve,
+      managedRuntime: { register: () => 'owner', preserve: async () => {}, stopAll: async () => {},
+        stop: async () => {}, stopRecovered: async () => {}, list: () => [], launch },
+    })
+    try {
+      supervisor.start()
+      stdout.write('dsh web: http://127.0.0.1:43129\n')
+      done.resolve({ exitCode: 0, signal: null })
+      expect((await reported.promise).message).toContain('process range did not become idle')
+      expect(launch).toHaveBeenCalledTimes(1)
+      const directory = (await readdir(root)).find(name => name.startsWith('.desktop-web-restart-'))!
+      const state: unknown = JSON.parse(await readFile(join(root, directory, 'state.json'), 'utf8'))
+      expect(state).toMatchObject({ phase: 'failed' })
+    } finally { waitForExit.mockResolvedValue(true); await supervisor.stop(); stdout.destroy(); stderr.destroy() }
+  })
+
+  it.each([['--port', '0'], ['--port=0'], ['--port', '1234', '--port', '0']])('reuses the actual listener port after a normal port-zero generation exits (%j)', async (...args) => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-supervisor-stable-origin-'))
+    roots.push(root)
+    const script = join(root, 'listen.mjs')
+    await writeFile(script, `
+      import { createServer } from 'node:http'
+      import { existsSync, writeFileSync } from 'node:fs'
+      const first = !existsSync(${JSON.stringify(join(root, 'started'))})
+      writeFileSync(${JSON.stringify(join(root, 'started'))}, '1')
+      let port
+      for (let i = 0; i < process.argv.length; i++) {
+        if (process.argv[i] === '--port') port = process.argv[i + 1]
+        else if (process.argv[i].startsWith('--port=')) port = process.argv[i].slice(7)
+      }
+      writeFileSync(${JSON.stringify(join(root, 'requested-port'))}, port)
+      writeFileSync(${JSON.stringify(join(root, 'current-home'))}, process.env.DSH_HOME)
+      const server = createServer((req, res) => res.end('ready'))
+      server.listen(Number(port), '127.0.0.1', () => {
+        console.log('dsh web: http://127.0.0.1:' + server.address().port)
+        if (first) setTimeout(() => process.exit(0), 250)
+      })
+    `)
+    const urls: string[] = []
+    const ready = Promise.withResolvers<undefined>()
+    const environment = { ...process.env, DSH_HOME: join(root, 'first home') }
+    const supervisor = new HarnessSupervisor({ launch: { command: process.execPath, args: [script, ...args] },
+      environment, logPath: join(root, 'harness.log'),
+      onReady: (url) => { urls.push(url); if (urls.length >= 2) ready.resolve(undefined) },
+      onDiagnosticReady: () => {}, onState: () => {}, onFailure: ready.reject })
+    try {
+      supervisor.start()
+      await ready.promise
+      expect(new URL(urls[1]!).port).toBe(new URL(urls[0]!).port)
+      expect(await readFile(join(root, 'requested-port'), 'utf8')).toBe(new URL(urls[0]!).port)
+      await supervisor.stop()
+      environment.DSH_HOME = join(root, 'second home')
+      expect(supervisor.resume()).toBe(true)
+      const until = Date.now() + 5000
+      while (urls.length < 3 && Date.now() < until) await new Promise(resolve => setTimeout(resolve, 25))
+      expect(urls).toHaveLength(3)
+      expect(await readFile(join(root, 'requested-port'), 'utf8')).toBe('0')
+      expect(await readFile(join(root, 'current-home'), 'utf8')).toBe(environment.DSH_HOME)
+    } finally { await supervisor.stop() }
+  })
+  it('retains an explicit final port flag even when an earlier duplicate requests zero', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-supervisor-explicit-port-'))
+    roots.push(root)
+    const script = join(root, 'explicit.mjs')
+    await writeFile(script, `
+      import { existsSync, writeFileSync } from 'node:fs'
+      const first = !existsSync(${JSON.stringify(join(root, 'args'))})
+      writeFileSync(${JSON.stringify(join(root, 'args'))}, JSON.stringify(process.argv.slice(2)))
+      console.log('dsh web: http://127.0.0.1:55000')
+      if (first) setTimeout(() => process.exit(0), 100)
+      else setInterval(() => {}, 1000)
+    `)
+    let generations = 0
+    const ready = Promise.withResolvers<undefined>()
+    const args = ['--port', '0', '--port', '44444']
+    const supervisor = new HarnessSupervisor({ launch: { command: process.execPath, args: [script, ...args] },
+      environment: { ...process.env }, logPath: join(root, 'harness.log'),
+      onReady: () => { if (++generations === 2) ready.resolve(undefined) },
+      onDiagnosticReady: () => {}, onState: () => {}, onFailure: ready.reject })
+    try {
+      supervisor.start()
+      await ready.promise
+      expect(JSON.parse(await readFile(join(root, 'args'), 'utf8'))).toEqual(args)
+    } finally { await supervisor.stop() }
+  })
+  it.skipIf(process.platform === 'win32').each(['ownership', 'rename'])('stops the owned child even when restart state IO fails (%s)', async (failure) => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-supervisor-state-failure-'))
+    roots.push(root)
+    const ready = Promise.withResolvers<undefined>()
+    let pid: number | undefined
+    const supervisor = new HarnessSupervisor({ launch: { command: process.execPath, args: ['-e', "console.log('dsh web: http://127.0.0.1:43129'); setInterval(() => {}, 1000)"] },
+      environment: { ...process.env }, logPath: join(root, 'harness.log'), onSpawn: (value) => { pid = value },
+      onReady: () => { ready.resolve(undefined) }, onDiagnosticReady: () => {}, onState: () => {}, onFailure: ready.reject })
+    const directory = join(root, (await readdir(root)).find(name => name.startsWith('.desktop-web-restart-'))!)
+    try {
+      supervisor.start()
+      await ready.promise
+      if (failure === 'ownership') await chmod(directory, 0o755)
+      else { await rm(join(directory, 'state.json')); await mkdir(join(directory, 'state.json')) }
+      await expect(supervisor.stop()).rejects.toThrow()
+      expect(() => process.kill(pid!, 0)).toThrow()
+      expect(await readdir(directory)).not.toContain('state.json.tmp')
+    } finally {
+      await chmod(directory, 0o700)
+      if (failure === 'rename') await rm(join(directory, 'state.json'), { recursive: true })
+      await supervisor.stop()
+    }
+  })
+  it.skipIf(process.platform === 'win32')('refuses startup before spawning if restart state ownership is invalid', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-supervisor-refuse-state-'))
+    roots.push(root)
+    const failure = Promise.withResolvers<HarnessFailure>()
+    const spawned = vi.fn()
+    const supervisor = new HarnessSupervisor({ launch: { command: process.execPath, args: [] },
+      environment: { ...process.env }, logPath: join(root, 'harness.log'), onSpawn: spawned,
+      onReady: () => {}, onDiagnosticReady: () => {}, onState: () => {}, onFailure: failure.resolve })
+    const directory = join(root, (await readdir(root)).find(name => name.startsWith('.desktop-web-restart-'))!)
+    try {
+      await chmod(directory, 0o755)
+      supervisor.start()
+      expect((await failure.promise).message).toContain('restart coordination could not start')
+      expect(spawned).not.toHaveBeenCalled()
+    } finally { await chmod(directory, 0o700); await supervisor.stop() }
+  })
   it('contains a Windows Job range failure while stopping instead of retrying termination', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-supervisor-stop-owner-failure-'))
     roots.push(root)

@@ -14,6 +14,7 @@ import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-tes
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import { TeamAction, type TeamActionInjected, type TeamActionProps } from '../src/client/TeamAction.tsx'
 import { zh } from '../src/client/locales.ts'
+import { AgentTeamOnboardingController } from '../src/client/onboarding.ts'
 
 afterEach(() => {
   cleanup()
@@ -57,6 +58,8 @@ function bench(options: {
   openState?: SessionSnapshot['openState']
   statuses?: SessionStatusSnapshot
   running?: Record<SessionId, boolean>
+  onboarding?: boolean
+  blank?: boolean
 } = {}) {
   const sessionId = options.sessionId ?? SESSION
   const byId: Record<SessionId, SessionSummary> = {}
@@ -79,13 +82,17 @@ function bench(options: {
     hasMore: false,
     loadingOlder: false,
     promptError: null,
-    blank: false,
+    blank: options.blank ?? false,
     lastAgentError: null,
     promptAttempted: false,
     awaitingFirstTurn: false,
   })
   const useSessions = bindSnapshotSelector(sessions)
   const injected: TeamActionInjected = { openTeammate: vi.fn() }
+  const onboarding = new AgentTeamOnboardingController({
+    getItem: () => options.onboarding === true ? null : 'seen',
+    setItem: () => {},
+  })
   const props: TeamActionProps = {
     sessionId,
     useSession: bindSnapshotSelector(session),
@@ -97,10 +104,13 @@ function bench(options: {
     }) as UseProjection,
     useSessions,
     useSessionStatus: bindSnapshotSelector(statuses),
+    useAgentTeamOnboarding: bindSnapshotSelector(onboarding.store),
+    offerOnboarding: (id, blank) => { onboarding.offer(id, blank) },
+    dismissOnboarding: (id) => { onboarding.dismiss(id) },
     ...injected,
     t: makeTranslate(zh, commonZh),
   } as TeamActionProps
-  return { props, injected, sessions, statuses, session }
+  return { props, injected, sessions, statuses, session, onboarding }
 }
 
 function openPanel(): void {
@@ -123,6 +133,27 @@ function setProjection(sessions: ReturnType<typeof bench>['sessions'], sessionId
 }
 
 describe('TeamAction', () => {
+  it('introduces the header after a blank conversation gains content and dismisses on use', () => {
+    const b = bench({ onboarding: true, blank: true })
+    render(<TeamAction {...b.props} />)
+    expect(screen.queryByText(zh.onboardingLocation)).toBeNull()
+    act(() => { b.session.set({ ...b.session.getSnapshot(), blank: false }) })
+    expect(screen.getByText(zh.onboardingLocation)).toBeTruthy()
+    openPanel()
+    expect(screen.queryByText(zh.onboardingLocation)).toBeNull()
+    expect(b.onboarding.store.getSnapshot().targetSessionId).toBeUndefined()
+  })
+
+  it('shows the header location again for explicit use and lets the person dismiss it', () => {
+    const b = bench()
+    render(<TeamAction {...b.props} />)
+    act(() => { b.onboarding.show(SESSION) })
+    expect(screen.getByText(zh.onboardingLocation)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: zh.onboardingDismiss }))
+    expect(screen.queryByText(zh.onboardingLocation)).toBeNull()
+    expect(b.onboarding.store.getSnapshot().targetSessionId).toBeUndefined()
+  })
+
   it('renders the Lead projection and applies later projection frames without any user action', async () => {
     const b = bench()
     render(<TeamAction {...b.props} />)
