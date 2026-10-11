@@ -111,7 +111,8 @@ plan_set() {
 [[ "$(plan_get source.branch)" == "$branch" ]] || { echo "release plan source branch does not match $branch" >&2; exit 1; }
 [[ "$(plan_get source.sha)" == "$source_sha" ]] || { echo "release plan source SHA does not match $source_sha" >&2; exit 1; }
 [[ "$(plan_get notes.status)" == verified ]] || { echo "release plan requires verified bilingual notes" >&2; exit 1; }
-[[ "$(plan_get network.status)" == verified ]] || { echo "release plan requires a verified network route" >&2; exit 1; }
+[[ "$(plan_get network.status)" == verified ]] || { echo "release plan requires verified endpoint connectivity" >&2; exit 1; }
+export ODSH_MIN_DOWNLOAD_MIBPS="$(plan_get network.minimumMibps)"
 if [[ "$restart" == 1 && -f "$state_file" ]]; then
   mkdir -p "$state_directory"
   archived_state="$state_file.bak-$(date -u +%Y%m%dT%H%M%SZ)-$$"
@@ -166,7 +167,7 @@ if (( available_kib < required_kib )); then
   exit 1
 fi
 
-"$script_directory/check-release-download-speed.sh" "$repository"
+"$script_directory/check-release-endpoints.sh" "$repository"
 
 state_get() {
   node "$state_tool" get "$state_file" "$1"

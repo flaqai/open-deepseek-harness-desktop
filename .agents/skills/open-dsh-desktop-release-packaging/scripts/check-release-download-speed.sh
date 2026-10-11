@@ -171,7 +171,7 @@ printf 'release-node speed: %s MiB/s minimum, %s MiB/s average across %s samples
   "$speed_mibps" "$average_mibps" "$valid_samples" "$threshold_text" "$resolved_name" "$resolved_run_id" "$total_downloaded_bytes" "$total_elapsed_seconds"
 
 if awk -v speed="$minimum_speed_bps" -v minimum="$minimum_mibps" 'BEGIN { exit !(speed < minimum * 1048576) }'; then
-  echo "release-node speed is below the configured threshold; stop packaging or download, switch network/proxy/node, then retry" >&2
+  echo "release-node speed is below the configured threshold; pause download, preserve completed builds and resumable data, switch network/proxy/node, then retry" >&2
   exit 75
 fi
 

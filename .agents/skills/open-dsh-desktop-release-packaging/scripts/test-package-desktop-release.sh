@@ -22,12 +22,20 @@ cat > "$scripts/configure-cli-proxy.sh" <<'EOF'
 EOF
 cat > "$scripts/check-release-download-speed.sh" <<'EOF'
 #!/usr/bin/env bash
-echo "fixture speed passed"
+echo 'build orchestration must not run an artifact speed test' >&2
+exit 75
+EOF
+cat > "$scripts/check-release-endpoints.sh" <<'EOF'
+#!/usr/bin/env bash
+[[ ${ODSH_FIXTURE_ENDPOINT_FAIL:-0} != 1 ]] || exit 1
+echo 'fixture endpoints are reachable'
 EOF
 cat > "$scripts/download-desktop-release.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 echo "$*" >> "$ODSH_FIXTURE_DOWNLOAD_LOG"
+[[ "$ODSH_MIN_DOWNLOAD_MIBPS" == 1 ]]
+[[ ${ODSH_FIXTURE_DOWNLOAD_SLOW:-0} != 1 ]] || exit 75
 root=$(git rev-parse --show-toplevel)
 if [[ -e "$root/release/9.8.7" ]]; then
   [[ "${1:-}" == --replace-existing ]] || { echo "fixture refuses existing release directory" >&2; exit 1; }
@@ -126,12 +134,35 @@ export ODSH_FIXTURE_GH_LOG="$temporary/gh.log"
 export ODSH_FIXTURE_DOWNLOAD_LOG="$temporary/download.log"
 export ODSH_FIXTURE_VERIFY_LOG="$temporary/verify.log"
 
+# Required endpoints must still be reachable before dispatch.
+(
+  cd "$fixture"
+  set +e
+  ODSH_FIXTURE_ENDPOINT_FAIL=1 "$scripts/package-desktop-release.sh" --version 9.8.7 --minimum-free-gib 0 fixture/repository
+  result=$?
+  [[ "$result" == 1 ]] || exit 1
+)
+[[ ! -e "$ODSH_FIXTURE_GH_LOG" ]]
+
+(
+  cd "$fixture"
+  set +e
+  ODSH_FIXTURE_DOWNLOAD_SLOW=1 "$scripts/package-desktop-release.sh" --version 9.8.7 --minimum-free-gib 0 fixture/repository
+  result=$?
+  [[ "$result" == 75 ]] || exit 1
+)
+
+# A slow transfer occurs only after all builds succeeded. Resume must reuse
+# those builds rather than dispatch another platform workflow.
+[[ $(grep -c '^dispatch ' "$ODSH_FIXTURE_GH_LOG") == 3 ]]
+[[ ! -e "$fixture/release/9.8.7" ]]
 (
   cd "$fixture"
   "$scripts/package-desktop-release.sh" --version 9.8.7 --minimum-free-gib 0 fixture/repository
 )
 
 expected=$'dispatch windows-x64 101 refresh=true snapshot=none candidate=none\nview 101\nview 101\ndispatch macos 202 refresh=false snapshot=101 candidate=none\ndispatch linux-x64 303 refresh=false snapshot=101 candidate=none\nview 202\nview 202\nview 303\nview 303'
+expected+=$'\nview 101\nview 202\nview 303'
 [[ "$(cat "$ODSH_FIXTURE_GH_LOG")" == "$expected" ]] || {
   echo "unexpected orchestration order:" >&2
   cat "$ODSH_FIXTURE_GH_LOG" >&2
@@ -150,7 +181,7 @@ before=$(grep -c '^dispatch ' "$ODSH_FIXTURE_GH_LOG")
 )
 after=$(grep -c '^dispatch ' "$ODSH_FIXTURE_GH_LOG")
 [[ "$before" == "$after" ]] || { echo "resume dispatched duplicate workflows" >&2; exit 1; }
-[[ $(wc -l < "$ODSH_FIXTURE_DOWNLOAD_LOG" | tr -d ' ') == 1 ]] || { echo "resume repeated the completed download" >&2; exit 1; }
+[[ $(wc -l < "$ODSH_FIXTURE_DOWNLOAD_LOG" | tr -d ' ') == 2 ]] || { echo "resume repeated the completed download" >&2; exit 1; }
 
 # A crash can leave download=running while an older, internally valid handoff
 # still occupies the destination. Its hashes alone must not mark this run done.
@@ -160,7 +191,7 @@ printf 'old run\n' > "$fixture/release/9.8.7/stale-marker"
   cd "$fixture"
   "$scripts/package-desktop-release.sh" --version 9.8.7 --minimum-free-gib 0 --replace-existing fixture/repository
 )
-[[ $(wc -l < "$ODSH_FIXTURE_DOWNLOAD_LOG" | tr -d ' ') == 2 ]] || { echo "running download trusted a stale directory" >&2; exit 1; }
+[[ $(wc -l < "$ODSH_FIXTURE_DOWNLOAD_LOG" | tr -d ' ') == 3 ]] || { echo "running download trusted a stale directory" >&2; exit 1; }
 [[ ! -e "$fixture/release/9.8.7/stale-marker" ]] || { echo "stale release directory was retained" >&2; exit 1; }
 
 # An explicit stage retry creates a new orchestration identity and clears downstream state.
@@ -169,7 +200,7 @@ rm -rf "$fixture/release/9.8.7"
   cd "$fixture"
   "$scripts/package-desktop-release.sh" --version 9.8.7 --minimum-free-gib 0 --retry-stage download fixture/repository
 )
-[[ $(wc -l < "$ODSH_FIXTURE_DOWNLOAD_LOG" | tr -d ' ') == 3 ]] || { echo "download retry did not repeat the transfer" >&2; exit 1; }
+[[ $(wc -l < "$ODSH_FIXTURE_DOWNLOAD_LOG" | tr -d ' ') == 4 ]] || { echo "download retry did not repeat the transfer" >&2; exit 1; }
 [[ "$(node "$scripts/release-package-state.mjs" get "$state" retries.download)" == 1 ]]
 
 # A macOS-only qualification change retains successful Windows/Linux runs from

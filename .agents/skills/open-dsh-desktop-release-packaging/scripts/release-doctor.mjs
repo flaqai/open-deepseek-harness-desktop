@@ -157,17 +157,12 @@ check('publication:cnb-workflow', () => {
 const failedBeforeNetwork = checks.some(entry => entry.status === 'FAIL')
 let networkEvidence = ''
 if (!failedBeforeNetwork) {
-  check('network:release-endpoints', () => run(join(scriptDirectory, 'check-release-endpoints.sh'), [repository]).trim())
-  if (checks.at(-1)?.status === 'PASS') {
-    check('network:actions-artifact', () => {
-      networkEvidence = run(join(scriptDirectory, 'check-release-download-speed.sh'), [repository], {
-        env: { ...process.env, ODSH_MIN_DOWNLOAD_MIBPS: String(options.minimumMibps) },
-      }).trim()
-      return networkEvidence
-    })
-  } else checks.push({ name: 'network:actions-artifact', status: 'SKIP', evidence: 'release endpoint check failed' })
+  check('network:release-endpoints', () => {
+    networkEvidence = run(join(scriptDirectory, 'check-release-endpoints.sh'), [repository]).trim()
+    return networkEvidence
+  })
 } else {
-  checks.push({ name: 'network:actions-artifact', status: 'SKIP', evidence: 'fix earlier release doctor failures first' })
+  checks.push({ name: 'network:release-endpoints', status: 'SKIP', evidence: 'fix earlier release doctor failures first' })
 }
 
 const failed = checks.filter(entry => entry.status === 'FAIL')
@@ -177,7 +172,7 @@ if (failed.length === 0) {
     String(options.minimumMibps)])
   run(process.execPath, [join(scriptDirectory, 'release-plan.mjs'), 'set', planPath,
     'notes.status', 'verified', 'network.status', 'verified',
-    'network.route', /release route:\s*([^\s]+)/u.exec(networkEvidence)?.[1] ?? 'unknown'])
+    'network.route', /release endpoints:[^\n]* via ([^\s]+)/u.exec(networkEvidence)?.[1] ?? 'unknown'])
   run(process.execPath, [join(scriptDirectory, 'release-plan.mjs'), 'render', planPath, renderedPath])
 }
 

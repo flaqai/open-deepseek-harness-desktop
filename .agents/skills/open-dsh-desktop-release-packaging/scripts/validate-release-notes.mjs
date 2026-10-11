@@ -25,7 +25,20 @@ git(['rev-parse', '--verify', `${previousTag}^{commit}`])
 const resolvedSource = git(['rev-parse', '--verify', `${sourceSha}^{commit}`])
 if (resolvedSource !== sourceSha) throw new Error(`notes source resolved to ${resolvedSource}, expected ${sourceSha}`)
 const ancestor = spawnSync('git', ['merge-base', '--is-ancestor', previousTag, sourceSha])
-if (ancestor.status !== 0) throw new Error(`${previousTag} is not an ancestor of ${sourceSha}`)
+let baselineMode = 'ancestor'
+if (ancestor.status === 1) {
+  git(['merge-base', previousTag, sourceSha])
+  const missingMerges = git(['rev-list', '--merges', `${sourceSha}..${previousTag}`])
+  const missingCommits = git(['rev-list', '--count', `${sourceSha}..${previousTag}`])
+  const patches = git(['cherry', sourceSha, previousTag]).split('\n').filter(Boolean)
+  if (missingMerges !== '' || patches.length !== Number(missingCommits)
+    || patches.length === 0 || patches.some(line => !/^- [0-9a-f]{40}$/u.test(line))) {
+    throw new Error(`${previousTag} is not an ancestor and contains unverified or missing release changes`)
+  }
+  baselineMode = 'patch-equivalent'
+} else if (ancestor.status !== 0) {
+  throw new Error(`Unable to verify release ancestry: ${ancestor.stderr?.toString().trim() ?? ancestor.error?.message ?? ancestor.status}`)
+}
 const commitCount = Number(git(['rev-list', '--count', `${previousTag}..${sourceSha}`]))
 if (!Number.isInteger(commitCount) || commitCount < 1) throw new Error('Release notes range contains no committed changes')
 
@@ -43,4 +56,4 @@ for (const fragment of [notes.split('## 中文')[1]?.split('## English')[0], not
   if ((fragment?.replace(/^#+.*$/gmu, '').trim().length ?? 0) < 20) throw new Error('Both language sections require substantive content')
 }
 
-console.log(`release notes verified: ${previousTag}..${sourceSha} (${commitCount} commits), ${notesFile}`)
+console.log(`release notes verified: ${previousTag}..${sourceSha} (${commitCount} commits; baseline ${baselineMode}), ${notesFile}`)

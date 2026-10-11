@@ -12,12 +12,13 @@ cp "$source_directory/release-doctor.mjs" "$source_directory/release-plan.mjs" \
   "$source_directory/validate-release-notes.mjs" "$scripts/"
 cat > "$scripts/check-release-endpoints.sh" <<'EOF'
 #!/usr/bin/env bash
-echo 'release endpoints: fixture routes are reachable'
+[[ ${ODSH_FIXTURE_ENDPOINT_FAIL:-0} != 1 ]] || exit 1
+echo 'release endpoints: fixture routes are reachable via fixture-direct'
 EOF
 cat > "$scripts/check-release-download-speed.sh" <<'EOF'
 #!/usr/bin/env bash
-echo 'release route: fixture-direct'
-echo 'release speed: artifact desktop-windows-x64, run 101, minimum 2.00 MiB/s, average 2.25 MiB/s, floor 1.00 MiB/s'
+echo 'preparation must not run an artifact speed test' >&2
+exit 75
 EOF
 chmod +x "$scripts"/*.mjs "$scripts"/*.sh
 printf '{"version":"9.8.7"}\n' > "$fixture/apps/desktop/package.json"
@@ -70,7 +71,6 @@ output=$(cd "$fixture" && PATH="$temporary/bin:$PATH" ODSH_RELEASE_ROUTE_NAME=fi
 printf '%s\n' "$output"
 printf '%s\n' "$output" | grep -q '| source:all-worktrees-reviewed | PASS | 1 clean worktree(s) |'
 printf '%s\n' "$output" | grep -q '| network:release-endpoints | PASS | release endpoints:'
-printf '%s\n' "$output" | grep -q '| network:actions-artifact | PASS | release route: fixture-direct<br>release speed:'
 plan="$fixture/.git/odsh-release-state/9.8.7.plan.json"
 node "$scripts/release-plan.mjs" validate "$plan"
 [[ $(node "$scripts/release-plan.mjs" get "$plan" network.route) == fixture-direct ]]
@@ -85,6 +85,18 @@ dirty_status=$?
 set -e
 [[ "$dirty_status" != 0 ]]
 grep -q '| source:current-worktree-clean | FAIL |' "$temporary/dirty.out"
-grep -q '| network:actions-artifact | SKIP |' "$temporary/dirty.out"
+grep -q '| network:release-endpoints | SKIP |' "$temporary/dirty.out"
+
+# Connectivity still blocks the Doctor; download speed does not.
+rm "$fixture/uncommitted.txt"
+before=$(shasum -a 256 "$plan")
+set +e
+(cd "$fixture" && PATH="$temporary/bin:$PATH" ODSH_FIXTURE_ENDPOINT_FAIL=1 \
+  node "$scripts/release-doctor.mjs" --minimum-free-gib 0 fixture/desktop) >"$temporary/endpoints.out" 2>&1
+endpoint_status=$?
+set -e
+[[ "$endpoint_status" != 0 ]]
+grep -q '| network:release-endpoints | FAIL |' "$temporary/endpoints.out"
+[[ $(shasum -a 256 "$plan") == "$before" ]]
 
 echo 'release doctor fixture test passed'

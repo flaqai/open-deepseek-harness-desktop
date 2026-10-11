@@ -4,14 +4,14 @@
 
 This runbook qualifies native desktop installers. The active release source of truth is the machine-readable Doctor plan under the Git common directory; `.github/workflows/desktop-packages.yml` supplies native qualification evidence. Read `release-publication.md` only when the requested endpoint includes notes or a public Release.
 
-## 1. Check the release download route
+## 1. Check endpoint connectivity
 
-Before creating a release branch, editing a version, or dispatching a native build, sample a non-expired desktop installer artifact through its GitHub Actions signed download address:
+Version and notes preparation does not require an artifact speed test. Before native builds, check the chosen proxy route and connectivity to GitHub API and official npm:
 
 ```sh
 skill=.agents/skills/open-dsh-desktop-release-packaging
 
-"$skill/scripts/check-release-download-speed.sh" \
+"$skill/scripts/check-release-endpoints.sh" \
   flaqai/open-deepseek-harness-desktop
 ```
 
@@ -19,9 +19,9 @@ On macOS, packaging entry scripts first normalize explicit upper- or lower-case 
 
 Clash Verge's Global mode chooses the route for traffic that has already reached Clash. It does not make every CLI client consume the macOS System Proxy. When a browser is fast but the release-node check is slow, compare `env | grep -i proxy` with `scutil --proxy`, then rerun the same check and require its printed proxy-adoption line and measured rate. Do not lower the speed floor to hide a route mismatch.
 
-The check selects the newest non-expired desktop artifact, preferring the larger artifact when timestamps match, unless `--run-id`, `--artifact-name`, or `--artifact-id` narrows it. It collects two valid samples by default, refreshing the signed URL for every retry, and reports the minimum and average rate. `ODSH_MIN_DOWNLOAD_MIBPS` sets the floor and defaults to `1.0`; zero disables enforcement only after the user explicitly accepts proceeding without a minimum. TLS or API transport failures are retried and exit with status 74 only after the valid-sample budget is exhausted; they are never treated as a zero-speed sample.
+Artifact speed measurement belongs to section 6, immediately before starting or resuming the actual installer download. A user-requested standalone test may use `check-release-download-speed.sh`, but its result does not gate preparation or cloud builds.
 
-Exit status 75 means the route is slower than the configured floor. Report the result and stop before consuming native-runner time. Ask the user to switch network, proxy, or node, or to select a different floor. A missing non-expired artifact means the exact Actions storage route is unverified, not that the network passed.
+Endpoint failures block dispatch until connectivity is restored. Slow or unavailable previous artifacts do not invalidate endpoint connectivity or block new builds. Record connectivity and download speed as distinct evidence; a successful Doctor records only the former in `network.status`.
 
 ## 2. Establish the release base
 
@@ -38,7 +38,7 @@ For every worktree with changes, determine whether the change is already merged,
 
 Fetch the remote when current remote state matters. Confirm the exact commit intended for the release. If the user requests the latest `master`, do not silently use a local branch that is behind or has unrelated commits.
 
-After the version and bilingual notes exist and the intended source branch is pushed, run `scripts/release-doctor.mjs`. It creates `<git-common-dir>/odsh-release-state/<version>.plan.json` only when all release identity, worktree, workflow, disk, publication-configuration and network checks pass. Do not hand-edit the plan or use the generated Markdown snapshot as an independent ledger.
+After the version and bilingual notes exist and the intended source branch is pushed, run `scripts/release-doctor.mjs`. It creates `<git-common-dir>/odsh-release-state/<version>.plan.json` only when release identity, worktree, workflow, disk, publication-configuration and endpoint checks pass. Its download floor is applied later by the download helper. Do not hand-edit the plan or use the generated Markdown snapshot as an independent ledger.
 
 ## 3. Prepare branches and version
 
@@ -59,7 +59,7 @@ As soon as the version and release-bound compatibility files are prepared, deriv
 
 Use the final packaging branch. Before dispatching, inspect the workflow and require top-level `permissions: contents: read` with no release-publication step. The workflow has no `publish` input; pass only its declared inputs:
 
-The normal entry point is resumable and performs the speed, disk, remote-head, workflow, download and directory checks as one operation:
+The normal entry point is resumable: endpoint, disk, remote-head and workflow checks precede builds; actual-artifact speed, download and directory checks follow accepted builds:
 
 ```sh
 .agents/skills/open-dsh-desktop-release-packaging/scripts/package-desktop-release.sh \
@@ -217,6 +217,8 @@ GitHub displays ten Release entries: eight project-uploaded assets from the desk
 The helper requires each run to match the final source commit or pass the platform-impact checker through `--source-sha <final-commit>`, and requires one identical bundled-plugin snapshot. It validates each run conclusion, exact artifact ID, expected filename, and workflow checksum; validates ZIP payloads and optionally DMGs on macOS; and combines the seven checksum entries. A direct invocation without `--source-sha` still requires one common run SHA. Record per-platform SHA when mixing compatible runs. It refuses to replace an existing release directory by default. For an intentional same-version rebuild, pass `--replace-existing` (or use an explicit orchestrator stage retry); the old exact set is moved to `release/.archive/` before the new verified directory is activated. The active directory is made read-only so Finder cannot add `.DS_Store` after verification.
 
 Downloads use a stable directory below the system temporary directory, keyed by repository, run IDs, and version. Before each large incomplete artifact starts or resumes, the helper measures that exact artifact's signed route against `ODSH_MIN_DOWNLOAD_MIBPS`. With `aria2c`, a monitor observes aggregate download telemetry after a 15-second warmup and exits with status 75 when it remains below the floor for 30 seconds; `ODSH_LOW_SPEED_WARMUP_SECONDS` and `ODSH_LOW_SPEED_WINDOW_SECONDS` change those windows. With `curl`, the equivalent speed floor and sustained window stop the transfer. A speed stop prints the measured condition and preserves the resumable staging directory; do not lower the floor or resume until the user chooses another network or threshold.
+
+The orchestrator passes the Doctor plan's `network.minimumMibps` to the downloader; the default remains 1.0 MiB/s. The speed check takes two valid samples, refreshes signed URLs on transport failure, and reports artifact identity, run, minimum and average rate. Status 75 pauses only downloads; status 74 means transport could not produce enough valid samples, not measured zero speed. Preserve successful platform runs and staging in both cases. Retry the same orchestration after the route is corrected, or use `--retry-stage download` when that stage is recorded as failed; do not use `--restart` or rebuild successful targets solely for a slow transfer. A missing current artifact requires artifact/run investigation rather than a successful speed verdict.
 
 When `aria2c` is present, each archive starts with 16 parallel ranges by default and prints its transfer summary every 10 seconds; `ODSH_DOWNLOAD_SUMMARY_INTERVAL_SECONDS` changes that positive-integer interval. Transport failures refresh the signed URL and reduce concurrency through `16,4,2,1`; the final single-connection attempt uses resumable `curl`. The helper removes `ALL_PROXY` only from the aria2 child so aria2 cannot reject a `socks5h://` value, while keeping the HTTP/HTTPS proxy route used by the other CLI tools. A failed run retains the staging directory, and a retry continues the same artifact ID. Completed archives are reused only when both the API-reported size and ZIP integrity match. Extraction is always non-interactive. A successful atomic handoff removes its staging directory.
 

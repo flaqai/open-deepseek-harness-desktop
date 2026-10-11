@@ -38,7 +38,7 @@ node .agents/skills/open-dsh-desktop-release-packaging/scripts/validate-release-
   .artifacts/release-notes/odsh-v<version>.md
 ```
 
-The validator checks that the previous public tag exists and is an ancestor of the exact source SHA, the range contains committed changes, both language sections are substantive and uniquely present, the heading matches the version, and no fill-in placeholders remain. It validates the tag-to-source-SHA ancestry and document completeness; the maintainer must still review that each user-visible claim is supported and faithfully translated.
+The validator requires the previous public tag to be an ancestor of the exact source SHA, or every release-only commit to have a verified patch-equivalent commit in the source history. The latter case requires shared history and rejects missing patches and release-only merge commits. It also checks that the range contains committed changes, both language sections are substantive and uniquely present, the heading matches the version, and no fill-in placeholders remain. Review each user-visible claim against the actual tag-to-source changes and verify faithful translation; patch equivalence does not replace that review.
 
 Group commits by user-visible outcome. Omit refactors, test-only work, generated-file churn, reverted changes, and implementation details unless they materially affect compatibility or recovery. Do not infer a fix from an issue title alone.
 
