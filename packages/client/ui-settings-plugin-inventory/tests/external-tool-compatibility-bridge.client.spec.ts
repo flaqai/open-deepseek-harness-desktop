@@ -25,7 +25,7 @@ describe('external tool compatibility bridge', () => {
   it('uses the exact embedded browser fallback without a desktop bridge', async () => {
     await expect(resolveExternalToolInstallRequest('claude-code')).resolves.toEqual({
       profile: 'web',
-      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.1-alpha.1',
+      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.1-alpha.2',
     })
   })
 
