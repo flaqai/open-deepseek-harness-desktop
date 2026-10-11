@@ -18,6 +18,11 @@ test('local package commands verify a fixed plugin snapshot without refreshing i
 
 test('native workflow isolates package phases, uses one registry, and reports only qualified sizes', async () => {
   const workflow = parse(await readFile(resolve(root, '.github/workflows/desktop-packages.yml'), 'utf8'))
+  const preparation = workflow.jobs['bundled-plugins'].steps
+  const relocation = preparation.findIndex(step => step.name === 'Verify prebuilt Profile relocation')
+  assert.ok(relocation >= 0 && relocation < preparation.findIndex(step => step.name === 'Resolve latest stable plugin archives'))
+  assert.match(preparation[relocation].run, /apps\/desktop\/tests\/prebuilt-profile\.spec\.ts/u)
+  assert.match(preparation[relocation].run, /apps\/desktop\/tests\/prebuilt-profile-windows-paths\.spec\.ts/u)
   assert.equal(workflow.env.PNPM_CONFIG_REGISTRY, 'https://registry.npmjs.org')
   assert.match(workflow.env.NO_PROXY, /127\.0\.0\.1/u)
   for (const jobName of ['macos', 'windows', 'linux']) {

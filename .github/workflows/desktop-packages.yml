@@ -77,6 +77,12 @@ jobs:
       - name: Verify embedded Node runtime pins
         run: node --test apps/desktop/scripts/node-runtime-pins.test.mjs
 
+      - name: Verify prebuilt Profile relocation
+        run: >-
+          pnpm exec vitest run
+          apps/desktop/tests/prebuilt-profile.spec.ts
+          apps/desktop/tests/prebuilt-profile-windows-paths.spec.ts
+
       - name: Verify desktop runtime file selection
         run: >-
           node --test

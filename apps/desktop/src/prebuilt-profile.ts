@@ -260,7 +260,9 @@ export async function deployPrebuiltProfile(
     let bytes: Buffer | undefined
     if (file.relocate) {
       const text = await readFile(from, 'utf8')
-      const replacement = file.path.endsWith('.json') ? target.replaceAll('\\', '\\\\') : target.split(sep).join('/')
+      // pnpm compares file: specifiers literally across package.json and its lockfile.
+      const home = target.split(sep).join('/')
+      const replacement = file.path.endsWith('.json') ? JSON.stringify(home).slice(1, -1) : home
       bytes = Buffer.from(text.replaceAll(HOME_TOKEN, replacement))
     }
     const expected = bytes === undefined ? file.sha256 : createHash('sha256').update(bytes).digest('hex')

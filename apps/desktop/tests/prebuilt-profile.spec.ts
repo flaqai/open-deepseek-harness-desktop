@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { deployPrebuiltProfile, readPrebuiltProfile, readProfileBuildApprovals, sealPrebuiltProfile } from '../src/prebuilt-profile.ts'
 
@@ -49,7 +49,7 @@ describe('prebuilt Profile resources', () => {
       expect((await lstat(join(f.source, 'prebuilt-profile.json'))).mode & 0o777).toBe(0o644)
     }
     await deployPrebuiltProfile(f.source, f.target, f.manifest, signal(), () => {})
-    expect(JSON.parse(await readFile(join(f.target, 'profiles/web/package.json'), 'utf8'))).toEqual({ path: f.target })
+    expect(JSON.parse(await readFile(join(f.target, 'profiles/web/package.json'), 'utf8'))).toEqual({ path: f.target.split(sep).join('/') })
     await writeFile(join(f.target, 'profiles/web/node_modules/demo/index.js'), 'changed')
     expect(await readFile(join(f.source, 'profiles/web/node_modules/demo/index.js'), 'utf8')).toContain('value = 1')
   })
