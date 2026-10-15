@@ -1,0 +1,1854 @@
+{
+  "schema": 1,
+  "targetUpstreamTag": "dsh-v0.2.1-alpha.3",
+  "communityReleaseVersionUnchanged": "0.2.1-alpha.2",
+  "inspectedAt": "2026-10-15",
+  "method": "Read retained tgz metadata and JavaScript without modifying third-party sources; compare SHA-512 to the production seed manifest.",
+  "productionPlugins": [
+    {
+      "seedId": "dshmarket",
+      "packageName": "dshmarket",
+      "version": "1.66.8",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "dshmarket@1.66.8",
+        "repository": {
+          "type": "git",
+          "url": "git+https://github.com/dsh-market/dsh-market.git"
+        },
+        "archive": "apps/desktop/bundled-plugins/dshmarket-1.66.8.tgz"
+      },
+      "archiveBytes": 1151091,
+      "integrity": {
+        "expected": "sha512-zOYCijI/du6qlcmUbx47aaUv6OM7Z/akIQ8n3f9Q2ihtV3U3sbRI5nG0guS+8npsb/vhA2turyEf9Yblg6LweQ==",
+        "actual": "sha512-zOYCijI/du6qlcmUbx47aaUv6OM7Z/akIQ8n3f9Q2ihtV3U3sbRI5nG0guS+8npsb/vhA2turyEf9Yblg6LweQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "lib/index.js",
+        "exports": {
+          ".": {
+            "types": "./lib/types/index.d.ts",
+            "default": "./lib/index.js"
+          },
+          "./update-api-v1": {
+            "types": "./lib/types/update-api-v1.d.ts",
+            "default": "./lib/update-api-v1.js"
+          },
+          "./client": "./client/client.js",
+          "./cordis.patch.yml": "./cordis.patch.yml",
+          "./package.json": "./package.json",
+          "./locale/*.json": "./locale/*.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "inject": [
+              "@deepseek-ai/dsh-client-locale",
+              "@deepseek-ai/dsh-client-ui-settings",
+              "@deepseek-ai/dsh-client-ui-theme"
+            ],
+            "platform": "web"
+          }
+        }
+      },
+      "dependencies": {
+        "js-yaml": "^4.1.0",
+        "undici": "^7.29.0"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "^4.0.1",
+        "@deepseek-ai/dsh-settings": "^0.1.0-rc.7 || ^0.1.1-rc.2 || ^0.1.2-alpha.2 || ^0.2.0-rc.1",
+        "@deepseek-ai/schemastery": "^3.18.1"
+      },
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 48,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-client-ui-primitives",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/client/client.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/schemastery",
+            "symbols": [
+              "default"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/settings.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "dshmarket",
+          "installedVersion": "1.66.8",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:dsh-market",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "xmanrui-dsh-im",
+      "packageName": "@xmanrui/dsh-im",
+      "version": "4.34.2",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "@xmanrui/dsh-im@4.34.2",
+        "repository": {
+          "type": "git",
+          "url": "git+https://github.com/xmanrui/dsh-im.git"
+        },
+        "archive": "apps/desktop/bundled-plugins/xmanrui-dsh-im-4.34.2.tgz"
+      },
+      "archiveBytes": 9488652,
+      "integrity": {
+        "expected": "sha512-6t3Epsq8ZqCqAEhmJzvtBgwjUKC2bBxsfnJj26uqWOAGDt+6jpBlaDZFr/So1RTS0SJ3SbfW9KDJ5verP4iHCQ==",
+        "actual": "sha512-6t3Epsq8ZqCqAEhmJzvtBgwjUKC2bBxsfnJj26uqWOAGDt+6jpBlaDZFr/So1RTS0SJ3SbfW9KDJ5verP4iHCQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "./lib/index.js",
+        "exports": {
+          ".": "./lib/index.js",
+          "./client": "./lib/client.js",
+          "./package.json": "./package.json",
+          "./locale/*.json": "./locale/*.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "inject": [
+              "@deepseek-ai/dsh-client-connection",
+              "@deepseek-ai/dsh-client-runtime",
+              "@deepseek-ai/dsh-client-ui-settings",
+              "@deepseek-ai/dsh-client-ui-slots",
+              "@deepseek-ai/dsh-client-locale"
+            ],
+            "platform": "web"
+          },
+          "compatibility": {
+            "dsh": "0.1.7-alpha.1",
+            "dshReleases": {
+              "0.1.7-alpha.1": "compatible"
+            },
+            "profiles": [
+              "web"
+            ]
+          }
+        }
+      },
+      "dependencies": {
+        "@matrix-org/olm": "3.2.15",
+        "@tencent-connect/qqbot-connector": "1.2.0",
+        "@tencent-connect/qqbot-nodejs": "1.0.4",
+        "@wecom/aibot-node-sdk": "1.0.7",
+        "dingtalk-stream": "2.1.4",
+        "imapflow": "^2.0.5",
+        "mailparser": "^3.9.28",
+        "nodemailer": "^10.0.10",
+        "qrcode": "1.5.4",
+        "undici": "7.29.1"
+      },
+      "peerDependencies": {},
+      "optionalDependencies": {
+        "@tencent-qqmail/agently-cli": "^1.0.18",
+        "sharp": "0.35.4"
+      },
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 396,
+        "dshImports": [],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "@xmanrui/dsh-im",
+          "installedVersion": "4.34.2",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:xmanrui-dsh-im",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "dsh-better-sidebar",
+      "packageName": "dsh-better-sidebar",
+      "version": "0.24.1",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "dsh-better-sidebar@0.24.1",
+        "repository": {
+          "type": "git",
+          "url": "https://github.com/omdsh-dev/DSH-better-sidebar"
+        },
+        "archive": "apps/desktop/bundled-plugins/dsh-better-sidebar-0.24.1.tgz"
+      },
+      "archiveBytes": 3784101,
+      "integrity": {
+        "expected": "sha512-X5tdu07Ub0isxruG559o46891F7MjxM+CzR6QoGpHZtN5J8gz6FA8Dq632lLI77c4IjL2GP+N6PuWaDnoKPuPQ==",
+        "actual": "sha512-X5tdu07Ub0isxruG559o46891F7MjxM+CzR6QoGpHZtN5J8gz6FA8Dq632lLI77c4IjL2GP+N6PuWaDnoKPuPQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "lib/index.js",
+        "exports": {
+          ".": {
+            "types": "./lib/types/index.d.ts",
+            "default": "./lib/index.js"
+          },
+          "./invariant": {
+            "types": "./lib/types/invariant.d.ts",
+            "default": "./lib/invariant.js"
+          },
+          "./client": {
+            "types": "./lib/types/client/index.d.ts",
+            "default": "./lib/client.js"
+          },
+          "./client/service": {
+            "types": "./lib/types/client/service.d.ts",
+            "default": "./lib/client.js"
+          },
+          "./client/api": {
+            "types": "./lib/types/client/service.d.ts",
+            "default": "./lib/client.js"
+          },
+          "./src/*": "./src/*",
+          "./package.json": "./package.json",
+          "./locale/*.json": "./locale/*.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "inject": [
+              "@deepseek-ai/dsh-client-locale",
+              "@deepseek-ai/dsh-client-ui-slots",
+              "@deepseek-ai/dsh-client-ui-conversation",
+              "@deepseek-ai/dsh-client-ui-sidebar-right",
+              "@deepseek-ai/dsh-client-modules"
+            ],
+            "platform": "web"
+          },
+          "manifestVersion": 1
+        }
+      },
+      "dependencies": {
+        "@codemirror/commands": "^6.10.4",
+        "@codemirror/lang-cpp": "^6.0.3",
+        "@codemirror/lang-css": "^6.3.1",
+        "@codemirror/lang-go": "^6.0.1",
+        "@codemirror/lang-html": "^6.4.12",
+        "@codemirror/lang-java": "^6.0.2",
+        "@codemirror/lang-javascript": "^6.2.5",
+        "@codemirror/lang-json": "^6.0.2",
+        "@codemirror/lang-markdown": "^6.5.2",
+        "@codemirror/lang-php": "^6.0.2",
+        "@codemirror/lang-python": "^6.2.1",
+        "@codemirror/lang-rust": "^6.0.2",
+        "@codemirror/lang-sql": "^6.10.0",
+        "@codemirror/lang-vue": "^0.1.3",
+        "@codemirror/lang-xml": "^6.1.0",
+        "@codemirror/lang-yaml": "^6.1.3",
+        "@codemirror/language": "^6.12.4",
+        "@codemirror/legacy-modes": "^6.5.3",
+        "@codemirror/search": "^6.7.1",
+        "@codemirror/state": "^6.7.1",
+        "@codemirror/view": "^6.43.8",
+        "@deepseek-ai/schemastery": "^3.18.4",
+        "@lezer/highlight": "^1.2.3",
+        "clsx": "^2.1.1",
+        "dompurify": "^3.4.14",
+        "mermaid": "^11.16.1",
+        "react-icons": "5.7.0",
+        "rxjs": "^7.8.2",
+        "ws": "^8.18.0",
+        "yaml": "^2.9.1"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "^4.0.4",
+        "@deepseek-ai/dsh-agent": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-client-locale": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-client-ui-conversation": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-client-ui-primitives": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-client-ui-settings": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-client-ui-sidebar-right": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-client-ui-slots": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-host-webserver": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-invariants": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-llm": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-session": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-settings": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-subagent": "^0.2.0-rc.1",
+        "@deepseek-ai/dsh-tools": "^0.2.0-rc.1",
+        "@huanlin/dsh-plugin-better-locale": "^0.1.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0"
+      },
+      "optionalDependencies": {},
+      "approvedBuilds": [
+        "node-pty"
+      ],
+      "staticInspection": {
+        "codeFiles": 7,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-client-ui-primitives",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/lib/client-editor.js",
+              "package/lib/client-mermaid.js",
+              "package/lib/client-registry.js",
+              "package/lib/client.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-llm",
+            "symbols": [
+              "createUserMessage"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-session",
+            "symbols": [
+              "SessionLogOffset"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-settings",
+            "symbols": [
+              "SettingsConflictError"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-subagent",
+            "symbols": [
+              "snapshotSubagentDescriptor"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-tools",
+            "symbols": [
+              "defineTool"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/schemastery",
+            "symbols": [
+              "default"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "dsh-better-sidebar",
+          "installedVersion": "0.24.1",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:better-sidebar",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "agents-anywhere-dsh-bridge-next",
+      "packageName": "@agents-anywhere/dsh-bridge-next",
+      "version": "2.0.2",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "@agents-anywhere/dsh-bridge-next@2.0.2",
+        "repository": null,
+        "archive": "apps/desktop/bundled-plugins/agents-anywhere-dsh-bridge-next-2.0.2.tgz"
+      },
+      "archiveBytes": 784153,
+      "integrity": {
+        "expected": "sha512-ceSsvY2XF+NSee4nZRWvCjEeL6oMi3mo/r+czMcrX9ZK0bOjPhpvy4VCHJEuNKwgdovHFE/QJX7Dpu6Xvm8VuQ==",
+        "actual": "sha512-ceSsvY2XF+NSee4nZRWvCjEeL6oMi3mo/r+czMcrX9ZK0bOjPhpvy4VCHJEuNKwgdovHFE/QJX7Dpu6Xvm8VuQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "./lib/index.js",
+        "exports": {
+          ".": {
+            "types": "./lib/index.d.ts",
+            "default": "./lib/index.js"
+          },
+          "./client": {
+            "types": "./lib/client.d.ts",
+            "default": "./lib/client.js"
+          },
+          "./cordis.patch.yml": "./cordis.patch.yml",
+          "./locale/*.json": "./locale/*.json",
+          "./package.json": "./package.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "platform": "web",
+            "inject": [
+              "@deepseek-ai/dsh-client-ui-slots",
+              "@deepseek-ai/dsh-client-locale",
+              "@deepseek-ai/dsh-client-connection",
+              "@deepseek-ai/dsh-client-ui-sidebar"
+            ]
+          }
+        }
+      },
+      "dependencies": {
+        "@dataiku/uv": "0.12.0",
+        "clsx": "2.1.1",
+        "lucide-react": "1.41.0",
+        "qrcode": "1.5.4"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "4.0.4",
+        "@deepseek-ai/dsh-typert-protocol": ">=0.2.0-rc.1 <0.3.0-0",
+        "@deepseek-ai/schemastery": "3.18.4",
+        "react": "^18.3.1"
+      },
+      "optionalDependencies": {},
+      "approvedBuilds": [
+        "@dataiku/uv"
+      ],
+      "staticInspection": {
+        "codeFiles": 2,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/cordis",
+            "symbols": [
+              "Service"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-client-ui-primitives",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/lib/client.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-llm",
+            "symbols": [
+              "ReasoningEffortId"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-session",
+            "symbols": [
+              "SessionLogOffset"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-session-title",
+            "symbols": [
+              "foldSessionTitle"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-typert-protocol",
+            "symbols": [
+              "Remote",
+              "TypertRemoteService"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/schemastery",
+            "symbols": [
+              "default"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "@agents-anywhere/dsh-bridge-next",
+          "installedVersion": "2.0.2",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:agents-anywhere-bridge-next",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "ychris12138-dsh-usage-stats",
+      "packageName": "@ychris12138/dsh-usage-stats",
+      "version": "0.3.5",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "@ychris12138/dsh-usage-stats@0.3.5",
+        "repository": {
+          "type": "git",
+          "url": "git+https://github.com/Ychris12138/dsh-usage-stats.git"
+        },
+        "archive": "apps/desktop/bundled-plugins/ychris12138-dsh-usage-stats-0.3.5.tgz"
+      },
+      "archiveBytes": 123987,
+      "integrity": {
+        "expected": "sha512-R1eqlPP901e64pv+VEmWIm5gEJY45vZUHap6jv2Fs508kUlVUwAJvOselnmbG4K/3rf7E0ksRAeRc6BgPcbLnQ==",
+        "actual": "sha512-R1eqlPP901e64pv+VEmWIm5gEJY45vZUHap6jv2Fs508kUlVUwAJvOselnmbG4K/3rf7E0ksRAeRc6BgPcbLnQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "lib/index.js",
+        "exports": {
+          ".": "./lib/index.js",
+          "./client": "./lib/client.js",
+          "./pricing": "./lib/pricing.js",
+          "./usage": "./lib/usage.js",
+          "./package.json": "./package.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "platform": "web",
+            "inject": [
+              "@deepseek-ai/dsh-client-locale",
+              "@deepseek-ai/dsh-client-ui-primitives"
+            ]
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {},
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 13,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-client-ui-primitives",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/lib/client.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "@ychris12138/dsh-usage-stats",
+          "installedVersion": "0.3.5",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:usage-stats",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "dsh-mermaid",
+      "packageName": "dsh-mermaid",
+      "version": "0.4.1",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "dsh-mermaid@0.4.1",
+        "repository": {
+          "type": "git",
+          "url": "git+https://github.com/MrmoLabs/dsh-mermaid.git"
+        },
+        "archive": "apps/desktop/bundled-plugins/dsh-mermaid-0.4.1.tgz"
+      },
+      "archiveBytes": 972279,
+      "integrity": {
+        "expected": "sha512-w415yRAbeZe0cRLD0aKIF33K6a8gZNZx83ciLUqdliyj1/C3PAzekrbD6UUIQO3AT26HFXWbtMPtXAEfZvSufg==",
+        "actual": "sha512-w415yRAbeZe0cRLD0aKIF33K6a8gZNZx83ciLUqdliyj1/C3PAzekrbD6UUIQO3AT26HFXWbtMPtXAEfZvSufg==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "lib/index.js",
+        "exports": {
+          ".": "./lib/index.js",
+          "./client": "./lib/client.js",
+          "./package.json": "./package.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "platform": "web",
+            "inject": []
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {},
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 4,
+        "dshImports": [],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "dsh-mermaid",
+          "installedVersion": "0.4.1",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:ui-mermaid",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "dsh-whale-widget",
+      "packageName": "dsh-whale-widget",
+      "version": "0.3.18",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "dsh-whale-widget@0.3.18",
+        "repository": {
+          "type": "git",
+          "url": "git+https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget.git"
+        },
+        "archive": "apps/desktop/bundled-plugins/dsh-whale-widget-0.3.18.tgz"
+      },
+      "archiveBytes": 4900866,
+      "integrity": {
+        "expected": "sha512-2RMevYiKTa2P+FzLutXlpTmQ9coWRbRQ7eG1b07MbkxB1HXXWbN/lqn0MZgDu49AILeJqmGivwB0S0H09pc9xQ==",
+        "actual": "sha512-2RMevYiKTa2P+FzLutXlpTmQ9coWRbRQ7eG1b07MbkxB1HXXWbN/lqn0MZgDu49AILeJqmGivwB0S0H09pc9xQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "lib/index.js",
+        "exports": null,
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {},
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 3,
+        "dshImports": [],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "dsh-whale-widget",
+          "installedVersion": "0.3.18",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:dsh-whale-widget",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "weibaohui-skills-management",
+      "packageName": "@weibaohui/skills-management",
+      "version": "0.9.0",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "@weibaohui/skills-management@0.9.0",
+        "repository": {
+          "type": "git",
+          "url": "git+https://github.com/weibaohui/skills-management.git"
+        },
+        "archive": "apps/desktop/bundled-plugins/weibaohui-skills-management-0.9.0.tgz"
+      },
+      "archiveBytes": 117653,
+      "integrity": {
+        "expected": "sha512-6aO9DpSd7eyueITBu6m+65IsmAdEeMlve/Jsz+fTm4Sby7DYz14+Orue0hUPgLsurKNkZb+KYcyKYVR0+/Dz7w==",
+        "actual": "sha512-6aO9DpSd7eyueITBu6m+65IsmAdEeMlve/Jsz+fTm4Sby7DYz14+Orue0hUPgLsurKNkZb+KYcyKYVR0+/Dz7w==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "src/index.js",
+        "exports": {
+          ".": "./src/index.js",
+          "./client": "./client/bundle.js",
+          "./package.json": "./package.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "platform": "web"
+          }
+        }
+      },
+      "dependencies": {
+        "@weibaohui/dsh-plugin-kit": "^0.2.0",
+        "js-tiktoken": "^1.0.21",
+        "yaml": "^2.9.0"
+      },
+      "peerDependencies": {},
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 3,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-client-ui-primitives",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/client/bundle.js",
+              "package/client/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/schemastery",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/src/index.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "@weibaohui/skills-management",
+          "installedVersion": "0.9.0",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:skills-management",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "dsh-plugins-mcp-panel",
+      "packageName": "@dsh-plugins/mcp-panel",
+      "version": "0.1.0",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "repository-built-or-retained-archive",
+        "registrySpec": null,
+        "repository": null,
+        "archive": "apps/desktop/bundled-plugins/dsh-plugins-mcp-panel-0.1.0.tgz"
+      },
+      "archiveBytes": 38722,
+      "integrity": {
+        "expected": "sha512-/h/J/KO21l8WIKwbarai7Q5A8UoQ/YovE0i3+ylg1JUcFvPKBLJBJ3pPuWugTFwpKDdlT3yZt7mAt+QdrzZKbQ==",
+        "actual": "sha512-/h/J/KO21l8WIKwbarai7Q5A8UoQ/YovE0i3+ylg1JUcFvPKBLJBJ3pPuWugTFwpKDdlT3yZt7mAt+QdrzZKbQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "./lib/index.js",
+        "exports": {
+          ".": {
+            "types": "./lib/types/index.d.ts",
+            "default": "./lib/index.js"
+          },
+          "./client": {
+            "types": "./lib/types/client/index.d.ts",
+            "default": "./lib/client.js"
+          },
+          "./typert": {
+            "types": "./lib/typert.host.d.ts",
+            "default": "./lib/typert.host.js"
+          },
+          "./remote": {
+            "types": "./lib/typert.remote-client.d.ts",
+            "default": "./lib/typert.remote-client.js"
+          },
+          "./types": {
+            "types": "./lib/types/types.d.ts",
+            "default": "./lib/types/types.js"
+          },
+          "./src/*": "./src/*",
+          "./package.json": "./package.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "platform": "web",
+            "inject": [
+              "@deepseek-ai/dsh-client-locale",
+              "@deepseek-ai/dsh-client-ui-settings",
+              "@deepseek-ai/dsh-client-ui-renderer",
+              "@deepseek-ai/dsh-api-remotes"
+            ]
+          }
+        }
+      },
+      "dependencies": {
+        "yaml": "^2.6.0"
+      },
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "*",
+        "@deepseek-ai/cordis-plugin-loader": "*",
+        "@deepseek-ai/dsh-app-boot": "*",
+        "@deepseek-ai/dsh-atomic-write": "*",
+        "@deepseek-ai/dsh-hmr": "*",
+        "@deepseek-ai/dsh-tools": "*",
+        "@deepseek-ai/dsh-typert-protocol": "*",
+        "react": "^18.2.0"
+      },
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 6,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-app-boot",
+            "symbols": [
+              "readProfilePatches",
+              "reconcileProfilePatches"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-atomic-write",
+            "symbols": [
+              "withFileLock",
+              "writeFileAtomic"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-typert-protocol",
+            "symbols": [
+              "Remote",
+              "RemoteError",
+              "TypertRemoteService"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "passed",
+          "installedName": "@dsh-plugins/mcp-panel",
+          "installedVersion": "0.1.0",
+          "target": "darwin-arm64",
+          "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586"
+        },
+        "hostActivation": {
+          "status": "passed",
+          "entryId": "include:mcp-panel",
+          "fiberPhase": "active",
+          "enabled": true,
+          "observations": [
+            ".artifacts/alpha3-final/relocated-first-start-inventory.json",
+            ".artifacts/alpha3-final/relocated-second-start-inventory.json"
+          ],
+          "method": "Real authenticated pluginInventory/list RPC against the final alpha3 runtime and final-manifest fresh relocated Profile; both startup runs used unreachable registry and pnpm offline mode"
+        },
+        "clientActivation": {
+          "status": "passed-native-boot",
+          "evidence": "2026-10-15-alpha3-native-evidence.json",
+          "note": "Eight third-party Loader entries completed native boot without optional activation failures; the Host-injected Whale widget was observed in native accessibility state. External-service key functions remain separately unqualified."
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    }
+  ],
+  "diagnosticFixtures": [
+    {
+      "seedId": "diagnostic-dsh-font",
+      "packageName": "dsh-font",
+      "version": "1.1.0",
+      "installPolicy": "diagnostic",
+      "source": {
+        "kind": "repository-built-or-retained-archive",
+        "registrySpec": null,
+        "repository": null,
+        "archive": "apps/desktop/bundled-plugins/dsh-font-1.1.0.tgz"
+      },
+      "archiveBytes": 11814,
+      "integrity": {
+        "expected": "sha512-FJVCYih4My+9NwqvDjwW17AVP/9F843nL0O0mS8+Z/YQdVkmoGT0q3fPLXvNdr8M68FVo0Wr2upnud0y406a0g==",
+        "actual": "sha512-FJVCYih4My+9NwqvDjwW17AVP/9F843nL0O0mS8+Z/YQdVkmoGT0q3fPLXvNdr8M68FVo0Wr2upnud0y406a0g==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "index.js",
+        "exports": {
+          ".": "./index.js",
+          "./client": "./client.js",
+          "./package.json": "./package.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "inject": [
+              "@deepseek-ai/dsh-client-runtime",
+              "@deepseek-ai/dsh-client-locale"
+            ],
+            "platform": "web",
+            "immediately": true
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {
+        "react": "^18.2.0",
+        "@deepseek-ai/cordis": "^4.0.1",
+        "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+        "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
+        "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6"
+      },
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 2,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-client-runtime/client",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/client.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "intentional-diagnostic-fixture-not-production",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "pending"
+        },
+        "hostActivation": {
+          "status": "pending"
+        },
+        "clientActivation": {
+          "status": "pending"
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "diagnostic-scoped-loader-mismatch",
+      "packageName": "@dsh-diagnostic-lab/scoped-loader-mismatch",
+      "version": "1.0.0",
+      "installPolicy": "diagnostic",
+      "source": {
+        "kind": "repository-built-or-retained-archive",
+        "registrySpec": null,
+        "repository": null,
+        "archive": "apps/desktop/bundled-plugins/dsh-diagnostic-lab-scoped-loader-mismatch-1.0.0.tgz"
+      },
+      "archiveBytes": 1056,
+      "integrity": {
+        "expected": "sha512-AVs8NsGQdMcEr7ATNQqUjmMjUzLgvQoisz5C9fwcAj7oUARQdTo+74ANKzEez2LbNWNOKGwCbilwstPSgVAYxQ==",
+        "actual": "sha512-AVs8NsGQdMcEr7ATNQqUjmMjUzLgvQoisz5C9fwcAj7oUARQdTo+74ANKzEez2LbNWNOKGwCbilwstPSgVAYxQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": null,
+        "exports": "./index.js",
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {},
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 1,
+        "dshImports": [],
+        "findings": [],
+        "conclusion": "intentional-diagnostic-fixture-not-production",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "pending"
+        },
+        "hostActivation": {
+          "status": "pending"
+        },
+        "clientActivation": {
+          "status": "pending"
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "diagnostic-loader-dependency-unavailable",
+      "packageName": "@dsh-diagnostic-lab/loader-dependency-unavailable",
+      "version": "1.0.0",
+      "installPolicy": "diagnostic",
+      "source": {
+        "kind": "repository-built-or-retained-archive",
+        "registrySpec": null,
+        "repository": null,
+        "archive": "apps/desktop/bundled-plugins/dsh-diagnostic-lab-loader-dependency-unavailable-1.0.0.tgz"
+      },
+      "archiveBytes": 402,
+      "integrity": {
+        "expected": "sha512-sEjViwufnwVG4bWMMIFLwzOMLBUX3pyt/IZzVsSCf53wFIAiDgDWihDUdTVVIL4v5vMIZw8Aa4zZIQA8SQvhLQ==",
+        "actual": "sha512-sEjViwufnwVG4bWMMIFLwzOMLBUX3pyt/IZzVsSCf53wFIAiDgDWihDUdTVVIL4v5vMIZw8Aa4zZIQA8SQvhLQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": null,
+        "exports": "./index.js",
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {},
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 1,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-diagnostic-missing-host",
+            "symbols": [],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/index.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "intentional-diagnostic-fixture-not-production",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "pending"
+        },
+        "hostActivation": {
+          "status": "pending"
+        },
+        "clientActivation": {
+          "status": "pending"
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "diagnostic-loader-export-unavailable",
+      "packageName": "@dsh-diagnostic-lab/loader-export-unavailable",
+      "version": "1.0.0",
+      "installPolicy": "diagnostic",
+      "source": {
+        "kind": "repository-built-or-retained-archive",
+        "registrySpec": null,
+        "repository": null,
+        "archive": "apps/desktop/bundled-plugins/dsh-diagnostic-lab-loader-export-unavailable-1.0.0.tgz"
+      },
+      "archiveBytes": 441,
+      "integrity": {
+        "expected": "sha512-WyqR0+nwUFI4iTZTsuUyn7QKq5JCGZ/OTUg5/clbd9dbu2kGFzOe6Kqt0qoL/NeFMqbE46/x0v26wsgkn7LbpQ==",
+        "actual": "sha512-WyqR0+nwUFI4iTZTsuUyn7QKq5JCGZ/OTUg5/clbd9dbu2kGFzOe6Kqt0qoL/NeFMqbE46/x0v26wsgkn7LbpQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": null,
+        "exports": "./index.js",
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {},
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 1,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-settings",
+            "symbols": [
+              "installDiagnosticLabMissingSettingsSection"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/index.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "intentional-diagnostic-fixture-not-production",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "pending"
+        },
+        "hostActivation": {
+          "status": "pending"
+        },
+        "clientActivation": {
+          "status": "pending"
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "diagnostic-legacy-session-api",
+      "packageName": "@dsh-diagnostic-lab/legacy-session-api",
+      "version": "1.0.0",
+      "installPolicy": "diagnostic",
+      "source": {
+        "kind": "repository-built-or-retained-archive",
+        "registrySpec": null,
+        "repository": null,
+        "archive": "apps/desktop/bundled-plugins/dsh-diagnostic-lab-legacy-session-api-1.0.0.tgz"
+      },
+      "archiveBytes": 1227,
+      "integrity": {
+        "expected": "sha512-O20M5EU8zP0YhPBaZGK3+BJmGYlF0w1L5Bo6cUt3dgBxSuSH3Gb5dpz9JUwMH7epP0M0NIumYoLVMz4bnjiCQA==",
+        "actual": "sha512-O20M5EU8zP0YhPBaZGK3+BJmGYlF0w1L5Bo6cUt3dgBxSuSH3Gb5dpz9JUwMH7epP0M0NIumYoLVMz4bnjiCQA==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": null,
+        "exports": "./index.js",
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {
+        "@deepseek-ai/dsh-session": "*"
+      },
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 1,
+        "dshImports": [],
+        "findings": [],
+        "conclusion": "intentional-diagnostic-fixture-not-production",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "pending"
+        },
+        "hostActivation": {
+          "status": "pending"
+        },
+        "clientActivation": {
+          "status": "pending"
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "seedId": "diagnostic-immutable-agent-input-mutation",
+      "packageName": "@dsh-diagnostic-lab/immutable-agent-input-mutation",
+      "version": "1.0.0",
+      "installPolicy": "diagnostic",
+      "source": {
+        "kind": "repository-built-or-retained-archive",
+        "registrySpec": null,
+        "repository": null,
+        "archive": "apps/desktop/bundled-plugins/dsh-diagnostic-lab-immutable-agent-input-mutation-1.0.0.tgz"
+      },
+      "archiveBytes": 497,
+      "integrity": {
+        "expected": "sha512-K7f22irpTUvxZ+sq7YCfOqsT3rRtlrYDlnOfOJlY0vlLA6tzZd5EVL67F5n+S7NX4VcDGdnDae+jCRj3sTASLQ==",
+        "actual": "sha512-K7f22irpTUvxZ+sq7YCfOqsT3rRtlrYDlnOfOJlY0vlLA6tzZd5EVL67F5n+S7NX4VcDGdnDae+jCRj3sTASLQ==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": null,
+        "exports": "./index.js",
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {},
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 1,
+        "dshImports": [],
+        "findings": [],
+        "conclusion": "intentional-diagnostic-fixture-not-production",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "pending"
+        },
+        "hostActivation": {
+          "status": "pending"
+        },
+        "clientActivation": {
+          "status": "pending"
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      }
+    }
+  ],
+  "unlistedArchives": [
+    "dsh-pocket-2.10.6.tgz",
+    "dsh-smooth-stream-0.6.1.tgz"
+  ],
+  "acceptance": {
+    "status": "host-install-and-activation-passed-client-and-key-functions-pending",
+    "note": "Only macOS arm64 resources were qualified locally; not an installer or cross-platform release qualification"
+  },
+  "excludedFromNewPresetSet": [
+    {
+      "seedId": "dsh-smooth-stream",
+      "packageName": "dsh-smooth-stream",
+      "version": "0.6.1",
+      "installPolicy": "startup",
+      "source": {
+        "kind": "registry-archive",
+        "registrySpec": "dsh-smooth-stream@0.6.1",
+        "repository": {
+          "type": "git",
+          "url": "git+https://github.com/Laplace-bit/dsh-smooth-stream.git"
+        },
+        "archive": "apps/desktop/bundled-plugins/dsh-smooth-stream-0.6.1.tgz"
+      },
+      "archiveBytes": 284557,
+      "integrity": {
+        "expected": "sha512-gikVy5Wo5O7wUMOnd6cLCP/NA1fy+XOrhAiWoucjTDoLrfwu/88mK6jltv7Uv1jD4hf68j80oUArS9KnPQztCw==",
+        "actual": "sha512-gikVy5Wo5O7wUMOnd6cLCP/NA1fy+XOrhAiWoucjTDoLrfwu/88mK6jltv7Uv1jD4hf68j80oUArS9KnPQztCw==",
+        "passed": true
+      },
+      "identityPassed": true,
+      "entrypoints": {
+        "main": "lib/index.js",
+        "exports": {
+          ".": {
+            "types": "./src/index.ts",
+            "default": "./lib/index.js"
+          },
+          "./client": {
+            "types": "./src/client/index.ts",
+            "default": "./lib/client.js"
+          },
+          "./src/*": "./src/*",
+          "./package.json": "./package.json"
+        },
+        "dsh": {
+          "bundle": {
+            "patch": "./cordis.patch.yml"
+          },
+          "client": {
+            "platform": "web",
+            "inject": [
+              "@deepseek-ai/dsh-client-runtime",
+              "@deepseek-ai/dsh-client-ui-conversation",
+              "@deepseek-ai/dsh-client-locale",
+              "@deepseek-ai/dsh-client-connection",
+              "@deepseek-ai/dsh-client-ui-settings",
+              "@deepseek-ai/dsh-client-ui-settings-plugins"
+            ]
+          }
+        }
+      },
+      "dependencies": {},
+      "peerDependencies": {
+        "@deepseek-ai/cordis": "^4.0.1",
+        "@deepseek-ai/dsh-client-connection": "*",
+        "@deepseek-ai/dsh-client-locale": "*",
+        "@deepseek-ai/dsh-client-runtime": "*",
+        "@deepseek-ai/dsh-client-ui-attachment": "*",
+        "@deepseek-ai/dsh-client-ui-conversation": "*",
+        "@deepseek-ai/dsh-client-ui-primitives": "*",
+        "@deepseek-ai/dsh-client-ui-settings": "*",
+        "@deepseek-ai/dsh-client-ui-settings-plugins": "*",
+        "@deepseek-ai/dsh-client-ui-slots": "*",
+        "@deepseek-ai/dsh-host-webserver": "*",
+        "@deepseek-ai/dsh-settings": "*",
+        "@deepseek-ai/schemastery": "*",
+        "react": "^18.2.0"
+      },
+      "optionalDependencies": {},
+      "approvedBuilds": [],
+      "staticInspection": {
+        "codeFiles": 2,
+        "dshImports": [
+          {
+            "module": "@deepseek-ai/dsh-client-ui-attachment",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/lib/client.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/dsh-client-ui-primitives",
+            "symbols": [],
+            "forms": [
+              "require"
+            ],
+            "files": [
+              "package/lib/client.js"
+            ]
+          },
+          {
+            "module": "@deepseek-ai/schemastery",
+            "symbols": [
+              "default"
+            ],
+            "forms": [
+              "esm"
+            ],
+            "files": [
+              "package/lib/index.js"
+            ]
+          }
+        ],
+        "findings": [],
+        "conclusion": "archive-identity-and-integrity-verified-runtime-compatibility-pending",
+        "limits": [
+          "Import inspection does not execute plugin code.",
+          "Peer ranges and imported names alone do not prove runtime compatibility.",
+          "Minified property access and third-party transitive dependencies require isolated installation and activation."
+        ]
+      },
+      "evidence": {
+        "installation": {
+          "status": "pending"
+        },
+        "hostActivation": {
+          "status": "pending"
+        },
+        "clientActivation": {
+          "status": "pending"
+        },
+        "keyFunctions": {
+          "status": "pending"
+        }
+      },
+      "decision": {
+        "status": "excluded-incompatible-client-api",
+        "reason": "0.6.1 and latest 0.7.0 import removed ui-attachment.ImageGallery; next 0.8.0-rc.1 falls back to NullBlock, dropping reply images while retaining stream takeover.",
+        "existingUserInstallations": "preserved",
+        "originalArchive": "retained-unmodified",
+        "candidateEvidence": [
+          {
+            "version": "0.7.0",
+            "channel": "latest",
+            "integrity": "sha512-Pp64336yIU3TlWYmoyP47zWmUCyOuwFM4WoO0j9u8jBRe6PT92E2vCp2yp3OYdlmEqvA6fnz3Jy1KAK+VYlllA==",
+            "result": "static import of removed ImageGallery remains"
+          },
+          {
+            "version": "0.8.0-rc.1",
+            "channel": "next",
+            "integrity": "sha512-BPtPLpxaQbd3rILoihZFXRLYdFaULnP0jneHUuFyNJlUJbPm1ETzBorzCgfVNGDbw7M0ARWrPbItUitChtFyIA==",
+            "result": "Actual unmodified primitives-compat module executed in isolation: MarkdownText available, ImageGallery({images:[...]}) returned null when alpha3 attachment export is absent; not full DOM qualification"
+          }
+        ]
+      }
+    }
+  ],
+  "runtimeEvidence": {
+    "target": "darwin-arm64",
+    "stage": "authoritative final dependency manifests",
+    "runtimeVersion": "0.2.1-alpha.3",
+    "profileFingerprint": "d5c5e7d43dcd17bca3bb1a068d3549400fc829ccefc1e7e715b10be0f0376586",
+    "resourceCount": 21879,
+    "deploymentMs": 10913.399875000001,
+    "deploymentKind": "fresh final-manifest Profile deployment",
+    "freshNativeProfileDeploymentMs": 10570.873416999999,
+    "resourcePreparationMs": 226810,
+    "firstStartupMs": 3619.2258330000004,
+    "secondStartupMs": 1914.4797499999986,
+    "clientHttpStatuses": [
+      200,
+      200
+    ],
+    "profileDoctor": {
+      "status": "healthy",
+      "conflicts": 0,
+      "issues": 0,
+      "quarantined": 0
+    },
+    "office": {
+      "package": "@deepseek-ai/libreoffice-kit-darwin-arm64",
+      "version": "0.1.5",
+      "conversionMs": 5470.6695,
+      "backend": "native",
+      "missingFonts": [
+        "Liberation Sans"
+      ],
+      "pdfBytes": 21707,
+      "headerAndTrailerValid": true,
+      "systemPathEmpty": true
+    },
+    "runtimeArchive": {
+      "bytes": 664418816,
+      "sha256": "2e5ae2a15de3488c5e2a6803a15d703c4aae9792bb078d8e8df75441e5cfb5fe"
+    },
+    "profileArchive": {
+      "bytes": 499326976,
+      "sha256": "3f3ba26d8972a8868a4835f32ba333d65478a8e20dffcffd3f1b91010a3329ad"
+    },
+    "limitations": [
+      "Windows",
+      "Linux",
+      "macOS x64",
+      "final installers",
+      "Plugin external-service key functions without credentials"
+    ],
+    "evidenceDirectory": ".artifacts/alpha3-final (ignored local verification output)",
+    "performanceNote": "These measurements are not a matched alpha2/alpha3 comparison; prior warm-cache and final fresh deployments must not be presented as equivalent or proof of no regression."
+  },
+  "priorRuntimeEvidence": [
+    {
+      "target": "darwin-arm64",
+      "runtimeVersion": "0.2.1-alpha.3",
+      "profileFingerprint": "2d8af9043a38def411df10d4a0f739ffa14735bb684fe27605b88c008dacdc50",
+      "resourceCount": 21879,
+      "deploymentMs": 6927.4842499999995,
+      "deploymentKind": "idempotent relocation verification; not a fresh-device deployment measurement",
+      "freshNativeProfileDeploymentMs": 12310.492750000001,
+      "resourcePreparationMs": 384010,
+      "firstStartupMs": 1888.0720000000001,
+      "secondStartupMs": 1399.4547080000011,
+      "clientHttpStatuses": [
+        200,
+        200
+      ],
+      "profileDoctor": {
+        "status": "healthy",
+        "conflicts": 0,
+        "issues": 0,
+        "quarantined": 0
+      },
+      "office": {
+        "package": "@deepseek-ai/libreoffice-kit-darwin-arm64",
+        "version": "0.1.5",
+        "conversionMs": 6358.3903340000015,
+        "backend": "native",
+        "missingFonts": [
+          "Liberation Sans"
+        ],
+        "pdfBytes": 21707,
+        "headerAndTrailerValid": true,
+        "systemPathEmpty": true
+      },
+      "limitations": [
+        "Windows",
+        "Linux",
+        "macOS x64",
+        "final installers",
+        "Client JavaScript plugin mounting",
+        "Electron UI"
+      ],
+      "evidenceDirectory": ".artifacts/alpha3-integration (ignored local verification output)",
+      "stage": "before final peer/development-dependency declaration alignment; retained measurement only, superseded resources"
+    }
+  ]
+}

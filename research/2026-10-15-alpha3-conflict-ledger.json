@@ -1,0 +1,1701 @@
+{
+  "baselineRef": "master plus the separately committed alpha.3 risk report",
+  "upstream": "dsh-v0.2.1-alpha.3",
+  "backupRef": "backup/pre-upstream-0.2.1-alpha.3",
+  "desktopVersion": "0.2.1-alpha.2",
+  "status": "integrated-development-checks-passed-native-evidence-recorded",
+  "conflicts": [
+    {
+      "path": ".agents/notes/archived/testing/2026-09-14-desktop-installed-update-materials.md",
+      "resolution": "preserve-frozen-community-archive",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".agents/notes/archived/testing/2026-09-14-desktop-installed-update-materials.zh.md",
+      "resolution": "preserve-frozen-community-archive",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.i18n.yaml",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.zh.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".agents/notes/implemented/architecture/2026-09-08-desktop-bundled-runtime-and-external-plugins.i18n.yaml",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".agents/notes/implemented/architecture/2026-09-08-desktop-bundled-runtime-and-external-plugins.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".agents/notes/implemented/architecture/2026-09-08-desktop-bundled-runtime-and-external-plugins.zh.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".agents/notes/implemented/testing/2026-09-14-desktop-installed-update-materials.i18n.yaml",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".github/workflows/e2e.yml",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": ".github/workflows/windows-package.yml",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "AGENTS.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/cli/README.i18n.yaml",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/cli/src/profile-boot.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop-host/package.json",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop-host/tests/office.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/README.i18n.yaml",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/README.md",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/README.zh.md",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/electron-builder.config.d.mts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/package.json",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-auto-update-environment.d.mts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-auto-update-environment.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-build-paths.d.mts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-build-paths.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-build-version-discovery.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-build-version.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-package-environment.d.mts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-package-environment.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-upload-plan.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/dev.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/electron-builder-config.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/installed-update-builder.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/macos-app-update-config.d.mts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/macos-app-update-config.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/macos-runtime.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/manage-windows-signature-cache.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/package-macos.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/package-target.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-dsh.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-windows-ci.d.mts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-windows-ci.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/runtime-file-policy.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/runtime-patch-policy.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/smoke-packaged-runtime.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/smoke-runtime.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/verify-macos-signature.d.mts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/scripts/verify-macos-signature.mjs",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/src/main.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/src/mandatory-update-policy.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/src/update-coordinator.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/src/update-dialog.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/desktop-auto-update-environment.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/desktop-build-paths.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/desktop-build-version-discovery.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/desktop-package-environment.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/desktop-upload-plan.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/installed-update-builder.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/installed-update/README.i18n.yaml",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/installed-update/README.md",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/installed-update/README.zh.md",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/macos-app-update-config.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/macos-runtime.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/macos-signature.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/mandatory-update-policy.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/package-target-stages.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/package-target.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/prepare-runtime-patches.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/prepare-windows-ci.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/ptc-runtime.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/runtime-file-policy.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/update-coordinator.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/desktop/tests/update-dialog.spec.ts",
+      "resolution": "retain-community-shell-and-release-workflow",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/web/tests/expected/onboarding-deepseek-config/missing.expected.md",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "apps/web/tests/onboarding-deepseek-config.e2e.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/config-catalog.md",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/config-catalog.zh.md",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/development.i18n.yaml",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/development.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/development.zh.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/event-producer-consumer.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/event-producer-consumer.zh.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/module-graph.md",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/module-graph.zh.md",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/persistence-catalog.i18n.yaml",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/persistence-catalog.md",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/persistence-catalog.zh.md",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/persistence-changes/historical-formats/README.i18n.yaml",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/persistence-changes/historical-formats/README.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/persistence-changes/historical-formats/README.zh.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "docs/persistence-schema.json",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "package.json",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/api/session-controller/tests/session-presets.host.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/boot/app-boot/package.json",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/boot/app-boot/tests/app-boot.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/boot/app-boot/tests/user-patches.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/boot/hmr/src/watch-config.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/boot/hmr/tests/watch-config.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/bundle/web-app/README.i18n.yaml",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/bundle/web-app/README.md",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/bundle/web-app/README.zh.md",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/bundle/web-app/package.json",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/bundle/web-app/src/index.ts",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/connection/README.i18n.yaml",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/connection/README.md",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/connection/README.zh.md",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/connection/src/browser-auth.ts",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/connection/src/index.ts",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/connection/src/rpc-host.ts",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/connection/tsconfig.host.json",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-attachment/src/MessageImage.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-attachment/src/client/MessageImages.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/apply.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/chat/AssistantNodeView.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/chat/ChatFlow.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/chat/ChatView.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/contract/slots.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/apply.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/contract/slots.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/index.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/skeleton/ConversationContent.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/README.i18n.yaml",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-account/README.i18n.yaml",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-account/README.md",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-account/README.zh.md",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-account/src/client/AccountMenu.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-account/src/client/AccountSection.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-account/src/client/index.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-account/tests/account.client.spec.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-general/README.i18n.yaml",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-general/README.md",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-general/package.json",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-general/tests/shell.client.spec.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/client/ProviderEditor.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-models/tests/apply.client.spec.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-models/tests/components.client.spec.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/package.json",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/tests/components.client.spec.tsx",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-theme/src/client/index.ts",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-theme/tests/expected/radius-exceptions.expected.json",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/ui-workspace/package.json",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/client/web/README.i18n.yaml",
+      "resolution": "retain-community-ui-with-upstream-api",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/experimental/client-ui-agent-team/package.json",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/extensions/cordis-client-runner/src/client/api-catalog.ts",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/host/plugin-inventory/package.json",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/host/webserver/README.i18n.yaml",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/host/webserver/README.md",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/host/webserver/README.zh.md",
+      "resolution": "integrate-upstream-connection-with-nas-rbac",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/sdk/client/tests/sdk-client.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/subagent/tool-subagent/README.i18n.yaml",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/subagent/tool-subagent/README.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/subagent/tool-subagent/README.zh.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/subagent/tool-subagent/src/index.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/test-support/client-runtime/README.i18n.yaml",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/test-support/client-runtime/README.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/test-support/client-runtime/README.zh.md",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "packages/typert/loader/tests/loader.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "resolution": "regenerate-from-integrated-source",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "scripts/primary-runtime/smoke.py",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "scripts/run-gates.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "scripts/windows-package-workflow.spec.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    },
+    {
+      "path": "tsdown.config.ts",
+      "resolution": "merge-both-behaviors",
+      "verification": "resolved-and-reviewed; see integration report for applicable checks and unverified platform/runtime boundaries"
+    }
+  ],
+  "verificationScope": "Conflict choices reviewed by subsystem ownership; aggregate build/type/lint/doc checks and focused tests are recorded in the integration report. Static review is not per-path runtime proof.",
+  "automaticOverlapReview": [
+    {
+      "path": ".agents/skills/dsh-pre-push-checks/SKILL.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "apps/cli/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "apps/cli/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "apps/cli/reference/README.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "apps/cli/reference/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "apps/cli/reference/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "apps/cli/src/dump-config-schema.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "apps/cli/tests/built-bin.e2e.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "apps/cli/tests/web-agent-presets.e2e.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "apps/web/tests/agent-preset-selection.e2e.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "apps/web/tests/desktop-onboarding.e2e.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "apps/web/tests/onboarding-usable-provider.e2e.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "docs/cli-help.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/cli-help.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/glossary.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "docs/glossary.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/glossary.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/subsystems/core.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/subsystems/core.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/subsystems/web-server.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/subsystems/web-server.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/testing.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "docs/testing.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/testing.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/tool-catalog.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "docs/tool-catalog.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/tool-catalog.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/ui-radius.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "docs/ui-radius.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/ui-radius.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/user/develop/basic/publish.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "docs/user/develop/basic/publish.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "docs/user/develop/basic/publish.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "lefthook.yml",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/api/session-controller/src/agent.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/api/session-controller/src/client/sessions/session.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/boot/app-boot/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/boot/app-boot/src/profile-context.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/boot/hmr/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/boot/plugin-manager/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/boot/plugin-manager/tests/manager.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/bundle/web-app/cordis.patch.yml",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/bundle/web-app/src/startup.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/bundle/web-app/tsconfig.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/client/connection/package.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/client/connection/tests/node-half.host.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/locale/README.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "packages/client/locale/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-attachment/README.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "packages/client/ui-attachment/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-attachment/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-attachment/tests/message-image.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/chat/ChatView.module.css",
+      "category": "client-layout",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/locale.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/client/ui-chat/tests/apply-inject.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-chat/tests/assistant-markdown-path-images.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/locales.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+      "category": "client-layout",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-layout/tests/app-frame.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-model-selection/README.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "packages/client/ui-model-selection/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/src/client/manager-store.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/tests/browser-plugin.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/tests/components.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/tests/manager-store.client.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-account/src/client/SignInDialog.tsx",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-account/tests/apply.client.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-account/tests/onboarding.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-account/tests/quota-notice-hold.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-account/tests/sign-in-dialog.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-general/tests/apply.client.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-general/tests/components.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-general/tests/settings-root.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-models/README.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "packages/client/ui-settings-models/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-models/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/client/ModelsSection.module.css",
+      "category": "client-layout",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/client/ModelsSection.tsx",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/client/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/client/locales.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/client/store.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-models/tests/onboarding-dialog.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/README.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.module.css",
+      "category": "client-layout",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/src/client/locales.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings/README.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "packages/client/ui-settings/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/ui-settings/src/client/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-sidebar-documentpreview/tsdown.config.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-sidebar-terminal/tests/terminal-body.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-sidebar/tests/pointer-scrollbars.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-sidebar/tests/sidebar-root.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-theme/tests/appearance-row.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-trajectory/src/client/TrajectoryView.tsx",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-trajectory/tests/views.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/contract/slots.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/locales.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/rows/Rows.module.css",
+      "category": "client-layout",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/rows/Rows.tsx",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/client/ui-workspace/tests/rename-assembly.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-workspace/tests/rows.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-workspace/tests/workspace-browser.client.spec.tsx",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-workspace/tests/workspaces-service.client.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/client/ui-workspace/tsconfig.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/client/web/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/client/web/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/core/session/src/known-event-types.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/core/system-prompt/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/core/system-prompt/tests/system-prompt.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/core/tools/src/ptc.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/core/tools/tests/ptc.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/document/office-to-pdf/package.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/fs/tool-fs/tests/tools.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/host/webserver/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/host/webserver/tests/webserver.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/preset/agent-preset-registry/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/preset/agent-preset-registry/src/session.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/preset/agent-preset-registry/tests/registry.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/sdk/client/src/client.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/session-query/session-log-export/package.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/session/session-log-deepseek/package.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/session/session-log-deepseek/tests/feedback-composition.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/session/session-persistence-jsonl/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/session/session-persistence-jsonl/tests/migration-refusal.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/shell/tool-bash/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/shell/tool-bash/tests/tools.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/shell/tool-pwsh/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/shell/tool-pwsh/tests/tools.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/skill/skill-office/package.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/subagent/tool-subagent/tests/tool-subagent.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "packages/subprocess/subprocess-local/package.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/test-support/client-runtime/package.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "packages/test-support/client-runtime/src/assembly/remote-default-responses.ts",
+      "category": "production",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "packages/typert/loader/README.i18n.yaml",
+      "category": "translation-record",
+      "status": "pairing-gate-verified"
+    },
+    {
+      "path": "packages/typert/loader/README.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/typert/loader/README.zh.md",
+      "category": "documentation",
+      "status": "document-delta-and-gates-reviewed"
+    },
+    {
+      "path": "packages/typert/loader/src/index.ts",
+      "category": "production",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "packages/workspace/workspace/tests/workspace.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "category": "manifest-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "scripts/build-exe-for-python-sdk.ts",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "scripts/check-workspace-constraints.ts",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "scripts/client-build-environment.ts",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "scripts/doc-standard.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "scripts/gen-config-catalog.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "scripts/gen-config-catalog.ts",
+      "category": "workflow-build",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "scripts/gen-cordis-catalog.ts",
+      "category": "workflow-build",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "scripts/no-unknown-casts.baseline.json",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "scripts/optional-bundles.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "scripts/package-dependency-policy.ts",
+      "category": "workflow-build",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "scripts/run-gates.ts",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "scripts/translation-links.ts",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "scripts/verify-md-links.ts",
+      "category": "workflow-build",
+      "status": "static-semantic-reviewed"
+    },
+    {
+      "path": "scripts/verify-package-dependencies.spec.ts",
+      "category": "test-fixture",
+      "status": "fixture-delta-reviewed-not-new-runtime-evidence"
+    },
+    {
+      "path": "scripts/verify-package-readme-model-experience.ts",
+      "category": "workflow-build",
+      "status": "static-delta-reviewed"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "tsconfig.client.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    },
+    {
+      "path": "tsconfig.host.json",
+      "category": "manifest-build",
+      "status": "manifest-delta-reviewed"
+    }
+  ],
+  "evidence": "2026-10-15-alpha3-integration.md",
+  "resolutionRules": {
+    "preserve-frozen-community-archive": "Keep the accepted community archived record unchanged; archived-note verification passed.",
+    "merge-both-behaviors": "Adapt the upstream owner interface and retain still-applicable community behavior; compile and focused subsystem checks apply. Documentation follows final owners and bilingual gates.",
+    "retain-community-shell-and-release-workflow": "Keep the community Desktop entry, installer and release ownership. Do not restore replaced official publishing paths; extract necessary resource/runtime changes explicitly.",
+    "retain-community-ui-with-upstream-api": "Use upstream Client contracts while retaining community mobile navigation, archive, model search, approval language/details, prompts and team guidance; component tests and native boot apply.",
+    "regenerate-from-integrated-source": "Regenerate the artifact from final merged source and manifests; do not choose an entire generated file from either parent. Verify owning freshness/type gates.",
+    "integrate-upstream-connection-with-nas-rbac": "Adopt Peer/RBAC and explicit NAS identity/resource policies. Retain trusted-host authentication and local-only carrier boundaries; verify live revoke/expiry, RPC/HTTP/WS/file denial and role fixtures."
+  }
+}
