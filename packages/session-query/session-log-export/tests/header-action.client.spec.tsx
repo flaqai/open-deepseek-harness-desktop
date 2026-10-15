@@ -19,6 +19,8 @@ function hasMenuRegistration(value: unknown): value is ConversationHeaderMenuIte
 const unused = (): never => { throw new Error('unused header-action fixture prop') }
 const SessionProvider: SessionLogDownloadHeaderProps['SessionProvider'] = ({ children }) => children
 const standardProps = {
+  useDownloadAllowed: <T,>(selector: (allowed: boolean) => T): T => selector(true),
+  useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true, useAccess: () => true,
   SessionProvider,
   usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
   useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
@@ -40,16 +42,18 @@ function bindSnapshot<State>(store: ObservableSnapshot<State>) {
   }
 }
 
-function bench(feedbackAvailable = false) {
+function bench(feedbackAvailable = false, allowed = true) {
   const controller = new SessionLogDownloadController(async () => new Response('zip'), vi.fn())
   const request = vi.fn((sessionId: SessionId) => controller.download(sessionId))
   const dismiss = vi.fn((sessionId: SessionId) => { controller.dismiss(sessionId) })
   let menuOwner: ConversationHeaderMenuItemOwnerProps | undefined
   const openFeedback = vi.fn()
   const feedback = createSnapshotStore(feedbackAvailable)
+  const permission = createSnapshotStore(allowed)
   const useSessionLogDownload = bindSnapshot(controller.store)
   const props = {
     ...standardProps,
+    useDownloadAllowed: bindSnapshot(permission),
     sessionId: SID,
     useSessionLogDownload,
     useFeedbackAvailable: bindSnapshot(feedback),
@@ -74,12 +78,20 @@ function bench(feedbackAvailable = false) {
     t: makeTranslate(en),
   } satisfies SessionLogDownloadHeaderProps
   const view = render(<SessionLogDownloadHeaderAction {...props} />)
-  return { controller, request, openFeedback, feedback, view, menuOwner: () => menuOwner! }
+  return { controller, request, openFeedback, feedback, permission, view, menuOwner: () => menuOwner! }
 }
 
 afterEach(cleanup)
 
 describe('Session export Header action', () => {
+  it('removes raw export immediately after a live permission downgrade', () => {
+    const b = bench()
+    fireEvent.click(b.view.getByRole('button', { name: 'More actions' }))
+    expect(b.view.getByRole('menuitem', { name: 'Download session log' })).toBeTruthy()
+    act(() => { b.permission.set(false) })
+    expect(b.view.queryByRole('menuitem', { name: 'Download session log' })).toBeNull()
+    expect(b.request).not.toHaveBeenCalled()
+  })
   it('opens Session feedback and closes the menu without starting a download', () => {
     const b = bench(true)
     fireEvent.click(b.view.getByRole('button', { name: 'More actions' }))
@@ -162,6 +174,7 @@ describe('Session export Header action', () => {
     const useSessionLogDownload = bindSnapshot(controller.store)
     b.view.rerender(<SessionLogDownloadHeaderAction {...({
       ...standardProps,
+      useDownloadAllowed: bindSnapshot(b.permission),
       sessionId: SID,
       useSessionLogDownload,
       useFeedbackAvailable: bindSnapshot(b.feedback),

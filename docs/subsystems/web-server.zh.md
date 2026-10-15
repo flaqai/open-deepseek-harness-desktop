@@ -45,6 +45,8 @@ interface Config {
   host: string
   /** Explicit NAS carrier opt-in permits only the IPv4 all-interface bind. */
   nasRuntime?: boolean
+  /** Refuse all dispatch until at least one deployment request guard is registered. @default false */
+  requireRequestGuard?: boolean
   /** Listen port; zero requests an OS-assigned port. */
   port: number
   /**
@@ -80,6 +82,24 @@ interface TlsConfig {
 ```
 
 载体默认在加载时拒绝未指定地址；显式 `nasRuntime` 仅允许精确的 `0.0.0.0`。[NAS 部署契约](../../packages/bundle/web-app/README.zh.md#public-deployments) 规定所需的可信入口与配对设备认证。导出的 `isWildcardHost` 与 `isLoopbackHost` 按解析后的地址值分类，IPv6 的 `%zone` 会保留给 `listen`，而分类只读取地址本身。载体不拥有认证或 Origin 策略，并且除非 `tls` 提供证书与密钥，否则以明文 HTTP 提供服务。`compression` 默认为 `none`；随附的 Web 组合选择 gzip level 1 和 1024 字节阈值。随附的 `dsh web` 命令默认选择 loopback 并接受一个具体的 `--host` 地址，非 loopback 绑定以明文 HTTP 提供服务时会在启动时警告；其 Connection 插件为每个 Host API route 与 stream 提供 Host/Origin 校验和浏览器会话认证，绑定地址加 `--trusted-host` 决定接受哪个浏览器 Host；`--public-url` 只改变公告的 URL。其他组合自行拥有绑定与路由认证策略。dist 位置是认领席位的前端插件的组装事实。
+
+```ts type-equiv
+/** Request metadata supplied before a named handler or the fallback can run. */
+interface WebRequestAdmission {
+  readonly request: IncomingMessage
+  readonly kind: 'http' | 'upgrade'
+  readonly pathname: string
+  /** Matched route registration, or undefined for the HTTP fallback. */
+  readonly routePath: string | undefined
+}
+```
+
+```ts type-equiv
+/** A synchronous deployment admission check. Every registered check must allow dispatch. */
+type WebRequestGuard = (admission: WebRequestAdmission) => boolean
+```
+
+`registerRequestGuard` 在具名路由或回退处理器分发前检查每个 HTTP 请求与协议升级。所有已注册的同步检查都必须允许请求；拒绝会阻止处理器运行。部署插件拥有策略，并且还必须验证各自 RPC 与事件方法的身份与权限。
 
 ## 服务
 
@@ -118,12 +138,27 @@ createSharedFetchHandler(channel: '/api'): ConnectionFetchHandler
 requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection
 
 /**
- * Admit one request: it passes {@link requestRejection} and speaks for the
- * operator, or it is refused with that status.
+ * Admit an HTTP request against its signed browser or API credential and live Peer.
  * @param request - request headers from the HTTP or upgrade request.
- * @returns the operator Peer, or the rejection status.
+ * @returns the credential's Peer, or the rejection status.
  */
 admit(request: ConnectionTrustRequest): PeerAdmission
+
+/**
+ * Create an independent in-process Peer, disposed with the Context that read `ctx.connection`.
+ * @param options - fixed principal and optional interaction participation (default `answer`).
+ * @returns a new Peer distinct from every other Peer.
+ */
+createPeer(options: { readonly principal: Principal; readonly interactions?: 'answer' | 'none' }): PeerScope
+
+/**
+ * Claim a physical socket for an API Peer; browser sockets share their owner Peer.
+ * @param request - authenticated upgrade request headers.
+ * @returns the Peer and idempotent release, or 409 for duplicate API ownership.
+ * The carrier releases on socket termination or failed upgrade; release removes
+ * API admission synchronously without cancelling independent HTTP calls.
+ */
+admitConnection(request: ConnectionTrustRequest): ConnectionAdmission
 
 /**
  * Authenticate one frontend index request, owning a token redirect or 401.
@@ -143,7 +178,25 @@ authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexRespons
 authenticatedUrl(baseUrl: string): string
 ```
 
+Types: [Principal](typert.zh.md)
+
 Source: [`packages/client/connection/src/rpc.ts`](../../packages/client/connection/src/rpc.ts)
+
+<a id="ctxwebapp--webapp"></a>
+
+### `ctx.webApp` — `WebApp`
+
+The Web GUI this process serves, provided by the `web-runtime` row.
+
+```ts cordis-catalog
+/**
+ * The URL this GUI advertises, also used for `DSH_WEB_URL` and the startup URL line.
+ * @returns the configured `publicUrl`, otherwise the listener origin.
+ */
+getAdvertisedUrl(): string
+```
+
+Source: [`packages/bundle/web-app/src/index.ts`](../../packages/bundle/web-app/src/index.ts)
 
 <a id="ctxwebserver--webserver"></a>
 
@@ -152,6 +205,14 @@ Source: [`packages/client/connection/src/rpc.ts`](../../packages/client/connecti
 The browser HTTP carrier service. Activation loads any configured TLS material, then listens immediately; a material or listen failure rejects initialization, and the boot process reports the failed fiber. Route registration order does not affect requests because configured named routes must be distinct, and the fallback handler answers anything not yet claimed during startup with 404 until its owner registers.
 
 ```ts cordis-catalog
+/**
+ * The root URL local clients use to reach the bound listener: the protocol,
+ * the {@link bindUrlHost} form of the bind address, and the listening port.
+ * @returns the origin, for example `http://127.0.0.1:3080`.
+ * @throws before `listen` binds a port, or when the bind address has no URL form.
+ */
+getOrigin(): string
+
 /**
  * Register a named route. Duplicate (kind, path) throws — route patterns are
  * a composition-level contract, so a collision is a misconfiguration.
@@ -167,6 +228,13 @@ register(route: WebRoute): () => void
  * @returns the disposer removing the route.
  */
 registerUpgrade(route: WebUpgradeRoute): () => void
+
+/**
+ * Apply deployment-owned admission before HTTP and upgrade handlers, including later registrations.
+ * @param guard - synchronous live-state check; false refuses dispatch with HTTP 403, and a thrown error fails closed.
+ * @returns disposer removing only this guard; callers bind it to their owning Context effect.
+ */
+registerRequestGuard(guard: WebRequestGuard): () => void
 
 /**
  * Claim the fallback seat: the handler answering every request no named

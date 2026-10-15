@@ -30,6 +30,15 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
   const invocation = parseDshArgs(process.argv.slice(2), version, manageDesktopProfile)
 
   switch (invocation.mode) {
+    case 'nas-admin-recovery': {
+      const { issueNasAdministratorRecovery } = await import('./nas-admin-recovery.ts')
+      const recovery = await issueNasAdministratorRecovery({
+        home: resolveDshHome(),
+        ...invocation.credentialsFile === undefined ? {} : { credentialsFile: invocation.credentialsFile },
+      })
+      process.stdout.write(`NAS administrator recovery code: ${recovery.code}\nExpires at: ${recovery.expiresAt}\nCredentials: ${recovery.credentialsFile}\nUse this single-use code to pair the administrator device. Keep it private.\n`)
+      break
+    }
     case 'profile': {
       if (!claimDesktopWebLaunch(invocation.profile, resolveDshHome(), process.env)) {
         console.error('dsh: Web replacement delegated to Desktop supervisor; no second service started')

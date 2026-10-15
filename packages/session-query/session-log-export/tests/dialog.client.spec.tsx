@@ -12,6 +12,7 @@ import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 const SID = 'session-export-dialog' as SessionId
 const unused = (): never => { throw new Error('unused dialog fixture prop') }
 const standardProps = {
+  useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true, useAccess: () => true,
   usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
   useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
   useSession: unused, useProjection: unused, useConversation: unused, useInput: unused,
@@ -27,6 +28,7 @@ function bench(
   controller = new SessionLogDownloadController(
     async () => new Response('zip', { status: 200 }), vi.fn(),
   ),
+  allowed = true,
 ) {
   const dismiss = vi.fn((sessionId: SessionId) => { controller.dismiss(sessionId) })
   function useSessionLogDownload<T>(selector: (state: ReturnType<typeof controller.store.getSnapshot>) => T): T {
@@ -38,6 +40,7 @@ function bench(
   const t = makeTranslate(en)
   const props = {
     ...standardProps,
+    useDownloadAllowed: selector => selector(allowed),
     sessionId: SID,
     useSessionLogDownload,
     request: (sessionId: SessionId) => controller.download(sessionId),
@@ -56,6 +59,12 @@ function bench(
 afterEach(cleanup)
 
 describe('SessionLogDownloadDialog', () => {
+  it('hides even a previously open export when access is denied', () => {
+    const controller = new SessionLogDownloadController(async () => new Response('zip'), vi.fn())
+    controller.store.set({ bySession: { [SID]: { open: true, status: 'error', error: 'old export' } } })
+    const b = bench(controller, false)
+    expect(b.view.queryByRole('dialog')).toBeNull()
+  })
   it('shows both privacy choices and warns before remembering plaintext inclusion', async () => {
     const controller = new SessionLogDownloadController(
       async () => new Response('zip'), vi.fn(),

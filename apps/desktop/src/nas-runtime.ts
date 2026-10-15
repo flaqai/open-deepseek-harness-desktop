@@ -8,6 +8,8 @@ import { connect as connectTls } from 'node:tls'
 import {
   NAS_PROTOCOL_V1,
   NasProtocolViolation,
+  isNasRole,
+  type NasRole,
   type NasDeviceSummary,
   type NasHealthDocument,
   type NasPairingDocument,
@@ -55,6 +57,14 @@ export interface NasRuntimeStatus {
 }
 
 export type { NasDeviceSummary } from '@deepseek-ai/dsh-nas-protocol'
+export type { NasRole } from '@deepseek-ai/dsh-nas-protocol'
+
+/** One server-issued role-bound invitation; the code is never persisted. */
+export interface NasInvitation {
+  readonly code: string
+  readonly role: NasRole
+  readonly expiresAt: string
+}
 
 export interface NasDiscoveryCandidate {
   readonly baseUrl: string
@@ -407,6 +417,45 @@ export class NasRuntimeClient {
 
   async devices(baseUrl: string, token: string): Promise<readonly NasDeviceSummary[]> {
     return this.deviceRequest(baseUrl, token, NAS_PROTOCOL_V1.devices.method)
+  }
+
+  /** Read the current device identity without granting device-list authority. */
+  async me(baseUrl: string, token: string): Promise<NasDeviceSummary> {
+    const raw = await this.managementRequest(baseUrl, token, '/nas/me')
+    const [device] = parseDevices({ devices: [raw] })
+    if (device === undefined) throw new Error('desktop: NAS returned no device identity')
+    return device
+  }
+
+  /** Create an invitation whose role is enforced by the NAS. */
+  async invite(baseUrl: string, token: string, role: NasRole): Promise<NasInvitation> {
+    if (!isNasRole(role)) throw new TypeError('desktop: invalid NAS role')
+    const raw = await this.managementRequest(baseUrl, token, '/nas/invitations', { role })
+    if (!isRecord(raw) || typeof raw.code !== 'string' || !/^[0-9]{8}$/u.test(raw.code)
+      || !isNasRole(raw.role) || raw.role !== role || typeof raw.expiresAt !== 'string' || !Number.isFinite(Date.parse(raw.expiresAt))) {
+      throw new Error('desktop: NAS returned an invalid invitation')
+    }
+    return { code: raw.code, role: raw.role, expiresAt: raw.expiresAt }
+  }
+
+  /** Change a device role; the NAS protects its last effective administrator. */
+  async setDeviceRole(baseUrl: string, token: string, deviceId: string, role: NasRole): Promise<readonly NasDeviceSummary[]> {
+    if (!isNasRole(role) || !/^[a-f0-9]{32}$/u.test(deviceId)) throw new TypeError('desktop: invalid NAS role request')
+    return parseDevices(await this.managementRequest(baseUrl, token, '/nas/device-role', { deviceId, role }))
+  }
+
+  private async managementRequest(baseUrl: string, token: string, path: string, body?: object): Promise<unknown> {
+    const origin = normalizeNasBaseUrl(baseUrl)
+    const timeout = timeoutSignal(this.timeoutMs)
+    try {
+      const response = await this.fetch(`${origin}${path}`, {
+        method: body === undefined ? 'GET' : 'POST', signal: timeout.signal,
+        headers: { authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      })
+      if (!response.ok) throw new Error(`desktop: NAS management request failed with HTTP ${String(response.status)}`)
+      return await response.json()
+    } finally { timeout.dispose() }
   }
 
   async revokeDevice(baseUrl: string, token: string, deviceId: string): Promise<readonly NasDeviceSummary[]> {

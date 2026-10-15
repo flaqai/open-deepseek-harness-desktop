@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fileMediaUrl, isAbsoluteWorkspacePath, pathPartsOf, resolveWorkspacePath } from '@deepseek-ai/dsh-util-workspace-path'
 import type { ChatNodeOwnerProps, ChatViewSlotProps } from '../contract/slots.ts'
+import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { AssistantBlock } from '../contract/snapshot.ts'
 import css from './AssistantMarkdown.module.css'
 
@@ -155,10 +156,11 @@ async function imageIsReadable(image: LocalPathImage, signal: AbortSignal): Prom
 
 /** Settled Assistant local-path gallery with bounded validation and retry. */
 export function LocalPathImages({
-  images, renderMessageImages, openFile, revealFile, t,
+  images, renderSlot, loadImage, openFile, revealFile, t,
 }: {
   images: readonly LocalPathImage[]
-  renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
+  renderSlot: PropsRenderSlots<'conversation.chat.message.images'>['renderSlot']
+  loadImage: ChatNodeOwnerProps['loadImage']
   openFile: ChatNodeOwnerProps['openFile']
   revealFile?: ChatNodeOwnerProps['revealFile']
   t: ChatViewSlotProps['t']
@@ -190,7 +192,8 @@ export function LocalPathImages({
   if (images.length === 0) return null
   return (
     <div className={css.localImages}>
-      {ready.length > 0 && renderMessageImages({
+      {ready.length > 0 && renderSlot('conversation.chat.message.images', {
+        loadImage,
         images: ready.map(image => ({
           preview: {
             url: image.url,

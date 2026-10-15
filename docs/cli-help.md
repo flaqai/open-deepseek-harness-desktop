@@ -36,8 +36,8 @@ Arguments:
 Options:
   -V, --version                  output the version number
   --profile <name>               the profile under $DSH_HOME/profiles to boot
-  --from-default-profile <name>  initialize a new custom profile from a shipped
-                                 profile template
+  --from-default-profile <name>  replace a custom profile with a fresh copy of a
+                                 shipped profile template
   --patch <path>                 extra patch-list overlay applied after the
                                  profile layer (repeatable)
   --dump-config                  print the composed profile tree and exit
@@ -49,12 +49,13 @@ Options:
 Examples:
   dsh web                                   boot the web profile (same as: dsh --profile web)
   dsh rescue --from-default-profile web
-                                            create rescue from the shipped web template, then boot it
+                                            recreate rescue from the shipped web template, then boot it
   dsh headless "run the tests"              answer one task, print the result, and exit
   dsh tui --patch ./extra.yml               boot a custom profile with one extra overlay
   dsh tui --resume <session>                arguments after the launcher flags reach the app
   dsh web --help                            the web app's own flags and help
   dsh plugin --profile tui add <package>    install a plugin into the tui profile
+  dsh nas-admin-recovery                    issue a temporary NAS administrator code on the server
 
 ```
 
@@ -179,7 +180,7 @@ Options:
   --port <port>                  listen port; pass 0 to let the OS pick a free
                                  one
   --public-url <url>             advertise this HTTP(S) root in the printed,
-                                 opened, web-surface, and DSH_WEB_URL forms;
+                                 opened, runtime-context, and DSH_WEB_URL forms;
                                  grants no trust
   --trusted-host <authority...>  extra authority the /api browser-trust fence
                                  accepts (host or host:port; repeatable)

@@ -7,17 +7,23 @@ import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import {
   NAS_PROTOCOL_V1,
   NasProtocolViolation,
+  isNasRole,
+  type NasRole,
   type NasDeviceSummary,
   type NasHealthFields,
 } from '@deepseek-ai/dsh-nas-protocol'
 import { isTrustedApiRequest } from './api-request-trust.ts'
 
 const DEVICE_RECORD_KEY = credentialKey('client-connection', 'nas-devices')
-const RECORD_VERSION = 1
+const RECORD_VERSION = 2
+const LEGACY_BACKUP_KEY = credentialKey('client-connection', 'nas-devices-before-roles')
+const RECOVERY_KEY = credentialKey('client-connection', 'nas-administrator-recovery')
 const PAIRING_LIFETIME_MS = 10 * 60_000
 const TOKEN_BYTES = 32
 const MAX_PAIRING_BODY_BYTES = 4096
 const MAX_PAIRING_ATTEMPTS = 10
+
+class LastAdministratorError extends Error {}
 
 interface DeviceRecord {
   readonly id: string
@@ -25,12 +31,15 @@ interface DeviceRecord {
   readonly tokenHash: string
   readonly createdAt: string
   readonly expiresAt: string
+  readonly role: NasRole
 }
 
 interface DeviceDocument {
   readonly version: typeof RECORD_VERSION
   readonly instanceId?: string
   readonly devices: readonly DeviceRecord[]
+  readonly consumedPairingHash?: string
+  readonly rolesMigrated?: true
 }
 
 /** Resolved values required by one NAS Runtime access owner. */
@@ -59,7 +68,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseDocument(record: CredentialRecord | undefined): DeviceDocument {
   if (record === undefined) return { version: RECORD_VERSION, devices: [] }
-  if (record.kind !== 'grant' || !isRecord(record.payload) || record.payload.version !== RECORD_VERSION
+  if (record.kind !== 'grant' || !isRecord(record.payload) || (record.payload.version !== 1 && record.payload.version !== RECORD_VERSION)
     || !Array.isArray(record.payload.devices)) {
     throw new Error('client-connection: NAS device credential record has an unsupported format')
   }
@@ -67,7 +76,8 @@ function parseDocument(record: CredentialRecord | undefined): DeviceDocument {
   for (const value of record.payload.devices) {
     if (!isRecord(value) || typeof value.id !== 'string' || typeof value.name !== 'string'
       || typeof value.tokenHash !== 'string' || typeof value.createdAt !== 'string'
-      || typeof value.expiresAt !== 'string') {
+      || typeof value.expiresAt !== 'string' || !Number.isFinite(Date.parse(value.expiresAt))
+      || (record.payload.version === RECORD_VERSION && !isNasRole(value.role))) {
       throw new Error('client-connection: NAS device credential record contains an invalid device')
     }
     devices.push({
@@ -76,11 +86,14 @@ function parseDocument(record: CredentialRecord | undefined): DeviceDocument {
       tokenHash: value.tokenHash,
       createdAt: value.createdAt,
       expiresAt: value.expiresAt,
+      role: record.payload.version === 1 ? 'admin' : isNasRole(value.role) ? value.role : 'admin',
     })
   }
   return {
     version: RECORD_VERSION,
     ...(typeof record.payload.instanceId === 'string' ? { instanceId: record.payload.instanceId } : {}),
+    ...(typeof record.payload.consumedPairingHash === 'string' ? { consumedPairingHash: record.payload.consumedPairingHash } : {}),
+    ...(record.payload.version === 1 || record.payload.rolesMigrated === true ? { rolesMigrated: true } : {}),
     devices,
   }
 }
@@ -127,8 +140,21 @@ function normalizeCode(value: string): string {
   return code
 }
 
+/** Issue a single-use administrator invitation from a trusted server-local command.
+ * @param credentials - the NAS server's credential provider, never a remote client provider.
+ * @returns the temporary code and its expiry for local display.
+ */
+export async function createNasAdministratorRecovery(credentials: CredentialProvider): Promise<{ code: string; expiresAt: string }> {
+  const code = generatedCode()
+  const expiresAt = new Date(Date.now() + PAIRING_LIFETIME_MS).toISOString()
+  await credentials.modifyRecord(RECOVERY_KEY, () => Promise.resolve({
+    kind: 'grant', payload: { tokenHash: tokenHash(code), expiresAt },
+  }))
+  return { code, expiresAt }
+}
+
 function deviceSummary(device: DeviceRecord): NasDeviceSummary {
-  return { id: device.id, name: device.name, createdAt: device.createdAt, expiresAt: device.expiresAt }
+  return { id: device.id, name: device.name, createdAt: device.createdAt, expiresAt: device.expiresAt, role: device.role }
 }
 
 /** One deployment-wide NAS access owner. */
@@ -140,6 +166,9 @@ export class NasAccess {
   private pairingAttempts = 0
   private devices: readonly DeviceRecord[] = []
   private instanceId = ''
+  private pairingRole: NasRole = 'admin'
+  private rolesMigrated = false
+  private readonly listeners = new Set<(deviceId: string) => Promise<void>>()
 
   private constructor(
     private readonly credentials: CredentialProvider,
@@ -150,7 +179,15 @@ export class NasAccess {
     this.routes = [
       { kind: 'exact', path: NAS_PROTOCOL_V1.health.path, handler: (req: IncomingMessage, res: ServerResponse) => { this.health(req, res) } },
       { kind: 'exact', path: NAS_PROTOCOL_V1.pair.path, handler: (req: IncomingMessage, res: ServerResponse) => this.pair(req, res) },
-      { kind: 'exact', path: NAS_PROTOCOL_V1.devices.path, handler: (req: IncomingMessage, res: ServerResponse) => this.manageDevices(req, res) },
+      { kind: 'exact', path: NAS_PROTOCOL_V1.devices.path, handler: (req: IncomingMessage, res: ServerResponse) => this.managementResponse(res, () => this.manageDevices(req, res)) },
+      { kind: 'exact', path: '/nas/invitations', handler: (req: IncomingMessage, res: ServerResponse) => this.invite(req, res) },
+      { kind: 'exact', path: '/nas/device-role', handler: (req: IncomingMessage, res: ServerResponse) => this.managementResponse(res, () => this.changeRole(req, res)) },
+      { kind: 'exact', path: '/nas/me', handler: (req: IncomingMessage, res: ServerResponse) => {
+        if (!isTrustedApiRequest(req, this.config.trustedHosts)) { res.writeHead(403); res.end(); return }
+        const device = this.authenticate(req)
+        if (device === undefined) { res.writeHead(401); res.end(); return }
+        json(res, 200, { ...deviceSummary(device), ...(device.role === 'admin' && this.rolesMigrated ? { rolesMigrated: true } : {}) })
+      } },
     ]
   }
 
@@ -162,7 +199,12 @@ export class NasAccess {
    */
   static async create(credentials: CredentialProvider, config: NasDeploymentConfig): Promise<NasAccess> {
     const access = new NasAccess(credentials, config)
-    const stored = parseDocument(await credentials.readRecord(DEVICE_RECORD_KEY))
+    const original = await credentials.readRecord(DEVICE_RECORD_KEY)
+    const stored = parseDocument(original)
+    if (original?.kind === 'grant' && isRecord(original.payload) && original.payload.version === 1) {
+      await credentials.modifyRecord(LEGACY_BACKUP_KEY, existing => Promise.resolve(existing === undefined ? original : undefined))
+      await credentials.modifyRecord(DEVICE_RECORD_KEY, current => Promise.resolve({ kind: 'grant', payload: parseDocument(current) }))
+    }
     access.instanceId = stored.instanceId ?? randomBytes(16).toString('hex')
     if (stored.instanceId === undefined) {
       await credentials.modifyRecord(DEVICE_RECORD_KEY, current => Promise.resolve({
@@ -171,8 +213,10 @@ export class NasAccess {
       }))
     }
     access.devices = stored.devices
-      .filter(device => Date.parse(device.expiresAt) > Date.now())
-    access.announcePairingCode()
+    access.rolesMigrated = stored.rolesMigrated === true
+    if (config.pairingCode !== undefined && stored.consumedPairingHash === tokenHash(normalizeCode(config.pairingCode))) {
+      access.pairingExpiresAt = 0
+    } else access.announcePairingCode()
     return access
   }
 
@@ -184,14 +228,51 @@ export class NasAccess {
   isAuthenticated(
     req: IncomingMessage | { readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>> },
   ): boolean {
+    return this.authenticate(req) !== undefined
+  }
+
+  /** Resolve a bearer token against live device state on every request.
+   * @param req - request carrying an optional bearer token.
+   * @returns an unexpired device, or undefined after invalidation.
+   */
+  authenticate(
+    req: { readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>> },
+  ): DeviceRecord | undefined {
     const headerValue: unknown = req.headers instanceof Headers
       ? req.headers.get('authorization') ?? undefined
       : req.headers.authorization
     const header: unknown = Array.isArray(headerValue) ? (headerValue as unknown[])[0] : headerValue
-    if (typeof header !== 'string' || !header.startsWith('Bearer ')) return false
+    if (typeof header !== 'string' || !header.startsWith('Bearer ')) return undefined
     const token = header.slice('Bearer '.length)
     const now = Date.now()
-    return this.devices.some(device => Date.parse(device.expiresAt) > now && matchesHash(token, device.tokenHash))
+    return this.devices.find(device => Date.parse(device.expiresAt) > now && matchesHash(token, device.tokenHash))
+  }
+
+  /** Read current unexpired device permissions without exposing credential material.
+   * @param id - server-issued device identity.
+   * @returns current public device state, absent after revocation or expiry.
+   */
+  device(id: string): NasDeviceSummary | undefined {
+    const device = this.devices.find(value => value.id === id && Date.parse(value.expiresAt) > Date.now())
+    return device === undefined ? undefined : deviceSummary(device)
+  }
+
+  /** Subscribe to committed revocations and role changes.
+   * @param listener - closes the device's peers before the management response completes.
+   * @returns disposer removing the subscription.
+   */
+  onChanged(listener: (deviceId: string) => Promise<void>): () => void {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  /** Generate an administrator invitation from a trusted server-local caller.
+   * @returns temporary single-use code; no remote recovery route exists.
+   */
+  recoverAdministrator(): string {
+    this.pairingRole = 'admin'
+    this.rotatePairingCode()
+    return this.pairingCode
   }
 
   /**
@@ -205,8 +286,7 @@ export class NasAccess {
   private health(req: IncomingMessage, res: ServerResponse): void {
     if (req.method !== NAS_PROTOCOL_V1.health.method && req.method !== 'HEAD') { res.writeHead(405); res.end(); return }
     if (!isTrustedApiRequest(req, this.config.trustedHosts)) { res.writeHead(403); res.end('forbidden'); return }
-    if (Date.now() >= this.pairingExpiresAt) this.rotatePairingCode()
-    const available = this.pairingAttempts < MAX_PAIRING_ATTEMPTS
+    const available = Date.now() < this.pairingExpiresAt && this.pairingAttempts < MAX_PAIRING_ATTEMPTS
     const fields: NasHealthFields = {
       instanceId: this.instanceId,
       name: this.config.name,
@@ -233,11 +313,22 @@ export class NasAccess {
     }
     const code = request.code.replaceAll(/\s/gu, '')
     const deviceName = request.deviceName.trim()
-    if (this.pairingAttempts >= MAX_PAIRING_ATTEMPTS) {
+    const recoveryReceipt = randomBytes(16).toString('hex')
+    const recoveryRecord = await this.credentials.modifyRecord(RECOVERY_KEY, (stored) => {
+      if (stored?.kind !== 'grant' || !isRecord(stored.payload)
+        || typeof stored.payload.tokenHash !== 'string' || typeof stored.payload.expiresAt !== 'string'
+        || Date.parse(stored.payload.expiresAt) <= Date.now() || !matchesHash(code, stored.payload.tokenHash)) {
+        return Promise.resolve(undefined)
+      }
+      return Promise.resolve({ kind: 'grant', payload: { consumed: true, receipt: recoveryReceipt } })
+    })
+    const recovery = recoveryRecord?.kind === 'grant' && isRecord(recoveryRecord.payload)
+      && recoveryRecord.payload.receipt === recoveryReceipt
+    if (!recovery && this.pairingAttempts >= MAX_PAIRING_ATTEMPTS) {
       json(res, 429, { error: 'pairing attempt limit reached; request a fresh code' }); return
     }
-    if (Date.now() >= this.pairingExpiresAt || code.length !== this.pairingCode.length
-      || !timingSafeEqual(Buffer.from(code), Buffer.from(this.pairingCode))) {
+    if (!recovery && (Date.now() >= this.pairingExpiresAt || code.length !== this.pairingCode.length
+      || !timingSafeEqual(Buffer.from(code), Buffer.from(this.pairingCode)))) {
       this.pairingAttempts += 1
       json(res, 401, { error: 'pairing code is invalid or expired' }); return
     }
@@ -248,21 +339,25 @@ export class NasAccess {
     const device: DeviceRecord = {
       id: randomBytes(16).toString('hex'), name: deviceName, tokenHash: tokenHash(token),
       createdAt: createdAt.toISOString(), expiresAt: expiresAt.toISOString(),
+      role: recovery ? 'admin' : this.pairingRole,
     }
+    this.pairingExpiresAt = 0
     const record = await this.credentials.modifyRecord(DEVICE_RECORD_KEY, (current: CredentialRecord | undefined) => {
       const document = parseDocument(current)
       return Promise.resolve({
         kind: 'grant' as const,
-        payload: { ...document, instanceId: this.instanceId, devices: [...document.devices, device] },
+        payload: { ...document, instanceId: this.instanceId, devices: [...document.devices, device],
+          ...(!recovery ? { consumedPairingHash: tokenHash(code) } : {}) },
       })
     })
     this.devices = parseDocument(record).devices
     console.info(`dsh nas: paired device ${device.id} (${device.name}); grant expires ${device.expiresAt}`)
-    this.rotatePairingCode()
+    this.pairingExpiresAt = 0
     json(res, 200, NAS_PROTOCOL_V1.pair.response.create({
       deviceId: device.id,
       token,
       expiresAt: device.expiresAt,
+      role: device.role,
       health: NAS_PROTOCOL_V1.health.response.create({
         instanceId: this.instanceId,
         name: this.config.name,
@@ -270,15 +365,14 @@ export class NasAccess {
         protocolVersion: this.config.protocolVersion,
         platform: 'linux',
         architecture: process.arch === 'arm64' ? 'arm64' : 'x64',
-        pairingAvailable: true,
-        pairingExpiresAt: new Date(this.pairingExpiresAt).toISOString(),
+        pairingAvailable: false,
       }),
     }))
   }
 
   private async manageDevices(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (!isTrustedApiRequest(req, this.config.trustedHosts)) { res.writeHead(403); res.end('forbidden'); return }
-    if (!this.isAuthenticated(req)) { res.writeHead(401); res.end('unauthorized'); return }
+    if (!this.requireAdministrator(req, res)) return
     if (req.method === NAS_PROTOCOL_V1.devices.method) {
       json(res, 200, NAS_PROTOCOL_V1.devices.response.create(this.listDevices()))
       return
@@ -294,13 +388,75 @@ export class NasAccess {
     const id = request.revokeDeviceId
     const record = await this.credentials.modifyRecord(DEVICE_RECORD_KEY, (current: CredentialRecord | undefined) => {
       const document = parseDocument(current)
+      this.guardLastAdministrator(document, id)
       return Promise.resolve({
         kind: 'grant' as const,
         payload: { ...document, devices: document.devices.filter(device => device.id !== id) },
       })
     })
     this.devices = parseDocument(record).devices
+    await this.changed(id)
     console.info(`dsh nas: revoked device ${id}`)
+    json(res, 200, NAS_PROTOCOL_V1.devices.response.create(this.listDevices()))
+  }
+
+  private requireAdministrator(req: IncomingMessage, res: ServerResponse): boolean {
+    const device = this.authenticate(req)
+    if (device === undefined) { json(res, 401, { error: 'unauthorized' }); return false }
+    if (device.role !== 'admin') { json(res, 403, { error: 'administrator permission required' }); return false }
+    return true
+  }
+
+  private guardLastAdministrator(document: DeviceDocument, id: string): void {
+    const now = Date.now()
+    const admins = document.devices.filter(device => device.role === 'admin' && Date.parse(device.expiresAt) > now)
+    if (admins.length === 1 && admins[0]?.id === id) throw new LastAdministratorError('cannot remove the last active NAS administrator')
+  }
+
+  private async managementResponse(res: ServerResponse, run: () => Promise<void>): Promise<void> {
+    try { await run() } catch (error) {
+      if (!(error instanceof LastAdministratorError)) throw error
+      json(res, 409, { error: error.message })
+    }
+  }
+
+  private async changed(id: string): Promise<void> {
+    await Promise.all([...this.listeners].map(listener => listener(id)))
+  }
+
+  private async invite(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!isTrustedApiRequest(req, this.config.trustedHosts)) { res.writeHead(403); res.end(); return }
+    if (!this.requireAdministrator(req, res)) return
+    if (req.method !== 'POST') { res.writeHead(405); res.end(); return }
+    let body: unknown
+    try { body = await readJson(req) } catch { json(res, 400, { error: 'invalid JSON request' }); return }
+    const role = isRecord(body) && body.role !== undefined ? body.role : 'user'
+    if (!isNasRole(role)) { json(res, 400, { error: 'invalid device role' }); return }
+    this.pairingRole = role
+    this.rotatePairingCode()
+    json(res, 200, { code: this.pairingCode, role, expiresAt: new Date(this.pairingExpiresAt).toISOString() })
+  }
+
+  private async changeRole(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!isTrustedApiRequest(req, this.config.trustedHosts)) { res.writeHead(403); res.end(); return }
+    if (!this.requireAdministrator(req, res)) return
+    if (req.method !== 'POST') { res.writeHead(405); res.end(); return }
+    let body: unknown
+    try { body = await readJson(req) } catch { json(res, 400, { error: 'invalid JSON request' }); return }
+    if (!isRecord(body) || typeof body.deviceId !== 'string' || !isNasRole(body.role)) {
+      json(res, 400, { error: 'deviceId and valid role required' }); return
+    }
+    const id = body.deviceId
+    const role = body.role
+    const record = await this.credentials.modifyRecord(DEVICE_RECORD_KEY, (current) => {
+      const document = parseDocument(current)
+      if (role !== 'admin') this.guardLastAdministrator(document, id)
+      return Promise.resolve({ kind: 'grant', payload: {
+        ...document, devices: document.devices.map(device => device.id === id ? { ...device, role } : device),
+      } })
+    })
+    this.devices = parseDocument(record).devices
+    await this.changed(id)
     json(res, 200, NAS_PROTOCOL_V1.devices.response.create(this.listDevices()))
   }
 

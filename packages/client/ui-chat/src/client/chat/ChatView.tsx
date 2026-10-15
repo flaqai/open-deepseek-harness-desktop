@@ -10,6 +10,7 @@ import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/
 import {
   Button, IconChevronDownOutlineRegular, MarkdownDelegateProvider, Modal,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { isAtOrOutside } from '../contract/group-tree.ts'
 import type { ChatFlowHookContext, ChatViewSlotProps, OpenFileOptions } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { TurnNavigator } from './TurnNavigator.tsx'
@@ -37,13 +38,12 @@ function observedInputs(
   let lastInputTurn: number | undefined
   for (const key of order) {
     const node = nodes.get(key)
-    if (node === undefined || (node.kind !== 'user' && node.kind !== 'steering' && node.kind !== 'turn-trigger')) continue
+    if (node === undefined || !isAtOrOutside(node, 'input')) continue
     if (node.location.kind === 'turn' || node.location.kind === 'step') lastInputTurn = node.location.turn.turn
-    if (node.kind === 'turn-trigger') continue
-    const source = (node.data as { readonly source?: unknown }).source as
-      | { readonly kind?: unknown; readonly rpcId?: unknown }
-      | undefined
-    if (source?.kind === 'user' && typeof source.rpcId === 'string') observed.add(source.rpcId)
+    const data: unknown = node.data
+    const source = typeof data === 'object' && data !== null && 'source' in data ? data.source : undefined
+    if (typeof source === 'object' && source !== null && 'kind' in source && source.kind === 'user'
+      && 'rpcId' in source && typeof source.rpcId === 'string') observed.add(source.rpcId)
   }
   return { rpcIds: observed, lastInputTurn }
 }
@@ -59,7 +59,7 @@ const MOTION_TAIL_MS = 800
  */
 export function ChatView({
   useSession, useChat, useConversation, useSessions, renderSlot,
-  sessionId, openFile, revealFile, openSkill, openExternalLink, loadOlder, loadThrough,
+  sessionId, openFile, revealFile, openExternalLink, loadOlder, loadThrough,
   loadImage, inspectCall, chatScroll, forkAt, fileMentions,
   usePresentation, useProjection, t,
 }: ChatViewSlotProps) {
@@ -243,11 +243,11 @@ export function ChatView({
                 </button>
               </div>
             )}
-            <MarkdownDelegateProvider openExternalLink={openExternalLink} openFile={requestOpenFile} fileImages={fileImages}>
+            <MarkdownDelegateProvider openFile={requestOpenFile} openExternalLink={openExternalLink} fileImages={fileImages}>
               {renderSlot('conversation.chat.flow', {
                 entries, pendingInputs, lastInputTurn, deferCollapse,
                 cwd, openFile: requestOpenFile, revealFile: revealFile === undefined ? undefined : requestRevealFile,
-                openSkill, inspectCall, forkAt, loadImage, fileMentions,
+                inspectCall, forkAt, loadImage, fileMentions,
               }, { hookContext: flowContext })}
             </MarkdownDelegateProvider>
             {/* No pending placeholders: questions (ui-user-questions) and approvals

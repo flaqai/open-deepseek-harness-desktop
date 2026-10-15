@@ -7,7 +7,11 @@ import { NS } from './locales.ts'
 
 /** Browser operations and state injected into the Session Header contribution. */
 export interface SessionLogDownloadDialogInjected {
-  hooks: { sessionLogDownload: ObservableSnapshot<SessionLogDownloadState> }
+  hooks: {
+    sessionLogDownload: ObservableSnapshot<SessionLogDownloadState>
+    /** Whether this Peer may export the current Session's raw diagnostic log. */
+    downloadAllowed: ObservableSnapshot<boolean>
+  }
   request: (sessionId: SessionId) => Promise<void>
   dismiss: (sessionId: SessionId) => void
   setIncludeCustomInstructions: (sessionId: SessionId, include: boolean) => void
@@ -26,9 +30,10 @@ export type SessionLogDownloadDialogProps =
  * @returns the modal portal contribution.
  */
 export function SessionLogDownloadDialog({
-  sessionId, useSessionLogDownload, dismiss, setIncludeCustomInstructions, setRemember, confirm, t,
+  sessionId, useSessionLogDownload, useDownloadAllowed, dismiss, setIncludeCustomInstructions, setRemember, confirm, t,
 }: SessionLogDownloadDialogProps) {
   const entry = useSessionLogDownload(state => state.bySession[String(sessionId)])
+  const allowed = useDownloadAllowed(value => value)
 
   const status = entry?.status
   const open = entry?.open === true
@@ -44,6 +49,7 @@ export function SessionLogDownloadDialog({
       ? t('dialog.preparingDescription')
       : status === 'success' ? t('dialog.successDescription') : error ?? t('dialog.commandFailed')
 
+  if (!allowed) return null
   return (
     <Modal
       open={open}

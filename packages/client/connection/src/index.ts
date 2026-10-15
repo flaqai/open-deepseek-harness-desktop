@@ -8,15 +8,20 @@ import type {} from '@deepseek-ai/dsh-credentials'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { NAS_PROTOCOL_V1 } from '@deepseek-ai/dsh-nas-protocol'
 import { API_PATH } from './api-path.ts'
+import { CONNECT_PATH } from './connect-protocol.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
 import { BrowserAuth } from './browser-auth.ts'
 import { HostConnectionService } from './rpc-host.ts'
 import { NasAccess, type NasDeploymentConfig } from './nas-access.ts'
+import { installNasPolicy } from './nas-policy.ts'
+import { nasRouteGuard } from './nas-route-policy.ts'
+export { NasAccess, createNasAdministratorRecovery } from './nas-access.ts'
 import { ConnectionRecoveryConfigSchema, resolveConnectionConfig, type ConnectionRecoveryConfig } from './recovery-config.ts'
 
 export type {
   PeerAdmission,
+  ConnectionAdmission,
   ConnectionFetchMethod,
   ConnectionFetchHandler,
   ConnectionFetchRoute,
@@ -38,9 +43,11 @@ export type {
   RpcMessage,
   ServerResponse,
 } from './rpc.ts'
-export type { PeerId, PeerScope, RemoteInvocation } from '@deepseek-ai/dsh-typert-protocol'
+export type { PeerId, PeerScope, Principal, RemoteInvocation } from '@deepseek-ai/dsh-typert-protocol'
 export { RpcId, transportError } from './rpc.ts'
-export { OperatorPeer } from './operator-peer.ts'
+export { Peer } from './peer.ts'
+export type { PeerOptions } from './peer.ts'
+export { CONNECT_PATH, type ConnectionInteractions } from './connect-protocol.ts'
 export {
   clientRequestSchema,
   rpcErrorSchema,
@@ -101,7 +108,7 @@ export interface ConnectionConfig {
    * an entry here. A non-canonical or non-bare authority fails plugin load.
    */
   trustedHosts?: string[]
-  /** Absolute browser-session lifetime in days. Default: 30. */
+  /** Absolute browser and API cookie lifetime in days. Default: 30. */
   cookieMaxAgeDays?: number
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
@@ -151,7 +158,15 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
     trustedHosts,
     await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays, nasAccess),
   )
+  if (nasAccess !== undefined) {
+    ctx.inject(['remoteAccess', 'workspaceRegistry', 'sessions', 'sessionPersistence', 'fs'], async (policyCtx) => {
+      await installNasPolicy(policyCtx, nasAccess)
+    })
+  }
   ctx.inject(['webServer'], (webCtx) => {
+    if (nasAccess !== undefined) {
+      webCtx.effect(() => webCtx.webServer.registerRequestGuard(nasRouteGuard(nasAccess, trustedHosts)), 'client-connection: NAS raw route admission')
+    }
     assertImageBodyCapacity(webCtx, maxRequestBodyBytes)
     webCtx.on('webserver/index-inject', (table) => {
       table.push({ kind: 'global', name: '__DSH_CONNECTION_RECOVERY__', value: recovery })
@@ -167,13 +182,17 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
           res.end(admission.rejection === 401 ? 'unauthorized' : 'forbidden')
           return
         }
-        await webCtx.waterfall('connection/request', req, res, () => bridge(req, res, fetchHandler, maxRequestBodyBytes))
+        await webCtx.waterfall('connection/request', req, res, () => bridge(req, res, fetchHandler, admission.peer, maxRequestBodyBytes))
       },
     }
     webCtx.effect(() => webCtx.webServer.register(route), 'client-connection: /api route')
     for (const nasRoute of nasAccess?.routes ?? []) {
       webCtx.effect(() => webCtx.webServer.register(nasRoute), `client-connection: ${nasRoute.path} NAS route`)
     }
+    webCtx.effect(() => webCtx.webServer.register({
+      kind: 'exact', path: CONNECT_PATH,
+      handler: (req, res) => { connection.authorizeConnect(req, res) },
+    }), 'client-connection: /connect route')
   })
   ctx.inject(['attachments'], (attachmentCtx) => {
     assertImageBodyCapacity(attachmentCtx, maxRequestBodyBytes)

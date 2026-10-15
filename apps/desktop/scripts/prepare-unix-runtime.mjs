@@ -160,7 +160,9 @@ async function injectWorkspaceClosure() {
   const packages = new Map()
   await indexWorkspacePackages(repositoryRoot, packages)
   const rootManifest = JSON.parse(await readFile(join(repositoryRoot, 'apps', 'cli', 'package.json'), 'utf8'))
-  const queue = [...workspaceDependencies(rootManifest, packages)]
+  // SSH is opt-in and no longer in the default CLI bundle. Desktop still
+  // ships its remote helper, including its declared production peer closure.
+  const queue = [...workspaceDependencies(rootManifest, packages), '@deepseek-ai/dsh-ssh']
   const injected = new Set()
   while (queue.length > 0) {
     const name = queue.shift()
@@ -223,9 +225,13 @@ async function verifyRuntime(selectedPackage) {
     '@deepseek-ai/cosmokit',
     '@deepseek-ai/cordis-plugin-group',
     '@deepseek-ai/dsh-ptc-runtime-node/process',
+    '@deepseek-ai/dsh-app-boot/worker/profile-resolution-bootstrap',
+    '@deepseek-ai/dsh-ssh/helper',
     '@deepseek-ai/dsh-subprocess-local/runner',
     '@deepseek-ai/dsh-web-frontend/dist/index.html',
   ]) require.resolve(packagePath)
+  const persistentNodeEntry = join(dirname(require.resolve('@deepseek-ai/dsh-ptc-runtime-node/process')), 'persistent-process.js')
+  if (!existsSync(persistentNodeEntry)) throw new Error('desktop package runtime is missing the persistent Node PTC bootstrap')
   for (const secretName of ['.env', 'auth.json']) {
     if (existsSync(join(staging, secretName))) throw new Error(`desktop package runtime contains forbidden ${secretName}`)
   }

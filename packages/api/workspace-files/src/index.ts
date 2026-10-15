@@ -4,7 +4,8 @@
  * `workspaceFiles`.
  *
  * File reads follow the composed filesystem's read access, including paths
- * outside the workspace. The selected Session header supplies the base for
+ * outside the workspace for the owner. Non-owner reads additionally require
+ * an explicit canonical-file access policy. The selected Session header supplies the base for
  * relative paths, with the sandbox policy root as its no-cwd fallback, not a
  * read-containment restriction. Directory listings and change observations
  * remain workspace-scoped. File-kind checks and configured read caps apply to
@@ -27,6 +28,7 @@ import type { FsDirEntry, FsInfo, FsPathInfo, FsTarget } from '@deepseek-ai/dsh-
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
+import type {} from '@deepseek-ai/dsh-api-remote-access'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { Remote, RemoteError, TypertRemoteService, type TypertLookup } from '@deepseek-ai/dsh-typert-protocol'
 import { WorkspaceChangeFeed } from './changes.ts'
@@ -203,6 +205,7 @@ export class WorkspaceFiles extends TypertRemoteService {
       scope.typert.lookups.register('workspaceFileScope', {
         parameter: 'workspaceFileScope',
         wire: 'workspaceFileScopeId',
+        resource: 'session',
         hostTypeSymbol: '@deepseek-ai/dsh-api-workspace-files#WorkspaceFileScope',
         wireTypeSymbol: '@deepseek-ai/dsh-session/types#SessionId',
         resolve: async (sessionId) => {
@@ -338,7 +341,28 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   @Remote({ mode: 'stream' })
   changes(workspaceFileScope: WorkspaceFileScope, path: string, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame> {
-    return this.feed.follow(workspaceFileScope.workspaceRoot, path, signal)
+    const principal = this.ctx.invocation?.peer.principal
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- PrincipalMap gains non-owner drivers in host compositions.
+    if (principal === undefined || principal.kind === 'owner') return this.feed.follow(workspaceFileScope.workspaceRoot, path, signal)
+    return this.authorizedChanges(workspaceFileScope, path, signal)
+  }
+
+  private async *authorizedChanges(scope: WorkspaceFileScope, path: string, signal: AbortSignal): AsyncIterable<WorkspaceFileWatchFrame> {
+    await this.authorizeRead(scope, path, signal)
+    for await (const frame of this.feed.follow(scope.workspaceRoot, path, signal)) {
+      await this.authorizeRead(scope, path, signal)
+      yield frame
+    }
+  }
+
+  private async authorizeRead(scope: WorkspaceFileScope, path: string, signal: AbortSignal): Promise<void> {
+    const principal = this.ctx.invocation?.peer.principal
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- PrincipalMap gains non-owner drivers in host compositions.
+    if (principal === undefined || principal.kind === 'owner') return
+    const target = await this.ctx.fs.resolve(path, { cwd: scope.workspaceRoot, signal })
+    if (await this.ctx.get('remoteAccess')?.allowsFile(this.ctx.fs.processPath(target), signal, principal) !== true) {
+      throw new RemoteError('workspace-file/outside-workspace', 'Remote file access is not permitted for this shared resource', { path })
+    }
   }
 
   private async relativePath(scope: WorkspaceFileScope, baseFile: string, path: string, signal: AbortSignal): Promise<string> {
@@ -390,6 +414,7 @@ export class WorkspaceFiles extends TypertRemoteService {
     if (path.length === 0) throw new RemoteError('gateway/bad-request', 'path is required', {})
     const { workspaceRoot } = workspaceFileScope
     const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
+    await this.authorizeRead(workspaceFileScope, path, signal)
     // Gate on the path itself before anything follows it.
     const entry = await this.ctx.fs.lstat(path, { cwd: workspaceRoot }, signal)
     if (entry === undefined) {

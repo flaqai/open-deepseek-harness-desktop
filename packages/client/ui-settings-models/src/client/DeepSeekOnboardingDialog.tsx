@@ -57,25 +57,26 @@ function assertNever(_value: never): never {
  * @returns the onboarding modal or null when onboarding needs no intervention.
  */
 export function DeepSeekOnboardingDialog(props: DeepSeekOnboardingDialogProps): ReactNode {
-  const { complete, controller, useModels, operations, schema, t, renderSlot, automatic, explicit = false } = props
+  const { complete, controller, useModels, useRemoteAccess, operations, schema, t, renderSlot, automatic, explicit = false } = props
+  const canConfigure = useRemoteAccess('settings/mutate')
   const [apiKey, setApiKey] = useState(explicit)
   const state = useModels(snapshot => snapshot)
   const readiness = onboardingReadiness(state)
 
   useEffect(() => {
-    if ((automatic || explicit) && state.status === 'idle') void controller.load()
-  }, [controller, state.status, automatic, explicit])
+    if (canConfigure && (automatic || explicit) && state.status === 'idle') void controller.load()
+  }, [canConfigure, controller, state.status, automatic, explicit])
 
   useEffect(() => {
     if (
-      (!automatic && !explicit)
+      !canConfigure || (!automatic && !explicit)
       || readiness.kind === 'adapter-absent'
       || (!explicit && readiness.kind === 'provider-ready')
       || readiness.kind === 'unavailable'
     ) complete()
-  }, [complete, readiness.kind, explicit, automatic])
+  }, [canConfigure, complete, readiness.kind, explicit, automatic])
 
-  if (!automatic && !explicit) return null
+  if (!canConfigure || (!automatic && !explicit)) return null
 
   switch (readiness.kind) {
     case 'loading':

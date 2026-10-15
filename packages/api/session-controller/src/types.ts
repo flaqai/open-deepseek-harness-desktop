@@ -9,6 +9,7 @@ import type { LlmAttemptId, MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { TextBlock } from '@deepseek-ai/dsh-llm'
 import type { SessionId, SessionSeqCursor } from '@deepseek-ai/dsh-session/types'
 import type { SessionProjectionMap } from '@deepseek-ai/dsh-session-projection/types'
+import type { Principal } from '@deepseek-ai/dsh-typert-protocol'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 
@@ -219,7 +220,6 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'agent-preset/conflict': {
       readonly sessionId: SessionId
       readonly requestedPreset: string
-      readonly existingPreset?: string
     }
     'session/attachment-invalid': { readonly reason: string }
     'session/queue-item-not-found': { readonly itemId: MessageId }
@@ -284,17 +284,23 @@ export interface SessionSearchValue {
   readonly hasMore: boolean
 }
 
-/** Session creation or explicit-id adoption request. */
+/** Request for a Session for a new conversation. */
 export interface SessionCreateRequest {
+  /** Workspace the Session joins; exclusive with `cwd`. */
   readonly workspaceId?: WorkspaceId
+  /** Directory the Session owns when no Workspace is named. */
   readonly cwd?: string
+  /** Blank Session to reuse while it is reusable, or the identity of a new Session when none is stored under it. */
   readonly sessionId?: SessionId
+  /** Preset the Session runs, replacing a reused Session's recorded preset; the configured default when omitted. */
   readonly agentPreset?: string
 }
 
 /** Session creation response value. */
 export interface SessionCreateValue {
+  /** The created or reused Session, which may differ from the requested `sessionId`. */
   readonly sessionId: SessionId
+  /** Preset the Session runs, when the deployment composes a preset roster. */
   readonly agentPreset?: string
 }
 
@@ -404,8 +410,12 @@ export type SessionRequestId = Branded<'session-request-id'>
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
-    /** Browser prompt correlation and optional Host-validated time zone. */
-    'user-rpc': { kind: 'user'; rpcId: SessionRequestId; clientTimeZone?: string }
+    /**
+     * Browser prompt correlation, optional Host-validated time zone, and the
+     * caller that submitted the prompt. `principal` is written only for a
+     * caller other than the owner, so an absent `principal` means the owner.
+     */
+    'user-rpc': { kind: 'user'; rpcId: SessionRequestId; clientTimeZone?: string; principal?: Principal }
   }
 }
 

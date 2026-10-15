@@ -158,6 +158,16 @@
   background: var(--dsw-alias-state-error-primary);
 }
 
+.accountStatus {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-state-success-primary);
+}
+
 .rowActions {
   display: inline-flex;
   flex-wrap: wrap;
@@ -310,6 +320,28 @@
   line-height: 18px;
   font-weight: 500;
   color: var(--dsw-alias-label-secondary);
+}
+
+.helpButton {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 50%;
+  corner-shape: round;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+  font-size: 11px;
+  line-height: 15px;
+  text-align: center;
+  cursor: help;
+}
+
+.helpButton:hover,
+.helpButton:focus-visible {
+  color: var(--dsw-alias-label-primary);
+  border-color: var(--dsw-alias-label-tertiary);
 }
 
 .linkButton {
@@ -651,6 +683,43 @@ select.input {
 }
 
 .input:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.keyInput {
+  position: relative;
+}
+
+.keyInputFilled {
+  padding-right: 40px;
+}
+
+.keyToggle {
+  position: absolute;
+  inset: 1px 1px 1px auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-radius-md);
+  background: none;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.keyToggle:hover:not(:disabled) {
+  color: var(--dsw-alias-label-primary);
+}
+
+.keyToggle:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: -2px;
+}
+
+.keyToggle:disabled {
   opacity: 0.6;
   cursor: default;
 }

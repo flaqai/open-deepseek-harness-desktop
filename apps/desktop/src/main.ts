@@ -1598,6 +1598,9 @@ async function startApplication(): Promise<void> {
       health: (baseUrl, token) => nasRuntimeClient.health(baseUrl, token),
       pair: request => nasRuntimeClient.pair(request),
       devices: (baseUrl, token) => nasRuntimeClient.devices(baseUrl, token),
+      me: (baseUrl, token) => nasRuntimeClient.me(baseUrl, token),
+      invite: (baseUrl, token, role) => nasRuntimeClient.invite(baseUrl, token, role),
+      setDeviceRole: (baseUrl, token, deviceId, role) => nasRuntimeClient.setDeviceRole(baseUrl, token, deviceId, role),
       revokeDevice: (baseUrl, token, deviceId) => nasRuntimeClient.revokeDevice(baseUrl, token, deviceId),
     },
     connection: {

@@ -45,6 +45,8 @@ interface Config {
   host: string
   /** Explicit NAS carrier opt-in permits only the IPv4 all-interface bind. */
   nasRuntime?: boolean
+  /** Refuse all dispatch until at least one deployment request guard is registered. @default false */
+  requireRequestGuard?: boolean
   /** Listen port; zero requests an OS-assigned port. */
   port: number
   /**
@@ -80,6 +82,24 @@ interface TlsConfig {
 ```
 
 The carrier rejects unspecified addresses at load by default; explicit `nasRuntime` permits only exact `0.0.0.0`. The [NAS deployment contract](../../packages/bundle/web-app/README.md#public-deployments) owns the required trusted entry and paired-device authentication. The exported `isWildcardHost` and `isLoopbackHost` classify a bind address from its parsed value, and an IPv6 `%zone` is kept for `listen` while classification reads the address alone. The carrier owns no authentication or Origin policy, and it serves plain HTTP unless `tls` supplies a certificate and key. `compression` defaults to `none`; the shipped Web bundle selects gzip level 1 with a 1024-byte threshold. The shipped `dsh web` command selects loopback by default and accepts one concrete `--host` address, warning at startup when a non-loopback bind serves plain HTTP; its Connection plugin supplies Host/Origin checks plus browser-session authentication for every Host API route and stream, and the bind address plus `--trusted-host` govern which browser Host is accepted; `--public-url` changes only the advertised URL. Other compositions own their bind and route-authentication policy. The dist location is an assembly fact of the frontend plugin that claims the seat.
+
+```ts type-equiv
+/** Request metadata supplied before a named handler or the fallback can run. */
+interface WebRequestAdmission {
+  readonly request: IncomingMessage
+  readonly kind: 'http' | 'upgrade'
+  readonly pathname: string
+  /** Matched route registration, or undefined for the HTTP fallback. */
+  readonly routePath: string | undefined
+}
+```
+
+```ts type-equiv
+/** A synchronous deployment admission check. Every registered check must allow dispatch. */
+type WebRequestGuard = (admission: WebRequestAdmission) => boolean
+```
+
+`registerRequestGuard` checks each HTTP request and upgrade before named-route or fallback dispatch. Every registered synchronous guard must allow the request; denial prevents the handler from running. Deployment plugins own the policy and must authenticate their own RPC and event methods as well.
 
 ## The service
 
@@ -118,12 +138,27 @@ createSharedFetchHandler(channel: '/api'): ConnectionFetchHandler
 requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection
 
 /**
- * Admit one request: it passes {@link requestRejection} and speaks for the
- * operator, or it is refused with that status.
+ * Admit an HTTP request against its signed browser or API credential and live Peer.
  * @param request - request headers from the HTTP or upgrade request.
- * @returns the operator Peer, or the rejection status.
+ * @returns the credential's Peer, or the rejection status.
  */
 admit(request: ConnectionTrustRequest): PeerAdmission
+
+/**
+ * Create an independent in-process Peer, disposed with the Context that read `ctx.connection`.
+ * @param options - fixed principal and optional interaction participation (default `answer`).
+ * @returns a new Peer distinct from every other Peer.
+ */
+createPeer(options: { readonly principal: Principal; readonly interactions?: 'answer' | 'none' }): PeerScope
+
+/**
+ * Claim a physical socket for an API Peer; browser sockets share their owner Peer.
+ * @param request - authenticated upgrade request headers.
+ * @returns the Peer and idempotent release, or 409 for duplicate API ownership.
+ * The carrier releases on socket termination or failed upgrade; release removes
+ * API admission synchronously without cancelling independent HTTP calls.
+ */
+admitConnection(request: ConnectionTrustRequest): ConnectionAdmission
 
 /**
  * Authenticate one frontend index request, owning a token redirect or 401.
@@ -143,7 +178,25 @@ authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexRespons
 authenticatedUrl(baseUrl: string): string
 ```
 
+Types: [Principal](typert.md)
+
 Source: [`packages/client/connection/src/rpc.ts`](../../packages/client/connection/src/rpc.ts)
+
+<a id="ctxwebapp--webapp"></a>
+
+### `ctx.webApp` — `WebApp`
+
+The Web GUI this process serves, provided by the `web-runtime` row.
+
+```ts cordis-catalog
+/**
+ * The URL this GUI advertises, also used for `DSH_WEB_URL` and the startup URL line.
+ * @returns the configured `publicUrl`, otherwise the listener origin.
+ */
+getAdvertisedUrl(): string
+```
+
+Source: [`packages/bundle/web-app/src/index.ts`](../../packages/bundle/web-app/src/index.ts)
 
 <a id="ctxwebserver--webserver"></a>
 
@@ -152,6 +205,14 @@ Source: [`packages/client/connection/src/rpc.ts`](../../packages/client/connecti
 The browser HTTP carrier service. Activation loads any configured TLS material, then listens immediately; a material or listen failure rejects initialization, and the boot process reports the failed fiber. Route registration order does not affect requests because configured named routes must be distinct, and the fallback handler answers anything not yet claimed during startup with 404 until its owner registers.
 
 ```ts cordis-catalog
+/**
+ * The root URL local clients use to reach the bound listener: the protocol,
+ * the {@link bindUrlHost} form of the bind address, and the listening port.
+ * @returns the origin, for example `http://127.0.0.1:3080`.
+ * @throws before `listen` binds a port, or when the bind address has no URL form.
+ */
+getOrigin(): string
+
 /**
  * Register a named route. Duplicate (kind, path) throws — route patterns are
  * a composition-level contract, so a collision is a misconfiguration.
@@ -167,6 +228,13 @@ register(route: WebRoute): () => void
  * @returns the disposer removing the route.
  */
 registerUpgrade(route: WebUpgradeRoute): () => void
+
+/**
+ * Apply deployment-owned admission before HTTP and upgrade handlers, including later registrations.
+ * @param guard - synchronous live-state check; false refuses dispatch with HTTP 403, and a thrown error fails closed.
+ * @returns disposer removing only this guard; callers bind it to their owning Context effect.
+ */
+registerRequestGuard(guard: WebRequestGuard): () => void
 
 /**
  * Claim the fallback seat: the handler answering every request no named

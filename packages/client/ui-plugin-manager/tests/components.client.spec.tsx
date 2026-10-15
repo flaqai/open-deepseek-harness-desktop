@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import { Context } from '@deepseek-ai/cordis'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type { PluginEntryId, PluginInstallRequestId } from '@deepseek-ai/dsh-api-remotes/client'
-import { bindSnapshotSelector, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ConfigForm, ConfigFormSnapshot, SettingsMirrorSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -99,7 +99,7 @@ const NO_CONFIG: ConfigLedger = { items: [], bundles: new Set(), rows: new Set()
 
 function renderTab(
   state: Partial<PluginManagerState> = {}, config: Partial<ConfigLedger> = {},
-  bodies: SlotBodies = {}, extras: ActionBodies | Record<string, ConfigPageForm> = {},
+  bodies: SlotBodies = {}, extras: ActionBodies | Record<string, ConfigPageForm> = {}, canManage = true,
 ) {
   const actionBodies: ActionBodies = Object.values(extras).every(value => typeof value === 'function') ? extras as ActionBodies : {}
   const forms: Record<string, ConfigPageForm> = actionBodies === extras ? {} : extras as Record<string, ConfigPageForm>
@@ -143,11 +143,13 @@ function renderTab(
     useSessionStatus: unusedStandardHook,
     useSessionRetainInfo: unusedStandardHook,
     useResource: unusedStandardHook,
+    ...allowAllAccess,
   }
   const navigation = createNavigationStore().create()
   const props: PluginManagerPageProps = {
     useStore: bindSnapshotSelector(navigation), actions: navigation.actions,
     ...standard,
+    useRemoteAccess: () => canManage,
     t,
     resolveText,
     ...actions,
@@ -205,6 +207,13 @@ function renderTab(
 }
 
 describe('PluginManagerPage', () => {
+  it('does not mount management or issue package reads for a restricted NAS device', () => {
+    const b = renderTab({}, {}, {}, {}, false)
+    expect(screen.getByRole('status').textContent).toContain(en.accessDenied)
+    expect(screen.queryByRole('button', { name: en.addPlugin })).toBeNull()
+    expect(b.actions.ensure).not.toHaveBeenCalled()
+    expect(b.actions.runInstall).not.toHaveBeenCalled()
+  })
   it('opens the add-plugin menu with ArrowDown and returns focus to its trigger on Escape', () => {
     const { actions } = renderTab({}, {}, {
       'plugins.add.actions:': (_view, owner) => <MenuItemButton
@@ -678,6 +687,32 @@ describe('PluginManagerPage', () => {
     expect(detailImage.width).toBe(36)
   })
 
+  it('shows a known bundle preview in its details before activation, follows the UI language, and survives decode failure', () => {
+    const name = '@deepseek-ai/dsh-experimental-badge-skill-bundle'
+    const { actions, setLanguage } = renderTab({ packages: [pkg({ name, enabled: false }), pkg()] })
+    expect(screen.queryByRole('img')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: `View ${name}` }))
+    const english = screen.getByRole('img', { name: en.previewAlt.replace('{name}', name) }).getAttribute('src')
+    expect(english).toMatch(/badge-skill-preview\.svg$/)
+    setLanguage(zh)
+    const chinese = screen.getByRole('img', { name: zh.previewAlt.replace('{name}', name) })
+    expect(chinese.getAttribute('src')).toMatch(/badge-skill-preview\.zh\.svg$/)
+    fireEvent.error(chinese)
+    expect(screen.queryByRole('img')).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe(zh.previewUnavailable)
+    fireEvent.click(screen.getByRole('switch', { name: zh.enableToggle.replace('{name}', name) }))
+    expect(actions.setEnabled).toHaveBeenCalledWith(name, true)
+    setLanguage(en)
+    expect(screen.getByRole('img').getAttribute('src')).toBe(english)
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('shows no preview for bundles without one', () => {
+    renderTab({ packages: [pkg()] })
+    fireEvent.click(screen.getByRole('button', { name: 'View dsh-better-sidebar' }))
+    expect(screen.queryByRole('img')).toBeNull()
+  })
+
   it('shows metadata diagnostics without blocking management or displaying legacy descriptions', () => {
     const error = 'locale/zh.json: invalid title'
     const { actions, set, setLanguage } = renderTab({
@@ -886,11 +921,11 @@ describe('PluginManagerPage', () => {
       const team = '@deepseek-ai/dsh-experimental-agent-team-profile'
       renderTab(
         { packages: [
-          pkg({ name: '@deepseek-ai/dsh-experimental-badge-skill-bundle', official: true }),
+          pkg({ name: '@deepseek-ai/dsh-experimental-badge-skill-bundle', official: true, enabled: false }),
           pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false, enabled: false }),
-          pkg({ name: '@deepseek-ai/dsh-subagent-claude-code', official: true, availability: 'missing', installed: false }),
-          pkg({ name: '@deepseek-ai/dsh-subagent-codex', official: true }),
-          pkg({ name: '@deepseek-ai/dsh-experimental-tool-worktree', official: true }),
+          pkg({ name: '@deepseek-ai/dsh-subagent-claude-code', official: true, availability: 'missing', installed: false, enabled: false }),
+          pkg({ name: '@deepseek-ai/dsh-subagent-codex', official: true, enabled: false }),
+          pkg({ name: '@deepseek-ai/dsh-experimental-tool-worktree', official: true, enabled: false }),
           pkg({ name: '@acme/new-official', official: true }),
           pkg(),
         ] },
@@ -940,7 +975,7 @@ describe('PluginManagerPage', () => {
 
     it('returns from package details to the secondary page and retains it across React remounts', () => {
       const name = '@deepseek-ai/dsh-experimental-terminal-bundle'
-      const b = renderTab({ packages: [pkg({ name, official: true })] })
+      const b = renderTab({ packages: [pkg({ name, official: true, enabled: false })] })
       fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
       expect(screen.getByRole('heading', { name: en.moreTitle, level: 1 })).toBeTruthy()
       fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', name) }))
@@ -954,19 +989,44 @@ describe('PluginManagerPage', () => {
       expect(document.querySelector(`[data-plugin-package="${name}"]`)).toBeNull()
     })
 
-    it('keeps toggled plugins in their group and position', () => {
-      const names = ['@deepseek-ai/dsh-experimental-cot-translation-bundle', '@deepseek-ai/dsh-experimental-terminal-bundle'] as const
-      const packages = names.map(name => pkg({ name, official: true, enabled: false }))
-      const b = renderTab({ packages })
+    it('pins a bundle the profile picks onto the main list, in its full-list place', () => {
+      const team = '@deepseek-ai/dsh-experimental-agent-team-profile'
+      const first = '@deepseek-ai/dsh-experimental-tool-worktree'
+      const second = '@deepseek-ai/dsh-experimental-cot-translation-bundle'
+      const entry = (name: string, enabled: boolean): PackageView => pkg({ name, official: true, enabled })
+      const b = renderTab({ packages: [entry(second, true), entry(team, true), entry(first, false)] })
+      const cards = (group: 'extensions' | 'more'): (string | null)[] => {
+        const list = document.querySelector(`[data-plugin-group="${group}"]`) as HTMLElement
+        return within(list).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package'))
+      }
+      expect(cards('extensions')).toEqual([team, second])
       fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
-      const group = document.querySelector('[data-plugin-group="more"]') as HTMLElement
-      const cards = () => within(group).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package'))
-      expect(cards()).toEqual(names)
-      fireEvent.click(within(group).getByRole('switch', { name: en.enableToggle.replace('{name}', names[1]) }))
-      expect(b.actions.setEnabled).toHaveBeenCalledWith(names[1], true)
-      b.set({ packages: packages.map((entry, index) => ({ ...entry, enabled: index === 1 })) })
-      expect(cards()).toEqual(names)
+      expect(cards('more')).toEqual([team, first, second])
+      fireEvent.click(screen.getByRole('switch', { name: en.enableToggle.replace('{name}', first) }))
+      expect(b.actions.setEnabled).toHaveBeenCalledWith(first, true)
+      b.set({ packages: [entry(second, true), entry(team, true), entry(first, true)] })
+      expect(cards('more')).toEqual([team, first, second])
+      fireEvent.click(screen.getByRole('button', { name: en.backToList }))
+      expect(cards('extensions')).toEqual([team, first, second])
+      fireEvent.click(screen.getByRole('switch', { name: en.enableToggle.replace('{name}', first) }))
+      expect(b.actions.setEnabled).toHaveBeenCalledWith(first, false)
+      b.set({ packages: [entry(second, true), entry(team, true), entry(first, false)] })
+      expect(cards('extensions')).toEqual([team, second])
+      fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
+      expect(cards('more')).toEqual([team, first, second])
+    })
+
+    it('returns a held-back bundle opened outside the lists to the list that shows it', () => {
+      const name = '@deepseek-ai/dsh-experimental-terminal-bundle'
+      const b = renderTab({ packages: [pkg({ name, official: true, enabled: false })] })
+      act(() => { b.navigation.actions.setView({ kind: 'package', name }) })
+      expect(document.querySelector(`[data-plugin-detail="${name}"]`)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: en.backToPackage.replace('{name}', en.moreTitle) }))
       expect(screen.getByRole('heading', { name: en.moreTitle, level: 1 })).toBeTruthy()
+      b.set({ packages: [pkg({ name, official: true, enabled: true })] })
+      act(() => { b.navigation.actions.setView({ kind: 'package', name }) })
+      fireEvent.click(screen.getByRole('button', { name: en.backToList }))
+      expect(screen.getByRole('heading', { name: en.title, level: 1 })).toBeTruthy()
     })
 
     it('starts on the main list when the navigation store is recreated', () => {
@@ -1488,9 +1548,9 @@ describe('PluginManagerPage', () => {
     expect(screen.queryByRole('button', { name: en.installEditAria })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: en.installEnableNow }))
     expect(actions.enableInstalled).toHaveBeenCalledTimes(1)
-    set({ install: { ...IDLE_INSTALL, open: true, spec: '/plugins/dsh-x', phase: 'done', subject, installed: 'dsh-x', restartRequired: true, enabling: true } })
+    set({ install: { ...IDLE_INSTALL, open: true, spec: '/plugins/dsh-x', phase: 'done', subject, installed: 'dsh-x', restartRequired: true, restartReason: 'host-module', enabling: true } })
     expect(screen.getByRole('button', { name: en.installEnableNow })).toHaveProperty('disabled', true)
-    expect(screen.getByText(en.installDoneRestart)).toBeTruthy()
+    expect(screen.getByText(en.installDoneRestart.replace('{reason}', en.restartReasonHostModule))).toBeTruthy()
 
     // A run that named no bundle leaves only Done.
     set({ install: { ...IDLE_INSTALL, open: true, spec: 'dsh-x', phase: 'done', subject: { spec: 'dsh-x', status: 'accepted', kind: 'registry', name: 'dsh-x', bundle: true, registry: null } } })
@@ -1935,8 +1995,8 @@ describe('PluginManagerPage', () => {
     Object.defineProperty(Element.prototype, 'scrollIntoView', { value: scrollIntoView, configurable: true })
     try {
       const { actions, set } = renderTab({ packages: [
-        pkg({ name, official: true }),
-        pkg({ name: '@deepseek-ai/dsh-subagent-codex', official: true }),
+        pkg({ name, official: true, enabled: false }),
+        pkg({ name: '@deepseek-ai/dsh-subagent-codex', official: true, enabled: false }),
       ] })
       expect(document.querySelector(`[data-plugin-package="${name}"]`)).toBeNull()
       set({ highlight: name })
@@ -1953,7 +2013,7 @@ describe('PluginManagerPage', () => {
       expect(screen.getByRole('heading', { name: en.title, level: 1 })).toBeTruthy()
       expect(document.querySelector(`[data-plugin-package="${name}"]`)).toBeNull()
       expect(scrollIntoView).toHaveBeenCalledTimes(1)
-      set({ packages: [pkg({ name, official: true })] })
+      set({ packages: [pkg({ name, official: true, enabled: false })] })
       act(() => { vi.advanceTimersByTime(799) })
       expect(actions.clearHighlight).not.toHaveBeenCalled()
       act(() => { vi.advanceTimersByTime(1) })
@@ -2016,8 +2076,11 @@ describe('PluginManagerPage', () => {
   it('words every notice as a toast that dismisses itself', () => {
     vi.useFakeTimers()
     try {
-      const { actions, set } = renderTab({ notice: { kind: 'restart', packageName: 'x', seq: 1 } })
-      expect(screen.getByRole('alert').textContent).toContain(en.restartNotice)
+      const { actions, set } = renderTab({ notice: { kind: 'restart', packageName: 'x', reason: 'no-hmr', seq: 1 } })
+      expect(screen.getByRole('alert').textContent).toContain(en.restartNotice.replace('{reason}', en.restartReasonNoHmr))
+      // A Host that names no reason still asks for the restart.
+      set({ notice: { kind: 'restart', packageName: 'x', reason: undefined, seq: 4 } })
+      expect(screen.getByRole('alert').textContent).toContain(en.restartNotice.replace(' {reason}', ''))
       set({ notice: { kind: 'overridden', packageName: 'pkg-1', seq: 2 } })
       expect(screen.getByRole('alert').textContent).toContain(en.overriddenNotice.replace('{name}', 'pkg-1'))
       set({ notice: { kind: 'cancelled', seq: 3 } })
@@ -2137,7 +2200,7 @@ it('dismisses activation guidance until the user enables the bundle again', () =
 it('supplies the accepted entry values and atomic mutation action to a custom plugin page', () => {
   const mutate = vi.fn(async () => true)
   const form: ConfigPageForm = {
-    state: { status: 'ready', value: { count: 2 }, base: {}, user: {}, revision: 7, writable: true, mode: 'host' }, mutate,
+    state: { status: 'ready', value: { count: 2 }, base: {}, user: {}, revision: 7, writable: true }, mutate,
   }
   renderTab({}, { items: [{ id: 'custom', label: 'Custom' }] }, {
     'plugins.item:custom': (view, _owner, supplied) => view === 'summary' ? 'Custom summary'

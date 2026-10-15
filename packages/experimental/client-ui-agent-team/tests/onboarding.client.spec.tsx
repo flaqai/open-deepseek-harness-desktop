@@ -27,6 +27,7 @@ const CHILD = 'child' as SessionId
 const t = makeTranslate(zh, commonZh)
 const unused = (): never => { throw new Error('unused onboarding fixture prop') }
 const globalProps = {
+  useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true, useAccess: () => true,
   useSessions: unused,
   usePanelInfo: unused,
   useSessionStatus: unused,

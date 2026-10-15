@@ -72,11 +72,12 @@ test('desktop runtime omits source-only files and foreign native packages withou
   }
 })
 
-test('alpha2 worker, SSH helper, Python bootstrap and target native-loader resources survive pruning', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'desktop-alpha2-resources-'))
+test('worker, persistent Node PTC, SSH helper, Python bootstrap and native-loader resources survive pruning', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'desktop-alpha3-resources-'))
   const modules = join(root, 'node_modules')
   const resources = {
-    '@deepseek-ai/dsh-ptc-runtime-node': ['lib/index.js', 'lib/process.js'],
+    '@deepseek-ai/dsh-ptc-runtime-node': ['lib/index.js', 'lib/process.js', 'lib/persistent-process.js'],
+    '@deepseek-ai/dsh-app-boot': ['lib/index.js', 'lib/worker/profile-resolution-bootstrap.js'],
     '@deepseek-ai/dsh-subprocess-local': ['lib/runner.js', 'lib/runner-launch-fixture.js'],
     '@deepseek-ai/dsh-ssh': ['lib/helper.js', 'lib/protocol-fixture.js', 'lib/stream-security-fixture.js'],
     '@deepseek-ai/dsh-experimental-ptc-runtime-python': ['py/bootstrap.py', 'py/protocol.py'],

@@ -1,7 +1,9 @@
 import { Context } from '@deepseek-ai/cordis'
 import Gateway from '@deepseek-ai/dsh-api-gateway'
+import RemoteAccess from '@deepseek-ai/dsh-api-remote-access'
 import Analytics from '@deepseek-ai/dsh-client-product-analytics'
-import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
+import { TYPERT as analyticsContribution } from '@deepseek-ai/dsh-client-product-analytics/typert'
+import TypertRegistry, { type TypertContribution } from '@deepseek-ai/dsh-typert-registry'
 import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { connectDesktopWelcome } from '../src/welcome-backend.ts'
@@ -15,15 +17,19 @@ describe('native desktop welcome', () => {
       new HostConnectionService(owner, [], {} as ConstructorParameters<typeof HostConnectionService>[2])
     }).await()
     await ctx.plugin(TypertRegistry).await()
+    await ctx.plugin(RemoteAccess).await()
     await ctx.plugin(Gateway).await()
     if (enabled !== undefined) {
+      // Generated exports are unknown; the real registry validates this package boundary.
+      ctx.typert.register(analyticsContribution as TypertContribution)
       ctx.provide('deepseekAccount', { getDeviceIdentity: async () => undefined } as never)
       ctx.provide('productTelemetry', { emit: () => {} } as never)
       await ctx.plugin(Analytics, { enabled }).await()
     }
-    const shared = (ctx.connection as HostConnectionService).createSharedFetchHandler('/api')
+    const connection = ctx.connection as HostConnectionService
+    const shared = connection.createSharedFetchHandler('/api')
     const backend = await connectDesktopWelcome('http://127.0.0.1:1234/', async (input, init) =>
-      init?.method === 'POST' ? shared.fetch(new Request(input, init)) : new Response(''))
+      init?.method === 'POST' ? shared.fetch(new Request(input, init), connection.browserPeer) : new Response(''))
     await expect(backend.analyticsEnabled()).resolves.toBe(enabled ?? false)
     if (enabled === true) {
       await expect(backend.report({ eventName: 'auth_page_view', timestamp: 1, attributes: {} })).resolves.toBeUndefined()

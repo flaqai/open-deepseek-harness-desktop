@@ -16,9 +16,10 @@ afterEach(() => {
   document.getElementById('root')?.remove()
 })
 
-function mount({ modelReady = false, acknowledge = true }: {
+function mount({ modelReady = false, acknowledge = true, canConfigure = true }: {
   modelReady?: boolean
   acknowledge?: boolean
+  canConfigure?: boolean
 } = {}) {
   const appRoot = document.createElement('div')
   appRoot.id = 'root'
@@ -71,6 +72,9 @@ function mount({ modelReady = false, acknowledge = true }: {
     useSessionRetainInfo: unusedHook,
     useResource: unusedHook,
     useWorkspaces: unusedHook,
+    useRemoteAccess: () => canConfigure,
+    useSessionAccess: () => true,
+    useWorkspaceAccess: () => true,
     usePanelInfo: selector => selector({ activePanelId: null }),
     modelsController,
     welcomeController,
@@ -87,6 +91,12 @@ function mount({ modelReady = false, acknowledge = true }: {
 }
 
 describe('SetupWizard', () => {
+  it('completes without server setup controls for a restricted remote device', () => {
+    const mounted = mount({ canConfigure: false })
+    expect(mounted.complete).toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mounted.appRoot.inert).not.toBe(true)
+  })
   it('opens the existing Models page and marks the task complete on its callback', () => {
     const h = mount()
     expect(screen.getByRole('dialog', { name: zh['setup.title'] })).toBeTruthy()

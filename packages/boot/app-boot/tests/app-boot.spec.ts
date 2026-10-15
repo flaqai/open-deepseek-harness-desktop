@@ -5,10 +5,10 @@ import { pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import SystemPrompt, { HARNESS_IDENTITY_TEXT, renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import type {} from '@deepseek-ai/dsh-system-prompt'
 import {
-  addHarnessSourceSection, auditStartupEntries, boot, OPTIONAL_STARTUP_FAILURES_MARKER, StartupError,
-  FAIL_LOUD_RELEASE_TIMEOUT_MS, HARNESS_SOURCE_SECTION,
+  auditStartupEntries, boot, OPTIONAL_STARTUP_FAILURES_MARKER, StartupError,
+  FAIL_LOUD_RELEASE_TIMEOUT_MS,
   installFailLoud, loadEnv, loadLayeredEnv, loadOverlayPatches, resolveConfigPath, type FailLoudEvent, type FailLoudProcess,
 } from '../src/index.ts'
 
@@ -18,7 +18,6 @@ const tempRoots: string[] = []
 afterAll(() => {
   for (const root of tempRoots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
-
 const tmp = (): string => {
   const dir = mkdtempSync(join(tmpdir(), 'dsh-app-boot-'))
   tempRoots.push(dir)
@@ -575,6 +574,7 @@ describe('auditStartupEntries', () => {
     }
     disabled?: boolean
     options: { id: string; name: string }
+    parent?: { tree: { import(name: string): Promise<unknown> } }
   }
 
   const ctxWith = (entries: FakeEntry[]): Context => ({
@@ -610,7 +610,7 @@ describe('auditStartupEntries', () => {
     const warn = vi.fn()
     const original = new Error('todo apply failure')
     await auditStartupEntries(ctxWith([
-      { options: { id: 'missing-tool', name: './missing.mjs' } },
+      { options: { id: 'missing-tool', name: './missing.mjs' }, parent: { tree: { import: () => Promise.resolve() } } },
       { fiber: fiber(3, original), options: { id: 'tool-todo', name: '@deepseek-ai/dsh-tool-todo' } },
       {
         fiber: fiber(0, undefined, { ready: {}, missing: {} }, ['ready']),
@@ -814,7 +814,7 @@ describe('auditStartupEntries', () => {
         connection (required)   webStartup
         unknown                 unknown"
     `)
-    expect(warn).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith(`${OPTIONAL_STARTUP_FAILURES_MARKER}[{"id":"unknown","name":"./unknown.mjs"}]\n${NAME}: warning: 1 entry did not activate\nunknown (./unknown.mjs): pending (waiting for services: unknown)\n`)
   })
 
   it('rejects a required entry pending on an injected service', async () => {
@@ -856,7 +856,7 @@ describe('boot', () => {
     const error = failure as StartupError
     expect(error.entries).toEqual([{
       id: 'webserver', module: './missing.mjs', required: true, fiberState: undefined,
-      outcome: { kind: 'failed', error: 'failed to import' },
+      outcome: { kind: 'failed', error: expect.objectContaining({ message: expect.stringContaining('missing.mjs') as string }) as Error, phase: 'failed to import' },
     }])
     expect(error.startup?.configurationPath).toBe(config)
     expect(error.startup?.messages.some(message => message.args.some(arg => arg instanceof Error && arg.message.includes('missing.mjs')))).toBe(true)
@@ -1267,62 +1267,4 @@ describe('boot', () => {
     }
   })
 
-})
-
-describe('addHarnessSourceSection', () => {
-  const SOURCE_ROOT = `${sep}opt${sep}harness-src`
-  const EXPECTED = `The DeepSeek Harness implementation checkout is at ${SOURCE_ROOT}. The checkout location and current working directory are separate values and may differ; never infer the working directory from this path. Use pwd to determine the current working directory. Use this checkout only to inspect or extend DSH itself.`
-
-  it('distinguishes the source path from the current workdir after reusable instructions', async () => {
-    const ctx = new Context()
-    try {
-      await ctx.plugin(SystemPrompt, { personaPrefix: 'You are a coding agent.' })
-      ctx.systemPrompt.section({
-        name: 'tools:sdk', order: ctx.systemPrompt.getSectionOrder('TOOLS_SDK'), text: 'Reusable tool SDK.',
-      })
-      const dispose = addHarnessSourceSection(ctx, SOURCE_ROOT)
-      expect(dispose).toBeTypeOf('function')
-      const systemPrompt = ctx.get('systemPrompt')!
-      const rendered = renderPrompt(await systemPrompt.assemble())
-      expect(rendered).toContain(EXPECTED)
-      // The >= 0 guards keep a drifted opener/persona string from a false pass
-      // through `-1 < n`.
-      const identityAt = rendered.indexOf(HARNESS_IDENTITY_TEXT)
-      const sourceAt = rendered.indexOf(EXPECTED)
-      const personaAt = rendered.indexOf('You are a coding agent.')
-      expect(identityAt).toBeGreaterThanOrEqual(0)
-      expect(personaAt).toBeGreaterThanOrEqual(0)
-      const sdkAt = rendered.indexOf('Reusable tool SDK.')
-      expect(personaAt).toBeGreaterThan(identityAt)
-      expect(sdkAt).toBeGreaterThan(personaAt)
-      expect(sdkAt).toBeLessThan(sourceAt)
-    } finally {
-      await ctx.fiber.dispose()
-    }
-  })
-
-  it('is a no-op returning undefined when no systemPrompt service is mounted', async () => {
-    const ctx = new Context()
-    try {
-      expect(addHarnessSourceSection(ctx, SOURCE_ROOT)).toBeUndefined()
-    } finally {
-      await ctx.fiber.dispose()
-    }
-  })
-
-  it('disposes the section it added, so a systemPrompt reload leaves no residue', async () => {
-    const ctx = new Context()
-    try {
-      await ctx.plugin(SystemPrompt, {})
-      const systemPrompt = ctx.get('systemPrompt')!
-      const dispose = addHarnessSourceSection(ctx, SOURCE_ROOT)!
-      const present = await systemPrompt.assemble()
-      expect(present.sections.some(section => section.name === HARNESS_SOURCE_SECTION)).toBe(true)
-      dispose()
-      const gone = await systemPrompt.assemble()
-      expect(gone.sections.some(section => section.name === HARNESS_SOURCE_SECTION)).toBe(false)
-    } finally {
-      await ctx.fiber.dispose()
-    }
-  })
 })

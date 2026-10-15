@@ -14,7 +14,7 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
  * (session.spec.ts#rename), the entries' own arms with
  * session-actions.client.spec, the row's list rendering with rows.client.spec.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import type { ISession } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -35,8 +35,8 @@ afterEach(cleanup)
 beforeEach(() => { localStorage.clear() })
 
 /** Runtime with the locale face installed (the browser entry declares `locale:` — zh default backs the t seat). */
-async function createRuntime(): Promise<SlotTestRuntime> {
-  const runtime = await SlotTestRuntime.create()
+async function createRuntime(access?: NonNullable<Parameters<typeof SlotTestRuntime.create>[0]>['access']): Promise<SlotTestRuntime> {
+  const runtime = await SlotTestRuntime.create(access === undefined ? {} : { access })
   runtime.ctx.provide('shortcuts', { register: () => () => {}, catalog: createSnapshotStore([]) })
   runtime.ctx.provide('layout', { selectPanel: vi.fn(), beginNavigation: () => new AbortController().signal })
   runtime.releaseWorkspaceSource()
@@ -83,6 +83,56 @@ async function seedWorkspace(runtime: SlotTestRuntime): Promise<void> {
 }
 
 describe('session rename through the assembled browser', () => {
+  it('keeps readonly browsing available without workspace mutations or session rename gestures', async () => {
+    const denied = createSnapshotStore(false)
+    const runtime = await createRuntime({ source: () => denied, global: () => denied })
+    onTestFinished(() => runtime.dispose())
+    const rename = vi.fn<ISession['rename']>()
+    await runtime.sessions.add({
+      id: SID,
+      summary: { title: '只读会话', displayTitle: '只读会话', cwd: '/w/alpha' },
+      session: { rename },
+    })
+    await runtime.sessions.retainFor(runtime.ctx, SID, { source: 'mainView' }).ready
+    await seedWorkspace(runtime)
+    await declareFrame(runtime)
+    await runtime.mount({ inject: [...inject], apply })
+    const view = runtime.renderRoot()
+    const title = await view.findByText('只读会话')
+    fireEvent.doubleClick(title)
+    expect(view.queryByLabelText('会话名称')).toBeNull()
+    expect(view.queryByLabelText('添加工作区')).toBeNull()
+    expect(view.queryByLabelText('工作区“alpha”的操作')).toBeNull()
+    expect(view.queryByLabelText('在“alpha”中新建会话')).toBeNull()
+    const row = title.closest('[role="treeitem"]')!
+    fireEvent.click(within(row as HTMLElement).getByLabelText('会话“只读会话”的操作'))
+    expect(view.queryByRole('menuitem', { name: '重命名' })).toBeNull()
+    expect(rename).not.toHaveBeenCalled()
+    expect(runtime.workspaces.calls.filter(call => ['create', 'rename', 'delete', 'insertBefore'].includes(call.method))).toEqual([])
+  })
+
+  it('withdraws an open rename dialog when the live Session permission is revoked', async () => {
+    const allowed = createSnapshotStore(true)
+    const runtime = await createRuntime({ source: () => allowed, global: () => allowed })
+    onTestFinished(() => runtime.dispose())
+    const rename = vi.fn<ISession['rename']>()
+    await runtime.sessions.add({
+      id: SID,
+      summary: { title: '待重命名', displayTitle: '待重命名', cwd: '/w/alpha' },
+      session: { rename },
+    })
+    await runtime.sessions.retainFor(runtime.ctx, SID, { source: 'mainView' }).ready
+    await seedWorkspace(runtime)
+    await declareFrame(runtime)
+    await runtime.mount({ inject: [...inject], apply })
+    const view = runtime.renderRoot()
+    fireEvent.doubleClick(await view.findByText('待重命名'))
+    await view.findByLabelText('会话名称')
+    await act(async () => { allowed.set(false) })
+    expect(view.queryByLabelText('会话名称')).toBeNull()
+    expect(rename).not.toHaveBeenCalled()
+  })
+
   it('renders independently registered Session actions in declared order', async () => {
     const runtime = await createRuntime()
     const selected = vi.fn()
@@ -111,7 +161,7 @@ describe('session rename through the assembled browser', () => {
         },
       )
     }
-    // `order` places plugin rows after the shipped rows (100/200/300/400)
+    // `order` places plugin rows after the shipped rows (100/200/300/400/450)
     // even when the later registration has the lower shadowing priority
     // assigned to dynamic browser packages; the first plugin row opens the
     // plugin group with a hairline.
@@ -123,7 +173,7 @@ describe('session rename through the assembled browser', () => {
     const trigger = within(row as HTMLElement).getByLabelText('会话“Persisted title”的操作')
     fireEvent.click(trigger)
     expect(view.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
-      '置顶会话', '重命名', '分叉会话', '归档会话', 'Export action', 'Last action',
+      '置顶会话', '重命名', '分叉会话', '归档会话', '复制 Session ID', 'Export action', 'Last action',
     ])
     expect(view.getAllByRole('separator')).toHaveLength(1)
     const last = view.getByRole('menuitem', { name: 'Last action' })
@@ -140,6 +190,18 @@ describe('session rename through the assembled browser', () => {
     expect(view.queryByRole('menu')).toBeNull()
     await act(async () => { await Promise.resolve() })
     expect(document.activeElement).toBe(trigger)
+    const writeText = vi.fn(async () => {})
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    onTestFinished(() => {
+      if (clipboard === undefined) Reflect.deleteProperty(navigator, 'clipboard')
+      else Object.defineProperty(navigator, 'clipboard', clipboard)
+    })
+    fireEvent.click(trigger)
+    fireEvent.click(view.getByRole('menuitem', { name: '复制 Session ID' }))
+    expect(view.queryByRole('menu')).toBeNull()
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(SID)
+    await view.findByText('Session ID 已复制')
     await runtime.dispose()
   })
 

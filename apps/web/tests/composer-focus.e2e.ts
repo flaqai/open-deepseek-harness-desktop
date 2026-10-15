@@ -47,7 +47,24 @@ function describeSelection(state: Awaited<ReturnType<typeof selectionState>>): s
 async function exerciseComposer(page: Page): Promise<string[]> {
   const input = page.locator('[data-composer-input][contenteditable="true"]')
   await input.click()
+  // Let the editor observe its insertText selection before native arrow moves;
+  // a coalesced first notification can otherwise be treated as its own update.
+  await input.evaluate((el) => {
+    const onSelectionChange = (): void => {
+      const selection = el.ownerDocument.getSelection()
+      if (selection === null || !el.contains(selection.anchorNode) || !el.contains(selection.focusNode)) return
+      if (selection.isCollapsed && selection.anchorOffset === 16 && el.textContent === 'alpha beta gamma') {
+        el.dataset.selectionReady = 'inserted'
+        return
+      }
+      if (selection.toString() !== 'beta' || selection.anchorOffset !== 10 || selection.focusOffset !== 6) return
+      el.dataset.selectionReady = 'selected'
+      el.ownerDocument.removeEventListener('selectionchange', onSelectionChange)
+    }
+    el.ownerDocument.addEventListener('selectionchange', onSelectionChange)
+  })
   await page.keyboard.insertText('alpha beta gamma')
+  await expect.poll(() => input.getAttribute('data-selection-ready')).toBe('inserted')
   await page.keyboard.press('Home')
   for (let index = 0; index < 10; index++) await page.keyboard.press('ArrowRight')
   for (let index = 0; index < 4; index++) await page.keyboard.press('Shift+ArrowLeft')
@@ -76,6 +93,8 @@ async function exerciseComposer(page: Page): Promise<string[]> {
     observations.push(`- ${point.name}: ${describeSelection(await selectionState(page))}`)
   }
 
+  await expect.poll(() => input.getAttribute('data-selection-ready')).toBe('selected')
+  await input.evaluate((el) => { delete el.dataset.selectionReady })
   const top = points[0]!
   const cardBox = await page.locator('[data-composer-card]').boundingBox()
   await page.mouse.click(cardBox!.x - 12, top.y)

@@ -221,9 +221,13 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
   newShortcut?: ShortcutCatalogEntry | undefined
   containsCurrentDescendant?: boolean
   onToggle: () => void
-  onCreate: () => void
+  onCreate?: (() => void) | undefined
   /** Real-Workspace actions; absent for the ungrouped bucket (no menu shown). */
-  actions?: { rename: () => void; customInstructions?: (() => void) | undefined; delete: () => void } | undefined
+  actions?: {
+    rename?: (() => void) | undefined
+    customInstructions?: (() => void) | undefined
+    delete?: (() => void) | undefined
+  } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
   /** Host account home; POSIX home-rooted hover paths display as `~`. */
@@ -236,11 +240,13 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
   const active = containsCurrentDescendant || (group.expanded && group.containsCurrent)
   const [menuOpen, setMenuOpen] = useState(false)
   const workspaceMenuItems = [
-    { id: 'rename', label: t('rename'), icon: <IconEditOutlineRegular /> },
+    ...actions?.rename === undefined ? [] : [{ id: 'rename', label: t('rename'), icon: <IconEditOutlineRegular /> }],
     ...actions?.customInstructions === undefined
       ? []
       : [{ id: 'custom-instructions', label: t('customInstructions.workspace'), icon: <IconEditOutlineRegular /> }],
-    { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutlineRegular />, danger: true },
+    ...actions?.delete === undefined
+      ? []
+      : [{ id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutlineRegular />, danger: true }],
   ]
   const ownRow = (
     <div
@@ -269,7 +275,7 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
         <span className={css.title}>{label}</span>
       </span>
       <span className={css.rowActions}>
-        {actions !== undefined && (
+        {workspaceMenuItems.length > 0 && actions !== undefined && (
           <Menu
             open={menuOpen}
             onClose={() => { setMenuOpen(false) }}
@@ -280,9 +286,9 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
               // not inherit the destructive branch as an else fallback.
               /* v8 ignore next -- Menu can emit only the rename and delete rows supplied above. */
               if (id !== 'rename' && id !== 'custom-instructions' && id !== 'delete') return
-              if (id === 'rename') actions.rename()
+              if (id === 'rename') actions.rename?.()
               else if (id === 'custom-instructions') actions.customInstructions?.()
-              else actions.delete()
+              else actions.delete?.()
             }}
             portal
             closeOnPointerLeave
@@ -298,7 +304,7 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
             )}
           />
         )}
-        <Tooltip label={t('actions.newSession')} shortcutKeys={newShortcut?.keys} side="bottom" align="end" delayMs={500}>
+        {onCreate !== undefined && <Tooltip label={t('actions.newSession')} shortcutKeys={newShortcut?.keys} side="bottom" align="end" delayMs={500} portal>
           <button
             type="button"
             className={css.iconButton}
@@ -308,7 +314,7 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
           >
             <IconNewChatOutlineRegular />
           </button>
-        </Tooltip>
+        </Tooltip>}
       </span>
     </div>
   )
@@ -324,6 +330,7 @@ export function ProjectRowItem({ group, containsCurrentDescendant = false, onTog
         t={t}
       />}
       openDelayMs={800}
+      grouped
       disabled={menuOpen}
       copyText={row.cwd}
       copyLabel={t('copy')}
@@ -476,7 +483,7 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: 
   result: SearchResultNode
   currentId: string | undefined
   onOpen: (id: SearchResultNode['id']) => void
-  onUnarchive: (id: SearchResultNode['id']) => void
+  onUnarchive?: ((id: SearchResultNode['id']) => void) | undefined
   t: RowTranslate
 }) {
   const selected = result.id === currentId
@@ -500,9 +507,9 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: 
           )}
         </span>
         <span className={css.searchResultTitle}>{result.title || t('session.untitled')}</span>
-        {result.archived && (
+        {result.archived && onUnarchive !== undefined && (
           <span className={css.rowActions}>
-            <Tooltip label={t('actions.unarchive')} side="bottom" align="end" delayMs={500}>
+            <Tooltip label={t('actions.unarchive')} side="bottom" align="end" delayMs={500} portal>
               <button
                 type="button"
                 className={css.iconButton}
@@ -546,7 +553,7 @@ export function SearchResultItem({ result, currentId, onOpen, onUnarchive, t }: 
  * @returns the session row.
  */
 export function SessionNodeItem({
-  node, currentId, now, onOpen, onRenameRequest, renderSlot, onReveal, drag, t,
+  node, currentId, now, onOpen, onRenameRequest, useSessionAccess, renderSlot, onReveal, drag, t,
 }: {
   node: SessionNode
   currentId: string | undefined
@@ -554,6 +561,8 @@ export function SessionNodeItem({
   onOpen: (id: SessionNode['id']) => void
   /** Open the rename dialog from a title double-click (id + current title). */
   onRenameRequest: (id: SessionNode['id'], currentTitle: string) => void
+  /** Session-specific permission from the browser's framework hooks. */
+  useSessionAccess: WorkspaceBrowserProps['useSessionAccess']
   /** Scroll this row into view after search navigation, then acknowledge it. */
   onReveal?: (() => void) | undefined
   /** Present on reorderable-list rows so every row can remain a drop target. */
@@ -566,6 +575,7 @@ export function SessionNodeItem({
   | 'sidebar.session.row.hover'
 >) {
   const row = node
+  const renameAllowed = useSessionAccess(node.id, 'session/rename')
   const title = displayTitle(node, t)
   const selected = node.id === currentId
   const statuses = sessionStatuses(node, t)
@@ -640,7 +650,7 @@ export function SessionNodeItem({
       <span
         ref={titleRef}
         className={css.title}
-        onDoubleClick={row.blank
+        onDoubleClick={row.blank || !renameAllowed
           ? undefined
           : (e) => { e.stopPropagation(); onRenameRequest(node.id, row.title) }}
       >
@@ -698,6 +708,7 @@ export function SessionNodeItem({
       anchor={ownRow}
       content={<SessionHoverContent node={node} now={now} renderSlot={renderSlot} t={t} />}
       openDelayMs={800}
+      grouped
       disabled={menuOpen || drag?.active === true}
       copyText={row.blank || row.title === '' ? undefined : row.title}
       copyLabel={t('copy')}

@@ -1,8 +1,6 @@
 /**
- * Welcome-notice state derived from the welcome settings scope. The scope is
- * the transport: a loopback browser follows the durable Host section, while a
- * remote browser's memory-mode scope never answers and the acknowledgement
- * stays process-local here.
+ * Welcome-notice state follows Host settings locally; a remote browser
+ * acknowledges for its own lifetime without modifying shared settings.
  */
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -39,22 +37,19 @@ function assertNever(_value: never): never {
   throw new Error('unexpected welcome settings status')
 }
 
-/** Coordinates durable Host acknowledgement or a process-local remote fallback. */
+/** Coordinates durable local-Host acknowledgement or remote process-local acknowledgement. */
 export class WelcomeNoticeStore {
   /** uSES-safe state source shared by the registered welcome step. */
   readonly store: SnapshotStore<WelcomeNoticeState> = createSnapshotStore<WelcomeNoticeState>({
     status: 'idle', acknowledged: false, error: null,
   })
 
-  private localAcknowledged = false
   private saving = false
+  private localAcknowledged = false
   private following: (() => void) | undefined
 
-  /**
-   * @param scope - the welcome settings namespace scope; its memory mode is
-   * what keeps a remote browser process-local.
-   */
-  constructor(private readonly scope: ConfigForm<WelcomeSection>) {}
+  /** @param scope - Host-backed settings. @param localOnly - keep a remote browser's consent in memory. */
+  constructor(private readonly scope: ConfigForm<WelcomeSection>, private readonly localOnly = false) {}
 
   /**
    * Begin following the bound scope (idempotent) and publish its current answer.
@@ -67,13 +62,13 @@ export class WelcomeNoticeStore {
   }
 
   /**
-   * Persist this copy version, or advance only this process for a remote
-   * browser. Success is judged against the state the write left behind, so a
-   * refused or failed write reports false after its recovery read settles.
-   * @returns true when the selected persistence mode holds the acknowledgement.
+   * Persist this copy version through the scope. Success is judged against the
+   * state the write left behind, so a refused or failed write reports false
+   * after its recovery read settles.
+   * @returns true when the Host holds the acknowledgement.
    */
   async acknowledge(): Promise<boolean> {
-    if (this.scope.getSnapshot().mode === 'memory') {
+    if (this.localOnly) {
       this.localAcknowledged = true
       this.derive()
       return true
@@ -104,15 +99,11 @@ export class WelcomeNoticeStore {
 
   private derive(): void {
     if (this.saving) return
-    const scope = this.scope.getSnapshot()
-    if (scope.mode === 'memory') {
-      this.store.update((state) => {
-        state.status = 'ready'
-        state.acknowledged = this.localAcknowledged
-        state.error = null
-      })
+    if (this.localOnly) {
+      this.store.update((state) => { state.status = 'ready'; state.acknowledged = this.localAcknowledged; state.error = null })
       return
     }
+    const scope = this.scope.getSnapshot()
     switch (scope.status) {
       case 'loading':
         this.store.update((state) => { state.status = 'loading'; state.error = null })

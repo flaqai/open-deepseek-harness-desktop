@@ -31,9 +31,15 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
   let balanceReads = 0
   let walletBalance = '0E-16'
   let bonusBalance = '0'
+  let bonusOffered = false
+  let bonusReads = 0
+  let bonusAcks = 0
   let screenshots: string | undefined
 
   beforeEach(async () => {
+    bonusOffered = false
+    bonusReads = 0
+    bonusAcks = 0
     balanceFailure = false
     balanceReads = 0
     walletBalance = '0E-16'
@@ -41,6 +47,23 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
     screenshots = undefined
     root = await mkdtemp(join(tmpdir(), 'dsh-desktop-onboarding-'))
     server = createServer((request, response) => {
+      if (request.url === '/api/v0/users/get_unnotified_bonuses') {
+        bonusReads++
+        response.setHeader('content-type', 'application/json')
+        response.end(JSON.stringify({ code: 0, data: { biz_code: 0, biz_data: bonusOffered ? [{
+          order_id: '88888888-8888-4888-8888-888888888888', campaign: 'dsh_login_bonus',
+          amount: '5.00', currency: 'CNY', granted_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 86_400_000).toISOString(), msg: '已赠送您 5.00 元 DSH 体验赠金。',
+        }] : [] } }))
+        return
+      }
+      if (request.url === '/api/v0/users/ack_bonus_notified') {
+        bonusAcks++
+        bonusOffered = false
+        response.setHeader('content-type', 'application/json')
+        response.end(JSON.stringify({ code: 0, data: { biz_code: 0, biz_data: null } }))
+        return
+      }
       if (request.url !== '/auth-api/v0/users/current' && request.url !== '/api/v0/users/get_user_summary') {
         response.writeHead(404).end()
         return
@@ -99,6 +122,16 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
 
   async function snapshot(name: string): Promise<void> {
     await expect.poll(() => page.locator('[data-desktop-onboarding]').getAttribute('aria-busy')).toBe('false')
+    const hasIllustration = name.startsWith('welcome') || name.startsWith('credit')
+    if (hasIllustration) {
+      const decoded = await page.locator('[class*="illustration"] > img').evaluateAll(async elements =>
+        Promise.all(elements.map(async (element) => {
+          const image = element as HTMLImageElement
+          await image.decode()
+          return image.naturalWidth > 0 && image.naturalHeight > 0
+        })))
+      expect(decoded).toEqual([true, true])
+    }
     const aria = await captureStableAria(page, '[data-desktop-onboarding]', scaffold.workspaceCwd)
     await mkdir(EXPECTED, { recursive: true })
     await compareOrRefreshGolden(join(EXPECTED, `${name}.expected.md`), aria, MODE)
@@ -170,7 +203,7 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
         expect(action?.width).toBeCloseTo(240, 0)
         expect(action!.y - (card!.y + card!.height)).toBeCloseTo(40, 0)
       }
-      if (name === 'welcome' || name === 'credit') {
+      if (hasIllustration) {
         const illustrations = await page.locator('[class*="illustration"] > img:visible').evaluateAll(elements => elements.map((element) => {
           const image = element as HTMLImageElement
           const box = image.getBoundingClientRect()
@@ -397,6 +430,39 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
     await page.getByRole('button', { name: 'Continue', exact: true }).click()
     await page.getByRole('radiogroup').waitFor()
     await snapshot('process-en-dark')
+    await page.close()
+  })
+
+  it('leaves a bonus unacknowledged on onboarding exit and presents it only in the workspace', async () => {
+    bonusOffered = true
+    walletBalance = '5.00'
+    const observations: string[] = []
+    for (const reopen of [false, true]) {
+      const readsBefore = bonusReads
+      page = await desktopPage()
+      onTestFailed(() => saveFailureShot(page, 'desktop-onboarding-bonus'))
+      await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
+      if (!reopen) await page.getByRole('button', { name: '开始设置', exact: true }).click()
+      await expect.poll(() => bonusReads).toBeGreaterThan(readsBefore)
+      await page.getByRole('heading', { name: '准备可用额度', exact: true }).waitFor()
+      expect(await page.getByText('已赠送您 5.00 元 DSH 体验赠金。', { exact: true }).count()).toBe(0)
+      expect(bonusAcks).toBe(0)
+      observations.push(`${reopen ? 'reopened' : 'initial'}.onboarding notice=false acks=${bonusAcks}`)
+      if (!reopen) {
+        await page.close()
+        expect(bonusAcks).toBe(0)
+        observations.push(`closed.onboarding acks=${bonusAcks}`)
+      }
+    }
+    await page.getByRole('button', { name: '下一步', exact: true }).click()
+    await page.getByRole('button', { name: '跳过', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '进入应用', exact: true }).click()
+    await page.locator('[data-desktop-onboarding]').waitFor({ state: 'detached' })
+    const notice = page.getByText('已赠送您 5.00 元 DSH 体验赠金。', { exact: true })
+    await notice.waitFor({ state: 'visible' })
+    await expect.poll(() => bonusAcks).toBe(1)
+    observations.push(`workspace.notice=${await notice.innerText()} acks=${bonusAcks}`)
+    await compareOrRefreshGolden(join(EXPECTED, 'bonus-after-onboarding.expected.md'), observations.join('\n'), MODE)
     await page.close()
   })
 

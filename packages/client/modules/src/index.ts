@@ -1090,7 +1090,9 @@ export class ClientModuleRegistry extends Service {
       const requested = requestUrl.pathname.slice(prefix.length)
       const sourceMap = requested.endsWith('.map')
       const fileName = sourceMap ? requested.slice(0, -'.map'.length) : requested
-      if (!CLIENT_CHUNK.test(fileName)) return undefined
+      // The Node Client entry and its split chunks share this directory but
+      // must never be served as browser factory scripts.
+      if (!CLIENT_CHUNK.test(fileName) || fileName === 'client.node.js' || fileName.startsWith('client.node.')) return undefined
       if (resourceUrl !== chunkUrl(record.entry.id, fileName, record.entry.rev, sourceMap)) return undefined
       return { record, fileName, sourceMap, resourceUrl }
     }

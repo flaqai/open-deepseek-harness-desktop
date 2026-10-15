@@ -11,17 +11,25 @@
     "src/browser-auth.ts",
     "src/client/random-uuid.ts",
     "src/client/rpc.ts",
+    "src/connect-protocol.ts",
     "src/http-bridge.ts",
     "src/index.ts",
     "src/loopback-hostname.ts",
     "src/nas-access.ts",
-    "src/operator-peer.ts",
+    "src/nas-policy.ts",
+    "src/nas-route-policy.ts",
+    "src/peer.ts",
     "src/recovery-config.ts",
     "src/rpc-host.ts",
     "src/rpc-schema.ts",
     "src/rpc.ts"
   ],
   "references": [
+    { "path": "../../api/remote-access/tsconfig.host.json" },
+    { "path": "../../workspace/workspace" },
+    { "path": "../../session/session-persistence" },
+    { "path": "../../fs/fs" },
+    { "path": "../../util/home-paths" },
     {
       "path": "../../../vendor/cordis"
     },

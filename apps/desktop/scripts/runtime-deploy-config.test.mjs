@@ -7,6 +7,12 @@ for (const script of ['prepare-unix-runtime.mjs', 'prepare-windows-runtime.mjs']
     const source = await readFile(new URL(script, import.meta.url), 'utf8')
     assert.match(source, /'--config\.allow-unused-patches=true'/u)
   })
+  test(`${script} retains the opt-in SSH helper and traverses its production peers`, async () => {
+    const source = await readFile(new URL(script, import.meta.url), 'utf8')
+    assert.match(source, /const queue = \[\.\.\.workspaceDependencies\(rootManifest, packages\), '@deepseek-ai\/dsh-ssh'\]/u)
+    assert.match(source, /for \(const dependency of workspaceDependencies\(project\.manifest, packages\)\) queue\.push\(dependency\)/u)
+    assert.match(source, /'@deepseek-ai\/dsh-ssh\/helper'/u)
+  })
 }
 
 test('Windows installed smoke isolates Electron application data', async () => {

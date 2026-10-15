@@ -18,6 +18,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { ModelsSection } from './ModelsSection.tsx'
 import type { ModelsSectionInjected } from './ModelsSection.tsx'
+import type {} from '@deepseek-ai/dsh-api-remote-access/client'
 import { SetupWizard } from './SetupWizard.tsx'
 import type { SetupWizardInjected } from './SetupWizard.tsx'
 import { DeepSeekOnboardingDialog } from './DeepSeekOnboardingDialog.tsx'
@@ -110,9 +111,9 @@ export function apply(ctx: ClientContext): void {
     schema,
     t,
   })
-  // The scope's own memory mode is what keeps a remote browser process-local,
-  // so the store needs no isLoopback branch of its own.
-  const welcomeController = new WelcomeNoticeStore(ctx.configForms.get<Record<string, unknown>>(WELCOME_NOTICE_SETTINGS_NAMESPACE))
+  const welcomeController = new WelcomeNoticeStore(
+    ctx.configForms.get<Record<string, unknown>>(WELCOME_NOTICE_SETTINGS_NAMESPACE), !ctx.remote.$host.isLoopback,
+  )
   const setupInjected = (): SetupWizardInjected => ({
     modelsController: controller,
     welcomeController,

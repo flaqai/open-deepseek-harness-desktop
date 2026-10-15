@@ -18,6 +18,7 @@ const HOST_DEPENDENCY_PACKAGES: readonly string[] = [
 /** Required Cordis services whose Host imports are type-only. */
 const REQUIRED_SERVICE_PEERS = {
   '@deepseek-ai/dsh-api-terminal-controller': ['@deepseek-ai/dsh-subprocess'],
+  '@deepseek-ai/dsh-client-connection': ['@deepseek-ai/dsh-api-remote-access'],
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
 /** Development-only package relationships not represented by source imports. */
@@ -65,7 +66,10 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
 
 /** Runtime exports that require every consumer to resolve the provider's shared peer instance. */
 const PEER_REQUIRED_HOST_EXPORTS = {
-  '@deepseek-ai/dsh-client-connection': ['OperatorPeer'],
+  // Keep NAS authorization on one provider instance rather than adding new
+  // duplicate-install-safe exceptions without the required human review.
+  '@deepseek-ai/dsh-home-paths': ['resolveDshHome'],
+  '@deepseek-ai/dsh-nas-protocol': ['isNasRole'],
   '@deepseek-ai/dsh-scope': ['carrierKeyOf', 'createScope', 'scopeOf', 'scopeTarget'],
   '@deepseek-ai/dsh-session': ['SESSION_FORMAT_VERSION'],
   '@deepseek-ai/dsh-session-persistence': ['SessionPersistenceNotFoundError'],

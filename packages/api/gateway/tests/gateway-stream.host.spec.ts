@@ -1,4 +1,6 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { credentialKey } from '@deepseek-ai/dsh-credentials'
+import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
 import { once } from 'node:events'
 import { queryObjects } from 'node:v8'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -21,6 +23,7 @@ import {
   RemoteError,
 } from '@deepseek-ai/dsh-typert-protocol'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
+import RemoteAccessService from '@deepseek-ai/dsh-api-remote-access'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
@@ -41,6 +44,7 @@ import type {
   RemoteEventClientId,
   RemoteEventInvocationFrame,
 } from '../src/stream-protocol.ts'
+import { ownerPeer, peerFor } from './peer.ts'
 
 vi.mock('node:crypto', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:crypto')>()
@@ -56,6 +60,7 @@ class FeedService extends TypertRemoteService {
   readonly signals: AbortSignal[] = []
   readonly peeked: unknown[] = []
   readonly peers: PeerScope[] = []
+  readonly windows: RemoteInvocation['uplinkWindow'][] = []
   leftover: AsyncIterator<string> | undefined
   source: Iterable<string> = []
   returns = 0
@@ -130,6 +135,7 @@ class FeedService extends TypertRemoteService {
     this.signals.push(signal)
     const invocation = this.invocation()
     this.peers.push(invocation.peer)
+    this.windows.push(invocation.uplinkWindow)
     try {
       for await (const item of invocation.uplink<string>()) yield `${prefix}${item}`
     } finally {
@@ -366,13 +372,13 @@ describe('Typert Remote streams', () => {
     const unregister = ctx.effect(() => ctx.typertGateway.registerRemoteEvents(source.source, REMOTE_HOST))
     const abort = new AbortController()
     const empty = (async function* () {})()
-    const events = await ctx.typertGateway.wireStream.open('$events', { args: {} }, empty, undefined, abort.signal)
+    const events = await ctx.typertGateway.wireStream.open('$events', { args: {} }, empty, ownerPeer(ctx), abort.signal)
     const first = events[Symbol.asyncIterator]()
     await first.next()
     expect(ctx.typertGateway.hasLiveClient()).toBe(true)
     abort.abort()
     expect(ctx.typertGateway.hasLiveClient()).toBe(false)
-    const replacement = await ctx.typertGateway.wireStream.open('$events', { args: {} }, empty, undefined, new AbortController().signal)
+    const replacement = await ctx.typertGateway.wireStream.open('$events', { args: {} }, empty, ownerPeer(ctx), new AbortController().signal)
     const second = replacement[Symbol.asyncIterator]()
     try {
       await second.next()
@@ -430,7 +436,7 @@ describe('Typert Remote streams', () => {
       'feed/sync',
       { args: { label: 'wire' } },
       toAsync([]),
-      undefined,
+      ownerPeer(ctx),
       new AbortController().signal,
     )
     await expect(collect(source)).resolves.toEqual(['wire:one', 'wire:two'])
@@ -439,7 +445,7 @@ describe('Typert Remote streams', () => {
       'feed/echo',
       { args: { prefix: 'wire:' } },
       toAsync(['a', 'b']),
-      undefined,
+      ownerPeer(ctx),
       new AbortController().signal,
     )
     await expect(collect(echoed)).resolves.toEqual(['wire:a', 'wire:b'])
@@ -448,13 +454,16 @@ describe('Typert Remote streams', () => {
   it('delivers uplink items through the in-process carrier and ends on half-close', async () => {
     const { ctx, service } = await setup(false)
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'echo', args: { prefix: '> ' }, uplink: toAsync(['a', 'b']),
     }))).resolves.toEqual(['> a', '> b'])
     expect(service.returns).toBe(1)
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'echo', args: { prefix: 'x' },
     }))).resolves.toEqual([])
     await expect(ctx.typertGateway.invoke({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'echo', args: { prefix: 'x' },
     })).rejects.toMatchObject({
       code: 'gateway/signature-invalid',
@@ -472,6 +481,7 @@ describe('Typert Remote streams', () => {
       }),
     }
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'ignore', args: { prefix: 'i' }, uplink: unread,
     }))).resolves.toEqual(['i:one', 'i:two'])
     await vi.waitFor(() => { expect(returned).toHaveBeenCalledOnce() })
@@ -480,6 +490,7 @@ describe('Typert Remote streams', () => {
   it('fails a stream whose uplink item fails its codec, even when the method swallows the failure', async () => {
     const { ctx, service } = await setup(false)
     const rejected = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'echo', args: { prefix: '' }, uplink: toAsync<unknown>(['ok', 1]),
     })
     const iterator = rejected[Symbol.asyncIterator]()
@@ -494,6 +505,7 @@ describe('Typert Remote streams', () => {
     expect(service.returns).toBe(1)
 
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'swallow', args: {}, uplink: toAsync<unknown>([1]),
     }))).rejects.toMatchObject({ code: 'gateway/input-invalid' })
   })
@@ -502,6 +514,7 @@ describe('Typert Remote streams', () => {
     const { ctx, service } = await setup(false)
     const abort = new AbortController()
     const source = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'peek', args: {}, uplink: neverYielding(), signal: abort.signal,
     })
     const iterator = source[Symbol.asyncIterator]()
@@ -518,6 +531,7 @@ describe('Typert Remote streams', () => {
     const { ctx, service } = await setup(false)
     const abort = new AbortController()
     const source = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'hold', args: {}, uplink: toAsync(['unread']), signal: abort.signal,
     })
     const iterator = source[Symbol.asyncIterator]()
@@ -534,7 +548,9 @@ describe('Typert Remote streams', () => {
 
   it('exposes the call as ctx.invocation, delivers codec-less uplink items as unknown, and hands the uplink out once', async () => {
     const { ctx, service } = await setup(false)
+    const caller = peerFor(ctx, { kind: 'owner' })
     await expect(collect(await ctx.typertGateway.stream({
+      peer: caller,
       namespace: 'feed', method: 'context', args: { label: 'ctx' }, uplink: toAsync<unknown>([1, { nested: true }]),
     }))).resolves.toEqual([
       'feed/context:feed:{"label":"ctx"}:ctx',
@@ -545,18 +561,22 @@ describe('Typert Remote streams', () => {
     expect(service.peers.at(-1)?.id).toMatch(/^[0-9a-f-]{36}$/)
     expect(service.invocationOutsideCall()).toBeUndefined()
     await expect(collect(await ctx.typertGateway.stream({
+      peer: caller,
       namespace: 'feed', method: 'context', args: { label: 'again' },
     }))).resolves.toHaveLength(2)
+    expect(service.peers.at(-1)).toBe(caller)
     expect(service.peers.at(-1)).toBe(service.peers.at(-2))
     await expect(service.peers.at(-1)?.dispose()).resolves.toBeUndefined()
 
     // Items sent to a method that never takes its uplink wait in the carrier and are dropped when the downlink ends.
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'sync', args: { label: 'closed' }, uplink: toAsync(['unread']),
     }))).resolves.toEqual(['closed:one', 'closed:two'])
 
     // Without a codec an item still has to be a JSON-safe value.
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'context', args: { label: 'bad' }, uplink: toAsync<unknown>([1n]),
     }))).rejects.toMatchObject({
       code: 'gateway/input-invalid',
@@ -577,6 +597,7 @@ describe('Typert Remote streams', () => {
       }),
     }
     const source = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'hold', args: {}, uplink: stuck, signal: abort.signal,
     })
     const iterator = source[Symbol.asyncIterator]()
@@ -590,6 +611,7 @@ describe('Typert Remote streams', () => {
   it('closes the uplink before returning a method blocked on it', async () => {
     const { ctx } = await setup(false)
     const source = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'drain', args: {}, uplink: neverYielding(),
     })
     const iterator = source[Symbol.asyncIterator]()
@@ -606,6 +628,7 @@ describe('Typert Remote streams', () => {
     let index = 0
     const returned = vi.fn(async (): Promise<IteratorResult<string>> => ({ done: true, value: undefined }))
     const source = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'hold', args: {},
       uplink: { [Symbol.asyncIterator]: () => ({ next: () => reads[index++]!.promise, return: returned }) },
     })
@@ -637,9 +660,9 @@ describe('Typert Remote streams', () => {
     const { ctx, service } = await setup(false)
     service.source = { [Symbol.iterator]: () => ({ next: () => new ReadResult() }) }
     const source = await ctx.typertGateway.stream(direction === 'downlink'
-      ? { namespace: 'feed', method: 'items', args: {} }
+      ? { peer: ownerPeer(ctx), namespace: 'feed', method: 'items', args: {} }
       : {
-        namespace: 'feed', method: 'echo', args: { prefix: '' },
+        peer: ownerPeer(ctx), namespace: 'feed', method: 'echo', args: { prefix: '' },
         uplink: { [Symbol.asyncIterator]: () => ({ next: async () => new ReadResult() }) },
       })
     const iterator = source[Symbol.asyncIterator]()
@@ -662,6 +685,7 @@ describe('Typert Remote streams', () => {
     const next = vi.fn((): IteratorResult<string> => ({ done: false, value: 'item' }))
     service.source = { [Symbol.iterator]: () => ({ next }) }
     const source = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'items', args: {}, signal: abort.signal,
     })
     const iterator = source[Symbol.asyncIterator]()
@@ -685,9 +709,9 @@ describe('Typert Remote streams', () => {
     }
     service.source = { [Symbol.iterator]: () => ({ next }) }
     const source = await ctx.typertGateway.stream(direction === 'downlink'
-      ? { namespace: 'feed', method: 'items', args: {}, signal: abort.signal }
+      ? { peer: ownerPeer(ctx), namespace: 'feed', method: 'items', args: {}, signal: abort.signal }
       : {
-        namespace: 'feed', method: 'hold', args: {}, signal: abort.signal,
+        peer: ownerPeer(ctx), namespace: 'feed', method: 'hold', args: {}, signal: abort.signal,
         uplink: { [Symbol.asyncIterator]: () => ({ next }) },
       })
     const iterator = source[Symbol.asyncIterator]()
@@ -704,6 +728,7 @@ describe('Typert Remote streams', () => {
   it('reports done on every read after the uplink ended', async () => {
     const { ctx } = await setup(false)
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'rereads', args: {}, uplink: toAsync(['a', 'b']),
     }))).resolves.toEqual(['a', 'b', 'done'])
   })
@@ -711,6 +736,7 @@ describe('Typert Remote streams', () => {
   it('accepts a top-level undefined uplink item where no codec applies and rejects it where one does', async () => {
     const { ctx } = await setup(false)
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'context', args: { label: 'absent' }, uplink: toAsync<unknown>([undefined, 'x']),
     }))).resolves.toEqual([
       'feed/context:feed:{"label":"absent"}:absent',
@@ -719,6 +745,7 @@ describe('Typert Remote streams', () => {
       'typert gateway: feed/context: invocation.uplink() is available once per call',
     ])
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'echo', args: { prefix: '' }, uplink: toAsync<unknown>([undefined]),
     }))).rejects.toMatchObject({ code: 'gateway/input-invalid', details: { endpoint: 'feed/echo', field: 'uplink' } })
   })
@@ -730,6 +757,7 @@ describe('Typert Remote streams', () => {
       [Symbol.asyncIterator]: () => ({ next: () => new Promise<IteratorResult<string>>(() => {}), return: returned }),
     }
     await expect(ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'unary', args: { label: 'a' }, uplink: unread,
     })).rejects.toMatchObject({ code: 'gateway/signature-invalid' })
     await vi.waitFor(() => { expect(returned).toHaveBeenCalledOnce() })
@@ -738,6 +766,7 @@ describe('Typert Remote streams', () => {
   it('lets a unary method read uplink items while it runs', async () => {
     const { ctx } = await setup(false)
     await expect(ctx.typertGateway.invoke({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'unaryUplink', args: {}, uplink: toAsync(['a', 'b']),
     })).resolves.toEqual(['a', 'b'])
   })
@@ -745,8 +774,73 @@ describe('Typert Remote streams', () => {
   it('derives SRC descriptors whose uplink arrives without a codec', async () => {
     const { ctx } = await setup(false)
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'srcEcho', args: { prefix: 's:' }, uplink: toAsync<unknown>(['a', 2]),
     }))).resolves.toEqual(['s:a', 's:2'])
+  })
+
+  it('passes carrier capacity to the invocation and leaves unlimited carriers without a window', async () => {
+    const { ctx, service } = await setup(false)
+    const window = { maxBytes: 512, frameOverheadBytes: 40 }
+    for (const uplinkWindow of [undefined, window]) {
+      await expect(collect(await ctx.typertGateway.stream({
+        peer: ownerPeer(ctx),
+        namespace: 'feed', method: 'echo', args: { prefix: '' }, uplink: toAsync(['a']), uplinkWindow,
+      }))).resolves.toEqual(['a'])
+    }
+    expect(service.windows).toEqual([undefined, window])
+  })
+
+  it('reports configured frame capacity and the encoded envelope size for the current stream id', async () => {
+    const { ctx, service } = await setup(true, { streamInboxBytes: 512 })
+    const socket = new WebSocket(`ws://127.0.0.1:${String(ctx.webServer.port)}/api/remote.mux`, { headers: { cookie: browserCookie(ctx) } })
+    await once(socket, 'open')
+    try {
+      const streamId = '界"window'
+      sendOpen(socket, streamId, 'feed/echo', { prefix: '' })
+      socket.send(JSON.stringify({ type: 'end', streamId }))
+      await vi.waitFor(() => { expect(service.windows).toHaveLength(1) })
+      const value = 'line\n界'
+      const complete = JSON.stringify({ type: 'item', streamId, value })
+      expect(service.windows[0]).toEqual({
+        maxBytes: 512, frameOverheadBytes: Buffer.byteLength(complete, 'utf8') - Buffer.byteLength(JSON.stringify(value), 'utf8'),
+      })
+    } finally {
+      socket.close()
+      await once(socket, 'close')
+    }
+  })
+
+  it('admits NAS devices through the real Gateway WebSocket while denying unclassified streams to restricted roles', async () => {
+    const { ctx } = await setup(true, {}, undefined, true)
+    const url = `ws://127.0.0.1:${String(ctx.webServer.port)}/api/remote.mux`
+    const rejected = new WebSocket(url)
+    const rejection = Promise.withResolvers<number>()
+    rejected.on('error', () => {})
+    rejected.once('unexpected-response', (_request, response) => {
+      rejection.resolve(response.statusCode ?? 0)
+      response.resume()
+      rejected.terminate()
+    })
+    expect(await rejection.promise).toBe(401)
+    for (const role of ['admin', 'user', 'readonly']) {
+      const socket = new WebSocket(url, { headers: { authorization: `Bearer token-${role}` } })
+      const frames: Record<string, unknown>[] = []
+      socket.on('message', (data) => { frames.push(JSON.parse(rawText(data)) as Record<string, unknown>) })
+      await once(socket, 'open')
+      try {
+        sendOpen(socket, role, 'feed/sync', { label: role })
+        await vi.waitFor(() => {
+          if (role === 'admin') expect(frames).toContainEqual({ type: 'end', streamId: role })
+          else expect(frames).toContainEqual(expect.objectContaining({ type: 'error', streamId: role }))
+        })
+        if (role === 'admin') expect(frames).toContainEqual({ type: 'item', streamId: role, value: `${role}:one` })
+        else expect(streamErrorMessage(frames, role)).toMatch(/denied|not allowed|not permitted/iu)
+      } finally {
+        socket.close()
+        await once(socket, 'close')
+      }
+    }
   })
 
   it('echoes uplink frames over the WebSocket carrier and fails misused uplinks per stream', async () => {
@@ -770,7 +864,7 @@ describe('Typert Remote streams', () => {
       ])
     })
     expect(service.returns).toBe(1)
-    expect(service.peers.at(-1)).toBe(ctx.connection.operator)
+    expect(service.peers.at(-1)).toBe(ctx.connection.browserPeer)
 
     sendOpen(socket, 'rejected', 'feed/echo', { prefix: '' })
     socket.send(JSON.stringify({ type: 'item', streamId: 'rejected', value: 1 }))
@@ -827,6 +921,7 @@ describe('Typert Remote streams', () => {
     const { ctx, service } = await setup(false)
     const abort = new AbortController()
     const source = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed',
       method: 'follow',
       args: { label: 'a' },
@@ -837,35 +932,44 @@ describe('Typert Remote streams', () => {
     const pending = iterator.next()
     abort.abort(new Error('fixture cancellation'))
     await expect(pending).rejects.toThrow('Remote invocation "feed/follow" was aborted')
-    expect(service.signals).toEqual([abort.signal])
+    // A stream's method signal also ends with its Peer, so it follows the caller's signal rather than being it.
+    expect(service.signals).toHaveLength(1)
+    expect(service.signals[0]?.reason).toBe(abort.signal.reason)
     expect(service.returns).toBe(1)
 
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'sync', args: { label: 'b' },
     }))).resolves.toEqual(['b:one', 'b:two'])
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'invalid', args: {},
     }))).resolves.toEqual([42])
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'nonJson', args: {},
     }))).resolves.toEqual([1n])
     await expect(ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'missing', args: {},
     })).rejects.toMatchObject({ code: 'gateway/result-invalid' })
 
     await expect(collect(await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'src', args: { label: 'c' },
     }))).resolves.toEqual(['c:src'])
 
     const abortedBeforeOpen = new AbortController()
     abortedBeforeOpen.abort(new Error('cancelled before open'))
     await expect(ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'abortBeforeOpen', args: {}, signal: abortedBeforeOpen.signal,
     })).rejects.toThrow('Remote invocation "feed/abortBeforeOpen" was aborted')
 
     const abortedBeforeIteration = new AbortController()
     abortedBeforeIteration.abort(new Error('cancelled before iteration'))
     const preCancelled = await ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'sync', args: { label: 'ignored' }, signal: abortedBeforeIteration.signal,
     })
     await expect(collect(preCancelled)).rejects.toThrow('Remote invocation "feed/sync" was aborted')
@@ -874,9 +978,11 @@ describe('Typert Remote streams', () => {
   it('keeps unary and stream invocation modes distinct', async () => {
     const { ctx } = await setup(false)
     await expect(ctx.typertGateway.invoke({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'sync', args: { label: 'a' },
     })).rejects.toMatchObject({ code: 'gateway/signature-invalid' } satisfies Partial<TypertGatewayError>)
     await expect(ctx.typertGateway.stream({
+      peer: ownerPeer(ctx),
       namespace: 'feed', method: 'unary', args: { label: 'a' },
     })).rejects.toMatchObject({ code: 'gateway/signature-invalid' } satisfies Partial<TypertGatewayError>)
   })
@@ -971,7 +1077,7 @@ describe('Typert Remote streams', () => {
     const idle: AsyncIterable<unknown> = {
       [Symbol.asyncIterator]: () => ({ next: () => new Promise<IteratorResult<unknown>>(() => {}), return: returned }),
     }
-    const events = await ctx.typertGateway.wireStream.open('$events', { args: {} }, idle, undefined, new AbortController().signal)
+    const events = await ctx.typertGateway.wireStream.open('$events', { args: {} }, idle, ownerPeer(ctx), new AbortController().signal)
     await vi.waitFor(() => { expect(returned).toHaveBeenCalledOnce() })
     await events[Symbol.asyncIterator]().return?.()
 
@@ -1226,7 +1332,7 @@ describe('Typert Remote streams', () => {
 
   it('retries a colliding Remote event Client id before opening the second generation', async () => {
     const { ctx } = await setup(true)
-    // Connection minted the operator Peer id above; only the event Client ids are counted below.
+    // Connection minted the browser Peer id above; only the event Client ids are counted below.
     randomUuid.mockClear()
     const source = new RemoteEventSourceProbe()
     const unregister = ctx.typertGateway.registerRemoteEvents(source.source, REMOTE_HOST)
@@ -1551,18 +1657,30 @@ async function setup(
   transport: boolean,
   gatewayConfig: GatewayConfig = {},
   ready?: AppReady,
+  nas = false,
 ): Promise<{ readonly ctx: Context; readonly service: FeedService }> {
   const ctx = new Context()
   roots.push(ctx)
   if (ready !== undefined) ctx.provide('appReady', ready)
   if (transport) {
     await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
-    provideBrowserCredentials(ctx)
+    if (nas) {
+      const credentials = new MemoryCredentials(ctx)
+      await credentials.modifyRecord(credentialKey('client-connection', 'nas-devices'), () => Promise.resolve({
+        kind: 'grant', payload: { version: 2, instanceId: 'gateway-nas', devices: ['admin', 'user', 'readonly'].map(role => ({
+          id: role, role, name: role, tokenHash: createHash('sha256').update(`token-${role}`).digest('hex'),
+          createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        })) },
+      }))
+    } else provideBrowserCredentials(ctx)
   }
   await ctx.plugin(TypertRegistry)
+  await ctx.plugin(RemoteAccessService)
   await ctx.plugin(TypertGatewayService, gatewayConfig)
   if (transport) {
-    await ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
+    await ctx.plugin({ inject: [...connectionInject], apply: applyConnection }, nas
+      ? { nas: { enabled: true, name: 'Gateway NAS', version: 'test', protocolVersion: 1, deviceLifetimeDays: 90 } }
+      : {})
   }
   await ctx.plugin(FeedService)
   ctx.typert.register({

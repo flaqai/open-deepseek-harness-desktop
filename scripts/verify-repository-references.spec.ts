@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it, type TestContext } from 'vitest'
-import { findRepositoryReferences, scanRepositoryReferences } from './verify-repository-references.ts'
+import { findRepositoryReferences, scanRepositoryReferences, uniquePrefixMatch } from './verify-repository-references.ts'
 
 const organizationUrl = `https://${['github.com', ['deepseek', 'harness'].join('-')].join('/')}`
 
@@ -43,7 +44,60 @@ function repository(test: TestContext) {
   return { root, git, write, commit, tree }
 }
 
+/** Two commit object bodies whose object names share at least `length` leading hexadecimal digits. */
+function collidingCommitBodies(tree: string, length: number): [string, string] {
+  const algorithm = tree.length === 64 ? 'sha256' : 'sha1'
+  const seen = new Map<string, string>()
+  for (let index = 0; ; index += 1) {
+    const body = `tree ${tree}\nauthor T <t@example.invalid> 0 +0000\ncommitter T <t@example.invalid> 0 +0000\n\ncollision ${String(index)}\n`
+    const prefix = createHash(algorithm).update(`commit ${String(Buffer.byteLength(body))}\0${body}`).digest('hex').slice(0, length)
+    const previous = seen.get(prefix)
+    if (previous !== undefined) return [previous, body]
+    seen.set(prefix, body)
+  }
+}
+
+describe('unique object-name prefix search', () => {
+  it.each([
+    [['aaa1', 'bbb2', 'ccc3'], 'bbb', 'bbb2'],
+    [['abc1', 'abc2'], 'abc', undefined],
+    [['a1', 'b2'], 'b', 'b2'],
+    [['abc', 'abd'], 'abc', 'abc'],
+    [['abc'], 'abd', undefined],
+    [['abc'], 'abcd', undefined],
+    [[], 'abc', undefined],
+  ] as const)('finds in %j the one name starting with %s', (objects, prefix, expected) => {
+    expect(uniquePrefixMatch(objects, prefix)).toBe(expected)
+  })
+})
+
 describe('maintained repository reference policy', () => {
+  it('accepts numeric uv archive sizes even when their decimal text names a local commit', () => {
+    const numeric = '7'.repeat(7)
+    const commits = new Set([numeric])
+    const artifact = `{ url = "https://files.pythonhosted.org/package.whl", hash = "sha256:${'0'.repeat(64)}", size = ${numeric} }`
+    expect(findRepositoryReferences('python/sdk/uv.lock', `sdist = ${artifact}\n    ${artifact},`, commits)).toEqual([])
+  })
+
+  it('still rejects commit text outside a numeric uv archive size', () => {
+    const numeric = '7'.repeat(7)
+    const commits = new Set([numeric])
+    const hash = '0'.repeat(64)
+    const source = [
+      `# commit ${numeric}`,
+      `source = { git = "https://example.invalid/repo?rev=${numeric}" }`,
+      `{ url = "https://example.invalid/${numeric}.whl", hash = "sha256:${hash}", size = ${numeric} },`,
+      `{ url = "https://example.invalid/a.whl", hash = "sha256:${hash}", size = "${numeric}" },`,
+      `{ url = "https://example.invalid/a.whl", hash = "sha256:${hash}", size = ${numeric}, malformed },`,
+      `size = ${numeric}`,
+    ].join('\n')
+    expect(findRepositoryReferences('python/sdk/uv.lock', source, commits)).toEqual(
+      source.split('\n').map((_line, index) => ({ file: 'python/sdk/uv.lock', line: index + 1, kind: 'commit-hash' })),
+    )
+    expect(findRepositoryReferences('settings.toml', `size = ${numeric}`, commits))
+      .toEqual([{ file: 'settings.toml', line: 1, kind: 'commit-hash' }])
+  })
+
   it('permits only the independent kit repository and its source URLs', () => {
     for (const suffix of ['', '.git', '/tree/main/packages/entry']) {
       expect(findRepositoryReferences('package.json', `${organizationUrl}/libreoffice-kit${suffix}`, new Set())).toEqual([])
@@ -110,6 +164,19 @@ describe('maintained repository reference policy', () => {
       'dsh-v0.0.1-rc.1',
     ].join('\n'))
     expect(scanRepositoryReferences(fixture.root)).toEqual([])
+  })
+
+  it('accepts a prefix that two available commits share and rejects a longer unique prefix', (test) => {
+    const fixture = repository(test)
+    const [first, second] = collidingCommitBodies(fixture.tree, 7).map(body =>
+      fixture.git(['hash-object', '-t', 'commit', '-w', '--stdin'], body))
+    if (first === undefined || second === undefined) throw new Error('fixture must write two commits')
+    let shared = 0
+    while (first[shared] === second[shared]) shared += 1
+    expect(shared).toBeGreaterThanOrEqual(7)
+    fixture.write('ambiguous.md', first.slice(0, 7))
+    fixture.write('unique.md', first.slice(0, shared + 1))
+    expect(scanRepositoryReferences(fixture.root)).toEqual([{ file: 'unique.md', line: 1, kind: 'commit-hash' }])
   })
 
   it('accepts hexadecimal branch names that do not match the referenced commit identifier', (test) => {

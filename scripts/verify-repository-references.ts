@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { parse as parseToml, TomlDate } from 'smol-toml'
 import { canonicalReferenceText } from './verify-public-repository-links.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -12,8 +13,12 @@ const organizationUrl = new RegExp(`\\bgithub\\.com/${organization}(?![a-z0-9-])
 // The independent kit repository owns the engine source and documentation.
 const kitRepositoryUrl = new RegExp(`\\bgithub\\.com/${organization}/libreoffice-kit(?:\\.git)?(?=/|[^a-zA-Z0-9_.-]|$)`, 'g')
 const commitCandidate = /(?<![a-z0-9])[\da-f]{7,40}(?![a-z0-9])/gi
+const uvArchiveSizePrefix = new RegExp(String.raw`^(\s*(?:sdist\s*=\s*)?\{\s*url\s*=\s*"(?:[^"\\]|\\.)*"\s*,\s*`
+  + String.raw`hash\s*=\s*"sha256:[\da-f]{64}"\s*,\s*size\s*=\s*)(\d+)(?=\s*[,}])`, 'u')
 const excludedPrefixes = ['vendor/', '.agents/notes/archived/']
 const gitOutputLimit = 64 * 1024 * 1024
+// One 41-byte line per object; 1.2 million objects produce about 49 MiB.
+const objectListingLimit = 1024 * 1024 * 1024
 
 /** One prohibited reference in a maintained source file. */
 export interface RepositoryReference {
@@ -29,12 +34,30 @@ function isMaintained(file: string): boolean {
   return !excludedPrefixes.some(prefix => file.startsWith(prefix))
 }
 
+/** Decimal archive byte counts in generated uv inline tables are data, not commit references. */
+function uvArchiveSizeOffset(file: string, line: string): number | undefined {
+  if (file !== 'uv.lock' && !file.endsWith('/uv.lock')) return undefined
+  const match = line.match(uvArchiveSizePrefix)
+  if (match?.[1] === undefined || match[2] === undefined) return undefined
+  const body = line.trim().replace(/^sdist\s*=\s*/u, '').replace(/,\s*$/u, '')
+  try {
+    const { archive } = parseToml(`archive = ${body}`)
+    if (typeof archive !== 'object' || archive instanceof TomlDate || Array.isArray(archive)
+      || typeof archive.size !== 'number' || !Number.isSafeInteger(archive.size)
+      || archive.size < 0 || archive.size !== Number(match[2])) return undefined
+    return match[1].length
+  } catch (_error) {
+    // Invalid or non-archive TOML keeps the ordinary reference policy.
+    return undefined
+  }
+}
+
 /**
  * Inspect a maintained source file against known commit identifiers.
  * @param file - Repository-relative path used in diagnostics and exclusions.
  * @param source - File text or a symlink's stored target.
  * @param commits - Lowercase, unambiguous full or abbreviated commit identifiers.
- * @returns One finding per line and reference kind; digests and other Git object types are accepted.
+ * @returns One finding per line and reference kind; digests, other Git object types, and numeric uv archive sizes are accepted.
  */
 export function findRepositoryReferences(
   file: string,
@@ -47,7 +70,8 @@ export function findRepositoryReferences(
     if (organizationUrl.test(canonicalReferenceText(line).replace(kitRepositoryUrl, ''))) {
       references.push({ file, line: index + 1, kind: 'organization-url' })
     }
-    if ([...line.matchAll(commitCandidate)].some(match => commits.has(match[0].toLowerCase()))) {
+    const archiveSize = uvArchiveSizeOffset(file, line)
+    if ([...line.matchAll(commitCandidate)].some(match => match.index !== archiveSize && commits.has(match[0].toLowerCase()))) {
       references.push({ file, line: index + 1, kind: 'commit-hash' })
     }
   }
@@ -70,24 +94,63 @@ function readMaintainedFiles(repoRoot: string): Map<string, string> {
   return sources
 }
 
-function repositoryCommits(repoRoot: string, sources: Iterable<string>): Set<string> {
-  const candidates = [...new Set([...sources].flatMap(source =>
-    [...source.matchAll(commitCandidate)].map(match => match[0].toLowerCase())))]
-  if (candidates.length === 0) return new Set()
-  const results = execFileSync('git', ['cat-file', '--batch-check=%(objectname) %(objecttype)'], {
+function gitLines(repoRoot: string, args: readonly string[], maxBuffer: number, input?: string): string[] {
+  const output = execFileSync('git', args, {
     cwd: repoRoot,
     env: { ...process.env, GIT_NO_LAZY_FETCH: '1' },
     encoding: 'utf8',
-    input: `${candidates.join('\n')}\n`,
-    maxBuffer: gitOutputLimit,
+    input,
+    maxBuffer,
     stdio: ['pipe', 'pipe', 'pipe'],
-  }).trimEnd().split('\n')
-  // Git resolves prefixes across all available objects, including unreachable ones.
+  }).trimEnd()
+  return output === '' ? [] : output.split('\n')
+}
+
+/**
+ * Find the one object whose name starts with a prefix.
+ * @param objects - Every object name in the local object database, sorted.
+ * @param prefix - Lowercase hexadecimal prefix.
+ * @returns The matching object name, or `undefined` when none or several match.
+ */
+export function uniquePrefixMatch(objects: readonly string[], prefix: string): string | undefined {
+  let low = 0
+  let high = objects.length
+  while (low < high) {
+    const middle = (low + high) >>> 1
+    if ((objects[middle] ?? prefix) < prefix) low = middle + 1
+    else high = middle
+  }
+  const match = objects[low]
+  if (match?.startsWith(prefix) !== true || objects[low + 1]?.startsWith(prefix) === true) return undefined
+  return match
+}
+
+/**
+ * Resolve commit-identifier candidates in maintained sources against the local object database.
+ * @param repoRoot - Working tree whose Git objects are inspected.
+ * @param sources - File texts or symlink targets to extract candidates from.
+ * @returns Lowercase candidates that name exactly one available object, which is a commit.
+ */
+export function repositoryCommits(repoRoot: string, sources: Iterable<string>): Set<string> {
+  const candidates = [...new Set([...sources].flatMap(source =>
+    [...source.matchAll(commitCandidate)].map(match => match[0].toLowerCase())))]
+  if (candidates.length === 0) return new Set()
+  // Git resolves prefixes across all available objects, including unreachable and alternate ones;
+  // one listing of those objects replaces one Git prefix lookup per candidate.
   // Ambiguous prefixes do not identify one object and cannot establish a commit reference.
-  return new Set(candidates.filter((candidate, index) => {
-    const [object, type] = results[index]?.split(' ') ?? []
-    return type === 'commit' && object?.startsWith(candidate) === true
-  }))
+  const objects = gitLines(repoRoot, ['cat-file', '--batch-all-objects', '--batch-check=%(objectname)'], objectListingLimit).sort()
+  const matches = new Map<string, string>()
+  for (const candidate of candidates) {
+    const object = uniquePrefixMatch(objects, candidate)
+    if (object !== undefined) matches.set(candidate, object)
+  }
+  if (matches.size === 0) return new Set()
+  const matched = [...new Set(matches.values())]
+  const commits = new Set(gitLines(repoRoot, ['cat-file', '--batch-check=%(objectname) %(objecttype)'], gitOutputLimit, `${matched.join('\n')}\n`)
+    .map(line => line.split(' '))
+    .filter(([, type]) => type === 'commit')
+    .map(([object]) => object))
+  return new Set([...matches].filter(([, object]) => commits.has(object)).map(([candidate]) => candidate))
 }
 
 /**

@@ -67,6 +67,28 @@ describe('NAS runtime directory', () => {
 })
 
 describe('NAS network client', () => {
+  it('reads only the current identity and sends server-bound invitation roles', async () => {
+    const device = { id: 'a'.repeat(32), name: 'User', createdAt: '2026-10-15T00:00:00Z', expiresAt: '2027-10-15T00:00:00Z', role: 'user' }
+    const fetch = vi.fn(async (url: string): Promise<NasFetchResponse> => ({ ok: true, status: 200,
+      json: async () => url.endsWith('/nas/me') ? device : { code: '12345678', role: 'readonly', expiresAt: '2027-10-15T00:00:00Z' },
+    }))
+    const client = new NasRuntimeClient(fetch)
+    expect(await client.me('https://nas.example', 'secret')).toEqual(device)
+    expect(await client.invite('https://nas.example', 'secret', 'readonly')).toMatchObject({ role: 'readonly' })
+    expect(fetch).toHaveBeenNthCalledWith(2, 'https://nas.example/nas/invitations', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ role: 'readonly' }),
+      headers: { authorization: 'Bearer secret', 'content-type': 'application/json' },
+    }))
+  })
+
+  it('does not interpret a forbidden or malformed management response as administrator access', async () => {
+    const denied = new NasRuntimeClient(async () => ({ ok: false, status: 403, json: async () => ({}) }))
+    await expect(denied.me('https://nas.example', 'secret')).rejects.toThrow(/403/)
+    const malformed = new NasRuntimeClient(async () => ({ ok: true, status: 200, json: async () => ({ role: 'owner' }) }))
+    await expect(malformed.me('https://nas.example', 'secret')).rejects.toThrow(/invalid device list/)
+    await expect(malformed.invite('https://nas.example', 'secret', 'user')).rejects.toThrow(/invalid invitation/)
+  })
+
   it('performs a fixed-path pairing request and validates the protocol', async () => {
     const fetch = vi.fn(async (_url: string, _init: unknown): Promise<NasFetchResponse> => ({
       ok: true, status: 200, json: async () => ({

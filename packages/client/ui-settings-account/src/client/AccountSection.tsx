@@ -9,6 +9,7 @@ import type { PlatformPage, PlatformPages } from './platform-pages.ts'
 import { formatBalance } from './formatBalance.ts'
 import { AccountAvatar } from './AccountAvatar.tsx'
 import { SignOutDialog } from './SignOutDialog.tsx'
+import type { AccountAvatarSnapshot } from './account-avatar.ts'
 import { authorizeUrlWithTheme } from './authorize-url.ts'
 import type { BonusNotice } from './bonus-notices.ts'
 import css from './AccountSection.module.css'
@@ -22,18 +23,26 @@ export interface AccountSnapshot {
   view: AccountView | undefined
   /** Sanitized profile and balance query outcomes, absent while loading. */
   details: Partial<AccountDetails> | undefined
+  /** Shared picture load; absent until a profile supplies a picture or after sign-out. */
+  avatar: AccountAvatarSnapshot | undefined
   /** Whether the state stream failed. */
   failed: boolean
   /** Explicitly opened account dialog outside onboarding. */
   loginVisible?: boolean
   /** Latest explicit start request failed before a Host state was available. */
   loginFailed?: boolean
-  /** Mounted onboarding owns the dialog while active. */
+  /** Model credential onboarding owns the login dialog and delays bonus notices while mounted. */
   onboarding?: boolean
+  /** Desktop introduction covers the workspace during loading, saving, and exit animation.
+   * True on Desktop until shell.overlay reports visibility, false in browsers; Desktop layouts must render that slot.
+   */
+  desktopOnboardingVisible?: boolean
 }
 
 /** Host operations injected into the Cordis-free account component. */
 export interface AccountSectionInjected {
+  /** @param snapshot - picture attempt whose rendered image failed; superseded attempts are ignored. */
+  avatarFailed: (snapshot: AccountAvatarSnapshot) => void
   /** Subscribe to live credential-expiry notifications.
    * @param listener - callback after the current credential is removed.
    * @returns listener cleanup.
@@ -54,9 +63,9 @@ export interface AccountSectionInjected {
     theme: HostObservable<ThemeSnapshot>
   }
   /**
-   * Read the balance, bonus wallets and unnotified bonus once. The Settings launcher
+   * Retry a failed avatar and read the profile, balance, bonus wallets and unnotified bonus once. The Settings launcher
    * calls it on each entry, and a page opener on return from top-up.
-   * @returns after both reads settle.
+   * @returns after the account queries settle; image loading completes independently.
    */
   refreshAccount: () => Promise<void>
   /** Open the external support questionnaire with the account, build and environment sampled by this click. */
@@ -83,9 +92,9 @@ export type AccountSectionProps =
   PropsRuntime<'settings.section'> & PropsLocale<'settings.account'> & InjectFace<AccountSectionInjected>
 /** @param props - localized actions, account subscription, and the shared Platform page channel. @returns account settings UI. */
 export function AccountSection({
-  t, useAccount, useTheme, start, cancel, contactUs, hasRunningAccountTasks, signOut, openPlatformPage,
+  t, useAccount, useTheme, start, cancel, contactUs, hasRunningAccountTasks, signOut, openPlatformPage, avatarFailed,
 }: AccountSectionProps) {
-  const { view: state, details, failed: streamFailed } = useAccount(value => value)
+  const { view: state, details, avatar, failed: streamFailed } = useAccount(value => value)
   const colorScheme = useTheme(snapshot => snapshot.active.colorScheme)
   // The shared host owns the native view; this page holds only its own request,
   // and only while it is the latest owner.
@@ -168,7 +177,9 @@ export function AccountSection({
     <section className={css.section} aria-label={t('nav')}>
       <div className={css.card}>
         <div className={css.identity}>
-          <span className={css.avatar}><AccountAvatar url={signedIn ? profile?.avatarUrl : null} /></span>
+          <span className={css.avatar} data-avatar-status={signedIn ? avatar?.status : undefined}>
+            <AccountAvatar avatar={signedIn ? avatar : undefined} avatarFailed={avatarFailed} />
+          </span>
           <div className={css.identityCopy}>
             <span className={css.name}>{signedIn ? profile?.name ?? t('signedIn') : t('signedOut')}</span>
             <span className={css.status} role="status">{status}</span>

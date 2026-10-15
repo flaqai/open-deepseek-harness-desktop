@@ -98,7 +98,7 @@ describe('ui-settings-general shell', () => {
     const c = await start()
     const { sections } = injectedOf(c).hooks
     const product = sections.getSnapshot()
-    expect(product.map(row => row.id)).toEqual(PRODUCT_SECTIONS)
+    expect(product.map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS])
     c.ctx.slots.register({ name: 'settings.section', id: 'z', order: 1_000, label: 'Z' } as never, () => null)
     // No order and no label: both projection defaults apply, and order 0 sorts among the product rows.
     c.ctx.slots.register({ name: 'settings.section', id: 'a' } as never, () => null)

@@ -38,6 +38,9 @@ const unused = (): never => { throw new Error('unused selection-actions fixture 
 
 function props(appendAvailable = true, restartDesktop?: () => Promise<void>): SelectionActionsProps {
   return {
+    useRemoteAccess: () => true,
+    useSessionAccess: () => true,
+    useWorkspaceAccess: () => true,
     useSessions: bindSnapshotSelector(sessions),
     useWorkspaces: bindSnapshotSelector(workspaces),
     usePanelInfo: unused,

@@ -16,7 +16,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { createPortal } from 'react-dom'
 import { $getRoot, $isTextNode } from 'lexical'
 import {
-  bindSnapshotSelector, conversationSnapshot as conversationFixture, makeTranslate, RemoteError,
+  allowAllAccess, bindSnapshotSelector, conversationSnapshot as conversationFixture, makeTranslate, RemoteError,
   sessionSnapshot as sessionFixture,
 } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -60,6 +60,7 @@ function snapshotOf(overrides: Partial<SessionSnapshot> = {}): SessionSnapshot {
 }
 
 interface BenchOptions {
+  access?: boolean
   planEntry?: React.ReactNode
   /** The `plan` projection value the standard-kit useProjection serves. */
   plan?: { active: boolean; pending: boolean }
@@ -191,6 +192,8 @@ function bench(over?: BenchOptions) {
     useWorkspaces: bindSnapshotSelector(createSnapshotStore({
       items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null,
     })),
+    ...allowAllAccess,
+    useAccess: () => over?.access !== false,
     useProjection: ((key: string, selector?: (v: unknown) => unknown) =>
       (selector ?? (v => v))(key === 'plan'
         ? over?.plan
@@ -977,6 +980,17 @@ describe('Enter semantics', () => {
 })
 
 describe('running and lock semantics', () => {
+  it('keeps a readonly device from editing, uploading, sending or cancelling', () => {
+    const addFiles = vi.fn()
+    const b = bench({ access: false, draft: 'Read only', addFiles })
+    expect(b.textarea.getAttribute('contenteditable')).toBe('false')
+    expect(b.button.disabled).toBe(true)
+    fireEvent.paste(b.textarea, { clipboardData: { files: [new File(['image'], 'image.png', { type: 'image/png' })] } })
+    fireEvent.keyDown(b.textarea, { key: 'Enter', code: 'Enter' })
+    expect(addFiles).not.toHaveBeenCalled()
+    expect(b.sink).not.toHaveBeenCalled()
+    expect(b.view.queryByRole('button', { name: '停止生成' })).toBeNull()
+  })
   it.each([
     { messages: zh, label: '停止生成', trigger: 'hover' },
     { messages: en, label: 'Stop generating', trigger: 'focus' },

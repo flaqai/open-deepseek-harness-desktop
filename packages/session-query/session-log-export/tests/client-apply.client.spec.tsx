@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { SessionLogDownloadHeaderAction } from '../src/client/HeaderAction.tsx'
 import { apply, inject } from '../src/client/index.ts'
@@ -22,14 +23,15 @@ function declare(slots: SlotRegistry): () => void {
   } as never, () => null)
 }
 
-async function bench() {
+async function bench(allowed = true) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   const slots = ctx.get('slots') as SlotRegistry
   const declaration = declare(slots)
   ctx.provide('locale', new LocaleRuntime(ctx))
-  ctx.provide('settingsScope', {
-    bind: () => ({
+  ctx.provide('remoteAccess', { source: () => createSnapshotStore(allowed) } as never)
+  ctx.provide('configForms', {
+    get: () => ({
       getSnapshot: () => ({
         status: 'ready',
         value: { diagnosticExport: { preference: 'exclude' } },
@@ -37,7 +39,6 @@ async function bench() {
         user: undefined,
         revision: 1,
         writable: true,
-        mode: 'host',
       }),
       subscribe: () => () => {},
       mutate: vi.fn(async () => undefined),
@@ -54,7 +55,7 @@ describe('session-log-download browser plugin', () => {
   it('follows feedback plugin availability and opens the selected Session form', async () => {
     const b = await bench()
     const entry = b.slots.entries('conversation.session.header.utilities')[0]!
-    const injected = (entry.inject as unknown as () => SessionLogDownloadHeaderInjected)()
+    const injected = (entry.inject as unknown as (id: SessionId) => SessionLogDownloadHeaderInjected)(SID)
     expect(injected.hooks.feedbackAvailable.getSnapshot()).toBe(false)
     injected.openFeedback(SID)
 
@@ -74,13 +75,13 @@ describe('session-log-download browser plugin', () => {
   it('provides one controller and removes its Header contribution on disposal', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })))
     const b = await bench()
-    expect(inject).toEqual(['slots', 'locale', 'settingsScope'])
+    expect(inject).toEqual(['slots', 'locale', 'configForms', 'remoteAccess'])
     expect(b.ctx.sessionLogDownload).toBeDefined()
     expect(b.slots.entries('conversation.session.header.actions')).toHaveLength(0)
     const entry = b.slots.entries('conversation.session.header.utilities')[0]
     expect(entry?.component).toBe(SessionLogDownloadHeaderAction)
     expect(entry?.options).toMatchObject({ id: 'session-log-download' })
-    const injected = (entry?.inject as unknown as () => import('../src/client/Dialog.tsx').SessionLogDownloadDialogInjected)()
+    const injected = (entry?.inject as unknown as (id: SessionId) => SessionLogDownloadHeaderInjected)(SID)
     await injected.request(SID)
     expect(b.ctx.sessionLogDownload.store.getSnapshot().bySession[SID]?.status).toBe('error')
     injected.dismiss(SID)
@@ -109,6 +110,16 @@ describe('session-log-download browser plugin', () => {
 
     await first.fiber.dispose()
     await second.fiber.dispose()
+  })
+
+  it('ignores export command acknowledgements without raw-log permission', async () => {
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    const b = await bench(false)
+    b.ctx.emit('command/executed', SID, 'export', { kind: 'success' })
+    await Promise.resolve()
+    expect(fetcher).not.toHaveBeenCalled()
+    await b.fiber.dispose()
   })
 
   it('re-registers after the declaring Header slot collapses and returns', async () => {

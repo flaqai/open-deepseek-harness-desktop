@@ -1,5 +1,5 @@
 /** Renderer-visible values and capabilities from the narrow Electron preload protocol. */
-import type { NasDeviceSummary } from '@deepseek-ai/dsh-nas-protocol'
+import type { NasDeviceSummary, NasRole } from '@deepseek-ai/dsh-nas-protocol'
 import type { DesktopIconsBridge } from './icon-protocol.ts'
 
 /** Closing hides the window in the tray or quits the desktop application. */
@@ -102,6 +102,9 @@ export interface NasDiscoveryCandidate {
 
 /** Fixed renderer intents for NAS Runtime discovery, pairing, and management. */
 export interface DesktopNasBridge {
+  me(serverId: string): Promise<NasDeviceSummary>
+  invite(serverId: string, role: NasRole): Promise<{ readonly code: string; readonly role: NasRole; readonly expiresAt: string }>
+  setDeviceRole(serverId: string, deviceId: string, role: NasRole): Promise<readonly NasDeviceSummary[]>
   get(): Promise<NasRuntimeStatus>
   discover(): Promise<readonly NasDiscoveryCandidate[]>
   inspect(baseUrl: string): Promise<{ readonly fingerprint: string }>

@@ -43,7 +43,6 @@
     "@deepseek-ai/dsh-system-prompt": "workspace:*",
     "@deepseek-ai/dsh-util-values": "workspace:*",
     "@deepseek-ai/dsh-workspace": "workspace:*",
-    "@types/react": "~18.3.1",
     "react": "^18.2.0"
   },
   "dependencies": {

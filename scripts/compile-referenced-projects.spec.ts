@@ -1,12 +1,13 @@
 import { spawnSync } from 'node:child_process'
-import { globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, globSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import { buildLibraryArtifacts, compileReferencedProjects } from './compile-referenced-projects.ts'
+import { aggregateCheckArgs, buildHostContracts, buildLibraryArtifacts, compileReferencedProjects } from './compile-referenced-projects.ts'
 import { runCiBench } from './run-ci-bench.ts'
 import { removeFixtureSafely } from './test-fixture-cleanup.ts'
+import { setPublishedFiles, writeTypertWorkspace } from './typert-workspace.fixture.ts'
 
 const compiler = fileURLToPath(import.meta.resolve('typescript/bin/tsc'))
 
@@ -101,13 +102,14 @@ describe('internal artifact build order', () => {
 
     const expected = [
       ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'],
-      ['--filter', '@deepseek-ai/dsh-desktop', 'run', 'bundle'],
-      ...hostOnly ? [] : [['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client']],
+      ...hostOnly ? [] : [
+        ['exec', 'tsx', 'scripts/build-client-libs.ts'],
+      ],
     ]
     expect(commands()).toEqual(expected.map(args => ({ args, title: 'Inherited Build Title' })))
   })
 
-  it('stops after a failed Host bundler before Desktop and Client builds', () => {
+  it('stops after a failed Host bundler before Client builds', () => {
     const { root } = fixture()
     const commands = recordedCommands(root, true)
 
@@ -125,15 +127,70 @@ describe('internal artifact build order', () => {
     expect(commands()).toEqual([
       ['run', 'build:native-system'],
       ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'],
-      ['--filter', '@deepseek-ai/dsh-desktop', 'run', 'bundle'],
-      ['exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'],
+      ['exec', 'tsx', 'scripts/build-client-libs.ts'],
       ['exec', 'tsdown', '--config-loader', 'native', '--config', 'benchmarks/tsdown.config.ts'],
       ['run', 'build:web'],
       ['run', 'test:bench:built'],
     ].map(args => ({ args, title: 'Inherited Build Title' })))
 
     expect(() => { buildLibraryArtifacts(root, false) }).toThrow('host compiler exited with')
-    expect(commands()).toHaveLength(7)
+    expect(commands()).toHaveLength(6)
+  })
+})
+
+describe('bundle-free Host contracts', { timeout: 60_000 }, () => {
+  function typertWorkspace(source?: string): { pkg: string; run: () => Promise<void>; outputs: () => string[] } {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-host-contracts-'))
+    onTestFinished(() => { removeFixtureSafely(root) })
+    const pkg = writeTypertWorkspace(root, source)
+    const commands = recordedCommands(root)
+    return {
+      pkg,
+      run: async () => {
+        try {
+          await buildHostContracts(root)
+        } finally {
+          expect(existsSync(join(root, 'commands.jsonl')) ? commands() : []).toEqual([])
+        }
+      },
+      outputs: () => globSync('**/*.{d.ts,js}', { cwd: join(pkg, 'lib') }).map(path => path.replaceAll('\\', '/')).sort(),
+    }
+  }
+
+  it('compiles Host packages and writes Typert declarations without bundling', async () => {
+    const { run, outputs } = typertWorkspace()
+
+    await run()
+
+    expect(outputs()).toEqual(['typert.host.d.ts', 'typert.host.js', 'types/index.d.ts', 'types/index.js'])
+  })
+
+  it('writes Typert declarations from source when Host compilation fails', async () => {
+    const { run, outputs } = typertWorkspace('/** @typert schema */\nexport interface Payload { value: string }\nexport const value: number = "invalid"\n')
+
+    await expect(run()).rejects.toThrow('host compiler exited with')
+    expect(outputs()).toEqual(expect.arrayContaining(['typert.host.d.ts', 'typert.host.js']))
+  })
+
+  it('fails when the Typert pass rejects a contributor while Host compilation completes', async () => {
+    const { pkg, run, outputs } = typertWorkspace()
+    setPublishedFiles(pkg, [])
+
+    await expect(run()).rejects.toThrow('Host Typert exited with 1')
+    expect(outputs()).toEqual(['types/index.d.ts', 'types/index.js'])
+  })
+
+  it('reports both steps when both fail', async () => {
+    const { pkg, run } = typertWorkspace('/** @typert schema */\nexport interface Payload { value: string }\nexport const value: number = "invalid"\n')
+    setPublishedFiles(pkg, [])
+
+    const failure: unknown = await run().then(() => undefined, (error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(AggregateError)
+    expect((failure as AggregateError).errors.map(error => String(error))).toEqual([
+      expect.stringContaining('host compiler exited with'),
+      expect.stringContaining('Host Typert exited with 1'),
+    ])
   })
 })
 
@@ -240,6 +297,34 @@ describe('package project compilation', () => {
     expect(complete.stdout).toContain('aggregate.ts(1,14): error TS2322')
   })
 
+  it('checks only the aggregate program in project mode', () => {
+    const { root, leaf } = fixture()
+    compileReferencedProjects(root, 'host')
+    const check = () => spawnSync(process.execPath, aggregateCheckArgs('host'), { cwd: root, encoding: 'utf8' })
+
+    const clean = check()
+    expect(clean.status, clean.stdout + clean.stderr).toBe(0)
+    const dry = spawnSync(process.execPath, [compiler, '-b', '--dry', 'tsconfig.host.json'], { cwd: root, encoding: 'utf8' })
+    expect(dry.status, dry.stdout + dry.stderr).toBe(0)
+    expect(dry.stdout).not.toContain('A non-dry build would')
+
+    writeFileSync(join(root, 'aggregate.ts'), 'export const aggregate: number = "invalid"\n')
+    const invalid = check()
+    expect(invalid.status).not.toBe(0)
+    expect(invalid.stdout).toContain('aggregate.ts(1,14): error TS2322')
+    expect(artifacts(leaf)).not.toEqual({})
+  })
+
+  it('reports missing package declarations without compiling references', () => {
+    const { root, leaf } = fixture()
+
+    const result = spawnSync(process.execPath, aggregateCheckArgs('client'), { cwd: root, encoding: 'utf8' })
+
+    expect(result.status).not.toBe(0)
+    expect(result.stdout).toContain('error TS6305')
+    expect(existsSync(join(leaf, 'lib'))).toBe(false)
+  })
+
   it('rejects package source errors', () => {
     const { root, leaf } = fixture()
     writeFileSync(join(leaf, 'src/index.ts'), 'export const value: number = "invalid"\n')
@@ -305,6 +390,6 @@ describe('package project compilation', () => {
     ], { cwd: repository, encoding: 'utf8' })
 
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('expected exactly one mode: host, client, host-libraries, or libraries')
+    expect(result.stderr).toContain('expected exactly one mode: host, client, host-contracts, or host-libraries')
   })
 })

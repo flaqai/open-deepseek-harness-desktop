@@ -1,7 +1,7 @@
 /**
  * Authenticated GET/HEAD /api/file reads bounded file responses through
- * the composed filesystem provider. Paths and MIME types do not restrict access;
- * the connection service authenticates requests before this handler.
+ * the composed filesystem provider. Non-owner requests also require the
+ * principal's canonical-file policy; MIME types never establish authority.
  * @module @deepseek-ai/dsh-api-session-controller/media-references
  */
 
@@ -9,6 +9,7 @@ import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-attachment'
+import type {} from '@deepseek-ai/dsh-api-remote-access'
 import { FsError, type FileSystem } from '@deepseek-ai/dsh-fs'
 import mime from 'mime-types'
 
@@ -19,7 +20,10 @@ const BASE_HEADERS = {
   'Content-Security-Policy': "sandbox; default-src 'none'",
 }
 
-async function serveFile(request: Request, fs: FileSystem, maxBytes: number): Promise<Response> {
+async function serveFile(
+  request: Request, fs: FileSystem, maxBytes: number,
+  authorize: (path: string, signal: AbortSignal) => Promise<boolean>,
+): Promise<Response> {
   const fail = (status: number, text: string): Response =>
     new Response(request.method === 'HEAD' ? null : text, { status, headers: BASE_HEADERS })
   const path = new URL(request.url).searchParams.get('path')
@@ -27,6 +31,7 @@ async function serveFile(request: Request, fs: FileSystem, maxBytes: number): Pr
   if (path.includes('\0') || !isAbsolute(path)) return fail(400, 'absolute path required')
   try {
     const target = await fs.resolve(path, { signal: request.signal })
+    if (!await authorize(fs.processPath(target), request.signal)) return fail(403, 'file access is not permitted')
     const mediaType = mime.lookup(target.displayPath) || 'application/octet-stream'
     const headers: Record<string, string> = {
       ...BASE_HEADERS,
@@ -71,7 +76,10 @@ export const SessionMediaReferences = {
       path: '/api/file',
       methods: ['GET', 'HEAD'],
       requestBody: 'buffered',
-      fetch: request => serveFile(request, ctx.fs, maxBytes),
+      fetch: (request, peer) => serveFile(request, ctx.fs, maxBytes, async (path, signal) => {
+        if (peer.principal.kind === 'owner') return true
+        return await ctx.get('remoteAccess')?.allowsFile(path, signal, peer.principal) === true
+      }),
     }), 'session-controller: /api/file')
   },
 }

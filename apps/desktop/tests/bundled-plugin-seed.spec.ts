@@ -167,7 +167,6 @@ describe('bundled plugin seed', () => {
       ['dsh-better-sidebar', 'startup'],
       ['@agents-anywhere/dsh-bridge-next', 'startup'],
       ['@ychris12138/dsh-usage-stats', 'startup'],
-      ['dsh-smooth-stream', 'startup'],
       ['dsh-mermaid', 'startup'],
       ['dsh-whale-widget', 'startup'],
       ['@weibaohui/skills-management', 'startup'],
@@ -202,7 +201,7 @@ describe('bundled plugin seed', () => {
     expect(manifest.plugins.find(entry => entry.packageName === '@ychris12138/dsh-usage-stats'))
       .toMatchObject({ version: '0.3.5', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-smooth-stream'))
-      .toMatchObject({ version: '0.6.1', installPolicy: 'startup' })
+      .toBeUndefined()
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-mermaid'))
       .toMatchObject({ version: '0.4.1', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-whale-widget'))

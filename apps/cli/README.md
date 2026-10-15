@@ -9,7 +9,7 @@ The `dsh` command is the sole supported Node application launcher: profiles are 
 | Command | Purpose |
 |---|---|
 | `dsh <name>` / `dsh --profile <name>` | Boot the named profile under `$DSH_HOME/profiles/<name>`. |
-| `dsh --profile <name> --from-default-profile <template>` | Create a new custom profile from a shipped template, then boot it. |
+| `dsh --profile <name> --from-default-profile <template>` | Replace a custom profile with a fresh copy of a shipped template, then boot it. |
 | `dsh --profile acp` | Serve automation clients over ACP stdio until disconnect. |
 | `dsh --profile headless "job"` | Run one fresh persisted session, print the final answer, and exit. |
 | `dsh --profile sdk` | Serve SDK clients over JSON-RPC stdio until shutdown or disconnect. |
@@ -18,8 +18,13 @@ The `dsh` command is the sole supported Node application launcher: profiles are 
 | `dsh plugin --profile <name> <pnpm args>` | Manage a profile's plugins by forwarding to pnpm in the profile directory. |
 | `dsh plugin --profile <name> approve-build <package-name>` | Allow one reviewed registry dependency lifecycle script without overriding an explicit denial. |
 | `dsh plugin --profile <name> doctor [--repair]` | Inspect shared Host dependency identity, or repair and quarantine conflicts. |
+| `dsh nas-admin-recovery [--credentials-file <path>]` | On the NAS server, issue a temporary administrator pairing code using its local credentials document. |
 
-The invoking directory is the default workspace root. The `web`, `headless`, `sdk`, `sdk-minimal`, and `acp` profiles auto-initialize on first use from shipped templates. Create another profile at an unused, non-shipped name with `--from-default-profile`, or initialize a base-backed profile through `dsh plugin`. The `desktop` name is reserved for the Electron-owned profile, so the CLI rejects boot and config-dump requests for it. The npm CLI also rejects its plugin-management requests; the [Desktop-installed command](../desktop/README.md#bundled-command-runtime) can manage the initialized Desktop profile using that installation’s runtime.
+The invoking directory is the default workspace root. The `web`, `headless`, `sdk`, `sdk-minimal`, and `acp` profiles auto-initialize on first use from shipped templates. Create or reset another profile at a non-shipped name with `--from-default-profile`, or initialize a base-backed profile through `dsh plugin`. The `desktop` name is reserved for the Electron-owned profile, so the CLI rejects boot and config-dump requests for it. The npm CLI also rejects its plugin-management requests; the [Desktop-installed command](../desktop/README.md#bundled-command-runtime) can manage the initialized Desktop profile using that installation’s runtime.
+
+## NAS administrator recovery
+
+For NAS administrator recovery, run `dsh nas-admin-recovery` on the server with the server's `DSH_HOME`. The command writes a single-use recovery grant to `$DSH_HOME/.credentials.yaml` and prints its code and expiry only to that terminal; creating another code invalidates the previous recovery code. If the server configured another local credentials document, select that exact file with `--credentials-file`. Keep the code private and pair the replacement administrator device before expiry. This command never contacts a remote NAS or starts its HTTP server.
 
 ## Plugin changes
 
@@ -71,4 +76,4 @@ The `@deepseek-ai/dsh/profile-boot` export provides the shared profile lifecycle
 
 Packaged installations call the same `runCli()` entry with their package-manager executable. The Desktop carrier also enables plugin operations for its initialized profile; npm launches omit these options. Installation-owned package environments apply only to plugin package operations; the invoking directory, ordinary profile selection, and agent-shell PATH retain their CLI meanings.
 
-The [Web failure matrix](tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts) runs the built CLI through startup failures and native configuration HMR with `awaitWriteFinish` enabled in `test:expected`. It verifies authenticated HTTP responses, diagnostics, recovery, process exits, and disposal without model API calls; the [startup acceptance](tests/profiles/web/tests/web-best-effort-startup.expected.e2e.ts) also covers the shipped required Web dependencies and port conflicts.
+The [Web failure matrix](tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts) runs the built CLI through startup failures and exact configuration polling in `test:expected`. It verifies authenticated HTTP responses, diagnostics, recovery, process exits, and disposal without model API calls; the [startup acceptance](tests/profiles/web/tests/web-best-effort-startup.expected.e2e.ts) also covers the shipped required Web dependencies and port conflicts.

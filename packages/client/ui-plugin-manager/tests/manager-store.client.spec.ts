@@ -804,9 +804,9 @@ describe('PluginManagerController', () => {
     controller.installProgress({ requestId, phase: 'applying' })
     controller.appendLog({ requestId, jobId: 'old', argv: [], cwd: '/p', stream: 'stdout', text: 'late' })
     expect(state().install).toMatchObject({ phase: 'starting', runs: [] })
-    second.resolve(ok({ ...APPLIED, application: 'restart-required', bundle: 'slow' }))
+    second.resolve(ok({ ...APPLIED, application: 'restart-required', restartReason: 'no-hmr', bundle: 'slow' }))
     await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
-    expect(state().install).toMatchObject({ installed: 'slow', restartRequired: true })
+    expect(state().install).toMatchObject({ installed: 'slow', restartRequired: true, restartReason: 'no-hmr' })
   })
 
   it.each(['too-late', 'not-running', 'offline'] as const)('keeps a stop the Host answered %s apart from a stopped run', async (status) => {
@@ -1922,7 +1922,7 @@ it.each(['before', 'after'] as const)('reports one Official toggle when inventor
   expect(track.mock.calls.filter(([event]) => event === 'plugin_toggle')).toHaveLength(1)
 })
 
-it.each([true, false])('updates an Official entry with enabled=%s through the same exact installer', async (enabled) => {
+it.each([true, false])('updates an Official entry with enabled=%s by removing it, then using the same exact installer', async (enabled) => {
   const installed: BundleInfo = { ...CATALOG, availability: 'profile', installed: true, version: '1.0.0', enabled, removable: true }
   const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([installed])),
     installBundle: vi.fn().mockResolvedValue(ok({ ...APPLIED, bundle: CATALOG.name, application: 'restart-required' })),
@@ -1931,10 +1931,42 @@ it.each([true, false])('updates an Official entry with enabled=%s through the sa
   face.update(CATALOG.name)
   await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
   expect(plugins.inspect).not.toHaveBeenCalled()
+  expect(plugins.removeBundle).toHaveBeenCalledWith(CATALOG.name)
+  expect(plugins.removeBundle.mock.invocationCallOrder[0]).toBeLessThan(plugins.installBundle.mock.invocationCallOrder[0]!)
   expect(plugins.installBundle).toHaveBeenCalledWith(CATALOG.installTarget!.spec, {
     enabled, saveExact: true, requestId: state().install.requestId, registry: null,
   })
   expect(state().install.restartRequired).toBe(true)
+})
+
+it('keeps an installed Official entry and installs nothing when its removal for an update fails', async () => {
+  const installed: BundleInfo = { ...CATALOG, availability: 'profile', installed: true, version: '1.0.0', enabled: true, removable: true }
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([installed])),
+    removeBundle: vi.fn().mockResolvedValue(ok({ ...APPLIED, application: 'failed', error: { code: 'bundle-in-use' } })),
+  })
+  await controller.load()
+  face.update(CATALOG.name)
+  await vi.waitFor(() => { expect(state().notice).toMatchObject({ kind: 'failed', action: 'uninstall' }) })
+  expect(plugins.installBundle).not.toHaveBeenCalled()
+})
+
+it.each([
+  ['an unreachable Host', () => refused('ERR_REMOTE', 'connection lost')],
+  ['a profile without HMR', () => ok({ ...APPLIED, application: 'failed', error: { code: 'stop-profile' } })],
+] as const)('installs an Official update only after the removal, except over a running bundle of %s', async (kind, answer) => {
+  const installed: BundleInfo = { ...CATALOG, availability: 'profile', installed: true, version: '1.0.0', enabled: true, removable: true }
+  const { controller, plugins, face, state } = bench({ listBundles: vi.fn().mockResolvedValue(ok([installed])),
+    removeBundle: vi.fn().mockResolvedValue(answer()),
+  })
+  await controller.load()
+  face.update(CATALOG.name)
+  if (kind === 'an unreachable Host') {
+    await vi.waitFor(() => { expect(state().notice).toMatchObject({ kind: 'failed', action: 'uninstall' }) })
+    expect(plugins.installBundle).not.toHaveBeenCalled()
+  } else {
+    // Without HMR a running bundle stays installed, and the installation over it waits for the restart.
+    await vi.waitFor(() => { expect(plugins.installBundle).toHaveBeenCalled() })
+  }
 })
 
 it('preserves the Official exact target and selection when script approval retries an installation', async () => {
@@ -2042,6 +2074,7 @@ it.each([true, false])('replaces a same-version registry package with its source
   await controller.load()
   face.update(entry.name)
   await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
+  expect(plugins.removeBundle).toHaveBeenCalledWith(CATALOG.name)
   expect(plugins.installBundle).toHaveBeenCalledWith(spec, { enabled, requestId: state().install.requestId, registry: null })
   expect(state().install.subject).toMatchObject({ kind: 'path', spec, selection: enabled })
   expect(state().install.restartRequired).toBe(true)

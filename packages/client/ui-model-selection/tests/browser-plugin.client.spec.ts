@@ -238,8 +238,8 @@ describe('ui-model-selection dual entry', () => {
     expect(options[0]?.active).toBe(true)
     expect(options[1]?.active).toBeUndefined()
     expect(b.popup().searchLabels?.()).toEqual(locale === 'zh'
-      ? { placeholder: '搜索模型…', empty: '没有可用的模型。', noResults: '没有匹配的模型。' }
-      : { placeholder: 'Search models…', empty: 'No models available.', noResults: 'No matching models.' })
+      ? { placeholder: '搜索模型…', empty: '没有可用的模型。远程设备请联系服务器管理员配置模型。', noResults: '没有匹配的模型。' }
+      : { placeholder: 'Search models…', empty: 'No models available. On a remote device, ask the server administrator to configure models.', noResults: 'No matching models.' })
   })
 
   it('orders popup provider groups account-first while retaining third-party catalog order', async () => {

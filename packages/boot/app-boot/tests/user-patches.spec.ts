@@ -19,6 +19,7 @@ import {
   loadOptionalPatches,
   loadOverlayPatches,
   PROFILE_PATCH_FILENAME,
+  reconcileProfilePatches,
   watchUserPatches,
 } from '../src/index.ts'
 
@@ -337,6 +338,102 @@ describe('Loader entry disabled interpolation', () => {
     } finally {
       await ctx.fiber.dispose()
     }
+  })
+})
+
+describe('profile reconciliation settlement', () => {
+  it('retains unchanged import diagnostics across profile reconciliation', async () => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+    const patches = [{ insert: [{ id: 'missing-plugin', name: './missing.mjs' }] }]
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), patches)
+    onTestFinished(() => ctx.fiber.dispose())
+    // Reload diagnostics carry the import error's message without stack frames.
+    const prefix = 'missing-plugin \\(\\./missing\\.mjs\\): failed to import: Error \\[ERR_MODULE_NOT_FOUND\\]'
+    const diagnostic = new RegExp(`^${prefix}: Cannot find module '[^']*missing\\.mjs' imported from [^\\n]*$`, 'u')
+    expect(await reconcileProfilePatches(ctx, patches, NAME)).toEqual([expect.stringMatching(diagnostic)])
+  })
+
+  it('rejects a context without the launcher root Include', async () => {
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    await expect(reconcileProfilePatches(ctx, [], NAME)).rejects.toThrow('profile reload requires the root Include entry')
+    // A Loader without the pinned root id is no better.
+    await ctx.plugin(Loader)
+    await expect(reconcileProfilePatches(ctx, [], NAME)).rejects.toThrow('profile reload requires the root Include entry')
+  })
+
+  it('removes a previously failed entry without reporting its old activation error', async () => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+    writeFileSync(join(dir, 'candidate.mjs'), 'export function apply(_ctx, config) { if (config.fail) throw new Error("candidate activation failed") }\n')
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), [{ insert: [{ id: 'candidate', name: './candidate.mjs', config: { fail: false } }] }])
+    onTestFinished(() => ctx.fiber.dispose())
+    const entry = [...ctx.loader.entries()].find(row => row.options.id === 'candidate')
+    if (entry === undefined) throw new Error('candidate entry missing')
+    await entry.update({ config: { fail: true } })
+    await ctx.loader.await()
+    await reconcileProfilePatches(ctx, [], NAME)
+    expect([...ctx.loader.entries()].some(row => row.options.id === 'candidate')).toBe(false)
+    await reconcileProfilePatches(ctx, [], NAME)
+  })
+
+  it('reports an unchanged failed entry as a warning but rejects a changed configuration with the same failure', async () => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+    writeFileSync(join(dir, 'candidate.mjs'), 'export function apply() { throw new Error("candidate activation failed") }\n')
+    const patches = [{ insert: [{ id: 'candidate', name: './candidate.mjs', config: { revision: 1 } }] }]
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), patches)
+    onTestFinished(() => ctx.fiber.dispose())
+    expect(await reconcileProfilePatches(ctx, patches, NAME)).toEqual([expect.stringContaining('candidate activation failed')])
+    await expect(reconcileProfilePatches(ctx, [...patches, { id: 'candidate', config: { revision: 2 } }], NAME))
+      .rejects.toThrow('candidate activation failed')
+  })
+
+  it('reports an activation failure that settles while its entry is being removed', async () => {
+    const dir = tmp()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+    writeFileSync(join(dir, 'candidate.mjs'), 'export async function apply(ctx, config) { if (config.fail) { ctx.get("pendingFailure").entered(); await ctx.get("pendingFailure").release; throw new Error("in-flight failure") } }\n')
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), [{ insert: [{ id: 'candidate', name: './candidate.mjs', config: { fail: false } }] }], (host) => {
+      host.provide('pendingFailure', { entered: () => { entered.resolve(undefined) }, release: release.promise })
+    })
+    onTestFinished(async () => { release.resolve(undefined); await ctx.fiber.dispose() })
+    const entry = [...ctx.loader.entries()].find(row => row.options.id === 'candidate')!
+    await entry.update({ config: { fail: true } })
+    await entered.promise
+    const result = expect(reconcileProfilePatches(ctx, [], NAME)).rejects.toThrow('in-flight failure')
+    release.resolve(undefined)
+    await result
+  })
+
+  it('waits for a removed plugin to release its resources', async () => {
+    const dir = tmp()
+    const started = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+    writeFileSync(join(dir, 'held.mjs'), [
+      'export function apply(ctx) {',
+      '  ctx.effect(() => async () => {',
+      '    ctx.get("reloadProbe").started()',
+      '    await ctx.get("reloadProbe").release',
+      '  })',
+      '}',
+      '',
+    ].join('\n'))
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), [{ insert: [{ id: 'held', name: './held.mjs' }] }], (host) => {
+      host.provide('reloadProbe', { started: () => { started.resolve(undefined) }, release: release.promise })
+    })
+    onTestFinished(async () => { release.resolve(undefined); await ctx.fiber.dispose() })
+    let settled = false
+    const operation = reconcileProfilePatches(ctx, [], NAME).then(() => { settled = true })
+    await started.promise
+    expect([...ctx.loader.entries()].some(entry => entry.options.id === 'held')).toBe(false)
+    expect(settled).toBe(false)
+    release.resolve(undefined)
+    await operation
+    expect(settled).toBe(true)
   })
 })
 

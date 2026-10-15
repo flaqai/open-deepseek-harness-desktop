@@ -15,6 +15,9 @@ afterEach(cleanup)
 const t = ((key: PluginInventoryLocaleKey): string => en[key]) as PluginDiagnosticsSectionProps['t']
 const unused = (): never => { throw new Error('PluginDiagnosticsSection does not consume framework hooks') }
 const globals: GlobalStandardProps = {
+  useRemoteAccess: () => true,
+  useSessionAccess: () => true,
+  useWorkspaceAccess: () => true,
   usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
   useSessionRetainInfo: unused, useResource: unused, useWorkspaces: unused,
 }

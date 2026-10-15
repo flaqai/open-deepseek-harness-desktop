@@ -11,6 +11,7 @@
     "src/changes.ts"
   ],
   "references": [
+    { "path": "../remote-access/tsconfig.host.json" },
     {
       "path": "../../../vendor/cordis"
     },

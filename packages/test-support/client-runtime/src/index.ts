@@ -42,6 +42,8 @@ import { TestRemote } from './remote.ts'
 import { TestSessions } from './sessions.ts'
 import { TestWorkspaces } from './workspaces.ts'
 import type { Stabilizer } from './fixtures.ts'
+import { allowAllAccessPlugin } from './access.ts'
+import type { ClientRemoteAccess } from '@deepseek-ai/dsh-api-remote-access/client'
 
 export type { UseSession } from '@deepseek-ai/dsh-client-ui-session/client'
 export { domSnapshotSerializer, registerDomSnapshotSerializer } from './snapshot.ts'
@@ -57,6 +59,8 @@ export type {
   FixtureSnapshot, SessionBehaviorOverrides, SessionFixture, SessionFixtureSnapshot, Stabilizer,
 } from './fixtures.ts'
 export { makeTranslate } from './translate.ts'
+export { allowAllAccess, allowAllAccessPlugin } from './access.ts'
+export type { AccessStandardProps } from './access.ts'
 export { usePinnedBrowserLanguages } from './locale-env.ts'
 
 /**
@@ -276,14 +280,25 @@ export class SlotTestRuntime {
   /**
    * Assemble a runtime: real Context, mounted SlotRegistry, installed
    * renderer, and the session/workspace doubles provided as services.
+   * @param options - optional test-owned live permission provider; omitted permissions allow all actions.
    * @returns the ready runtime.
    */
-  static async create(): Promise<SlotTestRuntime> {
+  static async create(options: {
+    readonly access?: ClientRemoteAccess & { global(action: string): HostObservable<boolean> }
+  } = {}): Promise<SlotTestRuntime> {
     registerDomSnapshotSerializer()
     const ctx = new Context()
     const fiber = ctx.plugin(SlotRegistry)
     await fiber.await()
     const runtime = new SlotTestRuntime(ctx, ctx.get('slots') as SlotRegistry)
+    const access = options.access
+    if (access === undefined) await ctx.plugin(allowAllAccessPlugin).await()
+    else {
+      ctx.provide('remoteAccess', access)
+      runtime.slots.provideRoot({ keyedHooks: {
+        remoteAccess: action => access.global(action),
+      } })
+    }
     await ctx.plugin({ inject: [...uiSessionInject], apply: applyUiSession }).await()
     return runtime
   }

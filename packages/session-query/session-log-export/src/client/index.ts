@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-message-feedback/client'
+import type {} from '@deepseek-ai/dsh-api-remote-access/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { SessionLogDownloadController } from './controller.ts'
 import { SessionLogDownloadHeaderAction, type SessionLogDownloadHeaderInjected } from './HeaderAction.tsx'
@@ -28,7 +29,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 export type { SessionLogDownloadEntry, SessionLogDownloadState } from './controller.ts'
 
-export const inject = ['slots', 'locale', 'configForms']
+export const inject = ['slots', 'locale', 'configForms', 'remoteAccess']
 
 /**
  * Provide the download controller and mount its modal into the Session Header.
@@ -57,7 +58,8 @@ export function apply(ctx: ClientContext): void {
     }, 'session-log-download: feedback availability')
   })
   ctx.on('command/executed', (sessionId, commandName, result) => {
-    if (commandName === 'export' && result.kind === 'success') void controller.download(sessionId)
+    if (commandName === 'export' && result.kind === 'success'
+      && ctx.remoteAccess.source('session', sessionId, 'sessionLog/download').getSnapshot()) void controller.download(sessionId)
   })
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
     name: 'conversation.session.header.utilities',
@@ -66,8 +68,9 @@ export function apply(ctx: ClientContext): void {
     children: {
       'conversation.session.header.menu.item': { kind: 'list', scope: 'session' },
     },
-    inject: (): SessionLogDownloadHeaderInjected => ({
-      hooks: { sessionLogDownload: controller.store, feedbackAvailable },
+    inject: (sessionId): SessionLogDownloadHeaderInjected => ({
+      hooks: { sessionLogDownload: controller.store, feedbackAvailable,
+        downloadAllowed: ctx.remoteAccess.source('session', sessionId, 'sessionLog/download') },
       request: (sessionId: SessionId) => controller.download(sessionId),
       dismiss: (sessionId: SessionId) => { controller.dismiss(sessionId) },
       setIncludeCustomInstructions: (sessionId, include) => {

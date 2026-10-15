@@ -34,6 +34,9 @@ function bench() {
       health: async () => { throw new Error('unexpected health request') },
       pair: async () => { throw new Error('unexpected pairing request') },
       devices: async () => [], revokeDevice: async () => [],
+      me: async () => { throw new Error('unexpected identity request') },
+      invite: async () => { throw new Error('unexpected invitation request') },
+      setDeviceRole: async () => [],
     },
     connection: {
       capture: () => undefined, begin: () => {}, ready: () => {}, fail: async () => {},
@@ -57,6 +60,7 @@ describe('NAS runtime IPC adapter', () => {
   it('registers the fixed channel vocabulary and maps validated selections to the authority', async () => {
     const b = bench()
     expect([...b.handlers.keys()]).toEqual([
+      DESKTOP_IPC.nasMe, DESKTOP_IPC.nasInvite, DESKTOP_IPC.nasSetDeviceRole,
       DESKTOP_IPC.nasGet, DESKTOP_IPC.nasDiscover, DESKTOP_IPC.nasInspect, DESKTOP_IPC.nasPair,
       DESKTOP_IPC.nasSelect, DESKTOP_IPC.nasRemove, DESKTOP_IPC.nasTest, DESKTOP_IPC.nasDevices,
       DESKTOP_IPC.nasRevokeDevice,
@@ -72,6 +76,13 @@ describe('NAS runtime IPC adapter', () => {
       baseUrl: 'https://nas.example.com', code: '12345678', deviceName: 'Mac mini',
       certificateFingerprint: 'AA'.repeat(32), unexpected: true,
     })).rejects.toThrow(/invalid NAS pairing request/)
+    expect(b.execute).not.toHaveBeenCalled()
+  })
+
+  it('rejects a renderer-invented role before management dispatch', async () => {
+    const b = bench()
+    await expect(b.invoke(DESKTOP_IPC.nasInvite, 'nas-1', 'owner')).rejects.toThrow(/invalid NAS role/)
+    await expect(b.invoke(DESKTOP_IPC.nasSetDeviceRole, 'nas-1', 'a'.repeat(32), 'owner')).rejects.toThrow(/invalid NAS role/)
     expect(b.execute).not.toHaveBeenCalled()
   })
 })

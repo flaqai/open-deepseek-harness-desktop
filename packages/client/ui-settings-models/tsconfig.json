@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../api/remote-access/tsconfig.client.json" },
     {
       "path": "../../host/webserver"
     },

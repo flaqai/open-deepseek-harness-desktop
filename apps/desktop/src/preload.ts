@@ -46,7 +46,7 @@ import type {
   DownloadNetworkPatch, DownloadNetworkSettings, DownloadNetworkTarget, DownloadNetworkTestStatus,
 } from './download-network-settings.ts'
 import type {
-  DesktopRuntimeSelection, NasDeviceSummary, NasDiscoveryCandidate, NasPairingRequest, NasRuntimeStatus,
+  DesktopRuntimeSelection, NasDeviceSummary, NasDiscoveryCandidate, NasPairingRequest, NasRuntimeStatus, NasRole, NasInvitation,
 } from './nas-runtime.ts'
 import type {
   WorkspaceRuntimeJobSnapshot,
@@ -155,6 +155,9 @@ export interface DesktopWebBridge {
 
 /** Saved NAS runtimes and fixed pairing operations; tokens never reach the renderer. */
 export interface DesktopNasBridge {
+  me(serverId: string): Promise<NasDeviceSummary>
+  invite(serverId: string, role: NasRole): Promise<NasInvitation>
+  setDeviceRole(serverId: string, deviceId: string, role: NasRole): Promise<readonly NasDeviceSummary[]>
   get(): Promise<NasRuntimeStatus>
   discover(): Promise<readonly NasDiscoveryCandidate[]>
   inspect(baseUrl: string): Promise<{ readonly fingerprint: string }>
@@ -342,6 +345,11 @@ const downloadNetworkBridge: DesktopDownloadNetworkBridge = {
 }
 
 const nasBridge: DesktopNasBridge = {
+  me: serverId => ipcRenderer.invoke(DESKTOP_IPC.nasMe, serverId) as Promise<NasDeviceSummary>,
+  invite: (serverId, role) => ipcRenderer.invoke(DESKTOP_IPC.nasInvite, serverId, role) as Promise<NasInvitation>,
+  setDeviceRole: (serverId, deviceId, role) => ipcRenderer.invoke(
+    DESKTOP_IPC.nasSetDeviceRole, serverId, deviceId, role,
+  ) as Promise<readonly NasDeviceSummary[]>,
   get: () => ipcRenderer.invoke(DESKTOP_IPC.nasGet) as Promise<NasRuntimeStatus>,
   discover: () => ipcRenderer.invoke(DESKTOP_IPC.nasDiscover) as Promise<readonly NasDiscoveryCandidate[]>,
   inspect: baseUrl => ipcRenderer.invoke(DESKTOP_IPC.nasInspect, baseUrl) as Promise<{ fingerprint: string }>,

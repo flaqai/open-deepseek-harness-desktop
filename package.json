@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-root",
-  "version": "0.2.1-alpha.2",
+  "version": "0.2.1-alpha.3",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -19,6 +19,8 @@
   "scripts": {
     "prepare:primary-runtime": "tsx scripts/primary-runtime/prepare.ts",
     "build": "tsx scripts/build.ts",
+    "build:artifacts": "tsx scripts/build.ts --scope artifacts",
+    "build:check": "tsx scripts/build.ts --scope check",
     "build:bench": "npm run build:native-system && npm run build:lib && tsdown --config-loader native --config benchmarks/tsdown.config.ts",
     "build:official": "tsx scripts/build.ts --profile official",
     "build:community-desktop": "tsx scripts/build.ts --profile community-desktop && pnpm run build:desktop",
@@ -33,12 +35,12 @@
     "worktree:setup": "node scripts/setup-worktree.mjs",
     "worktree:setup:offline": "node scripts/setup-worktree.mjs --offline",
     "install:dependencies": "node scripts/install-dependencies.mjs",
-    "typecheck": "npm run build:lib:host && npm run typecheck:contracts-ready && npm run typecheck:desktop",
+    "typecheck": "tsx scripts/build.ts --scope typecheck && npm run typecheck:desktop",
     "typecheck:contracts-ready": "tsc -b tsconfig.client.json",
     "typecheck:desktop": "tsc -p apps/desktop/tsconfig.json --noEmit",
-    "lint": "npm run build:lib:host && npm run lint:contracts-ready",
+    "lint": "tsx scripts/compile-referenced-projects.ts host-contracts && npm run lint:contracts-ready",
     "lint:contracts-ready": "tsx scripts/run-oxlint.ts .",
-    "lint:fix": "npm run build:lib:host && npm run lint:fix:contracts-ready",
+    "lint:fix": "tsx scripts/compile-referenced-projects.ts host-contracts && npm run lint:fix:contracts-ready",
     "lint:fix:contracts-ready": "tsx scripts/run-oxlint.ts --config .oxlintrc.staged.json packages/typert/generator/tests/fixtures/type-model --fix && tsx scripts/run-oxlint.ts . --fix",
     "duplication": "jscpd --config .jscpd.json packages scripts",
     "test": "pnpm run build:native-system && vitest run",
@@ -86,7 +88,7 @@
     "check:ci:windows-observational-ready": "tsx scripts/run-gates.ts ci-windows-observational-ready",
     "check:node-compat": "tsx scripts/run-gates.ts node-compat",
     "publint": "tsx scripts/publint-all.ts",
-    "doc-typecheck": "npm run build:lib:host && npm run doc-typecheck:contracts-ready",
+    "doc-typecheck": "tsx scripts/compile-referenced-projects.ts host-contracts && npm run doc-typecheck:contracts-ready",
     "doc-typecheck:contracts-ready": "tsx scripts/doc-typecheck.ts",
     "verify-md-wrap": "tsx scripts/verify-md-wrap.ts",
     "verify-md-links": "tsx scripts/verify-md-links.ts",
@@ -209,6 +211,8 @@
     "postinstall": "node scripts/install-lefthook.mjs",
     "gen-official-bundle-catalog": "tsx scripts/gen-official-bundle-catalog.ts",
     "verify-official-bundle-catalog": "tsx scripts/gen-official-bundle-catalog.ts --check",
+    "gen-provider-data": "tsx packages/llm/llm-pi-ai/scripts/gen-provider-data.ts",
+    "verify-provider-data": "tsx packages/llm/llm-pi-ai/scripts/gen-provider-data.ts --check",
     "verify-product-use": "tsx scripts/verify-product-use.ts"
   },
   "devDependencies": {
@@ -221,6 +225,7 @@
     "@deepseek-ai/dsh-computer-use": "workspace:*",
     "@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp": "workspace:*",
     "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native": "workspace:*",
+    "@deepseek-ai/dsh-cua": "workspace:*",
     "@deepseek-ai/dsh-experimental-claude-code-mods": "workspace:*",
     "@deepseek-ai/dsh-llm-replay": "workspace:*",
     "@deepseek-ai/dsh-mcp-client": "workspace:*",
@@ -235,6 +240,8 @@
     "@types/mdast": "^4.0.4",
     "@types/papaparse": "^5.5.2",
     "@types/node": "^22.20.1",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
     "@types/semver": "^7.8.0",
     "@types/spdx-expression-parse": "^4.0.0",
     "@vitest/coverage-v8": "^4.1.11",
@@ -276,6 +283,7 @@
     "@deepseek-ai/dsh-tool-working-directory": "workspace:*",
     "@deepseek-ai/dsh-working-directory": "workspace:*",
     "@deepseek-ai/dsh-experimental-worktree": "workspace:*",
-    "@deepseek-ai/dsh-experimental-tool-worktree": "workspace:*"
+    "@deepseek-ai/dsh-experimental-tool-worktree": "workspace:*",
+    "@deepseek-ai/dsh-experimental-cua-macos": "workspace:*"
   }
 }

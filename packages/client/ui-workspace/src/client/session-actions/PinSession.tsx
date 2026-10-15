@@ -31,7 +31,8 @@ export function PinSessionMenuItem(props: SessionMenuItemProps<PinSessionInjecte
   const { sessionId, useMenuOpenState, pinSession, unpinSession, t } = props
   const [, setMenuOpen] = useMenuOpenState()
   const { pinned, archived } = usePinState(props)
-  if (archived) return null
+  const allowed = props.useRemoteAccess(pinned ? 'workspace/unpinSession' : 'workspace/pinSession')
+  if (archived || !allowed) return null
   return (
     <MenuItemButton
       icon={pinned ? <IconPinFillRegular /> : <IconPinOutlineRegular />}
@@ -53,9 +54,10 @@ export function PinSessionMenuItem(props: SessionMenuItemProps<PinSessionInjecte
 export function PinSessionRowButton(props: SessionRowActionProps<PinSessionInjected>) {
   const { sessionId, pinSession, unpinSession, t } = props
   const { pinned, archived } = usePinState(props)
-  if (archived) return null
+  const allowed = props.useRemoteAccess(pinned ? 'workspace/unpinSession' : 'workspace/pinSession')
+  if (archived || !allowed) return null
   return (
-    <Tooltip label={t(pinned ? 'actions.unpin' : 'actions.pin')} side="bottom" align="end" delayMs={500}>
+    <Tooltip label={t(pinned ? 'actions.unpin' : 'actions.pin')} side="bottom" align="end" delayMs={500} portal>
       <button
         type="button"
         className={css.iconButton}

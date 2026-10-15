@@ -25,6 +25,7 @@ import type {
   PluginSpecInspection,
   ReadOnlyReason,
   Registry,
+  RestartReason,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import { normalizeRegistry, NPMMIRROR_REGISTRY, OFFICIAL_NPM_REGISTRY, REGISTRY_URL } from '@deepseek-ai/dsh-plugin-manager/registry'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -39,7 +40,7 @@ export type FailedAction = 'enable' | 'disable' | 'uninstall' | 'rowEnable' | 'r
 
 /** What the last action left to say, shown as a toast; `seq` tells one showing from the next. */
 export type ManagerNotice =
-  | { readonly kind: 'restart'; readonly packageName: string; readonly seq: number }
+  | { readonly kind: 'restart'; readonly packageName: string; readonly reason: RestartReason | undefined; readonly seq: number }
   | { readonly kind: 'overridden'; readonly packageName: string; readonly seq: number }
   | { readonly kind: 'cancelled'; readonly seq: number }
   | { readonly kind: 'refresh-failed'; readonly seq: number }
@@ -224,6 +225,8 @@ export interface InstallState {
   readonly installedVersion: string | null
   /** Whether the finished run's bundle waits for the next start to load. */
   readonly restartRequired: boolean
+  /** Why it waits, when the Host says. */
+  readonly restartReason?: RestartReason
   /**
    * The run's failure, once one settled the dialog: the Host's refusal
    * `code` with its diagnostic as `reason`, or the transport's words alone;
@@ -354,7 +357,7 @@ export interface PluginManagerFace {
   clearHighlight: () => void
   /** Put a bundle into, or take it out of, the profile's layer list, preserving the current profile order. */
   setEnabled: (packageName: string, enabled: boolean) => void
-  /** Install the host's catalog version while retaining the current selection. */
+  /** Remove an installed package and install the host's catalog version, selected as the package was. */
   update: (packageName: string) => void
   /** Ask before removing a package from the profile. */
   uninstall: (packageName: string) => void
@@ -661,7 +664,24 @@ export class PluginManagerController {
       },
       update: (packageName) => {
         const pkg = this.getSnapshot().packages.find(pkg => pkg.name === packageName)
-        if (pkg?.installTarget !== undefined && pkg.availability !== 'installation') this.openCatalogInstall(pkg, pkg.installTarget, pkg.enabled)
+        const target = pkg?.installTarget
+        if (pkg === undefined || target === undefined || pkg.availability === 'installation') return
+        if (!pkg.installed) {
+          this.openCatalogInstall(pkg, target, pkg.enabled)
+          return
+        }
+        // An installed package is removed before another version is installed. Without HMR a running bundle stays
+        // installed, and the installation over it waits for the restart.
+        void this.run(packageName, { packageName, action: 'uninstall' }, async () => {
+          const removed = await this.ctx.remote.pluginManager.removeBundle(packageName)
+          if (removed.ok && removed.value.error?.code === 'stop-profile') {
+            this.openCatalogInstall(pkg, target, pkg.enabled)
+            return
+          }
+          // A failed removal throws; without HMR a removal waits for the restart, and the installation follows it.
+          this.applied(removed, packageName)
+          this.openCatalogInstall(pkg, target, pkg.enabled)
+        })
       },
       uninstall: (packageName) => {
         this.pendingConfirm = () => this.run(packageName, { packageName, action: 'uninstall' }, async () => {
@@ -1026,6 +1046,7 @@ export class PluginManagerController {
         installed: result.bundle ?? null,
         installedVersion: result.version ?? null,
         restartRequired: result.application === 'restart-required',
+        ...result.restartReason === undefined ? {} : { restartReason: result.restartReason },
         approvedBuilds: result.approvedBuilds ?? [],
         ...asked,
       })
@@ -1198,7 +1219,7 @@ export class PluginManagerController {
         this.patch({ notice: { kind: 'cancelled', seq: ++this.noticeSeq } })
         return
       case 'restart-required':
-        this.patch({ notice: { kind: 'restart', packageName, seq: ++this.noticeSeq } })
+        this.patch({ notice: { kind: 'restart', packageName, reason: result.restartReason, seq: ++this.noticeSeq } })
         return
       case 'overridden':
         this.patch({ notice: { kind: 'overridden', packageName, seq: ++this.noticeSeq } })

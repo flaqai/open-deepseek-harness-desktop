@@ -27,7 +27,7 @@
   ],
   "ui-desktop-shell/src/client/NasRuntimeSection.module.css": [
     ".card: border-radius: 14px",
-    ".field input: border-radius: 9px",
+    ".field input, .field select: border-radius: 9px",
     ".trust: border-radius: 10px",
     ".betaNotice, .warning, .message: border-radius: 10px"
   ],
@@ -40,6 +40,9 @@
   ],
   "ui-deliverables/src/client/Deliverables.module.css": [
     ".fileIcon: border-radius: 10px"
+  ],
+  "ui-plan/src/client/PlanPreview.module.css": [
+    ".cardIcon: border-radius: 10px"
   ],
   "ui-schedule/src/client/ClockPicker.module.css": [
     ".option: border-radius: 10px"
@@ -59,7 +62,6 @@
     ".deleteButton: border-radius: 6px"
   ],
   "ui-schedule/src/client/ScheduleCreateCard.module.css": [
-    ".card: border-radius: 18px",
     ".leading: border-radius: 10px"
   ],
   "ui-schedule/src/client/TaskManagerPage.module.css": [
@@ -77,10 +79,6 @@
     ".instruction: border-radius: 16px",
     ".delivery: border-radius: 8px",
     ".linkedSession: border-radius: 14px"
-  ],
-  "ui-schedule/src/client/TaskMenu.module.css": [
-    ".list: border-radius: 16px",
-    ".item: border-radius: 8px"
   ],
   "ui-selection-actions/src/client/SelectionActions.module.css": [
     ".toolbar: border-radius: 12px",

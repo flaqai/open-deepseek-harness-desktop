@@ -3,6 +3,7 @@ import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { typertPlugin } from './packages/typert/generator/lib/types/tsdown-plugin.js'
 import { workspaceBuildPackages } from './scripts/workspace-build-packages.ts'
+import { WORKSPACE_TYPERT_FACES } from './scripts/typert-faces.ts'
 
 const root = dirname(fileURLToPath(import.meta.url))
 
@@ -34,6 +35,6 @@ export default defineConfig(({ env }) => {
     fixedExtension: false,
     dts: false,
     clean: false,
-    plugins: client ? [] : [typertPlugin({ mode: 'workspace', faces: ['host'] })],
+    plugins: client ? [] : [typertPlugin({ mode: 'workspace', faces: WORKSPACE_TYPERT_FACES })],
   }
 })

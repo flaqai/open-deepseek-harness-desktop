@@ -6,6 +6,8 @@ import { Context } from '@deepseek-ai/cordis'
 import { FsError, FsTargetKey, FsVersion } from '@deepseek-ai/dsh-fs'
 import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local'
 import { SessionMediaReferences } from '../src/media-references.ts'
+import { Peer } from '@deepseek-ai/dsh-client-connection'
+import type { PeerScope } from '@deepseek-ai/dsh-typert-protocol'
 
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4])
 const DEFAULT_LIMIT = 20 * 1024 * 1024
@@ -30,11 +32,11 @@ describe('SessionMediaReferences /api/file', () => {
   async function mount(maxBytes = DEFAULT_LIMIT) {
     const ctx = new Context()
     contexts.push(ctx)
-    let handler: ((request: Request) => Promise<Response>) | undefined
+    let handler: ((request: Request, peer: PeerScope) => Promise<Response>) | undefined
     const unregister = vi.fn(() => {})
     ctx.provide('connection', {
       fetch: {
-        register: (registered: { fetch: (request: Request) => Promise<Response> }) => {
+        register: (registered: { fetch: (request: Request, peer: PeerScope) => Promise<Response> }) => {
           handler = registered.fetch
           return unregister
         },
@@ -45,7 +47,7 @@ describe('SessionMediaReferences /api/file', () => {
     await ctx.plugin(SessionMediaReferences).await()
     const raw = (url: string, init?: RequestInit) => {
       if (handler === undefined) throw new Error('route not registered')
-      return handler(new Request(url, init))
+      return handler(new Request(url, init), new Peer(ctx, { principal: { kind: 'owner' } }))
     }
     return {
       call: (path: string, init?: RequestInit) => raw(`http://127.0.0.1/api/file?path=${encodeURIComponent(path)}`, init),

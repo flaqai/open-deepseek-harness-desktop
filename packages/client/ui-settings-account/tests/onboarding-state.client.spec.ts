@@ -17,7 +17,7 @@ afterEach(async () => { for (const dispose of cleanup.splice(0).reverse()) await
 function accountState(status?: 'credential-stored' | 'signed-out'): AccountSnapshot {
   return {
     view: status === undefined ? undefined : { status, attempt: null, links: { usageUrl: 'https://platform.example/usage', topUpUrl: 'https://platform.example/top_up' } },
-    details: undefined, failed: false,
+    details: undefined, avatar: undefined, failed: false,
   }
 }
 
@@ -64,13 +64,13 @@ async function harness(options: {
   const progress = new ConfigFormController(ctx, {
     namespace: DESKTOP_ONBOARDING_NAMESPACE,
     decode: value => OnboardingSettingsSchema(value as OnboardingSettings),
-  }, mirror, 'host', schema)
+  }, mirror, schema)
   const chat = new ConfigFormController<{ transcriptView: TranscriptViewMode; performanceUsage: 'compact' | 'detailed' }>(ctx, {
     namespace: 'ui-chat', decode: value => value as { transcriptView: TranscriptViewMode; performanceUsage: 'compact' | 'detailed' },
-  }, mirror, 'host', schema)
+  }, mirror, schema)
   const developerScope = new ConfigFormController<{ enabled: boolean }>(ctx, {
     namespace: 'ui-settings', decode: value => value as { enabled: boolean },
-  }, mirror, 'host', schema)
+  }, mirror, schema)
   const developerTools = new DeveloperToolsPreference(developerScope)
   const setDeveloperTools = (enabled: boolean) => developerTools.setEnabled(enabled)
   cleanup.push(() => developerScope.dispose())

@@ -8,6 +8,7 @@ import type {
   ConversationLocationDataSource, ConversationLocationDataStore, ConversationTurnDataMap, TurnLocation,
 } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { SessionSeq } from '@deepseek-ai/dsh-session/types'
+import type { TurnEndReason } from '@deepseek-ai/dsh-session/types'
 import type { TurnTokenUsage } from '../src/client/contract/chat-nodes.ts'
 import {
   sameTurnNavigationItem, turnNavigationItem,
@@ -16,9 +17,10 @@ import { orderedVisibleChatNodes } from '../src/client/conversation-nodes/chat-s
 import { ChatTurnProcessProjector } from '../src/client/conversation-nodes/turn-process-presentation.ts'
 import { hasAssistantReplyContent } from '../src/client/contract/assistant-content.ts'
 import {
-  isSubagentDelegationTool, sameTurnProcessSpec, TURN_PROCESS_INDEPENDENT_KINDS,
+  isSubagentDelegationTool, sameTurnProcessSpec,
   type TurnProcessSpec,
 } from '../src/client/contract/turn-process.ts'
+import { isAtOrOutside, type ChatGroupTree } from '../src/client/contract/group-tree.ts'
 
 const EMPTY: readonly never[] = []
 
@@ -106,7 +108,8 @@ class FixtureNodeStore implements ChatNodeStore {
   private readonly sources = new Map<string, FixtureSource<ChatConversationViewNode | undefined>>()
   private readonly processSources = new Map<string, FixtureSource<ChatTurnProcessPresentation | undefined>>()
   private readonly bottomSources = new Map<string, FixtureSource<boolean>>()
-  bottomTurn: number | undefined
+  /** First Turn of the latest loaded exchange. */
+  bottomStart: number | undefined
   private readonly dirtyKeys = new Set<string>()
   private readonly dirtyProcessKeys = new Set<string>()
   private list: readonly ChatConversationViewNode[] = EMPTY
@@ -122,8 +125,8 @@ class FixtureNodeStore implements ChatNodeStore {
   bottomSource(key: string): ReturnType<ChatNodeStore['bottomSource']> {
     return cachedSource(this.bottomSources, key, () => new FixtureSource(() => {
       const location = this.get(key)?.location
-      return this.bottomTurn !== undefined && (location?.kind === 'turn' || location?.kind === 'step')
-        && location.turn.turn === this.bottomTurn
+      return this.bottomStart !== undefined && (location?.kind === 'turn' || location?.kind === 'step')
+        && location.turn.turn >= this.bottomStart
     }))
   }
 
@@ -243,6 +246,19 @@ class FixtureTurnDataStore implements ConversationLocationDataStore<Conversation
   }
 }
 
+/** Positions the production Definitions declare for the legacy kinds this fixture projects. */
+function fixtureGroupTree(kind: string, inTurn: boolean): ChatGroupTree | undefined {
+  switch (kind) {
+    // A fixture user message inside a Turn stands for its opening human input.
+    case 'user': return inTurn ? 'exchange' : 'input'
+    case 'steering': return 'input'
+    case 'turn-error':
+    case 'turn-max-tokens': return 'turn'
+    case 'model-retry': return 'process'
+    default: return undefined
+  }
+}
+
 function assistantData(node: AssistantMessageNode): FinalAssistantChatData {
   return {
     status: node.interrupted === true ? 'interrupted' as const : 'settled' as const,
@@ -270,6 +286,7 @@ function settledNode(
       ? { kind: 'session' as const }
       : { kind: 'turn' as const, turn },
     visibility: 'visible' as const,
+    groupTree: fixtureGroupTree(node.kind, turn !== undefined),
   }
   switch (node.kind) {
     case 'assistant':
@@ -291,6 +308,8 @@ export function chatSnapshotFixture(input: {
   readonly turnTimings?: LegacyConversationSlice['turnTimings']
   /** Recorded ends exist without starts; missing end times follow the fixture's seq × 1000 convention. */
   readonly turnEnds?: LegacyConversationSlice['turnEnds']
+  /** End reasons by turn; absent turns end `completed`. */
+  readonly turnEndReasons?: ReadonlyMap<number, TurnEndReason>
   /** Per-turn usage buckets; production derives these from session events. */
   readonly turnUsages?: ReadonlyMap<number, TurnTokenUsage> | undefined
 } = {}, previous?: ChatSnapshot): ChatSnapshot {
@@ -322,7 +341,7 @@ export function chatSnapshotFixture(input: {
       },
       end: endSeq === undefined ? undefined : {
         type: 'turn/end', seq: SessionSeq(endSeq), time: timing?.endTime ?? endSeq * 1000,
-        data: { turn, reason: { kind: 'completed' } },
+        data: { turn, reason: input.turnEndReasons?.get(turn) ?? { kind: 'completed' } },
       },
       status: endSeq === undefined ? 'open' : 'closed',
       steps: EMPTY,
@@ -422,7 +441,7 @@ export function chatSnapshotFixture(input: {
     const turn = turns.get(turnNumber)
     const controlAnchorSeq = controlAnchor?.anchorSeq ?? turn?.start?.seq
     if (controlAnchorSeq === undefined) continue
-    const processStart = inTurn.find(candidate => !TURN_PROCESS_INDEPENDENT_KINDS.has(candidate.kind))
+    const processStart = inTurn.find(candidate => !isAtOrOutside(candidate, 'turn'))
       ?? controlAnchor
     const inlineReasoning = answer?.blocks.some(block => block.kind === 'reasoning' && block.text.trim() !== '') === true
     const candidate: TurnProcessSpec = {
@@ -459,6 +478,7 @@ export function chatSnapshotFixture(input: {
         anchorSeq: spec.controlAnchorSeq - 0.1,
         location: { kind: 'turn', turn },
         visibility: 'visible',
+        groupTree: 'turn',
         data: spec,
       })
     }
@@ -499,6 +519,7 @@ export function chatSnapshotFixture(input: {
       anchorSeq: endSeq,
       location: { kind: 'turn', turn },
       visibility: 'visible',
+      groupTree: 'turn',
       data: tailData,
     })
   }
@@ -527,7 +548,11 @@ export function chatSnapshotFixture(input: {
     && previous.legacy.turnEnds === legacy.turnEnds
     ? previous.timeline
     : { turnOrder: [...turns.keys()], turns }
-  store.bottomTurn = timeline.turnOrder.at(-1)
+  const openingTurns = store.values().flatMap((node) => {
+    const location = node.location
+    return isAtOrOutside(node, 'exchange') && (location.kind === 'turn' || location.kind === 'step') ? [location.turn.turn] : []
+  })
+  store.bottomStart = openingTurns.length === 0 ? timeline.turnOrder[0] : Math.max(...openingTurns)
   const derived = timeline.turnOrder
     .map(turn => turnNavigationItem(turn, locations, store))
     .filter((item): item is TurnNavigationItem => item !== undefined)

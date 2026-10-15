@@ -9,6 +9,7 @@ import {
 import {
   collectHostDependencyExportPolicyViolations,
   collectPackageDependencyViolations,
+  collectRootTypePackageViolations,
   collectRuntimeSourceExportUses,
   discoverPackageDependencyScope,
   expectedPackageDependencies,
@@ -17,6 +18,7 @@ import {
   formatPeerRequiredRuntimeDependencies,
   readPackageDependencyFacts,
   readPackageDependencyState,
+  readWorkspacePackageManifests,
   repairPackageDependencyManifest,
   type PackageDependencyFacts,
   type PackageDependencyManifest,
@@ -180,6 +182,27 @@ function hostRuntimeFixture(): {
   return { provider, workspaceNames, consumerFacts }
 }
 
+function workspaceFixture(manifests: Readonly<Record<string, PackageDependencyManifest>>): {
+  rootManifest: PackageDependencyManifest
+  packages: WorkspacePackageManifest[]
+} {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-root-type-packages-'))
+  roots.push(root)
+  for (const [path, manifest] of Object.entries(manifests)) {
+    mkdirSync(dirname(join(root, path)), { recursive: true })
+    writeFileSync(join(root, path), JSON.stringify(manifest))
+  }
+  return {
+    rootManifest: JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageDependencyManifest,
+    packages: readWorkspacePackageManifests(root).all,
+  }
+}
+
+function rootTypeRemoval(path: string, entry: string): string {
+  return `${path}: remove ${entry}; the root package.json provides it because each package-local link slows `
+    + 'TypeScript JSX checking (packages/client/AGENTS.md#dependency-declaration)'
+}
+
 describe('package dependency scope', () => {
   it('keeps the measured Host relay roster explicit', () => {
     expect(PACKAGE_DEPENDENCY_POLICY.clientFaceExclude).toEqual([
@@ -192,6 +215,7 @@ describe('package dependency scope', () => {
     ])
     expect(PACKAGE_DEPENDENCY_POLICY.requiredServicePeers).toEqual({
       '@deepseek-ai/dsh-api-terminal-controller': ['@deepseek-ai/dsh-subprocess'],
+      '@deepseek-ai/dsh-client-connection': ['@deepseek-ai/dsh-api-remote-access'],
     })
     expect(PACKAGE_DEPENDENCY_POLICY.configurationOnlyDevDependencies).toEqual({
       '@deepseek-ai/dsh-client-locale': ['@deepseek-ai/dsh-api-remotes'],
@@ -217,6 +241,11 @@ describe('package dependency scope', () => {
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-nas-protocol']).toEqual([
       'NAS_PROTOCOL_V1', 'NasProtocolViolation',
     ])
+    expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-home-paths']).toBeUndefined()
+    expect(PACKAGE_DEPENDENCY_POLICY.duplicateSafePackages).not.toContain('@deepseek-ai/dsh-home-paths')
+    expect(PACKAGE_DEPENDENCY_POLICY.duplicateSafePackages).not.toContain('@deepseek-ai/dsh-nas-protocol')
+    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-home-paths']).toEqual(['resolveDshHome'])
+    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-nas-protocol']).toEqual(['isNasRole'])
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-settings']).toBeUndefined()
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/schemastery']).toEqual(['default'])
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-session/types']).toBeUndefined()
@@ -449,19 +478,29 @@ describe('face-aware source classification', () => {
 
   it('uses declared DefinitelyTyped providers only for erased source references', () => {
     const subject = sourceFacts({
-      'src/index.ts': "import type { ReactNode } from 'react'",
+      'src/index.ts': "import type { ParseResult } from 'papaparse'",
       'src/client/index.ts': "import type { Root } from 'mdast'; import type { Kind } from '@scope/types'",
     }, {
       dependencies: { '@types/mdast': '^4.0.0' },
-      devDependencies: { '@types/react': '^18.0.0', '@types/scope__types': '^1.0.0' },
+      devDependencies: { '@types/papaparse': '^5.0.0', '@types/scope__types': '^1.0.0' },
     })
 
-    expect([...subject.allSourceUses.keys()].sort()).toEqual(['@types/mdast', '@types/react', '@types/scope__types'])
+    expect([...subject.allSourceUses.keys()].sort()).toEqual(['@types/mdast', '@types/papaparse', '@types/scope__types'])
     expect([...subject.hostRuntimeSourceUses]).toEqual([])
     repairPackageDependencyManifest(subject)
     expect(subject.manifest.devDependencies?.['@types/mdast']).toBe('^4.0.0')
     expect(subject.manifest.dependencies?.['@types/mdast']).toBeUndefined()
     expect(subject.manifest.devDependencies?.mdast).toBeUndefined()
+  })
+
+  it('never lets a root-provided React type package stand in for react', () => {
+    const subject = sourceFacts({
+      'src/index.ts': "import type { ReactNode } from 'react'",
+      'src/client/index.ts': "import type { Root } from 'react-dom/client'",
+    }, { devDependencies: { '@types/react': '~18.3.1', '@types/react-dom': '~18.3.0' } })
+
+    expect([...subject.allSourceUses.keys()].sort()).toEqual(['react', 'react-dom'])
+    expect(() => { repairPackageDependencyManifest(subject) }).toThrow('undeclared third-party dependency react')
   })
 
   it.each(["import 'runtime-library'", 'export const view = <div />'])('does not let type providers satisfy runtime imports or JSX: %s', (source) => {
@@ -1046,5 +1085,42 @@ describe('dependency sections', () => {
     repairPackageDependencyManifest(facts(manifest))
     expect(manifest.dependencies).toEqual({ '@deepseek-ai/dsh-runtime': 'workspace:*' })
     expect(manifest.peerDependencies).toEqual({ [CORDIS]: 'workspace:~' })
+  })
+})
+
+describe('root-provided type packages', () => {
+  it('rejects React type packages in any workspace dependency section and requires them at the root', () => {
+    const { rootManifest, packages } = workspaceFixture({
+      'package.json': { name: 'root', devDependencies: { '@types/react': '~18.3.1' } },
+      'apps/app/package.json': { name: '@f/app', devDependencies: { '@types/react': '~18.3.1', react: '^18.2.0' } },
+      'packages/experimental/probe/package.json': {
+        name: '@f/probe',
+        dependencies: { '@types/react-dom': '~18.3.0' },
+        peerDependencies: { '@types/react': '*' },
+      },
+      'vendor/lib/package.json': { name: '@f/lib', optionalDependencies: { '@types/react': '~18.3.1' } },
+    })
+
+    expect(collectRootTypePackageViolations(rootManifest, packages)).toEqual([
+      rootTypeRemoval('apps/app/package.json', 'devDependencies.@types/react'),
+      'package.json: devDependencies must declare @types/react-dom for every workspace package',
+      rootTypeRemoval('packages/experimental/probe/package.json', 'dependencies.@types/react-dom'),
+      rootTypeRemoval('packages/experimental/probe/package.json', 'peerDependencies.@types/react'),
+      rootTypeRemoval('vendor/lib/package.json', 'optionalDependencies.@types/react'),
+    ])
+  })
+
+  it('accepts root declarations beside package-level runtime React and other type packages', () => {
+    const { rootManifest, packages } = workspaceFixture({
+      'package.json': { name: 'root', devDependencies: { '@types/react': '~18.3.1', '@types/react-dom': '~18.3.0' } },
+      'packages/client/ui-probe/package.json': {
+        name: '@f/ui-probe',
+        dependencies: { react: '^18.2.0' },
+        devDependencies: { 'react-dom': '^18.2.0', '@types/react-is': '^18.0.0' },
+      },
+    })
+
+    expect(packages.map(pkg => pkg.manifestPath)).toEqual(['packages/client/ui-probe/package.json'])
+    expect(collectRootTypePackageViolations(rootManifest, packages)).toEqual([])
   })
 })

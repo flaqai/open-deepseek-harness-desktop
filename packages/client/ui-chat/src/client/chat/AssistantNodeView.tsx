@@ -4,12 +4,12 @@ import type { ChatNodeViewProps, PresentationInjected, TurnTailOwnerProps } from
 import { AssistantMarkdown } from './AssistantMarkdown.tsx'
 
 type AssistantNodeViewProps = ChatNodeViewProps<'assistant-step'> & InjectFace<PresentationInjected>
-  & PropsRenderSlots<'conversation.chat.reasoning.body'>
+  & PropsRenderSlots<'conversation.chat.reasoning.body' | 'conversation.chat.message.images'>
 
 /** Streaming, settled, and interrupted Assistant states share one keyed renderer instance. */
 export const AssistantNodeView = memo(function AssistantNodeView({
   node, groupPart, useDisclosure, useGroupAction, useTurnData, turnProcess, cwd, openFile, revealFile,
-  renderMessageImages, fileMentions, usePresentation, renderSlot, t,
+  loadImage, fileMentions, usePresentation, renderSlot, t,
 }: AssistantNodeViewProps) {
   const data = node.data
   const turn = node.location.kind === 'turn' || node.location.kind === 'step'
@@ -38,7 +38,7 @@ export const AssistantNodeView = memo(function AssistantNodeView({
       useDisclosure={useDisclosure}
       streaming={data.status === 'running'}
       interrupted={data.status === 'interrupted'}
-      renderMessageImages={renderMessageImages}
+      loadImage={loadImage}
       reasoningHidden={reasoningHidden}
       useGroupAction={useGroupAction}
       usePresentation={usePresentation}

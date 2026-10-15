@@ -21,6 +21,7 @@ const SID = 'session-actions' as SessionId
 const t = makeTranslate(zh, commonZh)
 const unused = (): never => { throw new Error('unused session-actions fixture prop') }
 const standardProps = {
+  useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true, useAccess: () => true,
   usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
   useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
   useSession: unused, useProjection: unused, useInput: unused,
@@ -72,12 +73,13 @@ function mountCopy() {
   render(<SessionActions {...props} />)
 }
 
-function mountRemoval(running = false) {
+function mountRemoval(running = false, allowed = true) {
   const session = createSnapshotStore(sessionSnapshot(running))
   const archive = vi.fn(() => Promise.resolve())
   let contribution: ConversationHeaderMenuContribution | undefined
   const props = {
     ...standardProps,
+    useRemoteAccess: () => allowed,
     useConversation: unused,
     sessionId: SID,
     useSession: bindSnapshotSelector(session),
@@ -98,6 +100,11 @@ afterEach(() => {
 })
 
 describe('SessionActions', () => {
+  it('does not register a delete entry without archive permission', () => {
+    const b = mountRemoval(false, false)
+    expect(b.contribution()).toBeUndefined()
+    expect(b.archive).not.toHaveBeenCalled()
+  })
   it('copies the loaded visible transcript with localized speaker labels', async () => {
     const writeText = vi.fn(() => Promise.resolve())
     vi.stubGlobal('navigator', { clipboard: { writeText } })

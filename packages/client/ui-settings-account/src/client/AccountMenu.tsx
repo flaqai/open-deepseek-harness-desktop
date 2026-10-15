@@ -32,7 +32,8 @@ export function AccountMenu({
   return <div ref={anchor} className={css.root}>
     {signInNotice > 0 && <Toast key={signInNotice} text={t('modelSignInRequired')} onDone={() => { setSignInNotice(0) }} />}
     {expiryNotice && <Toast text={t('sessionExpired')} onDone={() => { setExpiryNotice(false) }} />}
-    {signedIn && account.notice && <AccountNoticeCard key={account.notice.orderId} notice={account.notice}
+    {signedIn && !account.desktopOnboardingVisible && !account.onboarding && account.notice && <AccountNoticeCard
+      key={account.notice.orderId} notice={account.notice}
       anchor={anchor} title={t('bonusNoticeTitle')} closeLabel={t('close')}
       onShown={bonusNoticeShown} onDismiss={bonusNoticeDismissed} />}
     <button type="button" className={css.trigger} data-collapsed={!wide} aria-label={t('settings')}

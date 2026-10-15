@@ -4,6 +4,7 @@
   - text: 默认连接
   - code: https://api.deepseek.com
   - text: 保持 API 地址和模型目录不变，即使用 DeepSeek 默认配置。 API 密钥
+  - button "认证说明": "?"
   - textbox "API 密钥":
     - /placeholder: 输入 API 密钥
   - group:

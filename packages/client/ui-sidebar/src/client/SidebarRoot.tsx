@@ -98,9 +98,11 @@ export function SidebarRoot({
   usePanels,
   useShortcuts,
   usePanelInfo,
+  useRemoteAccess,
   t,
   renderSlot,
 }: SidebarRootComponentProps) {
+  const canCreateSession = useRemoteAccess('session/create')
   const drawer = presentation === 'drawer'
   const panels = usePanels(snapshot => snapshot)
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'sidebar.left.toggle'))
@@ -288,6 +290,7 @@ export function SidebarRoot({
                   type="button"
                   className={clsx(css.brand, css.wide)}
                   aria-label={t('session.new.label')}
+                  disabled={!canCreateSession}
                   aria-keyshortcuts={newShortcut?.aria}
                   onClick={() => { startSession(); if (drawer) dismiss() }}
                 >
@@ -304,6 +307,7 @@ export function SidebarRoot({
         <button
           type="button"
           className={css.newSession}
+          disabled={!canCreateSession}
           aria-label={t('session.new.label')}
           aria-keyshortcuts={newShortcut?.aria}
           onClick={() => { startSession(); if (drawer) dismiss() }}

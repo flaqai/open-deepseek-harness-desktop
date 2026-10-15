@@ -25,7 +25,7 @@ import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Button, IconPlusOutlineRegular, Modal, SegmentedControl, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { LlmNativeAuth, SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
 import type {} from './slot-contract.ts'
 import { CustomProviderCard } from './CustomProviderCard.tsx'
@@ -92,6 +92,12 @@ interface EditorTarget extends ProviderIdentity {
   credentialRef?: string
   /** The adapter reports this route as one it does not ship (see {@link ProviderEditorProps.declared}). */
   declared?: boolean
+  /** The route's catalog endpoint (see {@link ProviderEditorProps.defaultBaseURL}). */
+  defaultBaseURL?: string
+  /** Environment used to construct an endpoint (see {@link ProviderEditorProps.baseURLEnv}). */
+  baseURLEnv?: readonly string[]
+  /** The route's native authentication (see {@link ProviderEditorProps.nativeAuth}). */
+  nativeAuth?: LlmNativeAuth
 }
 
 /** A dormant directory row the add card can adopt, with its registered namespace. */
@@ -112,16 +118,22 @@ interface ProviderEditorRenderProps extends Pick<
   'namespace' | 'schema' | 'operations' | 't' | 'readOnly' | 'onClose'
 > {
   target: EditorTarget
+  row: ProviderRow
 }
 
 /** Render an editor for either the setup posture or an expanded provider row. */
-function renderProviderEditor({ target, ...props }: ProviderEditorRenderProps): ReactNode {
+function renderProviderEditor({ target, row, ...props }: ProviderEditorRenderProps): ReactNode {
   return (
     <ProviderEditor
       provider={target.provider}
       displayName={target.displayName}
       settingsPath={target.settingsPath}
       {...target.declared === true ? { declared: true } : {}}
+      {...target.defaultBaseURL === undefined ? {} : { defaultBaseURL: target.defaultBaseURL }}
+      {...target.baseURLEnv === undefined ? {} : { baseURLEnv: target.baseURLEnv }}
+      {...target.nativeAuth === undefined ? {} : { nativeAuth: target.nativeAuth }}
+      {...row.credential === undefined ? {} : { credential: row.credential }}
+      {...row.credentialChecks === undefined ? {} : { credentialChecks: row.credentialChecks }}
       {...props}
     />
   )
@@ -200,6 +212,9 @@ function targetOf(row: ProviderRow): EditorTarget {
     ...credentialRef === undefined ? {} : { credentialRef },
     // Only declared routes may expose route-owned fields.
     ...row.entry.declared === true ? { declared: true } : {},
+    ...row.entry.defaultBaseURL === undefined ? {} : { defaultBaseURL: row.entry.defaultBaseURL },
+    ...row.entry.baseURLEnv === undefined ? {} : { baseURLEnv: row.entry.baseURLEnv },
+    ...row.entry.nativeAuth === undefined ? {} : { nativeAuth: row.entry.nativeAuth },
   }
 }
 
@@ -475,6 +490,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 {error}
                 {renderProviderEditor({
                   target,
+                  row,
                   namespace,
                   schema,
                   operations,
@@ -506,6 +522,15 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   {row.entry.declared === true
                     ? <span className={styles['rowTag']}>{t('customTag')}</span>
                     : null}
+                  {/* The store keeps the account row only while the account lists models. */}
+                  {row.entry.provider === 'deepseek-account'
+                    ? (
+                      <span className={styles['accountStatus']}>
+                        <span className={`${styles['credentialDot']} ${styles['credentialDotConfigured']}`} aria-hidden="true" />
+                        {t('accountSignedIn')}
+                      </span>
+                    )
+                    : null}
                   {credentialConfigured
                     ? (
                       <span
@@ -527,23 +552,28 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                       : null}
                 </span>
                 <span className={styles['rowActions']}>
-                  <button
-                    type="button"
-                    className={styles['secondaryButton']}
-                    aria-label={providerCopy(t('editProvider'), target)}
-                    disabled={!open && state.status !== 'ready'}
-                    onClick={() => {
-                      if (!open && controller.store.getSnapshot().status !== 'ready') return
-                      setSavedTarget(undefined)
-                      // One card at a time: the add card closes with whatever
-                      // it held, since closing either card would otherwise
-                      // discard the other's draft.
-                      setAddOpen(false)
-                      setEditing(open ? undefined : target)
-                    }}
-                  >
-                    {t('edit')}
-                  </button>
+                  {/* The account catalog comes from the account listing; its model overrides live in cordis.patch.yml. */}
+                  {row.entry.provider === 'deepseek-account'
+                    ? null
+                    : (
+                      <button
+                        type="button"
+                        className={styles['secondaryButton']}
+                        aria-label={providerCopy(t('editProvider'), target)}
+                        disabled={!open && state.status !== 'ready'}
+                        onClick={() => {
+                          if (!open && controller.store.getSnapshot().status !== 'ready') return
+                          setSavedTarget(undefined)
+                          // One card at a time: the add card closes with whatever
+                          // it held, since closing either card would otherwise
+                          // discard the other's draft.
+                          setAddOpen(false)
+                          setEditing(open ? undefined : target)
+                        }}
+                      >
+                        {t('edit')}
+                      </button>
+                    )}
                   {row.removable
                     ? (
                       <button
@@ -573,6 +603,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
               {open
                 ? renderProviderEditor({
                   target,
+                  row,
                   namespace,
                   schema,
                   operations,
@@ -664,6 +695,10 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                       schema={schema}
                       settingsPath={draft.target.settingsPath}
                       operations={operations}
+                      {...draft.target.defaultBaseURL === undefined ? {} : { defaultBaseURL: draft.target.defaultBaseURL }}
+                      {...draft.target.baseURLEnv === undefined ? {} : { baseURLEnv: draft.target.baseURLEnv }}
+                      {...draft.target.nativeAuth === undefined ? {} : { nativeAuth: draft.target.nativeAuth }}
+                      {...addRow?.credentialChecks === undefined ? {} : { credentialChecks: addRow.credentialChecks }}
                       t={t}
                       readOnly={!state.writable}
                       onClose={(changed) => { closeEditor(changed, draft.target) }}

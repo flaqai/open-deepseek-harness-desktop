@@ -29,11 +29,13 @@ import browserCss from '../rows/WorkspaceBrowser.module.css'
  * @returns the row.
  */
 export function ArchiveSessionMenuItem({
-  sessionId, useArchived, useMenuOpenState, useShortcuts, archiveSession, unarchiveSession, t,
+  sessionId, useArchived, useMenuOpenState, useShortcuts, useRemoteAccess, archiveSession, unarchiveSession, t,
 }: SessionMenuItemProps<ArchiveSessionInjected>) {
   const [, setMenuOpen] = useMenuOpenState()
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'session.archive'))
   const archived = useArchived(set => set.has(sessionId))
+  const allowed = useRemoteAccess(archived ? 'workspace/unarchiveSession' : 'workspace/archiveSession')
+  if (!allowed) return null
   return (
     <MenuItemButton
       shortcut={archived ? undefined : shortcut}
@@ -54,11 +56,13 @@ export function ArchiveSessionMenuItem({
  * @returns the button.
  */
 export function ArchiveSessionRowButton({
-  sessionId, useArchived, archiveSession, unarchiveSession, t,
+  sessionId, useArchived, useRemoteAccess, archiveSession, unarchiveSession, t,
 }: SessionRowActionProps<ArchiveSessionInjected>) {
   const archived = useArchived(set => set.has(sessionId))
+  const allowed = useRemoteAccess(archived ? 'workspace/unarchiveSession' : 'workspace/archiveSession')
+  if (!allowed) return null
   return (
-    <Tooltip label={t(archived ? 'actions.unarchive' : 'actions.archive')} side="bottom" align="end" delayMs={500}>
+    <Tooltip label={t(archived ? 'actions.unarchive' : 'actions.archive')} side="bottom" align="end" delayMs={500} portal>
       <button
         type="button"
         className={css.iconButton}

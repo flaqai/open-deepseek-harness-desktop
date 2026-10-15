@@ -56,7 +56,7 @@ def _resource_sidecars(executable: Path, native_targets: tuple[str, ...] = ("dar
     node.chmod(0o755)
     packages = python.parent if tag.startswith("win-") else python.parent.parent
     (packages / ("Lib/site-packages" if tag.startswith("win-") else "lib/python3.12/site-packages")).mkdir(parents=True)
-    for file in ["scripts/check_office.py", *(f"office-{kind}/SKILL.md" for kind in ("docx", "pptx", "xlsx"))]:
+    for file in (f"office-{kind}/SKILL.md" for kind in ("docx", "pptx", "xlsx")):
         path = resources / "office-skills" / file
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch()
@@ -372,7 +372,7 @@ def test_download_decodes_utf8_in_an_ascii_locale(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("missing", ["primary-runtime/runtime.json", "primary-runtime/dependencies/python/bin/python3",
-                                     "primary-runtime/dependencies/node/bin/node", "office-skills/scripts/check_office.py"])
+                                     "primary-runtime/dependencies/node/bin/node", "office-skills/office-docx/SKILL.md"])
 def test_primary_download_rejects_an_incomplete_payload(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing: str) -> None:
     _resource_sidecars(tmp_path / "deepseek-harness-sdk-runtime-linux-x64")
     root = tmp_path / "linux-x64"
@@ -420,7 +420,7 @@ def test_download_manifest_rejects_invalid_wheel_resources(tmp_path: Path, inval
     path = root / "downloads.json"
     manifest = json.loads(path.read_text(encoding="utf-8"))
     if invalid == "skills":
-        (root / "office-skills/scripts/check_office.py").unlink()
+        (root / "office-skills/office-docx/SKILL.md").unlink()
         with pytest.raises(FileNotFoundError, match="Office skill"):
             validate_downloads(root, "linux-x64")
     else:

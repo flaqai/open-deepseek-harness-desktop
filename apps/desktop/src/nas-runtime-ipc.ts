@@ -5,6 +5,7 @@ import { DESKTOP_IPC } from './desktop-ipc-protocol.ts'
 import type { DesktopNasRuntimeAuthority } from './nas-runtime-authority.ts'
 import type { DesktopRuntimeSelection, NasPairingRequest, NasRuntimeStatus } from './nas-runtime.ts'
 import { normalizeNasBaseUrl } from './nas-runtime.ts'
+import { isNasRole, type NasRole } from '@deepseek-ai/dsh-nas-protocol'
 
 export interface NasRuntimeIpcOptions {
   readonly authority: DesktopNasRuntimeAuthority
@@ -18,6 +19,11 @@ function parseId(value: unknown, message: string): string {
 
 function parseDeviceId(value: unknown): string {
   if (typeof value !== 'string') throw new TypeError('desktop: invalid NAS device revocation request')
+  return value
+}
+
+function parseRole(value: unknown): NasRole {
+  if (!isNasRole(value)) throw new TypeError('desktop: invalid NAS role')
   return value
 }
 
@@ -53,6 +59,19 @@ function parsePairingRequest(raw: unknown): NasPairingRequest {
 /** Register the fixed NAS IPC vocabulary; all NAS policy remains inside the authority. */
 export function registerNasRuntimeIpc(ipc: IpcMain, options: NasRuntimeIpcOptions): void {
   const { authority, assertRenderer } = options
+  ipc.handle(DESKTOP_IPC.nasMe, async (event, serverId: unknown) => {
+    assertRenderer(event.sender)
+    return authority.execute({ kind: 'me', serverId: parseId(serverId, 'desktop: invalid NAS id') })
+  })
+  ipc.handle(DESKTOP_IPC.nasInvite, async (event, serverId: unknown, role: unknown) => {
+    assertRenderer(event.sender)
+    return authority.execute({ kind: 'invite', serverId: parseId(serverId, 'desktop: invalid NAS id'), role: parseRole(role) })
+  })
+  ipc.handle(DESKTOP_IPC.nasSetDeviceRole, async (event, serverId: unknown, deviceId: unknown, role: unknown) => {
+    assertRenderer(event.sender)
+    return authority.execute({ kind: 'set-device-role', serverId: parseId(serverId, 'desktop: invalid NAS id'),
+      deviceId: parseDeviceId(deviceId), role: parseRole(role) })
+  })
   ipc.handle(DESKTOP_IPC.nasGet, (event): NasRuntimeStatus => {
     assertRenderer(event.sender)
     return authority.status()

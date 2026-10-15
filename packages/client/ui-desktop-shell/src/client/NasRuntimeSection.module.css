@@ -9,7 +9,7 @@
 .cardHeader > div { min-width: 0; display: grid; gap: 5px; }
 .badge { flex: none; padding: 3px 8px; border-radius: 999px; corner-shape: round; background: var(--dsh-surface-muted, #f3f4f6); font-size: 12px; }
 .field { display: grid; gap: 6px; font-size: 13px; }
-.field input { min-height: 42px; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--dsh-border, #d1d5db); border-radius: 9px; background: transparent; color: inherit; font: inherit; font-size: 16px; }
+.field input, .field select { min-height: 44px; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--dsh-border, #d1d5db); border-radius: 9px; background: var(--dsw-alias-bg-layer-1); color: inherit; font: inherit; font-size: 16px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .devices { margin-top: 2px; padding-top: 12px; border-top: 1px solid var(--dsh-border, #e5e7eb); }
 .device { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
@@ -30,4 +30,5 @@
   .cardHeader { align-items: stretch; flex-direction: column; }
   .badge { width: fit-content; }
   .actions > button { min-height: 44px; }
+  .device { flex-wrap: wrap; }
 }

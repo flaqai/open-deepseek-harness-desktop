@@ -69,6 +69,18 @@ describe('DeepSeekHarness', () => {
     expect(source).toMatch(/spawn\(this\.runtime\.command,[\s\S]*?windowsHide: true,[\s\S]*?\}\)/u)
   })
 
+  it('returns a restored handle that can run followups on the same identity', async () => {
+    const harness = harnessWith()
+    const session = await harness.resumeSession('saved-session')
+    expect(session.id).toBe('saved-session')
+    expect((await session.run('continue')).sessionId).toBe('saved-session')
+  })
+
+  it('propagates resume failures', async () => {
+    await expect(harnessWith({ FAKE_RESUME_ERROR: '1' }).resumeSession('missing'))
+      .rejects.toThrow('session not found')
+  })
+
   it('reads and changes directories independently for each lazy Session', async () => {
     const harness = harnessWith()
     const first = harness.session('directory-first')

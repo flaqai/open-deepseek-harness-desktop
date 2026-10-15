@@ -240,8 +240,8 @@ describe('llm-deepseek real dynamic composition', () => {
     // Restart over the same harness home.
     const restarted = await loadComposition({ withDynamic: true, baseURL: second.url, reuseRoot: home })
     const credentials = restarted.ctx.get('credentials')!
-    // The stored key is still the provider's own writable file entry — not a
-    // read-only launch override, which is what hoisting it would have made it.
+    // The stored key is still the provider's own file entry — not a
+    // launch-environment value, which is what hoisting it would have made it.
     expect(await credentials.resolve(KEY_REF)).toEqual({ value: 'stored-by-ui', source: 'file' })
     expect(await credentials.describe(KEY_REF)).toEqual({ configured: true, source: 'file', writable: true })
     // Rotation still works after the restart, and the next request uses it.

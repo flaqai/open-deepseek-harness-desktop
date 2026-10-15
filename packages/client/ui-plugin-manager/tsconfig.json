@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "../../api/remote-access/tsconfig.client.json" },
     {
       "path": "./tsconfig.host.json"
     },

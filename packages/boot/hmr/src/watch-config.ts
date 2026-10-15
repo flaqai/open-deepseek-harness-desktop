@@ -25,7 +25,8 @@ async function findWatchRoot(filename: string): Promise<{ filename: string; root
 }
 
 /**
- * Watch one patch path, including missing parents, and serialize refresh callbacks.
+ * Watch one patch path and its parent chain without subscribing to sibling files or directories.
+ * Missing parents are observed as they appear; refresh callbacks run serially.
  * @param ctx Context that owns watcher disposal and receives refresh failures.
  * @param filename Absolute patch-file path.
  * @param options Deployment watcher options; `interval` sets the exact-path stat-poll cadence.

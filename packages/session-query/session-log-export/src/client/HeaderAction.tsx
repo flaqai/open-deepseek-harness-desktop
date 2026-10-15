@@ -35,6 +35,7 @@ export type SessionLogDownloadHeaderProps = SessionLogDownloadDialogProps
  */
 export function SessionLogDownloadHeaderAction(props: SessionLogDownloadHeaderProps): ReactNode {
   const { sessionId, useSessionLogDownload, useFeedbackAvailable, request, openFeedback, renderSlot, t } = props
+  const downloadAllowed = props.useDownloadAllowed(value => value)
   const feedbackAvailable = useFeedbackAvailable(value => value)
   const entry = useSessionLogDownload(state => state.bySession[String(sessionId)])
   const busy = entry?.status === 'downloading'
@@ -70,7 +71,7 @@ export function SessionLogDownloadHeaderAction(props: SessionLogDownloadHeaderPr
         dense
         onClose={() => { setOpen(false) }}
         items={[
-          { id: 'download', label: t('menu.download'), icon: <IconDownloadOutlineRegular />, disabled: busy },
+          ...downloadAllowed ? [{ id: 'download', label: t('menu.download'), icon: <IconDownloadOutlineRegular />, disabled: busy }] : [],
           ...feedbackAvailable ? [{ id: 'feedback', label: t('menu.feedback'), icon: <IconPaperPlaneOutlineRegular /> }] : [],
           ...(extensions.length === 0 ? [] : [
             { type: 'separator' as const, id: 'extension-separator' },
@@ -80,7 +81,7 @@ export function SessionLogDownloadHeaderAction(props: SessionLogDownloadHeaderPr
         onSelect={(id) => {
           setOpen(false)
           if (id === 'download') {
-            void request(sessionId)
+            if (downloadAllowed) void request(sessionId)
             return
           }
           if (id === 'feedback') {

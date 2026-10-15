@@ -47,6 +47,11 @@ function network(overrides: Partial<NasRuntimeNetworkAdapter> = {}): NasRuntimeN
     health: vi.fn(() => Promise.resolve(health())),
     pair: vi.fn(() => Promise.resolve(pairing())),
     devices: vi.fn(() => Promise.resolve([])),
+    me: vi.fn(async () => ({ id: 'a'.repeat(32), name: 'Current', role: 'admin' as const, createdAt: '2026-10-15T00:00:00Z', expiresAt: '2027-10-15T00:00:00Z' })),
+    invite: vi.fn(async (_baseUrl: string, _token: string, role: import('../src/nas-runtime.ts').NasRole) => ({
+      code: '12345678', role, expiresAt: '2027-10-15T00:00:00Z',
+    })),
+    setDeviceRole: vi.fn(async () => []),
     revokeDevice: vi.fn(() => Promise.resolve([])),
     ...overrides,
   }

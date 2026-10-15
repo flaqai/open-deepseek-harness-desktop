@@ -67,6 +67,54 @@ describe('Remote stream mux server carrier lifecycle', () => {
     await closed
   })
 
+  it('counts inbound frames as liveness while Pong is delayed', async () => {
+    const entry = await startMux(async (_endpoint, _payload, _uplink, _peer, control) => waitForAbort(control.signal), 20)
+    const client = await connect(entry.url, false)
+    const terminated = vi.spyOn(acceptedSocket(entry.mux), 'terminate')
+    const traffic = setInterval(() => { client.send(JSON.stringify({ type: 'cancel', streamId: 'absent' })) }, 5)
+    try {
+      await pings(client, 4)
+      expect(terminated).not.toHaveBeenCalled()
+    } finally {
+      clearInterval(traffic)
+    }
+    await vi.waitFor(() => { expect(terminated).toHaveBeenCalledOnce() })
+  })
+
+  it('counts a downlink write that waited in the send buffer as liveness', async () => {
+    const stop = Promise.withResolvers<undefined>()
+    const entry = await startMux(async () => steadyItems(stop.promise), 20)
+    const client = await connect(entry.url, false)
+    const serverSocket = acceptedSocket(entry.mux)
+    const terminated = vi.spyOn(serverSocket, 'terminate')
+    Object.defineProperty(serverSocket, 'bufferedAmount', { configurable: true, value: 1 })
+    client.send(openFrame('congested'))
+    try {
+      await pings(client, 4)
+      expect(terminated).not.toHaveBeenCalled()
+    } finally {
+      stop.resolve(undefined)
+      Reflect.deleteProperty(serverSocket, 'bufferedAmount')
+    }
+    await vi.waitFor(() => { expect(terminated).toHaveBeenCalledOnce() })
+  })
+
+  it('does not count a downlink write that completed at once as liveness', async () => {
+    const stop = Promise.withResolvers<undefined>()
+    const entry = await startMux(async () => steadyItems(stop.promise), 20)
+    const client = await connect(entry.url, false)
+    const terminated = vi.spyOn(acceptedSocket(entry.mux), 'terminate')
+    const items = vi.fn()
+    client.on('message', items)
+    client.send(openFrame('flowing'))
+    try {
+      await vi.waitFor(() => { expect(terminated).toHaveBeenCalledOnce() })
+      expect(items).toHaveBeenCalled()
+    } finally {
+      stop.resolve(undefined)
+    }
+  })
+
   it('keeps the socket when a delayed Pong arrives before the final check', async () => {
     const entry = await startMux(async (_endpoint, _payload, _uplink, _peer, control) => waitForAbort(control.signal), 20)
     const client = await connect(entry.url, false)
@@ -232,6 +280,48 @@ describe('Remote stream mux server carrier lifecycle', () => {
     await vi.waitFor(() => { expect(serverSocket.readyState).toBe(WebSocket.CLOSED) })
     release()
     await didReturn
+  })
+
+  it('reports connection and Peer cleanup faults after the physical socket has closed', async () => {
+    const entry = await startMux(async () => { throw new Error('fixture opener failure') })
+    const client = await connect(entry.url)
+    const serverSocket = acceptedSocket(entry.mux)
+    const write = Promise.withResolvers<(error?: Error) => void>()
+    const writer = serverSocket as { send(data: unknown, callback: (error?: Error) => void): void }
+    const sending = vi.spyOn(writer, 'send').mockImplementation((_data, callback) => { write.resolve(callback) })
+    const connectionFailure = new Error('fixture terminal close failure')
+    const cleanupFailure = new Error('fixture Peer close failure')
+    const close = serverSocket.close.bind(serverSocket)
+    const closing = vi.spyOn(serverSocket, 'close').mockImplementation((code, reason) => {
+      if (code === 1011) throw connectionFailure
+      if (code === 1001) throw cleanupFailure
+      close(code, reason)
+    })
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let finishWrite: ((error?: Error) => void) | undefined
+    try {
+      client.send(openFrame('write-during-close'))
+      finishWrite = await write.promise
+      const clientClosed = once(client, 'close')
+      const serverClosed = once(serverSocket, 'close')
+      client.close()
+      await Promise.all([clientClosed, serverClosed])
+      finishWrite(new Error('fixture write interrupted by socket close'))
+      await entry.mux.close()
+      expect(serverSocket.readyState).toBe(WebSocket.CLOSED)
+      expect(client.readyState).toBe(WebSocket.CLOSED)
+      expect(report.mock.calls).toEqual([
+        ['[api-gateway] Remote stream connection failed:', connectionFailure],
+        ['[api-gateway] Remote stream scope cleanup failed:', cleanupFailure],
+      ])
+      expect(closing).toHaveBeenCalledWith(1011, 'Remote stream failure could not be delivered')
+      expect(closing).toHaveBeenCalledWith(1001, 'peer left')
+    } finally {
+      sending.mockRestore()
+      closing.mockRestore()
+      finishWrite?.(new Error('fixture teardown'))
+      report.mockRestore()
+    }
   })
 
   it('terminates active sockets on close and reports a repeated close', async () => {
@@ -527,6 +617,9 @@ async function fixturePeer(): Promise<PeerScope> {
   return {
     id: 'fixture-peer' as PeerId,
     ctx: fiber.ctx,
+    principal: { kind: 'owner' },
+    interactions: 'answer',
+    signal: new AbortController().signal,
     dispose: async () => { await fiber.dispose() },
   }
 }
@@ -583,6 +676,19 @@ function endFrame(streamId: string): string {
 
 async function *echoUplink(uplink: AsyncIterable<unknown>): AsyncIterable<unknown> {
   for await (const value of uplink) yield value
+}
+
+/** Yield an item every few milliseconds until `stop` settles. */
+async function *steadyItems(stop: Promise<undefined>): AsyncIterable<string> {
+  const stopped = stop.then(() => true)
+  while (!await Promise.race([stopped, new Promise<false>((resolve) => { setTimeout(() => { resolve(false) }, 5) })])) {
+    yield 'item'
+  }
+}
+
+/** Resolve after the client has received `count` Ping frames. */
+async function pings(client: WebSocket, count: number): Promise<void> {
+  for (let received = 0; received < count; received++) await once(client, 'ping')
 }
 
 async function *waitForAbort(signal: AbortSignal): AsyncIterable<never> {

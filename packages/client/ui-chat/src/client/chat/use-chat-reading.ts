@@ -87,6 +87,30 @@ export class ChatReading {
     this.commit(landing, true, this.viewport.latestTurn)
   }
 
+  /**
+   * Follow the tail on the active fold's animation clock.
+   * @returns whether a fold batch owns the tail movement instead of a separate scroll animation.
+   */
+  followInputFold(): boolean {
+    this.cancelPending()
+    return this.viewport.followInputFold(this.follow)
+  }
+
+  /**
+   * Let fold batches read follow intent and commit their tail landings.
+   * @returns a disposer that disconnects this reading policy from the viewport.
+   */
+  bindFolds(): () => void {
+    return this.viewport.bindReader({
+      follow: this.follow,
+      landedAtTail: (landing) => {
+        this.cancelPending()
+        this.commit(landing, true, this.viewport.latestTurn)
+      },
+      pending: () => this.pending,
+    })
+  }
+
   /** Stop a native follow animation where it is; the next sampled position decides follow intent. */
   interruptFollow(): void {
     this.viewport.interruptFollow(this.follow)
@@ -252,6 +276,7 @@ export function useChatReading(
   const follow = useScrollFollow(state.followingTail, FOLLOW_THRESHOLD + 1)
   const [reading] = useState(() => new ChatReading(viewport, store, state, setState, follow))
   useLayoutEffect(() => { reading.setStore(store) }, [reading, store])
+  useLayoutEffect(() => reading.bindFolds(), [reading])
   useLayoutEffect(() => () => { reading.dispose() }, [reading])
   return { reading, state }
 }

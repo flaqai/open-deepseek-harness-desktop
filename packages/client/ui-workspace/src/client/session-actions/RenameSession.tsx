@@ -17,10 +17,12 @@ import css from '../rows/WorkspaceBrowser.module.css'
  * @returns the row.
  */
 export function RenameSessionMenuItem({
-  sessionId, displayTitle, useMenuOpenState, useShortcuts, requestSessionRename, t,
+  sessionId, displayTitle, useMenuOpenState, useShortcuts, requestSessionRename, useSessionAccess, t,
 }: SessionMenuItemProps<RenameSessionInjected>) {
   const [, setMenuOpen] = useMenuOpenState()
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'session.rename'))
+  const allowed = useSessionAccess(sessionId, 'session/rename')
+  if (!allowed) return null
   return (
     <MenuItemButton
       shortcut={shortcut}
@@ -44,7 +46,9 @@ export function RenameSessionMenuItem({
  * @param props - the request hook, its settlement, the rename hop, and the locale seat.
  * @returns the open dialog, or null.
  */
-export function SessionRenameDialog({ useRenameRequest, settleSessionRename, renameSession, t }: SessionRenameDialogProps) {
+export function SessionRenameDialog({
+  useRenameRequest, settleSessionRename, renameSession, useSessionAccess, t,
+}: SessionRenameDialogProps) {
   const request = useRenameRequest(pending => pending)
   if (request === null) return null
   return (
@@ -52,6 +56,7 @@ export function SessionRenameDialog({ useRenameRequest, settleSessionRename, ren
       key={request.sessionId}
       request={request}
       renameSession={renameSession}
+      useSessionAccess={useSessionAccess}
       onSettle={settleSessionRename}
       t={t}
     />
@@ -59,19 +64,21 @@ export function SessionRenameDialog({ useRenameRequest, settleSessionRename, ren
 }
 
 /** One request's dialog: the draft seeds from the request on mount; in-flight and error state die with it. */
-function RenameForm({ request, renameSession, onSettle, t }: {
+function RenameForm({ request, renameSession, onSettle, useSessionAccess, t }: {
   request: SessionRenameTarget
   renameSession: SessionRenameDialogInjected['renameSession']
   onSettle: () => void
   t: SessionRenameDialogProps['t']
+  useSessionAccess: SessionRenameDialogProps['useSessionAccess']
 }) {
   const [draft, setDraft] = useState(request.currentTitle)
   const [renaming, setRenaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // IME composition: Enter that commits a composition must not submit.
   const composingRef = useRef(false)
+  const allowed = useSessionAccess(request.sessionId, 'session/rename')
   const trimmed = draft.trim()
-  const blocked = renaming || trimmed === ''
+  const blocked = !allowed || renaming || trimmed === ''
   const close = () => {
     if (renaming) return
     onSettle()
@@ -90,7 +97,7 @@ function RenameForm({ request, renameSession, onSettle, t }: {
   }
   return (
     <Modal
-      open
+      open={allowed}
       onClose={close}
       closeLabel={t('close')}
       title={t('rename.session.title')}

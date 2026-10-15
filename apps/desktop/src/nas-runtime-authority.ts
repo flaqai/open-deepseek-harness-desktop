@@ -5,6 +5,8 @@ import type {
   NasDeviceSummary,
   NasDiscoveryCandidate,
   NasHealth,
+  NasInvitation,
+  NasRole,
   NasPairingRequest,
   NasPairingResponse,
   NasRuntimeRecord,
@@ -27,6 +29,9 @@ export type NasRuntimeOperation =
   | { readonly kind: 'remove'; readonly serverId: string }
   | { readonly kind: 'test'; readonly serverId: string }
   | { readonly kind: 'list-devices'; readonly serverId: string }
+  | { readonly kind: 'me'; readonly serverId: string }
+  | { readonly kind: 'invite'; readonly serverId: string; readonly role: NasRole }
+  | { readonly kind: 'set-device-role'; readonly serverId: string; readonly deviceId: string; readonly role: NasRole }
   | { readonly kind: 'revoke-device'; readonly serverId: string; readonly deviceId: string }
 
 interface NasRuntimeOperationResults {
@@ -37,6 +42,9 @@ interface NasRuntimeOperationResults {
   readonly remove: NasRuntimeStatus
   readonly test: { readonly healthy: true; readonly version: string }
   readonly 'list-devices': readonly NasDeviceSummary[]
+  readonly me: NasDeviceSummary
+  readonly invite: NasInvitation
+  readonly 'set-device-role': readonly NasDeviceSummary[]
   readonly 'revoke-device': readonly NasDeviceSummary[]
 }
 
@@ -51,6 +59,9 @@ export interface NasRuntimeNetworkAdapter {
   health(baseUrl: string, token: string): Promise<NasHealth>
   pair(request: NasPairingRequest): Promise<NasPairingResponse>
   devices(baseUrl: string, token: string): Promise<readonly NasDeviceSummary[]>
+  me(baseUrl: string, token: string): Promise<NasDeviceSummary>
+  invite(baseUrl: string, token: string, role: NasRole): Promise<NasInvitation>
+  setDeviceRole(baseUrl: string, token: string, deviceId: string, role: NasRole): Promise<readonly NasDeviceSummary[]>
   revokeDevice(baseUrl: string, token: string, deviceId: string): Promise<readonly NasDeviceSummary[]>
 }
 
@@ -143,6 +154,20 @@ export class DesktopNasRuntimeAuthority {
         return await this.options.network.devices(
           server.baseUrl,
           credential.token,
+        ) as NasRuntimeOperationResult<Operation>
+      }
+      case 'me': {
+        const { server, credential } = this.#requireAccess(operation.serverId, 'desktop: NAS credential is unavailable')
+        return await this.options.network.me(server.baseUrl, credential.token) as NasRuntimeOperationResult<Operation>
+      }
+      case 'invite': {
+        const { server, credential } = this.#requireAccess(operation.serverId, 'desktop: NAS credential is unavailable')
+        return await this.options.network.invite(server.baseUrl, credential.token, operation.role) as NasRuntimeOperationResult<Operation>
+      }
+      case 'set-device-role': {
+        const { server, credential } = this.#requireAccess(operation.serverId, 'desktop: NAS credential is unavailable')
+        return await this.options.network.setDeviceRole(
+          server.baseUrl, credential.token, operation.deviceId, operation.role,
         ) as NasRuntimeOperationResult<Operation>
       }
       case 'revoke-device': {

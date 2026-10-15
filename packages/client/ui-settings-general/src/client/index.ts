@@ -197,7 +197,7 @@ export function apply(ctx: ClientContext): void {
       sectionOrder: sectionOrderSource,
     },
     setSectionOrder: async (ids) => {
-      if (navigationOrder.getSnapshot().mode === 'memory' || !navigationOrder.getSnapshot().writable) {
+      if (!ctx.remote.$host.isLoopback || !navigationOrder.getSnapshot().writable) {
         memorySectionOrder = [...ids]
         for (const listener of memorySectionOrderListeners) listener()
         return

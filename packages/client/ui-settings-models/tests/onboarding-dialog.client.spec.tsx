@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import Schema from '@deepseek-ai/schemastery'
 import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
-import { bindSnapshotSelector, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { DeepSeekOnboardingDialog } from '../src/client/DeepSeekOnboardingDialog.tsx'
 import type { DeepSeekOnboardingDialogProps } from '../src/client/DeepSeekOnboardingDialog.tsx'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
@@ -152,6 +152,7 @@ function harness(options: {
     useSessionStatus,
     usePanelInfo, useSessionRetainInfo: () => undefined, useResource,
     useWorkspaces: unusedHook,
+    ...allowAllAccess,
     controller,
     useModels: bindSnapshotSelector(controller.store),
     operations,
@@ -165,6 +166,14 @@ function harness(options: {
 }
 
 describe('DeepSeekOnboardingDialog', () => {
+  it('does not read credentials or block a device without settings authority', async () => {
+    const h = harness()
+    const load = vi.spyOn(h.controller, 'load')
+    render(<DeepSeekOnboardingDialog {...h.props} useRemoteAccess={() => false} />)
+    await waitFor(() => { expect(h.complete).toHaveBeenCalled() })
+    expect(load).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
   it('renders when the shell root is absent', async () => {
     const h = harness()
     document.getElementById('root')!.remove()

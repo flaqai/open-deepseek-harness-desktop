@@ -9,6 +9,17 @@
 const HEALTH_SCHEMA = 'open-deepseek-harness/nas-health/v1' as const
 const PAIRING_SCHEMA = 'open-deepseek-harness/nas-pairing/v1' as const
 
+/** Shared-library device permissions; these do not isolate operating-system users. */
+export type NasRole = 'admin' | 'user' | 'readonly'
+
+/** Validate a role received from a durable record or network request.
+ * @param value - untrusted role.
+ * @returns whether the value names one supported role.
+ */
+export function isNasRole(value: unknown): value is NasRole {
+  return value === 'admin' || value === 'user' || value === 'readonly'
+}
+
 /** Health document returned by a NAS Runtime. */
 export interface NasHealthDocument {
   readonly schema: typeof HEALTH_SCHEMA
@@ -35,6 +46,8 @@ export interface NasPairingDocument {
   readonly token: string
   readonly expiresAt: string
   readonly health: NasHealthDocument
+  /** Assigned by the server invitation, never by the joining client. */
+  readonly role?: NasRole
 }
 
 /** Renderer-safe summary of one Paired Device. */
@@ -43,6 +56,10 @@ export interface NasDeviceSummary {
   readonly name: string
   readonly createdAt: string
   readonly expiresAt: string
+  /** Absent only in responses from older servers, whose devices had full access. */
+  readonly role?: NasRole
+  /** Administrator-only indication that legacy devices retained full access during migration. */
+  readonly rolesMigrated?: boolean
 }
 
 /** JSON document returned by both device-management operations. */
@@ -122,7 +139,8 @@ function parsePairRequest(raw: unknown): NasPairRequest {
 
 function parsePairing(raw: unknown): NasPairingDocument {
   if (!isRecord(raw) || raw.schema !== PAIRING_SCHEMA || !nonEmpty(raw.deviceId)
-    || !nonEmpty(raw.token) || raw.token.length < 32 || !isoDate(raw.expiresAt)) {
+    || !nonEmpty(raw.token) || raw.token.length < 32 || !isoDate(raw.expiresAt)
+    || (raw.role !== undefined && !isNasRole(raw.role))) {
     throw new NasProtocolViolation('pairing')
   }
   let health: NasHealthDocument
@@ -131,15 +149,19 @@ function parsePairing(raw: unknown): NasPairingDocument {
   } catch {
     throw new NasProtocolViolation('pairing')
   }
-  return { schema: PAIRING_SCHEMA, deviceId: raw.deviceId, token: raw.token, expiresAt: raw.expiresAt, health }
+  return { schema: PAIRING_SCHEMA, deviceId: raw.deviceId, token: raw.token, expiresAt: raw.expiresAt, health,
+    ...(raw.role === undefined ? {} : { role: raw.role }) }
 }
 
 function parseDevice(raw: unknown): NasDeviceSummary {
   if (!isRecord(raw) || !nonEmpty(raw.id) || !nonEmpty(raw.name)
-    || !isoDate(raw.createdAt) || !isoDate(raw.expiresAt)) {
+    || !isoDate(raw.createdAt) || !isoDate(raw.expiresAt)
+    || (raw.role !== undefined && !isNasRole(raw.role))) {
     throw new NasProtocolViolation('devices')
   }
-  return { id: raw.id, name: raw.name, createdAt: raw.createdAt, expiresAt: raw.expiresAt }
+  return { id: raw.id, name: raw.name, createdAt: raw.createdAt, expiresAt: raw.expiresAt,
+    ...(raw.role === undefined ? {} : { role: raw.role }),
+    ...(raw.rolesMigrated === true ? { rolesMigrated: true } : {}) }
 }
 
 function parseDevices(raw: unknown): NasDevicesDocument {

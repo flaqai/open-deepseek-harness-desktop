@@ -28,7 +28,7 @@ function bench() {
     return true
   })
   const snapshot = (): ConfigFormSnapshot<CustomInstructionSettings> => ({
-    status: 'ready', value, base: undefined, user: value, revision, writable: true, mode: 'host',
+    status: 'ready', value, base: undefined, user: value, revision, writable: true,
   })
   const scope: ConfigForm<CustomInstructionSettings> = {
     getSnapshot: snapshot,

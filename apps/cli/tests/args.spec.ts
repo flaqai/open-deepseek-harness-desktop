@@ -21,6 +21,16 @@ function exitCode(argv: string[], manageDesktopProfile = false): number {
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('parseDshArgs', () => {
+  it('routes NAS recovery only through an explicit local management command', () => {
+    expect(parse(['nas-admin-recovery'])).toEqual({ mode: 'nas-admin-recovery' })
+    expect(parse(['nas-admin-recovery', '--credentials-file', '/server/private.yaml']))
+      .toEqual({ mode: 'nas-admin-recovery', credentialsFile: '/server/private.yaml' })
+    expect(parse(['--profile', 'nas-admin-recovery'])).toMatchObject({ mode: 'profile', profile: 'nas-admin-recovery' })
+    expect(exitCode(['nas-admin-recovery', '--credentials-file', ''])).toBe(1)
+    expect(exitCode(['nas-admin-recovery', '--remote', 'https://example.invalid'])).toBe(1)
+    expect(exitCode(['nas-admin-recovery', 'unexpected'])).toBe(1)
+  })
+
   it('routes profile boots and shorthand, handing the rest to the app', () => {
     expect(parse(['--profile', 'tui'])).toEqual({ mode: 'profile', profile: 'tui', patches: [], args: [] })
     expect(parse(['--profile', 'tui', '--patch', 'a.yml', '--patch', 'b.yml']))

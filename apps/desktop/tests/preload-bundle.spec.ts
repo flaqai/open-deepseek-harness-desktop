@@ -31,7 +31,7 @@ it('boots every bundled preload before DOM globals are available with only Elect
       const invoke = vi.fn(() => Promise.resolve({ error: '' }))
       const require = vi.fn((id: string) => {
         if (id !== 'electron') throw new Error(`Sandbox cannot require ${id}`)
-        return { contextBridge: { exposeInMainWorld }, ipcRenderer: { invoke } }
+        return { contextBridge: { exposeInMainWorld }, ipcRenderer: { invoke, on: vi.fn(), removeListener: vi.fn() } }
       })
       runInNewContext(await readFile(join(outDir, `${name}.cjs`), 'utf8'), {
         require, window: { addEventListener }, location: { protocol: 'dsh-app:', hostname: 'app' },
@@ -65,7 +65,10 @@ it('boots every bundled preload before DOM globals are available with only Elect
         const remoteExposeInMainWorld = vi.fn()
         const remoteRequire = vi.fn((id: string) => {
           if (id !== 'electron') throw new Error(`Sandbox cannot require ${id}`)
-          return { contextBridge: { exposeInMainWorld: remoteExposeInMainWorld }, ipcRenderer: { invoke } }
+          return {
+            contextBridge: { exposeInMainWorld: remoteExposeInMainWorld },
+            ipcRenderer: { invoke, on: vi.fn(), removeListener: vi.fn() },
+          }
         })
         runInNewContext(await readFile(join(outDir, `${name}.cjs`), 'utf8'), {
           require: remoteRequire,

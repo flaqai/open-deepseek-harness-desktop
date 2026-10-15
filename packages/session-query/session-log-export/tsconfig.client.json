@@ -15,6 +15,7 @@
     "src/css-modules.d.ts"
   ],
   "references": [
+    { "path": "../../api/remote-access/tsconfig.client.json" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../client/locale/tsconfig.client.json" },
     { "path": "../../client/store" },

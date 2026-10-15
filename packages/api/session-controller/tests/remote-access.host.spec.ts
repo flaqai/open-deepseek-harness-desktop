@@ -1,0 +1,290 @@
+/**
+ * Session Controller under non-owner callers: the Session resource kind it
+ * registers, the Session readers of `session/page` and `session/follow`,
+ * `session/list`, `session/search`, and `session/control` called through a
+ * `global` role and filtered per Session through `remoteAccess.allows()`, the caller recorded
+ * on prompt sources, and `session/projections` admitted per Session through
+ * the Gateway.
+ */
+
+import { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
+import TypertGatewayService from '@deepseek-ai/dsh-api-gateway'
+import type { RemoteAccessBinding, RemoteAccessRole } from '@deepseek-ai/dsh-api-remote-access'
+import { createUserMessage, LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
+import { Peer } from '@deepseek-ai/dsh-client-connection'
+import { NasAccess } from '@deepseek-ai/dsh-client-connection/src/nas-access.ts'
+import { installNasPolicy } from '@deepseek-ai/dsh-client-connection/src/nas-policy.ts'
+import { MemoryCredentials } from '../../../credentials/credentials/tests/memory.ts'
+import { SessionId } from '@deepseek-ai/dsh-session'
+import { remoteMethods, type PeerId, type PeerScope, type Principal, type RemoteInvocation } from '@deepseek-ai/dsh-typert-protocol'
+import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type SessionController from '../src/index.ts'
+import { ApiSessionList } from '../src/list.ts'
+import type { SessionControlFrame, SessionRequestId, SessionSearchValue } from '../src/types.ts'
+import { createSessionTestController, testSessionPersistence } from './test-remote.ts'
+
+declare module '@deepseek-ai/dsh-typert-protocol' {
+  interface PrincipalMap {
+    /** Test-only non-owner caller shared by the access specs. */
+    'test-guest': { readonly kind: 'test-guest'; readonly guest: string }
+  }
+}
+
+const OWNER: Principal = { kind: 'owner' }
+const GUEST: Principal = { kind: 'test-guest', guest: 'session-controller' }
+const SHARED = SessionId('shared-session')
+const PRIVATE = SessionId('private-session')
+
+/** Calls the Session list and control methods; each item still needs a Session role. */
+const LISTER: RemoteAccessRole<'global'> = { name: 'test:session-lister', resource: 'global', actions: ['session/list', 'session/control'] }
+/** Reads one Session: its list row, its control projections, and its stored projections. */
+const READER: RemoteAccessRole<'session'> = {
+  name: 'test:session-reader', resource: 'session', actions: ['session/list', 'session/control', 'session/projections'],
+}
+const LIST_CALLS: RemoteAccessBinding = { role: LISTER, resource: { kind: 'global' } }
+const READS_SHARED: RemoteAccessBinding = { role: READER, resource: { kind: 'session', id: SHARED } }
+const SEARCH_CALLS: RemoteAccessBinding = {
+  role: { name: 'test:session-searcher', resource: 'global', actions: ['session/search'] },
+  resource: { kind: 'global' },
+}
+const SEARCHES_SHARED: RemoteAccessBinding = {
+  role: { name: 'test:session-search-reader', resource: 'session', actions: ['session/search'] },
+  resource: { kind: 'session', id: SHARED },
+}
+
+const owned = new Set<Context>()
+afterEach(async () => {
+  await Promise.all([...owned].map(ctx => ctx.fiber.dispose()))
+  owned.clear()
+})
+
+/**
+ * Register the guest policy.
+ * @returns the bindings the policy answers with; edits apply from the next Remote call.
+ */
+function guestPolicy(ctx: Context, ...bindings: RemoteAccessBinding[]): RemoteAccessBinding[] {
+  const held = [...bindings]
+  ctx.remoteAccess.registerPolicy('test-guest', { bindings: () => held })
+  return held
+}
+
+/** Invoke `session/<method>` as the guest through the Gateway. */
+function guestCall(ctx: Context, method: string, args: Readonly<Record<string, unknown>>): Promise<unknown> {
+  const peer: PeerScope = { id: 'session-access-peer' as PeerId, ctx, principal: GUEST, interactions: 'answer', signal: new AbortController().signal, dispose: async () => {} }
+  return ctx.typertGateway.invoke({ peer, namespace: 'session', method, args })
+}
+
+async function harness(options: { provider?: string; model?: string } = {}): Promise<{
+  readonly ctx: Context
+  readonly controller: SessionController
+  readonly shared: Agent
+  readonly hidden: Agent
+  /** The Context a Gateway dispatch of `session/<method>` binds for `principal`. */
+  readonly as: (principal: Principal, method: string) => Context
+}> {
+  const ctx = new Context()
+  owned.add(ctx)
+  await ctx.plugin(TypertRegistry)
+  await mountAgentLoopTestDependencies(ctx)
+  const loop = await mountAgentLoopTestHarness(ctx)
+  const shared = await loop.create(SHARED, options)
+  const hidden = await loop.create(PRIVATE)
+  const controller = createSessionTestController(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
+  const as = (principal: Principal, method: string): Context => {
+    const invocation: RemoteInvocation = {
+      request: { namespace: 'session', method, args: {} },
+      service: 'sessionController',
+      peer: { id: 'session-access-peer' as PeerId, ctx, principal, interactions: 'answer', signal: new AbortController().signal, dispose: async () => {} },
+      signal: new AbortController().signal,
+      uplink: <In>(): AsyncIterable<In> => ({ [Symbol.asyncIterator]: () => ({ next: async () => ({ done: true, value: undefined }) }) }),
+    }
+    return ctx.extend({ invocation })
+  }
+  return { ctx, controller, shared, hidden, as }
+}
+
+function message(text: string) {
+  return createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'user' } })
+}
+
+describe('Session Controller access', () => {
+  it.each([false, true])('records the active NAS task caller, including queued successor=%s', async (queuedSuccessor) => {
+    const { ctx, shared } = await harness({ provider: 'p', model: 'm' })
+    const failures: unknown[] = []
+    ctx.on('agent/error', ({ error }) => { failures.push(error) })
+    const entered = Promise.withResolvers<boolean>()
+    const nextEntered = Promise.withResolvers<boolean>()
+    const finishFirst = Promise.withResolvers<boolean>()
+    let calls = 0
+    class WaitingAdapter extends LlmAdapter {
+      async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+        calls += 1
+        if (calls === 1) entered.resolve(true)
+        else nextEntered.resolve(true)
+        if (queuedSuccessor && calls === 1) {
+          await finishFirst.promise
+          yield { type: 'finish', reason: { kind: 'stop' } }
+          return
+        }
+        if (!options.signal?.aborted) await new Promise<boolean>((resolve) => {
+          options.signal?.addEventListener('abort', () => { resolve(true) }, { once: true })
+        })
+        yield { type: 'finish', reason: { kind: 'aborted', failure: { code: 'UNKNOWN', message: 'Test task cancelled' } } }
+      }
+    }
+    ctx.llm.registerAdapter(['p'], new WaitingAdapter())
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const access = await NasAccess.create(new MemoryCredentials(ctx), {
+      enabled: true, name: 'NAS', version: 'test', protocolVersion: 1, trustedHosts: [], deviceLifetimeDays: 90,
+    })
+    vi.spyOn(access, 'device').mockImplementation(id => ({ id, role: 'user', name: id,
+      createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 100_000).toISOString() }))
+    ctx.provide('sessionPersistence', testSessionPersistence(ctx, { list: async () => [] }))
+    ctx.provide('workspaceRegistry', { list: () => [], archivedSessionIds: [], pinnedSessionIds: [] } as never)
+    await installNasPolicy(ctx, access)
+    await ctx.plugin(TypertGatewayService)
+    const first = new Peer(ctx, { principal: { kind: 'nas', deviceId: 'first' } })
+    const other = new Peer(ctx, { principal: { kind: 'nas', deviceId: 'other' } })
+    const invoke = (peer: PeerScope, method: string, request: object) => ctx.typertGateway.invoke({
+      peer, namespace: 'session', method, args: { request },
+    })
+    await expect(invoke(first, 'prompt', {
+      sessionId: SHARED, requestId: 'nas-owned-request', mode: 'queue', content: [{ type: 'text', text: 'Hold this task' }],
+    })).resolves.toEqual({ accepted: true })
+    await Promise.race([entered.promise, shared.whenIdle().then(() => {
+      throw new Error(`Task ended before the adapter started: ${failures.map(error => error instanceof Error ? error.stack : String(error)).join('; ')}`)
+    })])
+    expect(shared.status).toBe('running')
+    await expect(invoke(other, 'cancel', { sessionId: SHARED })).rejects.toMatchObject({ code: 'remote-access/denied' })
+    if (queuedSuccessor) {
+      await expect(invoke(other, 'prompt', {
+        sessionId: SHARED, requestId: 'nas-queued-request', mode: 'queue', content: [{ type: 'text', text: 'Queued task' }],
+      })).resolves.toEqual({ accepted: true })
+      await expect(invoke(other, 'cancel', { sessionId: SHARED })).rejects.toMatchObject({ code: 'remote-access/denied' })
+      finishFirst.resolve(true)
+      await nextEntered.promise
+      await expect(invoke(first, 'cancel', { sessionId: SHARED })).rejects.toMatchObject({ code: 'remote-access/denied' })
+      await expect(invoke(other, 'cancel', { sessionId: SHARED })).resolves.toEqual({ accepted: true })
+    } else {
+      await expect(invoke(first, 'cancel', { sessionId: SHARED })).resolves.toEqual({ accepted: true })
+    }
+    await shared.whenIdle()
+    expect(shared.status).toBe('idle')
+    await expect(invoke(first, 'cancel', { sessionId: SHARED })).rejects.toMatchObject({ code: 'remote-access/denied' })
+  })
+  it('owns the Session resource kind and its default sessionId field', async () => {
+    const { ctx } = await harness()
+    expect(() => ctx.typert.resources.register('session', { field: 'sessionId' })).toThrow(/already registered/)
+  })
+
+  it('reads the Session resource of page and follow requests from the addressed Session', async () => {
+    const { controller } = await harness()
+    for (const method of ['page', 'follow']) {
+      const reader = remoteMethods(controller).find(marker => marker.method === method)?.resources?.['session']
+      expect(reader?.({ address: { kind: 'session', sessionId: SHARED } })).toBe(SHARED)
+      // A subagent address reads the child transcript; whether the parent's access covers it is the policy's rule.
+      expect(reader?.({ address: { kind: 'subagent', parentSessionId: SHARED, childSessionId: PRIVATE } })).toBe(PRIVATE)
+    }
+  })
+
+  it('lets a global role call session/list and lists only the Sessions a Session role admits', async () => {
+    const { ctx, as } = await harness()
+    await ctx.plugin(TypertGatewayService)
+    const held = guestPolicy(ctx, LIST_CALLS, READS_SHARED)
+    const rows = async (): Promise<SessionId[]> => {
+      const value = await guestCall(ctx, 'list', { _request: {} }) as { readonly items: readonly { readonly sessionId: SessionId }[] }
+      return value.items.map(item => item.sessionId)
+    }
+    await expect(rows()).resolves.toEqual([SHARED])
+    // The global role admits the call, not any row.
+    held.splice(0, held.length, LIST_CALLS)
+    await expect(rows()).resolves.toEqual([])
+    // A Session role alone does not admit the call: the global resource does not inherit from it.
+    held.splice(0, held.length, READS_SHARED)
+    await expect(rows()).rejects.toMatchObject({
+      code: 'remote-access/denied', details: { action: 'session/list', reason: 'no-allow' },
+    })
+    const owner = await as(OWNER, 'list').sessionController.list({}, new AbortController().signal)
+    expect(owner.items.map(item => item.sessionId).sort()).toEqual([PRIVATE, SHARED].sort())
+  })
+
+  it('returns a non-owner only the session/search hits whose Session a Session role admits', async () => {
+    const { ctx, as } = await harness()
+    await ctx.plugin(TypertGatewayService)
+    guestPolicy(ctx, SEARCH_CALLS, SEARCHES_SHARED)
+    const hits: SessionSearchValue = {
+      items: [{ sessionId: PRIVATE, snippet: 'private hit' }, { sessionId: SHARED, snippet: 'shared hit' }],
+      hasMore: true,
+    }
+    vi.spyOn(ApiSessionList.prototype, 'search').mockResolvedValue(hits)
+    await expect(guestCall(ctx, 'search', { request: { query: 'hit' } })).resolves.toEqual({
+      items: [{ sessionId: SHARED, snippet: 'shared hit' }],
+      hasMore: true,
+    })
+    await expect(as(OWNER, 'search').sessionController.search({ query: 'hit' }, new AbortController().signal)).resolves.toEqual(hits)
+  })
+
+  it('filters session/control baselines and projection frames for a non-owner', async () => {
+    const { ctx, shared, hidden, as } = await harness()
+    guestPolicy(ctx, LIST_CALLS, READS_SHARED)
+    const abort = new AbortController()
+    const guest = as(GUEST, 'control').sessionController.control(abort.signal)[Symbol.asyncIterator]()
+    const owner = as(OWNER, 'control').sessionController.control(abort.signal)[Symbol.asyncIterator]()
+    const baselineSessions = async (iterator: AsyncIterator<SessionControlFrame>): Promise<string[]> => {
+      const next = await iterator.next()
+      if (next.done === true || next.value.type !== 'baseline') throw new Error('control stream opened without a baseline')
+      return Object.keys(next.value.value.projections).sort()
+    }
+    expect(await baselineSessions(guest)).toEqual([SHARED])
+    expect(await baselineSessions(owner)).toEqual([PRIVATE, SHARED].sort())
+
+    hidden.inbox.append('next-turn', message('private work'))
+    shared.inbox.append('next-turn', message('shared work'))
+    const projected = async (iterator: AsyncIterator<SessionControlFrame>): Promise<SessionId> => {
+      for (;;) {
+        const next = await iterator.next()
+        if (next.done === true) throw new Error('control stream ended')
+        if (next.value.type === 'projection' && next.value.key === 'inbox') return next.value.sessionId
+      }
+    }
+    // The owner sees the private Session's frame first; the guest's first Inbox frame is the shared one.
+    expect(await projected(owner)).toBe(PRIVATE)
+    expect(await projected(guest)).toBe(SHARED)
+    abort.abort()
+    await Promise.all([guest.return?.(), owner.return?.()])
+  })
+
+  it('records a non-owner caller on the prompt source and leaves owner sources unchanged', async () => {
+    const { shared, as } = await harness()
+    const signal = new AbortController().signal
+    const prompt = (principal: Principal, requestId: string) => as(principal, 'prompt').sessionController.prompt({
+      sessionId: SHARED,
+      requestId: requestId as SessionRequestId,
+      mode: 'queue',
+      content: [{ type: 'text', text: `from ${principal.kind}` }],
+    }, signal)
+    await expect(prompt(GUEST, 'guest-1')).resolves.toEqual({ accepted: true })
+    await expect(prompt(OWNER, 'owner-1')).resolves.toEqual({ accepted: true })
+    // The durable Inbox splice records each accepted message with its source.
+    const logged = shared.session.snapshotEvents()
+      .flatMap(event => event.type === 'agent/inbox/spliced' ? event.data.inserted.map(item => item.source) : [])
+    expect(logged).toEqual([
+      { kind: 'user', rpcId: 'guest-1', principal: GUEST },
+      { kind: 'user', rpcId: 'owner-1' },
+    ])
+  })
+
+  it('lets a non-owner read projections only in a Session its Session role names', async () => {
+    const { ctx } = await harness()
+    await ctx.plugin(TypertGatewayService)
+    guestPolicy(ctx, READS_SHARED)
+    const projections = (sessionId: SessionId): Promise<unknown> => guestCall(ctx, 'projections', { request: { sessionId } })
+    await expect(projections(SHARED)).resolves.toMatchObject({ kind: 'sequenced' })
+    await expect(projections(PRIVATE)).rejects.toMatchObject({
+      code: 'remote-access/denied', details: { action: 'session/projections', reason: 'no-allow' },
+    })
+  })
+})

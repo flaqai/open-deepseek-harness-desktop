@@ -363,11 +363,11 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 ### 预设插件
 
-安装包携带十个启动预设的完整性校验归档及按平台预构建的完整 Profile，其中包括插件市场、`dsh-im`、Better Sidebar 和 `@agents-anywhere/dsh-bridge-next`。Agents Anywhere 默认关闭；在“工具 → 远程控制”主动启用后，可选择 AA Cloud 或自建服务，登录并连接手机。它只连接本机 Profile；NAS 模式不启动本机 Connector。首次准备优先部署完整模板，不需要临时联网或逐个运行插件安装；包内归档仍用于维修和兼容回退。普通传递依赖继续由 Profile 的 pnpm 解析规则管理。
+安装包携带九个启动预设的完整性校验归档及按平台预构建的完整 Profile，其中包括插件市场、`dsh-im`、Better Sidebar 和 `@agents-anywhere/dsh-bridge-next`。Agents Anywhere 默认关闭；在“工具 → 远程控制”主动启用后，可选择 AA Cloud 或自建服务，登录并连接手机。它只连接本机 Profile；NAS 模式不启动本机 Connector。首次准备优先部署完整模板，不需要临时联网或逐个运行插件安装；包内归档仍用于维修和兼容回退。普通传递依赖继续由 Profile 的 pnpm 解析规则管理。
 
 #### 预设插件致谢
 
-感谢这些启动预设的作者与维护者：[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) 和 [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)。本项目负责桌面集成和经过校验的原样归档分发；各插件的代码、素材、许可证与后续维护归各自项目。
+感谢现有及历史启动预设的作者与维护者：[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) 和 [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)。本项目负责桌面集成和经过校验的原样归档分发；各插件的代码、素材、许可证与后续维护归各自项目。
 
 <p align="center">
   <img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="旧版 dsh-pocket 手机访问界面">

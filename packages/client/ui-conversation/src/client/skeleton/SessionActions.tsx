@@ -136,14 +136,15 @@ export function SessionActions({
 
 /** Contribute only "Delete session" to the official Session-log actions menu. */
 export function SessionRemovalMenuItem({
-  useSession, registerMenuItem, archive, t,
+  useSession, useRemoteAccess, registerMenuItem, archive, t,
 }: SessionRemovalMenuItemProps): ReactNode {
+  const allowed = useRemoteAccess('workspace/archiveSession')
   const running = useSession(value => value.running)
   const [confirmation, setConfirmation] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => registerMenuItem({
+  useEffect(() => allowed ? registerMenuItem({
     id: 'conversation-session-remove',
     order: 100,
     item: {
@@ -156,7 +157,7 @@ export function SessionRemovalMenuItem({
     onSelect: (id) => {
       if (id === 'conversation-session-remove') setConfirmation(true)
     },
-  }), [registerMenuItem, running, t])
+  }) : undefined, [allowed, registerMenuItem, running, t])
 
   const close = (): void => {
     if (busy) return
@@ -174,6 +175,7 @@ export function SessionRemovalMenuItem({
     })
   }
 
+  if (!allowed) return null
   return (
     <Modal
       open={confirmation}

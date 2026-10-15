@@ -67,16 +67,6 @@
       "integrity": "sha512-R1eqlPP901e64pv+VEmWIm5gEJY45vZUHap6jv2Fs508kUlVUwAJvOselnmbG4K/3rf7E0ksRAeRc6BgPcbLnQ=="
     },
     {
-      "seedId": "dsh-smooth-stream",
-      "packageName": "dsh-smooth-stream",
-      "version": "0.6.1",
-      "profile": "web",
-      "installPolicy": "startup",
-      "registrySpec": "dsh-smooth-stream@0.6.1",
-      "archive": "dsh-smooth-stream-0.6.1.tgz",
-      "integrity": "sha512-gikVy5Wo5O7wUMOnd6cLCP/NA1fy+XOrhAiWoucjTDoLrfwu/88mK6jltv7Uv1jD4hf68j80oUArS9KnPQztCw=="
-    },
-    {
       "seedId": "dsh-mermaid",
       "packageName": "dsh-mermaid",
       "version": "0.4.1",

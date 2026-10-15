@@ -10,6 +10,7 @@ import { watchConfig } from '../src/watch-config.ts'
 import Hmr from '@deepseek-ai/dsh-hmr'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Timer from '@deepseek-ai/cordis-plugin-timer'
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 vi.mock('node:fs/promises', async (importOriginal) => {
   const native = await importOriginal<typeof import('node:fs/promises')>()
@@ -65,6 +66,47 @@ async function eventually(test: () => boolean, message: string, budget: number):
 describe('HMR exact config paths', () => {
   afterEach(() => {
     for (const root of hmrRoots.splice(0)) rmSync(root, { recursive: true, force: true })
+  })
+
+  it.for([false, true])('polls only the config target through an alias (missing parents: %s)', async (missingParents) => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-config-target-'))
+    hmrRoots.push(root)
+    const target = join(root, 'target')
+    const alias = join(root, 'alias')
+    mkdirSync(target)
+    symlinkSync(target, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    const filename = join(alias, ...(missingParents ? ['later', 'nested'] : []), 'package.json')
+    const sibling = join(alias, 'package.json.lock')
+    writeFileSync(sibling, 'held')
+    if (!missingParents) writeFileSync(filename, 'initial')
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    const observed: string[] = []
+    await watchConfig(ctx, filename, { interval: 20 }, () => { observed.push(readFileSync(filename, 'utf8')) })
+    writeFileSync(sibling, 'sibling-only-change')
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(observed).toEqual([])
+    await writeFileAtomic(filename, 'created', { mode: 0o600 })
+    await vi.waitFor(() => { expect(observed).toContain('created') })
+    await writeFileAtomic(filename, 'replaced', { mode: 0o600 })
+    await vi.waitFor(() => { expect(observed).toContain('replaced') })
+  })
+
+  it('observes a consecutive write made by the applied configuration', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-config-consecutive-'))
+    hmrRoots.push(root)
+    const filename = join(root, 'package.json')
+    writeFileSync(filename, 'initial')
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    const observed: string[] = []
+    await watchConfig(ctx, filename, { interval: 20 }, () => {
+      const value = readFileSync(filename, 'utf8')
+      observed.push(value)
+      if (value === 'enabled') writeFileSync(filename, 'disabled')
+    })
+    writeFileSync(filename, 'enabled')
+    await vi.waitFor(() => { expect(observed).toEqual(['enabled', 'disabled']) })
   })
 
   it('observes module changes when its watch base is a filesystem alias', { timeout: 30_000 }, async () => {

@@ -43,8 +43,9 @@ export type SetupWizardProps = PropsRuntime<'settings.onboarding'> & InjectFace<
 export function SetupWizard(props: SetupWizardProps): ReactNode {
   const {
     complete, openSection, modelsController, welcomeController,
-    useModels, useWelcome, useLocale, setLocale, t,
+    useModels, useWelcome, useLocale, useRemoteAccess, setLocale, t,
   } = props
+  const canConfigure = useRemoteAccess('settings/mutate')
   const models = useModels(snapshot => snapshot)
   const welcome = useWelcome(snapshot => snapshot)
   const locale = useLocale(snapshot => snapshot)
@@ -53,24 +54,25 @@ export function SetupWizard(props: SetupWizardProps): ReactNode {
   const titleRef = useRef<HTMLHeadingElement | null>(null)
 
   useEffect(() => {
-    if (models.status === 'idle') void modelsController.load()
-  }, [models.status, modelsController])
+    if (canConfigure && models.status === 'idle') void modelsController.load()
+  }, [canConfigure, models.status, modelsController])
 
   useEffect(() => {
-    if (welcome.status === 'idle') void welcomeController.load()
-  }, [welcome.status, welcomeController])
+    if (canConfigure && welcome.status === 'idle') void welcomeController.load()
+  }, [canConfigure, welcome.status, welcomeController])
 
   useEffect(() => {
-    if (welcome.acknowledged) complete()
-  }, [complete, welcome.acknowledged])
+    if (!canConfigure || welcome.acknowledged) complete()
+  }, [canConfigure, complete, welcome.acknowledged])
 
   useEffect(() => {
+    if (!canConfigure) return
     const appRoot = document.getElementById('root')
     if (appRoot === null) return
     const previous = appRoot.inert
     appRoot.inert = true
     return () => { appRoot.inert = previous }
-  }, [])
+  }, [canConfigure])
 
   useEffect(() => { titleRef.current?.focus() }, [])
 
@@ -109,7 +111,7 @@ export function SetupWizard(props: SetupWizardProps): ReactNode {
     t('setup.step.codex'), t('setup.step.ready'),
   ]
 
-  if (welcome.status === 'idle' || welcome.status === 'loading' || welcome.acknowledged) return null
+  if (!canConfigure || welcome.status === 'idle' || welcome.status === 'loading' || welcome.acknowledged) return null
 
   return (
     <Modal open title={t('setup.title')} onClose={() => {

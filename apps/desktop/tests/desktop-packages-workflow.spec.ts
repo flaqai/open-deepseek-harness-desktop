@@ -195,15 +195,14 @@ describe('desktop package workflow bundled plugins', () => {
     expect(preflight?.if).toContain("inputs.target == 'windows-x64'")
     expect(preflight?.steps?.some(step => (
       step.name === 'Verify Windows packaging and candidate contracts'
-      && step.run?.includes('windows-package-candidate.test.mjs')
-      && step.run?.includes('runtime-deploy-config.test.mjs')
+      && step.run === 'node apps/desktop/scripts/desktop-smoke.mjs contracts windows-x64'
     ))).toBe(true)
     expect(preflight?.steps?.find(step => step.name === 'Verify Windows runner protocol')?.run)
       .toContain('packages/subprocess/subprocess-local/tests/spawn-runner.spec.ts')
     expect(build?.steps?.some(step => step.name === 'Verify Windows runner protocol')).toBe(false)
     expect(build?.steps?.some(step => step.run === 'pnpm run build:community-desktop')).toBe(true)
     expect(build?.steps?.some(step => step.run === 'node apps/desktop/scripts/prepare-windows-runtime.mjs')).toBe(true)
-    expect(build?.steps?.some(step => step.run === 'node apps/desktop/scripts/smoke-windows-unpacked.mjs')).toBe(true)
+    expect(build?.steps?.some(step => step.run === 'node apps/desktop/scripts/desktop-smoke.mjs unpacked windows-x64')).toBe(true)
     expect(build?.steps?.some(step => (
       step.name === 'Record Windows candidate identity'
       && step.run?.includes('windows-package-candidate.mjs create')
@@ -222,27 +221,16 @@ describe('desktop package workflow bundled plugins', () => {
     expect(smoke?.steps?.some(step => step.uses === 'pnpm/action-setup@v4')).toBe(false)
     expect(smoke?.steps?.some(step => step.run === 'pnpm install --frozen-lockfile')).toBe(false)
     expect(smoke?.steps?.some(step => step.uses === 'actions/setup-node@v6' && step.with?.cache === undefined)).toBe(true)
-    const evidenceCheck = smoke?.steps?.find(step => step.name === 'Verify Windows smoke evidence interface')
-    expect(evidenceCheck?.run).toContain('windows-smoke-journal.test.ps1')
-    expect(evidenceCheck?.run).toContain('node --test apps/desktop/scripts/collect-windows-smoke-evidence.test.mjs')
+    // Contract membership and always-run evidence collection are owned by desktop-smoke.test.mjs.
     expect(smoke?.steps?.some(step => (
       step.uses === 'actions/download-artifact@v4'
       && step.with?.name === 'bundled-plugin-snapshot'
       && step.with?.path === '.artifacts/bundled-plugin-snapshot'
     ))).toBe(true)
-    expect(smoke?.steps?.some(step => (
-      step.name === 'Verify Windows candidate identity'
-      && step.run?.includes('windows-package-candidate.mjs verify')
-    ))).toBe(true)
     expect(smoke?.steps?.some(step => step.name === 'Verify reused candidate commit')).toBe(false)
     expect(smoke?.steps?.some(step => step.with?.['run-id'] === '${{ inputs.windows_candidate_run_id || github.run_id }}')).toBe(true)
     const installedSmoke = smoke?.steps?.find(step => step.name === 'Smoke test installed Windows package')
-    expect(installedSmoke?.run).toBe('apps/desktop/scripts/smoke-windows-package.ps1')
-    expect(smoke?.steps?.some(step => (
-      step.name === 'Collect Windows smoke evidence'
-      && step.run === 'node apps/desktop/scripts/collect-windows-smoke-evidence.mjs'
-      && step['continue-on-error'] === true
-    ))).toBe(true)
+    expect(installedSmoke?.run).toBe('node apps/desktop/scripts/desktop-smoke.mjs package windows-x64')
     expect(smoke?.steps?.some(step => (
       step.name === 'Preserve Windows smoke evidence'
       && step.with?.name === 'qualification-windows-x64-evidence'

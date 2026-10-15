@@ -915,6 +915,36 @@ describe('client bundle activation', () => {
     expect((await routeRequest(route, url.replace(`rev=${row.rev}`, 'rev=stale'))).status).toBe(404)
   })
 
+  it('loads a renamed browser export at the logical URL without exposing Node bundles as chunks', async () => {
+    const packageName = '@fixture/dual-client'
+    const legacyPath = writePackage(packageName, {
+      dsh: { client: { platform: 'web' } },
+      exports: {
+        './client': {
+          types: './lib/types/client/index.d.ts',
+          node: './lib/client.node.js',
+          browser: './lib/client.browser.js',
+          default: './lib/client.browser.js',
+        },
+        './package.json': './package.json',
+      },
+    })
+    mkdirSync(dirname(legacyPath), { recursive: true })
+    writeFileSync(join(dirname(legacyPath), 'client.browser.js'), 'module.exports = { browser: true }\n')
+    for (const name of ['client.node.js', 'client.node.helper.js']) {
+      writeFileSync(join(dirname(legacyPath), name), 'throw new Error("Node code must not reach a browser")\n')
+    }
+    const { service, route } = constructWithRoute([packageName])
+    const row = service.graph().entries[0]!
+    expect(row.url).toContain(`${packageName}/client.js`)
+    expect((await routeRequest(route, row.url)).body.toString('utf8')).toContain('browser: true')
+    for (const name of ['client.node.js', 'client.node.helper.js']) {
+      for (const suffix of ['', '.map']) {
+        expect((await routeRequest(route, chunkReference(packageName, name + suffix, row.rev))).status).toBe(404)
+      }
+    }
+  })
+
   it('publishes a new chunk revision when a completed build rewrites only the entry timestamp', async () => {
     const packageName = '@fixture/chunk-only-rebuild'
     const clientPath = writePackage(packageName)

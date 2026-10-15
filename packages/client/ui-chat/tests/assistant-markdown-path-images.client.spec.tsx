@@ -4,10 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AssistantMarkdown, localPathMediaUrl } from '../src/client/chat/AssistantMarkdown.tsx'
 import { collectLocalPathImages } from '../src/client/chat/local-path-images.tsx'
 import { useDetailedPresentation } from './presentation-fixture.client.ts'
+import { unusedImageLoader } from './reasoning-component-fixture.tsx'
 import { useDisclosure } from '../src/client/chat/use-disclosure.ts'
 import { useSearchableHidden } from '../src/client/chat/searchable-hidden.ts'
-import type { ChatNodeOwnerProps, ChatViewSlotProps } from '../src/client/contract/slots.ts'
+import type { ChatViewSlotProps } from '../src/client/contract/slots.ts'
 import type { AssistantBlock } from '../src/client/contract/snapshot.ts'
+import type { MessageImagesOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 
 afterEach(() => {
   cleanup()
@@ -16,10 +18,15 @@ afterEach(() => {
 })
 
 const t = ((_key: string) => 'label') as ChatViewSlotProps['t']
-const renderMessageImages = (() => null) as ChatNodeOwnerProps['renderMessageImages']
 
 function textBlock(text: string): AssistantBlock {
   return { kind: 'text', text }
+}
+
+function isImageOwner(value: object): value is MessageImagesOwnerProps {
+  return 'images' in value && Array.isArray(value.images)
+    && 'loadImage' in value && typeof value.loadImage === 'function'
+    && 'align' in value && (value.align === 'start' || value.align === 'end')
 }
 
 const BASE = 'http://127.0.0.1:3080/'
@@ -107,7 +114,7 @@ describe('AssistantMarkdown local-path images', () => {
         usePresentation={useDetailedPresentation}
         blocks={[textBlock('See ![diagram](/tmp/graph.png) for the layout.')]}
         streaming={false}
-        renderMessageImages={renderMessageImages}
+        loadImage={unusedImageLoader}
         t={t}
       />,
     )
@@ -125,7 +132,7 @@ describe('AssistantMarkdown local-path images', () => {
         usePresentation={useDetailedPresentation}
         blocks={[textBlock('See ![diagram](relative.png).')]}
         streaming={false}
-        renderMessageImages={renderMessageImages}
+        loadImage={unusedImageLoader}
         t={t}
       />,
     )
@@ -138,12 +145,15 @@ describe('AssistantMarkdown local-path images', () => {
       status: 200,
       headers: { 'content-type': 'image/png' },
     })))
-    const calls: Array<Parameters<ChatNodeOwnerProps['renderMessageImages']>[0]> = []
+    const calls: MessageImagesOwnerProps[] = []
     const openFile = vi.fn()
     const revealFile = vi.fn()
     render(
       <AssistantMarkdown
-        renderSlot={() => null}
+        renderSlot={(_name, owner) => {
+          if (isImageOwner(owner)) calls.push(owner)
+          return <div data-testid="local-gallery" />
+        }}
         useGroupAction={useSearchableHidden}
         useDisclosure={useDisclosure}
         usePresentation={useDetailedPresentation}
@@ -152,10 +162,7 @@ describe('AssistantMarkdown local-path images', () => {
         cwd="/workspace"
         openFile={openFile}
         revealFile={revealFile}
-        renderMessageImages={(owner) => {
-          calls.push(owner)
-          return <div data-testid="local-gallery" />
-        }}
+        loadImage={unusedImageLoader}
         t={t}
       />,
     )
