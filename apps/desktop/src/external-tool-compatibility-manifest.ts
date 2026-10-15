@@ -43,8 +43,8 @@ export interface ExternalToolInstallResolution {
 /** Last-known-good pins shipped in the application and used only after signed lookup fails. */
 export const EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY: ExternalToolCompatibilityManifest = {
   schema: 'dsh/desktop-external-tool-compatibility/v2',
-  revision: 16,
-  desktopVersion: '0.2.1-alpha.2',
+  revision: 17,
+  desktopVersion: '0.2.1-alpha.3',
   reviewedSourceVersion: '0.2.1-alpha.3',
   issuedAt: '2026-10-15T00:00:00.000Z',
   expiresAt: '2027-04-15T00:00:00.000Z',

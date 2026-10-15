@@ -3,9 +3,11 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import manifestJson from '../external-tools/manifests/0.2.1-alpha.2/external-tools-compatibility.v2.json'
+import manifestJson from '../external-tools/manifests/0.2.1-alpha.3/external-tools-compatibility.v2.json'
+import publishedManifestJson from '../external-tools/manifests/0.2.1-alpha.2/external-tools-compatibility.v2.json'
 import { ExternalToolCompatibilityManager } from '../src/external-tool-compatibility.ts'
 import {
+  EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY,
   parseExternalToolCompatibilityManifest,
   resolveExternalToolCoordinate,
 } from '../src/external-tool-compatibility-manifest.ts'
@@ -51,6 +53,16 @@ function response(bytes: Uint8Array): Response {
 }
 
 describe('external tool compatibility', () => {
+  it('separates the new Desktop identity from the published alpha.2 coordinates', () => {
+    expect(manifestJson.desktopVersion).toBe('0.2.1-alpha.3')
+    expect(EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY).toEqual(manifestJson)
+    expect(publishedManifestJson.desktopVersion).toBe('0.2.1-alpha.2')
+    expect(publishedManifestJson.reviewedSourceVersion).toBe('0.2.1-alpha.2')
+    for (const toolId of ['codex', 'claude-code'] as const) {
+      expect(publishedManifestJson.tools[toolId].version).toBe('0.2.1-alpha.2')
+    }
+  })
+
   it('keeps reviewed providers and runtimes aligned with the source baseline', async () => {
     for (const toolId of ['codex', 'claude-code'] as const) {
       const provider = JSON.parse(await readFile(new URL(
