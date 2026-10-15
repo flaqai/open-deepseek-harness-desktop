@@ -73,8 +73,9 @@ export function parseBuildArguments(args: readonly string[]): BuildArguments {
  * after these libraries through `build:community-desktop`. The typecheck scope runs Host
  * compilation beside the bundle-free Typert pass, which reads only source, and then Client
  * compilation, which needs both outputs; it writes no bundle. In the complete and typecheck
- * scopes each aggregate check waits only for its own face's package compilation; alone, the
- * checks have no predecessors and read whatever declarations already exist. The typecheck scope
+ * scopes each aggregate check waits for its face's package compilation; the Host check also
+ * waits for Typert declarations imported by aggregate tests. Alone, the checks have no
+ * predecessors and read whatever declarations already exist. The typecheck scope
  * checks aggregates in build mode, which skips a program whose tsbuildinfo is current; the other
  * scopes use project mode, which compiles no reference.
  * @param root - Repository root containing the compiler and bundle configurations.
@@ -108,9 +109,9 @@ export function buildGates(
         displayCommand: `tsc ${scope === 'typecheck' ? '-b' : '-p'} tsconfig.${face}.json`,
         command: process.execPath,
         args: scope === 'typecheck' ? aggregateBuildArgs(face) : aggregateCheckArgs(face),
-        // No Host aggregate file imports a generated `/typert` or `/remote` subpath, so
-        // host-check never reads what a concurrent host-typert step writes.
-        needs: scope === 'check' ? [] : [`${face}-src`],
+        needs: scope === 'check' ? [] : face === 'host'
+          ? scope === 'typecheck' ? ['host-src', 'host-typert'] : ['host-bundle']
+          : ['client-src'],
         env,
       })
     }
