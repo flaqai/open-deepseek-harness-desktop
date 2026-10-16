@@ -9,6 +9,7 @@ import {
   parseExternalToolCompatibilityManifest,
   type ExternalToolRuntimePackage,
 } from '../src/external-tool-compatibility-manifest.ts'
+import { assertExternalToolPublishedProvider, assertExternalToolSourcePins } from './external-tool-provider-compatibility.ts'
 
 interface RegistryVersion {
   readonly name?: unknown
@@ -16,6 +17,8 @@ interface RegistryVersion {
   readonly dist?: { readonly integrity?: unknown }
   readonly dependencies?: Readonly<Record<string, string>>
   readonly optionalDependencies?: Readonly<Record<string, string>>
+  readonly engines?: Readonly<Record<string, string>>
+  readonly peerDependencies?: Readonly<Record<string, string>>
 }
 
 interface RegistryPackument {
@@ -106,15 +109,7 @@ for (const toolId of EXTERNAL_TOOL_IDS) {
   const provider = JSON.parse(await readFile(
     resolve(`packages/subagent/subagent-${toolId}/package.json`), 'utf8',
   )) as { name: string; version: string; dependencies: Record<string, string> }
-  assert.equal(coordinate.packageName, provider.name, 'external-tool gate: provider identity drifted')
-  assert.equal(
-    manifest.reviewedSourceVersion, provider.version,
-    `external-tool gate: ${toolId} compatibility review must be renewed for the current source baseline`,
-  )
-  assert.equal(
-    coordinate.runtimePackage.version, provider.dependencies[coordinate.runtimePackage.packageName],
-    `external-tool gate: ${toolId} reviewed runtime must match the current source baseline`,
-  )
+  assertExternalToolSourcePins(manifest, toolId, provider)
   assert.equal(
     browserFallbackSpecs[toolId],
     `${coordinate.packageName}@${coordinate.version}`,
@@ -122,11 +117,7 @@ for (const toolId of EXTERNAL_TOOL_IDS) {
   )
   const metadata = await fetchVersion(coordinate.packageName, coordinate.version)
   assertIntegrity(metadata, coordinate.packageName, coordinate.version, coordinate.integrity)
-  assert.equal(
-    metadata.dependencies?.[coordinate.runtimePackage.packageName],
-    coordinate.runtimePackage.version,
-    `external-tool gate: ${coordinate.packageName} must depend on the reviewed runtime version`,
-  )
+  assertExternalToolPublishedProvider(manifest, toolId, provider, metadata)
   await verifyRuntime(coordinate.runtimePackage)
   console.log(`verified ${toolId}: ${coordinate.packageName}@${coordinate.version}`)
 }

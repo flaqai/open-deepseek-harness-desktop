@@ -7,10 +7,11 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { BundleInfo, ChangeResult, ManagementError, PluginEntryId, PluginInfo, PluginInstallRequestId } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PluginTab } from '../src/client/tab-ledger.ts'
 import type { ConfigLedger } from '../src/client/config-ledger.ts'
 import { offeredRegistries, packageView, PluginManagerController, rowKey, sortPackages } from '../src/client/manager-store.ts'
 
-const INCOMPATIBLE = { name: 'dsh-late', version: '2.0.0', runtimeVersion: '0.1.0', peers: { '@deepseek-ai/dsh': '^0.2.0' } }
+const INCOMPATIBLE = { name: 'dsh-late', version: '2.0.0', runtimeVersion: '0.1.0', requirements: { '@deepseek-ai/dsh': '^0.2.0' } }
 const ROW_ENTRY = 'include:sidebar' as PluginEntryId
 const AGENT_TEAM = '@deepseek-ai/dsh-experimental-agent-team-profile'
 
@@ -75,6 +76,8 @@ const NO_CONFIG: HostObservable<ConfigLedger> = {
   subscribe: () => () => {},
 }
 
+const NO_TABS: HostObservable<readonly PluginTab[]> = { getSnapshot: () => [], subscribe: () => () => {} }
+
 function bench(overrides: Partial<Record<string, ReturnType<typeof vi.fn>>> = {}, enabled = true) {
   const inventory = { list: overrides.inventory ?? vi.fn(() => Promise.resolve(ok({ entries: [], managementAvailable: true }))) }
   const plugins = {
@@ -101,7 +104,7 @@ function bench(overrides: Partial<Record<string, ReturnType<typeof vi.fn>>> = {}
   } as never
   const controller = new PluginManagerController(ctx)
   onTestFinished(() => { controller.dispose() })
-  const face = controller.inject(NO_CONFIG, text => typeof text === 'string' ? text : text.en)
+  const face = controller.inject(NO_CONFIG, NO_TABS, text => typeof text === 'string' ? text : text.en)
   const state = () => controller.getSnapshot()
   /** The request id of the run the dialog just handed to the Host. */
   const started = async (): Promise<PluginInstallRequestId> => {
@@ -632,6 +635,30 @@ describe('PluginManagerController', () => {
     await vi.waitFor(() => { expect(state().busy).toEqual([]) })
     face.setRowEnabled(ROW_ENTRY, true)
     await vi.waitFor(() => { expect(state().notice).toEqual({ kind: 'failed', action: 'rowEnable', code: 'unaddressable', reason: '', packageName: ROW_ENTRY, seq: 1 }) })
+  })
+
+  it('installs a Discover spec through the dialog, asking its registry first, and reopens a hidden installation instead', async () => {
+    const gate = deferred<ReturnType<typeof ok<ChangeResult>>>()
+    const installBundle = vi.fn((): Promise<ReturnType<typeof ok<ChangeResult>>> => Promise.resolve(ok({ ...APPLIED, bundle: 'dsh-other' })))
+      .mockReturnValueOnce(gate.promise)
+    const { plugins, face, state, controller, started, track } = bench({ installBundle })
+    await controller.load()
+    face.installFrom({ spec: 'dsh-new@1.0.0', registry: 'https://r.example/', title: 'New', version: '1.0.0' })
+    expect(track).not.toHaveBeenCalledWith('plugin_add_button_click', {})
+    expect(state().install).toMatchObject({ open: true, spec: 'dsh-new@1.0.0', confirmed: { title: 'New', version: '1.0.0' }, registry: { kind: 'custom', url: 'https://r.example/' } })
+    await started()
+    expect(plugins.inspect).toHaveBeenCalledWith('dsh-new@1.0.0', { registry: 'https://r.example/' }, expect.any(AbortSignal))
+    face.closeInstall()
+    face.installFrom({ spec: 'dsh-other@2.0.0', title: 'Other', version: '2.0.0' })
+    expect(state().install).toMatchObject({ open: true, spec: 'dsh-new@1.0.0' })
+    gate.resolve(ok({ ...APPLIED, bundle: 'dsh-new' }))
+    await vi.waitFor(() => { expect(state().install.requestId).toBeUndefined() })
+    face.closeInstall()
+    face.installFrom({ spec: 'dsh-other@2.0.0', title: 'Other', version: '2.0.0' })
+    expect(state().install).toMatchObject({ open: true, spec: 'dsh-other@2.0.0', registry: { kind: 'offered', registry: null } })
+    await vi.waitFor(() => { expect(plugins.inspect).toHaveBeenLastCalledWith('dsh-other@2.0.0', { registry: null }, expect.any(AbortSignal)) })
+    await vi.waitFor(() => { expect(state().install.phase).toBe('done') })
+    expect(installBundle).toHaveBeenCalledTimes(2)
   })
 
   it('checks the spec, hands the run to the Host, and folds the chunks that carry its request id', async () => {

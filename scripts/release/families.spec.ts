@@ -73,6 +73,7 @@ describe('release families', () => {
       '@deepseek-ai/dsh-hooks-codex',
       '@deepseek-ai/dsh-experimental-inspector-profile',
       '@deepseek-ai/dsh-experimental-inspector',
+      '@deepseek-ai/dsh-experimental-plugin-market-bundle',
       '@deepseek-ai/dsh-experimental-ptc-runtime-python',
       '@deepseek-ai/dsh-experimental-ralph-bundle',
       '@deepseek-ai/dsh-experimental-session-inspector',

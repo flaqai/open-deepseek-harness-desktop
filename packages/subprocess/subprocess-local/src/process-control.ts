@@ -28,21 +28,22 @@ export function launchDesktopManagedProcess(
 ): DesktopManagedLaunch {
   validateSubprocessSpec(spec)
   const internals = { runnerInvocation }
+  const linuxScope = process.platform === 'linux' ? probeLinuxNative(internals) : undefined
   const mode = process.platform === 'win32' && probeWindowsJob(internals)
     ? 'windows-job'
-    : process.platform === 'linux' && probeLinuxNative(internals) ? 'linux-scope' : 'process-group'
+    : linuxScope === undefined ? 'process-group' : 'linux-scope'
   if (mode === 'process-group') return {
     containment: process.platform === 'win32' ? 'process-tree-fallback' : mode,
     handle: spawnSubprocess(spec),
   }
   const binding = prepareManagedProcessBinding({})
   const environment = targetEnvironment(spec)
-  const launch = mode === 'windows-job'
+  const launch = linuxScope === undefined
     ? launchWindowsJob(spec, environment, {
       ...internals,
       ...(spec.lifecycle === 'client' ? { allowChildBreakaway: true } : {}),
     })
-    : launchLinuxScope(spec, environment, internals)
+    : launchLinuxScope(spec, environment, linuxScope, internals)
   return { containment: mode, handle: bindManagedProcess(spec, launch, binding) }
 }
 

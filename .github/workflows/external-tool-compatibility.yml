@@ -6,6 +6,7 @@ on:
     paths:
       - apps/desktop/external-tools/manifests/**
       - apps/desktop/scripts/verify-external-tool-compatibility.ts
+      - apps/desktop/scripts/external-tool-provider-compatibility.ts
       - apps/desktop/src/external-tool-compatibility-manifest.ts
       - apps/desktop/src/external-tool-compatibility.ts
       - packages/subagent/subagent-codex/package.json

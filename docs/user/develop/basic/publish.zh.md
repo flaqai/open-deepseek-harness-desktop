@@ -65,6 +65,8 @@ export function apply() {
 
 身份敏感的 Host 包必须声明为 `peerDependencies`，并在 `devDependencies` 中镜像以供本地构建；不要把它们放进 `dependencies` 或 `optionalDependencies`。首批共享集合包括 `@deepseek-ai/cordis`、`@deepseek-ai/dsh-attachment`、`@deepseek-ai/dsh-llm`、`@deepseek-ai/dsh-system-prompt` 与 `@deepseek-ai/dsh-tools`。即使版本相同，私有副本也可能拆分 Cordis 服务、上下文与 symbol。profile 启动会检测这种物理身份冲突，将兼容范围收敛到 Host 副本；无法安全收敛时则隔离根 bundle。使用 `dsh plugin --profile <name> doctor` 可执行只读诊断。
 
+使用 `engines.dsh` SemVer 范围声明组合包支持的 DSH 版本，例如 `"engines": { "dsh": ">=0.2.0 <0.3.0" }`。安装和 profile 启动会拒绝当前运行的 DSH 不满足该范围的组合包；没有 `engines.dsh` 时，改为检查其 `@deepseek-ai/dsh*` peer 依赖范围（[规则](../../../../packages/boot/app-boot/README.zh.md#profiles)）。
+
 ### profile manifest
 
 profile 目录包含两个文件：

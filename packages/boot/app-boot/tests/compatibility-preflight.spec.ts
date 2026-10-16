@@ -31,12 +31,13 @@ function fixture() {
   })
   onTestFinished(() => { stderr.mockRestore() })
 
-  function plugin(name: string, options: { version?: string; peer?: string; alias?: string } = {}): void {
+  function plugin(name: string, options: { version?: string; peer?: string; engine?: string; alias?: string } = {}): void {
     const packageDir = join(dir, 'node_modules', options.alias ?? name)
     mkdirSync(packageDir, { recursive: true })
     writeFileSync(join(packageDir, 'package.json'), JSON.stringify({
       name, version: options.version ?? '1.0.0', type: 'module', exports: './index.mjs',
       ...options.peer === undefined ? {} : { peerDependencies: { '@deepseek-ai/dsh-test': options.peer } },
+      ...options.engine === undefined ? {} : { engines: { dsh: options.engine } },
     }))
     writeFileSync(join(packageDir, 'index.mjs'), `import { appendFileSync } from 'node:fs'
 const record = (value) => appendFileSync(new URL('${pathToFileURL(effects).href}'), value + '\\n')
@@ -100,6 +101,19 @@ it('admits the same plugin only for its exact version and the running runtime', 
   otherRuntime.plugin('denied-plugin', { peer: '^9.0.0' })
   otherRuntime.exemptions({ 'denied-plugin@1.0.0': ['9.9.9'] })
   expect(await otherRuntime.run(insert('denied-plugin'))).toEqual([])
+})
+
+it('uses engines.dsh before peers at Loader admission without weakening exact exemptions', async () => {
+  const f = fixture()
+  f.plugin('allowed-engine', { engine: runtime, peer: '^9.0.0' })
+  f.plugin('denied-engine', { engine: '^9.0.0', peer: runtime })
+  f.plugin('exempt-engine', { engine: '^9.0.0', peer: runtime })
+  f.exemptions({ 'exempt-engine@1.0.0': [runtime] })
+  expect((await f.run(insert('allowed-engine', 'denied-engine', 'exempt-engine'))).sort()).toEqual([
+    'apply:allowed-engine', 'apply:exempt-engine', 'import:allowed-engine', 'import:exempt-engine',
+  ])
+  expect(f.warnings.join('\n')).toContain('denied-engine@1.0.0')
+  expect(f.warnings.join('\n')).toContain('engines.dsh')
 })
 
 const denialSpecifiers: Array<[string, (name: string, dir: string) => string]> = [

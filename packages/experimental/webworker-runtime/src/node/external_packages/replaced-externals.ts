@@ -15,6 +15,7 @@ export const REPLACED_EXTERNAL_PACKAGES: readonly string[] = [
   'node-pty',
   'execa',
   'got',
+  'node-addon-require-builtin',
   'sharp',
   'ws',
 ]

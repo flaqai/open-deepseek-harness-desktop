@@ -30,8 +30,11 @@
   en: d8e103a235ee3d33
   zh: c5601d77e87a3380
 /deepseek-ai-dsh-client-ui-plugin-manager/use-this-package/detail-page-extension-points:
-  en: 87f6d96467dc2383
-  zh: e0fb91aa4c4d5a12
+  en: 5266d86638cc5cd7
+  zh: 398d710df9806cea
+/deepseek-ai-dsh-client-ui-plugin-manager/use-this-package/page-tabs:
+  en: 76e0908903ab8fde
+  zh: ce6ae1cdd6aea971
 /deepseek-ai-dsh-client-ui-plugin-manager/understand-the-implementation:
   en: 203168fc87e939bd
   zh: 72d0ccd2c54f3f44

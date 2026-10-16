@@ -44,7 +44,8 @@ it('explicitly grants workspace and session reads, denies readonly writes and da
   expect(decide('session/prompt', [{ kind: 'session', id: session.id }])).toBe('allow')
   expect(decide('event:user-questions/request')).toBe('allow')
   for (const action of ['settings/set', 'pluginManager/install', 'credentials/read', 'thirdParty/unknown',
-    'event:tools/approval', 'session/delete', 'session/cancel'] as const) expect(decide(action)).toBe('deny')
+    'pluginMarket/listIndexes', 'pluginMarket/search', 'pluginMarket/setIndexes', 'event:plugin-market/changed',
+    'pluginManager/update', 'event:tools/approval', 'session/delete', 'session/cancel'] as const) expect(decide(action)).toBe('deny')
   device.mockReturnValue(undefined)
   expect(decide('session/prompt', [{ kind: 'session', id: session.id }])).toBe('deny')
 })

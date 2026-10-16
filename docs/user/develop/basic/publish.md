@@ -65,6 +65,8 @@ Create `hello-plugin/cordis.patch.yml`. The patch is a YAML array like the `--pa
 
 Declare identity-sensitive Host packages as `peerDependencies`, mirrored in `devDependencies` for local builds; do not place them in `dependencies` or `optionalDependencies`. The initial shared set is `@deepseek-ai/cordis`, `@deepseek-ai/dsh-attachment`, `@deepseek-ai/dsh-llm`, `@deepseek-ai/dsh-system-prompt`, and `@deepseek-ai/dsh-tools`. A private copy can split Cordis services, contexts, and symbols even at the same version. Profile startup detects that physical-identity conflict, converges a compatible range to the Host copy, and quarantines the root bundle when safe convergence is impossible. Use `dsh plugin --profile <name> doctor` for a read-only diagnosis.
 
+Declare the DSH releases the bundle supports with an `engines.dsh` SemVer range, for example `"engines": { "dsh": ">=0.2.0 <0.3.0" }`. Installation and profile startup refuse a bundle whose range the running DSH does not satisfy; without `engines.dsh`, they check its `@deepseek-ai/dsh*` peer dependency ranges instead ([rule](../../../../packages/boot/app-boot/README.md#profiles)).
+
 ### The profile manifest
 
 A profile directory holds two files:

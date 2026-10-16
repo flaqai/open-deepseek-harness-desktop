@@ -350,6 +350,13 @@ describe('package payload constraints', () => {
     },
   )
 
+  it('exempts the private plugin market generator from release rules in its own directory only', () => {
+    const dir = 'apps/plugin-market-generator'
+    const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+    expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+    expect(checkWorkspaceManifest({ dir: 'apps/other-tool', manifest })).not.toEqual([])
+  })
+
   it('rejects locale publication entries without their resource exports', () => {
     const dir = 'packages/experimental/auto-review'
     const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']

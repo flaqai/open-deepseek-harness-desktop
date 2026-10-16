@@ -3,9 +3,11 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import manifestJson from '../external-tools/manifests/0.2.1-alpha.3/external-tools-compatibility.v2.json'
+import manifestJson from '../external-tools/manifests/0.2.1-alpha.4/external-tools-compatibility.v2.json'
+import previousManifestJson from '../external-tools/manifests/0.2.1-alpha.3/external-tools-compatibility.v2.json'
 import publishedManifestJson from '../external-tools/manifests/0.2.1-alpha.2/external-tools-compatibility.v2.json'
 import { ExternalToolCompatibilityManager } from '../src/external-tool-compatibility.ts'
+import { assertExternalToolPublishedProvider, assertExternalToolSourcePins } from '../scripts/external-tool-provider-compatibility.ts'
 import {
   EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY,
   parseExternalToolCompatibilityManifest,
@@ -53,25 +55,73 @@ function response(bytes: Uint8Array): Response {
 }
 
 describe('external tool compatibility', () => {
-  it('separates the new Desktop identity from the published alpha.2 coordinates', () => {
-    expect(manifestJson.desktopVersion).toBe('0.2.1-alpha.3')
+  it('separates the new Desktop identity from the published alpha.2 and alpha.3 coordinates', () => {
+    expect(manifestJson.desktopVersion).toBe('0.2.1-alpha.4')
     expect(EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY).toEqual(manifestJson)
     expect(publishedManifestJson.desktopVersion).toBe('0.2.1-alpha.2')
     expect(publishedManifestJson.reviewedSourceVersion).toBe('0.2.1-alpha.2')
+    expect(previousManifestJson.desktopVersion).toBe('0.2.1-alpha.3')
+    expect(previousManifestJson.reviewedSourceVersion).toBe('0.2.1-alpha.3')
     for (const toolId of ['codex', 'claude-code'] as const) {
       expect(publishedManifestJson.tools[toolId].version).toBe('0.2.1-alpha.2')
+      expect(previousManifestJson.tools[toolId].version).toBe('0.2.1-alpha.3')
     }
   })
 
-  it('keeps reviewed providers and runtimes aligned with the source baseline', async () => {
+  it('binds immutable provider reviews while retaining the current runtime dependency check', async () => {
     for (const toolId of ['codex', 'claude-code'] as const) {
       const provider = JSON.parse(await readFile(new URL(
         `../../../packages/subagent/subagent-${toolId}/package.json`, import.meta.url,
       ), 'utf8')) as { name: string; version: string; dependencies: Record<string, string> }
       const coordinate = manifestJson.tools[toolId]
-      expect(coordinate.packageName).toBe(provider.name)
-      expect(manifestJson.reviewedSourceVersion).toBe(provider.version)
+      expect(() => { assertExternalToolSourcePins(parseExternalToolCompatibilityManifest(manifestJson), toolId, provider) }).not.toThrow()
+      expect(manifestJson.reviewedSourceVersion).toBe(coordinate.version)
       expect(coordinate.runtimePackage.version).toBe(provider.dependencies[coordinate.runtimePackage.packageName])
+    }
+  })
+
+  it('rejects incompatible published core requirements instead of treating unchanged runtimes as approval', () => {
+    const manifest = parseExternalToolCompatibilityManifest(manifestJson)
+    const coordinate = manifest.tools.codex
+    const dependencies = { [coordinate.runtimePackage.packageName]: coordinate.runtimePackage.version }
+    const provider = { name: coordinate.packageName, version: '0.2.1-alpha.4', dependencies }
+    const published = { name: coordinate.packageName, version: coordinate.version, dependencies,
+      peerDependencies: { '@deepseek-ai/dsh-subagent': '0.2.1-alpha.3' } }
+    expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, published) })
+      .toThrow('does not accept current core 0.2.1-alpha.4')
+    expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, {
+      ...published, peerDependencies: { '@deepseek-ai/dsh-subagent': '^0.2.1-alpha.3' },
+    }) }).not.toThrow()
+    expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, {
+      ...published, engines: { dsh: '^0.2.1-alpha.3' },
+    }) }).not.toThrow()
+  })
+
+  it('rejects source runtime drift and a review attached to a different pinned provider', () => {
+    const manifest = parseExternalToolCompatibilityManifest(manifestJson)
+    const coordinate = manifest.tools.codex
+    const provider = { name: coordinate.packageName, version: '0.2.1-alpha.4',
+      dependencies: { [coordinate.runtimePackage.packageName]: '999.0.0' } }
+    expect(() => { assertExternalToolSourcePins(manifest, 'codex', provider) }).toThrow('reviewed runtime must match')
+    expect(() => { assertExternalToolSourcePins({ ...manifest, reviewedSourceVersion: '0.2.1-alpha.3' }, 'codex', provider) })
+      .toThrow('review must identify its pinned provider source version')
+  })
+
+  it('rejects published runtime drift and absent or invalid DSH compatibility declarations', () => {
+    const manifest = parseExternalToolCompatibilityManifest(manifestJson)
+    const coordinate = manifest.tools.codex
+    const dependencies = { [coordinate.runtimePackage.packageName]: coordinate.runtimePackage.version }
+    const provider = { name: coordinate.packageName, version: '0.2.1-alpha.4', dependencies }
+    const published = { name: coordinate.packageName, version: coordinate.version, dependencies }
+    expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, {
+      ...published, dependencies: { [coordinate.runtimePackage.packageName]: '999.0.0' },
+    }) }).toThrow('must depend on the reviewed runtime version')
+    expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, published) })
+      .toThrow('declares no DSH compatibility requirement')
+    for (const range of ['', 'broken', 'workspace:*']) {
+      expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, {
+        ...published, engines: { dsh: range },
+      }) }).toThrow('does not accept current core')
     }
   })
 
@@ -112,7 +162,7 @@ describe('external tool compatibility', () => {
       fetch: fetchMock,
       verifyBundle: async () => {},
     })
-    await expect(manager.resolve('codex')).resolves.toMatchObject({ version: '0.2.1-alpha.3', source: 'embedded' })
+    await expect(manager.resolve('codex')).resolves.toMatchObject({ version: '0.2.1-alpha.4', source: 'embedded' })
   })
 
   it('shares an in-flight refresh across concurrent tool requests', async () => {
@@ -151,7 +201,7 @@ describe('external tool compatibility', () => {
   it('parses exact pins and never creates a floating package spec', () => {
     const manifest = parseExternalToolCompatibilityManifest(manifestJson)
     expect(resolveExternalToolCoordinate(manifest, 'codex', 'embedded')).toMatchObject({
-      packageSpec: '@deepseek-ai/dsh-subagent-codex@0.2.1-alpha.3',
+      packageSpec: '@deepseek-ai/dsh-subagent-codex@0.2.1-alpha.4',
       source: 'embedded',
     })
   })
@@ -173,7 +223,7 @@ describe('external tool compatibility', () => {
     })
 
     await expect(manager.resolve('claude-code')).resolves.toMatchObject({
-      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.1-alpha.3',
+      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.1-alpha.4',
       source: 'remote',
     })
     expect(verifyBundle).toHaveBeenCalledOnce()

@@ -85,6 +85,7 @@
     "tests/worktree-opt-in.e2e.ts",
     "tests/session-inspector.e2e.ts",
     "tests/shared-inspector.e2e.ts",
+    "tests/inspector-late-enable.e2e.ts",
     "tests/devtools-frontend.e2e.ts",
     "tests/inspector-panels.e2e.ts",
     "tests/inspector-source-build.e2e.ts",

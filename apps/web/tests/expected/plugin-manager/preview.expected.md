@@ -1,7 +1,7 @@
 - button "返回 实验性插件": 实验性插件
 - switch "启用 DSH 徽章技能"
 - heading "DSH 徽章技能" [level=3]
-- text: v0.2.1-alpha.2 实验性
+- text: v{{version}} 实验性
 - paragraph:
   - code: "@deepseek-ai/dsh-experimental-badge-skill-bundle"
 - paragraph: 让 Agent 为文档、PR 等产出添加「powered by dsh」徽章。
@@ -18,4 +18,4 @@
 - term: 代码来源
 - definition: 内置
 - term: 当前版本
-- definition: 0.2.1-alpha.2
+- definition: {{version}}
