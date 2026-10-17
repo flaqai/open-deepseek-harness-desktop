@@ -112,7 +112,9 @@ describe('host workspace-runtime adapter', () => {
       await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(config).href } })
       await ctx.loader.await()
       for (const entry of ctx.loader.entries()) await entry.fiber?.await()
-      expect((await ctx.skills.list()).map(skill => skill.name)).toEqual(['office-docx', 'office-pptx', 'office-xlsx'])
+      expect((await ctx.skills.list()).map(skill => skill.name)).toEqual([
+        'office', 'office-docx', 'office-export-pdf', 'office-pptx', 'office-recalculate', 'office-render', 'office-xlsx',
+      ])
       expect(ctx.tools.schemas().map(tool => tool.name)).toEqual(['load_workspace_dependencies'])
       const entry = [...ctx.loader.entries()].find(entry => entry.options.name === 'workspace-runtime')
       await entry?.fiber?.dispose()
