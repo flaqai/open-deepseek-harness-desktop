@@ -217,6 +217,7 @@ import {
 import {
   NasRuntimeClient,
   NasRuntimeStore,
+  createNasSecretCodec,
   discoverNasRuntimes,
   inspectNasCertificate,
   type NasRuntimeRecord,
@@ -1582,11 +1583,7 @@ async function startApplication(): Promise<void> {
   const nasRuntimeStore = new NasRuntimeStore(
     join(app.getPath('userData'), 'nas-runtimes-v1.json'),
     join(app.getPath('userData'), 'nas-device-credentials-v1.json'),
-    {
-      available: safeStorage.isEncryptionAvailable(),
-      seal: value => safeStorage.encryptString(value).toString('base64'),
-      open: value => safeStorage.decryptString(Buffer.from(value, 'base64')),
-    },
+    createNasSecretCodec(safeStorage),
     (error) => { console.error('desktop: could not read NAS runtime settings', error) },
   )
   const nasRuntimeClient = new NasRuntimeClient(async (url, init) => net.fetch(url, init))

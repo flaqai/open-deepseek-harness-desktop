@@ -8,7 +8,7 @@ import {
   type NasRuntimeNetworkAdapter,
 } from '../src/nas-runtime-authority.ts'
 import {
-  NasRuntimeStore, type NasHealth, type NasPairingResponse, type NasRuntimeRecord,
+  NasRuntimeStore, createNasSecretCodec, type NasHealth, type NasPairingResponse, type NasRuntimeRecord,
 } from '../src/nas-runtime.ts'
 
 const roots: string[] = []
@@ -89,6 +89,25 @@ function authority(options: {
 }
 
 describe('Desktop NAS runtime authority', () => {
+  it('does not access secure storage for local startup, status or missing credentials', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'dsh-nas-no-keychain-'))
+    roots.push(directory)
+    const available = vi.fn(() => true)
+    const seal = vi.fn((value: string) => value)
+    const open = vi.fn((value: string) => value)
+    const runtimeStore = new NasRuntimeStore(join(directory, 'runtimes.json'), join(directory, 'secrets.json'),
+      createNasSecretCodec({ isEncryptionAvailable: available, encryptString: value => Buffer.from(seal(value)),
+        decryptString: value => open(value.toString()) }))
+    const runtime = authority({ store: runtimeStore })
+    expect(runtime.bootRuntime).toEqual({ kind: 'local' })
+    expect(runtime.status().selection).toEqual({ kind: 'local' })
+    expect(runtimeStore.credential('missing')).toBeUndefined()
+    expect(runtime.status().secureStorageAvailable).toBeUndefined()
+    expect(available).not.toHaveBeenCalled()
+    expect(seal).not.toHaveBeenCalled()
+    expect(open).not.toHaveBeenCalled()
+  })
+
   it('requires a confirmed certificate pin before pairing and owns its publication', async () => {
     const runtimeStore = store()
     const runtimeNetwork = network()

@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  NasRuntimeClient, NasRuntimeStore, certificateFingerprint, normalizeNasBaseUrl,
+  NasRuntimeClient, NasRuntimeStore, createNasSecretCodec, certificateFingerprint, normalizeNasBaseUrl,
   parseNasDiscoveryPacket,
   type NasFetchResponse,
+  type NasPairingResponse,
 } from '../src/nas-runtime.ts'
 
 const roots: string[] = []
@@ -47,6 +48,17 @@ describe('NAS runtime directory', () => {
     expect(readFileSync(join(directory, 'runtimes.json'), 'utf8')).not.toContain('xxxxxxxx')
     expect(readFileSync(join(directory, 'secrets.json'), 'utf8')).not.toContain('xxxxxxxx')
     expect(store.select({ kind: 'local' }).selection).toEqual({ kind: 'local' })
+    const available = vi.fn(() => true)
+    const encryptString = vi.fn((value: string) => Buffer.from(value))
+    const decryptString = vi.fn((value: Buffer) => value.toString())
+    const reopened = new NasRuntimeStore(join(directory, 'runtimes.json'), join(directory, 'secrets.json'),
+      createNasSecretCodec({ isEncryptionAvailable: available, encryptString, decryptString }))
+    expect(reopened.status().selection).toEqual({ kind: 'local' })
+    expect(reopened.select({ kind: 'local' }).secureStorageAvailable).toBeUndefined()
+    expect(reopened.remove('nas-1').servers).toEqual([])
+    expect(available).not.toHaveBeenCalled()
+    expect(encryptString).not.toHaveBeenCalled()
+    expect(decryptString).not.toHaveBeenCalled()
     expect(store.remove('nas-1').servers).toEqual([])
   })
 
@@ -63,6 +75,39 @@ describe('NAS runtime directory', () => {
         protocolVersion: 1, platform: 'linux', architecture: 'x64', pairingAvailable: false,
       },
     })).toThrow(/secure storage/)
+    expect(store.status().secureStorageAvailable).toBe(false)
+  })
+
+  it('uses the OS codec only for actual credentials and preserves metadata when encryption is denied', () => {
+    const directory = root()
+    const available = vi.fn(() => true)
+    const encryptString = vi.fn((value: string) => Buffer.from(`sealed:${value}`))
+    const decryptString = vi.fn((value: Buffer) => value.toString().slice('sealed:'.length))
+    const store = new NasRuntimeStore(join(directory, 'runtimes.json'), join(directory, 'secrets.json'),
+      createNasSecretCodec({ isEncryptionAvailable: available, encryptString, decryptString }))
+    const pairing: NasPairingResponse = {
+      schema: 'open-deepseek-harness/nas-pairing/v1', deviceId: 'device-1', token: 'x'.repeat(48),
+      expiresAt: '2027-01-01T00:00:00.000Z',
+      health: {
+        schema: 'open-deepseek-harness/nas-health/v1', instanceId: 'nas-1', name: 'NAS', version: '0.1.6',
+        protocolVersion: 1, platform: 'linux', architecture: 'x64', pairingAvailable: false,
+      },
+    }
+    expect(store.savePairing('https://nas.example.com', pairing).secureStorageAvailable).toBe(true)
+    expect(available).toHaveBeenCalledTimes(1)
+    expect(encryptString).toHaveBeenCalledExactlyOnceWith(pairing.token)
+    expect(decryptString).not.toHaveBeenCalled()
+    expect(store.credential('nas-1')?.token).toBe(pairing.token)
+    expect(available).toHaveBeenCalledTimes(2)
+    expect(decryptString).toHaveBeenCalledOnce()
+    const before = readFileSync(join(directory, 'runtimes.json'), 'utf8')
+    const secretsBefore = readFileSync(join(directory, 'secrets.json'), 'utf8')
+    encryptString.mockImplementationOnce(() => { throw new Error('Keychain access denied') })
+    expect(() => store.savePairing('https://other.example.com', {
+      ...pairing, health: { ...pairing.health, instanceId: 'nas-2' },
+    })).toThrow('Keychain access denied')
+    expect(readFileSync(join(directory, 'runtimes.json'), 'utf8')).toBe(before)
+    expect(readFileSync(join(directory, 'secrets.json'), 'utf8')).toBe(secretsBefore)
   })
 })
 

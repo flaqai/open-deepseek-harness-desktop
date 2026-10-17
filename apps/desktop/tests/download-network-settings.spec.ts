@@ -1,7 +1,7 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_DOWNLOAD_NETWORK_SETTINGS, DownloadNetworkSettingsStore, npmRegistryUrl,
   type SecretEncryption,
@@ -14,6 +14,22 @@ const encryption: SecretEncryption = {
 }
 
 describe('download network settings', () => {
+  it('does not access secure storage without a saved proxy password', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'dsh-network-no-keychain-'))
+    try {
+      const available = vi.fn(() => true)
+      const encrypt = vi.fn((value: string) => Buffer.from(value))
+      const decrypt = vi.fn((value: Buffer) => value.toString())
+      const store = new DownloadNetworkSettingsStore(join(directory, 'settings.json'), { available, encrypt, decrypt })
+      expect(store.operationSnapshot(store.read().revision)?.passwords).toEqual({})
+      expect(store.password('npm')).toBeUndefined()
+      store.update({ target: 'npm', npm: { registry: 'npmjs', proxy: { mode: 'direct' } } })
+      expect(available).not.toHaveBeenCalled()
+      expect(encrypt).not.toHaveBeenCalled()
+      expect(decrypt).not.toHaveBeenCalled()
+    } finally { rmSync(directory, { recursive: true, force: true }) }
+  })
+
   it('defaults desktop-controlled npm downloads to npmmirror', () => {
     const store = new DownloadNetworkSettingsStore(join(mkdtempSync(join(tmpdir(), 'dsh-network-')), 'settings.json'), encryption)
     expect(store.read()).toEqual(DEFAULT_DOWNLOAD_NETWORK_SETTINGS)

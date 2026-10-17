@@ -90,7 +90,8 @@ export interface NasRuntimeRecord {
 export interface NasRuntimeStatus {
   readonly selection: DesktopRuntimeSelection
   readonly servers: readonly NasRuntimeRecord[]
-  readonly secureStorageAvailable: boolean
+  /** Absent until a credential operation checks the OS secure store. */
+  readonly secureStorageAvailable?: boolean
   readonly active?: NasRuntimeRecord
 }
 export type { NasDeviceSummary } from '@deepseek-ai/dsh-nas-protocol'

@@ -179,6 +179,8 @@ Desktop 可以保存多个 Linux NAS 运行端，并在本地 Harness 与一个�
 
 配对使用十分钟有效的八位码和随机逐设备 Bearer grant，grant 通过 Electron `safeStorage` 保存。自签名来源需要核对并固定 SHA-256 证书指纹。请求只向精确匹配的已选 HTTPS/WSS 来源附加 grant。远程 preload 由正向白名单组装：保留设备偏好、生命周期重启与就绪报告、Release 检查和 NAS 管理，同时不提供本机日志、插件与进程控制、诊断、命令行注册、文件系统或环境变量能力。新增本机 preload 方法不会自动暴露给远程页面，只有显式更新远程投影及其精确键测试后才会开放。mDNS 结果只是不受信任的地址建议，仍必须核对证书并完成配对。Compose 部署与备份要求见 [`../../deploy/nas/README.zh.md`](../../deploy/nas/README.zh.md)。
 
+NAS 仅在保存配对凭据或为 NAS 操作读取已有凭据时访问系统安全存储。本地启动、读取状态、选择本地运行端及删除配对均不会查询或解锁它，即使已有保存的 NAS 记录也如此。`secureStorageAvailable` 在凭据操作检查可用性前省略；省略不表示不可用。自动化 NAS 测试注入隔离的加密实现，不访问用户钥匙串。下载代理密码独立按需加密。
+
 `DesktopNasRuntimeAuthority` 统一拥有运行端选择、配对确认、证书 pin、精确 origin 凭据注入、身份检查、设备撤销、连接展示和重启顺序。Electron 生命周期、窗口、TLS、请求与 IPC 代码只是该 seam 上的 adapters，不再重复实现 NAS 策略。
 
 `@deepseek-ai/dsh-nas-protocol` 统一拥有 NAS 线路协议 v1 的方法、路由、JSON 文档、构造和运行时校验。Desktop 网络代码是该 seam 上的一个 adapter，NAS 运行端主机是另一个。

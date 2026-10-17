@@ -52,7 +52,8 @@ export type NasPairingResponse = NasPairingDocument
 export interface NasRuntimeStatus {
   readonly selection: DesktopRuntimeSelection
   readonly servers: readonly NasRuntimeRecord[]
-  readonly secureStorageAvailable: boolean
+  /** Absent until a credential operation checks the OS secure store. */
+  readonly secureStorageAvailable?: boolean
   readonly active?: NasRuntimeRecord
 }
 
@@ -85,6 +86,22 @@ export interface NasSecretCodec {
   readonly available: boolean
   seal(value: string): string
   open(value: string): string
+}
+
+/** Adapt OS encryption without accessing it until a credential operation.
+ * @param storage Electron's secure-storage methods, or an isolated test implementation.
+ * @returns A lazy codec; constructing it does not query or unlock secure storage.
+ */
+export function createNasSecretCodec(storage: {
+  isEncryptionAvailable(): boolean
+  encryptString(value: string): Buffer
+  decryptString(value: Buffer): string
+}): NasSecretCodec {
+  return {
+    get available() { return storage.isEncryptionAvailable() },
+    seal: value => storage.encryptString(value).toString('base64'),
+    open: value => storage.decryptString(Buffer.from(value, 'base64')),
+  }
 }
 
 export interface NasFetchResponse {
@@ -264,6 +281,8 @@ function writeAtomic(path: string, value: unknown): void {
 
 /** Durable metadata plus secure per-device credentials. */
 export class NasRuntimeStore {
+  #secureStorageAvailable: boolean | undefined
+
   constructor(
     private readonly directoryPath: string,
     private readonly secretPath: string,
@@ -287,7 +306,7 @@ export class NasRuntimeStore {
     return {
       selection: directory.selection,
       servers: directory.servers,
-      secureStorageAvailable: this.codec.available,
+      ...(this.#secureStorageAvailable === undefined ? {} : { secureStorageAvailable: this.#secureStorageAvailable }),
       ...(active === undefined ? {} : { active }),
     }
   }
@@ -302,7 +321,8 @@ export class NasRuntimeStore {
   }
 
   savePairing(baseUrl: string, pairing: NasPairingResponse, fingerprint?: string): NasRuntimeStatus {
-    if (!this.codec.available) throw new Error('desktop: system secure storage is unavailable; NAS credentials cannot be persisted')
+    if (!this.checkSecureStorage()) throw new Error('desktop: system secure storage is unavailable; NAS credentials cannot be persisted')
+    const sealedToken = this.codec.seal(pairing.token)
     const current = this.read()
     const canonical = normalizeNasBaseUrl(baseUrl)
     const existing = current.servers.find(server => server.baseUrl === canonical || server.id === pairing.health.instanceId)
@@ -321,15 +341,15 @@ export class NasRuntimeStore {
     const secrets = this.readSecrets()
     writeAtomic(this.secretPath, {
       schema: 'open-deepseek-harness-desktop/nas-secrets/v1',
-      records: { ...secrets.records, [id]: { deviceId: pairing.deviceId, sealedToken: this.codec.seal(pairing.token) } },
+      records: { ...secrets.records, [id]: { deviceId: pairing.deviceId, sealedToken } },
     } satisfies NasSecretDocument)
     return this.status()
   }
 
   credential(serverId: string): { readonly deviceId: string; readonly token: string } | undefined {
-    if (!this.codec.available) return undefined
     const value = this.readSecrets().records[serverId]
     if (value === undefined) return undefined
+    if (!this.checkSecureStorage()) return undefined
     return { deviceId: value.deviceId, token: this.codec.open(value.sealedToken) }
   }
 
@@ -344,6 +364,11 @@ export class NasRuntimeStore {
     const records = Object.fromEntries(Object.entries(secrets.records).filter(([id]) => id !== serverId))
     writeAtomic(this.secretPath, { ...secrets, records })
     return this.status()
+  }
+
+  private checkSecureStorage(): boolean {
+    this.#secureStorageAvailable = this.codec.available
+    return this.#secureStorageAvailable
   }
 
   private readSecrets(): NasSecretDocument {
