@@ -594,7 +594,7 @@ it('paints the bonus notice under the open settings panel and reports its displa
   let snapshot: AccountSnapshot = operations.hooks.account.getSnapshot()
   const view = render(await accountMenu(operations, () => snapshot, true))
   expect(screen.queryByRole('status')).toBeNull()
-  snapshot = { ...snapshot, notice }
+  snapshot = { ...snapshot, notices: [notice] }
   view.rerender(await accountMenu(operations, () => snapshot, true))
   // The settings overlay is translucent, so the card paints underneath it instead of waiting for the exit.
   await vi.waitFor(() => { expect(screen.getByRole('status').textContent).toBe(`${en.bonusNoticeTitle}${notice.message}`) })
@@ -604,6 +604,32 @@ it('paints the bonus notice under the open settings panel and reports its displa
   view.rerender(await accountMenu(operations, () => snapshot, false))
   await vi.waitFor(() => { expect(screen.getByRole('status').textContent).toBe(`${en.bonusNoticeTitle}${notice.message}`) })
   expect(operations.bonusNoticeShown).toHaveBeenCalledOnce()
+})
+
+it('stacks server-authored notices above the community Settings launcher without restoring the account menu', async () => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
+  const operations = operationsOf({ status: 'credential-stored', attempt: null })
+  const notices: BonusNotice[] = [
+    { orderId: 'first' as BonusNotice['orderId'], title: '<b>Server title</b>', message: '<script>serverCopy()</script>', expiresAt: '' },
+    { orderId: 'second' as BonusNotice['orderId'], message: 'Second notice', expiresAt: '' },
+  ]
+  let snapshot = { ...operations.hooks.account.getSnapshot(), notices }
+  const view = render(await accountMenu(operations, () => snapshot, false))
+  expect(screen.getAllByRole('status')).toHaveLength(1)
+  expect(screen.getByText('<b>Server title</b>')).toBeTruthy()
+  expect(screen.getByText('<script>serverCopy()</script>')).toBeTruthy()
+  expect(document.querySelector('aside script')).toBeNull()
+  expect(document.querySelector('aside b')).toBeNull()
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(screen.getByRole('button', { name: en.settings })).toBeTruthy()
+  await vi.waitFor(() => { expect(operations.bonusNoticeShown).toHaveBeenCalledExactlyOnceWith(notices[0]!.orderId) })
+  fireEvent.click(screen.getByRole('button', { name: en.close }))
+  expect(operations.bonusNoticeDismissed).toHaveBeenCalledExactlyOnceWith(notices[0]!.orderId)
+  snapshot = { ...snapshot, notices: notices.slice(1) }
+  view.rerender(await accountMenu(operations, () => snapshot, false))
+  await vi.waitFor(() => { expect(operations.bonusNoticeShown).toHaveBeenLastCalledWith(notices[1]!.orderId) })
+  expect(screen.getByRole('status').textContent).toBe(`${en.bonusNoticeTitle}Second notice`)
+  expect(screen.getByRole('button', { name: en.settings })).toBeTruthy()
 })
 
 it('reads once per Settings entry, whatever section the entry opens', async () => {
@@ -699,7 +725,7 @@ it.each(['desktopOnboardingVisible', 'onboarding'] as const)('defers bonus displ
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   const operations = operationsOf({ status: 'credential-stored', attempt: null })
   const notice = { orderId: 'order-onboarding' as BonusNotice['orderId'], message: 'Awarded 5.00', expiresAt: '2099-01-01T00:00:00Z' }
-  let snapshot: AccountSnapshot = { ...operations.hooks.account.getSnapshot(), notice, [field]: true }
+  let snapshot: AccountSnapshot = { ...operations.hooks.account.getSnapshot(), notices: [notice], [field]: true }
   const view = render(await accountMenu(operations, () => snapshot, false))
   expect(screen.queryByText(notice.message)).toBeNull()
   expect(operations.bonusNoticeShown).not.toHaveBeenCalled()

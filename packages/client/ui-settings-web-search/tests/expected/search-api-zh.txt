@@ -1,0 +1,2 @@
+Search 与 Fetch API 单独计费。Search 默认可能发送最近一次提问折叠空白后的前 128 个 Unicode 字符。如需关闭原问题发送，请在 Profile 配置中为 web-deepseek-api 插件设置 sendOriginalQuestion: false。
+更改开关并保存会同时替换搜索和抓取提供方：开启选择 DeepSeek Search 与 Fetch API；关闭选择 Messages 搜索与本地 HTTP 抓取。保存开关更改前不会改变自定义提供方。

@@ -3,7 +3,8 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import manifestJson from '../external-tools/manifests/0.2.1-alpha.4/external-tools-compatibility.v2.json'
+import manifestJson from '../external-tools/manifests/0.2.1-rc.2/external-tools-compatibility.v2.json'
+import alpha4ManifestJson from '../external-tools/manifests/0.2.1-alpha.4/external-tools-compatibility.v2.json'
 import previousManifestJson from '../external-tools/manifests/0.2.1-alpha.3/external-tools-compatibility.v2.json'
 import publishedManifestJson from '../external-tools/manifests/0.2.1-alpha.2/external-tools-compatibility.v2.json'
 import { ExternalToolCompatibilityManager } from '../src/external-tool-compatibility.ts'
@@ -55,16 +56,22 @@ function response(bytes: Uint8Array): Response {
 }
 
 describe('external tool compatibility', () => {
-  it('separates the new Desktop identity from the published alpha.2 and alpha.3 coordinates', () => {
-    expect(manifestJson.desktopVersion).toBe('0.2.1-alpha.4')
+  it('separates the new Desktop identity from the published alpha.2, alpha.3 and alpha.4 coordinates', () => {
+    expect(manifestJson.desktopVersion).toBe('0.2.1-rc.2')
+    expect(manifestJson.revision).toBe(19)
     expect(EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY).toEqual(manifestJson)
     expect(publishedManifestJson.desktopVersion).toBe('0.2.1-alpha.2')
     expect(publishedManifestJson.reviewedSourceVersion).toBe('0.2.1-alpha.2')
     expect(previousManifestJson.desktopVersion).toBe('0.2.1-alpha.3')
     expect(previousManifestJson.reviewedSourceVersion).toBe('0.2.1-alpha.3')
+    expect(alpha4ManifestJson.desktopVersion).toBe('0.2.1-alpha.4')
+    expect(alpha4ManifestJson.reviewedSourceVersion).toBe('0.2.1-alpha.4')
+    expect(alpha4ManifestJson.revision).toBe(18)
     for (const toolId of ['codex', 'claude-code'] as const) {
       expect(publishedManifestJson.tools[toolId].version).toBe('0.2.1-alpha.2')
       expect(previousManifestJson.tools[toolId].version).toBe('0.2.1-alpha.3')
+      expect(alpha4ManifestJson.tools[toolId].version).toBe('0.2.1-alpha.4')
+      expect(manifestJson.tools[toolId].runtimePackage).toEqual(alpha4ManifestJson.tools[toolId].runtimePackage)
     }
   })
 
@@ -84,11 +91,11 @@ describe('external tool compatibility', () => {
     const manifest = parseExternalToolCompatibilityManifest(manifestJson)
     const coordinate = manifest.tools.codex
     const dependencies = { [coordinate.runtimePackage.packageName]: coordinate.runtimePackage.version }
-    const provider = { name: coordinate.packageName, version: '0.2.1-alpha.4', dependencies }
+    const provider = { name: coordinate.packageName, version: '0.2.1-rc.2', dependencies }
     const published = { name: coordinate.packageName, version: coordinate.version, dependencies,
       peerDependencies: { '@deepseek-ai/dsh-subagent': '0.2.1-alpha.3' } }
     expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, published) })
-      .toThrow('does not accept current core 0.2.1-alpha.4')
+      .toThrow('does not accept current core 0.2.1-rc.2')
     expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, {
       ...published, peerDependencies: { '@deepseek-ai/dsh-subagent': '^0.2.1-alpha.3' },
     }) }).not.toThrow()
@@ -100,7 +107,7 @@ describe('external tool compatibility', () => {
   it('rejects source runtime drift and a review attached to a different pinned provider', () => {
     const manifest = parseExternalToolCompatibilityManifest(manifestJson)
     const coordinate = manifest.tools.codex
-    const provider = { name: coordinate.packageName, version: '0.2.1-alpha.4',
+    const provider = { name: coordinate.packageName, version: '0.2.1-rc.2',
       dependencies: { [coordinate.runtimePackage.packageName]: '999.0.0' } }
     expect(() => { assertExternalToolSourcePins(manifest, 'codex', provider) }).toThrow('reviewed runtime must match')
     expect(() => { assertExternalToolSourcePins({ ...manifest, reviewedSourceVersion: '0.2.1-alpha.3' }, 'codex', provider) })
@@ -111,7 +118,7 @@ describe('external tool compatibility', () => {
     const manifest = parseExternalToolCompatibilityManifest(manifestJson)
     const coordinate = manifest.tools.codex
     const dependencies = { [coordinate.runtimePackage.packageName]: coordinate.runtimePackage.version }
-    const provider = { name: coordinate.packageName, version: '0.2.1-alpha.4', dependencies }
+    const provider = { name: coordinate.packageName, version: '0.2.1-rc.2', dependencies }
     const published = { name: coordinate.packageName, version: coordinate.version, dependencies }
     expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, {
       ...published, dependencies: { [coordinate.runtimePackage.packageName]: '999.0.0' },
@@ -162,7 +169,7 @@ describe('external tool compatibility', () => {
       fetch: fetchMock,
       verifyBundle: async () => {},
     })
-    await expect(manager.resolve('codex')).resolves.toMatchObject({ version: '0.2.1-alpha.4', source: 'embedded' })
+    await expect(manager.resolve('codex')).resolves.toMatchObject({ version: '0.2.1-rc.2', source: 'embedded' })
   })
 
   it('shares an in-flight refresh across concurrent tool requests', async () => {
@@ -201,7 +208,7 @@ describe('external tool compatibility', () => {
   it('parses exact pins and never creates a floating package spec', () => {
     const manifest = parseExternalToolCompatibilityManifest(manifestJson)
     expect(resolveExternalToolCoordinate(manifest, 'codex', 'embedded')).toMatchObject({
-      packageSpec: '@deepseek-ai/dsh-subagent-codex@0.2.1-alpha.4',
+      packageSpec: '@deepseek-ai/dsh-subagent-codex@0.2.1-rc.2',
       source: 'embedded',
     })
   })
@@ -223,7 +230,7 @@ describe('external tool compatibility', () => {
     })
 
     await expect(manager.resolve('claude-code')).resolves.toMatchObject({
-      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.1-alpha.4',
+      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.1-rc.2',
       source: 'remote',
     })
     expect(verifyBundle).toHaveBeenCalledOnce()

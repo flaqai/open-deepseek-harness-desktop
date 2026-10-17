@@ -383,7 +383,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
         const usageHint = config.usageHint ?? ''
         if (visible[0] !== toolName) return usageHint
         const names = visible.map(name => `\`${name}\``).join(' or ')
-        return [usageHint, `Start independent delegations with ${names} together in one assistant message and continue useful work while they run. When only waiting for their results remains, end your turn instead of sleeping or polling; the next result starts a new turn.`].filter(Boolean).join(' ')
+        return [usageHint, `Start independent delegations with ${names} together in one assistant message and continue useful work while they run.`].filter(Boolean).join(' ')
       },
     })
     runtimeCtx.systemPrompt.context({

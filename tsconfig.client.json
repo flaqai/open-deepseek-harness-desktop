@@ -128,6 +128,7 @@
     { "path": "./packages/client/ui-goal" },
     { "path": "./packages/client/ui-message-feedback" },
     { "path": "./packages/client/ui-model-selection" },
+    { "path": "./packages/client/ui-deepseek-model-label-1017" },
     { "path": "./packages/client/ui-agent-preset" },
     { "path": "./packages/context/custom-instructions/tsconfig.client.json" },
     { "path": "./packages/client/ui-permission-presets" },

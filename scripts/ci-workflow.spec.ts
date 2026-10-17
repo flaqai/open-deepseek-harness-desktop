@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import * as yaml from 'js-yaml'
@@ -88,16 +88,16 @@ describe('CI workflow', () => {
     const scripts = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
     expect(scripts.scripts['build:lib:host']).toContain('tsc -b tsconfig.host.json')
     expect(scripts.scripts['build:lib:client']).toContain('tsc -b tsconfig.client.json')
-    expect(scripts.scripts.typecheck).toBe('tsx scripts/build.ts --scope typecheck')
+    expect(scripts.scripts.typecheck).toBe('tsx scripts/build.ts --scope typecheck && npm run typecheck:desktop')
+    expect(scripts.scripts['typecheck:desktop']).toBe('tsc -p apps/desktop/tsconfig.json --noEmit')
   })
 
-  it('selects artifact builds only for PR release and API rehearsals', () => {
+  it('selects artifact builds only for PR release rehearsals', () => {
     const official = "${{ github.event_name == 'pull_request' && 'pnpm run build:artifacts --profile official' || 'pnpm run build:official' }}"
     const vendor = "${{ github.event_name == 'pull_request' && 'pnpm exec tsx scripts/compile-referenced-projects.ts host-libraries' || 'pnpm run build:lib:host' }}"
     for (const [file, jobName, expected] of [
       ['release.yml', 'pack', official],
       ['release-vendor.yml', 'pack', vendor],
-      ['e2e.yml', 'e2e', official],
     ] as const) {
       const job = workflowJob(loadWorkflow('.github/workflows/' + file), jobName)
       if (!Array.isArray(job.steps)) throw new TypeError(`${jobName} must define steps`)
@@ -150,7 +150,7 @@ describe('CI workflow', () => {
     expect(steps[preparation]).not.toHaveProperty('continue-on-error', true)
   })
 
-  it.each(['ci.yml', 'ci-master.yml', 'e2e.yml', 'release.yml', 'release-vendor.yml'])(
+  it.each(['ci.yml', 'ci-master.yml', 'release.yml', 'release-vendor.yml'])(
     '%s cancels superseded validation runs without crossing workflow or ref boundaries', (name) => {
       const workflow = loadWorkflow('.github/workflows/' + name)
       expect(workflow.concurrency).toEqual({
@@ -917,13 +917,14 @@ describe('CI workflow', () => {
   })
 })
 
-describe('Runtime and LLM e2e Blacksmith routing', () => {
-  it('routes DeepSeek e2e only through the Linux Blacksmith switch', () => {
-    const job = workflowJob(loadWorkflow('.github/workflows/e2e.yml'), 'e2e')
-    for (const mode of ['', 'selfhosted', 'unexpected', 'blacksmith']) {
-      expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_LINUX: mode, DSH_CI_FAILOVER_WINDOWS: 'blacksmith' } }))
-        .toBe(mode === 'blacksmith' ? 'blacksmith-4vcpu-ubuntu-2404' : 'ubuntu-latest')
-    }
+describe('Runtime and LLM e2e runner routing', () => {
+  it('keeps optional provider API tests on a standard hosted runner', () => {
+    const job = workflowJob(loadWorkflow('.github/workflows/pi-ai-provider-e2e.yml'), 'e2e')
+    expect(job['runs-on']).toBe('ubuntu-latest')
+  })
+
+  it('does not restore the removed upstream DeepSeek e2e workflow', () => {
+    expect(existsSync(resolve(root, '.github/workflows/e2e.yml'))).toBe(false)
   })
 
   it('keeps native release and dispatch builders hosted while routing x64 CI by platform', () => {
@@ -974,26 +975,39 @@ describe('bubblewrap preparation script', () => {
   })
 })
 
-describe('DeepSeek e2e workflow', () => {
-  it('prepares bubblewrap from the pinned payload without a package transaction', () => {
-    const workflow = loadWorkflow('.github/workflows/e2e.yml')
+describe('Optional provider e2e workflow', () => {
+  it('requires explicit dispatch and provider keys before running paid API tests', () => {
+    const workflow = loadWorkflow('.github/workflows/pi-ai-provider-e2e.yml')
     const e2e = workflowJob(workflow, 'e2e')
-    if (!Array.isArray(e2e.steps)) throw new TypeError('DeepSeek e2e workflow must define steps')
+    if (!isRecord(workflow.on) || !Array.isArray(e2e.steps)) throw new TypeError('Provider e2e workflow must define triggers and steps')
+    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
 
     const steps = e2e.steps.filter(isRecord)
-    expect(steps.find(step => step.name === 'Prepare bubblewrap (unrestrict userns)')).toMatchObject({
-      run: 'bash scripts/prepare-ci-bubblewrap.sh',
+    const preflight = steps.findIndex(step => step.name === 'Preflight (require provider API keys)')
+    const execute = steps.findIndex(step => step.name === 'E2E tests (real Azure OpenAI and Anthropic APIs)')
+    expect(preflight).toBeGreaterThanOrEqual(0)
+    expect(execute).toBeGreaterThan(preflight)
+    expect(steps[preflight]).toMatchObject({
+      env: {
+        AZURE_OPENAI_API_KEY: '${{ secrets.AZURE_OPENAI_API_KEY_EXTERNAL }}',
+        ANTHROPIC_API_KEY: '${{ secrets.ANTHROPIC_API_KEY_EXTERNAL }}',
+      },
     })
-    expect(JSON.stringify(steps)).not.toContain('apt-get')
+    expect(steps[preflight]?.run).toContain('for name in AZURE_OPENAI_API_KEY ANTHROPIC_API_KEY; do')
+    expect(steps[preflight]?.run).toContain('exit "$missing"')
+    expect(steps[preflight]).not.toHaveProperty('continue-on-error')
   })
 
-  it('bounds profile subprocess fan-out to the tested e2e default', () => {
-    const workflow = loadWorkflow('.github/workflows/e2e.yml')
+  it('bounds provider API fan-out and runs only the selected provider suite', () => {
+    const workflow = loadWorkflow('.github/workflows/pi-ai-provider-e2e.yml')
     const e2e = workflowJob(workflow, 'e2e')
-    if (!Array.isArray(e2e.steps)) throw new TypeError('DeepSeek e2e workflow must define steps')
+    if (!Array.isArray(e2e.steps)) throw new TypeError('Provider e2e workflow must define steps')
 
-    const step = e2e.steps.filter(isRecord).find(candidate => candidate.name === 'E2E tests (real DeepSeek API)')
-    expect(step).toMatchObject({ env: { DSH_E2E_MAX_WORKERS: 4 } })
+    const step = e2e.steps.filter(isRecord).find(candidate => candidate.name === 'E2E tests (real Azure OpenAI and Anthropic APIs)')
+    expect(step).toMatchObject({
+      env: { DSH_E2E_MAX_WORKERS: 2 },
+      run: 'pnpm exec vitest run --config vitest.e2e.config.ts packages/llm/llm-pi-ai/tests/provider-apis.e2e.ts',
+    })
   })
 })
 
@@ -1437,13 +1451,27 @@ describe('npm release workflows', () => {
     })
   })
 
-  it('keeps publication dispatch-only and pack in the PR workflow', () => {
-    // pack stays in the PR/master release workflows so a PR proves the set packs.
-    for (const file of ['release.yml', 'release-vendor.yml']) {
-      const workflow = loadWorkflow(`.github/workflows/${file}`)
-      if (!isRecord(workflow.jobs)) throw new TypeError(`${file} must define jobs`)
-      expect(Object.keys(workflow.jobs).sort()).toEqual(file === 'release.yml' ? ['dependencies', 'pack'] : ['pack'])
+  it('keeps community DSH publication opt-in and vendor rehearsals pack-only', () => {
+    const dsh = loadWorkflow('.github/workflows/release.yml')
+    const vendor = loadWorkflow('.github/workflows/release-vendor.yml')
+    if (!isRecord(dsh.jobs) || !isRecord(dsh.on) || !isRecord(vendor.jobs) || !isRecord(vendor.on)) {
+      throw new TypeError('DSH and vendor releases must define jobs and triggers')
     }
+    expect(Object.keys(dsh.jobs).sort()).toEqual(['dependencies', 'pack', 'publish'])
+    expect(Object.keys(dsh.on)).toEqual(['workflow_dispatch'])
+    expect(workflowEvent(dsh, 'workflow_dispatch')).toEqual({
+      inputs: { publish: {
+        description: 'Publish the packed tarballs to npm. Must run from a dsh-v* tag.',
+        required: true, type: 'boolean', default: false,
+      } },
+    })
+    const dshPublish = workflowJob(dsh, 'publish')
+    expect(dshPublish).toMatchObject({
+      if: 'inputs.publish', needs: 'pack', environment: 'npm-publish',
+      concurrency: { group: 'Release-publish', 'cancel-in-progress': false },
+    })
+    expect(Object.keys(vendor.jobs)).toEqual(['pack'])
+    expect(Object.keys(vendor.on).sort()).toEqual(['pull_request', 'push', 'workflow_dispatch'])
 
     // publication is workflow_dispatch-only (never a PR check) and keeps the
     // npm-publish environment plus the shared dist-tag group.
@@ -1467,7 +1495,7 @@ describe('npm release workflows', () => {
     const commands = dependencies.steps.flatMap(step =>
       isRecord(step) && typeof step.run === 'string' ? [step.run] : [])
 
-    expect(Object.keys(workflow.on).sort()).toEqual(['pull_request', 'push', 'workflow_dispatch'])
+    expect(Object.keys(workflow.on)).toEqual(['workflow_dispatch'])
     expect(commands).toContain('pnpm run verify-package-dependencies')
     expect(commands).toContain('pnpm run verify-npm-install-layout')
   })

@@ -1,0 +1,2 @@
+The Search and Fetch APIs are billed separately. By default, Search may send the first 128 Unicode characters of your latest question after collapsing whitespace. To disable this, set sendOriginalQuestion: false on the web-deepseek-api plugin in your profile configuration.
+Saving a switch change replaces both search and fetch providers: on selects the DeepSeek Search and Fetch APIs; off selects Messages search and local HTTP fetch. Custom providers stay unchanged until you save a switch change.

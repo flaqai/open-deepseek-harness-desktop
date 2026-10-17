@@ -4,7 +4,7 @@ import { Toast, IconSettingsOutlineMedium } from '@deepseek-ai/dsh-client-ui-pri
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { AccountSectionInjected } from './AccountSection.tsx'
 import { SignInDialog } from './SignInDialog.tsx'
-import { AccountNoticeCard } from './AccountNotice.tsx'
+import { AccountNoticeStack } from './AccountNotice.tsx'
 import css from './AccountMenu.module.css'
 
 /** Account launcher composed by the settings shell. */
@@ -15,7 +15,7 @@ export function AccountMenu({
   subscribeSessionExpired, subscribeModelSignInRequired, wide, settingsShortcut, openSettings, openOnboarding, settingsOpen,
   useAccount, useTheme, refreshAccount, bonusNoticeShown, bonusNoticeDismissed, showLogin, start, cancel, t,
 }: AccountMenuProps) {
-  const anchor = useRef<HTMLDivElement>(null)
+  const anchor = useRef<HTMLButtonElement>(null)
   // Re-rendering or switching sections inside one Settings opening must not re-read the account.
   const settingsWasOpen = useRef(false)
   useEffect(() => {
@@ -29,18 +29,18 @@ export function AccountMenu({
   useEffect(() => subscribeModelSignInRequired?.(() => { setSignInNotice(value => value + 1) }), [subscribeModelSignInRequired])
   const [expiryNotice, setExpiryNotice] = useState(false)
   useEffect(() => subscribeSessionExpired?.(() => { setExpiryNotice(true) }), [subscribeSessionExpired])
-  return <div ref={anchor} className={css.root}>
+  return <div className={css.root}>
     {signInNotice > 0 && <Toast key={signInNotice} text={t('modelSignInRequired')} onDone={() => { setSignInNotice(0) }} />}
     {expiryNotice && <Toast text={t('sessionExpired')} onDone={() => { setExpiryNotice(false) }} />}
-    {signedIn && !account.desktopOnboardingVisible && !account.onboarding && account.notice && <AccountNoticeCard
-      key={account.notice.orderId} notice={account.notice}
-      anchor={anchor} title={t('bonusNoticeTitle')} closeLabel={t('close')}
-      onShown={bonusNoticeShown} onDismiss={bonusNoticeDismissed} />}
-    <button type="button" className={css.trigger} data-collapsed={!wide} aria-label={t('settings')}
+    <button ref={anchor} type="button" className={css.trigger} data-collapsed={!wide} aria-label={t('settings')}
       aria-keyshortcuts={settingsShortcut?.aria} onClick={openSettings}>
       <IconSettingsOutlineMedium size={16} aria-hidden="true" />
       {wide && <span className={css.label}>{t('settings')}</span>}
     </button>
+    {signedIn && !account.desktopOnboardingVisible && !account.onboarding && account.notices && <AccountNoticeStack
+      notices={account.notices}
+      anchor={anchor} title={t('bonusNoticeTitle')} closeLabel={t('close')}
+      onShown={bonusNoticeShown} onDismiss={bonusNoticeDismissed} />}
     {account.loginVisible && !account.onboarding && <SignInDialog account={account} colorScheme={colorScheme}
       start={start} cancel={cancel} t={t}
       close={() => { showLogin(false) }} useApiKey={() => { showLogin(false); openOnboarding('deepseek-official') }} />}
