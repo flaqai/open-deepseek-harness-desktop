@@ -12,9 +12,9 @@ Languages: [简体中文](../../README.md) · English · [日本語](README.ja.m
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-alpha.1 is now available](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1).** Built on official [DeepSeek Harness `dsh-v0.2.1-alpha.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1), this release improves sessions and plugin workflows, adds a Workspace-isolated desktop sidebar browser, and updates bundled plugins and optional tools installed on demand.
+> **[v0.2.1-rc.2 is now available](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2).** Built on official [DeepSeek Harness `dsh-v0.2.1-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.2), this release **supports DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, 1017 update)**. Matching official Flash models display a `1017` badge in the model selector.
 >
-> Although the version contains `alpha`, the community build is published as a regular GitHub Release. Back up important configuration before upgrading, and include relevant logs or diagnostic reports when reporting problems.
+> Although the version contains `rc`, the community build is published as a regular GitHub Release. Back up important configuration before upgrading, and include relevant logs or diagnostic reports when reporting problems.
 
 <p align="center">
   <a href="https://github.com/flaqai/open-deepseek-harness-desktop/releases"><img src="https://img.shields.io/github/downloads/flaqai/open-deepseek-harness-desktop/total.svg?style=flat" alt="Downloads"></a>
@@ -423,9 +423,9 @@ Switch between system, light, dark, and eight product themes; pair them with eig
   </tr>
 </table>
 
-### Synchronized with DeepSeek Harness 0.2.1-alpha.1
+### Synchronized with DeepSeek Harness 0.2.1-rc.2
 
-The community Release uses official [`dsh-v0.2.1-alpha.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-alpha.1) as its core baseline. Compared with the previous public Desktop release, `0.1.7-rc.2.1`, it improves model search, draft and reference preservation, Markdown previews, tool-call progress, large session lists, and styles after plugin toggles. The community desktop adds a Workspace-isolated sidebar browser and continues to own independent data directories, the NAS runtime, work runtimes, candidate plugin transactions, diagnostic recovery, bundled plugins, installers, and GitHub/CNB update channels. Back up important conversations, workspaces, and configuration before upgrading; older clients are not guaranteed to read conversations written by the new version.
+The community Release uses official [`dsh-v0.2.1-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.2) as its core baseline, supports DeepSeek 4.1-1017, and integrates model labels, stacked account notices, terminal recovery, and skill-menu refresh improvements. Search/Fetch API is off by default and can be enabled explicitly. The community desktop continues to provide independent data directories, three NAS permission roles, work runtimes, candidate plugin transactions, diagnostic recovery, bundled plugins, and GitHub/CNB update channels. Back up important conversations, workspaces, and configuration before upgrading; older clients are not guaranteed to read conversations written by the new version.
 
 ## What you can do
 
@@ -438,17 +438,17 @@ The community Release uses official [`dsh-v0.2.1-alpha.1`](https://github.com/de
 
 ## Installation
 
-Download builds only from this project's [`v0.2.1-alpha.1` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-alpha.1):
+Download builds only from this project's [`v0.2.1-rc.2` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2):
 
 | Platform | Architecture | Release package | Status |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon (`arm64`) | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-arm64.zip) | Available |
-| macOS | Intel (`x64`) | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-macos-x64.zip) | Available |
-| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-windows-x64.exe) | Available |
-| Linux | Debian / Ubuntu (`x64`) | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-linux-x64.deb) | Available |
-| Linux | Fedora / RHEL (`x64`) | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/DeepSeek-Harness-linux-x64.rpm) | Available |
+| macOS | Apple Silicon (`arm64`) | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2/DeepSeek-Harness-macos-arm64.zip) | Available |
+| macOS | Intel (`x64`) | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2/DeepSeek-Harness-macos-x64.zip) | Available |
+| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2/DeepSeek-Harness-windows-x64.exe) | Available |
+| Linux | Debian / Ubuntu (`x64`) | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2/DeepSeek-Harness-linux-x64.deb) | Available |
+| Linux | Fedora / RHEL (`x64`) | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2/DeepSeek-Harness-linux-x64.rpm) | Available |
 
-The Release also includes [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-alpha.1/SHA256SUMS). Verify downloads before installation; only files actually present on this project's Releases page are public release artifacts.
+The Release also includes [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2/SHA256SUMS). Verify downloads before installation; only files actually present on this project's Releases page are public release artifacts.
 
 ### macOS
 
@@ -558,6 +558,16 @@ These items describe direction, not completed support. See the [desktop release 
 - Use [GitHub Issues](https://github.com/flaqai/open-deepseek-harness-desktop/issues) for reproducible bugs and feature requests.
 - Discuss the upstream runtime in [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) or its [Discord community](https://discord.gg/Ycq5dCaS4).
 - See [CONTRIBUTING.md](../../CONTRIBUTING.md) before contributing and [AGENTS.md](../../AGENTS.md) when working with coding agents in this repository.
+
+### Join the community group
+
+Scan the QR code to join the Open DeepSeek Harness Desktop WeChat group for usage tips, troubleshooting, and feature suggestions.
+
+<p align="center">
+  <img src="../../assets/readme/wechat-group-qr-2026-10-25.jpg" width="360" alt="Open DeepSeek Harness Desktop WeChat group QR code">
+  <br>
+  <sub>This QR code is valid until October 25, 2026; check this README for a replacement after it expires.</sub>
+</p>
 
 ## Acknowledgements
 
