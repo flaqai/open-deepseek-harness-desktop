@@ -36,12 +36,19 @@ export function createSmokePlan(request, repositoryRoot = REPOSITORY_ROOT, node 
   if (stage === 'contracts') {
     const shared = ['electron-package-probe.test.mjs', 'desktop-smoke.test.mjs']
     const tests = target === 'windows-x64'
-      ? ['runtime-deploy-config.test.mjs', 'collect-windows-smoke-evidence.test.mjs', 'windows-package-candidate.test.mjs', ...shared]
+      ? ['runtime-deploy-config.test.mjs', 'prepare-windows-installer-tools.test.mjs', 'collect-windows-smoke-evidence.test.mjs', 'windows-package-candidate.test.mjs', ...shared]
       : target === 'linux-x64'
         ? ['runtime-file-policy.test.mjs', 'workspace-runtime-packaging.test.mjs', 'packaged-resource-contract.test.mjs', ...shared]
         : ['smoke-macos-package.test.mjs', ...shared]
     steps = [step('node-contracts', node, ['--test', ...tests.map(script)])]
-    if (target === 'windows-x64') steps.push(step('windows-journal-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-smoke-journal.test.ps1')]))
+    if (target === 'windows-x64') {
+      steps.push(step('windows-journal-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-smoke-journal.test.ps1')]))
+      steps.push(step('windows-upgrade-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-upgrade-qualification.test.ps1')]))
+      steps.push(step('windows-installer-behavior', node, [join(repositoryRoot, 'node_modules/vitest/vitest.mjs'), 'run',
+        ...['windows-installer-upgrade.spec.ts', 'windows-installer-extract.spec.ts', 'windows-installer-payload.spec.ts',
+          'windows-installer-process-guard-behavior.spec.ts', 'windows-installer-process-guard.spec.ts']
+          .map(name => join(repositoryRoot, 'apps/desktop/tests', name))]))
+    }
   } else if (stage === 'unpacked') {
     scope = 'native-unpacked'
     steps = [nodeStep('windows-unpacked', 'smoke-windows-unpacked.mjs', [], 180_000)]

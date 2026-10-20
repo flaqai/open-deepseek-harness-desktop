@@ -70,6 +70,32 @@ test('records path probe failures as degraded evidence', async () => {
   assert.doesNotMatch(JSON.stringify(evidence), /ENAMETOOLONG|no such file|permission denied/iu)
 })
 
+test('accepts optional previous-release qualification without exposing its raw evidence', async () => {
+  const { runnerTemp, destination } = await fixture()
+  const journalPath = join(runnerTemp, 'DeepSeek-Harness-smoke-status.json')
+  const journal = JSON.parse(await readFile(journalPath, 'utf8'))
+  journal.phases.splice(1, 0, { ...journal.phases[0], name: 'previous-release-persistent-lock' })
+  await writeFile(journalPath, JSON.stringify(journal))
+  await writeFile(join(runnerTemp, 'previous-release.json'), '{"synthetic":"unpublished-local-evidence"}')
+  const evidence = await collectWindowsSmokeEvidence({ runnerTemp, destination, platform: 'linux' })
+  assert.equal(evidence.smoke.status, 'collected')
+  assert.equal(evidence.smoke.journal.phases[1].name, 'previous-release-persistent-lock')
+  assert.equal(evidence.files.find(entry => entry.label === 'previous-release-upgrade')?.status, 'present')
+  assert.equal(JSON.stringify(evidence).includes('unpublished-local-evidence'), false)
+  const failedJournal = {
+    ...journal, status: 'failed', currentPhase: 'previous-release-persistent-lock',
+    phases: [journal.phases[0], { ...journal.phases[1], outcome: 'failed', errorKind: 'previous-release-persistent-lock-failed' }],
+  }
+  await writeFile(journalPath, JSON.stringify(failedJournal))
+  const failed = await collectWindowsSmokeEvidence({ runnerTemp, destination, platform: 'linux' })
+  assert.equal(failed.smoke.status, 'collected')
+  assert.equal(failed.smoke.journal.phases.at(-1).errorKind, 'previous-release-persistent-lock-failed')
+  journal.phases.reverse()
+  await writeFile(journalPath, JSON.stringify(journal))
+  const reversed = await collectWindowsSmokeEvidence({ runnerTemp, destination, platform: 'linux' })
+  assert.equal(reversed.smoke.errorKind, 'journal-invalid')
+})
+
 test('rejects an invalid smoke journal without retaining its contents', async () => {
   const { runnerTemp, destination } = await fixture()
   await writeFile(join(runnerTemp, 'DeepSeek-Harness-smoke-status.json'), JSON.stringify({

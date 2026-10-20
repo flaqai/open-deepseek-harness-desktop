@@ -27,7 +27,7 @@ test('accepts only the fixed stages, targets, and trailing preview flag', () => 
 
 test('contracts preserve each platform check and add both shared runner checks', () => {
   const basenames = target => createSmokePlan({ stage: 'contracts', target }).steps[0].args.map(arg => arg.replaceAll('\\', '/').split('/').at(-1))
-  assert.deepEqual(basenames('windows-x64'), ['--test', 'runtime-deploy-config.test.mjs', 'collect-windows-smoke-evidence.test.mjs',
+  assert.deepEqual(basenames('windows-x64'), ['--test', 'runtime-deploy-config.test.mjs', 'prepare-windows-installer-tools.test.mjs', 'collect-windows-smoke-evidence.test.mjs',
     'windows-package-candidate.test.mjs', 'electron-package-probe.test.mjs', 'desktop-smoke.test.mjs'])
   assert.deepEqual(basenames('macos-arm64'), ['--test', 'smoke-macos-package.test.mjs', 'electron-package-probe.test.mjs', 'desktop-smoke.test.mjs'])
   assert.deepEqual(basenames('linux-x64'), ['--test', 'runtime-file-policy.test.mjs', 'workspace-runtime-packaging.test.mjs',
@@ -35,6 +35,14 @@ test('contracts preserve each platform check and add both shared runner checks',
   const journal = createSmokePlan({ stage: 'contracts', target: 'windows-x64' }).steps[1]
   assert.equal(journal.command, 'pwsh')
   assert.equal(journal.args.at(-1), join(import.meta.dirname, 'windows-smoke-journal.test.ps1'))
+  const upgrade = createSmokePlan({ stage: 'contracts', target: 'windows-x64' }).steps[2]
+  assert.equal(upgrade.command, 'pwsh')
+  assert.equal(upgrade.args.at(-1), join(import.meta.dirname, 'windows-upgrade-qualification.test.ps1'))
+  const behavior = createSmokePlan({ stage: 'contracts', target: 'windows-x64' }).steps[3]
+  assert.equal(behavior.command, process.execPath)
+  assert.equal(behavior.args[1], 'run')
+  assert.ok(behavior.args.some(arg => arg.endsWith('windows-installer-extract.spec.ts')))
+  assert.ok(behavior.args.some(arg => arg.endsWith('windows-installer-upgrade.spec.ts')))
 })
 
 test('package and unpacked plans retain exact artifact paths and acceptance scopes', () => {

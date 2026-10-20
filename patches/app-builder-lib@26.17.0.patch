@@ -25,3 +25,46 @@ index a637bab2668ef88e7382dd4aa5db62b74fdde898..ebcafac58971bdd7c69b78ceddcd401a
            ],
            "type": "string"
          },
+diff --git a/templates/nsis/include/installUtil.nsh b/templates/nsis/include/installUtil.nsh
+--- a/templates/nsis/include/installUtil.nsh
++++ b/templates/nsis/include/installUtil.nsh
+@@ -160,4 +160,7 @@ Function uninstallOldVersion
+     ${if} $uninstallString == ""
++      !ifmacrodef customUninstallMissingRegistration
++        !insertmacro customUninstallMissingRegistration
++      !endif
+       ClearErrors
+       Return
+     ${endif}
+@@ -178,5 +181,8 @@ Function uninstallOldVersion
+   ${if} $installationDir == ""
+   ${andIf} $uninstallerFileName == ""
++    !ifmacrodef customInvalidUninstallRegistration
++      !insertmacro customInvalidUninstallRegistration
++    !endif
+     ClearErrors
+     Return
+   ${endif}
+@@ -209,2 +215,7 @@ Function uninstallOldVersion
++  !ifmacrodef customUninstallOldVersion
++    !insertmacro customUninstallOldVersion
++    Return
++  !endif
++
+   StrCpy $uninstallerFileNameTemp "$PLUGINSDIR\old-uninstaller.exe"
+   !insertmacro copyFile "$uninstallerFileName" "$uninstallerFileNameTemp"
+diff --git a/templates/nsis/include/extractAppPackage.nsh b/templates/nsis/include/extractAppPackage.nsh
+--- a/templates/nsis/include/extractAppPackage.nsh
++++ b/templates/nsis/include/extractAppPackage.nsh
+@@ -92,4 +92,7 @@
+ !macro extractUsing7za FILE
++  !ifmacrodef customExtractUsing7za
++    !insertmacro customExtractUsing7za "${FILE}"
++  !else
+   Push $OUTDIR
+   CreateDirectory "$PLUGINSDIR\7z-out"
+   ClearErrors
+@@ -137,2 +140,3 @@
+   DoneExtract7za:
++  !endif
+ !macroend

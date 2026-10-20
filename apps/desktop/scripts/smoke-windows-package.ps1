@@ -1,4 +1,17 @@
+[CmdletBinding()]
+param(
+  [string] $PreviousInstaller = '',
+  [string] $PreviousVersion = '0.2.1-alpha.2',
+  [ValidateSet('currentuser', 'allusers')] [string] $InstallationMode = 'currentuser',
+  [switch] $ChangeUpgradeDirectory,
+  [switch] $InteractiveUpgrade
+)
+
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($PreviousInstaller) -and ($ChangeUpgradeDirectory -or $InteractiveUpgrade -or $InstallationMode -ne 'currentuser')) {
+  throw 'PreviousInstaller is required for historical, changed-directory, interactive, or all-users qualification.'
+}
+. (Join-Path $PSScriptRoot 'windows-upgrade-qualification.ps1')
 
 function Assert-HarnessStartupHealthy([string] $LogText) {
   # Only terminal supervisor errors fail qualification; plugin stderr and
@@ -38,12 +51,25 @@ $processGuardDiagnostic = Join-Path $env:TEMP 'DeepSeek-Harness-process-guard.lo
 Remove-Item -LiteralPath $processGuardDiagnostic -Force -ErrorAction SilentlyContinue
 $similarRoot = "$installRoot-old"
 
+$previousQualification = $null
+if (-not [string]::IsNullOrWhiteSpace($PreviousInstaller)) {
+  Start-SmokePhase -Name 'previous-release-persistent-lock'
+  $PreviousInstaller = (Resolve-Path -LiteralPath $PreviousInstaller).Path
+  $previousRoot = if ($ChangeUpgradeDirectory) { "$installRoot previous" } else { $installRoot }
+  $candidateStart = New-DesktopQualificationInstallerStart -Installer $installer -Directory $installRoot -Mode $InstallationMode -Interactive:$InteractiveUpgrade
+  $previousQualification = Initialize-DesktopPreviousReleaseQualification -Installer $PreviousInstaller -Version $PreviousVersion `
+    -Directory $previousRoot -CandidateStart $candidateStart -EvidenceRoot $env:RUNNER_TEMP -Mode $InstallationMode
+  $shortLockDirectory = Join-Path $env:RUNNER_TEMP 'previous-release-short-lock'
+  New-Item -ItemType Directory -Path $shortLockDirectory -ErrorAction Stop | Out-Null
+  $previousReleaseLocker = Start-DesktopUpgradeLock -Executable (Join-Path $previousRoot 'Open DeepSeek Harness Desktop.exe') -Directory $shortLockDirectory
+}
+
 Start-SmokePhase -Name 'install'
 $installStart = [System.Diagnostics.ProcessStartInfo]::new()
 $installStart.FileName = $installer
 $installStart.UseShellExecute = $false
-$installStart.ArgumentList.Add('/S')
-$installStart.ArgumentList.Add('/currentuser')
+if (-not $InteractiveUpgrade) { $installStart.ArgumentList.Add('/S') }
+$installStart.ArgumentList.Add("/$InstallationMode")
 $installStart.ArgumentList.Add('/ADDCLI=1')
 $installStart.ArgumentList.Add("/D=$installRoot")
 $install = [System.Diagnostics.Process]::Start($installStart)
@@ -61,12 +87,40 @@ while (-not $install.HasExited -and (Get-Date) -lt $installDeadline) {
   }
 }
 if (-not $install.HasExited) {
+  if ($null -ne $previousQualification) {
+    throw "Previous-release upgrade PID $($install.Id) is still running after 15 minutes; outcome is unknown. Do not reuse this host until it settles."
+  }
   $install.Kill($true)
   $install.WaitForExit()
   throw 'Windows installer did not exit within 15 minutes'
 }
 if ($install.ExitCode -ne 0) {
   throw "Windows installer exited with $($install.ExitCode)"
+}
+if ($null -ne $previousQualification) {
+  if (-not $previousReleaseLocker.WaitForExit(30000) -or $previousReleaseLocker.ExitCode -ne 0) {
+    throw 'Previous-release short lock did not finish normally.'
+  }
+  $candidateVersion = (Get-Item -LiteralPath (Join-Path $installRoot 'Open DeepSeek Harness Desktop.exe')).VersionInfo.ProductVersion
+  $expectedCandidateVersion = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../package.json') -Raw | ConvertFrom-Json).version
+  $expectedHarnessVersion = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../cli/package.json') -Raw | ConvertFrom-Json).version
+  $installedHarnessVersion = (Get-Content -LiteralPath (Join-Path $installRoot 'resources/harness/package.json') -Raw | ConvertFrom-Json).version
+  $candidateRegistrations = @(Get-DesktopUpgradeRegistrations)
+  if ($candidateVersion -ne $expectedCandidateVersion -or $installedHarnessVersion -ne $expectedHarnessVersion -or
+      $candidateRegistrations.Count -ne 1 -or $candidateRegistrations[0].version -ne $candidateVersion) {
+    throw 'Previous-release upgrade did not publish the expected desktop, Harness, and uninstall versions.'
+  }
+  if ((Get-Content -LiteralPath $previousQualification.Sentinel -Raw) -ne $previousQualification.SentinelText) {
+    throw 'Successful previous-release upgrade changed user data.'
+  }
+  if ($ChangeUpgradeDirectory -and (Test-Path -LiteralPath (Join-Path $previousRoot 'Open DeepSeek Harness Desktop.exe'))) {
+    throw 'Changed-directory upgrade retained an executable in the old installation.'
+  }
+  if ($InteractiveUpgrade) {
+    if ((Read-Host 'Confirm that both candidate installers displayed their wizard, persistent-lock failure was actionable, and the second upgrade succeeded. Type observed') -ne 'observed') {
+      throw 'Interactive upgrade requires a human GUI observation; automatic process exit is not GUI acceptance.'
+    }
+  }
 }
 
 # Keep an unrelated executable alive in another prefix-similar sibling. The
@@ -417,6 +471,21 @@ if (-not $pathRestored -or -not $registrationRemoved -or -not $installationRemov
 }
 
 Write-Host 'Installed and upgraded the Windows package, precisely cleaned owned processes without touching a prefix-similar decoy, reached Harness readiness, seeded startup plugins, ran desktop dsh, kept external tools online-only, and restored PATH on uninstall.'
+if ($null -ne $previousQualification) {
+  if ((Get-Content -LiteralPath $previousQualification.Sentinel -Raw) -ne $previousQualification.SentinelText) {
+    throw 'Uninstall did not preserve previous-release qualification user data.'
+  }
+  $historicalEvidencePath = Join-Path $env:RUNNER_TEMP 'previous-release.json'
+  $historicalEvidence = Get-Content -LiteralPath $historicalEvidencePath -Raw | ConvertFrom-Json
+  $historicalEvidence | Add-Member -NotePropertyName candidateVersion -NotePropertyValue $candidateVersion
+  $historicalEvidence | Add-Member -NotePropertyName candidateInstallerSha256 -NotePropertyValue (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
+  $historicalEvidence | Add-Member -NotePropertyName qualification -NotePropertyValue 'passed'
+  if ($InteractiveUpgrade) { $historicalEvidence.guiObservation = 'human-confirmed' }
+  $historicalEvidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $historicalEvidencePath -Encoding utf8
+  Remove-Item -LiteralPath $previousQualification.Sentinel -ErrorAction Stop
+  $ownedUserData = Split-Path -Parent $previousQualification.Sentinel
+  if (@(Get-ChildItem -LiteralPath $ownedUserData -Force).Count -eq 0) { Remove-Item -LiteralPath $ownedUserData -ErrorAction Stop }
+}
 Complete-SmokeJournal -Outcome 'passed'
 } catch {
   Complete-SmokeJournal -Outcome 'failed'

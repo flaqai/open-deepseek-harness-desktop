@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { preparePrebuiltProfile } from './prepare-prebuilt-profile.mjs'
 import { nodeRuntimeArchivesByTarget, nodeVersion } from './node-runtime-pins.mjs'
 import { createPackagedArchive } from './create-packaged-archive.mjs'
+import { prepareWindowsInstallerTools } from './prepare-windows-installer-tools.mjs'
 import { pruneDesktopRuntime, removeExtraneousWorkspaceLinks } from './runtime-file-policy.mjs'
 import { preservePnpmWorkspaceState } from '../../../scripts/preserve-pnpm-workspace-state.mjs'
 import { officePackageDirectories, selectOfficeEngine, verifyBundledOfficeIdentity } from '../../../scripts/libreoffice-packages.mjs'
@@ -438,6 +439,7 @@ if (outputRoot === repositoryRoot || repositoryRoot.startsWith(outputRoot + sep)
 }
 await rm(outputRoot, { recursive: true, force: true })
 await mkdir(outputRoot, { recursive: true })
+await prepareWindowsInstallerTools({ repositoryRoot })
 await preservePnpmWorkspaceState(repositoryRoot, () => run(process.execPath, [
   pnpmEntry,
   '--filter',

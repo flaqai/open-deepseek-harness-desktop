@@ -12,7 +12,8 @@ const SMOKE_PHASE_ORDER = [
   'package-contract', 'install', 'native-entry', 'first-start', 'process-guard',
   'upgrade', 'restart', 'cli', 'plugins', 'uninstall',
 ]
-const SMOKE_PHASES = new Set(SMOKE_PHASE_ORDER)
+const PREVIOUS_RELEASE_PHASE = 'previous-release-persistent-lock'
+const SMOKE_PHASES = new Set([...SMOKE_PHASE_ORDER, PREVIOUS_RELEASE_PHASE])
 
 function evidenceCatalog(runnerTemp) {
   return [
@@ -21,6 +22,7 @@ function evidenceCatalog(runnerTemp) {
     ['data-home-setup', join(runnerTemp, 'DeepSeek Harness AppData', 'open-deepseek-harness-desktop', 'data-home-setup.json')],
     ['profile-manifest', join(runnerTemp, 'DeepSeek Harness Home', 'profiles', 'web', 'package.json')],
     ['profile-lock', join(runnerTemp, 'DeepSeek Harness Home', 'profiles', 'web', 'pnpm-lock.yaml')],
+    ['previous-release-upgrade', join(runnerTemp, 'previous-release.json')],
   ]
 }
 
@@ -91,11 +93,14 @@ async function readSmokeJournal(runnerTemp) {
     const completedAt = decoded.completedAt === null ? null : safeTimestamp(decoded.completedAt)
     const phases = decoded.phases.map(safeJournalPhase)
     const currentPhase = decoded.currentPhase
+    const expectedPhaseOrder = phases[1]?.name === PREVIOUS_RELEASE_PHASE
+      ? [SMOKE_PHASE_ORDER[0], PREVIOUS_RELEASE_PHASE, ...SMOKE_PHASE_ORDER.slice(1)]
+      : SMOKE_PHASE_ORDER
     const phaseOrderValid = phases.length > 0
-      && phases.every((phase, index) => phase?.name === SMOKE_PHASE_ORDER[index])
+      && phases.every((phase, index) => phase?.name === expectedPhaseOrder[index])
     const phasesSettled = phases.every(phase => phase?.completedAt !== null && phase?.durationMs !== null)
     const outcomesValid = decoded.status === 'passed'
-      ? phases.length === SMOKE_PHASE_ORDER.length && phases.every(phase => phase?.outcome === 'passed')
+      ? phases.length === expectedPhaseOrder.length && phases.every(phase => phase?.outcome === 'passed')
       : phases.slice(0, -1).every(phase => phase?.outcome === 'passed') && phases.at(-1)?.outcome === 'failed'
     if (startedAt === undefined || completedAt === undefined || completedAt === null || phases.includes(undefined)
       || !phaseOrderValid || !phasesSettled || !outcomesValid || currentPhase !== phases.at(-1)?.name) {

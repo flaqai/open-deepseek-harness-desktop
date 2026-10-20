@@ -26,8 +26,14 @@ LangString AppProcessesRemain 2052 "仍有进程无法关闭。它们可能使�
 LangString AppProcessesRemain 1033 "Some processes could not be closed, possibly because they run with higher privileges. Close the listed PIDs and paths, then retry."
 LangString AppProcessInspectionFailed 2052 "安装程序无法安全检查 Open DeepSeek Harness Desktop 进程。为避免损坏安装，本次操作已停止。"
 LangString AppProcessInspectionFailed 1033 "The installer could not safely inspect Open DeepSeek Harness Desktop processes. Installation has stopped to avoid corrupting the application."
-LangString UpgradeCleanupFailed 2052 "安装程序已额外等待并重试，但仍无法完整移除旧版本文件。Windows 安全软件、资源管理器或其他程序可能仍在占用安装目录。请暂时关闭这些程序后重新运行安装包。安装程序没有跳过卸载，也没有混合新旧文件。"
-LangString UpgradeCleanupFailed 1033 "The installer waited and retried, but Windows still could not completely remove the previous version. Security software, File Explorer, or another program may still be using the installation directory. Close those programs and run the installer again. The installer did not skip uninstall or mix old and new files."
+LangString UpgradeCleanupFailed 2052 "旧版本卸载失败或安装注册信息损坏，本次升级已停止，未写入新版本文件。具体失败文件未知；旧版本是否恢复需检查日志，不能据此确认旧版可用。请关闭占用程序或使用匹配权限后重新运行安装包。"
+LangString UpgradeCleanupFailed 1033 "The previous version could not be uninstalled, or its installation registration is invalid. Upgrade stopped before copying new files. The failed file is unknown; restoration of the old version is not confirmed. Review the logs, close locking programs or use matching privileges, then run the installer again."
+LangString InstallerDiagnosticsFailed 2052 "无法创建或写入安装诊断日志。为避免无法追踪的安装失败，本次操作已停止。请检查临时目录权限和磁盘空间。"
+LangString InstallerDiagnosticsFailed 1033 "Installation diagnostics could not be created or written. Installation stopped. Check temporary-directory permissions and free disk space."
+LangString InstallerExtractFailed 2052 "安装包解压失败，安装尚未完成。旧版可能已经卸载，不能确认旧版仍可用。请保留日志并检查磁盘空间或重新下载安装包。"
+LangString InstallerExtractFailed 1033 "Package extraction failed; installation is incomplete. The previous version may already have been removed and is not confirmed usable. Keep the logs, check free disk space, or download the installer again."
+LangString InstallerCopyFailed 2052 "新文件写入或完整性核验失败，安装不完整，未登记新版本成功。旧版可能已经卸载，本次未恢复旧版。请保留日志，排除文件占用、磁盘空间或权限问题后重新运行安装包。"
+LangString InstallerCopyFailed 1033 "Writing or verifying the new files failed. Installation is incomplete; the new version was not registered as successful. The previous version may already have been removed and was not restored. Keep the logs, resolve file locks, disk space or permissions, then run the installer again."
 LangString UninstallDataPageTitle 2052 "本地配置和数据"
 LangString UninstallDataPageTitle 1033 "Local configuration and data"
 LangString UninstallDataPageSubtitle 2052 "选择卸载应用后是否保留个人数据"
@@ -46,78 +52,174 @@ LangString UninstallDataDeleteFailed 2052 "部分安装版数据无法删除，�
 LangString UninstallDataDeleteFailed 1033 "Some installed-app data could not be deleted, possibly because another process is still using it. After uninstalling, close that program and remove the contents below except development:$\r$\n$APPDATA\open-deepseek-harness-desktop"
 
 Var ProcessGuardOutput
+Var DesktopDiagnosticDirectory
 
-!macro customCheckAppRunning
-  # A fresh installation has no files that can be locked. Avoid invoking CIM
-  # until an existing desktop executable or packaged runtime is present.
-  IfFileExists "$INSTDIR\${APP_EXECUTABLE_FILENAME}" process_guard_inspect
-  IfFileExists "$INSTDIR\resources\*.*" process_guard_inspect
-  Goto process_guard_done
+# Persistent, unique per invocation; never put the only evidence in PLUGINSDIR.
+!macro DesktopEnsureDiagnostics
+  ${If} $DesktopDiagnosticDirectory == ""
+    GetTempFileName $DesktopDiagnosticDirectory "$TEMP"
+    Delete "$DesktopDiagnosticDirectory"
+    StrCpy $DesktopDiagnosticDirectory "$DesktopDiagnosticDirectory.dsh-install"
+    ClearErrors
+    CreateDirectory "$DesktopDiagnosticDirectory"
+    IfErrors 0 +4
+      SetErrorLevel 43
+      MessageBox MB_OK|MB_ICONSTOP "$(InstallerDiagnosticsFailed)" /SD IDOK
+      Quit
+    DetailPrint "Installer diagnostics: $DesktopDiagnosticDirectory"
+  ${EndIf}
+!macroend
 
-  process_guard_inspect:
+!macro DesktopLog TEXT
+  !insertmacro DesktopEnsureDiagnostics
+  ClearErrors
+  FileOpen $3 "$DesktopDiagnosticDirectory\installer.log" a
+  IfErrors 0 +4
+    SetErrorLevel 43
+    MessageBox MB_OK|MB_ICONSTOP "$(InstallerDiagnosticsFailed)" /SD IDOK
+    Quit
+  FileWriteUTF16LE $3 "${TEXT}$\r$\n"
+  IfErrors 0 +5
+    FileClose $3
+    SetErrorLevel 43
+    MessageBox MB_OK|MB_ICONSTOP "$(InstallerDiagnosticsFailed)" /SD IDOK
+    Quit
+  FileClose $3
+!macroend
+
+!macro DesktopCheckProcesses DIRECTORY
+  !insertmacro DesktopEnsureDiagnostics
   InitPluginsDir
   File /oname=$PLUGINSDIR\installer-process-guard.ps1 "${BUILD_RESOURCES_DIR}\installer-process-guard.ps1"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
-
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-process-guard.ps1" -Action inspect -InstallDirectory "$INSTDIR" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -ExcludeProcessId $9'
+  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-process-guard.ps1" -Action inspect -InstallDirectory "${DIRECTORY}" -AdditionalInstallDirectory "$INSTDIR" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -ExcludeProcessId $9 -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
   Pop $0
   Pop $ProcessGuardOutput
   DetailPrint "$ProcessGuardOutput"
-
-  ${If} $0 == 0
-    Goto process_guard_done
-  ${ElseIf} $0 == 10
+  ${If} $0 == 10
     ${IfNot} ${Silent}
-      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "$(AppProcessesRunning)$\r$\n$ProcessGuardOutput" IDOK process_guard_stop
-      Quit
+      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "$(AppProcessesRunning)$\r$\n$ProcessGuardOutput" IDOK +3
+        SetErrorLevel 1
+        Quit
     ${EndIf}
-    Goto process_guard_stop
-  ${Else}
-    FileOpen $3 "$TEMP\DeepSeek-Harness-process-guard.log" w
-    FileWrite $3 "inspect-exit=$0$\r$\n$ProcessGuardOutput$\r$\n"
-    FileClose $3
-    MessageBox MB_RETRYCANCEL|MB_ICONSTOP "$(AppProcessInspectionFailed)$\r$\n$ProcessGuardOutput" /SD IDCANCEL IDRETRY process_guard_inspect
-    Quit
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-process-guard.ps1" -Action stop -InstallDirectory "${DIRECTORY}" -AdditionalInstallDirectory "$INSTDIR" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -ExcludeProcessId $9 -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
+    Pop $0
+    Pop $ProcessGuardOutput
+    DetailPrint "$ProcessGuardOutput"
   ${EndIf}
-
-  process_guard_stop:
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-process-guard.ps1" -Action stop -InstallDirectory "$INSTDIR" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -ExcludeProcessId $9'
-  Pop $0
-  Pop $ProcessGuardOutput
-  DetailPrint "$ProcessGuardOutput"
   ${If} $0 != 0
-    FileOpen $3 "$TEMP\DeepSeek-Harness-process-guard.log" w
-    FileWrite $3 "stop-exit=$0$\r$\n$ProcessGuardOutput$\r$\n"
-    FileClose $3
-    MessageBox MB_RETRYCANCEL|MB_ICONSTOP "$(AppProcessesRemain)$\r$\n$ProcessGuardOutput" /SD IDCANCEL IDRETRY process_guard_inspect
+    !insertmacro DesktopLog "process-inspection-stopped result=$0 directory=${DIRECTORY}"
+    MessageBox MB_OK|MB_ICONSTOP "$(AppProcessInspectionFailed)$\r$\n$ProcessGuardOutput$\r$\n$DesktopDiagnosticDirectory" /SD IDOK
+    SetErrorLevel 20
     Quit
   ${EndIf}
-  Delete "$TEMP\DeepSeek-Harness-process-guard.log"
+!macroend
 
+!macro customCheckAppRunning
+  !insertmacro DesktopEnsureDiagnostics
+  !insertmacro DesktopLog "process-check target=$INSTDIR"
+  # No process lookup is needed for an empty, new target directory.
+  IfFileExists "$INSTDIR\${APP_EXECUTABLE_FILENAME}" process_guard_inspect
+  IfFileExists "$INSTDIR\resources\*.*" process_guard_inspect
+  Goto process_guard_done
+  process_guard_inspect:
+  !insertmacro DesktopCheckProcesses "$INSTDIR"
   process_guard_done:
 !macroend
 
 !ifndef BUILD_UNINSTALLER
   Var CliPathCheckboxHandle
   Var CliPathRequested
-  Var UpgradeRetryInstallDir
-  Var UpgradeRetryMode
+  Var DesktopOldDirectory
+  Var DesktopOldUninstaller
+  Var DesktopUninstallArguments
 
-  # Electron Builder gives atomic update cleanup five attempts separated by
-  # one-second waits before returning exit code 2. Large packaged runtimes and
-  # transient antivirus/indexer locks can outlive that window even when no
-  # desktop-owned process is running. Keep the atomic old-version uninstaller
-  # contract and grant it one bounded recovery window; never continue on a
-  # non-zero result.
   !macro customUnInstallCheck
     Call DesktopHandleOldUninstallResult
   !macroend
 
   !macro customUnInstallCheckCurrentUser
-    Call DesktopHandleOldCurrentUserUninstallResult
+    Call DesktopHandleOldUninstallResult
+  !macroend
+
+  # Invoked inside uninstallOldVersion before the upstream generic retry loop.
+  !macro customUninstallOldVersion
+    StrCpy $DesktopOldDirectory "$installationDir"
+    StrCpy $DesktopOldUninstaller "$uninstallerFileName"
+    StrCpy $DesktopUninstallArguments "$0"
+    !insertmacro DesktopLog "uninstall-start mode=$DesktopUninstallArguments old=$DesktopOldDirectory target=$INSTDIR uninstaller=$DesktopOldUninstaller"
+    !insertmacro DesktopCheckProcesses "$DesktopOldDirectory"
+    File /oname=$PLUGINSDIR\installer-upgrade.ps1 "${BUILD_RESOURCES_DIR}\installer-upgrade.ps1"
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-upgrade.ps1" -InstallDirectory "$DesktopOldDirectory" -UninstallerPath "$DesktopOldUninstaller" -UninstallerName "${UNINSTALL_FILENAME}" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -UninstallArguments "$DesktopUninstallArguments" -TemporaryDirectory "$PLUGINSDIR" -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
+    Pop $R0
+    Pop $ProcessGuardOutput
+    DetailPrint "$ProcessGuardOutput"
+    !insertmacro DesktopLog "uninstall-result=$R0 old=$DesktopOldDirectory failed-file=unknown"
+    ClearErrors
+  !macroend
+
+  !macro customUninstallMissingRegistration
+    !insertmacro readReg $DesktopOldDirectory "$rootKey" "${INSTALL_REGISTRY_KEY}" InstallLocation
+    ${If} $DesktopOldDirectory != ""
+      StrCpy $R0 3
+      !insertmacro DesktopLog "uninstall-invalid-registration mode=$rootKey old=$DesktopOldDirectory missing=UninstallString"
+    ${EndIf}
+  !macroend
+
+  !macro customInvalidUninstallRegistration
+    StrCpy $R0 3
+    !insertmacro DesktopLog "uninstall-invalid-registration mode=$rootKey missing=installation-directory-or-uninstaller"
+  !macroend
+
+  !macro customExtractUsing7za FILE
+    !insertmacro DesktopLog "extract-start mode=$installMode target=$INSTDIR"
+    # An unregistered or incompletely removed installation must not be overlaid.
+    IfFileExists "$INSTDIR\${APP_EXECUTABLE_FILENAME}" desktop_payload_old_remains
+    IfFileExists "$INSTDIR\resources\*.*" desktop_payload_old_remains
+    Goto desktop_payload_extract
+    desktop_payload_old_remains:
+      !insertmacro DesktopLog "copy-refused previous-application-or-runtime-remains"
+      MessageBox MB_OK|MB_ICONSTOP "$(UpgradeCleanupFailed)$\r$\n$DesktopDiagnosticDirectory" /SD IDOK
+      SetErrorLevel 3
+      Quit
+    desktop_payload_extract:
+    CreateDirectory "$PLUGINSDIR\7z-out"
+    File /oname=$PLUGINSDIR\desktop-7za.exe "${BUILD_RESOURCES_DIR}\..\..\..\.artifacts\desktop-runtime-win-x64\installer\7za.exe"
+    File /oname=$PLUGINSDIR\7zip-COPYING "${BUILD_RESOURCES_DIR}\..\..\..\.artifacts\desktop-runtime-win-x64\installer\COPYING"
+    File /oname=$PLUGINSDIR\7zip-LICENSE.txt "${BUILD_RESOURCES_DIR}\..\..\..\.artifacts\desktop-runtime-win-x64\installer\LICENSE.txt"
+    File /oname=$PLUGINSDIR\installer-extract.ps1 "${BUILD_RESOURCES_DIR}\installer-extract.ps1"
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-extract.ps1" -Extractor "$PLUGINSDIR\desktop-7za.exe" -Archive "${FILE}" -Destination "$PLUGINSDIR\7z-out" -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
+    Pop $R0
+    Pop $ProcessGuardOutput
+    DetailPrint "$ProcessGuardOutput"
+    ${If} $R0 != 0
+      Goto desktop_payload_extract_failed
+    ${EndIf}
+    SetOutPath "$INSTDIR"
+    !insertmacro DesktopLog "extract-complete"
+    File /oname=$PLUGINSDIR\installer-payload.ps1 "${BUILD_RESOURCES_DIR}\installer-payload.ps1"
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-payload.ps1" -SourceDirectory "$PLUGINSDIR\7z-out" -InstallDirectory "$INSTDIR" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -ExpectedVersion "${VERSION}" -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
+    Pop $R0
+    Pop $ProcessGuardOutput
+    DetailPrint "$ProcessGuardOutput"
+    ${If} $R0 != 0
+      !insertmacro DesktopLog "copy-failed result=$R0 installation=incomplete old-version-not-restored"
+      MessageBox MB_OK|MB_ICONSTOP "$(InstallerCopyFailed)$\r$\n$ProcessGuardOutput$\r$\n$DesktopDiagnosticDirectory" /SD IDOK
+      SetErrorLevel 42
+      Quit
+    ${EndIf}
+    !insertmacro DesktopLog "copy-verified version=${VERSION}"
+    Goto desktop_payload_done
+    desktop_payload_extract_failed:
+      !insertmacro DesktopLog "extract-failed result=$R0 installation=incomplete $ProcessGuardOutput"
+      MessageBox MB_OK|MB_ICONSTOP "$(InstallerExtractFailed)$\r$\n$DesktopDiagnosticDirectory" /SD IDOK
+      SetErrorLevel 44
+      Quit
+    desktop_payload_done:
   !macroend
 
   !macro customInit
+    !insertmacro DesktopLog "installer-init mode=$installMode target=$INSTDIR"
     StrCpy $CliPathRequested "0"
     ReadRegDWORD $0 HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_REGISTRY_VALUE}"
     ${If} $0 == 1
@@ -135,102 +237,18 @@ Var ProcessGuardOutput
     Page custom CliPathPageCreate CliPathPageLeave
   !macroend
 
-  # Electron Builder inserts customHeader after MUI2 and the selected languages.
-  # Emit the page functions there so their MUI macros are available.
+  # Electron Builder inserts customHeader after MUI2 and selected languages.
   !macro customHeader
-    Function DesktopRetryOldUninstall
-      StrCpy $R4 0
-      InitPluginsDir
-      Delete "$PLUGINSDIR\desktop-old-uninstaller-retry.exe"
-      ClearErrors
-      CopyFiles /SILENT "$UpgradeRetryInstallDir\${UNINSTALL_FILENAME}" "$PLUGINSDIR\desktop-old-uninstaller-retry.exe"
-      IfErrors desktop_upgrade_retry_copy_failed
-
-      desktop_upgrade_retry_loop:
-      IntOp $R4 $R4 + 1
-      Sleep 5000
-      DetailPrint "Retrying atomic old-version cleanup ($R4/12) after exit code 2."
-      FileOpen $3 "$TEMP\DeepSeek-Harness-upgrade-cleanup.log" a
-      FileWrite $3 "atomic-cleanup-retry=$R4 previous-exit=$R0$\r$\n"
-      FileClose $3
-
-      # --updated keeps electron-builder's rollback-capable atomic removal;
-      # /KEEP_APP_DATA additionally protects data created by older installers.
-      ClearErrors
-      ExecWait '"$PLUGINSDIR\desktop-old-uninstaller-retry.exe" /S /KEEP_APP_DATA $UpgradeRetryMode --updated _?=$UpgradeRetryInstallDir' $R0
-      IfErrors desktop_upgrade_retry_launch_failed desktop_upgrade_retry_result
-
-      desktop_upgrade_retry_copy_failed:
-      desktop_upgrade_retry_launch_failed:
-      StrCpy $R0 2
-      ClearErrors
-      Return
-
-      desktop_upgrade_retry_result:
-      ${If} $R0 == 0
-        Delete "$TEMP\DeepSeek-Harness-upgrade-cleanup.log"
-        Return
-      ${EndIf}
-      ${If} $R0 != 2
-        Return
-      ${EndIf}
-      ${If} $R4 < 12
-        Goto desktop_upgrade_retry_loop
-      ${EndIf}
-    FunctionEnd
-
     Function DesktopHandleOldUninstallResult
-      IfErrors desktop_uninstall_launch_failed desktop_uninstall_has_result
-
-      desktop_uninstall_launch_failed:
-      DetailPrint "Uninstall was not successful. Not able to launch uninstaller."
-      Return
-
-      desktop_uninstall_has_result:
-      ${If} $R0 == 2
-        StrCpy $UpgradeRetryInstallDir "$INSTDIR"
-        ${If} $installMode == "CurrentUser"
-          StrCpy $UpgradeRetryMode "/currentuser"
-        ${Else}
-          StrCpy $UpgradeRetryMode "/allusers"
-        ${EndIf}
-        Call DesktopRetryOldUninstall
+      IfErrors desktop_uninstall_failed
+      ${If} $R0 == 0
+        Return
       ${EndIf}
-      ${If} $R0 != 0
-        FileOpen $3 "$TEMP\DeepSeek-Harness-upgrade-cleanup.log" a
-        FileWrite $3 "atomic-cleanup-final-exit=$R0$\r$\n"
-        FileClose $3
-        MessageBox MB_OK|MB_ICONEXCLAMATION "$(UpgradeCleanupFailed)$\r$\n$\r$\n$TEMP\DeepSeek-Harness-upgrade-cleanup.log" /SD IDOK
-        DetailPrint "Atomic old-version cleanup failed with exit code $R0."
-        SetErrorLevel 2
-        Quit
-      ${EndIf}
-    FunctionEnd
-
-    Function DesktopHandleOldCurrentUserUninstallResult
-      IfErrors desktop_current_user_uninstall_launch_failed desktop_current_user_uninstall_has_result
-
-      desktop_current_user_uninstall_launch_failed:
-      DetailPrint "Uninstall was not successful. Not able to launch current-user uninstaller."
-      Return
-
-      desktop_current_user_uninstall_has_result:
-      ${If} $R0 == 2
-        ReadRegStr $UpgradeRetryInstallDir HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation
-        StrCpy $UpgradeRetryMode "/currentuser"
-        ${If} $UpgradeRetryInstallDir != ""
-          Call DesktopRetryOldUninstall
-        ${EndIf}
-      ${EndIf}
-      ${If} $R0 != 0
-        FileOpen $3 "$TEMP\DeepSeek-Harness-upgrade-cleanup.log" a
-        FileWrite $3 "atomic-current-user-cleanup-final-exit=$R0$\r$\n"
-        FileClose $3
-        MessageBox MB_OK|MB_ICONEXCLAMATION "$(UpgradeCleanupFailed)$\r$\n$\r$\n$TEMP\DeepSeek-Harness-upgrade-cleanup.log" /SD IDOK
-        DetailPrint "Atomic current-user cleanup failed with exit code $R0."
-        SetErrorLevel 2
-        Quit
-      ${EndIf}
+      desktop_uninstall_failed:
+      !insertmacro DesktopLog "uninstall-stopped result=$R0 failed-file=unknown restoration=unverified"
+      MessageBox MB_OK|MB_ICONSTOP "$(UpgradeCleanupFailed)$\r$\n$ProcessGuardOutput$\r$\n$DesktopDiagnosticDirectory" /SD IDOK
+      SetErrorLevel 2
+      Quit
     FunctionEnd
 
     Function CliPathPageCreate
