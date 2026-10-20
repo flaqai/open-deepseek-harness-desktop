@@ -61,6 +61,20 @@ $interopDeclaration = @($interopHelper.FindAll({ param($node)
 }, $true))
 & ([scriptblock]::Create($interopDeclaration[0].Extent.Text))
 if ([DshQualificationKnownFolders].GetMethod('SHGetKnownFolderPath').GetParameters()[2].ParameterType -ne [IntPtr]) { throw 'Known-folder native token must retain its pointer-sized type.' }
+$script:explicitIdentityOpened = $false
+function Open-DesktopStandardIdentity {
+  $script:explicitIdentityOpened = $true
+  throw [UnauthorizedAccessException]::new('Synthetic token acquisition denial.')
+}
+try {
+  $nullTokenProbe = Get-DesktopStandardKnownFolder -Folder LocalApplicationData -Flags 0x4000 -UseProcessUser
+  if ($script:explicitIdentityOpened -or $nullTokenProbe.FailurePhase -eq 'open-token') { throw 'NULL current-user diagnostics must not acquire an explicit identity first.' }
+  $explicitTokenProbe = Get-DesktopStandardKnownFolder -Folder LocalApplicationData -Flags 0x4000
+  if (-not $script:explicitIdentityOpened -or $explicitTokenProbe.FailurePhase -ne 'open-token' -or $explicitTokenProbe.ExceptionKind -ne 'access-denied') { throw 'Token acquisition denial must remain distinct from a native API HRESULT.' }
+} finally {
+  $identityHelper = @($profileHelpers | Where-Object { $_.Name -eq 'Open-DesktopStandardIdentity' })[0]
+  . ([scriptblock]::Create($identityHelper.Extent.Text))
+}
 $nativeEnvironmentHelper = @($profileHelpers | Where-Object { $_.Name -eq 'Get-DesktopStandardEnvironment' })[0]
 $nativeEnvironmentCall = @($nativeEnvironmentHelper.FindAll({ param($node)
   $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $node.Member.Extent.Text -eq 'CreateEnvironmentBlock'
@@ -94,6 +108,7 @@ try {
   $script:profileHiveLoaded = $true
   $script:knownFolderBehavior = 'create'
   $script:readOnlyFolderCalls = [Collections.Generic.List[object]]::new()
+  $script:outsideProfileProbed = $false
   function Get-ItemProperty {
     param([string] $LiteralPath, [string] $Name, [string] $ErrorAction)
     if ($LiteralPath -eq 'Registry::HKEY_USERS\S-1-5-21-synthetic\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders' -and $Name -eq 'Local AppData') {
@@ -107,6 +122,10 @@ try {
   function Test-Path {
     param([string] $LiteralPath, [string] $PathType)
     if ($LiteralPath -eq 'Registry::HKEY_USERS\S-1-5-21-synthetic') { return $script:profileHiveLoaded }
+    if ($LiteralPath -eq (Join-Path $profileTestRoot 'administrator/Local')) {
+      $script:outsideProfileProbed = $true
+      throw [UnauthorizedAccessException]::new('No outside-profile filesystem probe is allowed.')
+    }
     $parameters = @{ LiteralPath = $LiteralPath }
     if ($PathType) { $parameters.PathType = $PathType }
     return Microsoft.PowerShell.Management\Test-Path @parameters
@@ -116,12 +135,12 @@ try {
     if ($env:USERPROFILE -ne $script:profileDirectory) { throw 'Known-folder lookup must follow restoration of the verified token profile.' }
     if ($Flags -eq 0x4000) {
       $script:readOnlyFolderCalls.Add([pscustomobject]@{ Flags = $Flags; UseProcessUser = [bool]$UseProcessUser })
-      if ($script:knownFolderBehavior -eq 'local-api-failed' -and -not $UseProcessUser) { return [pscustomobject]@{ Path = ''; HResult = -2147024891 } }
-      return [pscustomobject]@{ Path = (Join-Path $script:profileDirectory 'AppData/Local'); HResult = 0 }
+      if ($script:knownFolderBehavior -eq 'local-api-failed' -and -not $UseProcessUser) { return [pscustomobject]@{ Path = ''; HResult = -2147024891; FailurePhase = 'native-result'; ExceptionKind = 'none' } }
+      return [pscustomobject]@{ Path = (Join-Path $script:profileDirectory 'AppData/Local'); HResult = 0; FailurePhase = 'none'; ExceptionKind = 'none' }
     }
     if ($script:knownFolderBehavior -eq 'empty') { return [pscustomobject]@{ Path = ''; HResult = 0 } }
     if ($script:knownFolderBehavior -eq 'escape') { return [pscustomobject]@{ Path = (Join-Path $profileTestRoot 'administrator/Local'); HResult = 0 } }
-    if ($script:knownFolderBehavior -eq 'local-api-failed' -and $Folder -eq 'LocalApplicationData') { return [pscustomobject]@{ Path = ''; HResult = -2147024891 } }
+    if ($script:knownFolderBehavior -eq 'local-api-failed' -and $Folder -eq 'LocalApplicationData') { return [pscustomobject]@{ Path = ''; HResult = -2147024891; FailurePhase = 'native-result'; ExceptionKind = 'none' } }
     if ($script:knownFolderBehavior -eq 'local-missing' -and $Folder -eq 'LocalApplicationData') { return [pscustomobject]@{ Path = (Join-Path $script:profileDirectory 'AppData/MissingLocal'); HResult = 0 } }
     $suffix = if ($Folder -eq 'ApplicationData') { 'Roaming' } else { 'Local' }
     return [pscustomobject]@{ Path = [IO.Directory]::CreateDirectory((Join-Path $script:profileDirectory "AppData/$suffix")).FullName; HResult = 0 }
@@ -156,11 +175,11 @@ try {
     $diagnostic = $diagnosticText | ConvertFrom-Json
     $lastCheck = $diagnostic.folders[-1]
     if ($behavior -eq 'empty' -and -not $lastCheck.pathEmpty) { throw 'Empty result must remain distinct in closed diagnostics.' }
-    if ($behavior -eq 'escape' -and -not $lastCheck.underOtherProfile) { throw 'Wrong-user result must remain distinct in closed diagnostics.' }
+    if ($behavior -eq 'escape' -and (-not $lastCheck.underOtherProfile -or $script:outsideProfileProbed -or $null -ne $lastCheck.exists)) { throw 'Wrong-user result must remain distinct without touching its inaccessible filesystem path.' }
     if ($behavior -eq 'local-api-failed') {
       if ($lastCheck.hResult -ne -2147024891 -or $lastCheck.folder -ne 'LocalApplicationData' -or $diagnostic.folders.Count -ne 2) { throw 'Local API failure must retain its HRESULT after Roaming succeeded.' }
       if (-not $diagnostic.localDiagnostics.registryLocalAppData.isWithinProfile -or -not $diagnostic.localDiagnostics.nativeLocalAppData.isWithinProfile -or
-          $diagnostic.localDiagnostics.explicitReadOnly.hResult -ne -2147024891 -or $diagnostic.localDiagnostics.currentReadOnly.hResult -ne 0 -or
+          $diagnostic.localDiagnostics.explicitReadOnly.hResult -ne -2147024891 -or $diagnostic.localDiagnostics.explicitReadOnly.failurePhase -ne 'native-result' -or $diagnostic.localDiagnostics.currentReadOnly.hResult -ne 0 -or
           -not $diagnostic.localDiagnostics.directoryAccess.ownerSidMatch -or -not $diagnostic.localDiagnostics.directoryAccess.ordinaryDirectory -or -not $diagnostic.localDiagnostics.directoryAccess.traversalReadable) { throw 'Local diagnostics must distinguish authoritative paths and ACL facts from explicit-token API denial.' }
     }
     if ($behavior -eq 'local-missing' -and ($lastCheck.pathEmpty -or -not $lastCheck.isWithinProfile -or $lastCheck.exists)) { throw 'Uncreated local directory must remain distinct from an empty or wrong-user result.' }

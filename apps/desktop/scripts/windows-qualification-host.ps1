@@ -168,22 +168,37 @@ function Set-DesktopStandardChildEnvironment([hashtable] $NativeEnvironment, [ob
 }
 function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder, [uint32] $Flags = 0x8000, [switch] $UseProcessUser) {
   # Preserve the native HRESULT; .NET substitutes a cleared environment on failure.
-  Initialize-DesktopStandardInterop
-  $folderId = switch ($Folder) {
-    'ApplicationData' { [Guid]'3EB685DB-65F9-4CF6-A03A-E3EF65729F3D' }
-    'LocalApplicationData' { [Guid]'F1B32785-6FBA-4FCF-9D55-7B8E7F157091' }
-    default { throw 'Only per-user application data known folders are supported.' }
-  }
-  $identity = Open-DesktopStandardIdentity
+  $identity = $null
   $pointer = [IntPtr]::Zero
+  $phase = 'interop'
   try {
+    Initialize-DesktopStandardInterop
+    $phase = 'folder-id'
+    $folderId = switch ($Folder) {
+      'ApplicationData' { [Guid]'3EB685DB-65F9-4CF6-A03A-E3EF65729F3D' }
+      'LocalApplicationData' { [Guid]'F1B32785-6FBA-4FCF-9D55-7B8E7F157091' }
+      default { throw 'Only per-user application data known folders are supported.' }
+    }
+    $phase = 'open-token'
+    if (-not $UseProcessUser) { $identity = Open-DesktopStandardIdentity }
     $token = if ($UseProcessUser) { [IntPtr]::Zero } else { $identity.AccessToken.DangerousGetHandle() }
+    $phase = 'native-call'
     $result = [DshQualificationKnownFolders]::SHGetKnownFolderPath([ref]$folderId, $Flags, $token, [ref]$pointer)
+    $phase = 'decode'
     $directory = if ($result -ne 0 -or $pointer -eq [IntPtr]::Zero) { '' } else { [Runtime.InteropServices.Marshal]::PtrToStringUni($pointer) }
-    return [pscustomobject]@{ Path = $directory; HResult = $result }
+    return [pscustomobject]@{ Path = $directory; HResult = $result; FailurePhase = $(if ($result -eq 0) { 'none' } else { 'native-result' }); ExceptionKind = 'none' }
+  } catch {
+    $failure = $_.Exception
+    while ($null -ne $failure.InnerException) { $failure = $failure.InnerException }
+    $kind = switch ($failure.GetType().Name) {
+      'SecurityException' { 'security' }
+      'UnauthorizedAccessException' { 'access-denied' }
+      default { 'other' }
+    }
+    return [pscustomobject]@{ Path = ''; HResult = $failure.HResult; FailurePhase = $phase; ExceptionKind = $kind }
   } finally {
-    if ($pointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::FreeCoTaskMem($pointer) }
-    $identity.Dispose()
+    try { if ($pointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::FreeCoTaskMem($pointer) } }
+    finally { if ($null -ne $identity) { $identity.Dispose() } }
   }
 }
 function Get-DesktopProfilePathStatus([string] $Directory, [string] $ProfileDirectory) {
@@ -191,7 +206,12 @@ function Get-DesktopProfilePathStatus([string] $Directory, [string] $ProfileDire
   $profilesPrefix = [IO.Directory]::GetParent($ProfileDirectory).FullName.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
   $absolute = -not [string]::IsNullOrWhiteSpace($Directory) -and [IO.Path]::IsPathFullyQualified($Directory)
   $within = $absolute -and $Directory.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
-  return [ordered]@{ pathEmpty = [string]::IsNullOrWhiteSpace($Directory); isAbsolute = $absolute; isWithinProfile = $within; exists = $absolute -and (Test-Path -LiteralPath $Directory -PathType Container); underOtherProfile = $absolute -and -not $within -and $Directory.StartsWith($profilesPrefix, [StringComparison]::OrdinalIgnoreCase) }
+  $exists = $null
+  $existenceHResult = $null
+  if ($within) {
+    try { $exists = Test-Path -LiteralPath $Directory -PathType Container } catch { $existenceHResult = $_.Exception.HResult }
+  }
+  return [ordered]@{ pathEmpty = [string]::IsNullOrWhiteSpace($Directory); isAbsolute = $absolute; isWithinProfile = $within; exists = $exists; existenceHResult = $existenceHResult; underOtherProfile = $absolute -and -not $within -and $Directory.StartsWith($profilesPrefix, [StringComparison]::OrdinalIgnoreCase) }
 }
 function Get-DesktopLocalProfileDiagnostics([string] $ProfileDirectory, [string] $Sid, [hashtable] $NativeEnvironment) {
   $result = [ordered]@{}
@@ -207,6 +227,8 @@ function Get-DesktopLocalProfileDiagnostics([string] $ProfileDirectory, [string]
       $read = Get-DesktopStandardKnownFolder -Folder LocalApplicationData -Flags 0x4000 -UseProcessUser:($tokenMode -eq 'current')
       $readStatus = Get-DesktopProfilePathStatus -Directory $read.Path -ProfileDirectory $ProfileDirectory
       $readStatus.hResult = $read.HResult
+      $readStatus.failurePhase = $read.FailurePhase
+      $readStatus.exceptionKind = $read.ExceptionKind
       $result[$tokenMode + 'ReadOnly'] = $readStatus
     } catch { $result[$tokenMode + 'ReadOnly'] = [ordered]@{ unavailable = $true; hResult = $_.Exception.HResult } }
   }
@@ -237,6 +259,8 @@ function Initialize-DesktopStandardKnownFolders([string] $ProfileDirectory, [str
     $check = Get-DesktopProfilePathStatus -Directory $directory -ProfileDirectory $ProfileDirectory
     $check.folder = $folder
     $check.hResult = $resolved.HResult
+    $check.failurePhase = $resolved.FailurePhase
+    $check.exceptionKind = $resolved.ExceptionKind
     $checks += $check
     $report = [ordered]@{ schema = 'open-dsh/standard-profile/v1'; folders = $checks }
     $failed = $resolved.HResult -ne 0 -or -not $check.isWithinProfile -or -not $check.exists
