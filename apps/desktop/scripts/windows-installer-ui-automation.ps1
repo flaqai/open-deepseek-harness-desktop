@@ -27,6 +27,10 @@ public sealed class DesktopWizardControl {
   public bool Enabled;
 }
 public static class DesktopWizardWin32 {
+  public static string ControlTypeFor(string className, int style) {
+    bool button = string.Equals(className, "Button", StringComparison.OrdinalIgnoreCase) || className.StartsWith("WindowsForms10.BUTTON", StringComparison.OrdinalIgnoreCase);
+    return button ? ((style == 2 || style == 3 || style == 5 || style == 6) ? "CheckBox" : ((style == 0 || style == 1 || style == 11) ? "Button" : "Text")) : "Text";
+  }
   delegate bool EnumCallback(IntPtr window, IntPtr state);
   [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
   [StructLayout(LayoutKind.Sequential)] struct Message { public IntPtr Hwnd; public uint Msg; public UIntPtr WParam; public IntPtr LParam; public uint Time; public Point Point; public uint Private; }
@@ -83,9 +87,8 @@ public static class DesktopWizardWin32 {
     if (owner != process) { value.Name = ""; value.ControlType = "Text"; value.ReadError = "Native HWND ownership changed."; return value; }
     value.Id = GetDlgCtrlID(window); value.Enabled = IsWindowEnabled(window);
     var className = new StringBuilder(256); GetClassNameW(window, className, 256); value.ClassName = className.ToString();
-    bool button = value.ClassName == "Button" || value.ClassName.StartsWith("WindowsForms10.BUTTON", StringComparison.Ordinal);
     int style = (int)(GetWindowLongPtrW(window, -16).ToInt64() & 15);
-    value.ControlType = button ? ((style == 2 || style == 3 || style == 5 || style == 6) ? "CheckBox" : ((style == 0 || style == 1 || style == 11) ? "Button" : "Text")) : "Text";
+    value.ControlType = ControlTypeFor(value.ClassName, style);
     var text = new StringBuilder(4096); UIntPtr response;
     // WM_GETTEXT is system-marshalled. A busy control is recorded but never activated.
     if (SendText(window, 13, new UIntPtr(4096), text, 2, 1000, out response) == IntPtr.Zero) {

@@ -28,6 +28,23 @@ public static class DesktopWizardFixtureButtonId {
   exit 0
 }
 . (Join-Path $PSScriptRoot 'windows-installer-ui-automation.ps1')
+# Compile the actual backend on every platform and exercise its pure classifier.
+# No Win32 API is called by these portable cases.
+$tokens = $null
+$parseErrors = $null
+$tree = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'windows-installer-ui-automation.ps1'), [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors.Count -ne 0) { throw 'Native GUI helper did not parse.' }
+$nativeSource = $tree.Find({ param($node)
+  $node -is [Management.Automation.Language.StringConstantExpressionAst] -and $node.Value.Contains('public static class DesktopWizardWin32')
+}, $true)
+if ($null -eq $nativeSource) { throw 'Native GUI backend source was not found.' }
+Add-Type -TypeDefinition $nativeSource.Value
+foreach ($className in @('Button', 'button', 'BUTTON', 'WindowsForms10.Button.app.0.1cdbad8_r3_ad1', 'windowsforms10.button.app.synthetic')) {
+  if ([DesktopWizardWin32]::ControlTypeFor($className, 0) -ne 'Button') { throw "Native push button class was not recognized: $className" }
+  if ([DesktopWizardWin32]::ControlTypeFor($className, 3) -ne 'CheckBox') { throw "Native checkbox class was not recognized: $className" }
+  if ([DesktopWizardWin32]::ControlTypeFor($className, 7) -ne 'Text') { throw 'Group box was incorrectly classified as an actionable button.' }
+}
+if ([DesktopWizardWin32]::ControlTypeFor('Static', 0) -ne 'Text') { throw 'Unrelated native class was classified as a button.' }
 foreach ($name in @('Next >', '&Install', 'Finish', '下一步 >', '安装', '完成')) {
   if ((Get-DesktopWizardAction $name '1' $true 'Button') -ne 'advance') { throw "Expected wizard advance for $name" }
 }
