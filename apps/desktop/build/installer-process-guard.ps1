@@ -47,6 +47,11 @@ function Get-NormalizedDirectory([string]$Path) {
 
 # Classifies a CIM snapshot without querying or stopping processes. Unreadable
 # app identities or descendants of a confirmed owned process require inspection.
+function Get-GuardCreationTime($Value) {
+  if ($Value -isnot [datetime]) { return $null }
+  return $Value.ToUniversalTime()
+}
+
 function Get-GuardProcessClassification([object[]]$Processes, [string[]]$InstallRoots, [string]$Executable, [int]$ExcludedId) {
   $comparison = [System.StringComparison]::OrdinalIgnoreCase
   $owned = @()
@@ -75,16 +80,108 @@ function Get-GuardProcessClassification([object[]]$Processes, [string[]]$Install
   foreach ($process in $unreadable) {
     $associated = [string]::Equals($process.Name, $Executable, $comparison)
     $parentId = [int]$process.ParentProcessId
+    $child = $process
     $visited = @{}
     while (-not $associated -and $parentId -ne 0 -and -not $visited.ContainsKey($parentId)) {
       $visited[$parentId] = $true
-      if ($ownedIds.ContainsKey($parentId)) { $associated = $true; break }
       if (-not $byId.ContainsKey($parentId)) { break }
-      $parentId = [int]$byId[$parentId].ParentProcessId
+      $parent = $byId[$parentId]
+      $childTime = Get-GuardCreationTime $child.CreationDate
+      $parentTime = Get-GuardCreationTime $parent.CreationDate
+      # ParentProcessId survives the parent's exit. A newer process reusing that
+      # PID cannot be the parent; absent dates cannot establish that disproof.
+      if ($null -ne $childTime -and $null -ne $parentTime -and $parentTime -gt $childTime) { break }
+      if ($ownedIds.ContainsKey($parentId)) { $associated = $true; break }
+      $child = $parent
+      $parentId = [int]$parent.ParentProcessId
     }
     if ($associated) { $uncertain += $process }
   }
   return [pscustomobject]@{ Owned = @($owned | Sort-Object ProcessId); Uncertain = @($uncertain | Sort-Object ProcessId); Unreadable = @($unreadable | Sort-Object ProcessId) }
+}
+
+function Initialize-GuardNative {
+  if ('DshInstallerProcessLease' -as [type]) { return }
+  Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Text;
+using Microsoft.Win32.SafeHandles;
+public sealed class DshInstallerProcessLease : IDisposable {
+  private readonly SafeProcessHandle handle;
+  private readonly uint processId;
+  private DshInstallerProcessLease(SafeProcessHandle value, uint id) { handle = value; processId = id; }
+  [DllImport("kernel32.dll", SetLastError = true)] private static extern SafeProcessHandle OpenProcess(uint access, bool inherit, uint id);
+  [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GetProcessTimes(SafeProcessHandle h, out long creation, out long exit, out long kernel, out long user);
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern bool QueryFullProcessImageName(SafeProcessHandle h, uint flags, StringBuilder name, ref uint size);
+  [DllImport("kernel32.dll", SetLastError = true)] private static extern uint WaitForSingleObject(SafeProcessHandle h, uint milliseconds);
+  [DllImport("kernel32.dll", SetLastError = true)] private static extern bool TerminateProcess(SafeProcessHandle h, uint code);
+  private delegate bool WindowCallback(IntPtr window, IntPtr parameter);
+  [DllImport("user32.dll")] private static extern bool EnumWindows(WindowCallback callback, IntPtr parameter);
+  [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint id);
+  [DllImport("user32.dll", SetLastError = true)] private static extern bool PostMessage(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
+  private static bool IsRunning(SafeProcessHandle h) {
+    uint result = WaitForSingleObject(h, 0);
+    if (result == 0) return false;
+    if (result == 258) return true;
+    throw new Win32Exception(Marshal.GetLastWin32Error());
+  }
+  public static DshInstallerProcessLease Open(uint id, DateTime expectedCreation, string expectedPath) {
+    SafeProcessHandle h = OpenProcess(0x00101001, false, id); // synchronize, query limited information, terminate
+    if (h.IsInvalid) { int error = Marshal.GetLastWin32Error(); h.Dispose(); if (error == 87) return null; throw new Win32Exception(error); }
+    try {
+      if (!IsRunning(h)) { h.Dispose(); return null; }
+      long creation, exit, kernel, user;
+      if (!GetProcessTimes(h, out creation, out exit, out kernel, out user)) throw new Win32Exception(Marshal.GetLastWin32Error());
+      // CIM_DATETIME has microsecond precision, unlike FILETIME's 100 ns ticks.
+      if (DateTime.FromFileTimeUtc(creation).Ticks / 10 != expectedCreation.ToUniversalTime().Ticks / 10) { h.Dispose(); return null; }
+      StringBuilder path = new StringBuilder(32768); uint length = (uint)path.Capacity;
+      if (!QueryFullProcessImageName(h, 0, path, ref length)) throw new Win32Exception(Marshal.GetLastWin32Error());
+      if (!String.Equals(path.ToString(), expectedPath, StringComparison.OrdinalIgnoreCase)) { h.Dispose(); return null; }
+      return new DshInstallerProcessLease(h, id);
+    } catch { h.Dispose(); throw; }
+  }
+  public void RequestClose() {
+    Exception failure = null;
+    EnumWindows(delegate(IntPtr window, IntPtr parameter) {
+      try {
+        uint owner; GetWindowThreadProcessId(window, out owner);
+        if (owner == processId && IsRunning(handle))
+          PostMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero);
+        return true;
+      } catch (Exception error) { failure = error; return false; }
+    }, IntPtr.Zero);
+    if (failure != null) throw failure;
+  }
+  public void Terminate() {
+    if (!IsRunning(handle)) return;
+    if (!TerminateProcess(handle, 1)) throw new Win32Exception(Marshal.GetLastWin32Error());
+  }
+  public void Dispose() { handle.Dispose(); }
+}
+'@
+}
+
+function Open-GuardProcessLease($Process) {
+  $creation = Get-GuardCreationTime $Process.CreationDate
+  if ($null -eq $creation) { throw 'Cannot stop a process without its creation identity.' }
+  Initialize-GuardNative
+  return [DshInstallerProcessLease]::Open([uint32]$Process.ProcessId, $creation, [string]$Process.ExecutablePath)
+}
+
+function Invoke-GuardProcessAction($Process, [ValidateSet('close', 'terminate')][string]$Operation) {
+  $lease = Open-GuardProcessLease $Process
+  if ($null -eq $lease) {
+    Write-GuardTrace ("Skipped stale process identity PID={0}." -f $Process.ProcessId)
+    return $false
+  }
+  try {
+    if ($Operation -eq 'close') { $lease.RequestClose() }
+    else { $lease.Terminate() }
+  }
+  finally { $lease.Dispose() }
+  return $true
 }
 
 function Write-ProcessReport([object[]]$Processes, [string]$Heading) {
@@ -152,21 +249,9 @@ try {
     exit $ExitProcessesFound
   }
   Write-ProcessReport $processes ("Closing {0} DeepSeek Harness process(es):" -f $processes.Count)
-  Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class DshInstallerWindow {
-  [DllImport("user32.dll", SetLastError = true)]
-  public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-}
-'@
   foreach ($process in $processes) {
     try {
-      $liveProcess = Get-Process -Id $process.ProcessId -ErrorAction Stop
-      if ($liveProcess.MainWindowHandle -ne [IntPtr]::Zero) {
-        Write-GuardTrace ("Posting WM_CLOSE to PID {0}." -f $process.ProcessId)
-        [void][DshInstallerWindow]::PostMessage($liveProcess.MainWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)
-      }
+      [void](Invoke-GuardProcessAction $process 'close')
     }
     catch { Write-Output ("Graceful close skipped for PID {0}: {1}" -f $process.ProcessId, $_.Exception.Message) }
   }
@@ -179,8 +264,9 @@ public static class DshInstallerWindow {
     if ($remaining.Count -eq 0) { break }
     foreach ($process in $remaining) {
       try {
-        Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
-        Write-Output ("Stopped PID {0} ({1}) on attempt {2}." -f $process.ProcessId, $process.Name, $attempt)
+        if (Invoke-GuardProcessAction $process 'terminate') {
+          Write-Output ("Stopped PID {0} ({1}) on attempt {2}." -f $process.ProcessId, $process.Name, $attempt)
+        }
       }
       catch { Write-Output ("Could not stop PID {0} ({1}) on attempt {2}: {3}" -f $process.ProcessId, $process.Name, $attempt, $_.Exception.Message) }
     }

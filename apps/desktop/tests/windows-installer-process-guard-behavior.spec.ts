@@ -24,6 +24,9 @@ it.skipIf(!powershell)('classifies processes, refuses unsafe roots, and fails cl
     expect(result.stdout).toContain('PASS path validation')
     expect(result.stdout).toContain('PASS transient process resampling')
     expect(result.stdout).toContain('PASS refreshed ownership and query failure')
+    expect(result.stdout).toContain('PASS creation identity ancestry')
+    expect(result.stdout).toContain('PASS stable process action disposal')
+    if (process.platform === 'win32') expect(result.stdout).toContain('PASS native stable process handle')
     expect(readFileSync(join(testDirectory, 'junction-target', 'must-survive-link-cleanup.txt'), 'utf8')).toBe('synthetic sentinel')
   } finally {
     rmSync(testDirectory, { recursive: true, force: true })

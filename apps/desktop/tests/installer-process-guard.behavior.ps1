@@ -50,6 +50,86 @@ try {
   if (($result.Uncertain.ProcessId -join ',') -ne '2,3') { throw 'Only unreadable app identities and owned descendants may block inspection.' }
   Write-Output 'PASS process classification'
 
+  $baseTime = [datetime]::UtcNow.AddMinutes(-10)
+  foreach ($process in $processes) { $process | Add-Member -NotePropertyName CreationDate -NotePropertyValue ($baseTime.AddSeconds($process.ProcessId)) }
+  $staleChild = [pscustomobject]@{ ProcessId = 20; ParentProcessId = 1; Name = 'system-worker.exe'; ExecutablePath = $null; CreationDate = $baseTime }
+  $intermediate = [pscustomobject]@{ ProcessId = 21; ParentProcessId = 1; Name = 'worker.exe'; ExecutablePath = 'unrelated'; CreationDate = $baseTime.AddSeconds(5) }
+  $staleGrandchild = [pscustomobject]@{ ProcessId = 22; ParentProcessId = 21; Name = 'system-worker.exe'; ExecutablePath = $null; CreationDate = $baseTime.AddSeconds(2) }
+  $sameTimeChild = [pscustomobject]@{ ProcessId = 23; ParentProcessId = 1; Name = 'worker.exe'; ExecutablePath = $null; CreationDate = $processes[0].CreationDate }
+  $undatedChild = [pscustomobject]@{ ProcessId = 24; ParentProcessId = 1; Name = 'worker.exe'; ExecutablePath = $null; CreationDate = $null }
+  $invalidDateParent = [pscustomobject]@{ ProcessId = 25; ParentProcessId = 1; Name = 'worker.exe'; ExecutablePath = 'unrelated'; CreationDate = 'invalid-date' }
+  $unknownAncestry = [pscustomobject]@{ ProcessId = 26; ParentProcessId = 25; Name = 'worker.exe'; ExecutablePath = $null; CreationDate = $baseTime.AddSeconds(30) }
+  $undatedApp = [pscustomobject]@{ ProcessId = 27; ParentProcessId = 0; Name = 'Harness.exe'; ExecutablePath = $null; CreationDate = $null }
+  $result = Get-GuardProcessClassification @($processes[0], $staleChild, $intermediate, $staleGrandchild, $sameTimeChild, $undatedChild, $processes[2], $invalidDateParent, $unknownAncestry, $undatedApp) @($oldRoot) 'Harness.exe' 99999
+  if (($result.Uncertain.ProcessId -join ',') -ne '3,23,24,26,27') { throw 'Every ancestry edge must reject newer reused parents, retain equal-time ancestry, and fail closed for missing dates or exact app names.' }
+  # Negative control executes only the pure classifier, never a process action.
+  $mutantBody = (Get-Command Get-GuardProcessClassification).ScriptBlock.ToString().Replace('if ($null -ne $childTime -and $null -ne $parentTime -and $parentTime -gt $childTime) { break }', '')
+  $mutant = & ([scriptblock]::Create($mutantBody)) @($processes[0], $staleChild, $intermediate, $staleGrandchild) @($oldRoot) 'Harness.exe' 99999
+  if (($mutant.Uncertain.ProcessId -join ',') -ne '20,22') { throw 'Negative control did not reproduce stale parent PID association.' }
+  Write-Output 'PASS creation identity ancestry'
+
+  Initialize-GuardNative
+  $missingIdentityRejected = $false
+  try { [void](Open-GuardProcessLease $undatedChild) } catch { $missingIdentityRejected = $true }
+  if (-not $missingIdentityRejected) { throw 'Stopping an undated process must be refused.' }
+  if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+    $self = [Diagnostics.Process]::GetCurrentProcess()
+    try {
+      $selfSnapshot = Get-CimInstance -ClassName Win32_Process -Filter ("ProcessId={0}" -f $self.Id)
+      $lease = [DshInstallerProcessLease]::Open([uint32]$self.Id, $selfSnapshot.CreationDate, $selfSnapshot.ExecutablePath)
+      if ($null -eq $lease) { throw 'Real CIM creation identity must match GetProcessTimes at microsecond precision.' }
+      $lease.Dispose()
+      $reusedLease = [DshInstallerProcessLease]::Open([uint32]$self.Id, $selfSnapshot.CreationDate.AddSeconds(-1), $selfSnapshot.ExecutablePath)
+      if ($null -ne $reusedLease) { $reusedLease.Dispose(); throw 'A recycled PID with a different creation time was accepted.' }
+      $wrongPathLease = [DshInstallerProcessLease]::Open([uint32]$self.Id, $selfSnapshot.CreationDate, ($selfSnapshot.ExecutablePath + '.other'))
+      if ($null -ne $wrongPathLease) { $wrongPathLease.Dispose(); throw 'A process path mismatch was accepted.' }
+    } finally { $self.Dispose() }
+    $ownedChild = Start-Process -FilePath $selfSnapshot.ExecutablePath -ArgumentList @('-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep -Seconds 60') -PassThru
+    $childLease = $null
+    try {
+      $childSnapshot = Get-CimInstance -ClassName Win32_Process -Filter ("ProcessId={0}" -f $ownedChild.Id)
+      $childLease = [DshInstallerProcessLease]::Open([uint32]$ownedChild.Id, $childSnapshot.CreationDate, $childSnapshot.ExecutablePath)
+      if ($null -eq $childLease) { throw 'Owned native child lease was not acquired.' }
+      $childLease.Terminate()
+      if (-not $ownedChild.WaitForExit(10000)) { throw 'Native handle termination did not settle.' }
+    } finally {
+      if ($null -ne $childLease) { $childLease.Dispose() }
+      if (-not $ownedChild.HasExited) { $ownedChild.Kill(); $ownedChild.WaitForExit() }
+      $ownedChild.Dispose()
+    }
+    Write-Output 'PASS native stable process handle'
+  }
+
+  $global:dshLeaseOperations = @()
+  $global:dshLeaseDisposed = 0
+  $global:dshLeaseStale = $false
+  $global:dshLeaseFails = $false
+  function Open-GuardProcessLease {
+    param($Process)
+    if ($global:dshLeaseStale) { return $null }
+    $value = [pscustomobject]@{}
+    $value | Add-Member -MemberType ScriptMethod -Name RequestClose -Value { $global:dshLeaseOperations += 'close'; if ($global:dshLeaseFails) { throw 'close failure fixture' } }
+    $value | Add-Member -MemberType ScriptMethod -Name Terminate -Value { $global:dshLeaseOperations += 'terminate'; if ($global:dshLeaseFails) { throw 'terminate failure fixture' } }
+    $value | Add-Member -MemberType ScriptMethod -Name Dispose -Value { $global:dshLeaseDisposed++ }
+    return $value
+  }
+  $diagnosticPath = Join-Path $testRoot 'lease.log'
+  foreach ($operation in @('close', 'terminate')) {
+    $global:dshLeaseStale = $true
+    if (Invoke-GuardProcessAction $processes[0] $operation) { throw 'A stale PID must not report an action.' }
+    if ($global:dshLeaseOperations.Count -ne 0) { throw 'A stale PID was closed or terminated.' }
+  }
+  $global:dshLeaseStale = $false
+  foreach ($operation in @('close', 'terminate')) {
+    if (-not (Invoke-GuardProcessAction $processes[0] $operation)) { throw 'Matching process lease did not receive its action.' }
+  }
+  if (($global:dshLeaseOperations -join ',') -ne 'close,terminate' -or $global:dshLeaseDisposed -ne 2) { throw 'Each action must use and dispose its held identity lease.' }
+  $global:dshLeaseFails = $true
+  $refused = $false
+  try { [void](Invoke-GuardProcessAction $processes[0] 'terminate') } catch { $refused = $true }
+  if (-not $refused -or $global:dshLeaseDisposed -ne 3) { throw 'Native action failure must propagate and dispose its process handle.' }
+  Write-Output 'PASS stable process action disposal'
+
   $validRoot = Get-NormalizedDirectory $newRoot
   if ($validRoot -ne $newRoot) { throw 'A new installation directory must remain valid.' }
   foreach ($invalid in @([System.IO.Path]::GetPathRoot($testRoot), 'relative-directory')) {
@@ -98,7 +178,7 @@ try {
   }
   $diagnostics = Join-Path $testRoot 'logs'
   $ownedProcess = $processes[0]
-  $transientGit = [pscustomobject]@{ ProcessId = 8208; ParentProcessId = 1; Name = 'git.exe'; ExecutablePath = $null }
+  $transientGit = [pscustomobject]@{ ProcessId = 8208; ParentProcessId = 1; Name = 'git.exe'; ExecutablePath = $null; CreationDate = $baseTime.AddSeconds(20) }
   $global:dshGuardSnapshots = @(
     [pscustomobject]@{ Processes = @($ownedProcess, $transientGit); Fails = $false },
     [pscustomobject]@{ Processes = @($ownedProcess); Fails = $false }
