@@ -1,0 +1,43 @@
+name: Windows standard-user profile probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['fix/windows-packaging-*']
+    paths:
+      - apps/desktop/scripts/windows-qualification-host.ps1
+      - apps/desktop/scripts/windows-qualification-host.test.ps1
+      - .github/workflows/windows-profile-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.17.0'
+
+      - name: Verify profile qualification behavior
+        run: pwsh -NoLogo -NoProfile -NonInteractive -File apps/desktop/scripts/windows-qualification-host.test.ps1
+
+      - name: Probe a real isolated standard-user profile
+        run: pwsh -NoLogo -NoProfile -NonInteractive -File apps/desktop/scripts/windows-qualification-host.ps1 -Privilege standard -ProfileOnly
+
+      - name: Preserve closed profile diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-standard-profile-probe-${{ github.run_id }}
+          path: |
+            .artifacts/windows-smoke-evidence/native-qualification/qualification-profile.json
+            .artifacts/windows-smoke-evidence/native-qualification/qualification-token.json
+          if-no-files-found: warn
+          retention-days: 3

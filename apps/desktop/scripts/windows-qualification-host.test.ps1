@@ -31,17 +31,28 @@ $childTree = [Management.Automation.Language.Parser]::ParseInput($command, [ref]
 if ($childErrors.Count -ne 0 -or -not $command.Contains("Join-Path `$PSScriptRoot 'settings.json'")) {
   throw 'Private child must parse and load settings from its private directory.'
 }
-$profileHelpers = @($childTree.FindAll({ param($node)
-  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Get-DesktopStandardProfileDirectory', 'Get-DesktopStandardKnownFolder', 'Initialize-DesktopStandardKnownFolders', 'Initialize-DesktopStandardInterop', 'Open-DesktopStandardIdentity', 'ConvertFrom-DesktopNativeEnvironment', 'Get-DesktopStandardEnvironment', 'Set-DesktopStandardChildEnvironment')
+$profileOnlyGate = @($childTree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.IfStatementAst] -and $node.Clauses[0].Item1.Extent.Text -eq '$settings.profileOnly'
 }, $true))
-if ($profileHelpers.Count -ne 8) { throw 'Expected token-profile lookup, native environment, and known-folder initialization in the child.' }
+if ($profileOnlyGate.Count -ne 1 -or $profileOnlyGate[0].Clauses[0].Item2.Statements.Count -ne 1 -or
+    $profileOnlyGate[0].Clauses[0].Item2.Statements[0].Extent.Text -ne 'exit 0' -or
+    $profileOnlyGate[0].Extent.StartOffset -lt $command.IndexOf('Initialize-DesktopStandardKnownFolders -ProfileDirectory $profileDirectory') -or
+    $profileOnlyGate[0].Extent.StartOffset -gt $command.IndexOf('& $settings.node $settings.entry package windows-x64')) {
+  throw 'Profile-only mode must exit after all real identity/environment/folder checks and before product smoke.'
+}
+$profileHelpers = @($childTree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Get-DesktopStandardProfileDirectory', 'Get-DesktopStandardKnownFolder', 'Initialize-DesktopStandardKnownFolders', 'Initialize-DesktopStandardInterop', 'Open-DesktopStandardIdentity', 'ConvertFrom-DesktopNativeEnvironment', 'Get-DesktopStandardEnvironment', 'Set-DesktopStandardChildEnvironment', 'Get-DesktopProfilePathStatus', 'Get-DesktopLocalProfileDiagnostics')
+}, $true))
+if ($profileHelpers.Count -ne 10) { throw 'Expected token-profile lookup, native environment, known-folder initialization and closed diagnostics in the child.' }
 foreach ($helper in $profileHelpers) { . ([scriptblock]::Create($helper.Extent.Text)) }
 $knownFolderHelper = @($profileHelpers | Where-Object { $_.Name -eq 'Get-DesktopStandardKnownFolder' })[0]
 $knownFolderCalls = @($knownFolderHelper.FindAll({ param($node)
   $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $node.Member.Extent.Text -eq 'SHGetKnownFolderPath'
 }, $true))
-if ($knownFolderCalls.Count -ne 1 -or $knownFolderCalls[0].Arguments[1].Extent.Text -ne '0x8000' -or
-    $knownFolderCalls[0].Arguments[2].Extent.Text -ne '$identity.AccessToken.DangerousGetHandle()') {
+if ($knownFolderCalls.Count -ne 1 -or $knownFolderCalls[0].Arguments[1].Extent.Text -ne '$Flags' -or
+    $knownFolderCalls[0].Arguments[2].Extent.Text -ne '$token' -or
+    @($knownFolderHelper.Parameters | Where-Object { $_.Name.VariablePath.UserPath -eq 'Flags' })[0].DefaultValue.Extent.Text -ne '0x8000' -or
+    -not $knownFolderHelper.Extent.Text.Contains('$token = if ($UseProcessUser) { [IntPtr]::Zero } else { $identity.AccessToken.DangerousGetHandle() }')) {
   throw 'Known folders must use KF_FLAG_CREATE and the explicit current-user token without an environment fallback.'
 }
 $interopHelper = @($profileHelpers | Where-Object { $_.Name -eq 'Initialize-DesktopStandardInterop' })[0]
@@ -82,8 +93,12 @@ foreach ($name in @('USERPROFILE', 'HOME', 'HOMEDRIVE', 'HOMEPATH', 'APPDATA', '
 try {
   $script:profileHiveLoaded = $true
   $script:knownFolderBehavior = 'create'
+  $script:readOnlyFolderCalls = [Collections.Generic.List[object]]::new()
   function Get-ItemProperty {
     param([string] $LiteralPath, [string] $Name, [string] $ErrorAction)
+    if ($LiteralPath -eq 'Registry::HKEY_USERS\S-1-5-21-synthetic\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders' -and $Name -eq 'Local AppData') {
+      return [pscustomobject]@{ 'Local AppData' = (Join-Path $script:profileDirectory 'AppData/Local') }
+    }
     if ($LiteralPath -ne 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-21-synthetic' -or $Name -ne 'ProfileImagePath') {
       throw 'Profile lookup must use the actual token SID, not a user name or administrator environment.'
     }
@@ -97,18 +112,31 @@ try {
     return Microsoft.PowerShell.Management\Test-Path @parameters
   }
   function Get-DesktopStandardKnownFolder {
-    param([Environment+SpecialFolder] $Folder)
+    param([Environment+SpecialFolder] $Folder, [uint32] $Flags = 0x8000, [switch] $UseProcessUser)
     if ($env:USERPROFILE -ne $script:profileDirectory) { throw 'Known-folder lookup must follow restoration of the verified token profile.' }
+    if ($Flags -eq 0x4000) {
+      $script:readOnlyFolderCalls.Add([pscustomobject]@{ Flags = $Flags; UseProcessUser = [bool]$UseProcessUser })
+      if ($script:knownFolderBehavior -eq 'local-api-failed' -and -not $UseProcessUser) { return [pscustomobject]@{ Path = ''; HResult = -2147024891 } }
+      return [pscustomobject]@{ Path = (Join-Path $script:profileDirectory 'AppData/Local'); HResult = 0 }
+    }
     if ($script:knownFolderBehavior -eq 'empty') { return [pscustomobject]@{ Path = ''; HResult = 0 } }
     if ($script:knownFolderBehavior -eq 'escape') { return [pscustomobject]@{ Path = (Join-Path $profileTestRoot 'administrator/Local'); HResult = 0 } }
-    if ($script:knownFolderBehavior -eq 'local-api-failed' -and $Folder -eq 'LocalApplicationData') { return [pscustomobject]@{ Path = ''; HResult = -2147024893 } }
+    if ($script:knownFolderBehavior -eq 'local-api-failed' -and $Folder -eq 'LocalApplicationData') { return [pscustomobject]@{ Path = ''; HResult = -2147024891 } }
     if ($script:knownFolderBehavior -eq 'local-missing' -and $Folder -eq 'LocalApplicationData') { return [pscustomobject]@{ Path = (Join-Path $script:profileDirectory 'AppData/MissingLocal'); HResult = 0 } }
     $suffix = if ($Folder -eq 'ApplicationData') { 'Roaming' } else { 'Local' }
     return [pscustomobject]@{ Path = [IO.Directory]::CreateDirectory((Join-Path $script:profileDirectory "AppData/$suffix")).FullName; HResult = 0 }
   }
+  function Get-Acl {
+    param([string] $LiteralPath, [string] $ErrorAction)
+    if ($LiteralPath -ne (Join-Path $script:profileDirectory 'AppData/Local')) { throw 'ACL inspection must remain inside the verified profile.' }
+    $acl = [pscustomobject]@{}
+    $acl | Add-Member ScriptMethod GetOwner { param($Type) return [pscustomobject]@{ Value = 'S-1-5-21-synthetic' } }
+    return $acl
+  }
   $verifiedProfile = Get-DesktopStandardProfileDirectory -Sid 'S-1-5-21-synthetic'
   foreach ($name in $profileEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, [System.Management.Automation.Language.NullString]::Value, 'Process') }
-  Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile -DiagnosticDirectory $profileTestRoot
+  $nativeUserEnvironment = @{ LOCALAPPDATA = (Join-Path $script:profileDirectory 'AppData/Local') }
+  Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile -DiagnosticDirectory $profileTestRoot -Sid 'S-1-5-21-synthetic' -NativeEnvironment $nativeUserEnvironment
   if ($env:USERPROFILE -ne $script:profileDirectory -or
       -not (Microsoft.PowerShell.Management\Test-Path -LiteralPath $env:APPDATA -PathType Container) -or
       -not (Microsoft.PowerShell.Management\Test-Path -LiteralPath $env:LOCALAPPDATA -PathType Container)) {
@@ -117,19 +145,27 @@ try {
   foreach ($behavior in @('empty', 'escape', 'local-api-failed', 'local-missing')) {
     $script:knownFolderBehavior = $behavior
     $rejected = $false
-    try { Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile -DiagnosticDirectory $profileTestRoot } catch {
+    try { Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile -DiagnosticDirectory $profileTestRoot -Sid 'S-1-5-21-synthetic' -NativeEnvironment $nativeUserEnvironment } catch {
       if ($_.Exception.Message -notmatch 'known folder validation failed:') { throw }
       if ($_.Exception.Message.Contains($profileTestRoot)) { throw 'Known-folder failure must not publish full profile paths.' }
       $rejected = $true
     }
     if (-not $rejected) { throw 'Unknown or administrator known-folder paths must be rejected.' }
-    $diagnostic = Get-Content -LiteralPath (Join-Path $profileTestRoot 'qualification-profile.json') -Raw | ConvertFrom-Json
+    $diagnosticText = Get-Content -LiteralPath (Join-Path $profileTestRoot 'qualification-profile.json') -Raw
+    if ($diagnosticText.Contains($profileTestRoot)) { throw 'Closed folder diagnostics must not expose full native or registry paths.' }
+    $diagnostic = $diagnosticText | ConvertFrom-Json
     $lastCheck = $diagnostic.folders[-1]
     if ($behavior -eq 'empty' -and -not $lastCheck.pathEmpty) { throw 'Empty result must remain distinct in closed diagnostics.' }
     if ($behavior -eq 'escape' -and -not $lastCheck.underOtherProfile) { throw 'Wrong-user result must remain distinct in closed diagnostics.' }
-    if ($behavior -eq 'local-api-failed' -and ($lastCheck.hResult -ne -2147024893 -or $lastCheck.folder -ne 'LocalApplicationData' -or $diagnostic.folders.Count -ne 2)) { throw 'Local API failure must retain its HRESULT after Roaming succeeded.' }
+    if ($behavior -eq 'local-api-failed') {
+      if ($lastCheck.hResult -ne -2147024891 -or $lastCheck.folder -ne 'LocalApplicationData' -or $diagnostic.folders.Count -ne 2) { throw 'Local API failure must retain its HRESULT after Roaming succeeded.' }
+      if (-not $diagnostic.localDiagnostics.registryLocalAppData.isWithinProfile -or -not $diagnostic.localDiagnostics.nativeLocalAppData.isWithinProfile -or
+          $diagnostic.localDiagnostics.explicitReadOnly.hResult -ne -2147024891 -or $diagnostic.localDiagnostics.currentReadOnly.hResult -ne 0 -or
+          -not $diagnostic.localDiagnostics.directoryAccess.ownerSidMatch -or -not $diagnostic.localDiagnostics.directoryAccess.ordinaryDirectory -or -not $diagnostic.localDiagnostics.directoryAccess.traversalReadable) { throw 'Local diagnostics must distinguish authoritative paths and ACL facts from explicit-token API denial.' }
+    }
     if ($behavior -eq 'local-missing' -and ($lastCheck.pathEmpty -or -not $lastCheck.isWithinProfile -or $lastCheck.exists)) { throw 'Uncreated local directory must remain distinct from an empty or wrong-user result.' }
   }
+  if ($script:readOnlyFolderCalls.Count -ne 4 -or @($script:readOnlyFolderCalls | Where-Object { $_.Flags -ne 0x4000 }).Count -ne 0) { throw 'Additional native diagnostics must be read-only, never create or redirect directories.' }
   $script:profileHiveLoaded = $false
   $rejected = $false
   try { $null = Get-DesktopStandardProfileDirectory -Sid 'S-1-5-21-synthetic' } catch {
@@ -142,7 +178,7 @@ try {
     $value = if ($null -eq $profileEnvironment[$name]) { [System.Management.Automation.Language.NullString]::Value } else { $profileEnvironment[$name] }
     [Environment]::SetEnvironmentVariable($name, $value, 'Process')
   }
-  Remove-Item Function:\Get-ItemProperty, Function:\Test-Path, Function:\Get-DesktopStandardKnownFolder
+  Remove-Item Function:\Get-ItemProperty, Function:\Test-Path, Function:\Get-DesktopStandardKnownFolder, Function:\Get-Acl
   Remove-Item -LiteralPath $profileTestRoot -Recurse -Force
 }
 $addCalls = @($tree.FindAll({ param($node)

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)] [ValidateSet('standard', 'administrator')] [string] $Privilege)
+param([Parameter(Mandatory)] [ValidateSet('standard', 'administrator')] [string] $Privilege, [switch] $ProfileOnly)
 
 $ErrorActionPreference = 'Stop'
 if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
@@ -8,6 +8,7 @@ if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONME
 $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdministrator = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdministrator) { throw 'Qualification supervisor requires an already elevated disposable runner.' }
+if ($ProfileOnly -and $Privilege -ne 'standard') { throw 'Profile-only qualification requires a real standard-user child.' }
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $node = (Get-Command node -ErrorAction Stop).Source
 $shell = (Get-Process -Id $PID).Path
@@ -94,7 +95,7 @@ try {
   $settings.GIT_CONFIG_KEY_0 = 'safe.directory'
   $settings.GIT_CONFIG_VALUE_0 = $repository
   $settingsPath = Join-Path $ownedRoot 'settings.json'
-  [IO.File]::WriteAllText($settingsPath, ([ordered]@{ environment = $settings; node = $node; entry = $entry; userSid = $user.SID.Value } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText($settingsPath, ([ordered]@{ environment = $settings; node = $node; entry = $entry; userSid = $user.SID.Value; profileOnly = [bool]$ProfileOnly } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
   $childScript = Join-Path $ownedRoot 'child.ps1'
   $command = @'
 $ErrorActionPreference = 'Stop'
@@ -165,7 +166,7 @@ function Set-DesktopStandardChildEnvironment([hashtable] $NativeEnvironment, [ob
     [Environment]::SetEnvironmentVariable($property.Name, $value, 'Process')
   }
 }
-function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder) {
+function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder, [uint32] $Flags = 0x8000, [switch] $UseProcessUser) {
   # Preserve the native HRESULT; .NET substitutes a cleared environment on failure.
   Initialize-DesktopStandardInterop
   $folderId = switch ($Folder) {
@@ -176,7 +177,8 @@ function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder) {
   $identity = Open-DesktopStandardIdentity
   $pointer = [IntPtr]::Zero
   try {
-    $result = [DshQualificationKnownFolders]::SHGetKnownFolderPath([ref]$folderId, 0x8000, $identity.AccessToken.DangerousGetHandle(), [ref]$pointer)
+    $token = if ($UseProcessUser) { [IntPtr]::Zero } else { $identity.AccessToken.DangerousGetHandle() }
+    $result = [DshQualificationKnownFolders]::SHGetKnownFolderPath([ref]$folderId, $Flags, $token, [ref]$pointer)
     $directory = if ($result -ne 0 -or $pointer -eq [IntPtr]::Zero) { '' } else { [Runtime.InteropServices.Marshal]::PtrToStringUni($pointer) }
     return [pscustomobject]@{ Path = $directory; HResult = $result }
   } finally {
@@ -184,24 +186,66 @@ function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder) {
     $identity.Dispose()
   }
 }
-function Initialize-DesktopStandardKnownFolders([string] $ProfileDirectory, [string] $DiagnosticDirectory) {
+function Get-DesktopProfilePathStatus([string] $Directory, [string] $ProfileDirectory) {
+  $prefix = $ProfileDirectory.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+  $profilesPrefix = [IO.Directory]::GetParent($ProfileDirectory).FullName.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+  $absolute = -not [string]::IsNullOrWhiteSpace($Directory) -and [IO.Path]::IsPathFullyQualified($Directory)
+  $within = $absolute -and $Directory.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
+  return [ordered]@{ pathEmpty = [string]::IsNullOrWhiteSpace($Directory); isAbsolute = $absolute; isWithinProfile = $within; exists = $absolute -and (Test-Path -LiteralPath $Directory -PathType Container); underOtherProfile = $absolute -and -not $within -and $Directory.StartsWith($profilesPrefix, [StringComparison]::OrdinalIgnoreCase) }
+}
+function Get-DesktopLocalProfileDiagnostics([string] $ProfileDirectory, [string] $Sid, [hashtable] $NativeEnvironment) {
+  $result = [ordered]@{}
+  $registryDirectory = ''
+  try {
+    $shellFolders = "Registry::HKEY_USERS\$Sid\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+    $registryDirectory = [Environment]::ExpandEnvironmentVariables((Get-ItemProperty -LiteralPath $shellFolders -Name 'Local AppData' -ErrorAction Stop).'Local AppData')
+    $result.registryLocalAppData = Get-DesktopProfilePathStatus -Directory $registryDirectory -ProfileDirectory $ProfileDirectory
+  } catch { $result.registryLocalAppData = [ordered]@{ unavailable = $true; hResult = $_.Exception.HResult } }
+  $result.nativeLocalAppData = Get-DesktopProfilePathStatus -Directory $NativeEnvironment.LOCALAPPDATA -ProfileDirectory $ProfileDirectory
+  foreach ($tokenMode in @('explicit', 'current')) {
+    try {
+      $read = Get-DesktopStandardKnownFolder -Folder LocalApplicationData -Flags 0x4000 -UseProcessUser:($tokenMode -eq 'current')
+      $readStatus = Get-DesktopProfilePathStatus -Directory $read.Path -ProfileDirectory $ProfileDirectory
+      $readStatus.hResult = $read.HResult
+      $result[$tokenMode + 'ReadOnly'] = $readStatus
+    } catch { $result[$tokenMode + 'ReadOnly'] = [ordered]@{ unavailable = $true; hResult = $_.Exception.HResult } }
+  }
+  $result.directoryAccess = [ordered]@{ inspected = $false; ordinaryDirectory = $null; ownerSidMatch = $null; traversalReadable = $null }
+  if ($result.registryLocalAppData.isWithinProfile -and $result.registryLocalAppData.exists) {
+    try {
+      $item = Get-Item -LiteralPath $registryDirectory -Force -ErrorAction Stop
+      $result.directoryAccess.inspected = $true
+      $result.directoryAccess.ordinaryDirectory = $item.PSIsContainer -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0
+      if ($result.directoryAccess.ordinaryDirectory) {
+        $result.directoryAccess.ownerSidMatch = (Get-Acl -LiteralPath $registryDirectory -ErrorAction Stop).GetOwner([Security.Principal.SecurityIdentifier]).Value -eq $Sid
+        $null = Get-ChildItem -LiteralPath $registryDirectory -Force -ErrorAction Stop | Select-Object -First 1
+        $result.directoryAccess.traversalReadable = $true
+      }
+    } catch { $result.directoryAccess.hResult = $_.Exception.HResult; $result.directoryAccess.traversalReadable = $false }
+  }
+  return $result
+}
+function Initialize-DesktopStandardKnownFolders([string] $ProfileDirectory, [string] $DiagnosticDirectory, [string] $Sid, [hashtable] $NativeEnvironment = @{}) {
   $env:USERPROFILE = $ProfileDirectory
   $env:HOME = $ProfileDirectory
   $env:HOMEDRIVE = [IO.Path]::GetPathRoot($ProfileDirectory).TrimEnd('\')
   $env:HOMEPATH = $ProfileDirectory.Substring($env:HOMEDRIVE.Length)
-  $prefix = $ProfileDirectory.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
-  $profilesPrefix = [IO.Directory]::GetParent($ProfileDirectory).FullName.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
   $checks = @()
   foreach ($folder in @('ApplicationData', 'LocalApplicationData')) {
     try { $resolved = Get-DesktopStandardKnownFolder -Folder $folder } catch { $resolved = [pscustomobject]@{ Path = ''; HResult = $_.Exception.HResult } }
     $directory = $resolved.Path
-    $absolute = -not [string]::IsNullOrWhiteSpace($directory) -and [IO.Path]::IsPathFullyQualified($directory)
-    $withinProfile = $absolute -and $directory.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
-    $exists = $absolute -and (Test-Path -LiteralPath $directory -PathType Container)
-    $check = [ordered]@{ folder = $folder; hResult = $resolved.HResult; pathEmpty = [string]::IsNullOrWhiteSpace($directory); isAbsolute = $absolute; isWithinProfile = $withinProfile; exists = $exists; underOtherProfile = $absolute -and -not $withinProfile -and $directory.StartsWith($profilesPrefix, [StringComparison]::OrdinalIgnoreCase) }
+    $check = Get-DesktopProfilePathStatus -Directory $directory -ProfileDirectory $ProfileDirectory
+    $check.folder = $folder
+    $check.hResult = $resolved.HResult
     $checks += $check
-    [ordered]@{ schema = 'open-dsh/standard-profile/v1'; folders = $checks } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $DiagnosticDirectory 'qualification-profile.json') -Encoding utf8
-    if ($resolved.HResult -ne 0 -or -not $withinProfile -or -not $exists) { throw ('Standard-user known folder validation failed: ' + ($check | ConvertTo-Json -Compress)) }
+    $report = [ordered]@{ schema = 'open-dsh/standard-profile/v1'; folders = $checks }
+    $failed = $resolved.HResult -ne 0 -or -not $check.isWithinProfile -or -not $check.exists
+    if ($failed -and $folder -eq 'LocalApplicationData') {
+      try { $report.localDiagnostics = Get-DesktopLocalProfileDiagnostics -ProfileDirectory $ProfileDirectory -Sid $Sid -NativeEnvironment $NativeEnvironment }
+      catch { $report.localDiagnostics = [ordered]@{ unavailable = $true; hResult = $_.Exception.HResult } }
+    }
+    $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $DiagnosticDirectory 'qualification-profile.json') -Encoding utf8
+    if ($failed) { throw ('Standard-user known folder validation failed: ' + ($check | ConvertTo-Json -Compress)) }
     if ($folder -eq 'ApplicationData') { $env:APPDATA = $directory } else { $env:LOCALAPPDATA = $directory }
   }
 }
@@ -213,16 +257,17 @@ if ($identity.User.Value -ne $settings.userSid) { throw 'Standard-user token doe
 $token = [Security.Principal.WindowsPrincipal]::new($identity)
 $admin = $token.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if ($admin) { throw 'Standard-user qualification unexpectedly received administrator rights.' }
+[ordered]@{ schema = 'open-dsh/windows-token/v1'; requested = 'standard'; administrator = $admin; identity = $identity.Name } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'qualification-token.json') -Encoding utf8
 $profileDirectory = Get-DesktopStandardProfileDirectory -Sid $identity.User.Value
 $nativeEnvironment = Get-DesktopStandardEnvironment
 if (-not [string]::Equals($nativeEnvironment.USERPROFILE, $profileDirectory, [StringComparison]::OrdinalIgnoreCase)) { throw 'Native environment does not belong to the verified standard-user SID profile.' }
 Set-DesktopStandardChildEnvironment -NativeEnvironment $nativeEnvironment -Overrides $settings.environment
-Initialize-DesktopStandardKnownFolders -ProfileDirectory $profileDirectory -DiagnosticDirectory $PSScriptRoot
+Initialize-DesktopStandardKnownFolders -ProfileDirectory $profileDirectory -DiagnosticDirectory $PSScriptRoot -Sid $identity.User.Value -NativeEnvironment $nativeEnvironment
 $identityParts = [Security.Principal.WindowsIdentity]::GetCurrent().Name.Split('\')
 $env:USERDOMAIN = $identityParts[0]
 $env:USERNAME = $identityParts[-1]
 $env:COMPUTERNAME = [Environment]::MachineName
-[ordered]@{ schema = 'open-dsh/windows-token/v1'; requested = 'standard'; administrator = $admin; identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'qualification-token.json') -Encoding utf8
+if ($settings.profileOnly) { exit 0 }
 & $settings.node $settings.entry package windows-x64
 exit $LASTEXITCODE
 '@
@@ -239,7 +284,13 @@ exit $LASTEXITCODE
     $nativeCode = if ($launchError -is [ComponentModel.Win32Exception]) { $launchError.NativeErrorCode } else { $null }
     throw "Standard-user qualification launch failed (nativeError=$nativeCode, HRESULT=$($launchError.HResult), type=$($launchError.GetType().Name)); credentials and command line omitted."
   }
-  if (-not $child.WaitForExit(3600000)) {
+  $childTimeout = if ($ProfileOnly) { 300000 } else { 3600000 }
+  if (-not $child.WaitForExit($childTimeout)) {
+    if ($ProfileOnly) {
+      $child.Kill($true)
+      $child.WaitForExit()
+      throw 'Standard-user profile-only probe did not finish within five minutes.'
+    }
     throw "Standard-user qualification PID $($child.Id) has not settled; do not delete its account or interrupt atomic uninstall."
   }
   Get-Content -LiteralPath (Join-Path $ownedRoot 'qualification-stdout.log')
