@@ -48,6 +48,12 @@ if ($IsWindows) {
     if ($fixtureExit -ne 0) { throw 'Synthetic native modal fixture failed.' }
     $journalPath = Join-Path $fixtureRoot "installer-gui-$($fixture.Id).jsonl"
     $events = @(Get-Content -LiteralPath $journalPath | ForEach-Object { $_ | ConvertFrom-Json })
+    $observerStart = @($events | Where-Object { $_.state -eq 'observer-started' })
+    if ($observerStart.Count -ne 1 -or $observerStart[0].apartment -ne 'MTA') { throw 'Native discovery did not run on its dedicated MTA observer.' }
+    $observed = @($events | Where-Object { $_.state -eq 'observed' })
+    if ($observed.Count -eq 0 -or @($observed | Where-Object { $_.windowProcessId -ne $fixture.Id -or $_.windowHandle -eq 0 }).Count -ne 0) {
+      throw 'Native discovery did not restrict real HWND and provider ownership to the fixture process.'
+    }
     $startEvent = @($events | Where-Object { $_.action -eq 'advance' -and $_.state -eq 'invoke-started' })
     $completeEvent = @($events | Where-Object { $_.action -eq 'advance' -and $_.state -eq 'invoke-completed' })
     $acknowledged = @($events | Where-Object { $_.action -eq 'acknowledge' -and $_.state -eq 'invoke-completed' })

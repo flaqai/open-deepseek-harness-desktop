@@ -20,7 +20,41 @@ function Initialize-DesktopWizardAutomation {
     Add-Type -TypeDefinition @'
 using System;
 using System.Reflection;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
+public static class DesktopWizardNativeWindows {
+  delegate bool EnumWindowCallback(IntPtr window, IntPtr state);
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumWindowCallback callback, IntPtr state);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
+  [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] static extern bool IsWindowVisible(IntPtr window);
+  [DllImport("user32.dll")] static extern IntPtr GetProcessWindowStation();
+  [DllImport("user32.dll")] static extern IntPtr GetThreadDesktop(uint thread);
+  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)] static extern bool GetUserObjectInformationW(IntPtr handle, int index, StringBuilder value, uint bytes, out uint required);
+  static string ObjectName(IntPtr handle) {
+    var value = new StringBuilder(256);
+    uint required;
+    return GetUserObjectInformationW(handle, 2, value, (uint)(value.Capacity * 2), out required)
+      ? value.ToString() : "unavailable:win32=" + Marshal.GetLastWin32Error();
+  }
+  public static string WindowStation() { return ObjectName(GetProcessWindowStation()); }
+  public static string Desktop() { return ObjectName(GetThreadDesktop(GetCurrentThreadId())); }
+  public static IntPtr[] ForProcess(int process) {
+    var windows = new List<IntPtr>();
+    EnumWindowCallback callback = delegate(IntPtr window, IntPtr state) {
+      uint owner;
+      GetWindowThreadProcessId(window, out owner);
+      if (owner == process && IsWindowVisible(window)) windows.Add(window);
+      return true;
+    };
+    if (!EnumWindows(callback, IntPtr.Zero)) throw new InvalidOperationException("Cannot enumerate native top-level windows.");
+    GC.KeepAlive(callback);
+    return windows.ToArray();
+  }
+}
 public sealed class DesktopWizardInvokeWorker {
   readonly Thread thread;
   readonly object control;
@@ -57,7 +91,29 @@ public sealed class DesktopWizardInvokeWorker {
 
 function Invoke-DesktopWizardAutomation {
   param([System.Diagnostics.Process] $Process, [string] $EvidenceDirectory, [ValidateRange(1, 900)] [int] $TimeoutSeconds = 900)
-  $desktopRoot = Initialize-DesktopWizardAutomation
+  # All UIAutomation discovery and provider access stays on an MTA observer thread.
+  $automationScript = (Get-Command Invoke-DesktopWizardAutomationCore).ScriptBlock.File
+  $runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+  $runspace.ApartmentState = [Threading.ApartmentState]::MTA
+  $runspace.ThreadOptions = [Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
+  $observer = [powershell]::Create()
+  try {
+    $runspace.Open()
+    $observer.Runspace = $runspace
+    [void]$observer.AddScript('param($Script, $Process, $Evidence, $Budget) $ErrorActionPreference = "Stop"; . $Script; Invoke-DesktopWizardAutomationCore -Process $Process -EvidenceDirectory $Evidence -TimeoutSeconds $Budget').AddArgument($automationScript).AddArgument($Process).AddArgument($EvidenceDirectory).AddArgument($TimeoutSeconds)
+    $result = $observer.Invoke()
+    if ($observer.HadErrors) { throw $observer.Streams.Error[0].Exception }
+    if ($result.Count -ne 1) { throw 'Native UIAutomation observer did not return one installer exit result.' }
+    return [int]$result[0]
+  } finally {
+    $observer.Dispose()
+    $runspace.Dispose()
+  }
+}
+
+function Invoke-DesktopWizardAutomationCore {
+  param([System.Diagnostics.Process] $Process, [string] $EvidenceDirectory, [ValidateRange(1, 900)] [int] $TimeoutSeconds = 900)
+  $null = Initialize-DesktopWizardAutomation
   $records = [Collections.Generic.List[object]]::new()
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
   $lastAction = ''
@@ -72,6 +128,7 @@ function Invoke-DesktopWizardAutomation {
     [IO.File]::AppendAllText($incrementalLog, (($Record | ConvertTo-Json -Depth 6 -Compress) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
   }
   try {
+    Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; state = 'observer-started'; apartment = [Threading.Thread]::CurrentThread.GetApartmentState().ToString(); observerSession = [Diagnostics.Process]::GetCurrentProcess().SessionId; installerSession = $Process.SessionId; windowStation = [DesktopWizardNativeWindows]::WindowStation(); desktop = [DesktopWizardNativeWindows]::Desktop() })
     while (-not $Process.HasExited -and (Get-Date) -lt $deadline) {
       foreach ($invocation in $pendingInvocations) {
         if (-not $invocation.Settled -and $invocation.Worker.Completed) {
@@ -83,9 +140,12 @@ function Invoke-DesktopWizardAutomation {
         }
       }
       # Only this exact installer PID: never click another application or UAC prompt.
-      $condition = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty, $Process.Id)
-      $windows = $desktopRoot.FindAll([Windows.Automation.TreeScope]::Children, $condition)
-      foreach ($window in $windows) {
+      # EnumWindows filters native HWND ownership before querying any UIAutomation provider.
+      # Desktop-wide FindAll also visits unrelated hung providers despite a PID condition.
+      foreach ($windowHandle in [DesktopWizardNativeWindows]::ForProcess($Process.Id)) {
+        try {
+        $window = [Windows.Automation.AutomationElement]::FromHandle($windowHandle)
+        if ($window.Current.ProcessId -ne $Process.Id) { throw 'Native window ownership changed before observation.' }
         if ($window.Current.IsOffscreen) { continue }
         $observedWindows++
         $controls = $window.FindAll([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.Condition]::TrueCondition)
@@ -96,7 +156,7 @@ function Invoke-DesktopWizardAutomation {
         if ($state -eq $lastAction) { continue }
         if ($records.Count -ge 4096) { throw 'NSIS GUI observation exceeded its bounded evidence budget.' }
         $lastAction = $state
-        Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; window = $window.Current.Name; state = 'observed'; controls = $snapshot })
+        Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; windowProcessId = $window.Current.ProcessId; windowHandle = $windowHandle.ToInt64(); window = $window.Current.Name; state = 'observed'; controls = $snapshot })
         foreach ($control in $controls) {
           $action = Get-DesktopWizardAction -Name $control.Current.Name -AutomationId $control.Current.AutomationId -Enabled $control.Current.IsEnabled -ControlType ($control.Current.ControlType.ProgrammaticName -replace '^ControlType\.', '')
           if ($action -eq 'clear-launch') {
@@ -116,6 +176,10 @@ function Invoke-DesktopWizardAutomation {
             $pendingInvocations.Add([pscustomobject]@{ Worker = $worker; Key = $controlKey; Action = $action; Label = $controlName; Settled = $false })
             break
           }
+        }
+        } catch [Windows.Automation.ElementNotAvailableException] {
+          # An observed wizard or modal may disappear immediately after its button runs.
+          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; windowHandle = $windowHandle.ToInt64(); state = 'window-closed-during-observation' })
         }
       }
       Start-Sleep -Milliseconds 200
