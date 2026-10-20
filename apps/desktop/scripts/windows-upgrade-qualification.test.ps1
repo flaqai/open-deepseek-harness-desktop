@@ -64,6 +64,9 @@ try {
   $after = & $copyState
   Assert-DesktopUpgradeFailurePreservedState -ExitCode 2 -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText
   Assert-UpgradeRejects { Assert-DesktopUpgradeFailurePreservedState -ExitCode 0 -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText } 'reported success'
+  foreach ($unrelatedExit in @(1, 3, 20, 1223, -1)) {
+    Assert-UpgradeRejects { Assert-DesktopUpgradeFailurePreservedState -ExitCode $unrelatedExit -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText } 'must reach atomic cleanup failure exit 2'
+  }
   foreach ($field in @('executable', 'uninstaller')) {
     $after = & $copyState
     $after.$field = 'candidate-file'

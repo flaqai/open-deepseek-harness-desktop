@@ -82,6 +82,7 @@ function Get-DesktopUpgradeState {
 function Assert-DesktopUpgradeFailurePreservedState {
   param([int] $ExitCode, $Before, $After, [string] $Sentinel, [string] $ExpectedSentinel)
   if ($ExitCode -eq 0) { throw 'Persistent-lock upgrade incorrectly reported success.' }
+  if ($ExitCode -ne 2) { throw "Persistent-lock upgrade must reach atomic cleanup failure exit 2, found $ExitCode." }
   if ($Before.executable -ne $After.executable -or $Before.uninstaller -ne $After.uninstaller) {
     throw 'Persistent-lock upgrade did not preserve the previous application and uninstaller.'
   }
@@ -206,19 +207,25 @@ function Initialize-DesktopPreviousReleaseQualification {
   } finally {
     Stop-DesktopUpgradeLock -Process $locker -Directory $lockDirectory
   }
-  $after = Get-DesktopUpgradeState -Directory $Directory
-  Assert-DesktopUpgradeFailurePreservedState -ExitCode $candidateExit -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText
-  Assert-PreviousDesktopNativeEntry -Executable $oldExecutable -EvidenceRoot $EvidenceRoot
-  [ordered]@{
+  $evidencePath = Join-Path $EvidenceRoot 'previous-release.json'
+  $evidence = [ordered]@{
     schema = 'open-dsh/windows-previous-release-qualification/v1'
     previousInstallerSha256 = (Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash
     previousVersion = $Version
     installationMode = $Mode
     persistentLockExitCode = $candidateExit
-    previousStatePreserved = $true
-    previousNativeEntryVerified = $true
+    previousStatePreserved = $null
+    previousNativeEntryVerified = $false
     interactive = $CandidateStart.ArgumentList -notcontains '/S'
     guiObservation = 'not-verified'
-  } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $EvidenceRoot 'previous-release.json') -Encoding utf8
+  }
+  $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
+  $after = Get-DesktopUpgradeState -Directory $Directory
+  Assert-DesktopUpgradeFailurePreservedState -ExitCode $candidateExit -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText
+  $evidence.previousStatePreserved = $true
+  $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
+  Assert-PreviousDesktopNativeEntry -Executable $oldExecutable -EvidenceRoot $EvidenceRoot
+  $evidence.previousNativeEntryVerified = $true
+  $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
   return [pscustomobject]@{ Sentinel = $sentinel; SentinelText = $sentinelText; PreviousDirectory = $Directory }
 }
