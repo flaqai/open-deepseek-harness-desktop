@@ -103,9 +103,79 @@ function Get-DesktopUpgradeDiagnosticDirectories {
   return @(Get-ChildItem -LiteralPath $Root -Directory -Filter '*.dsh-install' -ErrorAction Stop | ForEach-Object { $_.FullName })
 }
 
+function Get-DesktopInstallationPathMetadata {
+  param([string] $Directory, [string] $OwnerRoot, [ValidateRange(1, 2000000)] [int] $MaximumEntries = 200000,
+    [ValidateRange(1, 30000)] [int] $MaximumMilliseconds = 5000)
+  $metadata = [ordered]@{ status = 'present'; rootLength = 0; maximumFilePathLength = 0; fileCountAtLeast260 = 0; totalFileCount = 0; visitedEntries = 0; reparsePointsSkipped = 0; reason = $null }
+  $watch = [Diagnostics.Stopwatch]::StartNew()
+  try {
+    $owned = [IO.Path]::GetFullPath($OwnerRoot).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    $root = [IO.Path]::GetFullPath($Directory)
+    $metadata.rootLength = $root.Length
+    if (-not $root.StartsWith(($owned + [IO.Path]::DirectorySeparatorChar), [StringComparison]::OrdinalIgnoreCase)) { throw 'unowned-root' }
+    $ancestor = [IO.DirectoryInfo]::new($root)
+    while (-not [string]::Equals($ancestor.FullName.TrimEnd([IO.Path]::DirectorySeparatorChar), $owned, [StringComparison]::OrdinalIgnoreCase)) {
+      if (-not $ancestor.Exists -or ($ancestor.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'unsafe-root' }
+      $ancestor = $ancestor.Parent
+      if ($null -eq $ancestor) { throw 'unsafe-root' }
+    }
+    if (($ancestor.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'unsafe-root' }
+    $directories = [Collections.Generic.Stack[IO.DirectoryInfo]]::new()
+    $directories.Push([IO.DirectoryInfo]::new($root))
+    while ($directories.Count -ne 0) {
+      if ($metadata.visitedEntries -ge $MaximumEntries -or $watch.ElapsedMilliseconds -ge $MaximumMilliseconds) {
+        $metadata.status = 'degraded'; $metadata.reason = 'scan-budget-exhausted'; return $metadata
+      }
+      $enumerator = $directories.Pop().EnumerateFileSystemInfos().GetEnumerator()
+      try {
+        while ($enumerator.MoveNext()) {
+          if ($metadata.visitedEntries -ge $MaximumEntries -or $watch.ElapsedMilliseconds -ge $MaximumMilliseconds) {
+            $metadata.status = 'degraded'; $metadata.reason = 'scan-budget-exhausted'; return $metadata
+          }
+          $metadata.visitedEntries++
+          $entry = $enumerator.Current
+          if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            $metadata.reparsePointsSkipped++; $metadata.status = 'degraded'; $metadata.reason = 'reparse-points-skipped'; continue
+          }
+          if (($entry.Attributes -band [IO.FileAttributes]::Directory) -ne 0) { $directories.Push([IO.DirectoryInfo]$entry); continue }
+          $length = $entry.FullName.Length
+          $metadata.totalFileCount++
+          if ($length -gt $metadata.maximumFilePathLength) { $metadata.maximumFilePathLength = $length }
+          if ($length -ge 260) { $metadata.fileCountAtLeast260++ }
+        }
+      } finally { $enumerator.Dispose() }
+    }
+  } catch {
+    $metadata.status = 'degraded'
+    $metadata.reason = if ($_.Exception.Message -in @('unowned-root', 'unsafe-root')) { $_.Exception.Message } else { 'metadata-read-failed' }
+  } finally { $watch.Stop() }
+  return $metadata
+}
+
+function Get-DesktopShortLockMetadata {
+  param([System.Diagnostics.Process] $Process)
+  $metadata = [ordered]@{ status = 'not-applicable'; observedAtUtc = [DateTime]::UtcNow.ToString('o'); startTimeUtc = $null; hasExited = $null; exitCode = $null; exitTimeUtc = $null }
+  if ($null -eq $Process) { return $metadata }
+  try {
+    $Process.Refresh()
+    $metadata.status = 'present'
+    $metadata.hasExited = $Process.HasExited
+    if ($metadata.hasExited) {
+      $metadata.exitCode = $Process.ExitCode
+      $metadata.exitTimeUtc = $Process.ExitTime.ToUniversalTime().ToString('o')
+    }
+    $metadata.startTimeUtc = $Process.StartTime.ToUniversalTime().ToString('o')
+  } catch { $metadata.status = 'unavailable' }
+  return $metadata
+}
+
 function Save-DesktopMainInstallerDiagnostics {
-  param([string] $Root, [string[]] $PreviousDirectories, [bool] $SnapshotAvailable)
+  param([string] $Root, [string[]] $PreviousDirectories, [bool] $SnapshotAvailable,
+    $OldInstallationMetadata = $null, [System.Diagnostics.Process] $ShortLocker = $null, $ShortLockBeforeMain = $null)
   $report = [ordered]@{ schema = 'open-dsh/main-installer-diagnostics/v1'; status = 'present'; directories = @() }
+  $report.oldInstallation = $OldInstallationMetadata
+  $report.shortLockBeforeMain = $ShortLockBeforeMain
+  $report.shortLock = Get-DesktopShortLockMetadata -Process $ShortLocker
   try {
     if (-not [IO.Path]::IsPathFullyQualified($Root) -or
         -not [string]::Equals($Root, $env:TEMP, [StringComparison]::OrdinalIgnoreCase) -or

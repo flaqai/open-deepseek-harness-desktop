@@ -17,6 +17,59 @@ function Assert-UpgradeRejects([scriptblock] $Action, [string] $Expected) {
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "dsh-upgrade-behavior-$([Guid]::NewGuid())"
 New-Item -ItemType Directory -Path $testRoot -ErrorAction Stop | Out-Null
 try {
+  $metadataOwner = Join-Path $testRoot 'metadata-owner'
+  $sameMetadataRoot = Join-Path $metadataOwner 'old'
+  $changedMetadataRoot = Join-Path $metadataOwner 'old previous'
+  $relativeParts = [Collections.Generic.List[string]]::new()
+  $remaining = 258 - $sameMetadataRoot.Length - 1
+  while ($remaining -gt 100) { $relativeParts.Add(('d' * 40)); $remaining -= 41 }
+  if ($remaining -lt 1) { throw 'Synthetic metadata root is unexpectedly too long.' }
+  $relativeParts.Add(('f' * $remaining))
+  $relativeFile = [string]::Join([IO.Path]::DirectorySeparatorChar, $relativeParts)
+  foreach ($directory in @($sameMetadataRoot, $changedMetadataRoot)) {
+    $file = Join-Path $directory $relativeFile
+    [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($file))
+    [IO.File]::WriteAllText($file, 'PRIVATE_METADATA_CONTENT')
+  }
+  $sameMetadata = Get-DesktopInstallationPathMetadata -Directory $sameMetadataRoot -OwnerRoot $metadataOwner
+  $changedMetadata = Get-DesktopInstallationPathMetadata -Directory $changedMetadataRoot -OwnerRoot $metadataOwner
+  Assert-UpgradeTest ($sameMetadata.status -eq 'present' -and $sameMetadata.maximumFilePathLength -eq 258 -and $sameMetadata.fileCountAtLeast260 -eq 0 -and $sameMetadata.totalFileCount -eq 1) 'Metadata must count the real synthetic file length below MAX_PATH.'
+  Assert-UpgradeTest ($changedMetadata.status -eq 'present' -and $changedMetadata.maximumFilePathLength -eq 267 -and $changedMetadata.fileCountAtLeast260 -eq 1 -and $changedMetadata.totalFileCount -eq 1) 'Nine extra root characters must be reflected without claiming a MAX_PATH diagnosis.'
+  $partialMetadata = Get-DesktopInstallationPathMetadata -Directory $sameMetadataRoot -OwnerRoot $metadataOwner -MaximumEntries 1
+  Assert-UpgradeTest ($partialMetadata.status -eq 'degraded' -and $partialMetadata.reason -eq 'scan-budget-exhausted' -and $partialMetadata.visitedEntries -eq 1) 'An exhausted metadata budget must report partial counts.'
+  $unownedMetadata = Get-DesktopInstallationPathMetadata -Directory $testRoot -OwnerRoot $metadataOwner
+  Assert-UpgradeTest ($unownedMetadata.status -eq 'degraded' -and $unownedMetadata.reason -eq 'unowned-root' -and $unownedMetadata.totalFileCount -eq 0) 'Metadata must not enumerate outside the owned fixture.'
+  $metadataLink = Join-Path $sameMetadataRoot 'linked-installation'
+  [void][IO.Directory]::CreateSymbolicLink($metadataLink, $changedMetadataRoot)
+  try {
+    $linkedMetadata = Get-DesktopInstallationPathMetadata -Directory $sameMetadataRoot -OwnerRoot $metadataOwner
+    Assert-UpgradeTest ($linkedMetadata.status -eq 'degraded' -and $linkedMetadata.reparsePointsSkipped -eq 1 -and $linkedMetadata.totalFileCount -eq 1) 'Metadata traversal must not follow linked directories.'
+    $linkedRootMetadata = Get-DesktopInstallationPathMetadata -Directory $metadataLink -OwnerRoot $metadataOwner
+    Assert-UpgradeTest ($linkedRootMetadata.status -eq 'degraded' -and $linkedRootMetadata.reason -eq 'unsafe-root' -and $linkedRootMetadata.totalFileCount -eq 0) 'Metadata must not enumerate through a linked installation root.'
+  } finally { [IO.Directory]::Delete($metadataLink) }
+  $metadataJson = @($sameMetadata, $changedMetadata, $partialMetadata, $linkedMetadata) | ConvertTo-Json -Depth 4
+  Assert-UpgradeTest (-not $metadataJson.Contains($metadataOwner) -and -not $metadataJson.Contains($relativeFile) -and -not $metadataJson.Contains('PRIVATE_METADATA_CONTENT')) 'Metadata must omit paths, file names, and contents.'
+  $currentProcess = [Diagnostics.Process]::GetCurrentProcess()
+  try {
+    $liveLock = Get-DesktopShortLockMetadata -Process $currentProcess
+    Assert-UpgradeTest ($liveLock.status -eq 'present' -and $liveLock.hasExited -eq $false -and $null -eq $liveLock.exitCode -and $null -ne $liveLock.startTimeUtc) 'A live locker must not be reported as completed.'
+  } finally { $currentProcess.Dispose() }
+  $lockProbeStart = [Diagnostics.ProcessStartInfo]::new()
+  $lockProbeStart.FileName = (Get-Process -Id $PID).Path
+  $lockProbeStart.UseShellExecute = $false
+  $lockRelease = Join-Path $metadataOwner 'locker-release'
+  $lockReleaseLiteral = $lockRelease.Replace("'", "''")
+  $lockProbeCommand = "`$deadline = (Get-Date).AddSeconds(30); while (-not [IO.File]::Exists('$lockReleaseLiteral')) { if ((Get-Date) -gt `$deadline) { exit 9 }; Start-Sleep -Milliseconds 50 }; exit 7"
+  foreach ($argument in @('-NoLogo', '-NoProfile', '-NonInteractive', '-Command', $lockProbeCommand)) { $lockProbeStart.ArgumentList.Add($argument) }
+  $lockProbe = [Diagnostics.Process]::Start($lockProbeStart)
+  try {
+    $initialLock = Get-DesktopShortLockMetadata -Process $lockProbe
+    Assert-UpgradeTest ($initialLock.status -eq 'present' -and $initialLock.hasExited -eq $false) 'Locker must remain live until the owned release signal.'
+    [IO.File]::WriteAllText($lockRelease, '')
+    if (-not $lockProbe.WaitForExit(10000)) { $lockProbe.Kill($true); $lockProbe.WaitForExit(); throw 'Metadata process fixture did not settle.' }
+    $completedLock = Get-DesktopShortLockMetadata -Process $lockProbe
+    Assert-UpgradeTest ($completedLock.status -eq 'present' -and $completedLock.hasExited -eq $true -and $completedLock.exitCode -eq 7 -and $null -ne $completedLock.exitTimeUtc) 'An exited locker must retain its actual exit and time evidence.'
+  } finally { $lockProbe.Dispose() }
   $script:nativeProbeRoots = [Collections.Generic.List[string]]::new()
   $script:nativeProbeDisposals = 0
   function Start-DesktopNativeEntryProcess {
@@ -103,6 +156,7 @@ try {
   Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'exactly one'
   $savedTemp = $env:TEMP
   $savedRunnerTemp = $env:RUNNER_TEMP
+  $diagnosticLocker = [Diagnostics.Process]::GetCurrentProcess()
   try {
     $env:TEMP = $diagnosticRoot
     $env:RUNNER_TEMP = $diagnosticRoot
@@ -119,12 +173,14 @@ try {
     $linkDirectory = Join-Path $diagnosticRoot 'linked.dsh-install'
     New-Item -ItemType Directory -Path $linkDirectory -ErrorAction Stop | Out-Null
     [void][IO.File]::CreateSymbolicLink((Join-Path $linkDirectory 'upgrade.jsonl'), (Join-Path $mainDirectory 'unrelated.log'))
-    Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true
+    Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true -OldInstallationMetadata $changedMetadata -ShortLocker $diagnosticLocker -ShortLockBeforeMain $initialLock
     $reportPath = Join-Path $diagnosticRoot 'main-installer-diagnostics.json'
     $encodedReport = Get-Content -LiteralPath $reportPath -Raw
     $report = $encodedReport | ConvertFrom-Json
     Assert-UpgradeTest ($report.status -eq 'degraded' -and $report.directories.Count -eq 3) 'Collector must capture only new diagnostics and flag unsafe or oversized logs.'
     Assert-UpgradeTest (-not $encodedReport.Contains('PRIVATE_SECRET') -and -not $encodedReport.Contains('unrelated.log')) 'Collector must omit arbitrary log content, paths, command lines, and unrelated files.'
+    Assert-UpgradeTest ($report.oldInstallation.maximumFilePathLength -eq 267 -and $report.oldInstallation.fileCountAtLeast260 -eq 1 -and $report.shortLock.hasExited -eq $false -and $report.shortLockBeforeMain.hasExited -eq $false) 'Main diagnostics must retain numeric pre-install metadata and actual locker observations.'
+    Assert-UpgradeTest (-not $encodedReport.Contains($metadataOwner) -and -not $encodedReport.Contains('PRIVATE_METADATA_CONTENT')) 'Main diagnostics must not add raw paths or file contents through metadata.'
     $mainRecord = @($report.directories | Where-Object { $_.directory -eq 'main.dsh-install' })[0]
     Assert-UpgradeTest ($mainRecord.files[0].events[1].stage -eq 'uninstall-result' -and $mainRecord.files[0].events[1].result -eq 3) 'Installer UTF-16 numeric result must survive projection.'
     Assert-UpgradeTest ($mainRecord.files[1].events[0].errorKind -eq 'previous-runtime-remains') 'Upgrade invalid-state failure must retain its classified cause.'
@@ -136,6 +192,7 @@ try {
       try { throw 'primary-install-exit-2' } finally { Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true }
     } 'primary-install-exit-2'
   } finally {
+    $diagnosticLocker.Dispose()
     $env:TEMP = $savedTemp
     $env:RUNNER_TEMP = $savedRunnerTemp
   }

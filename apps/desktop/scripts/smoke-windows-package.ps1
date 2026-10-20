@@ -52,6 +52,9 @@ Remove-Item -LiteralPath $processGuardDiagnostic -Force -ErrorAction SilentlyCon
 $similarRoot = "$installRoot-old"
 
 $previousQualification = $null
+$previousReleaseLocker = $null
+$oldInstallationMetadata = $null
+$shortLockBeforeMain = $null
 if (-not [string]::IsNullOrWhiteSpace($PreviousInstaller)) {
   Start-SmokePhase -Name 'previous-release-persistent-lock'
   $PreviousInstaller = (Resolve-Path -LiteralPath $PreviousInstaller).Path
@@ -61,7 +64,9 @@ if (-not [string]::IsNullOrWhiteSpace($PreviousInstaller)) {
     -Directory $previousRoot -CandidateStart $candidateStart -EvidenceRoot $env:RUNNER_TEMP -Mode $InstallationMode
   $shortLockDirectory = Join-Path $env:RUNNER_TEMP 'previous-release-short-lock'
   New-Item -ItemType Directory -Path $shortLockDirectory -ErrorAction Stop | Out-Null
+  $oldInstallationMetadata = Get-DesktopInstallationPathMetadata -Directory $previousRoot -OwnerRoot $env:RUNNER_TEMP
   $previousReleaseLocker = Start-DesktopUpgradeLock -Executable (Join-Path $previousRoot 'Open DeepSeek Harness Desktop.exe') -Directory $shortLockDirectory
+  $shortLockBeforeMain = Get-DesktopShortLockMetadata -Process $previousReleaseLocker
 }
 
 Start-SmokePhase -Name 'install'
@@ -103,7 +108,7 @@ if ($install.ExitCode -ne 0) {
   throw "Windows installer exited with $($install.ExitCode)"
 }
 } finally {
-  Save-DesktopMainInstallerDiagnostics -Root $env:TEMP -PreviousDirectories $mainDiagnosticDirectories -SnapshotAvailable $mainSnapshotAvailable
+  Save-DesktopMainInstallerDiagnostics -Root $env:TEMP -PreviousDirectories $mainDiagnosticDirectories -SnapshotAvailable $mainSnapshotAvailable -OldInstallationMetadata $oldInstallationMetadata -ShortLocker $previousReleaseLocker -ShortLockBeforeMain $shortLockBeforeMain
 }
 if ($null -ne $previousQualification) {
   if (-not $previousReleaseLocker.WaitForExit(30000) -or $previousReleaseLocker.ExitCode -ne 0) {
