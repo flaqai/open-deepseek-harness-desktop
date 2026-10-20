@@ -51,7 +51,7 @@ try {
   New-Item -ItemType Directory -Path $ownedRoot -ErrorAction Stop | Out-Null
   $user = New-LocalUser -Name $account -Password $password -AccountNeverExpires -PasswordNeverExpires -Description 'Disposable package qualification only'
   $created = $true
-  Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $user.SID
+  Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $user
   # Only the newly allocated private evidence directory receives Modify permission.
   $acl = Get-Acl -LiteralPath $ownedRoot
   $acl.SetAccessRule([Security.AccessControl.FileSystemAccessRule]::new($user.SID, 'Modify', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))

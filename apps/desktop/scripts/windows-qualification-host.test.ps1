@@ -1,5 +1,26 @@
 $ErrorActionPreference = 'Stop'
 $scriptPath = Join-Path $PSScriptRoot 'windows-qualification-host.ps1'
+# Exercise the actual account-add caller without creating accounts on the test host.
+$tokens = $null
+$parseErrors = $null
+$tree = [Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors.Count -ne 0) { throw 'Qualification host failed syntax parsing.' }
+$addCalls = @($tree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Add-LocalGroupMember'
+}, $true))
+if ($addCalls.Count -ne 1) { throw 'Expected one local group membership call.' }
+$user = [pscustomobject]@{ Name = 'synthetic-user'; SID = 'synthetic-sid-not-a-LocalPrincipal' }
+$script:capturedMember = $null
+function Add-LocalGroupMember {
+  param([string] $SID, [object] $Member)
+  if ($SID -ne 'S-1-5-32-545') { throw 'Qualification account must join only the standard Users group.' }
+  $script:capturedMember = $Member
+}
+& ([scriptblock]::Create($addCalls[0].Extent.Text))
+if (-not [object]::ReferenceEquals($user, $script:capturedMember)) {
+  throw 'Group membership must retain the LocalUser object, not pass its SID as a LocalPrincipal.'
+}
+Remove-Item Function:\Add-LocalGroupMember
 $shell = (Get-Process -Id $PID).Path
 $start = [Diagnostics.ProcessStartInfo]::new()
 $start.FileName = $shell
