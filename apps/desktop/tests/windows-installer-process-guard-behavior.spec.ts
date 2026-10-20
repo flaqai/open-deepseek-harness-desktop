@@ -22,6 +22,8 @@ it.skipIf(!powershell)('classifies processes, refuses unsafe roots, and fails cl
     expect(result.stdout).toContain('PASS process classification')
     expect(result.stdout).toContain('PASS entrypoint failure and logging')
     expect(result.stdout).toContain('PASS path validation')
+    expect(result.stdout).toContain('PASS transient process resampling')
+    expect(result.stdout).toContain('PASS refreshed ownership and query failure')
     expect(readFileSync(join(testDirectory, 'junction-target', 'must-survive-link-cleanup.txt'), 'utf8')).toBe('synthetic sentinel')
   } finally {
     rmSync(testDirectory, { recursive: true, force: true })

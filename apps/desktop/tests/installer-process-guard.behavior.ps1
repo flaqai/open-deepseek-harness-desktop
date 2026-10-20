@@ -77,9 +77,18 @@ try {
   $global:dshGuardQueryFails = $false
   $global:dshGuardFixtureProcesses = $processes
   $global:dshGuardStopCount = 0
+  $global:dshGuardSnapshots = @()
+  $global:dshGuardQueryCount = 0
   function Get-CimInstance {
     param([string]$ClassName, [string]$ErrorAction)
+    $global:dshGuardQueryCount++
     if ($global:dshGuardQueryFails) { throw 'CIM access denied fixture' }
+    if ($global:dshGuardSnapshots.Count -gt 0) {
+      $index = [Math]::Min($global:dshGuardQueryCount - 1, $global:dshGuardSnapshots.Count - 1)
+      $snapshot = $global:dshGuardSnapshots[$index]
+      if ($snapshot.Fails) { throw 'CIM refresh access denied fixture' }
+      return $snapshot.Processes
+    }
     return $global:dshGuardFixtureProcesses
   }
   function Stop-Process {
@@ -88,9 +97,38 @@ try {
     throw 'No process should be stopped in these failure cases.'
   }
   $diagnostics = Join-Path $testRoot 'logs'
+  $ownedProcess = $processes[0]
+  $transientGit = [pscustomobject]@{ ProcessId = 8208; ParentProcessId = 1; Name = 'git.exe'; ExecutablePath = $null }
+  $global:dshGuardSnapshots = @(
+    [pscustomobject]@{ Processes = @($ownedProcess, $transientGit); Fails = $false },
+    [pscustomobject]@{ Processes = @($ownedProcess); Fails = $false }
+  )
+  & $GuardScript -Action inspect -InstallDirectory $oldRoot -AppExecutable 'Harness.exe' -ExcludeProcessId 99999 -DiagnosticDirectory $diagnostics
+  if ($LASTEXITCODE -ne 10 -or $global:dshGuardQueryCount -ne 2) { throw 'An exited unreadable descendant must be resolved by one fresh complete snapshot.' }
+  if ($global:dshGuardStopCount -ne 0) { throw 'Transient unreadable processes must not be stopped.' }
+  Write-Output 'PASS transient process resampling'
+  $global:dshGuardQueryCount = 0
+  $reusedGit = [pscustomobject]@{ ProcessId = 8208; ParentProcessId = 0; Name = 'git.exe'; ExecutablePath = (Join-Path $testRoot 'unrelated/git.exe') }
+  $global:dshGuardSnapshots = @(
+    [pscustomobject]@{ Processes = @($ownedProcess, $transientGit); Fails = $false },
+    [pscustomobject]@{ Processes = @($ownedProcess, $reusedGit); Fails = $false }
+  )
+  & $GuardScript -Action inspect -InstallDirectory $oldRoot -AppExecutable 'Harness.exe' -ExcludeProcessId 99999 -DiagnosticDirectory $diagnostics
+  if ($LASTEXITCODE -ne 10 -or $global:dshGuardQueryCount -ne 2 -or $global:dshGuardStopCount -ne 0) { throw 'A reused unrelated PID must not retain ownership from an earlier snapshot.' }
+  $global:dshGuardQueryCount = 0
+  $global:dshGuardSnapshots = @(
+    [pscustomobject]@{ Processes = @($ownedProcess, $transientGit); Fails = $false },
+    [pscustomobject]@{ Processes = @(); Fails = $true }
+  )
+  & $GuardScript -Action stop -InstallDirectory $oldRoot -AppExecutable 'Harness.exe' -ExcludeProcessId 99999 -DiagnosticDirectory $diagnostics
+  if ($LASTEXITCODE -ne 20 -or $global:dshGuardQueryCount -ne 2 -or $global:dshGuardStopCount -ne 0) { throw 'A failed refresh must stop inspection without stopping any process.' }
+  Write-Output 'PASS refreshed ownership and query failure'
+  $global:dshGuardSnapshots = @()
   foreach ($operation in @('inspect', 'stop')) {
+    $global:dshGuardQueryCount = 0
     & $GuardScript -Action $operation -InstallDirectory $newRoot -AdditionalInstallDirectory $oldRoot -AppExecutable 'Harness.exe' -ExcludeProcessId 99999 -DiagnosticDirectory $diagnostics
     if ($LASTEXITCODE -ne 20) { throw "$operation must refuse uncertain processes with exit code 20." }
+    if ($global:dshGuardQueryCount -ne 4) { throw "$operation must stop after three additional uncertain snapshots." }
   }
   if ($global:dshGuardStopCount -ne 0) { throw 'An uncertain process was stopped.' }
   $log = Get-Content -LiteralPath (Join-Path $diagnostics 'DeepSeek-Harness-process-guard.log') -Raw
@@ -105,8 +143,10 @@ try {
   & $GuardScript -Action inspect -InstallDirectory $newRoot -AppExecutable 'Harness.exe' -ExcludeProcessId 99999 -DiagnosticDirectory $diagnostics
   if ($LASTEXITCODE -ne 0) { throw 'Unrelated unreadable Node or OS processes must not block installation.' }
   $global:dshGuardFixtureProcesses = @($processes | Where-Object { $_.ProcessId -in @(1, 7) })
+  $global:dshGuardQueryCount = 0
   & $GuardScript -Action inspect -InstallDirectory $newRoot -AdditionalInstallDirectory $oldRoot -AppExecutable 'Harness.exe' -ExcludeProcessId 99999 -DiagnosticDirectory $diagnostics
   if ($LASTEXITCODE -ne 10) { throw 'Both old and new installation processes must be detected.' }
+  if ($global:dshGuardQueryCount -ne 1) { throw 'A fully readable process snapshot must not trigger additional sampling.' }
   Write-Output 'PASS entrypoint failure and logging'
 }
 finally {

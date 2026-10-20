@@ -96,23 +96,30 @@ function Write-ProcessReport([object[]]$Processes, [string]$Heading) {
 }
 
 function Get-DesktopOwnedProcesses {
-  $snapshot = @(Get-CimInstance -ClassName Win32_Process -ErrorAction Stop)
-  $classification = Get-GuardProcessClassification $snapshot $installRoots $AppExecutable $ExcludeProcessId
-  foreach ($process in $classification.Owned) {
-    Write-GuardTrace ("owned PID={0} name={1} parentPID={2} path={3}" -f $process.ProcessId, $process.Name, $process.ParentProcessId, $process.ExecutablePath)
-  }
-  foreach ($process in $classification.Unreadable) {
-    Write-GuardTrace ("unreadable PID={0} name={1} parentPID={2}" -f $process.ProcessId, $process.Name, $process.ParentProcessId)
-  }
-  foreach ($process in $classification.Uncertain) {
-    Write-GuardTrace ("uncertain PID={0} name={1} parentPID={2} executable path unavailable" -f $process.ProcessId, $process.Name, $process.ParentProcessId)
-  }
-  if ($classification.Uncertain.Count -gt 0) {
+  # Short-lived descendants can exit while CIM builds its snapshot. Only a
+  # complete fresh snapshot may resolve missing paths or changed PID ownership.
+  for ($refresh = 0; $refresh -le 3; $refresh++) {
+    $snapshot = @(Get-CimInstance -ClassName Win32_Process -ErrorAction Stop)
+    $classification = Get-GuardProcessClassification $snapshot $installRoots $AppExecutable $ExcludeProcessId
+    foreach ($process in $classification.Owned) {
+      Write-GuardTrace ("owned PID={0} name={1} parentPID={2} path={3}" -f $process.ProcessId, $process.Name, $process.ParentProcessId, $process.ExecutablePath)
+    }
+    foreach ($process in $classification.Unreadable) {
+      Write-GuardTrace ("unreadable PID={0} name={1} parentPID={2}" -f $process.ProcessId, $process.Name, $process.ParentProcessId)
+    }
+    foreach ($process in $classification.Uncertain) {
+      Write-GuardTrace ("uncertain PID={0} name={1} parentPID={2} executable path unavailable" -f $process.ProcessId, $process.Name, $process.ParentProcessId)
+    }
+    if ($classification.Uncertain.Count -eq 0) { return $classification.Owned }
+    if ($refresh -lt 3) {
+      Write-GuardTrace ("Refreshing uncertain process snapshot ({0}/3)." -f ($refresh + 1))
+      Start-Sleep -Milliseconds 200
+      continue
+    }
     $report = Write-ProcessReport $classification.Uncertain 'Unable to inspect possible application processes; close them or retry with matching privileges:'
     foreach ($line in $report) { Write-Host $line }
     throw 'Possible application processes have unreadable executable paths; no uncertain process was stopped.'
   }
-  return $classification.Owned
 }
 
 if ($MyInvocation.InvocationName -eq '.') { return }
