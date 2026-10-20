@@ -1,86 +1,58 @@
 # Current desktop release state
 
-This file records the most recently completed desktop release. It is historical evidence, not the ledger for a new packaging cycle. New cycles use the release Doctor's machine-readable plan under the Git common directory; its generated Markdown sibling is the readable view.
+This historical record describes the most recently completed release, not a new cycle's ledger. New cycles use the release Doctor's machine-readable plan under the Git common directory; its sibling Markdown is a readable snapshot.
 
-## Version lock
+## Version lock and source
 
-- Target version: `0.2.1-rc.2`
-- Tag: `odsh-v0.2.1-rc.2`
-- Title: `v0.2.1-rc.2`
-- Release branch: `release/0.2.1-rc.2`
-- Packaging branch: `fix/windows-packaging-0.2.1-rc.2`
-- Lock rule: preserve this version and identity until the user explicitly requests a version change. A request to retry, rebuild, synchronize, package, upload, or publish preserves this lock.
+- Desktop version: `0.2.1-rc.2.1`; core baseline: `dsh-v0.2.1-rc.2`.
+- Tag: `odsh-v0.2.1-rc.2.1`; title: `v0.2.1-rc.2.1`.
+- Release branch: `release/0.2.1-rc.2.1`; packaging branch: `fix/windows-packaging-0.2.1-rc.2.1`.
+- Preserve this identity until the user explicitly changes the version. Retry, rebuild, synchronization, packaging and publication requests preserve the lock.
+- The immutable tag matches all three accepted runs; the Doctor plan records the full source SHA. Master, release and packaging branches matched that source before publication and were pushed. Later README and historical-record commits do not move the tag or installers.
+- Previous public Release: `odsh-v0.2.1-rc.2`; 46 commits through the accepted source.
+- Bilingual notes: `.artifacts/release-notes/odsh-v0.2.1-rc.2.1.md`; validation passed and the published GitHub body matches.
 
-## Recorded source state
+The common logical bundled-plugin snapshot is `feb6695dd3e0e13e7854e1c9fb6abd4d79886f01602082e9d07f78205bf64ca4`. It updates `dshmarket` from `1.66.35` to `1.66.45`, `@xmanrui/dsh-im` from `4.39.0` to `5.3.0`, and `@ychris12138/dsh-usage-stats` from `0.3.5` to `0.3.6`. The other twelve bundled records are unchanged. Python and Office retain their embedded deployment policy.
 
-Last observed: `2026-10-18 02:51 CST`
+## Network and platform qualification
 
-| Item | Recorded value | State |
+Observed `2026-10-21`: GitHub API and official npm connectivity passed through the macOS system proxy at `127.0.0.1:7890`. Actual-artifact download minima were Windows `6.52`, macOS arm64 `7.44`, macOS x64 `7.63`, and Linux `7.53 MiB/s`, above the unchanged `1.0 MiB/s` floor. No low-speed stop occurred; range transfers reached approximately `45–57 MiB/s`.
+
+| Platform | Accepted run | Qualification |
 | --- | --- | --- |
-| Final source | `odsh-v0.2.1-rc.2` | accepted by all three platform runs; the release Doctor plan records its full SHA |
-| Upstream baseline | `dsh-v0.2.1-rc.2` | retained as a merge ancestor |
-| Branch synchronization | master, release and packaging branches pushed | all matched the accepted source at publication; the later historical-record commit does not move the tag or installers |
-| Previous public Release | `odsh-v0.2.1-alpha.4` | release-note comparison base; 53 commits through the accepted source |
-| Release notes | `.artifacts/release-notes/odsh-v0.2.1-rc.2.md` | bilingual notes validated; published GitHub body matches the final file |
-| Bundled plugins | `b6fbc4dbc714a6d1a50fdb54d673ae698d15b65cdfff1d37572ee20c895ba303` | identical snapshot in all accepted runs; dshmarket `1.66.28` → `1.66.35`, other bundled versions unchanged from the published baseline |
+| Windows x64 | [39481965350](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/39481965350) | fresh installation and six real alpha.2 upgrade scenarios passed: standard/admin users, same/changed directories and interactive installation; native stable-process-handle and deny-delete lock tests passed |
+| macOS arm64/x64 | [39485865105](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/39485865105) | both final DMG/ZIP sets passed installed-resource, Helper-layout, deep-signature and native Electron initialization checks |
+| Linux x64 | [39485952053](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/39485952053) | DEB/RPM builds and resources-only qualification passed; GUI startup in a real desktop session remains unverified |
 
-## Network preflight
+The downloaded arm64 ZIP additionally passed two complete local launches using new Chinese/space paths, empty configuration and Electron's test-only mock Keychain. First readiness took `39234 ms` with Profile deployment; second took `4008 ms` without redeployment. Both recorded Harness/client/event-dispatch readiness, expected anonymous HTTP 401, fifteen seconds of liveness, exit 0, absent PID and closed ports after stopping. An initial restricted launch aborted during macOS application registration before application code; the unchanged test passed in the permitted native environment. Evidence: `.artifacts/0.2.1-rc.2.1-packaged-startup.json`; the restricted failure is retained separately. This is not manual GUI or real Keychain authorization evidence; no system protections changed.
 
-| Item | Recorded value |
-| --- | --- |
-| Adopted route | macOS system proxy through `127.0.0.1:7890` |
-| Required download floor | `1.0 MiB/s` |
-| Actual-artifact samples | Windows minimum `7.94`, macOS arm64 `7.63`, macOS x64 `1.72`, Linux `7.77 MiB/s`; all passed |
-| Transfer result | no low-speed stop; parallel installer transfers reached approximately `40–57 MiB/s` |
-| Local log cache | GH run-log reads used a writable temporary XDG cache; no user-wide configuration or credentials were changed |
+NSIS atomic cleanup still has file-path and temporary rollback-path length limits, including in the current algorithm. Bounded retries do not remove them or prove restoration after failure. The known v0 Session `summary requires notice form` limitation remains outside this patch.
 
-## Platform delivery matrix
+## Verified installer sizes
 
-All accepted runs built the same final source and reused the Windows run's bundled-plugin snapshot.
-
-| Platform | Workflow run | Native qualification | Local exact set | GitHub | CNB |
-| --- | --- | --- | --- | --- | --- |
-| Windows x64 | [39053733080](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/39053733080) | fast preflight, EXE build, installed startup, upgrade, uninstall, CLI and plugin checks passed | verified | public | public |
-| macOS arm64/x64 | [39055492429](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/39055492429) | final DMG/ZIP resources, Helper layout, deep signatures and native Electron initialization passed on each matching runner | verified | public | public |
-| Linux x64 | [39055536824](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/39055536824) | native DEB/RPM builds and resources-only package qualification passed; real desktop-session GUI startup unverified | verified | public | public |
-
-The downloaded arm64 ZIP also passed a local complete-startup probe using new Chinese/space paths, empty configuration, and Electron's test-only mock Keychain. First readiness: `38121 ms` with Profile deployment; second readiness: `4008 ms` without redeployment. Both launches recorded Harness/client/event-dispatch readiness, expected anonymous HTTP 401, 15 seconds of continued liveness, exit code 0, an independently absent PID, and closed ports. This is not a manual GUI feature test or real Keychain authorization/migration evidence. No production Keychain settings or system protections changed. Evidence: `.artifacts/rc2-packaged-startup.json`; runner: `.artifacts/rc2-packaged-startup.mjs`.
-
-## Installer sizes
-
-All seven local installers match workflow checksums and GitHub asset digests. CNB's anonymous index records the same sizes and SHA-256 values; all seven anonymous download HEAD sizes match.
+All local installers match workflow checksums and GitHub digests. CNB's anonymous index matches all seven names, sizes and SHA-256 values, and seven anonymous download HEAD sizes match. This does not claim seven additional full CNB downloads.
 
 | Installer | Bytes | MiB |
 | --- | ---: | ---: |
-| Windows x64 EXE | 455775786 | 434.7 |
-| macOS arm64 DMG | 586988408 | 559.8 |
-| macOS arm64 ZIP | 567717984 | 541.4 |
-| macOS x64 DMG | 604882741 | 576.9 |
-| macOS x64 ZIP | 585530895 | 558.4 |
-| Linux x64 DEB | 459854212 | 438.6 |
-| Linux x64 RPM | 407743109 | 388.9 |
+| Windows x64 EXE | 456371310 | 435.2 |
+| macOS arm64 DMG | 587317327 | 560.1 |
+| macOS arm64 ZIP | 568067456 | 541.8 |
+| macOS x64 DMG | 605234492 | 577.2 |
+| macOS x64 ZIP | 585869541 | 558.7 |
+| Linux x64 DEB | 460179836 | 438.9 |
+| Linux x64 RPM | 408045049 | 389.1 |
 
-The combined alternative formats total `3668493135` bytes, compared with the previous qualified set's `3666575855` bytes. Every like-for-like installer increased by less than 0.1%; the combined total is not one user's download or the installed footprint. Size report: `.artifacts/rc2-installer-sizes.txt`.
+Alternative-format total: `3671085011` bytes, versus the prior qualified set's `3668493135` bytes. Every like-for-like installer increased by less than `0.14%`. The total is not one user's download or the installed footprint. Exact paths, checksums and comparison: `.artifacts/release-notes/odsh-v0.2.1-rc.2.1-publication-review.md`.
 
 ## Publication state
 
-- GitHub: [odsh-v0.2.1-rc.2](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2) is public, stable, non-prerelease and Latest, published `2026-10-17T18:40:23Z`. Its tag resolves to the final source above.
-- GitHub assets: seven installers plus `SHA256SUMS`, all verified by remote size and SHA-256. The page additionally includes GitHub's two generated source archives, for ten displayed entries. Python/Office remain embedded resources, not additional Release assets.
-- CNB: release-triggered [39059127607](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/39059127607) succeeded; no duplicate manual dispatch. The [matching CNB Release](https://cnb.cool/hecoococ/open-deepseek-harness-desktop/-/releases/tag/odsh-v0.2.1-rc.2) is public with seven installers.
-- Anonymous index: revision `188`, generated `2026-10-17T18:40:47.758Z`, expires `2026-10-18T00:40:47.758Z`. Exact tag/version, non-withdrawn state, all indexed installer names/sizes/SHA-256 values, and anonymous HEAD sizes passed `verify-cnb-desktop-release.mjs`. Evidence: `.artifacts/rc2-cnb-verification.txt`.
-- Local handoff: `<primary-checkout>/release/0.2.1-rc.2/`, exactly seven installers and `SHA256SUMS`; all checksums, ZIP payloads and DMG structures verified. The activated directory is read-only.
-- Publication authorization: the user explicitly approved GitHub publication and CNB synchronization without another confirmation for this release.
+- GitHub: [odsh-v0.2.1-rc.2.1](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1) is public, non-prerelease and Latest, published `2026-10-20T20:47:12Z`. Tag identity, eight asset sizes/digests and bilingual body match the reviewed local set.
+- GitHub contains seven installers plus `SHA256SUMS`; its two generated source archives make ten displayed entries. Python and Office are embedded resources, not extra assets.
+- CNB: release-triggered [39494951563](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/39494951563) succeeded. The [matching Release](https://cnb.cool/hecoococ/open-deepseek-harness-desktop/-/releases/tag/odsh-v0.2.1-rc.2.1) is public with seven installers; no duplicate manual sync was dispatched.
+- Anonymous index: revision `206`, generated `2026-10-20T20:47:39.588Z`, expires `2026-10-21T02:47:39.588Z`. Exact tag/version, non-withdrawn state, all indexed names/sizes/SHA-256 values and seven download HEAD sizes passed `verify-cnb-desktop-release.mjs`.
+- Local handoff: `<primary-checkout>/release/0.2.1-rc.2.1/`, exactly seven installers and `SHA256SUMS`, directory-read-only. Checksums, ZIP payloads and DMG structures passed.
+- The user explicitly authorized commits, pushes, GitHub publication and CNB synchronization without another confirmation for this release.
 
 ## Recording a completed release
 
-After a release is fully verified and published, replace this historical record with observed final facts:
-
-- final source branch, immutable workflow run, and branch synchronization;
-- network measurement and floor;
-- each platform run ID, head SHA, result, and native qualification;
-- bundled-plugin snapshot identity;
-- local download directory and exact-set verification;
-- GitHub tag, Release state, asset visibility, and URL;
-- CNB sync run, Release/index visibility, revision, expiry, and URL.
-
-Use explicit states such as `not started`, `running`, `succeeded`, `failed`, `downloaded`, `verified`, and `public`. Keep each platform independent; one public platform does not make the release fully public.
+After both destinations pass verification, replace this historical record with observed source/tag identity, accepted runs, platform qualification and limitations, shared plugin snapshot, download route/speeds, exact local set, installer sizes, GitHub state and CNB sync/index facts. Keep partial publication explicit until both pass. Later documentation commits never move the release tag or replace accepted installers.
