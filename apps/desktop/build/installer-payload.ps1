@@ -8,6 +8,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'installer-version.ps1')
 
 # Only a verified copy returns zero. Failures leave the installation incomplete;
 # the caller owns stopping registration and displaying the diagnostic directory.
@@ -70,10 +71,6 @@ function Get-InstallerPayloadInventory([string]$Directory) {
 function Write-InstallerPayloadEvent([string]$LogPath, [string]$Stage, [string]$Outcome, [object]$Details) {
   $event = @{ timestamp = [DateTime]::UtcNow.ToString('o'); stage = $Stage; outcome = $Outcome; details = $Details }
   [System.IO.File]::AppendAllText($LogPath, (($event | ConvertTo-Json -Depth 5 -Compress) + [Environment]::NewLine), (New-Object System.Text.UTF8Encoding($false)))
-}
-
-function Get-InstallerAppVersion([string]$ExecutablePath) {
-  return [System.Diagnostics.FileVersionInfo]::GetVersionInfo($ExecutablePath).ProductVersion
 }
 
 function Get-InstallerRobocopyPath([string]$WindowsDirectory, [bool]$Is64BitOperatingSystem, [bool]$Is64BitProcess) {
@@ -146,12 +143,16 @@ function Invoke-InstallerPayloadCopy {
       if ($destinationFiles[$relative] -ne $sourceFiles[$relative]) { throw ("Installed file size differs: {0}" -f (Join-Path $destination $relative)) }
     }
     if ($destinationFiles.Count -ne $sourceFiles.Count) { throw 'The installed directory contains files outside the extracted payload.' }
-    $appVersion = Get-InstallerAppVersion (Join-Path $destination $AppExecutable)
+    $sourceIdentity = Get-DesktopInstalledIdentity $source $AppExecutable
+    $installedIdentity = Get-DesktopInstalledIdentity $destination $AppExecutable
+    $appVersion = $installedIdentity.Version
     # Community patch releases can retain the same upstream Harness version.
     $sourceCore = Get-Content -LiteralPath (Join-Path $source $coreRelative) -Raw | ConvertFrom-Json
     $core = Get-Content -LiteralPath (Join-Path $destination $coreRelative) -Raw | ConvertFrom-Json
     if ($appVersion -cne $ExpectedVersion) { throw ("Installed executable version differs: expected {0}; got {1}." -f $ExpectedVersion, $appVersion) }
+    if ($sourceIdentity.Version -cne $ExpectedVersion -or $sourceIdentity.ProductVersion -cne $installedIdentity.ProductVersion) { throw 'Installed desktop identity differs from the extracted payload.' }
     if ([string]::IsNullOrWhiteSpace($sourceCore.version) -or $core.version -cne $sourceCore.version) { throw ("Installed Harness version differs from payload: expected {0}; got {1}." -f $sourceCore.version, $core.version) }
+    if ($installedIdentity.CoreVersion -cne $core.version -or $sourceIdentity.CoreVersion -cne $sourceCore.version) { throw 'Harness runtime version differs from desktop archive metadata.' }
     Write-InstallerPayloadEvent $diagnosticPath 'complete' 'verified' @{ files = $destinationFiles.Count; appVersion = $appVersion; coreVersion = $core.version }
     return [pscustomobject]@{ ExitCode = 0; DiagnosticPath = $diagnosticPath; Message = 'Payload files and versions verified.' }
   }

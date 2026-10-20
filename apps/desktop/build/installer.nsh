@@ -198,6 +198,7 @@ Var DesktopDiagnosticDirectory
     SetOutPath "$INSTDIR"
     !insertmacro DesktopLog "extract-complete"
     File /oname=$PLUGINSDIR\installer-payload.ps1 "${BUILD_RESOURCES_DIR}\installer-payload.ps1"
+    File /oname=$PLUGINSDIR\installer-version.ps1 "${BUILD_RESOURCES_DIR}\installer-version.ps1"
     nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-payload.ps1" -SourceDirectory "$PLUGINSDIR\7z-out" -InstallDirectory "$INSTDIR" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -ExpectedVersion "${VERSION}" -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
     Pop $R0
     Pop $ProcessGuardOutput

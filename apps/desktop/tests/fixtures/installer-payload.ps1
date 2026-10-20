@@ -21,9 +21,10 @@ function New-FixtureDirectoryLink([string]$LinkPath, [string]$TargetPath) {
   if ($env:OS -eq 'Windows_NT') { $linkType = 'Junction' }
   [void](New-Item -ItemType $linkType -Path $LinkPath -Target $TargetPath)
 }
-function Get-InstallerAppVersion([string]$ExecutablePath) {
-  if ($Scenario -eq 'wrong-app-version') { return '0.2.1-alpha.2' }
-  return '0.2.1-rc.2'
+function Get-DesktopPeVersion([string]$ExecutablePath) {
+  if ($Scenario -eq 'wrong-pe-core') { return '0.2.2.0' }
+  if ($Scenario -eq 'changed-pe-version' -and $ExecutablePath.Contains('installed')) { return '0.2.1.2' }
+  return '0.2.1.0'
 }
 function Invoke-InstallerRobocopy([string]$Source, [string]$Destination, [string]$LogPath) {
   $script:copyCalls += 1
