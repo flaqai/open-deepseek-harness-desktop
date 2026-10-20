@@ -3,7 +3,8 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import manifestJson from '../external-tools/manifests/0.2.1-rc.2/external-tools-compatibility.v2.json'
+import manifestJson from '../external-tools/manifests/0.2.1-rc.2.1/external-tools-compatibility.v2.json'
+import rc2ManifestJson from '../external-tools/manifests/0.2.1-rc.2/external-tools-compatibility.v2.json'
 import alpha4ManifestJson from '../external-tools/manifests/0.2.1-alpha.4/external-tools-compatibility.v2.json'
 import previousManifestJson from '../external-tools/manifests/0.2.1-alpha.3/external-tools-compatibility.v2.json'
 import publishedManifestJson from '../external-tools/manifests/0.2.1-alpha.2/external-tools-compatibility.v2.json'
@@ -56,10 +57,16 @@ function response(bytes: Uint8Array): Response {
 }
 
 describe('external tool compatibility', () => {
-  it('separates the new Desktop identity from the published alpha.2, alpha.3 and alpha.4 coordinates', () => {
-    expect(manifestJson.desktopVersion).toBe('0.2.1-rc.2')
-    expect(manifestJson.revision).toBe(19)
+  it('separates the new Desktop identity from published alpha and rc.2 coordinates', () => {
+    expect(manifestJson.desktopVersion).toBe('0.2.1-rc.2.1')
+    expect(manifestJson.revision).toBe(20)
+    expect(manifestJson.reviewedSourceVersion).toBe('0.2.1-rc.2')
+    expect(manifestJson.issuedAt).toBe('2026-10-20T00:00:00.000Z')
+    expect(manifestJson.expiresAt).toBe('2027-04-20T00:00:00.000Z')
     expect(EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY).toEqual(manifestJson)
+    expect(rc2ManifestJson.desktopVersion).toBe('0.2.1-rc.2')
+    expect(rc2ManifestJson.revision).toBe(19)
+    expect(manifestJson.tools).toEqual(rc2ManifestJson.tools)
     expect(publishedManifestJson.desktopVersion).toBe('0.2.1-alpha.2')
     expect(publishedManifestJson.reviewedSourceVersion).toBe('0.2.1-alpha.2')
     expect(previousManifestJson.desktopVersion).toBe('0.2.1-alpha.3')
