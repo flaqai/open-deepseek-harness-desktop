@@ -5,6 +5,32 @@ $tokens = $null
 $parseErrors = $null
 $tree = [Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -ne 0) { throw 'Qualification host failed syntax parsing.' }
+$argumentHelper = @($tree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'New-DesktopStandardLaunchArguments'
+}, $true))
+if ($argumentHelper.Count -ne 1) { throw 'Expected one bounded credential-launch argument builder.' }
+. ([scriptblock]::Create($argumentHelper[0].Extent.Text))
+$launcherArguments = @(New-DesktopStandardLaunchArguments -Shell 'C:\Program Files\PowerShell\7\pwsh.exe' -ChildScript 'D:\private test\child.ps1')
+if (($launcherArguments -join ' ') -ne '-NoLogo -NoProfile -NonInteractive -File "D:\private test\child.ps1"') {
+  throw 'Credential launch must use a short quoted File argument, not encode the script or settings.'
+}
+$limitRejected = $false
+try { $null = New-DesktopStandardLaunchArguments -Shell 'pwsh.exe' -ChildScript ('C:\' + ('a' * 1050) + '\child.ps1') } catch {
+  if ($_.Exception.Message -notmatch 'CreateProcessWithLogonW command-line limit') { throw }
+  $limitRejected = $true
+}
+if (-not $limitRejected) { throw 'Credential launcher accepted a command exceeding the documented 1024 character limit.' }
+$childAssignments = @($tree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -eq '$command'
+}, $true))
+if ($childAssignments.Count -ne 1) { throw 'Expected one private child script.' }
+. ([scriptblock]::Create($childAssignments[0].Extent.Text))
+$childTokens = $null
+$childErrors = $null
+$null = [Management.Automation.Language.Parser]::ParseInput($command, [ref]$childTokens, [ref]$childErrors)
+if ($childErrors.Count -ne 0 -or -not $command.Contains("Join-Path `$PSScriptRoot 'settings.json'")) {
+  throw 'Private child must parse and load settings from its private directory.'
+}
 $addCalls = @($tree.FindAll({ param($node)
   $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Add-LocalGroupMember'
 }, $true))

@@ -12,6 +12,17 @@ $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $node = (Get-Command node -ErrorAction Stop).Source
 $shell = (Get-Process -Id $PID).Path
 $entry = Join-Path $PSScriptRoot 'desktop-smoke.mjs'
+function New-DesktopStandardLaunchArguments {
+  param([string] $Shell, [string] $ChildScript)
+  if ($Shell -match '["\r\n]' -or $ChildScript -match '["\r\n]') { throw 'Invalid qualification launcher path.' }
+  $arguments = @('-NoLogo', '-NoProfile', '-NonInteractive', '-File', ('"' + $ChildScript + '"'))
+  # CreateProcessWithLogonW permits only 1024 command-line characters.
+  # https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-createprocesswithlogonw
+  if ((('"' + $Shell + '" ' + ($arguments -join ' ')).Length + 1) -gt 1024) {
+    throw 'Qualification launcher exceeds the CreateProcessWithLogonW command-line limit.'
+  }
+  return $arguments
+}
 function Export-NativeQualificationRecords {
   param([string] $Root)
   $destination = Join-Path $repository '.artifacts/windows-smoke-evidence/native-qualification'
@@ -54,6 +65,10 @@ try {
   Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $user
   # Only the newly allocated private evidence directory receives Modify permission.
   $acl = Get-Acl -LiteralPath $ownedRoot
+  $acl.SetAccessRuleProtection($true, $false)
+  foreach ($ownerSid in @([Security.Principal.WindowsIdentity]::GetCurrent().User, [Security.Principal.SecurityIdentifier]::new('S-1-5-18'), [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))) {
+    $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($ownerSid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
+  }
   $acl.SetAccessRule([Security.AccessControl.FileSystemAccessRule]::new($user.SID, 'Modify', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
   Set-Acl -LiteralPath $ownedRoot -AclObject $acl
   foreach ($relative in @('.artifacts/desktop-smoke', '.artifacts/windows-smoke-evidence')) {
@@ -78,38 +93,45 @@ try {
   $settings.GIT_CONFIG_COUNT = '1'
   $settings.GIT_CONFIG_KEY_0 = 'safe.directory'
   $settings.GIT_CONFIG_VALUE_0 = $repository
-  $encodedSettings = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($settings | ConvertTo-Json -Compress)))
-  $quotedNode = $node.Replace("'", "''")
-  $quotedEntry = $entry.Replace("'", "''")
-  $quotedRoot = $ownedRoot.Replace("'", "''")
-  $command = @"
-`$ErrorActionPreference = 'Stop'
-`$settings = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$encodedSettings')) | ConvertFrom-Json
-foreach (`$name in @([Environment]::GetEnvironmentVariables('Process').Keys)) { [Environment]::SetEnvironmentVariable(`$name, `$null, 'Process') }
-foreach (`$property in `$settings.PSObject.Properties) { [Environment]::SetEnvironmentVariable(`$property.Name, `$property.Value, 'Process') }
-`$token = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
-`$admin = `$token.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (`$admin) { throw 'Standard-user qualification unexpectedly received administrator rights.' }
-`$env:APPDATA = [Environment]::GetFolderPath('ApplicationData')
-`$env:LOCALAPPDATA = [Environment]::GetFolderPath('LocalApplicationData')
-`$env:USERPROFILE = [Environment]::GetFolderPath('UserProfile')
-`$env:HOME = `$env:USERPROFILE
-`$env:HOMEDRIVE = [IO.Path]::GetPathRoot(`$env:USERPROFILE).TrimEnd('\')
-`$env:HOMEPATH = `$env:USERPROFILE.Substring(`$env:HOMEDRIVE.Length)
-`$identityParts = [Security.Principal.WindowsIdentity]::GetCurrent().Name.Split('\')
-`$env:USERDOMAIN = `$identityParts[0]
-`$env:USERNAME = `$identityParts[-1]
-`$env:COMPUTERNAME = [Environment]::MachineName
-if ([string]::IsNullOrWhiteSpace(`$env:APPDATA) -or [string]::IsNullOrWhiteSpace(`$env:USERPROFILE)) { throw 'Standard-user profile was not loaded.' }
-[ordered]@{ schema = 'open-dsh/windows-token/v1'; requested = 'standard'; administrator = `$admin; identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name } | ConvertTo-Json | Set-Content -LiteralPath '$quotedRoot/qualification-token.json' -Encoding utf8
-& '$quotedNode' '$quotedEntry' package windows-x64
-exit `$LASTEXITCODE
-"@
-  $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+  $settingsPath = Join-Path $ownedRoot 'settings.json'
+  [IO.File]::WriteAllText($settingsPath, ([ordered]@{ environment = $settings; node = $node; entry = $entry } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
+  $childScript = Join-Path $ownedRoot 'child.ps1'
+  $command = @'
+$ErrorActionPreference = 'Stop'
+$settings = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'settings.json') -Raw | ConvertFrom-Json
+foreach ($name in @([Environment]::GetEnvironmentVariables('Process').Keys)) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
+foreach ($property in $settings.environment.PSObject.Properties) { [Environment]::SetEnvironmentVariable($property.Name, $property.Value, 'Process') }
+$token = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+$admin = $token.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if ($admin) { throw 'Standard-user qualification unexpectedly received administrator rights.' }
+$env:APPDATA = [Environment]::GetFolderPath('ApplicationData')
+$env:LOCALAPPDATA = [Environment]::GetFolderPath('LocalApplicationData')
+$env:USERPROFILE = [Environment]::GetFolderPath('UserProfile')
+$env:HOME = $env:USERPROFILE
+$env:HOMEDRIVE = [IO.Path]::GetPathRoot($env:USERPROFILE).TrimEnd('\')
+$env:HOMEPATH = $env:USERPROFILE.Substring($env:HOMEDRIVE.Length)
+$identityParts = [Security.Principal.WindowsIdentity]::GetCurrent().Name.Split('\')
+$env:USERDOMAIN = $identityParts[0]
+$env:USERNAME = $identityParts[-1]
+$env:COMPUTERNAME = [Environment]::MachineName
+if ([string]::IsNullOrWhiteSpace($env:APPDATA) -or [string]::IsNullOrWhiteSpace($env:USERPROFILE)) { throw 'Standard-user profile was not loaded.' }
+[ordered]@{ schema = 'open-dsh/windows-token/v1'; requested = 'standard'; administrator = $admin; identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'qualification-token.json') -Encoding utf8
+& $settings.node $settings.entry package windows-x64
+exit $LASTEXITCODE
+'@
+  [IO.File]::WriteAllText($childScript, $command, [Text.UTF8Encoding]::new($false))
+  $launchArguments = New-DesktopStandardLaunchArguments -Shell $shell -ChildScript $childScript
   $credential = [PSCredential]::new("$env:COMPUTERNAME\$account", $password)
-  $child = Start-Process -FilePath $shell -Credential $credential -LoadUserProfile -WorkingDirectory $repository `
-    -ArgumentList @('-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', $encodedCommand) -PassThru `
-    -RedirectStandardOutput (Join-Path $ownedRoot 'qualification-stdout.log') -RedirectStandardError (Join-Path $ownedRoot 'qualification-stderr.log')
+  try {
+    $child = Start-Process -FilePath $shell -Credential $credential -LoadUserProfile -WorkingDirectory $repository `
+      -ArgumentList $launchArguments -PassThru `
+      -RedirectStandardOutput (Join-Path $ownedRoot 'qualification-stdout.log') -RedirectStandardError (Join-Path $ownedRoot 'qualification-stderr.log')
+  } catch {
+    $launchError = $_.Exception
+    while ($null -ne $launchError.InnerException) { $launchError = $launchError.InnerException }
+    $nativeCode = if ($launchError -is [ComponentModel.Win32Exception]) { $launchError.NativeErrorCode } else { $null }
+    throw "Standard-user qualification launch failed (nativeError=$nativeCode, HRESULT=$($launchError.HResult), type=$($launchError.GetType().Name)); credentials and command line omitted."
+  }
   if (-not $child.WaitForExit(3600000)) {
     throw "Standard-user qualification PID $($child.Id) has not settled; do not delete its account or interrupt atomic uninstall."
   }
