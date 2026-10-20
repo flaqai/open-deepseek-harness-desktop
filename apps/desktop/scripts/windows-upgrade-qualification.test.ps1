@@ -101,6 +101,44 @@ try {
   Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories @() -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'exactly one'
   Remove-Item -LiteralPath $log -ErrorAction Stop
   Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'exactly one'
+  $savedTemp = $env:TEMP
+  $savedRunnerTemp = $env:RUNNER_TEMP
+  try {
+    $env:TEMP = $diagnosticRoot
+    $env:RUNNER_TEMP = $diagnosticRoot
+    $mainSnapshot = @(Get-DesktopUpgradeDiagnosticDirectories -Root $diagnosticRoot)
+    $mainDirectory = Join-Path $diagnosticRoot 'main.dsh-install'
+    New-Item -ItemType Directory -Path $mainDirectory -ErrorAction Stop | Out-Null
+    [IO.File]::WriteAllText((Join-Path $mainDirectory 'installer.log'), "installer-init mode=1 target=PRIVATE_SECRET`nuninstall-result=3 old=PRIVATE_SECRET`nunknown PRIVATE_SECRET", [Text.Encoding]::Unicode)
+    @{ stage = 'uninstall-invalid-state'; errorCode = -1; error = 'The uninstaller reported success but previous runtime files remain. PRIVATE_SECRET'; commandLine = 'PRIVATE_SECRET' } |
+      ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $mainDirectory 'upgrade.jsonl') -Encoding utf8
+    [IO.File]::WriteAllText((Join-Path $mainDirectory 'unrelated.log'), 'PRIVATE_SECRET')
+    $oversizedDirectory = Join-Path $diagnosticRoot 'oversized.dsh-install'
+    New-Item -ItemType Directory -Path $oversizedDirectory -ErrorAction Stop | Out-Null
+    [IO.File]::WriteAllText((Join-Path $oversizedDirectory 'upgrade.jsonl'), ('x' * 65537))
+    $linkDirectory = Join-Path $diagnosticRoot 'linked.dsh-install'
+    New-Item -ItemType Directory -Path $linkDirectory -ErrorAction Stop | Out-Null
+    [void][IO.File]::CreateSymbolicLink((Join-Path $linkDirectory 'upgrade.jsonl'), (Join-Path $mainDirectory 'unrelated.log'))
+    Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true
+    $reportPath = Join-Path $diagnosticRoot 'main-installer-diagnostics.json'
+    $encodedReport = Get-Content -LiteralPath $reportPath -Raw
+    $report = $encodedReport | ConvertFrom-Json
+    Assert-UpgradeTest ($report.status -eq 'degraded' -and $report.directories.Count -eq 3) 'Collector must capture only new diagnostics and flag unsafe or oversized logs.'
+    Assert-UpgradeTest (-not $encodedReport.Contains('PRIVATE_SECRET') -and -not $encodedReport.Contains('unrelated.log')) 'Collector must omit arbitrary log content, paths, command lines, and unrelated files.'
+    $mainRecord = @($report.directories | Where-Object { $_.directory -eq 'main.dsh-install' })[0]
+    Assert-UpgradeTest ($mainRecord.files[0].events[1].stage -eq 'uninstall-result' -and $mainRecord.files[0].events[1].result -eq 3) 'Installer UTF-16 numeric result must survive projection.'
+    Assert-UpgradeTest ($mainRecord.files[1].events[0].errorKind -eq 'previous-runtime-remains') 'Upgrade invalid-state failure must retain its classified cause.'
+    Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories @() -SnapshotAvailable $false
+    Assert-UpgradeTest ((Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json).status -eq 'unavailable') 'Unavailable snapshot must not collect unrelated old logs.'
+    Remove-Item -LiteralPath $reportPath -ErrorAction Stop
+    New-Item -ItemType Directory -Path $reportPath -ErrorAction Stop | Out-Null
+    Assert-UpgradeRejects {
+      try { throw 'primary-install-exit-2' } finally { Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true }
+    } 'primary-install-exit-2'
+  } finally {
+    $env:TEMP = $savedTemp
+    $env:RUNNER_TEMP = $savedRunnerTemp
+  }
   foreach ($field in @('executable', 'uninstaller')) {
     $after = & $copyState
     $after.$field = 'candidate-file'

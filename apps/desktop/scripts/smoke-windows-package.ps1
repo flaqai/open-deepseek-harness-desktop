@@ -72,6 +72,13 @@ if (-not $InteractiveUpgrade) { $installStart.ArgumentList.Add('/S') }
 $installStart.ArgumentList.Add("/$InstallationMode")
 $installStart.ArgumentList.Add('/ADDCLI=1')
 $installStart.ArgumentList.Add("/D=$installRoot")
+$mainDiagnosticDirectories = @()
+$mainSnapshotAvailable = $false
+try {
+  $mainDiagnosticDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $env:TEMP)
+  $mainSnapshotAvailable = $true
+} catch { Write-Warning 'Pre-install diagnostic snapshot unavailable; installation will still be checked.' }
+try {
 $install = [System.Diagnostics.Process]::Start($installStart)
 if ($InteractiveUpgrade -and $env:DSH_WINDOWS_GUI_AUTOMATION -eq '1') {
   . (Join-Path $PSScriptRoot 'windows-installer-ui-automation.ps1')
@@ -100,6 +107,9 @@ if (-not $install.HasExited) {
 }
 if ($install.ExitCode -ne 0) {
   throw "Windows installer exited with $($install.ExitCode)"
+}
+} finally {
+  Save-DesktopMainInstallerDiagnostics -Root $env:TEMP -PreviousDirectories $mainDiagnosticDirectories -SnapshotAvailable $mainSnapshotAvailable
 }
 if ($null -ne $previousQualification) {
   if (-not $previousReleaseLocker.WaitForExit(30000) -or $previousReleaseLocker.ExitCode -ne 0) {

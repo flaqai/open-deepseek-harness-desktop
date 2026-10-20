@@ -99,6 +99,82 @@ function Get-DesktopUpgradeDiagnosticDirectories {
   return @(Get-ChildItem -LiteralPath $Root -Directory -Filter '*.dsh-install' -ErrorAction Stop | ForEach-Object { $_.FullName })
 }
 
+function Save-DesktopMainInstallerDiagnostics {
+  param([string] $Root, [string[]] $PreviousDirectories, [bool] $SnapshotAvailable)
+  $report = [ordered]@{ schema = 'open-dsh/main-installer-diagnostics/v1'; status = 'present'; directories = @() }
+  try {
+    if (-not [IO.Path]::IsPathFullyQualified($Root) -or
+        -not [string]::Equals($Root, $env:TEMP, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($Root, $env:RUNNER_TEMP, [StringComparison]::OrdinalIgnoreCase) -or
+        ((Get-Item -LiteralPath $Root -Force -ErrorAction Stop).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+      Write-Warning 'Installer diagnostic collection rejected an unowned temporary directory.' -WarningAction Continue
+      return
+    }
+    if (-not $SnapshotAvailable) { throw 'The pre-install directory snapshot was unavailable.' }
+    $newDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $Root | Where-Object { $PreviousDirectories -notcontains $_ } | Sort-Object)
+    if ($newDirectories.Count -gt 8) { $report.status = 'degraded' }
+    foreach ($directoryPath in @($newDirectories | Select-Object -First 8)) {
+      $directory = Get-Item -LiteralPath $directoryPath -Force -ErrorAction Stop
+      if (($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { $report.status = 'degraded'; continue }
+      $captured = [ordered]@{ directory = $directory.Name; files = @() }
+      foreach ($name in @('installer.log', 'upgrade.jsonl')) {
+        $log = Join-Path $directory.FullName $name
+        if (-not (Test-Path -LiteralPath $log)) { continue }
+        $file = Get-Item -LiteralPath $log -Force -ErrorAction Stop
+        if ($file.PSIsContainer -or $file.Length -gt 65536 -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+          $report.status = 'degraded'
+          $captured.files += [ordered]@{ name = $name; status = 'rejected' }
+          continue
+        }
+        $encoding = if ($name -eq 'installer.log') { [Text.Encoding]::Unicode } else { [Text.Encoding]::UTF8 }
+        $lines = @([IO.File]::ReadAllLines($file.FullName, $encoding))
+        $events = @()
+        if ($lines.Count -gt 256) { $report.status = 'degraded' }
+        foreach ($line in @($lines | Select-Object -First 256)) {
+          if ([string]::IsNullOrWhiteSpace($line)) { continue }
+          if ($name -eq 'installer.log') {
+            $phase = [regex]::Match($line, '^(process-check|process-inspection-stopped|uninstall-start|uninstall-result|uninstall-invalid-registration|extract-start|copy-refused|extract-complete|copy-failed|copy-verified|extract-failed|installer-init|uninstall-stopped)(?:[ =]|$)')
+            if (-not $phase.Success) { continue }
+            $event = [ordered]@{ stage = $phase.Groups[1].Value }
+            $result = [regex]::Match($line, '(?:^uninstall-result=|(?:^| )result=)(-?\d+)(?: |$)')
+            if ($result.Success) { $event.result = [int]$result.Groups[1].Value }
+          } else {
+            $raw = $line | ConvertFrom-Json
+            if ($raw.stage -notin @('uninstall-start', 'uninstaller-copy-failed', 'temporary-launch-failed', 'uninstall-launch-failed', 'uninstall-result', 'old-uninstaller-removed', 'uninstall-complete', 'uninstall-failed', 'uninstall-invalid-state')) { continue }
+            $event = [ordered]@{ stage = $raw.stage }
+            foreach ($field in @('attempt', 'exitCode', 'errorCode')) {
+              $number = 0
+              if ($null -ne $raw.PSObject.Properties[$field] -and [int]::TryParse([string]$raw.$field, [ref]$number)) { $event[$field] = $number }
+            }
+            if ($raw.mode -in @('/currentuser', '/allusers')) { $event.mode = $raw.mode }
+            if ($raw.disposition -in @('installation-stopped', 'installation-stopped; old-version-restoration-not-independently-verified')) { $event.disposition = $raw.disposition }
+            if ($raw.stage -eq 'uninstall-invalid-state') {
+              $event.errorKind = switch -Regex ([string]$raw.error) {
+                'previous application remains' { 'previous-application-remains'; break }
+                'previous runtime files remain' { 'previous-runtime-remains'; break }
+                'registered uninstaller|registered installation' { 'uninstaller-registration-invalid'; break }
+                'does not exist|Could not find' { 'required-file-missing'; break }
+                'integrity mismatch' { 'temporary-uninstaller-integrity'; break }
+                default { 'other-validation-error' }
+              }
+            }
+          }
+          $events += $event
+        }
+        $captured.files += [ordered]@{ name = $name; status = 'present'; length = $file.Length; events = $events }
+      }
+      $report.directories += $captured
+    }
+  } catch {
+    $report.status = 'unavailable'
+  }
+  try {
+    $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Root 'main-installer-diagnostics.json') -Encoding utf8 -ErrorAction Stop
+  } catch {
+    Write-Warning 'Installer diagnostics could not be saved; the installation outcome is unchanged.' -WarningAction Continue
+  }
+}
+
 function Assert-DesktopAtomicCleanupBudget {
   param([string] $Root, [string[]] $PreviousDirectories, [string] $InstallDirectory, [string] $EvidenceRoot)
   $newDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $Root | Where-Object { $PreviousDirectories -notcontains $_ })

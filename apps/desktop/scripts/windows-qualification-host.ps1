@@ -33,7 +33,7 @@ function Export-NativeQualificationRecords {
   }
   foreach ($recordRoot in $recordRoots) {
     foreach ($record in @(Get-ChildItem -LiteralPath $recordRoot -File -ErrorAction SilentlyContinue | Where-Object {
-      $_.Name -in @('qualification-token.json', 'previous-release.json', 'persistent-lock-upgrade.jsonl') -or $_.Name -match '^installer-gui-\d+\.jsonl?$'
+      $_.Name -in @('qualification-token.json', 'previous-release.json', 'persistent-lock-upgrade.jsonl', 'main-installer-diagnostics.json') -or $_.Name -match '^installer-gui-\d+\.jsonl?$'
     })) {
       if ($record.Length -gt 8388608) { throw 'Native qualification evidence exceeded 8 MiB.' }
       Copy-Item -LiteralPath $record.FullName -Destination (Join-Path $destination $record.Name) -Force

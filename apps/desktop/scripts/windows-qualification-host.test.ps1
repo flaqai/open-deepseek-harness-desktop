@@ -119,6 +119,19 @@ if (-not [object]::ReferenceEquals($user, $script:capturedMember)) {
   throw 'Group membership must retain the LocalUser object, not pass its SID as a LocalPrincipal.'
 }
 Remove-Item Function:\Add-LocalGroupMember
+$exportHelper = @($tree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Export-NativeQualificationRecords'
+}, $true))
+. ([scriptblock]::Create($exportHelper[0].Extent.Text))
+$exportRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-export-' + [Guid]::NewGuid().ToString('N'))
+try {
+  [void][IO.Directory]::CreateDirectory((Join-Path $exportRoot 'desktop-smoke-owned'))
+  [IO.File]::WriteAllText((Join-Path $exportRoot 'desktop-smoke-owned/main-installer-diagnostics.json'), '{"schema":"open-dsh/main-installer-diagnostics/v1"}')
+  [IO.File]::WriteAllText((Join-Path $exportRoot 'desktop-smoke-owned/installer.log'), 'private raw content')
+  & { param($repository, $Root) Export-NativeQualificationRecords -Root $Root } $exportRoot $exportRoot
+  $exported = @(Get-ChildItem -LiteralPath (Join-Path $exportRoot '.artifacts/windows-smoke-evidence/native-qualification') -File)
+  if ($exported.Count -ne 1 -or $exported[0].Name -ne 'main-installer-diagnostics.json') { throw 'Only the bounded structured main-installer report may be exported, not raw logs.' }
+} finally { Remove-Item -LiteralPath $exportRoot -Recurse -Force }
 $shell = (Get-Process -Id $PID).Path
 $start = [Diagnostics.ProcessStartInfo]::new()
 $start.FileName = $shell
