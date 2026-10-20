@@ -17,6 +17,19 @@ function Assert-UpgradeRejects([scriptblock] $Action, [string] $Expected) {
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "dsh-upgrade-behavior-$([Guid]::NewGuid())"
 New-Item -ItemType Directory -Path $testRoot -ErrorAction Stop | Out-Null
 try {
+  $sameFixture = Get-DesktopQualificationInstallDirectories -Root $testRoot
+  $changedFixture = Get-DesktopQualificationInstallDirectories -Root $testRoot -ChangeDirectory
+  Assert-UpgradeTest ($sameFixture.Candidate -eq $sameFixture.Previous -and $changedFixture.Candidate -ne $changedFixture.Previous) 'Same and changed upgrade fixtures must preserve their distinct directory semantics.'
+  foreach ($fixtureRoot in @($changedFixture.Candidate, $changedFixture.Previous)) {
+    $leaf = [IO.Path]::GetFileName($fixtureRoot)
+    Assert-UpgradeTest ($leaf -match '[\u4e00-\u9fff]' -and $leaf.Contains(' ') -and $leaf.Length -eq 4) 'Both fixed install fixtures must retain Chinese characters and spaces.'
+    # The fixed public alpha.2 payload measured 193 characters beyond its root.
+    # This guards these CI fixtures only; it is not a production path guarantee.
+    foreach ($windowsOwner in @('D:\a\_temp\desktop-smoke-abcdef', 'D:\a\_temp\q-123456789abc\desktop-smoke-abcdef')) {
+      $windowsRoot = $windowsOwner + '\' + $leaf
+      Assert-UpgradeTest (($windowsRoot.Length + 193) -lt 260) 'Fixed administrator and standard-user fixtures must fit the measured legacy baseline path budget.'
+    }
+  }
   $metadataOwner = Join-Path $testRoot 'metadata-owner'
   $sameMetadataRoot = Join-Path $metadataOwner 'old'
   $changedMetadataRoot = Join-Path $metadataOwner 'old previous'

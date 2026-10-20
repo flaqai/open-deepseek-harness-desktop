@@ -1,4 +1,14 @@
 # Optional previous-release qualification. Call only on a disposable Windows host.
+function Get-DesktopQualificationInstallDirectories {
+  param([string] $Root, [switch] $ChangeDirectory)
+  # Fixed short siblings retain Unicode and spaces without adding an artificial
+  # MAX_PATH failure to the immutable public alpha.2 upgrade fixture.
+  $candidate = Join-Path $Root '新 安装'
+  $previous = if ($ChangeDirectory) { Join-Path $Root '旧 安装' } else { $candidate }
+  if ($ChangeDirectory -and $previous -eq $candidate) { throw 'Changed-directory qualification requires distinct siblings.' }
+  return [pscustomobject]@{ Candidate = $candidate; Previous = $previous }
+}
+
 function Get-DesktopInstalledVersion {
   param([string] $Directory)
   . (Join-Path $PSScriptRoot '../build/installer-version.ps1')
@@ -400,6 +410,7 @@ function Initialize-DesktopPreviousReleaseQualification {
     previousInstallerSha256 = (Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash
     previousVersion = $Version
     installationMode = $Mode
+    previousInstallation = Get-DesktopInstallationPathMetadata -Directory $Directory -OwnerRoot $EvidenceRoot
     persistentLockExitCode = $candidateExit
     previousStatePreserved = $null
     previousNativeEntryVerified = $false

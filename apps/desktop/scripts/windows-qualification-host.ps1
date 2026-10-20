@@ -24,6 +24,11 @@ function New-DesktopStandardLaunchArguments {
   }
   return $arguments
 }
+function New-DesktopQualificationPrivateLeaf {
+  # Keep the immutable alpha.2 baseline below its legacy path limit. This is
+  # only a randomly allocated CI fixture, never a rewrite of a user's path.
+  return 'q-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
+}
 function Export-NativeQualificationRecords {
   param([string] $Root)
   $destination = Join-Path $repository '.artifacts/windows-smoke-evidence/native-qualification'
@@ -34,7 +39,7 @@ function Export-NativeQualificationRecords {
   }
   foreach ($recordRoot in $recordRoots) {
     foreach ($record in @(Get-ChildItem -LiteralPath $recordRoot -File -ErrorAction SilentlyContinue | Where-Object {
-      $_.Name -in @('qualification-token.json', 'qualification-profile.json', 'previous-release.json', 'persistent-lock-upgrade.jsonl', 'main-installer-diagnostics.json') -or $_.Name -match '^installer-gui-\d+\.jsonl?$'
+      $_.Name -in @('qualification-token.json', 'qualification-profile.json', 'qualification-paths.json', 'previous-release.json', 'persistent-lock-upgrade.jsonl', 'main-installer-diagnostics.json') -or $_.Name -match '^installer-gui-\d+\.jsonl?$'
     })) {
       if ($record.Length -gt 8388608) { throw 'Native qualification evidence exceeded 8 MiB.' }
       Copy-Item -LiteralPath $record.FullName -Destination (Join-Path $destination $record.Name) -Force
@@ -52,7 +57,7 @@ if ($Privilege -eq 'administrator') {
 }
 
 $account = 'dshq' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
-$ownedRoot = Join-Path $env:RUNNER_TEMP ('standard-user-' + [Guid]::NewGuid().ToString('N'))
+$ownedRoot = Join-Path $env:RUNNER_TEMP (New-DesktopQualificationPrivateLeaf)
 $created = $false
 $child = $null
 $passwordBytes = [byte[]]::new(32)

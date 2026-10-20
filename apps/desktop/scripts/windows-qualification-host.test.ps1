@@ -5,6 +5,19 @@ $tokens = $null
 $parseErrors = $null
 $tree = [Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -ne 0) { throw 'Qualification host failed syntax parsing.' }
+$privateLeafHelper = @($tree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'New-DesktopQualificationPrivateLeaf'
+}, $true))
+if ($privateLeafHelper.Count -ne 1) { throw 'Expected one private fixture leaf allocator.' }
+. ([scriptblock]::Create($privateLeafHelper[0].Extent.Text))
+$privateLeaves = @(1..100 | ForEach-Object { New-DesktopQualificationPrivateLeaf })
+if (@($privateLeaves | Where-Object { $_ -cnotmatch '^q-[a-f0-9]{12}$' }).Count -ne 0 -or @($privateLeaves | Select-Object -Unique).Count -ne 100) {
+  throw 'Private fixture allocation must retain independent random 12-hex leaves.'
+}
+$ownedRootCreates = @($tree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'New-Item' -and $node.Extent.Text.Contains('-Path $ownedRoot')
+}, $true))
+if ($ownedRootCreates.Count -ne 1 -or $ownedRootCreates[0].Extent.Text -match '-Force') { throw 'Private fixture creation must refuse collisions rather than reuse a directory.' }
 $argumentHelper = @($tree.FindAll({ param($node)
   $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'New-DesktopStandardLaunchArguments'
 }, $true))

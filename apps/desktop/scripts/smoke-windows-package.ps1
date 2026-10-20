@@ -39,7 +39,8 @@ Initialize-SmokeJournal -Path $smokeJournalPath
 try {
 Start-SmokePhase -Name 'package-contract'
 $installer = (Resolve-Path (Join-Path $PSScriptRoot '../../../.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe')).Path
-$installRoot = Join-Path $env:RUNNER_TEMP 'Open DeepSeek Harness Desktop 安装测试'
+$fixtureDirectories = Get-DesktopQualificationInstallDirectories -Root $env:RUNNER_TEMP -ChangeDirectory:$ChangeUpgradeDirectory
+$installRoot = $fixtureDirectories.Candidate
 $dshHome = Join-Path $env:RUNNER_TEMP 'DeepSeek Harness Home'
 $desktopAppDataRoot = Join-Path $env:RUNNER_TEMP 'DeepSeek Harness AppData'
 $desktopDataRoot = Join-Path $desktopAppDataRoot 'open-deepseek-harness-desktop'
@@ -58,7 +59,7 @@ $shortLockBeforeMain = $null
 if (-not [string]::IsNullOrWhiteSpace($PreviousInstaller)) {
   Start-SmokePhase -Name 'previous-release-persistent-lock'
   $PreviousInstaller = (Resolve-Path -LiteralPath $PreviousInstaller).Path
-  $previousRoot = if ($ChangeUpgradeDirectory) { "$installRoot previous" } else { $installRoot }
+  $previousRoot = $fixtureDirectories.Previous
   $candidateStart = New-DesktopQualificationInstallerStart -Installer $installer -Directory $installRoot -Mode $InstallationMode -Interactive:$InteractiveUpgrade
   $previousQualification = Initialize-DesktopPreviousReleaseQualification -Installer $PreviousInstaller -Version $PreviousVersion `
     -Directory $previousRoot -CandidateStart $candidateStart -EvidenceRoot $env:RUNNER_TEMP -Mode $InstallationMode
@@ -135,6 +136,11 @@ if ($null -ne $previousQualification) {
     }
   }
 }
+[ordered]@{
+  schema = 'open-dsh/windows-qualification-paths/v1'
+  candidate = Get-DesktopInstallationPathMetadata -Directory $installRoot -OwnerRoot $env:RUNNER_TEMP
+  previous = $oldInstallationMetadata
+} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'qualification-paths.json') -Encoding utf8
 
 # Keep an unrelated executable alive in another prefix-similar sibling. The
 # precise guard must neither report nor terminate it.
