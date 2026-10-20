@@ -1,5 +1,8 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '../../build/installer-upgrade.ps1')
+# Windows PowerShell launched from PowerShell 7 can inherit a module path that
+# cannot resolve Get-FileHash. Integrity checking must not depend on autoloading.
+function Get-FileHash { throw 'Get-FileHash is unavailable in this installer process.' }
 
 $root = Join-Path ([System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../../.artifacts'))) ('dsh-upgrade-' + [guid]::NewGuid().ToString('N'))
 [void][System.IO.Directory]::CreateDirectory($root)
@@ -92,6 +95,10 @@ function Run-RefusedUpgradeCase([string]$Name, [scriptblock]$Configure, [int]$Ex
   Assert-Upgrade ((Test-Path -LiteralPath $script:activeExecutable) -eq $ExpectOldExecutable) "$Name reported the wrong old-file state"
 }
 try {
+  $hashFixture = Join-Path $root 'hash-fixture.exe'
+  [System.IO.File]::WriteAllText($hashFixture, 'fixture')
+  Assert-Upgrade ((Get-DesktopUninstallerHash $hashFixture) -eq 'F16D05EC6B29248D2C61ADB1E9263F78E4F7BACE1B955014A2D17872CFE4064D') 'Uninstaller SHA256 differs from the known file digest.'
+  Write-Output 'PASS module-independent-sha256'
   Run-UpgradeCase 'success' @(@{ launched = $true; exitCode = 0 }) 0 1 0
   Run-UpgradeCase 'retry-cleanup' @(@{ launched = $true; exitCode = 2 }, @{ launched = $true; exitCode = 0 }) 0 2 1
   Run-UpgradeCase 'persistent-cleanup' @(1..12 | ForEach-Object { @{ launched = $true; exitCode = 2 } }) 2 12 11

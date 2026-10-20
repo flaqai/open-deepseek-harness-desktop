@@ -57,6 +57,18 @@ function Invoke-DesktopUninstallerProcess([string]$Executable, [string]$Argument
 
 function Wait-DesktopUpgradeRetry { Start-Sleep -Seconds 5 }
 
+function Get-DesktopUninstallerHash([string]$FilePath) {
+  $stream = $null
+  $algorithm = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $stream = [System.IO.File]::OpenRead($FilePath)
+    return [System.BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-', '')
+  } finally {
+    if ($null -ne $stream) { $stream.Dispose() }
+    $algorithm.Dispose()
+  }
+}
+
 function Invoke-DesktopOldUninstall {
   param([string]$InstallDirectory, [string]$UninstallerPath, [string]$UninstallerName,
     [string]$AppExecutable, [string]$UninstallArguments, [string]$TemporaryDirectory, [string]$DiagnosticDirectory)
@@ -83,7 +95,7 @@ function Invoke-DesktopOldUninstall {
     if (-not [string]::Equals($registered, $expected, [StringComparison]::OrdinalIgnoreCase)) { throw 'The registered uninstaller does not belong to the registered installation.' }
     $binary = Get-Item -LiteralPath $registered -Force -ErrorAction Stop
     if ($binary.PSIsContainer -or ($binary.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'The registered uninstaller is not an ordinary file.' }
-    $uninstallerHash = (Get-FileHash -LiteralPath $registered -Algorithm SHA256).Hash
+    $uninstallerHash = Get-DesktopUninstallerHash $registered
     if ($UninstallArguments -match '["\r\n]') { throw 'Unsafe uninstaller arguments.' }
     $words = @($UninstallArguments.Trim() -split '\s+')
     if (@($words | Where-Object { $_ -notin @('/currentuser', '/allusers', '--updated', '--keep-shortcuts') }).Count -ne 0 -or
@@ -96,7 +108,7 @@ function Invoke-DesktopOldUninstall {
     $copyAvailable = $true
     try {
       [System.IO.File]::Copy($registered, $temporaryUninstaller, $false)
-      if ($uninstallerHash -ne (Get-FileHash -LiteralPath $temporaryUninstaller -Algorithm SHA256).Hash) { throw 'Temporary uninstaller integrity mismatch.' }
+      if ($uninstallerHash -ne (Get-DesktopUninstallerHash $temporaryUninstaller)) { throw 'Temporary uninstaller integrity mismatch.' }
     } catch {
       $copyAvailable = $false
       Write-DesktopUpgradeEvent $diagnostics 'uninstaller-copy-failed' @{ errorCode = $_.Exception.HResult }
@@ -129,7 +141,7 @@ function Invoke-DesktopOldUninstall {
           if (-not [string]::Equals((Join-Path $cleanupRoot $UninstallerName), $registered, [StringComparison]::OrdinalIgnoreCase)) { throw 'The old uninstaller location changed during cleanup.' }
           $remainingBinary = Get-Item -LiteralPath $registered -Force -ErrorAction Stop
           if ($remainingBinary.PSIsContainer -or ($remainingBinary.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'The remaining old uninstaller is not an ordinary file.' }
-          if ((Get-FileHash -LiteralPath $registered -Algorithm SHA256).Hash -ne $uninstallerHash) { throw 'The remaining old uninstaller changed during uninstall.' }
+          if ((Get-DesktopUninstallerHash $registered) -ne $uninstallerHash) { throw 'The remaining old uninstaller changed during uninstall.' }
           [System.IO.File]::Delete($registered)
           if (Test-Path -LiteralPath $registered) { throw 'The remaining old uninstaller could not be removed.' }
           Write-DesktopUpgradeEvent $diagnostics 'old-uninstaller-removed' @{ uninstaller = $registered }
