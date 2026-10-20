@@ -4,6 +4,10 @@ import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import { composeEntries } from '../../../packages/boot/app-boot/src/profile.ts'
+import {
+  activateProfilePluginTransaction, prepareProfilePluginTransaction, profilePluginCandidateHome,
+  readyProfilePluginTransaction, settleProfilePluginTransaction,
+} from '../../cli/src/profile-plugin-transaction.ts'
 import { configureNewAgentsAnywhere, hasLegacyPocket } from '../src/agents-anywhere-profile.ts'
 
 const roots: string[] = []
@@ -44,6 +48,31 @@ it('writes the eventual home into a first-start candidate', async () => {
   await configureNewAgentsAnywhere(root, candidate)
   const entries = parse(await readFile(join(candidate, 'profiles', 'web', 'cordis.patch.yml'), 'utf8')) as Array<{ config: { stateRoot: string } }>
   expect(entries[0]?.config.stateRoot).toBe(join(root, 'agents-anywhere'))
+})
+
+it('activates the new bridge defaults with the candidate and restores the original patch on rollback', async () => {
+  const root = await fixture()
+  const profile = join(root, 'profiles', 'web')
+  const patch = join(profile, 'cordis.patch.yml')
+  const original = '- id: user-plugin\n  disabled: false\n'
+  await mkdir(join(profile, 'node_modules'), { recursive: true })
+  await writeFile(join(profile, 'package.json'), '{"dependencies":{}}')
+  await writeFile(patch, original)
+  const transaction = prepareProfilePluginTransaction(root, 'web')
+  const candidate = profilePluginCandidateHome(root, 'web', transaction.id)
+  try {
+    await configureNewAgentsAnywhere(root, candidate)
+    expect(await readFile(patch, 'utf8')).toBe(original)
+    readyProfilePluginTransaction(root, 'web', transaction.id)
+    activateProfilePluginTransaction(root, 'web', transaction.id)
+    expect(parse(await readFile(patch, 'utf8'))).toContainEqual({
+      id: 'agents-anywhere-bridge-next', disabled: true,
+      config: { dshHome: root, stateRoot: join(root, 'agents-anywhere') },
+    })
+  } finally {
+    settleProfilePluginTransaction(root, 'web', transaction.id, false)
+  }
+  expect(await readFile(patch, 'utf8')).toBe(original)
 })
 
 it('detects an existing Pocket installation without changing it', async () => {

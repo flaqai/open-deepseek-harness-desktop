@@ -1,9 +1,10 @@
 /** Supervise the local Harness process for the lifetime of the desktop app. */
 
-import { mkdirSync, mkdtempSync, lstatSync, openSync, closeSync, unlinkSync, createWriteStream, writeFileSync, renameSync, type WriteStream } from 'node:fs'
+import { mkdirSync, mkdtempSync, lstatSync, createWriteStream, type WriteStream } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { spawn } from 'node:child_process'
 import type { Readable, Writable } from 'node:stream'
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { LineBuffer, parseHarnessReadyLine } from './readiness.ts'
 import type { HarnessLaunch } from './launch.ts'
 import type { DesktopProcessObserver } from './process-observer.ts'
@@ -88,6 +89,8 @@ export class HarnessSupervisor {
   #stopping = false
   #restartCheck: AbortController | undefined
   #generation = 0
+  #starting: number | undefined
+  #restartWrites: Promise<void> = Promise.resolve()
   #listenPort: string | undefined
   readonly #restartState: string
   readonly #restartDirectory: { dev: number; ino: number }
@@ -108,8 +111,8 @@ export class HarnessSupervisor {
 
   /** Private authority for the current local Host generation; never exposed to a renderer. */
 
-  #reportStartupFailure(message: string, logMessage: string): void {
-    try { this.#writeRestartState('failed') } catch (error) {
+  async #reportStartupFailure(message: string, logMessage: string): Promise<void> {
+    try { await this.#writeRestartState('failed') } catch (error) {
       this.#writeLog('error', `failed to record restart failure: ${error instanceof Error ? error.message : String(error)}`)
     }
     const notify = (): void => {
@@ -127,29 +130,20 @@ export class HarnessSupervisor {
     this.#log?.write(formatPersistentLogLine('desktop-supervisor', level, message))
   }
 
-  #writeRestartState(phase: 'starting' | 'ready' | 'failed' | 'stopped'): void {
-    const directory = lstatSync(dirname(this.#restartState))
-    if (!directory.isDirectory() || directory.isSymbolicLink() || directory.dev !== this.#restartDirectory.dev
-      || directory.ino !== this.#restartDirectory.ino || (process.platform !== 'win32'
-        && ((directory.mode & 0o777) !== 0o700 || directory.uid !== process.getuid?.()))) {
-      throw new Error('desktop: restart coordination directory ownership changed')
-    }
-    const temporary = `${this.#restartState}.tmp`
-    let descriptor: number | undefined
-    let created = false
-    try {
-      descriptor = openSync(temporary, 'wx', 0o600)
-      created = true
-      writeFileSync(descriptor, JSON.stringify({ ownerPid: process.pid, generation: this.#generation, phase }))
-      closeSync(descriptor)
-      descriptor = undefined
-      renameSync(temporary, this.#restartState)
-    } finally {
-      if (descriptor !== undefined) closeSync(descriptor)
-      if (created) {
-        try { unlinkSync(temporary) } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+  #writeRestartState(phase: 'starting' | 'ready' | 'failed' | 'stopped'): Promise<void> {
+    const content = JSON.stringify({ ownerPid: process.pid, generation: this.#generation, phase })
+    const writing = this.#restartWrites.then(async () => {
+      const directory = lstatSync(dirname(this.#restartState))
+      if (!directory.isDirectory() || directory.isSymbolicLink() || directory.dev !== this.#restartDirectory.dev
+        || directory.ino !== this.#restartDirectory.ino || (process.platform !== 'win32'
+          && ((directory.mode & 0o777) !== 0o700 || directory.uid !== process.getuid?.()))) {
+        throw new Error('desktop: restart coordination directory ownership changed')
       }
-    }
+      await writeFileAtomic(this.#restartState, content, { mode: 0o600 })
+    })
+    // Each caller reports its own failure; a failed write must not prevent stop from publishing its state.
+    this.#restartWrites = writing.catch((error: unknown) => { void error })
+    return writing
   }
 
   #launchArgs(): string[] {
@@ -164,15 +158,31 @@ export class HarnessSupervisor {
     return args
   }
 
-  /** Start the child process; repeated calls while it is running are ignored. */
-  start(): void {
-    if (this.#child !== undefined || this.#stopping || this.#failed || this.#restartCheck !== undefined) return
-    const generation = ++this.#generation
-    try { this.#writeRestartState('starting') } catch (error) {
+  #startAutomatically(): void {
+    void this.start().catch(async (error: unknown) => {
       this.#failed = true
-      this.#reportStartupFailure('Harness restart coordination could not start.', `Restart coordination failed: ${error instanceof Error ? error.message : String(error)}`)
+      const message = `Harness could not start: ${error instanceof Error ? error.message : String(error)}`
+      await this.#reportStartupFailure(message, message)
+    }).catch((error: unknown) => {
+      console.error('[desktop-supervisor] failed to report automatic startup failure', error)
+    })
+  }
+
+  /** Start after restart-state persistence; duplicate starts are ignored and failures are reported through onFailure. */
+  async start(): Promise<void> {
+    if (this.#child !== undefined || this.#starting !== undefined || this.#stopping || this.#failed
+      || this.#restartCheck !== undefined) return
+    const generation = ++this.#generation
+    this.#starting = generation
+    try { await this.#writeRestartState('starting') } catch (error) {
+      if (generation !== this.#generation) return
+      this.#failed = true
+      await this.#reportStartupFailure('Harness restart coordination could not start.', `Restart coordination failed: ${error instanceof Error ? error.message : String(error)}`)
       return
+    } finally {
+      if (this.#starting === generation) this.#starting = undefined
     }
+    if (generation !== this.#generation) return
     mkdirSync(dirname(this.#options.logPath), { recursive: true })
     this.#log ??= createWriteStream(this.#options.logPath, { flags: 'a' })
     this.#options.onState(this.#diagnosticMode
@@ -195,7 +205,7 @@ export class HarnessSupervisor {
       this.#failed = true
       const failure = error instanceof Error ? error : new Error(String(error))
       const message = `Harness process owner could not start: ${failure.message}`
-      this.#reportStartupFailure(message, message)
+      await this.#reportStartupFailure(message, message)
       return
     }
     this.#child = child
@@ -212,7 +222,7 @@ export class HarnessSupervisor {
       stdoutLog.write(chunk)
       for (const line of stdoutLines.push(chunk.toString('utf8'))) {
         const url = parseHarnessReadyLine(line)
-        if (url === undefined || ready) continue
+        if (url === undefined || ready || generation !== this.#generation) continue
         ready = true
         if (this.#diagnosticMode) {
           this.#options.onDiagnosticReady(url, {
@@ -221,16 +231,18 @@ export class HarnessSupervisor {
         } else {
           const port = new URL(url).port
           if (port !== '') this.#listenPort = port
-          try { this.#writeRestartState('ready') } catch (error) {
+          void this.#writeRestartState('ready').then(() => {
+            if (generation !== this.#generation || this.#stopping || this.#child?.token !== child.token) return
+            this.#restartCount = 0
+            this.#preReadyExitCount = 0
+            this.#options.onState('ready')
+            this.#options.onReady(url)
+          }).catch(async (error: unknown) => {
+            if (generation !== this.#generation || this.#stopping) return
             this.#failed = true
-            this.#reportStartupFailure('Harness restart readiness could not be recorded.', `Restart readiness failed: ${error instanceof Error ? error.message : String(error)}`)
-            void this.stop().catch((stopError: unknown) => { this.#writeLog('error', `Restart coordination cleanup failed: ${String(stopError)}`) })
-            return
-          }
-          this.#restartCount = 0
-          this.#preReadyExitCount = 0
-          this.#options.onState('ready')
-          this.#options.onReady(url)
+            await this.#reportStartupFailure('Harness restart readiness could not be recorded.', `Restart readiness failed: ${error instanceof Error ? error.message : String(error)}`)
+            await this.stop()
+          }).catch((stopError: unknown) => { this.#writeLog('error', `Restart coordination cleanup failed: ${String(stopError)}`) })
         }
       }
     })
@@ -273,10 +285,11 @@ export class HarnessSupervisor {
         await child.terminate(false)
       }
       const rangeStopped = await child.waitForExit()
+      if (this.#stopping && generation !== this.#generation) return
       if (!rangeStopped) {
         this.#failed = true
         const message = 'Harness process range did not become idle; automatic restart is blocked.'
-        this.#reportStartupFailure(message, message)
+        await this.#reportStartupFailure(message, message)
         return
       }
       this.#writeLog('info', `Harness exited code=${String(code)} signal=${String(signal)}`)
@@ -297,7 +310,7 @@ export class HarnessSupervisor {
         if (!restartCheck.signal.aborted && generation === this.#generation) {
           this.#failed = true
           const message = `Harness restart blocked: ${error instanceof Error ? error.message : String(error)}`
-          this.#reportStartupFailure(message, `[desktop] ${message}\n`)
+          await this.#reportStartupFailure(message, `[desktop] ${message}\n`)
         }
         return
       } finally {
@@ -314,7 +327,7 @@ export class HarnessSupervisor {
           this.#options.onState('failed')
           this.#restartTimer = setTimeout(() => {
             this.#restartTimer = undefined
-            this.start()
+            this.#startAutomatically()
           }, 0)
           return
         }
@@ -324,7 +337,7 @@ export class HarnessSupervisor {
             ? `diagnostic mode exited before becoming ready (code ${String(code)}, signal ${String(signal)})`
             : `diagnostic mode could not start: ${spawnError.message}`
           const message = `${this.#primaryStartupFailure ?? 'The active Profile could not start'} ${secondary}.`
-          this.#reportStartupFailure(
+          await this.#reportStartupFailure(
             message,
             `Harness startup failed after one normal and one diagnostic attempt: ${message}`,
           )
@@ -336,7 +349,7 @@ export class HarnessSupervisor {
           const message = spawnError === undefined
             ? `Harness exited before becoming ready (code ${String(code)}, signal ${String(signal)}).`
             : `Harness could not start: ${spawnError.message}`
-          this.#reportStartupFailure(
+          await this.#reportStartupFailure(
             message,
             `Harness startup failed after ${PRE_READY_EXIT_LIMIT} attempts: ${message}`,
           )
@@ -348,9 +361,11 @@ export class HarnessSupervisor {
       this.#options.onState('restarting')
       this.#restartTimer = setTimeout(() => {
         this.#restartTimer = undefined
-        this.start()
+        this.#startAutomatically()
       }, delay)
     }).catch(async (error: unknown) => {
+      // Deliberate stop owns range-observation failures and must settle before returning.
+      if (this.#stopping && generation !== this.#generation) return
       const failure = error instanceof Error ? error : new Error(String(error))
       let rangeStopped = false
       let cleanupFailure = ''
@@ -364,7 +379,7 @@ export class HarnessSupervisor {
       const message = rangeStopped
         ? `Harness process owner failed: ${failure.message}`
         : `Harness process owner failed and cleanup is unconfirmed: ${failure.message}${cleanupFailure}`
-      this.#reportStartupFailure(message, message)
+      await this.#reportStartupFailure(message, message)
     })
   }
 
@@ -427,7 +442,7 @@ export class HarnessSupervisor {
     this.#preReadyExitCount = 0
     this.#diagnosticMode = false
     this.#primaryStartupFailure = undefined
-    this.start()
+    this.#startAutomatically()
     return true
   }
 
@@ -436,7 +451,7 @@ export class HarnessSupervisor {
     this.#stopping = true
     this.#generation++
     let stateFailure: Error | undefined
-    try { this.#writeRestartState('stopped') } catch (error) {
+    try { await this.#writeRestartState('stopped') } catch (error) {
       stateFailure = error instanceof Error ? error : new Error(String(error))
       this.#writeLog('error', `failed to record restart stop: ${stateFailure.message}`)
     }
@@ -499,7 +514,7 @@ export class HarnessSupervisor {
     this.#diagnosticMode = false
     this.#listenPort = undefined
     this.#primaryStartupFailure = undefined
-    this.start()
+    this.#startAutomatically()
     return true
   }
 }

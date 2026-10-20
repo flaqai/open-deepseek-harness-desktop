@@ -464,7 +464,7 @@ export function activateProfilePluginTransaction(home: string, profile: string, 
     inside(home, path)
     const exists = existsSync(path)
     if (exists !== file.existed || (exists && createHash('sha256').update(readFileSync(path)).digest('hex') !== file.sha256)) {
-      throw new Error('dsh: active plugin state changed during preparation; activation refused')
+      throw new Error(`dsh: active plugin state changed during preparation (${file.relativePath}); activation refused`)
     }
     const candidateFile = join(candidate, file.relativePath)
     inside(candidate, candidateFile)

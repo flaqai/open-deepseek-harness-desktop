@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { BundledPresetVersionGate } from '../src/bundled-preset-version-gate.ts'
 import {
   DesktopProfileMutation,
   DesktopProfileMutationRolledBackError,
@@ -84,6 +85,33 @@ function createFixture(overrides: Partial<DesktopProfileMutationOptions> = {}): 
 }
 
 describe('Desktop Profile mutation interface', () => {
+  it('marks a preset upgrade complete only after ordinary candidate readiness commits it', async () => {
+    const fixture: Fixture = createFixture({ onFirstStartCommit: async () => { await versionGate.markCompleted('0.2.1-rc.2') } })
+    const versionGate = new BundledPresetVersionGate(fixture.home)
+    await versionGate.markAttempted('0.2.1-rc.2')
+    await fixture.mutations.applyAtStartup({ operation: 'preset-upgrade', run: async () => {} })
+    await fixture.mutations.finishStartup(['dsh-test'])
+    expect(await versionGate.shouldAttempt('0.2.1-rc.2')).toBe(true)
+    fixture.mutations.observeHarness({ type: 'starting' })
+    fixture.mutations.observeHarness({ type: 'server-ready' })
+    expect(await versionGate.shouldAttempt('0.2.1-rc.2')).toBe(true)
+    fixture.mutations.observeHarness({ type: 'normal-ready' })
+    await vi.waitFor(async () => { expect(await versionGate.shouldAttempt('0.2.1-rc.2')).toBe(false) })
+  })
+
+  it('leaves a failed upgrade target retryable without marking the old Profile complete', async () => {
+    const fixture: Fixture = createFixture({ onFirstStartCommit: async () => { await versionGate.markCompleted('0.2.1-rc.2') } })
+    const versionGate = new BundledPresetVersionGate(fixture.home)
+    await versionGate.markAttempted('0.2.1-rc.2')
+    await fixture.mutations.applyAtStartup({ operation: 'preset-upgrade', run: async () => {} })
+    await fixture.mutations.finishStartup(['dsh-test'])
+    fixture.mutations.observeHarness({ type: 'starting' })
+    fixture.mutations.observeHarness({ type: 'optional-startup-failures', failures: [{ id: 'test', name: 'dsh-test' }] })
+    await vi.waitFor(() => { expect(fixture.calls.some(call => call.startsWith('rollback:'))).toBe(true) })
+    expect(await new BundledPresetVersionGate(fixture.home).shouldAttempt('0.2.1-rc.2')).toBe(true)
+    expect(fixture.calls.some(call => call.includes('transaction commit '))).toBe(false)
+  })
+
   it('hides the candidate and resolves a managed mutation only after ordinary readiness commits it', async () => {
     const fixture = createFixture()
     const result = fixture.mutations.applyManaged({

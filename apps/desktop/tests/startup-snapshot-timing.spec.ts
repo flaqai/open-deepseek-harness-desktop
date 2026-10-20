@@ -2,6 +2,13 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 describe('desktop startup plugin snapshot timing', () => {
+  it('configures a newly installed bridge inside the upgrade candidate, never the active Profile', () => {
+    const source = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8')
+    const upgrade = source.slice(source.indexOf('} else if (presetUpgradeNeeded) {'), source.indexOf('if (legacySchedulePending) {', source.indexOf('} else if (presetUpgradeNeeded) {')))
+    expect(upgrade).toContain('configureNewAgentsAnywhere(dshHome, desktopMutations.mutationHome)')
+    expect(upgrade).not.toContain('configureNewAgentsAnywhere(dshHome, dshHome)')
+  })
+
   it('provisions presets once for a new or upgraded desktop version, not on every launch', () => {
     const source = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8')
     expect(source).toContain('} else if (firstStartPending) {')

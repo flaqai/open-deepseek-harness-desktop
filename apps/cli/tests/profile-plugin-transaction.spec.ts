@@ -374,7 +374,7 @@ describe('staged Profile activation', () => {
     const f = fixture()
     writeFileSync(join(f.profile, 'package.json'), '{"dependencies":{"user":"3.0.0"}}')
     readyProfilePluginTransaction(f.home, 'web', f.record.id)
-    expect(() => { activateProfilePluginTransaction(f.home, 'web', f.record.id) }).toThrow('state changed')
+    expect(() => { activateProfilePluginTransaction(f.home, 'web', f.record.id) }).toThrow('profiles/web/package.json')
     settleProfilePluginTransaction(f.home, 'web', f.record.id, false)
     expect(readFileSync(join(f.profile, 'package.json'), 'utf8')).toContain('user')
   })

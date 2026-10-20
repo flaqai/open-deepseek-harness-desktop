@@ -17,7 +17,7 @@ import {
   type Session,
   type IpcMainInvokeEvent, type MenuItemConstructorOptions, type MessageBoxOptions, type WebContents, type WebPreferences,
 } from 'electron'
-import { appendBundledPluginFailure, seedBundledPluginsBatch, verifyBundledPluginArchive } from './bundled-plugin-seed.ts'
+import { appendBundledPluginFailure, bundledPluginSeedIsSettled, seedBundledPluginsBatch, verifyBundledPluginArchive } from './bundled-plugin-seed.ts'
 import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
 import { FirstStartPreparation } from './first-start-preparation.ts'
 import { BundledPresetVersionGate } from './bundled-preset-version-gate.ts'
@@ -3347,6 +3347,8 @@ async function startApplication(): Promise<void> {
     }
   }
   let runtimePendingApplied = false
+  let presetUpgradeReadyToComplete = false
+  let presetUpgradeTargets: string[] = []
   const desktopMutations = new DesktopProfileMutation({
     home: dshHome,
     ownerPid: process.pid,
@@ -3398,13 +3400,18 @@ async function startApplication(): Promise<void> {
       }
     },
     onFirstStartCommit: async () => {
+      if (presetUpgradeReadyToComplete) {
+        await presetVersionGate.markCompleted(app.getVersion())
+        presetUpgradeReadyToComplete = false
+        await appendDesktopStartupLog('Bundled preset upgrade committed after normal readiness.')
+      }
       if (runtimePendingApplied) {
         await workspaceRuntimeManager?.commitPending(dshHome)
         runtimePendingApplied = false
         await appendDesktopStartupLog('Workspace runtime Profile changes committed after normal readiness.')
       }
       if (!firstStartPending) return
-      await presetVersionGate.markAttempted(app.getVersion())
+      await presetVersionGate.markCompleted(app.getVersion())
       await firstStartPreparation.complete()
       firstStartPending = false
       preparingFirstStart = false
@@ -3423,6 +3430,7 @@ async function startApplication(): Promise<void> {
     onActivation: () => { publishStartupProgress({ stage: 'starting-harness', progress: 88 }) },
     log: appendDesktopStartupLog,
     onRollback: (error) => {
+      presetUpgradeReadyToComplete = false
       candidateWelcomeGate.rolledBack()
       const detail = error instanceof Error ? error.message : String(error)
       void appendDesktopStartupLog(`Plugin activation failed; the previous Profile was restored: ${detail}`)
@@ -3814,8 +3822,16 @@ async function startApplication(): Promise<void> {
   if (!firstStartPending && (startupProfileMutationAllowed || preserveCopiedPlugins)) {
     try {
       if (await presetVersionGate.shouldAttempt(app.getVersion())) {
-        await presetVersionGate.markAttempted(app.getVersion())
+        if (preserveCopiedPlugins) await presetVersionGate.markCompleted(app.getVersion())
+        else await presetVersionGate.markAttempted(app.getVersion())
         presetUpgradeNeeded = !preserveCopiedPlugins && startupProfileMutationAllowed
+      } else if (!preserveCopiedPlugins && await presetVersionGate.retryExhausted(app.getVersion())) {
+        await appendDesktopStartupLog('Bundled preset automatic retries exhausted; unfinished plugins remain available through diagnostic retry controls.')
+        for (const plugin of manifest.plugins.filter(entry => entry.installPolicy === 'startup')) {
+          if (await bundledPluginSeedIsSettled(dshHome, plugin, !app.isPackaged)) continue
+          await retainStartupWarning('runtime.bundled-plugin-failed', 'bundled-preset-retry-exhausted',
+            ['diagnostics', 'open-log', 'retry-plugin'], plugin.packageName)
+        }
       }
     } catch (error) {
       presetVersionMarkerUnavailable = true
@@ -3834,7 +3850,7 @@ async function startApplication(): Promise<void> {
     }
     if (startupProfileMutationAllowed && !preserveCopiedPlugins) {
       // Even a retry with settled markers needs a readiness-verified commit before clearing the gate.
-      if (firstStartPending || applyRuntimePending || legacySchedulePending) {
+      if (firstStartPending || applyRuntimePending || legacySchedulePending || presetUpgradeNeeded) {
         await desktopMutations.prepareStartup()
       }
       if (prebuilt !== undefined && prebuiltDirectory !== undefined) {
@@ -3869,7 +3885,7 @@ async function startApplication(): Promise<void> {
               ['plugin', '--profile', 'web', 'add', '--save-exact', ...archives], launchOptions), 'bundled-batch-install', BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS)
           })
       } else if (presetUpgradeNeeded) {
-        await appendDesktopStartupLog(`Preparing bundled presets once for desktop ${app.getVersion()} after an application upgrade.`)
+        await appendDesktopStartupLog(`Preparing unfinished bundled presets for desktop ${app.getVersion()} after an application upgrade.`)
         const seedResults = await bundledPluginInstaller.seedStartup((progress) => {
           const mapped = mapBundledPluginProgress(
             progress.entry.packageName,
@@ -3881,18 +3897,22 @@ async function startApplication(): Promise<void> {
           publishStartupProgress({ ...mapped, detail: `${progress.entry.packageName} (${progress.index + 1}/${progress.total})` })
         })
         if (seedResults.some(item => item.entry.packageName === AGENTS_ANYWHERE_PACKAGE && item.result === 'installed')) {
-          await configureNewAgentsAnywhere(dshHome, dshHome)
+          await configureNewAgentsAnywhere(dshHome, desktopMutations.mutationHome)
           showPocketUpgradeNotice = await hasLegacyPocket(dshHome)
         }
         const count = (result: NonNullable<(typeof seedResults)[number]['result']>): number => (
           seedResults.filter(item => item.result === result).length
         )
         const pending = seedResults.filter(result => result.result === undefined).length
+        presetUpgradeReadyToComplete = pending === 0 && count('unresolved') === 0
+        presetUpgradeTargets = seedResults
+          .filter(item => item.result === 'installed' || item.result === 'upgraded')
+          .map(item => item.entry.packageName)
         await appendDesktopStartupLog(`Desktop ${app.getVersion()} bundled preset pass finished: verified=${count('verified')}; installed=${count('installed')}; upgraded=${count('upgraded')}; preserved-user-version=${count('preserved-user-version')}; removed=${count('removed')}; unresolved=${count('unresolved')}; failed-or-deferred=${pending}. Activation still requires normal readiness.`)
       } else {
         await appendDesktopStartupLog(presetVersionMarkerUnavailable
           ? 'Skipped bundled plugin provisioning: the desktop version marker is unavailable; inspect startup diagnostics.'
-          : 'Skipped bundled plugin provisioning: this desktop version was already attempted for the Profile.')
+          : 'Skipped bundled plugin provisioning: this desktop version is complete or its automatic retry budget is exhausted.')
       }
       if (firstStartPending) {
         await configureNewAgentsAnywhere(dshHome, desktopMutations.mutationHome)
@@ -4041,9 +4061,11 @@ async function startApplication(): Promise<void> {
     else {
       await desktopMutations.finishStartup([
         ...(firstStartPending ? manifest.plugins.filter(entry => entry.installPolicy === 'startup').map(entry => entry.packageName) : []),
+        ...presetUpgradeTargets,
       ])
     }
   } catch (error) {
+    presetUpgradeReadyToComplete = false
     await appendDesktopStartupLog('Startup candidate could not be activated; preserved the prior Profile.')
     console.error('desktop: startup plugin candidate failed', error)
     if (firstStartPending) {
@@ -4380,7 +4402,7 @@ async function startApplication(): Promise<void> {
   } catch (error) {
     console.error('desktop: plugin snapshot startup recovery failed; retaining the failure for manual recovery', error)
   }
-  supervisor.start()
+  await supervisor.start()
 
   app.on('activate', () => {
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) { welcomeWindow.show(); welcomeWindow.focus() }

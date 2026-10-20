@@ -38,7 +38,7 @@ describe('Harness supervisor startup failures', () => {
       },
     })
     try {
-      supervisor.start()
+      await supervisor.start()
       stdout.write('dsh web: http://127.0.0.1:43129\n')
       done.resolve({ exitCode: 0, signal: null })
       await inspection.promise
@@ -67,7 +67,7 @@ describe('Harness supervisor startup failures', () => {
         stop: async () => {}, stopRecovered: async () => {}, list: () => [], launch },
     })
     try {
-      supervisor.start()
+      await supervisor.start()
       stdout.write('dsh web: http://127.0.0.1:43129\n')
       done.resolve({ exitCode: 0, signal: null })
       await observed.promise
@@ -100,7 +100,7 @@ describe('Harness supervisor startup failures', () => {
         stop: async () => {}, stopRecovered: async () => {}, list: () => [], launch },
     })
     try {
-      supervisor.start()
+      await supervisor.start()
       stdout.write('dsh web: http://127.0.0.1:43129\n')
       done.resolve({ exitCode: 0, signal: null })
       expect((await reported.promise).message).toContain('process range did not become idle')
@@ -141,7 +141,7 @@ describe('Harness supervisor startup failures', () => {
       onReady: (url) => { urls.push(url); if (urls.length >= 2) ready.resolve(undefined) },
       onDiagnosticReady: () => {}, onState: () => {}, onFailure: ready.reject })
     try {
-      supervisor.start()
+      await supervisor.start()
       await ready.promise
       expect(new URL(urls[1]!).port).toBe(new URL(urls[0]!).port)
       expect(await readFile(join(root, 'requested-port'), 'utf8')).toBe(new URL(urls[0]!).port)
@@ -175,7 +175,7 @@ describe('Harness supervisor startup failures', () => {
       onReady: () => { if (++generations === 2) ready.resolve(undefined) },
       onDiagnosticReady: () => {}, onState: () => {}, onFailure: ready.reject })
     try {
-      supervisor.start()
+      await supervisor.start()
       await ready.promise
       expect(JSON.parse(await readFile(join(root, 'args'), 'utf8'))).toEqual(args)
     } finally { await supervisor.stop() }
@@ -190,7 +190,7 @@ describe('Harness supervisor startup failures', () => {
       onReady: () => { ready.resolve(undefined) }, onDiagnosticReady: () => {}, onState: () => {}, onFailure: ready.reject })
     const directory = join(root, (await readdir(root)).find(name => name.startsWith('.desktop-web-restart-'))!)
     try {
-      supervisor.start()
+      await supervisor.start()
       await ready.promise
       if (failure === 'ownership') await chmod(directory, 0o755)
       else { await rm(join(directory, 'state.json')); await mkdir(join(directory, 'state.json')) }
@@ -214,7 +214,7 @@ describe('Harness supervisor startup failures', () => {
     const directory = join(root, (await readdir(root)).find(name => name.startsWith('.desktop-web-restart-'))!)
     try {
       await chmod(directory, 0o755)
-      supervisor.start()
+      await supervisor.start()
       expect((await failure.promise).message).toContain('restart coordination could not start')
       expect(spawned).not.toHaveBeenCalled()
     } finally { await chmod(directory, 0o700); await supervisor.stop() }
@@ -241,7 +241,7 @@ describe('Harness supervisor startup failures', () => {
       },
     })
     try {
-      supervisor.start()
+      await supervisor.start()
       const stopping = supervisor.stop()
       done.resolve({ exitCode: 0, signal: null })
       await expect(stopping).rejects.toBe(rangeFailure)
@@ -274,7 +274,7 @@ describe('Harness supervisor startup failures', () => {
       },
     })
     try {
-      supervisor.start()
+      await supervisor.start()
       if (directRejected) done.reject(new Error('invalid Windows start request'))
       else done.resolve({ exitCode: 0, signal: null })
       const failure = await reported.promise
@@ -315,7 +315,7 @@ describe('Harness supervisor startup failures', () => {
       logPath: join(root, 'harness.log'), onReady: ready.resolve, onDiagnosticReady: () => {},
       onState: () => {}, onFailure: ready.reject,
     })
-    try { supervisor.start(); await ready.promise } finally { await supervisor.stop() }
+    try { await supervisor.start(); await ready.promise } finally { await supervisor.stop() }
   })
 
   it('cancels pending restart inspection on stop and ignores its late completion', async () => {
@@ -333,7 +333,7 @@ describe('Harness supervisor startup failures', () => {
       beforeRestart: (signal) => { checking.resolve(signal); return completion.promise },
     })
     try {
-      supervisor.start()
+      await supervisor.start()
       const signal = await checking.promise
       await supervisor.stop()
       expect(signal.aborted).toBe(true)
@@ -368,7 +368,7 @@ describe('Harness supervisor startup failures', () => {
       onFailure: (failure) => { throw new Error(failure.message) },
     })
 
-    supervisor.start()
+    await supervisor.start()
     await expect(ready).resolves.toBe('http://127.0.0.1:43129')
     expect(supervisor.isDiagnosticMode).toBe(true)
     expect(states).not.toContain('ready')
@@ -401,7 +401,7 @@ describe('Harness supervisor startup failures', () => {
       onState: (state) => { states.push(state) },
       onFailure: (failure) => { throw new Error(failure.message) },
     })
-    supervisor.start()
+    await supervisor.start()
     await expect(ready).resolves.toBe('http://127.0.0.1:43124')
     expect(supervisor.isDiagnosticMode).toBe(true)
     expect(states).not.toContain('ready')
@@ -428,7 +428,7 @@ describe('Harness supervisor startup failures', () => {
       onState: (state) => { states.push(state) },
       onFailure: resolveFailure,
     })
-    supervisor.start()
+    await supervisor.start()
     await expect(failure).resolves.toEqual({ message: 'Harness exited before becoming ready (code 12, signal null).' })
     expect(states.at(-1)).toBe('failed')
     expect(await readFile(logPath, 'utf8')).toContain('startup failed after 3 attempts')
@@ -465,7 +465,7 @@ describe('Harness supervisor startup failures', () => {
       onFailure: resolveFailure,
     })
 
-    supervisor.start()
+    await supervisor.start()
     await expect(failure).resolves.toEqual({
       message: 'Harness exited before becoming ready (code 21, signal null). diagnostic mode exited before becoming ready (code 22, signal null).',
     })
@@ -503,7 +503,7 @@ describe('Harness supervisor startup failures', () => {
       onState: () => {},
       onFailure: () => { expect(supervisor.retry()).toBe(true) },
     })
-    supervisor.start()
+    await supervisor.start()
     await expect(ready).resolves.toBe('http://127.0.0.1:43123')
     await supervisor.stop()
   }, 10_000)
@@ -528,7 +528,7 @@ describe('Harness supervisor startup failures', () => {
       stopTimeoutMs: 25,
     })
 
-    supervisor.start()
+    await supervisor.start()
     await supervisor.stop()
 
     expect(terminateProcessTree.mock.calls.map(([, force]) => force)).toEqual([false, true])
@@ -557,7 +557,7 @@ describe('Harness supervisor startup failures', () => {
       onFailure: (failure) => { throw new Error(failure.message) },
     })
 
-    supervisor.start()
+    await supervisor.start()
     await ready
     await supervisor.stop()
     ready = new Promise<void>((resolve) => { resolveReady = resolve })
