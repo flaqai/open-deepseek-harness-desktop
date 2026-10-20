@@ -15,7 +15,7 @@ describe.skipIf(!runtime)('Windows installer payload behavior', () => {
     ['robocopy-path-32bit-process', 'Sysnative'],
     ['robocopy-path-64bit-process', 'System32'],
     ['robocopy-path-32bit-os', 'System32'],
-  ]) {
+  ] as const) {
     it(scenario, async () => {
       const directory = await realpath(await mkdtemp(join(tmpdir(), 'dsh-payload-')))
       try {
