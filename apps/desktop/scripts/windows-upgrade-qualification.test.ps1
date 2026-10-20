@@ -156,12 +156,16 @@ try {
   Assert-UpgradeRejects { Assert-DesktopUpgradeFailurePreservedState -ExitCode 2 -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText } 'user-data sentinel'
 
   $silent = New-DesktopQualificationInstallerStart -Installer 'candidate.exe' -Directory 'C:\private test\目标'
-  Assert-UpgradeTest ($silent.ArgumentList -contains '/S') 'Default installer was not silent.'
-  Assert-UpgradeTest ($silent.ArgumentList[-1] -eq '/D=C:\private test\目标') 'Install directory must remain the final NSIS argument.'
-  Assert-UpgradeTest ($silent.ArgumentList -contains '/currentuser') 'Default installation mode changed.'
+  Assert-UpgradeTest ($silent.Arguments -ceq '/S /currentuser /ADDCLI=1 /D=C:\private test\目标') 'NSIS must receive its exact final unquoted directory tail, preserving spaces and Unicode.'
+  Assert-UpgradeTest ($silent.ArgumentList.Count -eq 0 -and -not $silent.UseShellExecute) 'NSIS must not receive .NET ArgumentList auto-quoting or a shell.'
   $interactive = New-DesktopQualificationInstallerStart -Installer 'candidate.exe' -Directory 'C:\other' -Mode allusers -Interactive
-  Assert-UpgradeTest ($interactive.ArgumentList -notcontains '/S') 'Manual qualification must display installer UI.'
-  Assert-UpgradeTest ($interactive.ArgumentList -contains '/allusers') 'Explicit installation mode was dropped.'
+  Assert-UpgradeTest ($interactive.Arguments -ceq '/allusers /ADDCLI=1 /D=C:\other' -and $interactive.ArgumentList.Count -eq 0) 'Interactive NSIS switches must remain allowlisted with an unquoted final directory.'
+  foreach ($invalidDirectory in @('relative\target', 'C:relative', 'C:\', '\\server\share\target', 'C:/target', 'C:\target\..\other', 'C:\tar"get', "C:\target`rnext", "C:\target`nnext", "C:\target`tnext", "C:\target$([char]0)next", 'C:\target:stream')) {
+    Assert-UpgradeRejects { New-DesktopQualificationInstallerStart -Installer 'candidate.exe' -Directory $invalidDirectory } 'absolute local Windows installation directory'
+  }
+  $modeRejected = $false
+  try { $null = New-DesktopQualificationInstallerStart -Installer 'candidate.exe' -Directory 'C:\target' -Mode 'currentuser /S' } catch { $modeRejected = $true }
+  Assert-UpgradeTest $modeRejected 'NSIS mode must reject arbitrary command-line switches.'
 } finally {
   Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction Stop
 }

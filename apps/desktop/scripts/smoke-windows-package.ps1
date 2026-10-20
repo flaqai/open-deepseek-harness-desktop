@@ -65,13 +65,7 @@ if (-not [string]::IsNullOrWhiteSpace($PreviousInstaller)) {
 }
 
 Start-SmokePhase -Name 'install'
-$installStart = [System.Diagnostics.ProcessStartInfo]::new()
-$installStart.FileName = $installer
-$installStart.UseShellExecute = $false
-if (-not $InteractiveUpgrade) { $installStart.ArgumentList.Add('/S') }
-$installStart.ArgumentList.Add("/$InstallationMode")
-$installStart.ArgumentList.Add('/ADDCLI=1')
-$installStart.ArgumentList.Add("/D=$installRoot")
+$installStart = New-DesktopQualificationInstallerStart -Installer $installer -Directory $installRoot -Mode $InstallationMode -Interactive:$InteractiveUpgrade
 $mainDiagnosticDirectories = @()
 $mainSnapshotAvailable = $false
 try {

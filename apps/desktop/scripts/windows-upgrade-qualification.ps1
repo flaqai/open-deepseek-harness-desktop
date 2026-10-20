@@ -45,21 +45,25 @@ function Get-DesktopUpgradeRegistrations {
 }
 
 function New-DesktopQualificationInstallerStart {
-  param([string] $Installer, [string] $Directory, [string] $Mode = 'currentuser', [switch] $Interactive)
+  param([string] $Installer, [string] $Directory, [ValidateSet('currentuser', 'allusers')] [string] $Mode = 'currentuser', [switch] $Interactive)
+  if ($Directory -notmatch '^[A-Za-z]:\\' -or $Directory.Length -le 3 -or $Directory -match '["\x00-\x1f<>|?*]' -or
+      $Directory.Substring(2) -match '[:/]' -or @($Directory.Split('\') | Where-Object { $_ -in @('.', '..') }).Count -ne 0) {
+    throw 'NSIS qualification requires an absolute local Windows installation directory without quotes or control characters.'
+  }
   $start = [System.Diagnostics.ProcessStartInfo]::new()
   $start.FileName = $Installer
   $start.UseShellExecute = $false
-  if (-not $Interactive) { $start.ArgumentList.Add('/S') }
-  $start.ArgumentList.Add("/$Mode")
-  $start.ArgumentList.Add('/ADDCLI=1')
-  $start.ArgumentList.Add("/D=$Directory")
+  $switches = if ($Interactive) { '' } else { '/S ' }
+  # NSIS /D is the final, unquoted command-line tail, including spaces.
+  # ArgumentList would quote this token and NSIS would retain the closing quote.
+  $start.Arguments = "$switches/$($Mode.ToLowerInvariant()) /ADDCLI=1 /D=$Directory"
   return $start
 }
 
 function Invoke-DesktopQualificationInstaller {
   param([System.Diagnostics.ProcessStartInfo] $Start)
   $installerProcess = [System.Diagnostics.Process]::Start($Start)
-  if ($env:DSH_WINDOWS_GUI_AUTOMATION -eq '1' -and $Start.ArgumentList -notcontains '/S') {
+  if ($env:DSH_WINDOWS_GUI_AUTOMATION -eq '1' -and -not $Start.Arguments.StartsWith('/S ', [StringComparison]::Ordinal)) {
     . (Join-Path $PSScriptRoot 'windows-installer-ui-automation.ps1')
     return Invoke-DesktopWizardAutomation -Process $installerProcess -EvidenceDirectory $env:RUNNER_TEMP
   }
@@ -330,7 +334,7 @@ function Initialize-DesktopPreviousReleaseQualification {
     previousStatePreserved = $null
     previousNativeEntryVerified = $false
     oldUninstallBudgetVerified = $false
-    interactive = $CandidateStart.ArgumentList -notcontains '/S'
+    interactive = -not $CandidateStart.Arguments.StartsWith('/S ', [StringComparison]::Ordinal)
     guiObservation = 'not-verified'
   }
   $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
