@@ -1,4 +1,19 @@
 # Optional previous-release qualification. Call only on a disposable Windows host.
+function Get-DesktopInstalledVersion {
+  param([string] $Directory)
+  . (Join-Path $PSScriptRoot '../build/installer-version.ps1')
+  $identity = Get-DesktopInstalledIdentity -InstallDirectory $Directory -AppExecutable 'Open DeepSeek Harness Desktop.exe'
+  return $identity.Version
+}
+
+function Assert-DesktopRegisteredVersion {
+  param([string] $InstalledVersion, [string] $ExpectedVersion, [object[]] $Registrations)
+  if ($InstalledVersion -cne $ExpectedVersion) { throw "Expected installed desktop $ExpectedVersion, found package version $InstalledVersion." }
+  if ($Registrations.Count -ne 1 -or $Registrations[0].version -cne $ExpectedVersion) {
+    throw 'Installed desktop package and uninstall registration versions disagree.'
+  }
+}
+
 function Test-DesktopUpgradeRegistration {
   param([string] $KeyName, [string] $DisplayName)
   # UUID v5 of ai.flaq.deepseek-harness in electron-builder's stable NSIS namespace.
@@ -165,12 +180,9 @@ function Initialize-DesktopPreviousReleaseQualification {
   $oldExit = Invoke-DesktopQualificationInstaller -Start $oldStart
   if ($oldExit -ne 0) { throw "Previous-release installer exited with $oldExit." }
   $oldExecutable = Join-Path $Directory 'Open DeepSeek Harness Desktop.exe'
-  $installedVersion = (Get-Item -LiteralPath $oldExecutable).VersionInfo.ProductVersion
-  if ($installedVersion -ne $Version) { throw "Expected previous release $Version, installed $installedVersion." }
+  $installedVersion = Get-DesktopInstalledVersion -Directory $Directory
   $before = Get-DesktopUpgradeState -Directory $Directory
-  if (@($before.registrations).Count -ne 1 -or $before.registrations[0].version -ne $Version) {
-    throw 'Previous-release installer did not establish the expected uninstall version.'
-  }
+  Assert-DesktopRegisteredVersion -InstalledVersion $installedVersion -ExpectedVersion $Version -Registrations @($before.registrations)
   New-Item -ItemType Directory -Path $userData -ErrorAction Stop | Out-Null
   $sentinel = Join-Path $userData 'issue31-qualification-data.txt'
   $sentinelText = [Guid]::NewGuid().ToString()

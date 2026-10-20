@@ -17,6 +17,14 @@ function Assert-UpgradeRejects([scriptblock] $Action, [string] $Expected) {
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "dsh-upgrade-behavior-$([Guid]::NewGuid())"
 New-Item -ItemType Directory -Path $testRoot -ErrorAction Stop | Out-Null
 try {
+  foreach ($version in @('0.2.1-alpha.2', '0.2.1-rc.2.1')) {
+    Assert-DesktopRegisteredVersion -InstalledVersion $version -ExpectedVersion $version -Registrations @(@{ version = $version })
+    Assert-UpgradeRejects { Assert-DesktopRegisteredVersion -InstalledVersion '0.2.1.0' -ExpectedVersion $version -Registrations @(@{ version = $version }) } 'found package version'
+    Assert-UpgradeRejects { Assert-DesktopRegisteredVersion -InstalledVersion $version -ExpectedVersion $version -Registrations @(@{ version = '0.2.1.0' }) } 'uninstall registration'
+    Assert-UpgradeRejects { Assert-DesktopRegisteredVersion -InstalledVersion $version -ExpectedVersion $version -Registrations @() } 'uninstall registration'
+    Assert-UpgradeRejects { Assert-DesktopRegisteredVersion -InstalledVersion $version -ExpectedVersion $version -Registrations @(@{ version = $version }, @{ version = $version }) } 'uninstall registration'
+  }
+  Assert-UpgradeRejects { Assert-DesktopRegisteredVersion -InstalledVersion '0.2.1-alpha.2' -ExpectedVersion '0.2.1-rc.2.1' -Registrations @(@{ version = '0.2.1-rc.2.1' }) } 'found package version'
   Assert-UpgradeTest (Test-DesktopUpgradeRegistration -KeyName '{0361fe6e-270e-56a3-9f11-0d722f41d3b6}' -DisplayName 'Old desktop name') 'Stable app identity was not detected after a display-name change.'
   Assert-UpgradeTest (Test-DesktopUpgradeRegistration -KeyName 'different-key' -DisplayName 'Open DeepSeek Harness Desktop') 'Named desktop registration was not detected.'
   Assert-UpgradeTest (-not (Test-DesktopUpgradeRegistration -KeyName 'different-key' -DisplayName 'Other app')) 'An unrelated app was treated as a desktop installation.'

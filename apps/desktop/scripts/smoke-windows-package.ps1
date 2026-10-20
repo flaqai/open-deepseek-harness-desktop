@@ -105,13 +105,13 @@ if ($null -ne $previousQualification) {
   if (-not $previousReleaseLocker.WaitForExit(30000) -or $previousReleaseLocker.ExitCode -ne 0) {
     throw 'Previous-release short lock did not finish normally.'
   }
-  $candidateVersion = (Get-Item -LiteralPath (Join-Path $installRoot 'Open DeepSeek Harness Desktop.exe')).VersionInfo.ProductVersion
+  $candidateVersion = Get-DesktopInstalledVersion -Directory $installRoot
   $expectedCandidateVersion = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../package.json') -Raw | ConvertFrom-Json).version
   $expectedHarnessVersion = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../cli/package.json') -Raw | ConvertFrom-Json).version
   $installedHarnessVersion = (Get-Content -LiteralPath (Join-Path $installRoot 'resources/harness/package.json') -Raw | ConvertFrom-Json).version
   $candidateRegistrations = @(Get-DesktopUpgradeRegistrations)
-  if ($candidateVersion -ne $expectedCandidateVersion -or $installedHarnessVersion -ne $expectedHarnessVersion -or
-      $candidateRegistrations.Count -ne 1 -or $candidateRegistrations[0].version -ne $candidateVersion) {
+  Assert-DesktopRegisteredVersion -InstalledVersion $candidateVersion -ExpectedVersion $expectedCandidateVersion -Registrations $candidateRegistrations
+  if ($installedHarnessVersion -cne $expectedHarnessVersion) {
     throw 'Previous-release upgrade did not publish the expected desktop, Harness, and uninstall versions.'
   }
   if ((Get-Content -LiteralPath $previousQualification.Sentinel -Raw) -ne $previousQualification.SentinelText) {
