@@ -15,6 +15,30 @@ $script:breakLogAfterProcess = $false
 $script:runArguments = @()
 $script:tamperUninstaller = $false
 $script:replaceUninstallerWithLink = $false
+$script:fixtureLink = $null
+function Remove-UpgradeFixtureLink([string]$Link) {
+  if ([string]::IsNullOrEmpty($Link)) { return }
+  $entry = Get-Item -LiteralPath $Link -Force -ErrorAction SilentlyContinue
+  if ($null -eq $entry) { return }
+  if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) { throw 'Upgrade fixture link cleanup refused an ordinary entry.' }
+  if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+    # Unlink only the junction itself; Windows PowerShell 5.1 recursive deletion
+    # can traverse its target or fail instead of removing this entry.
+    if (-not ('DshUpgradeFixtureNative' -as [type])) {
+      Add-Type -TypeDefinition @'
+using System.Runtime.InteropServices;
+public static class DshUpgradeFixtureNative {
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool RemoveDirectoryW(string path);
+}
+'@
+    }
+    if (-not [DshUpgradeFixtureNative]::RemoveDirectoryW($Link)) {
+      throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error())
+    }
+  } else { [IO.Directory]::Delete($Link, $false) }
+}
 function Invoke-DesktopUninstallerProcess($Executable, $Arguments, $WorkingDirectory) {
   $script:runs += $Executable
   $script:runArguments += $Arguments
@@ -26,6 +50,7 @@ function Invoke-DesktopUninstallerProcess($Executable, $Arguments, $WorkingDirec
     if ($script:replaceUninstallerWithLink) {
       [System.IO.File]::Delete($script:activeUninstaller)
       $linkKind = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { 'Junction' } else { 'SymbolicLink' }
+      $script:fixtureLink = $script:activeUninstaller
       [void](New-Item -ItemType $linkKind -Path $script:activeUninstaller -Target $script:tamperTarget)
     }
   }
@@ -163,8 +188,11 @@ try {
   Run-RefusedUpgradeCase 'linked-old-uninstaller' { param($parameters) } 1 $false
   $script:replaceUninstallerWithLink = $false
   Assert-Upgrade ((Get-Content -LiteralPath (Join-Path $script:tamperTarget 'preserved.txt') -Raw) -eq 'preserve') 'Old uninstaller cleanup followed a replacement link.'
-  Remove-Item -LiteralPath $script:activeUninstaller -Force
+  Remove-UpgradeFixtureLink $script:fixtureLink
+  $script:fixtureLink = $null
+  Assert-Upgrade ((Get-Content -LiteralPath (Join-Path $script:tamperTarget 'preserved.txt') -Raw) -eq 'preserve') 'Fixture junction cleanup traversed its target.'
   Write-Output 'PASS uninstaller-tampering'
 } finally {
+  Remove-UpgradeFixtureLink $script:fixtureLink
   Remove-Item -LiteralPath $root -Recurse -Force
 }
