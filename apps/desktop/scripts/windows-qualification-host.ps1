@@ -95,10 +95,13 @@ try {
   $settings.GIT_CONFIG_KEY_0 = 'safe.directory'
   $settings.GIT_CONFIG_VALUE_0 = $repository
   $settingsPath = Join-Path $ownedRoot 'settings.json'
-  [IO.File]::WriteAllText($settingsPath, ([ordered]@{ environment = $settings; node = $node; entry = $entry; userSid = $user.SID.Value; profileOnly = [bool]$ProfileOnly } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText($settingsPath, ([ordered]@{ environment = $settings; node = $node; entry = $entry; shell = $shell; userSid = $user.SID.Value; profileOnly = [bool]$ProfileOnly } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
   $childScript = Join-Path $ownedRoot 'child.ps1'
   $command = @'
+param([switch] $FreshEnvironment)
 $ErrorActionPreference = 'Stop'
+$startupProfile = $env:USERPROFILE
+$startupLocalAppData = $env:LOCALAPPDATA
 function Get-DesktopStandardProfileDirectory([string] $Sid) {
   if (-not (Test-Path -LiteralPath "Registry::HKEY_USERS\$Sid")) { throw 'Standard-user SID profile hive was not loaded.' }
   $profileKey = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$Sid"
@@ -165,6 +168,24 @@ function Set-DesktopStandardChildEnvironment([hashtable] $NativeEnvironment, [ob
     $value = if ($null -eq $property.Value) { [System.Management.Automation.Language.NullString]::Value } else { $property.Value }
     [Environment]::SetEnvironmentVariable($property.Name, $value, 'Process')
   }
+}
+function New-DesktopFreshEnvironmentStart([string] $Shell, [string] $ChildScript) {
+  $start = [Diagnostics.ProcessStartInfo]::new()
+  $start.FileName = $Shell
+  $start.UseShellExecute = $false
+  $start.WorkingDirectory = (Get-Location).Path
+  foreach ($argument in @('-NoLogo', '-NoProfile', '-NonInteractive', '-File', $ChildScript, '-FreshEnvironment')) { $start.ArgumentList.Add($argument) }
+  return $start
+}
+function Start-DesktopFreshEnvironmentProcess([Diagnostics.ProcessStartInfo] $Start) { return [Diagnostics.Process]::Start($Start) }
+function Invoke-DesktopFreshEnvironmentStart([Diagnostics.ProcessStartInfo] $Start) {
+  $process = Start-DesktopFreshEnvironmentProcess -Start $Start
+  try {
+    # Keep the outer credential process alive until its same-user child exits.
+    # Do not kill a product installer that may be performing atomic recovery.
+    $process.WaitForExit()
+    return $process.ExitCode
+  } finally { $process.Dispose() }
 }
 function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder, [uint32] $Flags = 0x8000, [switch] $UseProcessUser) {
   # Preserve the native HRESULT; .NET substitutes a cleared environment on failure.
@@ -281,11 +302,22 @@ if ($identity.User.Value -ne $settings.userSid) { throw 'Standard-user token doe
 $token = [Security.Principal.WindowsPrincipal]::new($identity)
 $admin = $token.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if ($admin) { throw 'Standard-user qualification unexpectedly received administrator rights.' }
-[ordered]@{ schema = 'open-dsh/windows-token/v1'; requested = 'standard'; administrator = $admin; identity = $identity.Name } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'qualification-token.json') -Encoding utf8
+$tokenEvidence = [ordered]@{ schema = 'open-dsh/windows-token/v1'; requested = 'standard'; administrator = $admin; identity = $identity.Name; freshProcess = [bool]$FreshEnvironment; startupNativeUserEnvironmentVerified = $false }
+$tokenEvidence | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'qualification-token.json') -Encoding utf8
 $profileDirectory = Get-DesktopStandardProfileDirectory -Sid $identity.User.Value
 $nativeEnvironment = Get-DesktopStandardEnvironment
 if (-not [string]::Equals($nativeEnvironment.USERPROFILE, $profileDirectory, [StringComparison]::OrdinalIgnoreCase)) { throw 'Native environment does not belong to the verified standard-user SID profile.' }
+if ($FreshEnvironment) {
+  if (-not [string]::Equals($startupProfile, $nativeEnvironment.USERPROFILE, [StringComparison]::OrdinalIgnoreCase) -or
+      -not [string]::Equals($startupLocalAppData, $nativeEnvironment.LOCALAPPDATA, [StringComparison]::OrdinalIgnoreCase)) { throw 'Fresh standard-user process did not start with its native user environment.' }
+  $tokenEvidence.startupNativeUserEnvironmentVerified = $true
+  $tokenEvidence | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'qualification-token.json') -Encoding utf8
+}
 Set-DesktopStandardChildEnvironment -NativeEnvironment $nativeEnvironment -Overrides $settings.environment
+if (-not $FreshEnvironment) {
+  $freshStart = New-DesktopFreshEnvironmentStart -Shell $settings.shell -ChildScript $PSCommandPath
+  exit (Invoke-DesktopFreshEnvironmentStart -Start $freshStart)
+}
 Initialize-DesktopStandardKnownFolders -ProfileDirectory $profileDirectory -DiagnosticDirectory $PSScriptRoot -Sid $identity.User.Value -NativeEnvironment $nativeEnvironment
 $identityParts = [Security.Principal.WindowsIdentity]::GetCurrent().Name.Split('\')
 $env:USERDOMAIN = $identityParts[0]

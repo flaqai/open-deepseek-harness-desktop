@@ -41,9 +41,9 @@ if ($profileOnlyGate.Count -ne 1 -or $profileOnlyGate[0].Clauses[0].Item2.Statem
   throw 'Profile-only mode must exit after all real identity/environment/folder checks and before product smoke.'
 }
 $profileHelpers = @($childTree.FindAll({ param($node)
-  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Get-DesktopStandardProfileDirectory', 'Get-DesktopStandardKnownFolder', 'Initialize-DesktopStandardKnownFolders', 'Initialize-DesktopStandardInterop', 'Open-DesktopStandardIdentity', 'ConvertFrom-DesktopNativeEnvironment', 'Get-DesktopStandardEnvironment', 'Set-DesktopStandardChildEnvironment', 'Get-DesktopProfilePathStatus', 'Get-DesktopLocalProfileDiagnostics')
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Get-DesktopStandardProfileDirectory', 'Get-DesktopStandardKnownFolder', 'Initialize-DesktopStandardKnownFolders', 'Initialize-DesktopStandardInterop', 'Open-DesktopStandardIdentity', 'ConvertFrom-DesktopNativeEnvironment', 'Get-DesktopStandardEnvironment', 'Set-DesktopStandardChildEnvironment', 'Get-DesktopProfilePathStatus', 'Get-DesktopLocalProfileDiagnostics', 'New-DesktopFreshEnvironmentStart', 'Start-DesktopFreshEnvironmentProcess', 'Invoke-DesktopFreshEnvironmentStart')
 }, $true))
-if ($profileHelpers.Count -ne 10) { throw 'Expected token-profile lookup, native environment, known-folder initialization and closed diagnostics in the child.' }
+if ($profileHelpers.Count -ne 13) { throw 'Expected token-profile lookup, fresh native environment, known-folder initialization and closed diagnostics in the child.' }
 foreach ($helper in $profileHelpers) { . ([scriptblock]::Create($helper.Extent.Text)) }
 $knownFolderHelper = @($profileHelpers | Where-Object { $_.Name -eq 'Get-DesktopStandardKnownFolder' })[0]
 $knownFolderCalls = @($knownFolderHelper.FindAll({ param($node)
@@ -93,10 +93,35 @@ try {
   if ($env:USERPROFILE -ne 'X:\Users\synthetic') { throw 'Child environment lost its native user profile.' }
   if ($env:TEMP -ne 'private-ci-root') { throw 'Child environment lost its private CI overrides.' }
   if ([Environment]::GetEnvironmentVariable('QUALIFICATION_PARENT_ADMIN_SECRET', 'Process') -ne $null) { throw 'Child environment retained parent-only credentials.' }
+  $script:freshProcessStarted = $false
+  $script:freshProcessWaited = $false
+  $script:freshProcessDisposed = $false
+  function Start-DesktopFreshEnvironmentProcess {
+    param([Diagnostics.ProcessStartInfo] $Start)
+    if ($env:SystemDrive -ne 'X:' -or $env:USERPROFILE -ne 'X:\Users\synthetic' -or $env:NATIVE_USER_SETTING -ne 'restored' -or
+        [Environment]::GetEnvironmentVariable('QUALIFICATION_PARENT_ADMIN_SECRET', 'Process') -ne $null) { throw 'Fresh same-user process must start after native environment restoration and credential exclusion.' }
+    if ($Start.UseShellExecute -or $Start.ArgumentList[-1] -ne '-FreshEnvironment' -or $Start.ArgumentList[-2] -ne 'D:\private path\新用户\child.ps1' -or
+        -not [string]::IsNullOrEmpty($Start.UserName) -or $Start.Verb -eq 'runas') { throw 'Fresh process must inherit this verified standard-user token without new credentials, UAC or command injection.' }
+    $script:freshProcessStarted = $true
+    $process = [pscustomobject]@{ ExitCode = 37 }
+    $process | Add-Member ScriptMethod WaitForExit { if ($args.Count -ne 0) { throw 'The outer credential process must await actual child exit, not kill an atomic uninstall on timeout.' }; $script:freshProcessWaited = $true }
+    $process | Add-Member ScriptMethod Dispose { $script:freshProcessDisposed = $true }
+    return $process
+  }
+  $freshStart = New-DesktopFreshEnvironmentStart -Shell 'C:\Program Files\PowerShell\7\pwsh.exe' -ChildScript 'D:\private path\新用户\child.ps1'
+  $freshExit = Invoke-DesktopFreshEnvironmentStart -Start $freshStart
+  if ($freshExit -ne 37 -or -not $script:freshProcessStarted -or -not $script:freshProcessWaited -or -not $script:freshProcessDisposed) { throw 'Fresh bootstrap must propagate the actual child exit and release its process handle after waiting.' }
 } finally {
   foreach ($name in @([Environment]::GetEnvironmentVariables('Process').Keys)) { [Environment]::SetEnvironmentVariable($name, [System.Management.Automation.Language.NullString]::Value, 'Process') }
   foreach ($name in $processEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $processEnvironment[$name], 'Process') }
+  Remove-Item Function:\Start-DesktopFreshEnvironmentProcess -ErrorAction SilentlyContinue
 }
+$freshGate = @($childTree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.IfStatementAst] -and $node.Clauses[0].Item1.Extent.Text -eq '-not $FreshEnvironment'
+}, $true))
+if ($freshGate.Count -ne 1 -or $freshGate[0].Extent.StartOffset -lt $command.IndexOf('Set-DesktopStandardChildEnvironment -NativeEnvironment $nativeEnvironment') -or
+    $freshGate[0].Extent.StartOffset -gt $command.IndexOf('Initialize-DesktopStandardKnownFolders -ProfileDirectory $profileDirectory') -or
+    -not $freshGate[0].Extent.Text.Contains('exit (Invoke-DesktopFreshEnvironmentStart -Start $freshStart)')) { throw 'Only the bootstrap process may restart once, after environment rebuilding and before shell-folder queries.' }
 $profileTestRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-profile-' + [Guid]::NewGuid().ToString('N'))
 $script:profileDirectory = Join-Path $profileTestRoot 'new-user'
 [void][IO.Directory]::CreateDirectory($script:profileDirectory)
