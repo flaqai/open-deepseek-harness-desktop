@@ -27,9 +27,81 @@ if ($childAssignments.Count -ne 1) { throw 'Expected one private child script.' 
 . ([scriptblock]::Create($childAssignments[0].Extent.Text))
 $childTokens = $null
 $childErrors = $null
-$null = [Management.Automation.Language.Parser]::ParseInput($command, [ref]$childTokens, [ref]$childErrors)
+$childTree = [Management.Automation.Language.Parser]::ParseInput($command, [ref]$childTokens, [ref]$childErrors)
 if ($childErrors.Count -ne 0 -or -not $command.Contains("Join-Path `$PSScriptRoot 'settings.json'")) {
   throw 'Private child must parse and load settings from its private directory.'
+}
+$profileHelpers = @($childTree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Get-DesktopStandardProfileDirectory', 'Get-DesktopStandardKnownFolder', 'Initialize-DesktopStandardKnownFolders')
+}, $true))
+if ($profileHelpers.Count -ne 3) { throw 'Expected token-profile lookup and known-folder initialization in the child.' }
+foreach ($helper in $profileHelpers) { . ([scriptblock]::Create($helper.Extent.Text)) }
+$knownFolderCalls = @($profileHelpers[1].FindAll({ param($node)
+  $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $node.Member.Extent.Text -eq 'GetFolderPath'
+}, $true))
+if ($knownFolderCalls.Count -ne 1 -or $knownFolderCalls[0].Arguments[1].Extent.Text -ne '[Environment+SpecialFolderOption]::Create') {
+  throw 'New-user known folders must use the native Create option, not existence-only lookup.'
+}
+$profileTestRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-profile-' + [Guid]::NewGuid().ToString('N'))
+$script:profileDirectory = Join-Path $profileTestRoot 'new-user'
+[void][IO.Directory]::CreateDirectory($script:profileDirectory)
+$profileEnvironment = @{}
+foreach ($name in @('USERPROFILE', 'HOME', 'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA')) {
+  $profileEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
+try {
+  $script:profileHiveLoaded = $true
+  $script:knownFolderBehavior = 'create'
+  function Get-ItemProperty {
+    param([string] $LiteralPath, [string] $Name, [string] $ErrorAction)
+    if ($LiteralPath -ne 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-21-synthetic' -or $Name -ne 'ProfileImagePath') {
+      throw 'Profile lookup must use the actual token SID, not a user name or administrator environment.'
+    }
+    return [pscustomobject]@{ ProfileImagePath = $script:profileDirectory }
+  }
+  function Test-Path {
+    param([string] $LiteralPath, [string] $PathType)
+    if ($LiteralPath -eq 'Registry::HKEY_USERS\S-1-5-21-synthetic') { return $script:profileHiveLoaded }
+    $parameters = @{ LiteralPath = $LiteralPath }
+    if ($PathType) { $parameters.PathType = $PathType }
+    return Microsoft.PowerShell.Management\Test-Path @parameters
+  }
+  function Get-DesktopStandardKnownFolder {
+    param([Environment+SpecialFolder] $Folder)
+    if ($env:USERPROFILE -ne $script:profileDirectory) { throw 'Known-folder lookup must follow restoration of the verified token profile.' }
+    if ($script:knownFolderBehavior -eq 'empty') { return '' }
+    if ($script:knownFolderBehavior -eq 'escape') { return $profileTestRoot }
+    $suffix = if ($Folder -eq 'ApplicationData') { 'Roaming' } else { 'Local' }
+    return [IO.Directory]::CreateDirectory((Join-Path $script:profileDirectory "AppData/$suffix")).FullName
+  }
+  $verifiedProfile = Get-DesktopStandardProfileDirectory -Sid 'S-1-5-21-synthetic'
+  foreach ($name in $profileEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
+  Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile
+  if ($env:USERPROFILE -ne $script:profileDirectory -or
+      -not (Microsoft.PowerShell.Management\Test-Path -LiteralPath $env:APPDATA -PathType Container) -or
+      -not (Microsoft.PowerShell.Management\Test-Path -LiteralPath $env:LOCALAPPDATA -PathType Container)) {
+    throw 'Fresh-user profile initialization did not create both known directories after environment clearing.'
+  }
+  foreach ($behavior in @('empty', 'escape')) {
+    $script:knownFolderBehavior = $behavior
+    $rejected = $false
+    try { Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile } catch {
+      if ($_.Exception.Message -notmatch 'inside its SID profile') { throw }
+      $rejected = $true
+    }
+    if (-not $rejected) { throw 'Unknown or administrator known-folder paths must be rejected.' }
+  }
+  $script:profileHiveLoaded = $false
+  $rejected = $false
+  try { $null = Get-DesktopStandardProfileDirectory -Sid 'S-1-5-21-synthetic' } catch {
+    if ($_.Exception.Message -notmatch 'SID profile hive was not loaded') { throw }
+    $rejected = $true
+  }
+  if (-not $rejected) { throw 'An unloaded token profile must not be manufactured from parent environment values.' }
+} finally {
+  foreach ($name in $profileEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $profileEnvironment[$name], 'Process') }
+  Remove-Item Function:\Get-ItemProperty, Function:\Test-Path, Function:\Get-DesktopStandardKnownFolder
+  Remove-Item -LiteralPath $profileTestRoot -Recurse -Force
 }
 $addCalls = @($tree.FindAll({ param($node)
   $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Add-LocalGroupMember'

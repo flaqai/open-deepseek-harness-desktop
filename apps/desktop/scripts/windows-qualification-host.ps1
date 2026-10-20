@@ -94,27 +94,50 @@ try {
   $settings.GIT_CONFIG_KEY_0 = 'safe.directory'
   $settings.GIT_CONFIG_VALUE_0 = $repository
   $settingsPath = Join-Path $ownedRoot 'settings.json'
-  [IO.File]::WriteAllText($settingsPath, ([ordered]@{ environment = $settings; node = $node; entry = $entry } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText($settingsPath, ([ordered]@{ environment = $settings; node = $node; entry = $entry; userSid = $user.SID.Value } | ConvertTo-Json -Depth 4), [Text.UTF8Encoding]::new($false))
   $childScript = Join-Path $ownedRoot 'child.ps1'
   $command = @'
 $ErrorActionPreference = 'Stop'
+function Get-DesktopStandardProfileDirectory([string] $Sid) {
+  if (-not (Test-Path -LiteralPath "Registry::HKEY_USERS\$Sid")) { throw 'Standard-user SID profile hive was not loaded.' }
+  $profileKey = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$Sid"
+  $profile = [Environment]::ExpandEnvironmentVariables((Get-ItemProperty -LiteralPath $profileKey -Name ProfileImagePath -ErrorAction Stop).ProfileImagePath)
+  if ([string]::IsNullOrWhiteSpace($profile) -or -not [IO.Path]::IsPathFullyQualified($profile)) { throw 'Standard-user SID has no absolute registered profile.' }
+  $item = Get-Item -LiteralPath $profile -Force -ErrorAction Stop
+  if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Standard-user SID profile is not an ordinary directory.' }
+  return $item.FullName
+}
+function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder) {
+  return [Environment]::GetFolderPath($Folder, [Environment+SpecialFolderOption]::Create)
+}
+function Initialize-DesktopStandardKnownFolders([string] $ProfileDirectory) {
+  $env:USERPROFILE = $ProfileDirectory
+  $env:HOME = $ProfileDirectory
+  $env:HOMEDRIVE = [IO.Path]::GetPathRoot($ProfileDirectory).TrimEnd('\')
+  $env:HOMEPATH = $ProfileDirectory.Substring($env:HOMEDRIVE.Length)
+  $prefix = $ProfileDirectory.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+  foreach ($folder in @('ApplicationData', 'LocalApplicationData')) {
+    $directory = Get-DesktopStandardKnownFolder -Folder $folder
+    if ([string]::IsNullOrWhiteSpace($directory) -or -not [IO.Path]::IsPathFullyQualified($directory) -or
+        -not $directory.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or
+        -not (Test-Path -LiteralPath $directory -PathType Container)) { throw "Standard-user known folder $folder was not created inside its SID profile." }
+    if ($folder -eq 'ApplicationData') { $env:APPDATA = $directory } else { $env:LOCALAPPDATA = $directory }
+  }
+}
 $settings = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'settings.json') -Raw | ConvertFrom-Json
-foreach ($name in @([Environment]::GetEnvironmentVariables('Process').Keys)) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
-foreach ($property in $settings.environment.PSObject.Properties) { [Environment]::SetEnvironmentVariable($property.Name, $property.Value, 'Process') }
-$token = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+if ($identity.User.Value -ne $settings.userSid) { throw 'Standard-user token does not match the allocated qualification account.' }
+$token = [Security.Principal.WindowsPrincipal]::new($identity)
 $admin = $token.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if ($admin) { throw 'Standard-user qualification unexpectedly received administrator rights.' }
-$env:APPDATA = [Environment]::GetFolderPath('ApplicationData')
-$env:LOCALAPPDATA = [Environment]::GetFolderPath('LocalApplicationData')
-$env:USERPROFILE = [Environment]::GetFolderPath('UserProfile')
-$env:HOME = $env:USERPROFILE
-$env:HOMEDRIVE = [IO.Path]::GetPathRoot($env:USERPROFILE).TrimEnd('\')
-$env:HOMEPATH = $env:USERPROFILE.Substring($env:HOMEDRIVE.Length)
+$profileDirectory = Get-DesktopStandardProfileDirectory -Sid $identity.User.Value
+foreach ($name in @([Environment]::GetEnvironmentVariables('Process').Keys)) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
+foreach ($property in $settings.environment.PSObject.Properties) { [Environment]::SetEnvironmentVariable($property.Name, $property.Value, 'Process') }
+Initialize-DesktopStandardKnownFolders -ProfileDirectory $profileDirectory
 $identityParts = [Security.Principal.WindowsIdentity]::GetCurrent().Name.Split('\')
 $env:USERDOMAIN = $identityParts[0]
 $env:USERNAME = $identityParts[-1]
 $env:COMPUTERNAME = [Environment]::MachineName
-if ([string]::IsNullOrWhiteSpace($env:APPDATA) -or [string]::IsNullOrWhiteSpace($env:USERPROFILE)) { throw 'Standard-user profile was not loaded.' }
 [ordered]@{ schema = 'open-dsh/windows-token/v1'; requested = 'standard'; administrator = $admin; identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot 'qualification-token.json') -Encoding utf8
 & $settings.node $settings.entry package windows-x64
 exit $LASTEXITCODE
