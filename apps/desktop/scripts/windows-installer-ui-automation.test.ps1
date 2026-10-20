@@ -15,19 +15,54 @@ public static class DesktopWizardFixtureButtonId {
   $form.Text = 'Synthetic NSIS modal regression'
   $button = [Windows.Forms.Button]::new()
   $button.Name = '1'
-  $button.Text = '&Install'
+  $button.Text = '&Next >'
   $button.Dock = [Windows.Forms.DockStyle]::Fill
+  $header = [Windows.Forms.Label]::new()
+  $header.Text = 'Choose install location'
+  $header.Height = 40
+  $header.Dock = [Windows.Forms.DockStyle]::Top
+  $script:fixtureStage = 'next'
   $button.Add_Click({
-    [void][Windows.Forms.MessageBox]::Show('Synthetic modal barrier', 'Synthetic NSIS modal', [Windows.Forms.MessageBoxButtons]::OK)
-    $form.Close()
+    if ($script:fixtureStage -eq 'next') {
+      $script:fixtureStage = 'install'
+      $header.Text = 'Command-line integration'
+      $button.Text = '&Install'
+      # Keep the first BM_CLICK pending while the same HWND advances to another page.
+      while ($script:fixtureStage -ne 'done' -and -not $form.IsDisposed) {
+        [Windows.Forms.Application]::DoEvents()
+        [Threading.Thread]::Sleep(10)
+      }
+    } elseif ($script:fixtureStage -eq 'install') {
+      $script:fixtureStage = 'modal'
+      [void][Windows.Forms.MessageBox]::Show('Synthetic modal barrier', 'Synthetic NSIS modal', [Windows.Forms.MessageBoxButtons]::OK)
+      $script:fixtureStage = 'done'
+      $form.Close()
+    }
   })
   $form.Controls.Add($button)
+  $form.Controls.Add($header)
   [void][DesktopWizardFixtureButtonId]::SetId($button.Handle, -12, [IntPtr]::new(1))
   if ([DesktopWizardFixtureButtonId]::GetDlgCtrlID($button.Handle) -ne 1) { throw 'Synthetic Install button did not expose the real NSIS native control id.' }
+  [void][DesktopWizardFixtureButtonId]::SetId($header.Handle, -12, [IntPtr]::new(1037))
+  if ([DesktopWizardFixtureButtonId]::GetDlgCtrlID($header.Handle) -ne 1037) { throw 'Synthetic wizard header did not expose its real native control id.' }
   try { [void]$form.ShowDialog() } finally { $form.Dispose() }
   exit 0
 }
 . (Join-Path $PSScriptRoot 'windows-installer-ui-automation.ps1')
+$pageDialog = [pscustomobject]@{ Id = 0; ClassName = '#32770'; Handle = [IntPtr]::new(20); Name = ''; ReadError = $null }
+$pageHeader = [pscustomobject]@{ Id = 1037; ClassName = 'Static'; Handle = [IntPtr]::new(21); Name = 'Choose install location'; ReadError = $null }
+$pageProgress = [pscustomobject]@{ Id = 1024; ClassName = 'Static'; Handle = [IntPtr]::new(22); Name = '1%'; ReadError = $null }
+$pageButton = [pscustomobject]@{ Id = 1; ClassName = 'Button'; Handle = [IntPtr]::new(23); Name = '&Next >'; ReadError = $null }
+$pageControls = @($pageDialog, $pageHeader, $pageProgress, $pageButton)
+$firstPage = Get-DesktopWizardPageIdentity ([IntPtr]::new(10)) $pageControls
+$pageProgress.Name = '99%'
+$pageButton.Name = '&Install'
+if ((Get-DesktopWizardPageIdentity ([IntPtr]::new(10)) $pageControls) -ne $firstPage) { throw 'Progress or button-label changes must not authorize another click on the same page.' }
+$pageHeader.Name = 'Command-line integration'
+if ((Get-DesktopWizardPageIdentity ([IntPtr]::new(10)) $pageControls) -eq $firstPage) { throw 'A newly observed wizard header must identify another page.' }
+$pageHeader.Name = 'Choose install location'
+$pageDialog.Handle = [IntPtr]::new(24)
+if ((Get-DesktopWizardPageIdentity ([IntPtr]::new(10)) $pageControls) -eq $firstPage) { throw 'A replacement visible child dialog must identify another page.' }
 # Compile the actual backend on every platform and exercise its pure classifier.
 # No Win32 API is called by these portable cases.
 $tokens = $null
@@ -84,11 +119,14 @@ if ($IsWindows) {
     $startEvent = @($events | Where-Object { $_.action -eq 'advance' -and $_.state -eq 'invoke-started' })
     $completeEvent = @($events | Where-Object { $_.action -eq 'advance' -and $_.state -eq 'invoke-completed' })
     $acknowledged = @($events | Where-Object { $_.action -eq 'acknowledge' -and $_.state -eq 'invoke-completed' })
-    if ($startEvent.Count -ne 1 -or $completeEvent.Count -ne 1 -or $acknowledged.Count -ne 1) {
-      throw 'Native modal fixture must observe and settle both Install and modal OK invocations.'
+    if ($startEvent.Count -ne 2 -or $completeEvent.Count -ne 2 -or $acknowledged.Count -ne 1) {
+      throw 'Native modal fixture must observe and settle Next, reused-HWND Install, and modal OK invocations.'
     }
+    if ($startEvent[0].handle -ne $startEvent[1].handle -or $startEvent[0].pageIdentity -eq $startEvent[1].pageIdentity) { throw 'Native fixture did not exercise a reused button HWND on a newly observed wizard page.' }
+    $nextCompletion = @($events | Where-Object { $_.label -eq '&Next >' -and $_.state -eq 'invoke-completed' })
+    if ($nextCompletion.Count -ne 1 -or [DateTime]::Parse($nextCompletion[0].timeUtc) -lt [DateTime]::Parse($startEvent[1].timeUtc)) { throw 'Next did not remain pending until after the reused Install button was invoked.' }
     if (@($events | Where-Object { $_.state -eq 'invoke-unsettled' }).Count -ne 0) { throw 'Native modal fixture left an invocation running.' }
-    Write-Host 'Synthetic native modal was observed and acknowledged while Install invocation ran; both workers settled.'
+    Write-Host 'Synthetic nested wizard and modal completed; all three button workers settled.'
   } catch {
     # This fixture contains only synthetic labels; retain bounded observations
     # before its private directory is removed, including on preflight failure.

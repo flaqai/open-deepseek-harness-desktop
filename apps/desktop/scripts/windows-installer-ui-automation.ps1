@@ -10,6 +10,15 @@ function Get-DesktopWizardAction {
   return $null
 }
 
+function Get-DesktopWizardPageIdentity {
+  param([IntPtr] $WindowHandle, [object[]] $Controls)
+  # NSIS reuses the Next HWND while replacing the visible child dialog and header.
+  # Progress text, byte counts, checkbox state and arbitrary captions are not a new page.
+  $pages = @($Controls | Where-Object { $_.Id -eq 0 -and $_.ClassName -eq '#32770' -and $null -eq $_.ReadError } | ForEach-Object { $_.Handle.ToInt64() })
+  $headers = @($Controls | Where-Object { $_.Id -eq 1037 -and $null -eq $_.ReadError } | ForEach-Object { $_.Name })
+  return ([ordered]@{ window = $WindowHandle.ToInt64(); pages = $pages; headers = $headers } | ConvertTo-Json -Depth 3 -Compress)
+}
+
 function Initialize-DesktopWizardAutomation {
   if (-not $IsWindows) { throw 'NSIS wizard automation requires native Windows.' }
   if (-not ('DesktopWizardWin32' -as [type])) {
@@ -178,7 +187,7 @@ function Invoke-DesktopWizardAutomationCore {
       if (-not $invocation.Worker.Completed -and -not $RequireSettled) { continue }
       if (-not $invocation.Worker.Join(5000)) { throw 'Native button worker remains blocked; GUI outcome unknown.' }
       $invocation.Settled = $true
-      Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $invocation.Action; state = 'invoke-completed'; label = $invocation.Label; error = $invocation.Worker.Error })
+      Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $invocation.Action; state = 'invoke-completed'; label = $invocation.Label; handle = $invocation.Handle.ToInt64(); pageIdentity = $invocation.PageIdentity; error = $invocation.Worker.Error })
       if ($null -ne $invocation.Worker.Error) { throw "Native button activation failed: $($invocation.Worker.Error)" }
       if ($invocation.Action -eq 'advance') { $observation.Advances++ }
     }
@@ -194,24 +203,25 @@ function Invoke-DesktopWizardAutomationCore {
           continue
         }
         $controls = [DesktopWizardWin32]::Controls($windowHandle, $Process.Id)
+        $pageIdentity = Get-DesktopWizardPageIdentity -WindowHandle $windowHandle -Controls $controls
         $snapshot = @($controls | ForEach-Object { [ordered]@{ name = $_.Name; id = $_.Id; type = $_.ControlType; className = $_.ClassName; enabled = $_.Enabled; handle = $_.Handle.ToInt64(); readError = $_.ReadError; checked = $_.Checked } })
         $state = $snapshot | ConvertTo-Json -Depth 4 -Compress
         $key = $windowHandle.ToInt64().ToString()
         if ($observation.States[$key] -eq $state) { continue }
         if ($records.Count -ge 4096) { throw 'Native GUI observation exceeded its bounded evidence budget.' }
         $observation.States[$key] = $state; $observation.Windows++
-        Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; windowProcessId = $window.ProcessId; windowHandle = $windowHandle.ToInt64(); window = $window.Name; windowReadError = $window.ReadError; state = 'observed'; controls = $snapshot })
+        Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; windowProcessId = $window.ProcessId; windowHandle = $windowHandle.ToInt64(); window = $window.Name; windowReadError = $window.ReadError; pageIdentity = $pageIdentity; state = 'observed'; controls = $snapshot })
         # Clear the launch option before activating Finish, regardless of native child order.
         foreach ($control in @($controls | Sort-Object { if ($_.ControlType -eq 'CheckBox') { 0 } else { 1 } })) {
           if ($null -ne $control.ReadError) { continue }
           $action = Get-DesktopWizardAction -Name $control.Name -AutomationId $control.Id.ToString() -Enabled $control.Enabled -ControlType $control.ControlType
           if ($null -eq $action -or ($action -eq 'clear-launch' -and $control.Checked -ne 1)) { continue }
-          if (@($pending | Where-Object { -not $_.Settled -and $_.Handle -eq $control.Handle }).Count -ne 0) { continue }
+          if (@($pending | Where-Object { $_.Handle -eq $control.Handle -and $_.PageIdentity -eq $pageIdentity }).Count -ne 0) { continue }
           if (@($pending | Where-Object { -not $_.Settled }).Count -ge 16) { throw 'Native GUI exceeded its pending invocation budget.' }
-          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $action; state = 'invoke-started'; label = $control.Name; id = $control.Id; handle = $control.Handle.ToInt64() })
+          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $action; state = 'invoke-started'; label = $control.Name; id = $control.Id; handle = $control.Handle.ToInt64(); pageIdentity = $pageIdentity })
           $remaining = [uint32][Math]::Max(1, [Math]::Ceiling(($deadline - (Get-Date)).TotalMilliseconds))
           $worker = [DesktopWizardInvokeWorker]::new($control, $remaining)
-          $pending.Add([pscustomobject]@{ Worker = $worker; Action = $action; Label = $control.Name; Handle = $control.Handle; Settled = $false })
+          $pending.Add([pscustomobject]@{ Worker = $worker; Action = $action; Label = $control.Name; Handle = $control.Handle; PageIdentity = $pageIdentity; Settled = $false })
           break
         }
       }
@@ -223,7 +233,7 @@ function Invoke-DesktopWizardAutomationCore {
     return $Process.ExitCode
   } finally {
     foreach ($invocation in $pending) {
-      if (-not $invocation.Settled) { Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $invocation.Action; state = 'invoke-unsettled'; label = $invocation.Label }) }
+      if (-not $invocation.Settled) { Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $invocation.Action; state = 'invoke-unsettled'; label = $invocation.Label; handle = $invocation.Handle.ToInt64(); pageIdentity = $invocation.PageIdentity }) }
     }
     [ordered]@{ schema = 'open-dsh/nsis-gui-observation/v1'; backend = 'win32'; pid = $Process.Id; observedWindows = $observation.Windows; advances = $observation.Advances; records = @($records.ToArray()) } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $log -Encoding utf8
   }
