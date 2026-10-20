@@ -94,6 +94,42 @@ function Assert-DesktopUpgradeFailurePreservedState {
   }
 }
 
+function Get-DesktopUpgradeDiagnosticDirectories {
+  param([string] $Root)
+  return @(Get-ChildItem -LiteralPath $Root -Directory -Filter '*.dsh-install' -ErrorAction Stop | ForEach-Object { $_.FullName })
+}
+
+function Assert-DesktopAtomicCleanupBudget {
+  param([string] $Root, [string[]] $PreviousDirectories, [string] $InstallDirectory, [string] $EvidenceRoot)
+  $newDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $Root | Where-Object { $PreviousDirectories -notcontains $_ })
+  $logs = @($newDirectories | ForEach-Object {
+    $directory = Get-Item -LiteralPath $_ -Force -ErrorAction Stop
+    if (($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Atomic cleanup retry evidence traverses a reparse point.' }
+    $log = Join-Path $directory.FullName 'upgrade.jsonl'
+    if (Test-Path -LiteralPath $log) { Get-Item -LiteralPath $log -Force -ErrorAction Stop }
+  })
+  if ($logs.Count -ne 1 -or $logs[0].PSIsContainer -or $logs[0].Length -gt 131072 -or
+      ($logs[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+    throw 'Atomic cleanup retry evidence must contain exactly one bounded new upgrade log.'
+  }
+  Copy-Item -LiteralPath $logs[0].FullName -Destination (Join-Path $EvidenceRoot 'persistent-lock-upgrade.jsonl') -ErrorAction Stop
+  $records = @(Get-Content -LiteralPath $logs[0].FullName -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_ | ConvertFrom-Json })
+  $starts = @($records | Where-Object { $_.stage -eq 'uninstall-start' })
+  $results = @($records | Where-Object { $_.stage -eq 'uninstall-result' })
+  $failures = @($records | Where-Object { $_.stage -eq 'uninstall-failed' })
+  if ($starts.Count -ne 1 -or -not [string]::Equals([IO.Path]::GetFullPath($starts[0].installDirectory), [IO.Path]::GetFullPath($InstallDirectory), [StringComparison]::OrdinalIgnoreCase) -or
+      $results.Count -ne 12 -or $failures.Count -ne 1 -or $records[-1].stage -ne 'uninstall-failed' -or
+      $failures[0].attempt -ne 12 -or $failures[0].exitCode -ne 2 -or
+      @($records | Where-Object { $_.stage -in @('uninstall-invalid-state', 'uninstall-launch-failed', 'uninstall-complete') }).Count -ne 0) {
+    throw 'Atomic cleanup retry evidence did not verify this old installation exhausted twelve exit-2 attempts.'
+  }
+  for ($attempt = 1; $attempt -le 12; $attempt++) {
+    if ($results[$attempt - 1].attempt -ne $attempt -or $results[$attempt - 1].exitCode -ne 2) {
+      throw 'Atomic cleanup retry evidence has an unexpected attempt sequence or exit code.'
+    }
+  }
+}
+
 function Start-DesktopUpgradeLock {
   param([string] $Executable, [string] $Directory, [int] $Seconds = 20, [switch] $Persistent)
   $fixture = [System.Diagnostics.ProcessStartInfo]::new()
@@ -200,6 +236,7 @@ function Initialize-DesktopPreviousReleaseQualification {
   [System.IO.File]::WriteAllText($sentinel, $sentinelText)
   $lockDirectory = Join-Path $EvidenceRoot 'persistent-lock'
   New-Item -ItemType Directory -Path $lockDirectory -ErrorAction Stop | Out-Null
+  $previousDiagnosticDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $env:TEMP)
   $locker = Start-DesktopUpgradeLock -Executable $oldExecutable -Directory $lockDirectory -Persistent -Seconds 1800
   try {
     $candidateExit = Invoke-DesktopQualificationInstaller -Start $CandidateStart
@@ -216,9 +253,13 @@ function Initialize-DesktopPreviousReleaseQualification {
     persistentLockExitCode = $candidateExit
     previousStatePreserved = $null
     previousNativeEntryVerified = $false
+    oldUninstallBudgetVerified = $false
     interactive = $CandidateStart.ArgumentList -notcontains '/S'
     guiObservation = 'not-verified'
   }
+  $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
+  Assert-DesktopAtomicCleanupBudget -Root $env:TEMP -PreviousDirectories $previousDiagnosticDirectories -InstallDirectory $Directory -EvidenceRoot $EvidenceRoot
+  $evidence.oldUninstallBudgetVerified = $true
   $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
   $after = Get-DesktopUpgradeState -Directory $Directory
   Assert-DesktopUpgradeFailurePreservedState -ExitCode $candidateExit -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText

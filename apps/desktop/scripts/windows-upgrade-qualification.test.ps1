@@ -67,6 +67,40 @@ try {
   foreach ($unrelatedExit in @(1, 3, 20, 1223, -1)) {
     Assert-UpgradeRejects { Assert-DesktopUpgradeFailurePreservedState -ExitCode $unrelatedExit -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText } 'must reach atomic cleanup failure exit 2'
   }
+  $diagnosticRoot = Join-Path $testRoot 'diagnostics'
+  New-Item -ItemType Directory -Path $diagnosticRoot -ErrorAction Stop | Out-Null
+  $oldDiagnostic = Join-Path $diagnosticRoot 'old.dsh-install'
+  New-Item -ItemType Directory -Path $oldDiagnostic -ErrorAction Stop | Out-Null
+  $previousDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $diagnosticRoot)
+  $currentDiagnostic = Join-Path $diagnosticRoot 'current.dsh-install'
+  New-Item -ItemType Directory -Path $currentDiagnostic -ErrorAction Stop | Out-Null
+  $records = @(@{ stage = 'uninstall-start'; installDirectory = $testRoot })
+  for ($attempt = 1; $attempt -le 12; $attempt++) { $records += @{ stage = 'uninstall-result'; attempt = $attempt; exitCode = 2 } }
+  $records += @{ stage = 'uninstall-failed'; attempt = 12; exitCode = 2 }
+  $log = Join-Path $currentDiagnostic 'upgrade.jsonl'
+  $serializeRecords = { param($Items) @($Items | ForEach-Object { $_ | ConvertTo-Json -Compress }) | Set-Content -LiteralPath $log -Encoding utf8 }
+  & $serializeRecords $records
+  Copy-Item -LiteralPath $log -Destination (Join-Path $oldDiagnostic 'upgrade.jsonl')
+  Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot
+  Assert-UpgradeTest ((Get-Content -LiteralPath (Join-Path $testRoot 'persistent-lock-upgrade.jsonl')).Count -eq 14) 'The exact verified retry log must remain available as evidence.'
+  $cases = @('wrong-root', 'wrong-exit', 'missing-attempt', 'wrong-order', 'wrong-final', 'launch-error')
+  foreach ($case in $cases) {
+    $changed = $records | ConvertTo-Json -Depth 5 | ConvertFrom-Json
+    switch ($case) {
+      'wrong-root' { $changed[0].installDirectory = $oldDiagnostic }
+      'wrong-exit' { $changed[6].exitCode = 3 }
+      'missing-attempt' { $changed = @($changed[0..11]) + @($changed[-1]) }
+      'wrong-order' { $changed[2].attempt = 1 }
+      'wrong-final' { $changed[-1].exitCode = 3 }
+      'launch-error' { $changed += [pscustomobject]@{ stage = 'uninstall-launch-failed'; attempt = 12 } }
+    }
+    & $serializeRecords $changed
+    Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'Atomic cleanup retry evidence'
+  }
+  & $serializeRecords $records
+  Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories @() -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'exactly one'
+  Remove-Item -LiteralPath $log -ErrorAction Stop
+  Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'exactly one'
   foreach ($field in @('executable', 'uninstaller')) {
     $after = & $copyState
     $after.$field = 'candidate-file'
