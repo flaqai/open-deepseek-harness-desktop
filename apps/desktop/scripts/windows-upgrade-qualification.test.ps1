@@ -17,6 +17,56 @@ function Assert-UpgradeRejects([scriptblock] $Action, [string] $Expected) {
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "dsh-upgrade-behavior-$([Guid]::NewGuid())"
 New-Item -ItemType Directory -Path $testRoot -ErrorAction Stop | Out-Null
 try {
+  if ($IsWindows) {
+    # Real Windows sharing semantics, using the exact fault injector exercised
+    # by installed qualification. POSIX rename behavior cannot prove this test.
+    $nativeLockRoot = Join-Path $testRoot 'native-sharing'
+    New-Item -ItemType Directory -Path $nativeLockRoot -ErrorAction Stop | Out-Null
+    $nativeSource = Join-Path $nativeLockRoot 'source.bin'
+    $nativeDestination = Join-Path $nativeLockRoot 'renamed.bin'
+    $nativeReady = Join-Path $nativeLockRoot 'ready'
+    $nativeRelease = Join-Path $nativeLockRoot 'release'
+    [IO.File]::WriteAllBytes($nativeSource, [byte[]]@(0, 1, 127, 255))
+    $nativeHash = (Get-FileHash -LiteralPath $nativeSource -Algorithm SHA256).Hash
+    $reader = [IO.File]::Open($nativeSource, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete)
+    $nativeLocker = $null
+    try {
+      $nativeStart = [Diagnostics.ProcessStartInfo]::new()
+      $nativeStart.FileName = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+      $nativeStart.UseShellExecute = $false
+      foreach ($argument in @('-NoLogo', '-NoProfile', '-NonInteractive', '-File', (Join-Path $PSScriptRoot 'hold-file-lock.ps1'),
+        '-Path', $nativeSource, '-ReadyPath', $nativeReady, '-ReleasePath', $nativeRelease, '-Seconds', '30')) { $nativeStart.ArgumentList.Add($argument) }
+      $nativeLocker = [Diagnostics.Process]::Start($nativeStart)
+      $nativeDeadline = [DateTime]::UtcNow.AddSeconds(10)
+      while (-not [IO.File]::Exists($nativeReady) -and [DateTime]::UtcNow -lt $nativeDeadline -and -not $nativeLocker.HasExited) { Start-Sleep -Milliseconds 50 }
+      Assert-UpgradeTest ([IO.File]::Exists($nativeReady) -and -not $nativeLocker.HasExited) 'Deny-delete injector must acquire its handle alongside an existing reader.'
+      $additionalReader = [IO.File]::Open($nativeSource, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+      try { Assert-UpgradeTest ($additionalReader.ReadByte() -eq 0) 'Deny-delete injector must permit a new ordinary reader.' } finally { $additionalReader.Dispose() }
+      $sharingError = $null
+      try { [IO.File]::Move($nativeSource, $nativeDestination) } catch {
+        $nativeException = $_.Exception
+        while ($null -ne $nativeException.InnerException) { $nativeException = $nativeException.InnerException }
+        $sharingError = $nativeException.HResult -band 0xffff
+      }
+      Assert-UpgradeTest ($sharingError -in @(32, 33)) 'Held native rename must fail with a sharing/lock violation, not an unrelated error.'
+      Assert-UpgradeTest ([IO.File]::Exists($nativeSource) -and -not [IO.File]::Exists($nativeDestination) -and (Get-FileHash -LiteralPath $nativeSource -Algorithm SHA256).Hash -eq $nativeHash) 'Rejected native rename must preserve source bytes and leave no destination.'
+      [IO.File]::WriteAllText($nativeRelease, 'release')
+      Assert-UpgradeTest ($nativeLocker.WaitForExit(10000) -and $nativeLocker.ExitCode -eq 0) 'Native injector must release normally before the second rename.'
+      $reader.Dispose(); $reader = $null
+      [IO.File]::Move($nativeSource, $nativeDestination)
+      Assert-UpgradeTest (-not [IO.File]::Exists($nativeSource) -and (Get-FileHash -LiteralPath $nativeDestination -Algorithm SHA256).Hash -eq $nativeHash) 'Rename after normal injector release must succeed without changing bytes.'
+      Write-Host 'Native Windows deny-delete sharing lifecycle passed.'
+    } finally {
+      if ($null -ne $reader) { $reader.Dispose() }
+      if ($null -ne $nativeLocker) {
+        if (-not $nativeLocker.HasExited) {
+          [IO.File]::WriteAllText($nativeRelease, 'release')
+          if (-not $nativeLocker.WaitForExit(10000)) { $nativeLocker.Kill($true); $nativeLocker.WaitForExit() }
+        }
+        $nativeLocker.Dispose()
+      }
+    }
+  } else { Write-Host 'Native Windows deny-delete sharing lifecycle not verified on this host.' }
   $sameFixture = Get-DesktopQualificationInstallDirectories -Root $testRoot
   $changedFixture = Get-DesktopQualificationInstallDirectories -Root $testRoot -ChangeDirectory
   Assert-UpgradeTest ($sameFixture.Candidate -eq $sameFixture.Previous -and $changedFixture.Candidate -ne $changedFixture.Previous) 'Same and changed upgrade fixtures must preserve their distinct directory semantics.'

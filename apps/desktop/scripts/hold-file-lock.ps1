@@ -18,7 +18,9 @@ $stream = [System.IO.File]::Open(
   $Path,
   [System.IO.FileMode]::Open,
   [System.IO.FileAccess]::Read,
-  [System.IO.FileShare]::None
+  # NSIS atomic replacement needs DELETE access for Rename. Permit ordinary
+  # readers (including image/scanner reads) while still denying write/delete.
+  [System.IO.FileShare]::Read
 )
 try {
   [System.IO.File]::WriteAllText($ReadyPath, 'ready')
