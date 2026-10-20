@@ -69,10 +69,10 @@ test('allows a committed smoke-only fix but rejects a changed packaging workflow
   run('git', ['commit', '-qm', 'fix smoke'], item.root)
   run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root)
 
-  for (const name of ['desktop-smoke', 'electron-package-probe', 'smoke-macos-package', 'smoke-windows-unpacked']) {
+  for (const name of ['desktop-smoke', 'download-windows-upgrade-baseline', 'electron-package-probe', 'smoke-macos-package', 'smoke-windows-unpacked']) {
     await writeFile(join(item.root, 'apps', 'desktop', 'scripts', `${name}.mjs`), 'export const qualificationOnly = true\n')
   }
-  for (const name of ['hold-file-lock', 'windows-upgrade-qualification']) {
+  for (const name of ['hold-file-lock', 'windows-upgrade-qualification', 'windows-qualification-host', 'windows-installer-ui-automation']) {
     await writeFile(join(item.root, 'apps', 'desktop', 'scripts', `${name}.ps1`), 'Write-Host qualification-only\n')
   }
   run('git', ['add', '.'], item.root)

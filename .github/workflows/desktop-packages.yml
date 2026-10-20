@@ -89,6 +89,7 @@ jobs:
           apps/desktop/scripts/runtime-file-policy.test.mjs
           apps/desktop/scripts/workspace-runtime-packaging.test.mjs
           apps/desktop/scripts/desktop-packaging-workflow.test.mjs
+          apps/desktop/scripts/download-windows-upgrade-baseline.test.mjs
           apps/desktop/scripts/report-package-sizes.test.mjs
 
       - name: Verify reused bundled plugin snapshot commit
@@ -317,7 +318,7 @@ jobs:
           retention-days: 3
 
   windows-smoke:
-    name: Smoke Windows x64 candidate
+    name: Smoke Windows x64 candidate (${{ matrix.scenario }})
     needs: [bundled-plugins, windows-preflight, windows]
     if: >-
       ${{ always() && needs.bundled-plugins.result == 'success' && needs.windows-preflight.result == 'success' && (inputs.target == 'all' || inputs.target == 'windows-x64') && (
@@ -325,6 +326,45 @@ jobs:
         inputs.windows_candidate_run_id != ''
       ) }}
     runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scenario: fresh
+            privilege: standard
+            mode: currentuser
+            change_directory: '0'
+            interactive: '0'
+          - scenario: alpha2-currentuser-same
+            privilege: standard
+            mode: currentuser
+            change_directory: '0'
+            interactive: '0'
+          - scenario: alpha2-currentuser-changed
+            privilege: standard
+            mode: currentuser
+            change_directory: '1'
+            interactive: '0'
+          - scenario: alpha2-allusers-same
+            privilege: administrator
+            mode: allusers
+            change_directory: '0'
+            interactive: '0'
+          - scenario: alpha2-allusers-changed
+            privilege: administrator
+            mode: allusers
+            change_directory: '1'
+            interactive: '0'
+          - scenario: alpha2-currentuser-interactive
+            privilege: standard
+            mode: currentuser
+            change_directory: '0'
+            interactive: '1'
+          - scenario: alpha2-allusers-interactive
+            privilege: administrator
+            mode: allusers
+            change_directory: '0'
+            interactive: '1'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -347,24 +387,40 @@ jobs:
           run-id: ${{ inputs.windows_candidate_run_id || github.run_id }}
           github-token: ${{ github.token }}
 
+      - name: Download and verify public alpha.2 upgrade baseline
+        if: ${{ matrix.scenario != 'fresh' }}
+        run: |
+          $baselineDirectory = Join-Path $env:RUNNER_TEMP ([Guid]::NewGuid().ToString())
+          $baselineInstaller = Join-Path $baselineDirectory 'alpha2-windows-x64.exe'
+          node apps/desktop/scripts/download-windows-upgrade-baseline.mjs $baselineInstaller
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "DSH_WINDOWS_PREVIOUS_INSTALLER=$baselineInstaller" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Smoke test installed Windows package
-        run: node apps/desktop/scripts/desktop-smoke.mjs package windows-x64
+        env:
+          DSH_WINDOWS_INSTALLATION_MODE: ${{ matrix.mode }}
+          DSH_WINDOWS_CHANGE_DIRECTORY: ${{ matrix.change_directory }}
+          DSH_WINDOWS_INTERACTIVE: ${{ matrix.interactive }}
+          DSH_WINDOWS_GUI_AUTOMATION: ${{ matrix.interactive }}
+        run: pwsh -NoLogo -NoProfile -NonInteractive -File apps/desktop/scripts/windows-qualification-host.ps1 -Privilege ${{ matrix.privilege }}
 
       - name: Preserve Windows smoke evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: qualification-windows-x64-evidence
+          name: ${{ matrix.scenario == 'fresh' && 'qualification-windows-x64-evidence' || format('qualification-windows-x64-evidence-{0}', matrix.scenario) }}
           path: .artifacts/windows-smoke-evidence
           if-no-files-found: warn
           retention-days: 3
 
       - name: Record qualified Windows installer size
+        if: ${{ matrix.scenario == 'fresh' }}
         run: >-
           node apps/desktop/scripts/report-package-sizes.mjs
           .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe
 
       - name: Publish qualified Windows artifact
+        if: ${{ matrix.scenario == 'fresh' }}
         uses: actions/upload-artifact@v4
         with:
           name: desktop-windows-x64

@@ -44,6 +44,8 @@ export function createSmokePlan(request, repositoryRoot = REPOSITORY_ROOT, node 
     if (target === 'windows-x64') {
       steps.push(step('windows-journal-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-smoke-journal.test.ps1')]))
       steps.push(step('windows-upgrade-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-upgrade-qualification.test.ps1')]))
+      steps.push(step('windows-gui-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-installer-ui-automation.test.ps1')]))
+      steps.push(step('windows-host-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-qualification-host.test.ps1')]))
       steps.push(step('windows-installer-behavior', node, [join(repositoryRoot, 'node_modules/vitest/vitest.mjs'), 'run',
         ...['windows-installer-upgrade.spec.ts', 'windows-installer-extract.spec.ts', 'windows-installer-payload.spec.ts',
           'windows-installer-process-guard-behavior.spec.ts', 'windows-installer-process-guard.spec.ts']

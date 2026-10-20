@@ -13,7 +13,7 @@ const QUALIFICATION_ONLY = [
   /^\.github\//u,
   /(?:^|\/)tests?\//u,
   /(?:^|\/)[^/]+\.(?:spec|test)\.[^/]+$/u,
-  /^apps\/desktop\/scripts\/(?:collect-windows-smoke-evidence|desktop-smoke|electron-package-probe|hold-file-lock|smoke-macos-package|smoke-windows-package|smoke-windows-unpacked|windows-smoke-journal|windows-upgrade-qualification|windows-installer-compile-check)\./u,
+  /^apps\/desktop\/scripts\/(?:collect-windows-smoke-evidence|desktop-smoke|download-windows-upgrade-baseline|electron-package-probe|hold-file-lock|smoke-macos-package|smoke-windows-package|smoke-windows-unpacked|windows-smoke-journal|windows-upgrade-qualification|windows-installer-compile-check|windows-qualification-host|windows-installer-ui-automation)\./u,
   /^(?:CONTEXT|AGENTS|README)(?:\.[^/]+)?$/u,
 ]
 

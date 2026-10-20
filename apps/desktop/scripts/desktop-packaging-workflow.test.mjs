@@ -63,7 +63,34 @@ test('Windows candidate reuse reruns fast preflight and strict installed smoke w
   assert.match(smoke.if, /needs\.windows-preflight\.result == 'success'/u)
   assert.equal(smoke.steps.find(step => step.uses === 'actions/checkout@v6')?.with?.['fetch-depth'], "${{ inputs.windows_candidate_run_id != '' && '0' || '1' }}")
   assert.equal(smoke.steps.find(step => step.name === 'Smoke test installed Windows package')?.run,
-    'node apps/desktop/scripts/desktop-smoke.mjs package windows-x64')
+    'pwsh -NoLogo -NoProfile -NonInteractive -File apps/desktop/scripts/windows-qualification-host.ps1 -Privilege ${{ matrix.privilege }}')
+})
+
+test('Windows qualification requires both fresh installation and verified public alpha.2 upgrade', async () => {
+  const workflow = parse(await readFile(resolve(root, '.github/workflows/desktop-packages.yml'), 'utf8'))
+  const smoke = workflow.jobs['windows-smoke']
+  assert.deepEqual(smoke.strategy.matrix.include.map(entry => entry.scenario), [
+    'fresh', 'alpha2-currentuser-same', 'alpha2-currentuser-changed', 'alpha2-allusers-same',
+    'alpha2-allusers-changed', 'alpha2-currentuser-interactive', 'alpha2-allusers-interactive',
+  ])
+  for (const entry of smoke.strategy.matrix.include) {
+    assert.equal(entry.privilege, entry.mode === 'allusers' ? 'administrator' : 'standard')
+    assert.equal(entry.change_directory, entry.scenario.endsWith('-changed') ? '1' : '0')
+    assert.equal(entry.interactive, entry.scenario.endsWith('-interactive') ? '1' : '0')
+  }
+  assert.equal(smoke.strategy['fail-fast'], false)
+  const baseline = smoke.steps.findIndex(step => step.name === 'Download and verify public alpha.2 upgrade baseline')
+  const installed = smoke.steps.findIndex(step => step.name === 'Smoke test installed Windows package')
+  assert.ok(baseline >= 0 && baseline < installed)
+  assert.equal(smoke.steps[baseline].if, "${{ matrix.scenario != 'fresh' }}")
+  assert.match(smoke.steps[baseline].run, /download-windows-upgrade-baseline\.mjs/u)
+  assert.match(smoke.steps[baseline].run, /DSH_WINDOWS_PREVIOUS_INSTALLER=/u)
+  assert.ok(workflow.jobs.checksums.needs.includes('windows-smoke'))
+  assert.match(workflow.jobs.checksums.if, /needs\.windows-smoke\.result == 'success'/u)
+  assert.equal(smoke.steps.find(step => step.name === 'Publish qualified Windows artifact').if, "${{ matrix.scenario == 'fresh' }}")
+  assert.equal(smoke.steps[installed].env.DSH_WINDOWS_GUI_AUTOMATION, '${{ matrix.interactive }}')
+  const preparation = workflow.jobs['bundled-plugins'].steps.find(step => step.name === 'Verify desktop runtime file selection')
+  assert.match(preparation.run, /download-windows-upgrade-baseline\.test\.mjs/u)
 })
 
 test('workflow routes native smoke stages through one runner without repeating evidence tests', async () => {

@@ -1,10 +1,10 @@
 [CmdletBinding()]
 param(
-  [string] $PreviousInstaller = '',
+  [string] $PreviousInstaller = $env:DSH_WINDOWS_PREVIOUS_INSTALLER,
   [string] $PreviousVersion = '0.2.1-alpha.2',
-  [ValidateSet('currentuser', 'allusers')] [string] $InstallationMode = 'currentuser',
-  [switch] $ChangeUpgradeDirectory,
-  [switch] $InteractiveUpgrade
+  [ValidateSet('currentuser', 'allusers')] [string] $InstallationMode = $(if ($env:DSH_WINDOWS_INSTALLATION_MODE) { $env:DSH_WINDOWS_INSTALLATION_MODE } else { 'currentuser' }),
+  [switch] $ChangeUpgradeDirectory = ($env:DSH_WINDOWS_CHANGE_DIRECTORY -eq '1'),
+  [switch] $InteractiveUpgrade = ($env:DSH_WINDOWS_INTERACTIVE -eq '1')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -73,6 +73,10 @@ $installStart.ArgumentList.Add("/$InstallationMode")
 $installStart.ArgumentList.Add('/ADDCLI=1')
 $installStart.ArgumentList.Add("/D=$installRoot")
 $install = [System.Diagnostics.Process]::Start($installStart)
+if ($InteractiveUpgrade -and $env:DSH_WINDOWS_GUI_AUTOMATION -eq '1') {
+  . (Join-Path $PSScriptRoot 'windows-installer-ui-automation.ps1')
+  $null = Invoke-DesktopWizardAutomation -Process $install -EvidenceDirectory $env:RUNNER_TEMP
+}
 $installDeadline = (Get-Date).AddMinutes(15)
 $nextInstallProgress = (Get-Date).AddSeconds(30)
 while (-not $install.HasExited -and (Get-Date) -lt $installDeadline) {
@@ -116,7 +120,7 @@ if ($null -ne $previousQualification) {
   if ($ChangeUpgradeDirectory -and (Test-Path -LiteralPath (Join-Path $previousRoot 'Open DeepSeek Harness Desktop.exe'))) {
     throw 'Changed-directory upgrade retained an executable in the old installation.'
   }
-  if ($InteractiveUpgrade) {
+  if ($InteractiveUpgrade -and $env:DSH_WINDOWS_GUI_AUTOMATION -ne '1') {
     if ((Read-Host 'Confirm that both candidate installers displayed their wizard, persistent-lock failure was actionable, and the second upgrade succeeded. Type observed') -ne 'observed') {
       throw 'Interactive upgrade requires a human GUI observation; automatic process exit is not GUI acceptance.'
     }
@@ -291,12 +295,8 @@ try {
   }
   if (-not (Test-Path -LiteralPath $lockReady)) { throw 'Upgrade lock fixture did not acquire the installed executable' }
 
-  $upgrade = [System.Diagnostics.Process]::Start($installStart)
-  if (-not $upgrade.WaitForExit(900000)) {
-    $upgrade.Kill($true)
-    throw 'Same-directory Windows upgrade did not exit within 15 minutes'
-  }
-  if ($upgrade.ExitCode -ne 0) { throw "Same-directory Windows upgrade exited with $($upgrade.ExitCode)" }
+  $upgradeExit = Invoke-DesktopQualificationInstaller -Start $installStart
+  if ($upgradeExit -ne 0) { throw "Same-directory Windows upgrade exited with $upgradeExit" }
   if (-not $fileLocker.WaitForExit(30000)) {
     $fileLocker.Kill($true)
     throw 'Upgrade lock fixture did not release the installed executable'
@@ -480,7 +480,9 @@ if ($null -ne $previousQualification) {
   $historicalEvidence | Add-Member -NotePropertyName candidateVersion -NotePropertyValue $candidateVersion
   $historicalEvidence | Add-Member -NotePropertyName candidateInstallerSha256 -NotePropertyValue (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
   $historicalEvidence | Add-Member -NotePropertyName qualification -NotePropertyValue 'passed'
-  if ($InteractiveUpgrade) { $historicalEvidence.guiObservation = 'human-confirmed' }
+  if ($InteractiveUpgrade) {
+    $historicalEvidence.guiObservation = if ($env:DSH_WINDOWS_GUI_AUTOMATION -eq '1') { 'native-uia-observed' } else { 'human-confirmed' }
+  }
   $historicalEvidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $historicalEvidencePath -Encoding utf8
   Remove-Item -LiteralPath $previousQualification.Sentinel -ErrorAction Stop
   $ownedUserData = Split-Path -Parent $previousQualification.Sentinel

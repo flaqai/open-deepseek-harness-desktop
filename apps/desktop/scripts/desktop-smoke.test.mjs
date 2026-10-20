@@ -38,7 +38,17 @@ test('contracts preserve each platform check and add both shared runner checks',
   const upgrade = createSmokePlan({ stage: 'contracts', target: 'windows-x64' }).steps[2]
   assert.equal(upgrade.command, 'pwsh')
   assert.equal(upgrade.args.at(-1), join(import.meta.dirname, 'windows-upgrade-qualification.test.ps1'))
-  const behavior = createSmokePlan({ stage: 'contracts', target: 'windows-x64' }).steps[3]
+  const windowsSteps = createSmokePlan({ stage: 'contracts', target: 'windows-x64' }).steps
+  for (const [id, name] of [
+    ['windows-gui-contract', 'windows-installer-ui-automation.test.ps1'],
+    ['windows-host-contract', 'windows-qualification-host.test.ps1'],
+  ]) {
+    const step = windowsSteps.find(item => item.id === id)
+    assert.equal(step.command, 'pwsh')
+    assert.equal(step.args.at(-1), join(import.meta.dirname, name))
+    assert.ok(windowsSteps.indexOf(step) < windowsSteps.findIndex(item => item.id === 'windows-installer-behavior'))
+  }
+  const behavior = windowsSteps.find(item => item.id === 'windows-installer-behavior')
   assert.equal(behavior.command, process.execPath)
   assert.equal(behavior.args[1], 'run')
   assert.ok(behavior.args.some(arg => arg.endsWith('windows-installer-extract.spec.ts')))

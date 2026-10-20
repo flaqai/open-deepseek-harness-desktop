@@ -44,6 +44,10 @@ function New-DesktopQualificationInstallerStart {
 function Invoke-DesktopQualificationInstaller {
   param([System.Diagnostics.ProcessStartInfo] $Start)
   $installerProcess = [System.Diagnostics.Process]::Start($Start)
+  if ($env:DSH_WINDOWS_GUI_AUTOMATION -eq '1' -and $Start.ArgumentList -notcontains '/S') {
+    . (Join-Path $PSScriptRoot 'windows-installer-ui-automation.ps1')
+    return Invoke-DesktopWizardAutomation -Process $installerProcess -EvidenceDirectory $env:RUNNER_TEMP
+  }
   if (-not $installerProcess.WaitForExit(900000)) {
     # Do not interrupt the old uninstaller's atomic recovery.
     throw "Qualification installer PID $($installerProcess.Id) is still running after 15 minutes; outcome is unknown. Do not reuse this host until it settles."
