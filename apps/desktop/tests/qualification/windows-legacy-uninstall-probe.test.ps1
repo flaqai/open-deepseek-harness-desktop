@@ -40,6 +40,15 @@ try {
   function Get-DesktopUpgradeRegistrations { return $script:legacyRegistration }
   $identity = Get-LegacyOwnedState -Directory $installation
   if ($identity.registration.Count -ne 1 -or $identity.registration[0].version -ne '0.2.1-alpha.2' -or -not $identity.registration[0].directoryMatches -or -not $identity.registration[0].uninstallerMatches -or $null -eq $identity.executableSha256 -or $null -eq $identity.uninstallerSha256) { throw 'Installed identity projection discarded expected registry facts or executable hashes.' }
+  $script:legacyRegistration.directory = $null
+  $withoutLocation = Get-LegacyOwnedState -Directory $installation
+  if (-not $withoutLocation.registration[0].directoryMatches -or -not $withoutLocation.registration[0].uninstallerMatches -or $withoutLocation.registration[0].directorySource -ne 'uninstall-string-parent' -or $withoutLocation.registration[0].mode -ne '/allusers') { throw 'Real electron-builder uninstall keys omit InstallLocation; the exact quoted uninstaller parent must identify the known root.' }
+  $script:legacyRegistration.uninstaller = '"' + (Join-Path $testRoot 'Uninstall Open DeepSeek Harness Desktop.exe') + '" /allusers'
+  $wrongParent = Get-LegacyOwnedState -Directory $installation
+  if ($wrongParent.registration[0].directoryMatches -or $wrongParent.registration[0].uninstallerMatches) { throw 'A registered uninstaller outside the expected installation was accepted.' }
+  $script:legacyRegistration.uninstaller = $syntheticUninstaller + ' /allusers'
+  $unquoted = Get-LegacyOwnedState -Directory $installation
+  if ($unquoted.registration[0].directoryMatches -or $unquoted.registration[0].uninstallerMatches) { throw 'Malformed unquoted registration was accepted.' }
   $privateError = [IO.IOException]::new('private-path-and-command-must-not-be-recorded')
   $errorFacts = Get-LegacyProbeErrorFacts -Exception ([Exception]::new('private-wrapper', $privateError))
   if ($errorFacts.kind -ne 'io' -or $errorFacts.exceptionType -ne 'IOException' -or ($errorFacts | ConvertTo-Json).Contains('private-')) { throw 'Failure projection must preserve closed error kind and HRESULT without arbitrary messages.' }

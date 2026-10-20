@@ -65,7 +65,19 @@ function Get-LegacyOwnedState {
   $app = Join-Path $Directory 'Open DeepSeek Harness Desktop.exe'
   $uninstaller = Join-Path $Directory 'Uninstall Open DeepSeek Harness Desktop.exe'
   $registrations = @(Get-DesktopUpgradeRegistrations)
-  $registrationFacts = @($registrations | ForEach-Object { [ordered]@{ version = $_.version; directoryMatches = [string]::Equals($_.directory.TrimEnd('\'), $Directory, [StringComparison]::OrdinalIgnoreCase); uninstallerMatches = ([string]$_.uninstaller).Contains($uninstaller) } })
+  $registrationFacts = @($registrations | ForEach-Object {
+    # electron-builder writes InstallLocation to its application key, not its uninstall key.
+    # Its quoted UninstallString still identifies the exact installed uninstaller and mode.
+    $command = [regex]::Match([string]$_.uninstaller, '^"([^"\r\n]+)" (/(?:allusers|currentuser))$')
+    $uninstallerMatches = $command.Success -and [string]::Equals($command.Groups[1].Value, $uninstaller, [StringComparison]::OrdinalIgnoreCase)
+    $directoryValue = [string]$_.directory
+    $directorySource = 'install-location'
+    if ([string]::IsNullOrEmpty($directoryValue)) {
+      $directorySource = 'uninstall-string-parent'
+      $directoryValue = if ($command.Success) { [IO.Path]::GetDirectoryName($command.Groups[1].Value) } else { '' }
+    }
+    [ordered]@{ version = $_.version; directoryMatches = [string]::Equals($directoryValue.TrimEnd([char]92), $Directory, [StringComparison]::OrdinalIgnoreCase); uninstallerMatches = $uninstallerMatches; directorySource = $directorySource; mode = if ($command.Success) { $command.Groups[2].Value } else { $null } }
+  })
   return [ordered]@{
     executableSha256 = if ([IO.File]::Exists($app)) { (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash } else { $null }
     uninstallerSha256 = if ([IO.File]::Exists($uninstaller)) { (Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash } else { $null }
@@ -127,7 +139,7 @@ function Invoke-LegacyUninstallProbe {
       $entry.installationFiles = [ordered]@{ directoryExists = [IO.Directory]::Exists($case.directory); executableExists = [IO.File]::Exists((Join-Path $case.directory 'Open DeepSeek Harness Desktop.exe')); uninstallerExists = [IO.File]::Exists((Join-Path $case.directory 'Uninstall Open DeepSeek Harness Desktop.exe')) }
       $before = Get-LegacyOwnedState -Directory $case.directory
       $entry.installedIdentity = $before
-      if ($before.registration.Count -ne 1 -or $before.registration[0].version -ne '0.2.1-alpha.2' -or -not $before.registration[0].directoryMatches) { throw 'Baseline install did not establish the expected version and directory.' }
+      if ($before.registration.Count -ne 1 -or $before.registration[0].version -ne '0.2.1-alpha.2' -or -not $before.registration[0].directoryMatches -or -not $before.registration[0].uninstallerMatches -or $before.registration[0].mode -ne '/allusers') { throw 'Baseline install did not establish the expected version, directory and exact registered all-users uninstaller.' }
       $entry.paths = Get-DesktopInstallationPathMetadata -Directory $case.directory -OwnerRoot $owned
       $phase = 'readonly-exclusive-probes'
       $entry.exclusiveOpen = Get-LegacyExclusiveOpenEvidence -Directory $case.directory -OwnerRoot $owned
