@@ -1,0 +1,45 @@
+name: Windows legacy uninstall counterfactual
+on:
+  workflow_dispatch:
+  push:
+    branches: ['fix/windows-packaging-*']
+    paths:
+      - .github/workflows/windows-legacy-uninstall-probe.yml
+      - apps/desktop/tests/qualification/windows-legacy-uninstall-probe.ps1
+      - apps/desktop/tests/qualification/windows-legacy-uninstall-probe.test.ps1
+permissions:
+  contents: read
+jobs:
+  no-lock-counterfactual:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.17.0'
+      - name: Probe behavior checks
+        shell: pwsh
+        run: pwsh -NoLogo -NoProfile -NonInteractive -File apps/desktop/tests/qualification/windows-legacy-uninstall-probe.test.ps1
+      - name: Download locked public alpha.2 baseline
+        shell: pwsh
+        run: |
+          $directory = Join-Path $env:RUNNER_TEMP ('legacy-input-' + [Guid]::NewGuid().ToString('N'))
+          $installer = Join-Path $directory 'baseline.exe'
+          node apps/desktop/scripts/download-windows-upgrade-baseline.mjs $installer
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned baseline download failed.' }
+          "DSH_LEGACY_BASELINE=$installer" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Compare fresh short and original-length direct uninstalls without intentional locks
+        shell: pwsh
+        run: |
+          pwsh -NoLogo -NoProfile -NonInteractive -File apps/desktop/tests/qualification/windows-legacy-uninstall-probe.ps1 -BaselineInstaller $env:DSH_LEGACY_BASELINE -EvidenceDirectory "$env:GITHUB_WORKSPACE/.artifacts/legacy-uninstall-probe"
+          if ($LASTEXITCODE -ne 0) { throw 'Counterfactual incomplete; inspect structured evidence. No release qualification was performed.' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-legacy-uninstall-counterfactual
+          path: .artifacts/legacy-uninstall-probe/counterfactual.json
+          if-no-files-found: warn
+          retention-days: 7
