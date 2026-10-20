@@ -17,6 +17,30 @@ function Assert-UpgradeRejects([scriptblock] $Action, [string] $Expected) {
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "dsh-upgrade-behavior-$([Guid]::NewGuid())"
 New-Item -ItemType Directory -Path $testRoot -ErrorAction Stop | Out-Null
 try {
+  $script:nativeProbeRoots = [Collections.Generic.List[string]]::new()
+  $script:nativeProbeDisposals = 0
+  function Start-DesktopNativeEntryProcess {
+    param([System.Diagnostics.ProcessStartInfo] $Start)
+    Assert-UpgradeTest ($Start.ArgumentList -contains '--dsh-native-smoke') 'Probe must not start the normal host or an uninstaller.'
+    $rootArgument = @($Start.ArgumentList | Where-Object { $_.StartsWith('--dsh-package-smoke-root=') })
+    Assert-UpgradeTest ($rootArgument.Count -eq 1) 'Probe must select one private data directory.'
+    $nativeRoot = $rootArgument[0].Substring('--dsh-package-smoke-root='.Length)
+    Assert-UpgradeTest ([IO.Path]::IsPathRooted($nativeRoot) -and (Test-Path -LiteralPath $nativeRoot -PathType Container)) 'Native smoke directory must exist before process launch.'
+    $script:nativeProbeRoots.Add($nativeRoot)
+    $probe = [pscustomobject]@{
+      ExitCode = 0
+      StandardOutput = [IO.StringReader]::new('DSH_NATIVE_SMOKE_READY')
+      StandardError = [IO.StringReader]::new('')
+    }
+    $probe | Add-Member ScriptMethod WaitForExit { param($Milliseconds) return $true }
+    $probe | Add-Member ScriptMethod Kill { param($Tree) throw 'A completed native probe must not be terminated.' }
+    $probe | Add-Member ScriptMethod Dispose { $this.StandardOutput.Dispose(); $this.StandardError.Dispose(); $script:nativeProbeDisposals++ }
+    return $probe
+  }
+  Assert-PreviousDesktopNativeEntry -Executable 'synthetic-native-entry.exe' -EvidenceRoot $testRoot
+  Assert-PreviousDesktopNativeEntry -Executable 'synthetic-native-entry.exe' -EvidenceRoot $testRoot
+  Assert-UpgradeTest ($script:nativeProbeRoots.Count -eq 2 -and $script:nativeProbeRoots[0] -ne $script:nativeProbeRoots[1]) 'Each native probe must allocate a fresh private directory.'
+  Assert-UpgradeTest ($script:nativeProbeDisposals -eq 2) 'Completed native probes must release their process handles.'
   foreach ($version in @('0.2.1-alpha.2', '0.2.1-rc.2.1')) {
     Assert-DesktopRegisteredVersion -InstalledVersion $version -ExpectedVersion $version -Registrations @(@{ version = $version })
     Assert-UpgradeRejects { Assert-DesktopRegisteredVersion -InstalledVersion '0.2.1.0' -ExpectedVersion $version -Registrations @(@{ version = $version }) } 'found package version'

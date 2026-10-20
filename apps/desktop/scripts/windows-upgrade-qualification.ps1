@@ -131,28 +131,38 @@ function Stop-DesktopUpgradeLock {
   if ($Process.ExitCode -ne 0) { throw "Upgrade lock fixture failed with $($Process.ExitCode)." }
 }
 
+function Start-DesktopNativeEntryProcess {
+  param([System.Diagnostics.ProcessStartInfo] $Start)
+  return [System.Diagnostics.Process]::Start($Start)
+}
+
 function Assert-PreviousDesktopNativeEntry {
   param([string] $Executable, [string] $EvidenceRoot)
+  $nativeRoot = Join-Path $EvidenceRoot ('previous-native-entry-' + [Guid]::NewGuid().ToString('N'))
+  New-Item -ItemType Directory -Path $nativeRoot -ErrorAction Stop | Out-Null
   $start = [System.Diagnostics.ProcessStartInfo]::new()
   $start.FileName = $Executable
   $start.UseShellExecute = $false
   $start.RedirectStandardOutput = $true
   $start.RedirectStandardError = $true
   $start.ArgumentList.Add('--dsh-native-smoke')
-  $start.ArgumentList.Add("--dsh-package-smoke-root=$(Join-Path $EvidenceRoot 'previous-native-entry')")
-  $entry = [System.Diagnostics.Process]::Start($start)
-  $stdout = $entry.StandardOutput.ReadToEndAsync()
-  $stderr = $entry.StandardError.ReadToEndAsync()
-  if (-not $entry.WaitForExit(30000)) {
-    $entry.Kill($true)
-    $entry.WaitForExit()
-    throw 'Preserved previous-release native entry did not exit within 30 seconds.'
-  }
-  $output = $stdout.GetAwaiter().GetResult()
-  $errorOutput = $stderr.GetAwaiter().GetResult()
-  if ($entry.ExitCode -ne 0 -or $output -notmatch 'DSH_NATIVE_SMOKE_READY') {
-    throw "Preserved previous-release native entry failed (exit $($entry.ExitCode)).`nstdout:`n$output`nstderr:`n$errorOutput"
-  }
+  $start.ArgumentList.Add("--dsh-package-smoke-root=$nativeRoot")
+  $entry = Start-DesktopNativeEntryProcess -Start $start
+  try {
+    $stdout = $entry.StandardOutput.ReadToEndAsync()
+    $stderr = $entry.StandardError.ReadToEndAsync()
+    if (-not $entry.WaitForExit(30000)) {
+      # This owned probe exits before loading the host; it is not an uninstaller.
+      $entry.Kill($true)
+      $entry.WaitForExit()
+      throw 'Preserved previous-release native entry did not exit within 30 seconds.'
+    }
+    $output = $stdout.GetAwaiter().GetResult()
+    $errorOutput = $stderr.GetAwaiter().GetResult()
+    if ($entry.ExitCode -ne 0 -or $output -notmatch 'DSH_NATIVE_SMOKE_READY') {
+      throw "Preserved previous-release native entry failed (exit $($entry.ExitCode)).`nstdout:`n$output`nstderr:`n$errorOutput"
+    }
+  } finally { $entry.Dispose() }
 }
 
 function Initialize-DesktopPreviousReleaseQualification {
