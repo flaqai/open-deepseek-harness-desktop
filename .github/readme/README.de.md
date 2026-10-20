@@ -10,7 +10,7 @@ Sprachen: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.2 ist verfügbar](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2).** Auf Basis von DeepSeek Harness `0.2.1-rc.2` verbessert diese Version Unterhaltungen und Plugin-Abläufe, ergänzt einen pro Workspace isolierten Desktop-Seitenleistenbrowser und aktualisiert mitgelieferte Plugins sowie bei Bedarf installierte optionale Werkzeuge.
+> **[v0.2.1-rc.2.1 ist verfügbar](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1).** Auf Basis von DeepSeek Harness `0.2.1-rc.2` verbessert diese Version Unterhaltungen und Plugin-Abläufe, ergänzt einen pro Workspace isolierten Desktop-Seitenleistenbrowser und aktualisiert mitgelieferte Plugins sowie bei Bedarf installierte optionale Werkzeuge.
 >
 > Obwohl der Versionsname `rc` enthält, ist sie auf GitHub als reguläres Release veröffentlicht. Sichern Sie wichtige Unterhaltungen und Konfigurationen vor dem Upgrade und fügen Sie Problemmeldungen relevante Protokolle oder Diagnoseberichte bei.
 
@@ -182,7 +182,7 @@ Unterstützt System, Hell, Dunkel und acht Produkt-Themes, acht integrierte Illu
 
 ## Download und Installation
 
-Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2) herunter.
+Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1) herunter.
 
 | System | Architektur | Paket |
 | --- | --- | --- |
