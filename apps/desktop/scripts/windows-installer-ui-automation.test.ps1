@@ -27,7 +27,7 @@ public static class DesktopWizardFixtureButtonId {
       $script:fixtureStage = 'install'
       $header.Text = 'Command-line integration'
       $button.Text = '&Install'
-      # Keep the first BM_CLICK pending while the same HWND advances to another page.
+      # Keep the first WM_COMMAND pending while the same HWND advances to another page.
       while ($script:fixtureStage -ne 'done' -and -not $form.IsDisposed) {
         [Windows.Forms.Application]::DoEvents()
         [Threading.Thread]::Sleep(10)
@@ -80,6 +80,13 @@ foreach ($className in @('Button', 'button', 'BUTTON', 'WindowsForms10.Button.ap
   if ([DesktopWizardWin32]::ControlTypeFor($className, 7) -ne 'Text') { throw 'Group box was incorrectly classified as an actionable button.' }
 }
 if ([DesktopWizardWin32]::ControlTypeFor('Static', 0) -ne 'Text') { throw 'Unrelated native class was classified as a button.' }
+if ([DesktopWizardWin32]::ActivationMessageFor('Button') -ne 0x111 -or [DesktopWizardWin32]::ActivationMessageFor('CheckBox') -ne 0xF5) { throw 'Push buttons must use WM_COMMAND while checkboxes retain BM_CLICK.' }
+if ([DesktopWizardWin32]::ClickNotificationFor(1).ToUInt64() -ne 1 -or [DesktopWizardWin32]::ClickNotificationFor(65535).ToUInt64() -ne 65535) { throw 'BN_CLICKED must occupy HIWORD zero and preserve the actual LOWORD id.' }
+foreach ($invalidId in @(-1, 65536)) {
+  $rejected = $false
+  try { [void][DesktopWizardWin32]::ClickNotificationFor($invalidId) } catch { $rejected = $true }
+  if (-not $rejected) { throw 'WM_COMMAND must not truncate an out-of-range control id.' }
+}
 foreach ($name in @('Next >', '&Install', 'Finish', '下一步 >', '安装', '完成')) {
   if ((Get-DesktopWizardAction $name '1' $true 'Button') -ne 'advance') { throw "Expected wizard advance for $name" }
 }
@@ -123,6 +130,7 @@ if ($IsWindows) {
       throw 'Native modal fixture must observe and settle Next, reused-HWND Install, and modal OK invocations.'
     }
     if ($startEvent[0].handle -ne $startEvent[1].handle -or $startEvent[0].pageIdentity -eq $startEvent[1].pageIdentity) { throw 'Native fixture did not exercise a reused button HWND on a newly observed wizard page.' }
+    if (@($events | Where-Object { $_.state -eq 'invoke-started' -and $_.activation -ne 'WM_COMMAND/BN_CLICKED' }).Count -ne 0) { throw 'Native fixture must exercise real parent button notifications, not BM_CLICK.' }
     $nextCompletion = @($events | Where-Object { $_.label -eq '&Next >' -and $_.state -eq 'invoke-completed' })
     if ($nextCompletion.Count -ne 1 -or [DateTime]::Parse($nextCompletion[0].timeUtc) -lt [DateTime]::Parse($startEvent[1].timeUtc)) { throw 'Next did not remain pending until after the reused Install button was invoked.' }
     if (@($events | Where-Object { $_.state -eq 'invoke-unsettled' }).Count -ne 0) { throw 'Native modal fixture left an invocation running.' }

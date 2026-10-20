@@ -36,6 +36,16 @@ public sealed class DesktopWizardControl {
   public bool Enabled;
 }
 public static class DesktopWizardWin32 {
+  public static uint ActivationMessageFor(string controlType) {
+    if (controlType == "Button") return 0x111;
+    if (controlType == "CheckBox") return 0xF5;
+    throw new InvalidOperationException("Only verified buttons and checkboxes may be activated.");
+  }
+  public static UIntPtr ClickNotificationFor(int controlId) {
+    if (controlId < 0 || controlId > 65535) throw new InvalidOperationException("Control id is outside WM_COMMAND LOWORD range.");
+    // BN_CLICKED is zero in HIWORD; LOWORD is the verified control id.
+    return new UIntPtr((uint)controlId);
+  }
   public static string ControlTypeFor(string className, int style) {
     bool button = string.Equals(className, "Button", StringComparison.OrdinalIgnoreCase) || className.StartsWith("WindowsForms10.BUTTON", StringComparison.OrdinalIgnoreCase);
     return button ? ((style == 2 || style == 3 || style == 5 || style == 6) ? "CheckBox" : ((style == 0 || style == 1 || style == 11) ? "Button" : "Text")) : "Text";
@@ -56,6 +66,7 @@ public static class DesktopWizardWin32 {
   [DllImport("user32.dll", SetLastError = true, EntryPoint = "SendMessageTimeoutW")]
   static extern IntPtr SendValue(IntPtr window, uint message, UIntPtr wParam, IntPtr value, uint flags, uint timeout, out UIntPtr result);
   [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window, uint flags);
+  [DllImport("user32.dll")] static extern IntPtr GetParent(IntPtr window);
   [DllImport("user32.dll")] static extern IntPtr SetActiveWindow(IntPtr window);
   [DllImport("user32.dll", SetLastError = true)] static extern bool AttachThreadInput(uint first, uint second, bool attach);
   [DllImport("user32.dll")] static extern bool PeekMessage(out Message message, IntPtr window, uint first, uint last, uint remove);
@@ -116,14 +127,31 @@ public static class DesktopWizardWin32 {
       throw new InvalidOperationException("Observed button changed before activation.");
     uint owner; uint target = GetWindowThreadProcessId(actual.Handle, out owner); uint caller = GetCurrentThreadId();
     if (target == 0 || owner != expected.ProcessId) throw new InvalidOperationException("Observed button owner changed before activation.");
-    Message message; PeekMessage(out message, IntPtr.Zero, 0, 0, 0);
-    bool attached = caller != target && AttachThreadInput(caller, target, true);
-    if (caller != target && !attached) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot activate the owned installer dialog input queue.");
-    try { SetActiveWindow(GetAncestor(actual.Handle, 2)); }
-    finally { if (attached && !AttachThreadInput(caller, target, false)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot detach installer input queues."); }
+    uint messageCode = ActivationMessageFor(actual.ControlType);
+    IntPtr recipient = actual.Handle;
+    UIntPtr parameter = UIntPtr.Zero;
+    IntPtr source = IntPtr.Zero;
+    if (actual.ControlType == "Button") {
+      // Send the documented notification to its real parent. BM_CLICK can retain
+      // pressed state while an earlier NSIS Next handler runs a nested page loop.
+      recipient = GetParent(actual.Handle);
+      uint parentOwner;
+      if (recipient == IntPtr.Zero || GetWindowThreadProcessId(recipient, out parentOwner) == 0 || parentOwner != expected.ProcessId)
+        throw new InvalidOperationException("Observed button parent is not owned by the installer.");
+      if (!IsWindowEnabled(recipient)) throw new InvalidOperationException("Observed button parent is disabled.");
+      parameter = ClickNotificationFor(actual.Id);
+      source = actual.Handle;
+      if (GetParent(actual.Handle) != recipient) throw new InvalidOperationException("Observed button parent changed before notification.");
+    } else {
+      Message message; PeekMessage(out message, IntPtr.Zero, 0, 0, 0);
+      bool attached = caller != target && AttachThreadInput(caller, target, true);
+      if (caller != target && !attached) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot activate the owned installer dialog input queue.");
+      try { SetActiveWindow(GetAncestor(actual.Handle, 2)); }
+      finally { if (attached && !AttachThreadInput(caller, target, false)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot detach installer input queues."); }
+    }
     UIntPtr result;
     // The worker may enter a modal loop; the observer remains free to acknowledge it.
-    if (SendValue(actual.Handle, 0xF5, UIntPtr.Zero, IntPtr.Zero, 1, timeout, out result) == IntPtr.Zero)
+    if (SendValue(recipient, messageCode, parameter, source, 1, timeout, out result) == IntPtr.Zero)
       throw new Win32Exception(Marshal.GetLastWin32Error(), "Owned button activation failed or timed out; outcome unknown.");
     if (actual.ControlType == "CheckBox") {
       var after = Read(actual.Handle, expected.ProcessId);
@@ -218,7 +246,8 @@ function Invoke-DesktopWizardAutomationCore {
           if ($null -eq $action -or ($action -eq 'clear-launch' -and $control.Checked -ne 1)) { continue }
           if (@($pending | Where-Object { $_.Handle -eq $control.Handle -and $_.PageIdentity -eq $pageIdentity }).Count -ne 0) { continue }
           if (@($pending | Where-Object { -not $_.Settled }).Count -ge 16) { throw 'Native GUI exceeded its pending invocation budget.' }
-          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $action; state = 'invoke-started'; label = $control.Name; id = $control.Id; handle = $control.Handle.ToInt64(); pageIdentity = $pageIdentity })
+          $activation = if ($control.ControlType -eq 'Button') { 'WM_COMMAND/BN_CLICKED' } else { 'BM_CLICK' }
+          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $action; state = 'invoke-started'; activation = $activation; label = $control.Name; id = $control.Id; handle = $control.Handle.ToInt64(); pageIdentity = $pageIdentity })
           $remaining = [uint32][Math]::Max(1, [Math]::Ceiling(($deadline - (Get-Date)).TotalMilliseconds))
           $worker = [DesktopWizardInvokeWorker]::new($control, $remaining)
           $pending.Add([pscustomobject]@{ Worker = $worker; Action = $action; Label = $control.Name; Handle = $control.Handle; PageIdentity = $pageIdentity; Settled = $false })
