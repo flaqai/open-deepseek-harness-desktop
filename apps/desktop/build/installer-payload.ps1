@@ -76,8 +76,15 @@ function Get-InstallerAppVersion([string]$ExecutablePath) {
   return [System.Diagnostics.FileVersionInfo]::GetVersionInfo($ExecutablePath).ProductVersion
 }
 
+function Get-InstallerRobocopyPath([string]$WindowsDirectory, [bool]$Is64BitOperatingSystem, [bool]$Is64BitProcess) {
+  # NSIS can launch 32-bit PowerShell on 64-bit Windows. Sysnative bypasses
+  # WOW64 redirection; it is not available to a native 64-bit process.
+  $systemDirectory = if ($Is64BitOperatingSystem -and -not $Is64BitProcess) { 'Sysnative' } else { 'System32' }
+  return Join-Path (Join-Path $WindowsDirectory $systemDirectory) 'robocopy.exe'
+}
+
 function Invoke-InstallerRobocopy([string]$Source, [string]$Destination, [string]$LogPath) {
-  $robocopy = Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)) 'System32/robocopy.exe'
+  $robocopy = Get-InstallerRobocopyPath -WindowsDirectory ([Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)) -Is64BitOperatingSystem ([Environment]::Is64BitOperatingSystem) -Is64BitProcess ([Environment]::Is64BitProcess)
   if (-not (Test-Path -LiteralPath $robocopy -PathType Leaf)) { throw 'Windows Robocopy is unavailable.' }
   # Do not inherit PowerShell 7 native-command error promotion: Robocopy 1..7 are successful statuses.
   $PSNativeCommandUseErrorActionPreference = $false

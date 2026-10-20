@@ -8,6 +8,13 @@ $diagnostics = Join-Path $FixtureDirectory 'diagnostics'
 [System.IO.File]::WriteAllText((Join-Path $source 'resources/harness/package.json'), '{"version":"0.2.1-rc.2"}')
 [System.IO.File]::WriteAllText((Join-Path $source 'resource.txt'), 'payload')
 . (Join-Path $PSScriptRoot '../../build/installer-payload.ps1') -SourceDirectory $source -InstallDirectory $target -AppExecutable 'Desktop.exe' -ExpectedVersion '0.2.1-rc.2' -DiagnosticDirectory $diagnostics
+if ($Scenario.StartsWith('robocopy-path-')) {
+  $os64 = $Scenario -ne 'robocopy-path-32bit-os'
+  $process64 = $Scenario -eq 'robocopy-path-64bit-process'
+  $selectedPath = Get-InstallerRobocopyPath -WindowsDirectory $FixtureDirectory -Is64BitOperatingSystem $os64 -Is64BitProcess $process64
+  @{ selectedPath = $selectedPath } | ConvertTo-Json -Compress
+  exit 0
+}
 $script:copyCalls = 0
 function New-FixtureDirectoryLink([string]$LinkPath, [string]$TargetPath) {
   $linkType = 'SymbolicLink'
