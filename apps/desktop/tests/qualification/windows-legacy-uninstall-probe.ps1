@@ -73,6 +73,19 @@ function Get-LegacyOwnedState {
   }
 }
 
+function Get-LegacyProbeErrorFacts {
+  param([Exception] $Exception)
+  $cause = $Exception
+  while ($null -ne $cause.InnerException) { $cause = $cause.InnerException }
+  $kind = if ($cause -is [UnauthorizedAccessException]) { 'access-denied' }
+    elseif ($cause -is [ComponentModel.Win32Exception]) { 'win32' }
+    elseif ($cause -is [IO.IOException]) { 'io' }
+    elseif ($cause -is [InvalidOperationException]) { 'invalid-operation' }
+    elseif ($cause -is [Management.Automation.RuntimeException]) { 'script-validation' }
+    else { 'other' }
+  return [ordered]@{ kind = $kind; exceptionType = $cause.GetType().Name; hResult = $cause.HResult; nativeErrorCode = if ($cause -is [ComponentModel.Win32Exception]) { $cause.NativeErrorCode } else { $null } }
+}
+
 function Invoke-LegacyProbeProcess {
   param([Diagnostics.ProcessStartInfo] $Start, [int] $Milliseconds)
   $process = [Diagnostics.Process]::Start($Start)
@@ -111,7 +124,9 @@ function Invoke-LegacyUninstallProbe {
       $entry.installation = Invoke-LegacyProbeProcess -Start $install -Milliseconds 600000
       if ($entry.installation.outcome -ne 'exited' -or $entry.installation.exitCode -ne 0) { throw 'A baseline install did not complete successfully; comparison is incomplete.' }
       $phase = 'installed-identity'
+      $entry.installationFiles = [ordered]@{ directoryExists = [IO.Directory]::Exists($case.directory); executableExists = [IO.File]::Exists((Join-Path $case.directory 'Open DeepSeek Harness Desktop.exe')); uninstallerExists = [IO.File]::Exists((Join-Path $case.directory 'Uninstall Open DeepSeek Harness Desktop.exe')) }
       $before = Get-LegacyOwnedState -Directory $case.directory
+      $entry.installedIdentity = $before
       if ($before.registration.Count -ne 1 -or $before.registration[0].version -ne '0.2.1-alpha.2' -or -not $before.registration[0].directoryMatches) { throw 'Baseline install did not establish the expected version and directory.' }
       $entry.paths = Get-DesktopInstallationPathMetadata -Directory $case.directory -OwnerRoot $owned
       $phase = 'readonly-exclusive-probes'
@@ -151,6 +166,7 @@ function Invoke-LegacyUninstallProbe {
     $report.status = 'complete-diagnostic'
   } catch {
     $report.failureKind = $phase
+    $report.error = Get-LegacyProbeErrorFacts -Exception $_.Exception
     Write-Warning 'Legacy counterfactual did not complete; bounded structured evidence is retained, without paths or process arguments.'
     throw 'Legacy counterfactual incomplete; inspect the bounded structured report. No release qualification was performed.'
   } finally {

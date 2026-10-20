@@ -33,6 +33,16 @@ try {
   if ($after.failures -ne 0 -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $beforeHash) { throw 'Read-only probe retained a file handle or changed file contents.' }
   $encoded = @($available, $locked, $after) | ConvertTo-Json -Depth 4
   if ($encoded.Contains($testRoot) -or $encoded.Contains('synthetic private contents')) { throw 'Probe evidence leaked a path or contents.' }
+  [IO.File]::WriteAllText((Join-Path $installation 'Open DeepSeek Harness Desktop.exe'), 'synthetic app identity')
+  $syntheticUninstaller = Join-Path $installation 'Uninstall Open DeepSeek Harness Desktop.exe'
+  [IO.File]::WriteAllText($syntheticUninstaller, 'synthetic uninstaller identity')
+  $script:legacyRegistration = [ordered]@{ version = '0.2.1-alpha.2'; directory = $installation + '\'; uninstaller = '"' + $syntheticUninstaller + '" /allusers' }
+  function Get-DesktopUpgradeRegistrations { return $script:legacyRegistration }
+  $identity = Get-LegacyOwnedState -Directory $installation
+  if ($identity.registration.Count -ne 1 -or $identity.registration[0].version -ne '0.2.1-alpha.2' -or -not $identity.registration[0].directoryMatches -or -not $identity.registration[0].uninstallerMatches -or $null -eq $identity.executableSha256 -or $null -eq $identity.uninstallerSha256) { throw 'Installed identity projection discarded expected registry facts or executable hashes.' }
+  $privateError = [IO.IOException]::new('private-path-and-command-must-not-be-recorded')
+  $errorFacts = Get-LegacyProbeErrorFacts -Exception ([Exception]::new('private-wrapper', $privateError))
+  if ($errorFacts.kind -ne 'io' -or $errorFacts.exceptionType -ne 'IOException' -or ($errorFacts | ConvertTo-Json).Contains('private-')) { throw 'Failure projection must preserve closed error kind and HRESULT without arbitrary messages.' }
   $start = [Diagnostics.ProcessStartInfo]::new()
   $start.FileName = (Get-Process -Id $PID).Path
   $start.UseShellExecute = $false
