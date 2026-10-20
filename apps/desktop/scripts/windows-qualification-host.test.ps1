@@ -32,15 +32,45 @@ if ($childErrors.Count -ne 0 -or -not $command.Contains("Join-Path `$PSScriptRoo
   throw 'Private child must parse and load settings from its private directory.'
 }
 $profileHelpers = @($childTree.FindAll({ param($node)
-  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Get-DesktopStandardProfileDirectory', 'Get-DesktopStandardKnownFolder', 'Initialize-DesktopStandardKnownFolders')
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -in @('Get-DesktopStandardProfileDirectory', 'Get-DesktopStandardKnownFolder', 'Initialize-DesktopStandardKnownFolders', 'Initialize-DesktopStandardInterop', 'Open-DesktopStandardIdentity', 'ConvertFrom-DesktopNativeEnvironment', 'Get-DesktopStandardEnvironment', 'Set-DesktopStandardChildEnvironment')
 }, $true))
-if ($profileHelpers.Count -ne 3) { throw 'Expected token-profile lookup and known-folder initialization in the child.' }
+if ($profileHelpers.Count -ne 8) { throw 'Expected token-profile lookup, native environment, and known-folder initialization in the child.' }
 foreach ($helper in $profileHelpers) { . ([scriptblock]::Create($helper.Extent.Text)) }
-$knownFolderCalls = @($profileHelpers[1].FindAll({ param($node)
-  $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $node.Member.Extent.Text -eq 'GetFolderPath'
+$knownFolderHelper = @($profileHelpers | Where-Object { $_.Name -eq 'Get-DesktopStandardKnownFolder' })[0]
+$knownFolderCalls = @($knownFolderHelper.FindAll({ param($node)
+  $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $node.Member.Extent.Text -eq 'SHGetKnownFolderPath'
 }, $true))
-if ($knownFolderCalls.Count -ne 1 -or $knownFolderCalls[0].Arguments[1].Extent.Text -ne '[Environment+SpecialFolderOption]::Create') {
-  throw 'New-user known folders must use the native Create option, not existence-only lookup.'
+if ($knownFolderCalls.Count -ne 1 -or $knownFolderCalls[0].Arguments[1].Extent.Text -ne '0x8000' -or
+    $knownFolderCalls[0].Arguments[2].Extent.Text -ne '$identity.AccessToken.DangerousGetHandle()') {
+  throw 'Known folders must use KF_FLAG_CREATE and the explicit current-user token without an environment fallback.'
+}
+$interopHelper = @($profileHelpers | Where-Object { $_.Name -eq 'Initialize-DesktopStandardInterop' })[0]
+$interopDeclaration = @($interopHelper.FindAll({ param($node)
+  $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Add-Type'
+}, $true))
+& ([scriptblock]::Create($interopDeclaration[0].Extent.Text))
+if ([DshQualificationKnownFolders].GetMethod('SHGetKnownFolderPath').GetParameters()[2].ParameterType -ne [IntPtr]) { throw 'Known-folder native token must retain its pointer-sized type.' }
+$nativeEnvironmentHelper = @($profileHelpers | Where-Object { $_.Name -eq 'Get-DesktopStandardEnvironment' })[0]
+$nativeEnvironmentCall = @($nativeEnvironmentHelper.FindAll({ param($node)
+  $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $node.Member.Extent.Text -eq 'CreateEnvironmentBlock'
+}, $true))
+if ($nativeEnvironmentCall.Count -ne 1 -or $nativeEnvironmentCall[0].Arguments[2].Extent.Text -ne '$false') { throw 'Native environment must not inherit the administrator parent environment.' }
+$block = [Runtime.InteropServices.Marshal]::StringToHGlobalUni("SystemDrive=X:`0USERPROFILE=X:\Users\synthetic`0USERNAME=synthetic`0=C:=hidden-drive-entry`0NATIVE_USER_SETTING=restored`0`0")
+$nativeFixture = $null
+try { $nativeFixture = ConvertFrom-DesktopNativeEnvironment -Block $block } finally { [Runtime.InteropServices.Marshal]::FreeHGlobal($block) }
+if ($nativeFixture.SystemDrive -ne 'X:' -or $nativeFixture.NATIVE_USER_SETTING -ne 'restored' -or $nativeFixture.ContainsKey('=C:')) { throw 'Native environment parsing must retain user/system settings without invalid drive-entry keys.' }
+$processEnvironment = [Environment]::GetEnvironmentVariables('Process')
+try {
+  [Environment]::SetEnvironmentVariable('QUALIFICATION_PARENT_ADMIN_SECRET', 'must-not-inherit', 'Process')
+  Set-DesktopStandardChildEnvironment -NativeEnvironment $nativeFixture -Overrides ([pscustomobject]@{ RUNNER_TEMP = 'private-ci-root'; TEMP = 'private-ci-root' })
+  if ($env:SystemDrive -ne 'X:') { throw 'Child environment lost its native SystemDrive setting.' }
+  if ($env:NATIVE_USER_SETTING -ne 'restored') { throw 'Child environment lost its native user settings.' }
+  if ($env:USERPROFILE -ne 'X:\Users\synthetic') { throw 'Child environment lost its native user profile.' }
+  if ($env:TEMP -ne 'private-ci-root') { throw 'Child environment lost its private CI overrides.' }
+  if ([Environment]::GetEnvironmentVariable('QUALIFICATION_PARENT_ADMIN_SECRET', 'Process') -ne $null) { throw 'Child environment retained parent-only credentials.' }
+} finally {
+  foreach ($name in @([Environment]::GetEnvironmentVariables('Process').Keys)) { [Environment]::SetEnvironmentVariable($name, [System.Management.Automation.Language.NullString]::Value, 'Process') }
+  foreach ($name in $processEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $processEnvironment[$name], 'Process') }
 }
 $profileTestRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-profile-' + [Guid]::NewGuid().ToString('N'))
 $script:profileDirectory = Join-Path $profileTestRoot 'new-user'
@@ -69,27 +99,36 @@ try {
   function Get-DesktopStandardKnownFolder {
     param([Environment+SpecialFolder] $Folder)
     if ($env:USERPROFILE -ne $script:profileDirectory) { throw 'Known-folder lookup must follow restoration of the verified token profile.' }
-    if ($script:knownFolderBehavior -eq 'empty') { return '' }
-    if ($script:knownFolderBehavior -eq 'escape') { return $profileTestRoot }
+    if ($script:knownFolderBehavior -eq 'empty') { return [pscustomobject]@{ Path = ''; HResult = 0 } }
+    if ($script:knownFolderBehavior -eq 'escape') { return [pscustomobject]@{ Path = (Join-Path $profileTestRoot 'administrator/Local'); HResult = 0 } }
+    if ($script:knownFolderBehavior -eq 'local-api-failed' -and $Folder -eq 'LocalApplicationData') { return [pscustomobject]@{ Path = ''; HResult = -2147024893 } }
+    if ($script:knownFolderBehavior -eq 'local-missing' -and $Folder -eq 'LocalApplicationData') { return [pscustomobject]@{ Path = (Join-Path $script:profileDirectory 'AppData/MissingLocal'); HResult = 0 } }
     $suffix = if ($Folder -eq 'ApplicationData') { 'Roaming' } else { 'Local' }
-    return [IO.Directory]::CreateDirectory((Join-Path $script:profileDirectory "AppData/$suffix")).FullName
+    return [pscustomobject]@{ Path = [IO.Directory]::CreateDirectory((Join-Path $script:profileDirectory "AppData/$suffix")).FullName; HResult = 0 }
   }
   $verifiedProfile = Get-DesktopStandardProfileDirectory -Sid 'S-1-5-21-synthetic'
-  foreach ($name in $profileEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
-  Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile
+  foreach ($name in $profileEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, [System.Management.Automation.Language.NullString]::Value, 'Process') }
+  Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile -DiagnosticDirectory $profileTestRoot
   if ($env:USERPROFILE -ne $script:profileDirectory -or
       -not (Microsoft.PowerShell.Management\Test-Path -LiteralPath $env:APPDATA -PathType Container) -or
       -not (Microsoft.PowerShell.Management\Test-Path -LiteralPath $env:LOCALAPPDATA -PathType Container)) {
     throw 'Fresh-user profile initialization did not create both known directories after environment clearing.'
   }
-  foreach ($behavior in @('empty', 'escape')) {
+  foreach ($behavior in @('empty', 'escape', 'local-api-failed', 'local-missing')) {
     $script:knownFolderBehavior = $behavior
     $rejected = $false
-    try { Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile } catch {
-      if ($_.Exception.Message -notmatch 'inside its SID profile') { throw }
+    try { Initialize-DesktopStandardKnownFolders -ProfileDirectory $verifiedProfile -DiagnosticDirectory $profileTestRoot } catch {
+      if ($_.Exception.Message -notmatch 'known folder validation failed:') { throw }
+      if ($_.Exception.Message.Contains($profileTestRoot)) { throw 'Known-folder failure must not publish full profile paths.' }
       $rejected = $true
     }
     if (-not $rejected) { throw 'Unknown or administrator known-folder paths must be rejected.' }
+    $diagnostic = Get-Content -LiteralPath (Join-Path $profileTestRoot 'qualification-profile.json') -Raw | ConvertFrom-Json
+    $lastCheck = $diagnostic.folders[-1]
+    if ($behavior -eq 'empty' -and -not $lastCheck.pathEmpty) { throw 'Empty result must remain distinct in closed diagnostics.' }
+    if ($behavior -eq 'escape' -and -not $lastCheck.underOtherProfile) { throw 'Wrong-user result must remain distinct in closed diagnostics.' }
+    if ($behavior -eq 'local-api-failed' -and ($lastCheck.hResult -ne -2147024893 -or $lastCheck.folder -ne 'LocalApplicationData' -or $diagnostic.folders.Count -ne 2)) { throw 'Local API failure must retain its HRESULT after Roaming succeeded.' }
+    if ($behavior -eq 'local-missing' -and ($lastCheck.pathEmpty -or -not $lastCheck.isWithinProfile -or $lastCheck.exists)) { throw 'Uncreated local directory must remain distinct from an empty or wrong-user result.' }
   }
   $script:profileHiveLoaded = $false
   $rejected = $false
@@ -99,7 +138,10 @@ try {
   }
   if (-not $rejected) { throw 'An unloaded token profile must not be manufactured from parent environment values.' }
 } finally {
-  foreach ($name in $profileEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $profileEnvironment[$name], 'Process') }
+  foreach ($name in $profileEnvironment.Keys) {
+    $value = if ($null -eq $profileEnvironment[$name]) { [System.Management.Automation.Language.NullString]::Value } else { $profileEnvironment[$name] }
+    [Environment]::SetEnvironmentVariable($name, $value, 'Process')
+  }
   Remove-Item Function:\Get-ItemProperty, Function:\Test-Path, Function:\Get-DesktopStandardKnownFolder
   Remove-Item -LiteralPath $profileTestRoot -Recurse -Force
 }
@@ -127,10 +169,11 @@ $exportRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-export-' + [Guid]::NewG
 try {
   [void][IO.Directory]::CreateDirectory((Join-Path $exportRoot 'desktop-smoke-owned'))
   [IO.File]::WriteAllText((Join-Path $exportRoot 'desktop-smoke-owned/main-installer-diagnostics.json'), '{"schema":"open-dsh/main-installer-diagnostics/v1"}')
+  [IO.File]::WriteAllText((Join-Path $exportRoot 'desktop-smoke-owned/qualification-profile.json'), '{"schema":"open-dsh/standard-profile/v1","folders":[]}')
   [IO.File]::WriteAllText((Join-Path $exportRoot 'desktop-smoke-owned/installer.log'), 'private raw content')
   & { param($repository, $Root) Export-NativeQualificationRecords -Root $Root } $exportRoot $exportRoot
   $exported = @(Get-ChildItem -LiteralPath (Join-Path $exportRoot '.artifacts/windows-smoke-evidence/native-qualification') -File)
-  if ($exported.Count -ne 1 -or $exported[0].Name -ne 'main-installer-diagnostics.json') { throw 'Only the bounded structured main-installer report may be exported, not raw logs.' }
+  if ($exported.Count -ne 2 -or @($exported | Where-Object { $_.Name -notin @('main-installer-diagnostics.json', 'qualification-profile.json') }).Count -ne 0) { throw 'Only the bounded structured main-installer and profile reports may be exported, not raw logs.' }
 } finally { Remove-Item -LiteralPath $exportRoot -Recurse -Force }
 $shell = (Get-Process -Id $PID).Path
 $start = [Diagnostics.ProcessStartInfo]::new()

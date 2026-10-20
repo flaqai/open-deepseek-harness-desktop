@@ -33,7 +33,7 @@ function Export-NativeQualificationRecords {
   }
   foreach ($recordRoot in $recordRoots) {
     foreach ($record in @(Get-ChildItem -LiteralPath $recordRoot -File -ErrorAction SilentlyContinue | Where-Object {
-      $_.Name -in @('qualification-token.json', 'previous-release.json', 'persistent-lock-upgrade.jsonl', 'main-installer-diagnostics.json') -or $_.Name -match '^installer-gui-\d+\.jsonl?$'
+      $_.Name -in @('qualification-token.json', 'qualification-profile.json', 'previous-release.json', 'persistent-lock-upgrade.jsonl', 'main-installer-diagnostics.json') -or $_.Name -match '^installer-gui-\d+\.jsonl?$'
     })) {
       if ($record.Length -gt 8388608) { throw 'Native qualification evidence exceeded 8 MiB.' }
       Copy-Item -LiteralPath $record.FullName -Destination (Join-Path $destination $record.Name) -Force
@@ -107,33 +107,117 @@ function Get-DesktopStandardProfileDirectory([string] $Sid) {
   if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Standard-user SID profile is not an ordinary directory.' }
   return $item.FullName
 }
-function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder) {
-  return [Environment]::GetFolderPath($Folder, [Environment+SpecialFolderOption]::Create)
+function Initialize-DesktopStandardInterop {
+  if (-not ('DshQualificationKnownFolders' -as [type])) {
+    Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class DshQualificationKnownFolders {
+  [DllImport("shell32.dll", ExactSpelling = true)]
+  public static extern int SHGetKnownFolderPath(ref Guid folder, uint flags, IntPtr token, out IntPtr path);
+  [DllImport("userenv.dll", SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool CreateEnvironmentBlock(out IntPtr environment, IntPtr token, [MarshalAs(UnmanagedType.Bool)] bool inherit);
+  [DllImport("userenv.dll", SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool DestroyEnvironmentBlock(IntPtr environment);
 }
-function Initialize-DesktopStandardKnownFolders([string] $ProfileDirectory) {
+"@
+  }
+}
+function Open-DesktopStandardIdentity {
+  $access = [Security.Principal.TokenAccessLevels]([Security.Principal.TokenAccessLevels]::Query -bor [Security.Principal.TokenAccessLevels]::Duplicate -bor [Security.Principal.TokenAccessLevels]::Impersonate)
+  return [Security.Principal.WindowsIdentity]::GetCurrent($access)
+}
+function ConvertFrom-DesktopNativeEnvironment([IntPtr] $Block) {
+  $environment = @{}
+  $offset = 0
+  while ($offset -lt 1048576) {
+    $item = [Runtime.InteropServices.Marshal]::PtrToStringUni([IntPtr]::Add($Block, $offset))
+    if ([string]::IsNullOrEmpty($item)) { return $environment }
+    $offset += ($item.Length + 1) * 2
+    $separator = $item.IndexOf('=', 1)
+    # Win32 drive-directory entries start with '=' and cannot be set by .NET.
+    if ($separator -gt 0 -and -not $item.StartsWith('=')) { $environment[$item.Substring(0, $separator)] = $item.Substring($separator + 1) }
+  }
+  throw 'Native standard-user environment exceeded its bounded size.'
+}
+function Get-DesktopStandardEnvironment {
+  Initialize-DesktopStandardInterop
+  $identity = Open-DesktopStandardIdentity
+  $block = [IntPtr]::Zero
+  try {
+    if (-not [DshQualificationKnownFolders]::CreateEnvironmentBlock([ref]$block, $identity.AccessToken.DangerousGetHandle(), $false)) {
+      throw "Native standard-user environment creation failed (win32Error=$([Runtime.InteropServices.Marshal]::GetLastWin32Error()))."
+    }
+    return ConvertFrom-DesktopNativeEnvironment -Block $block
+  } finally {
+    try {
+      if ($block -ne [IntPtr]::Zero -and -not [DshQualificationKnownFolders]::DestroyEnvironmentBlock($block)) { throw 'Native standard-user environment could not be released.' }
+    } finally { $identity.Dispose() }
+  }
+}
+function Set-DesktopStandardChildEnvironment([hashtable] $NativeEnvironment, [object] $Overrides) {
+  foreach ($name in @([Environment]::GetEnvironmentVariables('Process').Keys)) { [Environment]::SetEnvironmentVariable($name, [System.Management.Automation.Language.NullString]::Value, 'Process') }
+  foreach ($name in $NativeEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $NativeEnvironment[$name], 'Process') }
+  foreach ($property in $Overrides.PSObject.Properties) {
+    $value = if ($null -eq $property.Value) { [System.Management.Automation.Language.NullString]::Value } else { $property.Value }
+    [Environment]::SetEnvironmentVariable($property.Name, $value, 'Process')
+  }
+}
+function Get-DesktopStandardKnownFolder([Environment+SpecialFolder] $Folder) {
+  # Preserve the native HRESULT; .NET substitutes a cleared environment on failure.
+  Initialize-DesktopStandardInterop
+  $folderId = switch ($Folder) {
+    'ApplicationData' { [Guid]'3EB685DB-65F9-4CF6-A03A-E3EF65729F3D' }
+    'LocalApplicationData' { [Guid]'F1B32785-6FBA-4FCF-9D55-7B8E7F157091' }
+    default { throw 'Only per-user application data known folders are supported.' }
+  }
+  $identity = Open-DesktopStandardIdentity
+  $pointer = [IntPtr]::Zero
+  try {
+    $result = [DshQualificationKnownFolders]::SHGetKnownFolderPath([ref]$folderId, 0x8000, $identity.AccessToken.DangerousGetHandle(), [ref]$pointer)
+    $directory = if ($result -ne 0 -or $pointer -eq [IntPtr]::Zero) { '' } else { [Runtime.InteropServices.Marshal]::PtrToStringUni($pointer) }
+    return [pscustomobject]@{ Path = $directory; HResult = $result }
+  } finally {
+    if ($pointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::FreeCoTaskMem($pointer) }
+    $identity.Dispose()
+  }
+}
+function Initialize-DesktopStandardKnownFolders([string] $ProfileDirectory, [string] $DiagnosticDirectory) {
   $env:USERPROFILE = $ProfileDirectory
   $env:HOME = $ProfileDirectory
   $env:HOMEDRIVE = [IO.Path]::GetPathRoot($ProfileDirectory).TrimEnd('\')
   $env:HOMEPATH = $ProfileDirectory.Substring($env:HOMEDRIVE.Length)
   $prefix = $ProfileDirectory.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+  $profilesPrefix = [IO.Directory]::GetParent($ProfileDirectory).FullName.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+  $checks = @()
   foreach ($folder in @('ApplicationData', 'LocalApplicationData')) {
-    $directory = Get-DesktopStandardKnownFolder -Folder $folder
-    if ([string]::IsNullOrWhiteSpace($directory) -or -not [IO.Path]::IsPathFullyQualified($directory) -or
-        -not $directory.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or
-        -not (Test-Path -LiteralPath $directory -PathType Container)) { throw "Standard-user known folder $folder was not created inside its SID profile." }
+    try { $resolved = Get-DesktopStandardKnownFolder -Folder $folder } catch { $resolved = [pscustomobject]@{ Path = ''; HResult = $_.Exception.HResult } }
+    $directory = $resolved.Path
+    $absolute = -not [string]::IsNullOrWhiteSpace($directory) -and [IO.Path]::IsPathFullyQualified($directory)
+    $withinProfile = $absolute -and $directory.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
+    $exists = $absolute -and (Test-Path -LiteralPath $directory -PathType Container)
+    $check = [ordered]@{ folder = $folder; hResult = $resolved.HResult; pathEmpty = [string]::IsNullOrWhiteSpace($directory); isAbsolute = $absolute; isWithinProfile = $withinProfile; exists = $exists; underOtherProfile = $absolute -and -not $withinProfile -and $directory.StartsWith($profilesPrefix, [StringComparison]::OrdinalIgnoreCase) }
+    $checks += $check
+    [ordered]@{ schema = 'open-dsh/standard-profile/v1'; folders = $checks } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $DiagnosticDirectory 'qualification-profile.json') -Encoding utf8
+    if ($resolved.HResult -ne 0 -or -not $withinProfile -or -not $exists) { throw ('Standard-user known folder validation failed: ' + ($check | ConvertTo-Json -Compress)) }
     if ($folder -eq 'ApplicationData') { $env:APPDATA = $directory } else { $env:LOCALAPPDATA = $directory }
   }
 }
 $settings = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'settings.json') -Raw | ConvertFrom-Json
+$env:TEMP = $PSScriptRoot
+$env:TMP = $PSScriptRoot
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 if ($identity.User.Value -ne $settings.userSid) { throw 'Standard-user token does not match the allocated qualification account.' }
 $token = [Security.Principal.WindowsPrincipal]::new($identity)
 $admin = $token.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if ($admin) { throw 'Standard-user qualification unexpectedly received administrator rights.' }
 $profileDirectory = Get-DesktopStandardProfileDirectory -Sid $identity.User.Value
-foreach ($name in @([Environment]::GetEnvironmentVariables('Process').Keys)) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
-foreach ($property in $settings.environment.PSObject.Properties) { [Environment]::SetEnvironmentVariable($property.Name, $property.Value, 'Process') }
-Initialize-DesktopStandardKnownFolders -ProfileDirectory $profileDirectory
+$nativeEnvironment = Get-DesktopStandardEnvironment
+if (-not [string]::Equals($nativeEnvironment.USERPROFILE, $profileDirectory, [StringComparison]::OrdinalIgnoreCase)) { throw 'Native environment does not belong to the verified standard-user SID profile.' }
+Set-DesktopStandardChildEnvironment -NativeEnvironment $nativeEnvironment -Overrides $settings.environment
+Initialize-DesktopStandardKnownFolders -ProfileDirectory $profileDirectory -DiagnosticDirectory $PSScriptRoot
 $identityParts = [Security.Principal.WindowsIdentity]::GetCurrent().Name.Split('\')
 $env:USERDOMAIN = $identityParts[0]
 $env:USERNAME = $identityParts[-1]
