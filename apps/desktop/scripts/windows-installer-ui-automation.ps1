@@ -103,6 +103,7 @@ public static class DesktopWizardWin32 {
     if (actual.ReadError != null || !actual.Enabled || actual.Id != expected.Id || actual.Name != expected.Name || actual.ControlType != expected.ControlType || (actual.ControlType == "CheckBox" && actual.Checked != expected.Checked))
       throw new InvalidOperationException("Observed button changed before activation.");
     uint owner; uint target = GetWindowThreadProcessId(actual.Handle, out owner); uint caller = GetCurrentThreadId();
+    if (target == 0 || owner != expected.ProcessId) throw new InvalidOperationException("Observed button owner changed before activation.");
     Message message; PeekMessage(out message, IntPtr.Zero, 0, 0, 0);
     bool attached = caller != target && AttachThreadInput(caller, target, true);
     if (caller != target && !attached) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot activate the owned installer dialog input queue.");
