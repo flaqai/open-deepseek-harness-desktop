@@ -110,11 +110,15 @@ describe('Windows installer process guard', () => {
   it('exercises a same-directory upgrade after an external file lock outlives the default retry', async () => {
     const smoke = await readFile(`${scriptsRoot}/smoke-windows-package.ps1`, 'utf8')
     const lockFixture = await readFile(`${scriptsRoot}/hold-file-lock.ps1`, 'utf8')
+    const qualification = await readFile(`${scriptsRoot}/windows-upgrade-qualification.ps1`, 'utf8')
 
     expect(smoke).toContain("Join-Path $PSScriptRoot 'hold-file-lock.ps1'")
     expect(smoke).toContain("$lockStart.ArgumentList.Add('20')")
-    expect(smoke).toContain('$upgrade = [System.Diagnostics.Process]::Start($installStart)')
-    expect(smoke).toContain('if ($upgrade.ExitCode -ne 0)')
+    expect(smoke).toContain('$upgradeExit = Invoke-DesktopQualificationInstaller -Start $installStart')
+    expect(smoke).toContain('if ($upgradeExit -ne 0)')
+    expect(qualification).toContain('$installerProcess = [System.Diagnostics.Process]::Start($Start)')
+    expect(qualification).toContain('Invoke-DesktopWizardAutomation -Process $installerProcess')
+    expect(qualification).not.toContain('$installerProcess.Kill(')
     expect(lockFixture).toContain('[System.IO.FileShare]::None')
     expect(lockFixture).toContain('$stream.Dispose()')
   })

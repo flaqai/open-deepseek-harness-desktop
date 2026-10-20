@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +22,7 @@ it.skipIf(!powershell)('classifies processes, refuses unsafe roots, and fails cl
     expect(result.stdout).toContain('PASS process classification')
     expect(result.stdout).toContain('PASS entrypoint failure and logging')
     expect(result.stdout).toContain('PASS path validation')
+    expect(readFileSync(join(testDirectory, 'junction-target', 'must-survive-link-cleanup.txt'), 'utf8')).toBe('synthetic sentinel')
   } finally {
     rmSync(testDirectory, { recursive: true, force: true })
   }

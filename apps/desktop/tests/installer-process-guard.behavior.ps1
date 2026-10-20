@@ -6,6 +6,31 @@ $ErrorActionPreference = 'Stop'
 $testRoot = Join-Path $TestDirectory 'fixture'
 [void][System.IO.Directory]::CreateDirectory($testRoot)
 $testRoot = (Get-Item -LiteralPath $testRoot).FullName
+$linkedRoot = $null
+function Remove-GuardFixtureLink {
+  param([string]$Link)
+  if ([string]::IsNullOrEmpty($Link)) { return }
+  $entry = Get-Item -LiteralPath $Link -Force -ErrorAction SilentlyContinue
+  if ($null -eq $entry) { return }
+  if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) { throw 'Fixture link cleanup refused an ordinary directory.' }
+  if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+    # PowerShell 5.1 Remove-Item and recursive .NET Framework deletion mishandle junctions.
+    # RemoveDirectoryW unlinks only this directory entry and never traverses its target.
+    if (-not ('DshGuardFixtureNative' -as [type])) {
+      Add-Type -TypeDefinition @'
+using System.Runtime.InteropServices;
+public static class DshGuardFixtureNative {
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool RemoveDirectoryW(string path);
+}
+'@
+    }
+    if (-not [DshGuardFixtureNative]::RemoveDirectoryW($Link)) {
+      throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error())
+    }
+  } else { [IO.Directory]::Delete($Link, $false) }
+}
 try {
   . $GuardScript -Action inspect -InstallDirectory $testRoot -AppExecutable 'Harness.exe' -ExcludeProcessId 99999
   $oldRoot = Join-Path $testRoot 'Old'
@@ -33,14 +58,19 @@ try {
     if (-not $refused) { throw "Unsafe installation root was accepted: $invalid" }
   }
   $linkedRoot = Join-Path $testRoot 'linked-root'
+  $linkTarget = Join-Path $TestDirectory 'junction-target'
+  [void][IO.Directory]::CreateDirectory($linkTarget)
+  $linkSentinel = Join-Path $linkTarget 'must-survive-link-cleanup.txt'
+  [IO.File]::WriteAllText($linkSentinel, 'synthetic sentinel')
   # Junctions are supported without developer-mode privileges on Windows.
   if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
-    [void](New-Item -ItemType Junction -Path $linkedRoot -Target $testRoot)
+    [void](New-Item -ItemType Junction -Path $linkedRoot -Target $linkTarget)
   }
-  else { [void](New-Item -ItemType SymbolicLink -Path $linkedRoot -Target $testRoot) }
+  else { [void](New-Item -ItemType SymbolicLink -Path $linkedRoot -Target $linkTarget) }
   $refused = $false
   try { [void](Get-NormalizedDirectory (Join-Path $linkedRoot 'Harness')) } catch { $refused = $true }
-  Remove-Item -LiteralPath $linkedRoot -Force
+  Remove-GuardFixtureLink $linkedRoot
+  if (-not [IO.File]::Exists($linkSentinel) -or [IO.File]::ReadAllText($linkSentinel) -ne 'synthetic sentinel') { throw 'Junction cleanup traversed the target.' }
   if (-not $refused) { throw 'A linked installation root was accepted.' }
   Write-Output 'PASS path validation'
 
@@ -80,5 +110,6 @@ try {
   Write-Output 'PASS entrypoint failure and logging'
 }
 finally {
+  Remove-GuardFixtureLink $linkedRoot
   [System.IO.Directory]::Delete($testRoot, $true)
 }
