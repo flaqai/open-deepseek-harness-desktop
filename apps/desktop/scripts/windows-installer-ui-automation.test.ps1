@@ -72,6 +72,17 @@ if ($IsWindows) {
     }
     if (@($events | Where-Object { $_.state -eq 'invoke-unsettled' }).Count -ne 0) { throw 'Native modal fixture left an invocation running.' }
     Write-Host 'Synthetic native modal was observed and acknowledged while Install invocation ran; both workers settled.'
+  } catch {
+    # This fixture contains only synthetic labels; retain bounded observations
+    # before its private directory is removed, including on preflight failure.
+    $fixtureJournal = Join-Path $fixtureRoot "installer-gui-$($fixture.Id).jsonl"
+    if (Test-Path -LiteralPath $fixtureJournal) {
+      try {
+        $fixtureDetails = [IO.File]::ReadAllText($fixtureJournal)
+        Write-Host ('Synthetic modal observations: ' + $fixtureDetails.Substring(0, [Math]::Min(32768, $fixtureDetails.Length)))
+      } catch { Write-Warning 'Synthetic modal observations could not be read; original qualification failure is unchanged.' }
+    }
+    throw
   } finally {
     # This is a synthetic test-owned form, never an installer or old uninstaller.
     if (-not $fixture.HasExited) { $fixture.Kill($true); $fixture.WaitForExit() }
