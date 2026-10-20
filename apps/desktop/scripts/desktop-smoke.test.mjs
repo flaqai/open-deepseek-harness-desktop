@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtemp, readdir, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
@@ -106,7 +106,7 @@ async function windowsRun(t, outcomes, writeSummary = async () => {}) {
   const calls = []
   const result = await executeSmoke({ stage: 'package', target: 'windows-x64' }, {
     platform: 'win32', arch: 'x64', repositoryRoot: directory,
-    environment: { RUNNER_TEMP: directory, PRIVATE_SMOKE_TOKEN: 'private-value' }, writeSummary,
+    environment: { RUNNER_TEMP: directory, TEMP: directory, TMP: directory, PRIVATE_SMOKE_TOKEN: 'private-value' }, writeSummary,
     run: async (step, options) => {
       calls.push({ id: step.id, ...options })
       const outcome = outcomes[step.id] ?? pass
@@ -117,7 +117,7 @@ async function windowsRun(t, outcomes, writeSummary = async () => {}) {
   return { directory, calls, result }
 }
 
-test('candidate validation precedes installed smoke and all steps share one owned retained temp directory', async t => {
+test('candidate validation shares retained evidence root while preserving original private installer TEMP', async t => {
   const { directory, calls, result } = await windowsRun(t, {})
   assert.deepEqual(calls.map(call => call.id), ['windows-candidate', 'windows-installed', 'windows-evidence'])
   assert.equal(result.exitCode, 0)
@@ -125,7 +125,44 @@ test('candidate validation precedes installed smoke and all steps share one owne
   assert.notEqual(temp, directory)
   assert.equal(resolve(temp, '..'), directory)
   assert.ok((await stat(temp)).isDirectory())
-  assert.ok(calls.every(call => call.cwd === directory && call.env.RUNNER_TEMP === temp && call.env.TEMP === temp && call.env.TMP === temp))
+  assert.ok(calls.every(call => call.cwd === directory && call.env.RUNNER_TEMP === temp && call.env.TEMP === directory && call.env.TMP === directory))
+})
+
+test('Windows package rejects missing, mismatched, non-directory or linked private TEMP without guessing a fallback', async t => {
+  const directory = await fixture(t)
+  for (const environment of [
+    { RUNNER_TEMP: directory },
+    { RUNNER_TEMP: directory, TEMP: 'relative', TMP: 'relative' },
+    { RUNNER_TEMP: directory, TEMP: directory, TMP: 'different' },
+    { RUNNER_TEMP: directory, TEMP: resolve(directory, 'missing'), TMP: resolve(directory, 'missing') },
+  ]) {
+    await assert.rejects(executeSmoke({ stage: 'package', target: 'windows-x64' }, {
+      platform: 'win32', arch: 'x64', environment, run: () => assert.fail('invalid TEMP must not run'),
+    }), /original private TEMP/u)
+  }
+  const missing = join(directory, 'missing')
+  await assert.rejects(executeSmoke({ stage: 'package', target: 'windows-x64' }, {
+    platform: 'win32', arch: 'x64', environment: { RUNNER_TEMP: missing, TEMP: missing, TMP: missing },
+  }), /ENOENT/u)
+  assert.deepEqual(await readdir(directory), [])
+  const file = join(directory, 'file')
+  const link = join(directory, 'linked')
+  await writeFile(file, '')
+  await symlink(directory, link, 'junction')
+  for (const invalid of [file, link]) {
+    await assert.rejects(executeSmoke({ stage: 'package', target: 'windows-x64' }, {
+      platform: 'win32', arch: 'x64', environment: { RUNNER_TEMP: invalid, TEMP: invalid, TMP: invalid },
+    }), /existing ordinary directory/u)
+  }
+})
+
+test('non-Windows smoke does not change TEMP or require runner directories', async () => {
+  const calls = []
+  await executeSmoke({ stage: 'package', target: 'linux-x64' }, {
+    platform: 'linux', arch: 'x64', environment: { TEMP: 'unchanged', TMP: 'also unchanged' },
+    writeSummary: async () => {}, run: (step, options) => { calls.push(options.env); return pass },
+  })
+  assert.ok(calls.length > 0 && calls.every(env => env.TEMP === 'unchanged' && env.TMP === 'also unchanged'))
 })
 
 test('a rejected candidate prevents install but still collects bounded evidence', async t => {

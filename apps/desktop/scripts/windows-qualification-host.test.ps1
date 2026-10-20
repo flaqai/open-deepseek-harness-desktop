@@ -18,6 +18,22 @@ $ownedRootCreates = @($tree.FindAll({ param($node)
   $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'New-Item' -and $node.Extent.Text.Contains('-Path $ownedRoot')
 }, $true))
 if ($ownedRootCreates.Count -ne 1 -or $ownedRootCreates[0].Extent.Text -match '-Force') { throw 'Private fixture creation must refuse collisions rather than reuse a directory.' }
+$privateTempHelper = @($tree.FindAll({ param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-DesktopQualificationWithPrivateTemp'
+}, $true))
+. ([scriptblock]::Create($privateTempHelper[0].Extent.Text))
+$privateTempFixture = Join-Path ([IO.Path]::GetTempPath()) ('q-temp-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $privateTempFixture -ErrorAction Stop | Out-Null
+$originalTemp = $env:TEMP
+$originalTmp = $env:TMP
+try {
+  $actualTemp = Invoke-DesktopQualificationWithPrivateTemp -Directory $privateTempFixture -Action { "$env:TEMP|$env:TMP" }
+  if ($actualTemp -ne "$privateTempFixture|$privateTempFixture" -or $env:TEMP -ne $originalTemp -or $env:TMP -ne $originalTmp) { throw 'Administrator smoke must inherit allocated private TEMP only within its process scope.' }
+  try { Invoke-DesktopQualificationWithPrivateTemp -Directory $privateTempFixture -Action { throw 'synthetic-private-temp-failure' } } catch {
+    if ($_.Exception.Message -ne 'synthetic-private-temp-failure') { throw }
+  }
+  if ($env:TEMP -ne $originalTemp -or $env:TMP -ne $originalTmp) { throw 'Failed administrator smoke must restore its supervisor environment.' }
+} finally { [IO.Directory]::Delete($privateTempFixture) }
 $argumentHelper = @($tree.FindAll({ param($node)
   $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'New-DesktopStandardLaunchArguments'
 }, $true))
@@ -260,10 +276,10 @@ $exportHelper = @($tree.FindAll({ param($node)
 . ([scriptblock]::Create($exportHelper[0].Extent.Text))
 $exportRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-export-' + [Guid]::NewGuid().ToString('N'))
 try {
-  [void][IO.Directory]::CreateDirectory((Join-Path $exportRoot 'desktop-smoke-owned'))
-  [IO.File]::WriteAllText((Join-Path $exportRoot 'desktop-smoke-owned/main-installer-diagnostics.json'), '{"schema":"open-dsh/main-installer-diagnostics/v1"}')
-  [IO.File]::WriteAllText((Join-Path $exportRoot 'desktop-smoke-owned/qualification-profile.json'), '{"schema":"open-dsh/standard-profile/v1","folders":[]}')
-  [IO.File]::WriteAllText((Join-Path $exportRoot 'desktop-smoke-owned/installer.log'), 'private raw content')
+  [void][IO.Directory]::CreateDirectory((Join-Path $exportRoot 's-aBc123'))
+  [IO.File]::WriteAllText((Join-Path $exportRoot 's-aBc123/main-installer-diagnostics.json'), '{"schema":"open-dsh/main-installer-diagnostics/v1"}')
+  [IO.File]::WriteAllText((Join-Path $exportRoot 's-aBc123/qualification-profile.json'), '{"schema":"open-dsh/standard-profile/v1","folders":[]}')
+  [IO.File]::WriteAllText((Join-Path $exportRoot 's-aBc123/installer.log'), 'private raw content')
   & { param($repository, $Root) Export-NativeQualificationRecords -Root $Root } $exportRoot $exportRoot
   $exported = @(Get-ChildItem -LiteralPath (Join-Path $exportRoot '.artifacts/windows-smoke-evidence/native-qualification') -File)
   if ($exported.Count -ne 2 -or @($exported | Where-Object { $_.Name -notin @('main-installer-diagnostics.json', 'qualification-profile.json') }).Count -ne 0) { throw 'Only the bounded structured main-installer and profile reports may be exported, not raw logs.' }

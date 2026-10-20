@@ -1,6 +1,6 @@
 /** Fixed Desktop qualification commands; this entry never builds or installs dependencies. */
 import { spawnSync } from 'node:child_process'
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -105,11 +105,19 @@ export async function executeSmoke(request, options = {}) {
     if (typeof environment.RUNNER_TEMP !== 'string' || !isAbsolute(environment.RUNNER_TEMP)) {
       throw new Error('desktop smoke: Windows package requires an absolute RUNNER_TEMP directory')
     }
+    if (typeof environment.TEMP !== 'string' || !isAbsolute(environment.TEMP) ||
+        environment.TEMP !== environment.RUNNER_TEMP || environment.TMP !== environment.TEMP) {
+      throw new Error('desktop smoke: Windows package requires its original private TEMP and TMP directory')
+    }
+    const temporaryDirectory = await lstat(environment.TEMP)
+    if (!temporaryDirectory.isDirectory() || temporaryDirectory.isSymbolicLink()) {
+      throw new Error('desktop smoke: Windows package TEMP must be an existing ordinary directory')
+    }
     // Keep this owned directory after qualification: a failed installed app may still be alive.
     // Upload only the bounded collector destination, never this raw data directory.
-    environment.RUNNER_TEMP = await mkdtemp(join(environment.RUNNER_TEMP, 'desktop-smoke-'))
-    environment.TEMP = environment.RUNNER_TEMP
-    environment.TMP = environment.RUNNER_TEMP
+    environment.RUNNER_TEMP = await mkdtemp(join(environment.RUNNER_TEMP, 's-'))
+    // Keep the host's original private TEMP: NSIS adds its own plugin/rollback
+    // subdirectories. Nesting TEMP again artificially exceeds legacy MAX_PATH.
   }
   const run = options.run ?? runCommand
   const records = []

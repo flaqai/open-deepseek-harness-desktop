@@ -22,10 +22,10 @@ try {
   Assert-UpgradeTest ($sameFixture.Candidate -eq $sameFixture.Previous -and $changedFixture.Candidate -ne $changedFixture.Previous) 'Same and changed upgrade fixtures must preserve their distinct directory semantics.'
   foreach ($fixtureRoot in @($changedFixture.Candidate, $changedFixture.Previous)) {
     $leaf = [IO.Path]::GetFileName($fixtureRoot)
-    Assert-UpgradeTest ($leaf -match '[\u4e00-\u9fff]' -and $leaf.Contains(' ') -and $leaf.Length -eq 4) 'Both fixed install fixtures must retain Chinese characters and spaces.'
+    Assert-UpgradeTest ($leaf -match '[\u4e00-\u9fff]' -and $leaf.StartsWith('Open DeepSeek Harness Desktop ', [StringComparison]::Ordinal) -and $leaf.Length -eq 31) 'Both fixed install fixtures must retain the wizard APP_FILENAME, Chinese characters and spaces.'
     # The fixed public alpha.2 payload measured 193 characters beyond its root.
     # This guards these CI fixtures only; it is not a production path guarantee.
-    foreach ($windowsOwner in @('D:\a\_temp\desktop-smoke-abcdef', 'D:\a\_temp\q-123456789abc\desktop-smoke-abcdef')) {
+    foreach ($windowsOwner in @('D:\a\_temp\s-abcdef', 'D:\a\_temp\q-123456789abc\s-abcdef')) {
       $windowsRoot = $windowsOwner + '\' + $leaf
       Assert-UpgradeTest (($windowsRoot.Length + 193) -lt 260) 'Fixed administrator and standard-user fixtures must fit the measured legacy baseline path budget.'
     }
@@ -172,7 +172,8 @@ try {
   $diagnosticLocker = [Diagnostics.Process]::GetCurrentProcess()
   try {
     $env:TEMP = $diagnosticRoot
-    $env:RUNNER_TEMP = $diagnosticRoot
+    $env:RUNNER_TEMP = Join-Path $diagnosticRoot 's-aBc123'
+    New-Item -ItemType Directory -Path $env:RUNNER_TEMP -ErrorAction Stop | Out-Null
     $mainSnapshot = @(Get-DesktopUpgradeDiagnosticDirectories -Root $diagnosticRoot)
     $mainDirectory = Join-Path $diagnosticRoot 'main.dsh-install'
     New-Item -ItemType Directory -Path $mainDirectory -ErrorAction Stop | Out-Null
@@ -197,6 +198,13 @@ try {
     $mainRecord = @($report.directories | Where-Object { $_.directory -eq 'main.dsh-install' })[0]
     Assert-UpgradeTest ($mainRecord.files[0].events[1].stage -eq 'uninstall-result' -and $mainRecord.files[0].events[1].result -eq 3) 'Installer UTF-16 numeric result must survive projection.'
     Assert-UpgradeTest ($mainRecord.files[1].events[0].errorKind -eq 'previous-runtime-remains') 'Upgrade invalid-state failure must retain its classified cause.'
+    Assert-UpgradeTest ($report.temporaryRootLength -eq $diagnosticRoot.Length -and $report.evidenceRootLength -eq $env:RUNNER_TEMP.Length) 'Diagnostics must record numeric original TEMP and nested evidence lengths.'
+    Remove-Item -LiteralPath $reportPath -ErrorAction Stop
+    $validEvidenceRoot = $env:RUNNER_TEMP
+    $env:RUNNER_TEMP = $testRoot
+    Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true
+    Assert-UpgradeTest (-not (Test-Path -LiteralPath $reportPath)) 'An unrelated evidence root must not authorize TEMP collection.'
+    $env:RUNNER_TEMP = $validEvidenceRoot
     Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories @() -SnapshotAvailable $false
     Assert-UpgradeTest ((Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json).status -eq 'unavailable') 'Unavailable snapshot must not collect unrelated old logs.'
     Remove-Item -LiteralPath $reportPath -ErrorAction Stop

@@ -29,13 +29,29 @@ function New-DesktopQualificationPrivateLeaf {
   # only a randomly allocated CI fixture, never a rewrite of a user's path.
   return 'q-' + [Guid]::NewGuid().ToString('N').Substring(0, 12)
 }
+function Invoke-DesktopQualificationWithPrivateTemp {
+  param([string] $Directory, [scriptblock] $Action)
+  if (-not [IO.Path]::IsPathFullyQualified($Directory)) { throw 'Qualification TEMP requires an absolute allocated runner directory.' }
+  $item = Get-Item -LiteralPath $Directory -Force -ErrorAction Stop
+  if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Qualification TEMP requires an ordinary allocated runner directory.' }
+  $savedTemp = $env:TEMP
+  $savedTmp = $env:TMP
+  try {
+    $env:TEMP = $Directory
+    $env:TMP = $Directory
+    & $Action
+  } finally {
+    $env:TEMP = $savedTemp
+    $env:TMP = $savedTmp
+  }
+}
 function Export-NativeQualificationRecords {
   param([string] $Root)
   $destination = Join-Path $repository '.artifacts/windows-smoke-evidence/native-qualification'
   New-Item -ItemType Directory -Path $destination -Force | Out-Null
   $recordRoots = @($Root)
   if (Test-Path -LiteralPath $Root) {
-    $recordRoots += @(Get-ChildItem -LiteralPath $Root -Directory -Filter 'desktop-smoke-*' | ForEach-Object { $_.FullName })
+    $recordRoots += @(Get-ChildItem -LiteralPath $Root -Directory -Filter 's-*' | Where-Object { $_.Name -cmatch '^s-[A-Za-z0-9]{6}$' -and ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0 } | ForEach-Object { $_.FullName })
   }
   foreach ($recordRoot in $recordRoots) {
     foreach ($record in @(Get-ChildItem -LiteralPath $recordRoot -File -ErrorAction SilentlyContinue | Where-Object {
@@ -50,8 +66,10 @@ if ($Privilege -eq 'administrator') {
   [ordered]@{ schema = 'open-dsh/windows-token/v1'; requested = $Privilege; administrator = $isAdministrator; identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'qualification-token.json') -Encoding utf8
   try {
-    & $node $entry package windows-x64
-    $qualificationExit = $LASTEXITCODE
+    Invoke-DesktopQualificationWithPrivateTemp -Directory $env:RUNNER_TEMP -Action {
+      & $node $entry package windows-x64
+      $script:qualificationExit = $LASTEXITCODE
+    }
   } finally { Export-NativeQualificationRecords -Root $env:RUNNER_TEMP }
   exit $qualificationExit
 }

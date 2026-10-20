@@ -3,8 +3,10 @@ function Get-DesktopQualificationInstallDirectories {
   param([string] $Root, [switch] $ChangeDirectory)
   # Fixed short siblings retain Unicode and spaces without adding an artificial
   # MAX_PATH failure to the immutable public alpha.2 upgrade fixture.
-  $candidate = Join-Path $Root '新 安装'
-  $previous = if ($ChangeDirectory) { Join-Path $Root '旧 安装' } else { $candidate }
+  # The wizard appends APP_FILENAME if absent; retain it in both siblings so
+  # interactive and silent installation resolve to the identical expected root.
+  $candidate = Join-Path $Root 'Open DeepSeek Harness Desktop 新'
+  $previous = if ($ChangeDirectory) { Join-Path $Root 'Open DeepSeek Harness Desktop 旧' } else { $candidate }
   if ($ChangeDirectory -and $previous -eq $candidate) { throw 'Changed-directory qualification requires distinct siblings.' }
   return [pscustomobject]@{ Candidate = $candidate; Previous = $previous }
 }
@@ -187,13 +189,20 @@ function Save-DesktopMainInstallerDiagnostics {
   $report.shortLockBeforeMain = $ShortLockBeforeMain
   $report.shortLock = Get-DesktopShortLockMetadata -Process $ShortLocker
   try {
+    $evidenceDirectory = Get-Item -LiteralPath $env:RUNNER_TEMP -Force -ErrorAction Stop
+    $temporaryDirectory = Get-Item -LiteralPath $Root -Force -ErrorAction Stop
     if (-not [IO.Path]::IsPathFullyQualified($Root) -or
         -not [string]::Equals($Root, $env:TEMP, [StringComparison]::OrdinalIgnoreCase) -or
-        -not [string]::Equals($Root, $env:RUNNER_TEMP, [StringComparison]::OrdinalIgnoreCase) -or
-        ((Get-Item -LiteralPath $Root -Force -ErrorAction Stop).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        -not $temporaryDirectory.PSIsContainer -or -not $evidenceDirectory.PSIsContainer -or
+        $evidenceDirectory.Name -cnotmatch '^s-[A-Za-z0-9]{6}$' -or
+        -not [string]::Equals($temporaryDirectory.FullName, $evidenceDirectory.Parent.FullName, [StringComparison]::OrdinalIgnoreCase) -or
+        ($temporaryDirectory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+        ($evidenceDirectory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
       Write-Warning 'Installer diagnostic collection rejected an unowned temporary directory.' -WarningAction Continue
       return
     }
+    $report.temporaryRootLength = $temporaryDirectory.FullName.Length
+    $report.evidenceRootLength = $evidenceDirectory.FullName.Length
     if (-not $SnapshotAvailable) { throw 'The pre-install directory snapshot was unavailable.' }
     $newDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $Root | Where-Object { $PreviousDirectories -notcontains $_ } | Sort-Object)
     if ($newDirectories.Count -gt 8) { $report.status = 'degraded' }
