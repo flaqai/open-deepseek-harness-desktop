@@ -10,11 +10,20 @@ function Get-DesktopWizardAction {
   return $null
 }
 
-function Invoke-DesktopWizardAutomation {
-  param([System.Diagnostics.Process] $Process, [string] $EvidenceDirectory)
+function Initialize-DesktopWizardAutomation {
   if (-not $IsWindows) { throw 'NSIS wizard automation requires native Windows.' }
   Add-Type -AssemblyName UIAutomationClient
   Add-Type -AssemblyName UIAutomationTypes
+  $desktopRoot = [Windows.Automation.AutomationElement]::RootElement
+  if ($null -eq $desktopRoot -or $null -eq $desktopRoot.Current.ControlType) {
+    throw 'Native UIAutomation desktop root is unavailable; interactive qualification cannot proceed.'
+  }
+  return $desktopRoot
+}
+
+function Invoke-DesktopWizardAutomation {
+  param([System.Diagnostics.Process] $Process, [string] $EvidenceDirectory)
+  $desktopRoot = Initialize-DesktopWizardAutomation
   $records = [Collections.Generic.List[object]]::new()
   $deadline = (Get-Date).AddMinutes(15)
   $lastAction = ''
@@ -25,7 +34,7 @@ function Invoke-DesktopWizardAutomation {
     while (-not $Process.HasExited -and (Get-Date) -lt $deadline) {
       # Only this exact installer PID: never click another application or UAC prompt.
       $condition = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty, $Process.Id)
-      $windows = [Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children, $condition)
+      $windows = $desktopRoot.FindAll([Windows.Automation.TreeScope]::Children, $condition)
       foreach ($window in $windows) {
         if ($window.Current.IsOffscreen) { continue }
         $observedWindows++
