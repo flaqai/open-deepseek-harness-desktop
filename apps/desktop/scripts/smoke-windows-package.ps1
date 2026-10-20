@@ -481,7 +481,7 @@ if ($null -ne $previousQualification) {
   $historicalEvidence | Add-Member -NotePropertyName candidateInstallerSha256 -NotePropertyValue (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
   $historicalEvidence | Add-Member -NotePropertyName qualification -NotePropertyValue 'passed'
   if ($InteractiveUpgrade) {
-    $historicalEvidence.guiObservation = if ($env:DSH_WINDOWS_GUI_AUTOMATION -eq '1') { 'native-uia-observed' } else { 'human-confirmed' }
+    $historicalEvidence.guiObservation = if ($env:DSH_WINDOWS_GUI_AUTOMATION -eq '1') { 'native-win32-observed' } else { 'human-confirmed' }
   }
   $historicalEvidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $historicalEvidencePath -Encoding utf8
   Remove-Item -LiteralPath $previousQualification.Sentinel -ErrorAction Stop

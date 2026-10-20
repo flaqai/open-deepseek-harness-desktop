@@ -1,4 +1,4 @@
-# Native NSIS wizard observation. Never treats process exit as GUI observation.
+# Native NSIS GUI qualification; no accessibility provider or desktop-wide UI query.
 function Get-DesktopWizardAction {
   param([string] $Name, [string] $AutomationId, [bool] $Enabled, [string] $ControlType)
   if (-not $Enabled) { return $null }
@@ -12,103 +12,145 @@ function Get-DesktopWizardAction {
 
 function Initialize-DesktopWizardAutomation {
   if (-not $IsWindows) { throw 'NSIS wizard automation requires native Windows.' }
-  Add-Type -AssemblyName UIAutomationClient
-  Add-Type -AssemblyName UIAutomationTypes
-  if (-not ('DesktopWizardInvokeWorker' -as [type])) {
-    # Invoke can remain inside a provider until its modal dialog is dismissed.
-    # The observer must remain free to discover and acknowledge that same-PID dialog.
+  if (-not ('DesktopWizardWin32' -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
-using System.Reflection;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-public static class DesktopWizardNativeWindows {
-  delegate bool EnumWindowCallback(IntPtr window, IntPtr state);
-  [DllImport("user32.dll")] static extern bool EnumWindows(EnumWindowCallback callback, IntPtr state);
+public sealed class DesktopWizardControl {
+  public IntPtr Handle;
+  public int ProcessId, Id, Checked;
+  public string Name, ClassName, ControlType, ReadError;
+  public bool Enabled;
+}
+public static class DesktopWizardWin32 {
+  delegate bool EnumCallback(IntPtr window, IntPtr state);
+  [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
+  [StructLayout(LayoutKind.Sequential)] struct Message { public IntPtr Hwnd; public uint Msg; public UIntPtr WParam; public IntPtr LParam; public uint Time; public Point Point; public uint Private; }
+  [DllImport("user32.dll", SetLastError = true)] static extern bool EnumWindows(EnumCallback callback, IntPtr state);
+  [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, EnumCallback callback, IntPtr state);
   [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
-  [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] static extern bool IsWindowVisible(IntPtr window);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+  [DllImport("user32.dll")] static extern bool IsWindowEnabled(IntPtr window);
+  [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr window);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(IntPtr window, StringBuilder value, int capacity);
+  [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] static extern IntPtr GetWindowLongPtrW(IntPtr window, int index);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true, EntryPoint = "SendMessageTimeoutW")]
+  static extern IntPtr SendText(IntPtr window, uint message, UIntPtr wParam, StringBuilder text, uint flags, uint timeout, out UIntPtr result);
+  [DllImport("user32.dll", SetLastError = true, EntryPoint = "SendMessageTimeoutW")]
+  static extern IntPtr SendValue(IntPtr window, uint message, UIntPtr wParam, IntPtr value, uint flags, uint timeout, out UIntPtr result);
+  [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window, uint flags);
+  [DllImport("user32.dll")] static extern IntPtr SetActiveWindow(IntPtr window);
+  [DllImport("user32.dll", SetLastError = true)] static extern bool AttachThreadInput(uint first, uint second, bool attach);
+  [DllImport("user32.dll")] static extern bool PeekMessage(out Message message, IntPtr window, uint first, uint last, uint remove);
+  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
   [DllImport("user32.dll")] static extern IntPtr GetProcessWindowStation();
   [DllImport("user32.dll")] static extern IntPtr GetThreadDesktop(uint thread);
-  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
   [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-  [return: MarshalAs(UnmanagedType.Bool)] static extern bool GetUserObjectInformationW(IntPtr handle, int index, StringBuilder value, uint bytes, out uint required);
-  static string ObjectName(IntPtr handle) {
-    var value = new StringBuilder(256);
-    uint required;
-    return GetUserObjectInformationW(handle, 2, value, (uint)(value.Capacity * 2), out required)
-      ? value.ToString() : "unavailable:win32=" + Marshal.GetLastWin32Error();
-  }
+  static extern bool GetUserObjectInformationW(IntPtr handle, int index, StringBuilder value, uint bytes, out uint required);
   public static string WindowStation() { return ObjectName(GetProcessWindowStation()); }
   public static string Desktop() { return ObjectName(GetThreadDesktop(GetCurrentThreadId())); }
-  public static IntPtr[] ForProcess(int process) {
-    var windows = new List<IntPtr>();
-    EnumWindowCallback callback = delegate(IntPtr window, IntPtr state) {
-      uint owner;
-      GetWindowThreadProcessId(window, out owner);
-      if (owner == process && IsWindowVisible(window)) windows.Add(window);
+  static string ObjectName(IntPtr handle) {
+    var value = new StringBuilder(256); uint required;
+    return GetUserObjectInformationW(handle, 2, value, 512, out required) ? value.ToString() : "unavailable:win32=" + Marshal.GetLastWin32Error();
+  }
+  public static IntPtr[] Windows(int process) {
+    var result = new List<IntPtr>();
+    EnumCallback callback = delegate(IntPtr window, IntPtr state) {
+      uint owner; GetWindowThreadProcessId(window, out owner);
+      if (owner == process && IsWindowVisible(window)) result.Add(window);
       return true;
     };
-    if (!EnumWindows(callback, IntPtr.Zero)) throw new InvalidOperationException("Cannot enumerate native top-level windows.");
-    GC.KeepAlive(callback);
-    return windows.ToArray();
+    if (!EnumWindows(callback, IntPtr.Zero)) throw new Win32Exception(Marshal.GetLastWin32Error());
+    GC.KeepAlive(callback); return result.ToArray();
+  }
+  public static DesktopWizardControl[] Controls(IntPtr parent, int process) {
+    var result = new List<DesktopWizardControl>();
+    EnumCallback callback = delegate(IntPtr window, IntPtr state) {
+      uint owner; GetWindowThreadProcessId(window, out owner);
+      if (owner == process && IsWindowVisible(window)) result.Add(Read(window, process));
+      return true;
+    };
+    EnumChildWindows(parent, callback, IntPtr.Zero);
+    GC.KeepAlive(callback); return result.ToArray();
+  }
+  public static DesktopWizardControl Read(IntPtr window, int process) {
+    uint owner; GetWindowThreadProcessId(window, out owner);
+    var value = new DesktopWizardControl { Handle = window, ProcessId = (int)owner, Checked = -1 };
+    if (owner != process) { value.Name = ""; value.ControlType = "Text"; value.ReadError = "Native HWND ownership changed."; return value; }
+    value.Id = GetDlgCtrlID(window); value.Enabled = IsWindowEnabled(window);
+    var className = new StringBuilder(256); GetClassNameW(window, className, 256); value.ClassName = className.ToString();
+    bool button = value.ClassName == "Button" || value.ClassName.StartsWith("WindowsForms10.BUTTON", StringComparison.Ordinal);
+    int style = (int)(GetWindowLongPtrW(window, -16).ToInt64() & 15);
+    value.ControlType = button ? ((style == 2 || style == 3 || style == 5 || style == 6) ? "CheckBox" : ((style == 0 || style == 1 || style == 11) ? "Button" : "Text")) : "Text";
+    var text = new StringBuilder(4096); UIntPtr response;
+    // WM_GETTEXT is system-marshalled. A busy control is recorded but never activated.
+    if (SendText(window, 13, new UIntPtr(4096), text, 2, 1000, out response) == IntPtr.Zero) {
+      value.ReadError = "WM_GETTEXT unavailable:win32=" + Marshal.GetLastWin32Error(); value.Name = ""; return value;
+    }
+    value.Name = text.ToString();
+    if (value.ControlType == "CheckBox") {
+      if (SendValue(window, 0xF0, UIntPtr.Zero, IntPtr.Zero, 2, 1000, out response) == IntPtr.Zero) value.ReadError = "BM_GETCHECK unavailable:win32=" + Marshal.GetLastWin32Error();
+      else value.Checked = (int)response.ToUInt64();
+    }
+    return value;
+  }
+  public static void Click(DesktopWizardControl expected, uint timeout) {
+    var actual = Read(expected.Handle, expected.ProcessId);
+    if (actual.ReadError != null || !actual.Enabled || actual.Id != expected.Id || actual.Name != expected.Name || actual.ControlType != expected.ControlType || (actual.ControlType == "CheckBox" && actual.Checked != expected.Checked))
+      throw new InvalidOperationException("Observed button changed before activation.");
+    uint owner; uint target = GetWindowThreadProcessId(actual.Handle, out owner); uint caller = GetCurrentThreadId();
+    Message message; PeekMessage(out message, IntPtr.Zero, 0, 0, 0);
+    bool attached = caller != target && AttachThreadInput(caller, target, true);
+    if (caller != target && !attached) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot activate the owned installer dialog input queue.");
+    try { SetActiveWindow(GetAncestor(actual.Handle, 2)); }
+    finally { if (attached && !AttachThreadInput(caller, target, false)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot detach installer input queues."); }
+    UIntPtr result;
+    // The worker may enter a modal loop; the observer remains free to acknowledge it.
+    if (SendValue(actual.Handle, 0xF5, UIntPtr.Zero, IntPtr.Zero, 1, timeout, out result) == IntPtr.Zero)
+      throw new Win32Exception(Marshal.GetLastWin32Error(), "Owned button activation failed or timed out; outcome unknown.");
+    if (actual.ControlType == "CheckBox") {
+      var after = Read(actual.Handle, expected.ProcessId);
+      if (after.ReadError != null || after.Checked != 0) throw new InvalidOperationException("Launch checkbox was not confirmed unchecked.");
+    }
   }
 }
 public sealed class DesktopWizardInvokeWorker {
   readonly Thread thread;
-  readonly object control;
-  readonly object pattern;
+  readonly DesktopWizardControl control;
+  readonly uint timeout;
   public volatile bool Completed;
   public string Error;
-  public DesktopWizardInvokeWorker(object control, object pattern) {
-    this.control = control;
-    this.pattern = pattern;
-    thread = new Thread(Run);
-    thread.IsBackground = true;
-    thread.SetApartmentState(ApartmentState.MTA);
-    thread.Start();
+  public DesktopWizardInvokeWorker(DesktopWizardControl control, uint timeout) {
+    this.control = control; this.timeout = timeout;
+    thread = new Thread(Run); thread.IsBackground = true; thread.SetApartmentState(ApartmentState.MTA); thread.Start();
   }
-  void Run() {
-    try {
-      object provider = control.GetType().GetMethod("GetCurrentPattern").Invoke(control, new object[] { pattern });
-      provider.GetType().GetMethod("Invoke", Type.EmptyTypes).Invoke(provider, null);
-    } catch (Exception error) {
-      while (error is TargetInvocationException && error.InnerException != null) error = error.InnerException;
-      Error = error.GetType().Name + ": " + error.Message;
-    } finally { Completed = true; }
-  }
+  void Run() { try { DesktopWizardWin32.Click(control, timeout); } catch (Exception error) { Error = error.GetType().Name + ": " + error.Message; } finally { Completed = true; } }
   public bool Join(int milliseconds) { return thread.Join(milliseconds); }
 }
 '@
   }
-  $desktopRoot = [Windows.Automation.AutomationElement]::RootElement
-  if ($null -eq $desktopRoot -or $null -eq $desktopRoot.Current.ControlType) {
-    throw 'Native UIAutomation desktop root is unavailable; interactive qualification cannot proceed.'
-  }
-  return $desktopRoot
+  return [DesktopWizardWin32]::WindowStation()
 }
 
 function Invoke-DesktopWizardAutomation {
   param([System.Diagnostics.Process] $Process, [string] $EvidenceDirectory, [ValidateRange(1, 900)] [int] $TimeoutSeconds = 900)
-  # All UIAutomation discovery and provider access stays on an MTA observer thread.
   $automationScript = (Get-Command Invoke-DesktopWizardAutomationCore).ScriptBlock.File
   $runspace = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
   $runspace.ApartmentState = [Threading.ApartmentState]::MTA
   $runspace.ThreadOptions = [Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
   $observer = [powershell]::Create()
   try {
-    $runspace.Open()
-    $observer.Runspace = $runspace
+    $runspace.Open(); $observer.Runspace = $runspace
     [void]$observer.AddScript('param($Script, $Process, $Evidence, $Budget) $ErrorActionPreference = "Stop"; . $Script; Invoke-DesktopWizardAutomationCore -Process $Process -EvidenceDirectory $Evidence -TimeoutSeconds $Budget').AddArgument($automationScript).AddArgument($Process).AddArgument($EvidenceDirectory).AddArgument($TimeoutSeconds)
     $result = $observer.Invoke()
     if ($observer.HadErrors) { throw $observer.Streams.Error[0].Exception }
-    if ($result.Count -ne 1) { throw 'Native UIAutomation observer did not return one installer exit result.' }
+    if ($result.Count -ne 1) { throw 'Native Win32 observer did not return one installer exit result.' }
     return [int]$result[0]
-  } finally {
-    $observer.Dispose()
-    $runspace.Dispose()
-  }
+  } finally { $observer.Dispose(); $runspace.Dispose() }
 }
 
 function Invoke-DesktopWizardAutomationCore {
@@ -116,10 +158,8 @@ function Invoke-DesktopWizardAutomationCore {
   $null = Initialize-DesktopWizardAutomation
   $records = [Collections.Generic.List[object]]::new()
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-  $lastAction = ''
-  $observedWindows = 0
-  $advanced = 0
-  $pendingInvocations = [Collections.Generic.List[object]]::new()
+  $pending = [Collections.Generic.List[object]]::new()
+  $observation = @{ Windows = 0; Advances = 0; States = @{} }
   $log = Join-Path $EvidenceDirectory "installer-gui-$($Process.Id).json"
   $incrementalLog = Join-Path $EvidenceDirectory "installer-gui-$($Process.Id).jsonl"
   function Write-WizardObservation {
@@ -127,82 +167,60 @@ function Invoke-DesktopWizardAutomationCore {
     $records.Add($Record)
     [IO.File]::AppendAllText($incrementalLog, (($Record | ConvertTo-Json -Depth 6 -Compress) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
   }
-  try {
-    Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; state = 'observer-started'; apartment = [Threading.Thread]::CurrentThread.GetApartmentState().ToString(); observerSession = [Diagnostics.Process]::GetCurrentProcess().SessionId; installerSession = $Process.SessionId; windowStation = [DesktopWizardNativeWindows]::WindowStation(); desktop = [DesktopWizardNativeWindows]::Desktop() })
-    while (-not $Process.HasExited -and (Get-Date) -lt $deadline) {
-      foreach ($invocation in $pendingInvocations) {
-        if (-not $invocation.Settled -and $invocation.Worker.Completed) {
-          if (-not $invocation.Worker.Join(1000)) { throw 'Completed UIAutomation worker did not settle.' }
-          $invocation.Settled = $true
-          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $invocation.Action; state = 'invoke-completed'; label = $invocation.Label; error = $invocation.Worker.Error })
-          if ($null -ne $invocation.Worker.Error) { throw "Native UIAutomation invocation failed: $($invocation.Worker.Error)" }
-          if ($invocation.Action -eq 'advance') { $advanced++ }
-        }
-      }
-      # Only this exact installer PID: never click another application or UAC prompt.
-      # EnumWindows filters native HWND ownership before querying any UIAutomation provider.
-      # Desktop-wide FindAll also visits unrelated hung providers despite a PID condition.
-      foreach ($windowHandle in [DesktopWizardNativeWindows]::ForProcess($Process.Id)) {
-        try {
-        $window = [Windows.Automation.AutomationElement]::FromHandle($windowHandle)
-        if ($window.Current.ProcessId -ne $Process.Id) { throw 'Native window ownership changed before observation.' }
-        if ($window.Current.IsOffscreen) { continue }
-        $observedWindows++
-        $controls = $window.FindAll([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.Condition]::TrueCondition)
-        $snapshot = @($controls | ForEach-Object {
-          [ordered]@{ name = $_.Current.Name; id = $_.Current.AutomationId; type = $_.Current.ControlType.ProgrammaticName; enabled = $_.Current.IsEnabled }
-        })
-        $state = $snapshot | ConvertTo-Json -Depth 4 -Compress
-        if ($state -eq $lastAction) { continue }
-        if ($records.Count -ge 4096) { throw 'NSIS GUI observation exceeded its bounded evidence budget.' }
-        $lastAction = $state
-        Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; windowProcessId = $window.Current.ProcessId; windowHandle = $windowHandle.ToInt64(); window = $window.Current.Name; state = 'observed'; controls = $snapshot })
-        foreach ($control in $controls) {
-          $action = Get-DesktopWizardAction -Name $control.Current.Name -AutomationId $control.Current.AutomationId -Enabled $control.Current.IsEnabled -ControlType ($control.Current.ControlType.ProgrammaticName -replace '^ControlType\.', '')
-          if ($action -eq 'clear-launch') {
-            $toggle = $control.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern)
-            if ($toggle.Current.ToggleState -eq [Windows.Automation.ToggleState]::On) { $toggle.Toggle() }
-          }
-        }
-        foreach ($control in $controls) {
-          $action = Get-DesktopWizardAction -Name $control.Current.Name -AutomationId $control.Current.AutomationId -Enabled $control.Current.IsEnabled -ControlType ($control.Current.ControlType.ProgrammaticName -replace '^ControlType\.', '')
-          if ($action -in @('advance', 'acknowledge')) {
-            $controlKey = $control.GetRuntimeId() -join ','
-            if (@($pendingInvocations | Where-Object { -not $_.Settled -and $_.Key -eq $controlKey }).Count -ne 0) { continue }
-            if (@($pendingInvocations | Where-Object { -not $_.Settled }).Count -ge 16) { throw 'Native UIAutomation exceeded its pending invocation budget.' }
-            $controlName = $control.Current.Name
-            Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $action; state = 'invoke-started'; label = $controlName; id = $control.Current.AutomationId })
-            $worker = [DesktopWizardInvokeWorker]::new($control, [Windows.Automation.InvokePattern]::Pattern)
-            $pendingInvocations.Add([pscustomobject]@{ Worker = $worker; Key = $controlKey; Action = $action; Label = $controlName; Settled = $false })
-            break
-          }
-        }
-        } catch [Windows.Automation.ElementNotAvailableException] {
-          # An observed wizard or modal may disappear immediately after its button runs.
-          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; windowHandle = $windowHandle.ToInt64(); state = 'window-closed-during-observation' })
-        }
-      }
-      Start-Sleep -Milliseconds 200
-      $Process.Refresh()
-    }
-    if (-not $Process.HasExited) { throw "Installer PID $($Process.Id) remains running; GUI outcome unknown. Atomic uninstall was not interrupted." }
-    foreach ($invocation in $pendingInvocations) {
+  function Complete-WizardInvocations {
+    param([bool] $RequireSettled)
+    foreach ($invocation in $pending) {
       if ($invocation.Settled) { continue }
-      if (-not $invocation.Worker.Join(5000)) { throw 'Installer exited but a UIAutomation provider remains blocked; GUI outcome unknown.' }
+      if (-not $invocation.Worker.Completed -and -not $RequireSettled) { continue }
+      if (-not $invocation.Worker.Join(5000)) { throw 'Native button worker remains blocked; GUI outcome unknown.' }
       $invocation.Settled = $true
       Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $invocation.Action; state = 'invoke-completed'; label = $invocation.Label; error = $invocation.Worker.Error })
-      if ($null -ne $invocation.Worker.Error) { throw "Native UIAutomation invocation failed: $($invocation.Worker.Error)" }
-      if ($invocation.Action -eq 'advance') { $advanced++ }
+      if ($null -ne $invocation.Worker.Error) { throw "Native button activation failed: $($invocation.Worker.Error)" }
+      if ($invocation.Action -eq 'advance') { $observation.Advances++ }
     }
-    if ($observedWindows -eq 0 -or $advanced -eq 0) { throw 'No actionable NSIS wizard was observed. Process exit is not interactive acceptance.' }
+  }
+  try {
+    Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; state = 'observer-started'; backend = 'win32'; apartment = [Threading.Thread]::CurrentThread.GetApartmentState().ToString(); observerSession = [Diagnostics.Process]::GetCurrentProcess().SessionId; installerSession = $Process.SessionId; windowStation = [DesktopWizardWin32]::WindowStation(); desktop = [DesktopWizardWin32]::Desktop() })
+    while (-not $Process.HasExited -and (Get-Date) -lt $deadline) {
+      Complete-WizardInvocations $false
+      foreach ($windowHandle in [DesktopWizardWin32]::Windows($Process.Id)) {
+        $window = [DesktopWizardWin32]::Read($windowHandle, $Process.Id)
+        if ($window.ProcessId -ne $Process.Id) {
+          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; windowHandle = $windowHandle.ToInt64(); windowProcessId = $window.ProcessId; state = 'window-owner-changed' })
+          continue
+        }
+        $controls = [DesktopWizardWin32]::Controls($windowHandle, $Process.Id)
+        $snapshot = @($controls | ForEach-Object { [ordered]@{ name = $_.Name; id = $_.Id; type = $_.ControlType; className = $_.ClassName; enabled = $_.Enabled; handle = $_.Handle.ToInt64(); readError = $_.ReadError; checked = $_.Checked } })
+        $state = $snapshot | ConvertTo-Json -Depth 4 -Compress
+        $key = $windowHandle.ToInt64().ToString()
+        if ($observation.States[$key] -eq $state) { continue }
+        if ($records.Count -ge 4096) { throw 'Native GUI observation exceeded its bounded evidence budget.' }
+        $observation.States[$key] = $state; $observation.Windows++
+        Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; windowProcessId = $window.ProcessId; windowHandle = $windowHandle.ToInt64(); window = $window.Name; windowReadError = $window.ReadError; state = 'observed'; controls = $snapshot })
+        # Clear the launch option before activating Finish, regardless of native child order.
+        foreach ($control in @($controls | Sort-Object { if ($_.ControlType -eq 'CheckBox') { 0 } else { 1 } })) {
+          if ($null -ne $control.ReadError) { continue }
+          $action = Get-DesktopWizardAction -Name $control.Name -AutomationId $control.Id.ToString() -Enabled $control.Enabled -ControlType $control.ControlType
+          if ($null -eq $action -or ($action -eq 'clear-launch' -and $control.Checked -ne 1)) { continue }
+          if (@($pending | Where-Object { -not $_.Settled -and $_.Handle -eq $control.Handle }).Count -ne 0) { continue }
+          if (@($pending | Where-Object { -not $_.Settled }).Count -ge 16) { throw 'Native GUI exceeded its pending invocation budget.' }
+          Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $action; state = 'invoke-started'; label = $control.Name; id = $control.Id; handle = $control.Handle.ToInt64() })
+          $remaining = [uint32][Math]::Max(1, [Math]::Ceiling(($deadline - (Get-Date)).TotalMilliseconds))
+          $worker = [DesktopWizardInvokeWorker]::new($control, $remaining)
+          $pending.Add([pscustomobject]@{ Worker = $worker; Action = $action; Label = $control.Name; Handle = $control.Handle; Settled = $false })
+          break
+        }
+      }
+      Start-Sleep -Milliseconds 200; $Process.Refresh()
+    }
+    if (-not $Process.HasExited) { throw "Installer PID $($Process.Id) remains running; GUI outcome unknown. Atomic uninstall was not interrupted." }
+    Complete-WizardInvocations $true
+    if ($observation.Windows -eq 0 -or $observation.Advances -eq 0) { throw 'No actionable native wizard was observed. Process exit is not interactive acceptance.' }
     return $Process.ExitCode
   } finally {
-    foreach ($invocation in $pendingInvocations) {
-      if (-not $invocation.Settled) {
-        Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $invocation.Action; state = 'invoke-unsettled'; label = $invocation.Label })
-      }
+    foreach ($invocation in $pending) {
+      if (-not $invocation.Settled) { Write-WizardObservation ([ordered]@{ timeUtc = [DateTime]::UtcNow.ToString('o'); pid = $Process.Id; action = $invocation.Action; state = 'invoke-unsettled'; label = $invocation.Label }) }
     }
-    [ordered]@{ schema = 'open-dsh/nsis-gui-observation/v1'; pid = $Process.Id; observedWindows = $observedWindows; advances = $advanced; records = @($records.ToArray()) } |
-      ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $log -Encoding utf8
+    [ordered]@{ schema = 'open-dsh/nsis-gui-observation/v1'; backend = 'win32'; pid = $Process.Id; observedWindows = $observation.Windows; advances = $observation.Advances; records = @($records.ToArray()) } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $log -Encoding utf8
   }
 }

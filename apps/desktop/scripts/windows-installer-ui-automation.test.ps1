@@ -3,6 +3,14 @@ $ErrorActionPreference = 'Stop'
 if ($ModalFixture) {
   if (-not $IsWindows) { throw 'Synthetic modal fixture requires native Windows.' }
   Add-Type -AssemblyName System.Windows.Forms
+  Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class DesktopWizardFixtureButtonId {
+  [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] public static extern IntPtr SetId(IntPtr window, int index, IntPtr value);
+  [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr window);
+}
+'@
   $form = [Windows.Forms.Form]::new()
   $form.Text = 'Synthetic NSIS modal regression'
   $button = [Windows.Forms.Button]::new()
@@ -14,6 +22,8 @@ if ($ModalFixture) {
     $form.Close()
   })
   $form.Controls.Add($button)
+  [void][DesktopWizardFixtureButtonId]::SetId($button.Handle, -12, [IntPtr]::new(1))
+  if ([DesktopWizardFixtureButtonId]::GetDlgCtrlID($button.Handle) -ne 1) { throw 'Synthetic Install button did not expose the real NSIS native control id.' }
   try { [void]$form.ShowDialog() } finally { $form.Dispose() }
   exit 0
 }
@@ -29,14 +39,14 @@ if ($null -ne (Get-DesktopWizardAction 'Install' '2' $true 'Button')) { throw 'U
 if ($null -ne (Get-DesktopWizardAction 'Install' '1' $true 'Text')) { throw 'Non-button accepted.' }
 if ((Get-DesktopWizardAction 'Run Open DeepSeek Harness Desktop' '' $true 'CheckBox') -ne 'clear-launch') { throw 'Launch checkbox not recognized.' }
 if ($IsWindows) {
-  # The real loader and desktop provider must work before the expensive package build.
-  # Reading RootElement does not observe or accept any installer wizard.
-  $desktopRoot = Initialize-DesktopWizardAutomation
-  if ($desktopRoot -isnot [Windows.Automation.AutomationElement]) {
-    throw 'UIAutomation root did not expose a native automation element.'
+  # Resolve the native window station before the expensive package build.
+  # A capability probe does not observe or accept any installer wizard.
+  $windowStation = Initialize-DesktopWizardAutomation
+  if ([string]::IsNullOrWhiteSpace($windowStation) -or $windowStation.StartsWith('unavailable:')) {
+    throw 'Native Win32 window station is unavailable.'
   }
-  Write-Host 'Native UIAutomation assemblies and desktop root are available; installer GUI acceptance remains separate.'
-  $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-uia-modal-' + [Guid]::NewGuid().ToString('N'))
+  Write-Host 'Native Win32 window station is available; installer GUI acceptance remains separate.'
+  $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-win32-modal-' + [Guid]::NewGuid().ToString('N'))
   New-Item -ItemType Directory -Path $fixtureRoot -ErrorAction Stop | Out-Null
   $start = [Diagnostics.ProcessStartInfo]::new()
   $start.FileName = (Get-Process -Id $PID).Path
@@ -49,10 +59,10 @@ if ($IsWindows) {
     $journalPath = Join-Path $fixtureRoot "installer-gui-$($fixture.Id).jsonl"
     $events = @(Get-Content -LiteralPath $journalPath | ForEach-Object { $_ | ConvertFrom-Json })
     $observerStart = @($events | Where-Object { $_.state -eq 'observer-started' })
-    if ($observerStart.Count -ne 1 -or $observerStart[0].apartment -ne 'MTA') { throw 'Native discovery did not run on its dedicated MTA observer.' }
+    if ($observerStart.Count -ne 1 -or $observerStart[0].apartment -ne 'MTA' -or $observerStart[0].backend -ne 'win32') { throw 'Native discovery did not run on its dedicated Win32 MTA observer.' }
     $observed = @($events | Where-Object { $_.state -eq 'observed' })
     if ($observed.Count -eq 0 -or @($observed | Where-Object { $_.windowProcessId -ne $fixture.Id -or $_.windowHandle -eq 0 }).Count -ne 0) {
-      throw 'Native discovery did not restrict real HWND and provider ownership to the fixture process.'
+      throw 'Native discovery did not restrict real HWND ownership to the fixture process.'
     }
     $startEvent = @($events | Where-Object { $_.action -eq 'advance' -and $_.state -eq 'invoke-started' })
     $completeEvent = @($events | Where-Object { $_.action -eq 'advance' -and $_.state -eq 'invoke-completed' })
