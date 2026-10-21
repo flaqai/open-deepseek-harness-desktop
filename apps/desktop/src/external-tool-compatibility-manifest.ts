@@ -43,11 +43,11 @@ export interface ExternalToolInstallResolution {
 /** Last-known-good pins shipped in the application and used only after signed lookup fails. */
 export const EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY: ExternalToolCompatibilityManifest = {
   schema: 'dsh/desktop-external-tool-compatibility/v2',
-  revision: 20,
-  desktopVersion: '0.2.1-rc.2.1',
+  revision: 21,
+  desktopVersion: '0.2.1-rc.2.2',
   reviewedSourceVersion: '0.2.1-rc.2',
-  issuedAt: '2026-10-20T00:00:00.000Z',
-  expiresAt: '2027-04-20T00:00:00.000Z',
+  issuedAt: '2026-10-21T00:00:00.000Z',
+  expiresAt: '2027-04-21T00:00:00.000Z',
   tools: {
     codex: {
       packageName: '@deepseek-ai/dsh-subagent-codex',
