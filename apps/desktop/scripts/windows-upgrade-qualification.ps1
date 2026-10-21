@@ -1,4 +1,49 @@
 # Optional previous-release qualification. Call only on a disposable Windows host.
+function Get-DesktopQualificationLongTempPath([string] $EvidenceRoot) {
+  return Join-Path $EvidenceRoot ('long-installer-temp-' + ('t' * 110))
+}
+function Get-DesktopQualificationInstallerTemp($Start, [string] $EvidenceRoot) {
+  $temporary = $Start.Environment['TEMP']
+  if ([string]::IsNullOrEmpty($temporary)) { $temporary = $env:TEMP }
+  if ($temporary -ne $env:TEMP -and $temporary -ne (Get-DesktopQualificationLongTempPath $EvidenceRoot)) { throw 'Installer TEMP is not an owned qualification directory.' }
+  $item = Get-Item -LiteralPath $temporary -Force -ErrorAction Stop
+  if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Installer TEMP is not an ordinary qualification directory.' }
+  return $temporary
+}
+function New-DesktopQualificationBoundaryPayload([string] $InstallationRoot, [string] $OwnerRoot) {
+  $root = [IO.Path]::GetFullPath($InstallationRoot)
+  $owner = [IO.Path]::GetFullPath($OwnerRoot).TrimEnd([IO.Path]::DirectorySeparatorChar)
+  if (-not $root.StartsWith(($owner + [IO.Path]::DirectorySeparatorChar), [StringComparison]::OrdinalIgnoreCase)) { throw 'Boundary fixtures must remain within the qualification root.' }
+  if (-not ('DshRemovalNative' -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot '../build/installer-removal-native.cs') }
+  $parent = Join-Path $root 'resources/qualification-boundary'
+  [DshRemovalNative]::CreatePrivateDirectory($parent)
+  $length = [Math]::Max(261, $parent.Length + 10)
+  while (($length - $parent.Length - 1) -gt 100) {
+    $parent = Join-Path $parent ('p' * 40)
+    [DshRemovalNative]::CreatePrivateDirectory($parent)
+  }
+  $payload = Join-Path $parent ('f' * ($length - $parent.Length - 1))
+  [DshRemovalNative]::WriteJournal($payload, 'qualification payload must survive failed upgrade', $true)
+  $empty = $parent
+  $emptyLength = [Math]::Max(281, $parent.Length + 80)
+  while (($emptyLength - $empty.Length - 1) -gt 100) {
+    $empty = Join-Path $empty ('e' * 40)
+    [DshRemovalNative]::CreatePrivateDirectory($empty)
+  }
+  $empty = Join-Path $empty ('e' * ($emptyLength - $empty.Length - 1))
+  [DshRemovalNative]::CreatePrivateDirectory($empty)
+  $content = [DshRemovalNative]::ReadJournal($payload, 1024)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  try { $hash = [BitConverter]::ToString($algorithm.ComputeHash([Text.Encoding]::UTF8.GetBytes($content))).Replace('-', '') } finally { $algorithm.Dispose() }
+  return [pscustomobject]@{ Payload = $payload; EmptyDirectory = $empty; Content = $content; Sha256 = $hash; FilePathLength = $payload.Length; EmptyPathLength = $empty.Length }
+}
+function Assert-DesktopQualificationBoundaryPreserved($Boundary) {
+  if (-not [DshRemovalNative]::Exists($Boundary.Payload) -or
+      ([DshRemovalNative]::ReadJournal($Boundary.Payload, 1024)) -cne $Boundary.Content -or
+      -not [DshRemovalNative]::Exists($Boundary.EmptyDirectory) -or
+      @([DshRemovalNative]::Children($Boundary.EmptyDirectory)).Count -ne 0) { throw 'Failed upgrade did not preserve the long-path payload and deep empty directory.' }
+}
+
 function Get-DesktopQualificationInstallDirectories {
   param([string] $Root, [switch] $ChangeDirectory)
   # Fixed short siblings retain Unicode and spaces without adding an artificial
@@ -191,11 +236,12 @@ function Save-DesktopMainInstallerDiagnostics {
   try {
     $evidenceDirectory = Get-Item -LiteralPath $env:RUNNER_TEMP -Force -ErrorAction Stop
     $temporaryDirectory = Get-Item -LiteralPath $Root -Force -ErrorAction Stop
+    $ordinaryTemporary = [string]::Equals($Root, $env:TEMP, [StringComparison]::OrdinalIgnoreCase) -and [string]::Equals($temporaryDirectory.FullName, $evidenceDirectory.Parent.FullName, [StringComparison]::OrdinalIgnoreCase)
+    $longTemporary = [string]::Equals($Root, (Get-DesktopQualificationLongTempPath $env:RUNNER_TEMP), [StringComparison]::OrdinalIgnoreCase)
     if (-not [IO.Path]::IsPathFullyQualified($Root) -or
-        -not [string]::Equals($Root, $env:TEMP, [StringComparison]::OrdinalIgnoreCase) -or
+        -not ($ordinaryTemporary -or $longTemporary) -or
         -not $temporaryDirectory.PSIsContainer -or -not $evidenceDirectory.PSIsContainer -or
         $evidenceDirectory.Name -cnotmatch '^s-[A-Za-z0-9]{6}$' -or
-        -not [string]::Equals($temporaryDirectory.FullName, $evidenceDirectory.Parent.FullName, [StringComparison]::OrdinalIgnoreCase) -or
         ($temporaryDirectory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
         ($evidenceDirectory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
       Write-Warning 'Installer diagnostic collection rejected an unowned temporary directory.' -WarningAction Continue
@@ -262,7 +308,8 @@ function Save-DesktopMainInstallerDiagnostics {
     $report.status = 'unavailable'
   }
   try {
-    $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Root 'main-installer-diagnostics.json') -Encoding utf8 -ErrorAction Stop
+    $reportDestination = if ($longTemporary) { $env:RUNNER_TEMP } else { $Root }
+    $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $reportDestination 'main-installer-diagnostics.json') -Encoding utf8 -ErrorAction Stop
   } catch {
     Write-Warning 'Installer diagnostics could not be saved; the installation outcome is unchanged.' -WarningAction Continue
   }
@@ -286,6 +333,20 @@ function Assert-DesktopAtomicCleanupBudget {
   $starts = @($records | Where-Object { $_.stage -eq 'uninstall-start' })
   $results = @($records | Where-Object { $_.stage -eq 'uninstall-result' })
   $failures = @($records | Where-Object { $_.stage -eq 'uninstall-failed' })
+  $stageFailures = @($records | Where-Object { $_.stage -eq 'uninstall-files-stage-failed' })
+  if ($stageFailures.Count -gt 0) {
+    if ($starts.Count -ne 1 -or -not [string]::Equals([IO.Path]::GetFullPath($starts[0].installDirectory), [IO.Path]::GetFullPath($InstallDirectory), [StringComparison]::OrdinalIgnoreCase) -or
+        $stageFailures.Count -ne 12 -or $results.Count -ne 0 -or $failures.Count -ne 0 -or $records[-1].stage -ne 'uninstall-files-stage-failed' -or
+        @($records | Where-Object { $_.stage -in @('uninstall-invalid-state', 'uninstall-launch-failed', 'uninstall-complete', 'uninstall-files-staged', 'temporary-launch-failed') }).Count -ne 0) {
+      throw 'Atomic cleanup retry evidence did not verify twelve restored stage failures without legacy execution.'
+    }
+    for ($attempt = 1; $attempt -le 12; $attempt++) {
+      if ($stageFailures[$attempt - 1].attempt -ne $attempt -or $stageFailures[$attempt - 1].disposition -cne 'files-restored; legacy-not-started') {
+        throw 'Atomic cleanup retry evidence has an unexpected restored-stage attempt sequence.'
+      }
+    }
+    return
+  }
   if ($starts.Count -ne 1 -or -not [string]::Equals([IO.Path]::GetFullPath($starts[0].installDirectory), [IO.Path]::GetFullPath($InstallDirectory), [StringComparison]::OrdinalIgnoreCase) -or
       $results.Count -ne 12 -or $failures.Count -ne 1 -or $records[-1].stage -ne 'uninstall-failed' -or
       $failures[0].attempt -ne 12 -or $failures[0].exitCode -ne 2 -or
@@ -397,6 +458,7 @@ function Initialize-DesktopPreviousReleaseQualification {
   if ($oldExit -ne 0) { throw "Previous-release installer exited with $oldExit." }
   $oldExecutable = Join-Path $Directory 'Open DeepSeek Harness Desktop.exe'
   $installedVersion = Get-DesktopInstalledVersion -Directory $Directory
+  $boundary = New-DesktopQualificationBoundaryPayload -InstallationRoot $Directory -OwnerRoot $EvidenceRoot
   $before = Get-DesktopUpgradeState -Directory $Directory
   Assert-DesktopRegisteredVersion -InstalledVersion $installedVersion -ExpectedVersion $Version -Registrations @($before.registrations)
   New-Item -ItemType Directory -Path $userData -ErrorAction Stop | Out-Null
@@ -405,7 +467,8 @@ function Initialize-DesktopPreviousReleaseQualification {
   [System.IO.File]::WriteAllText($sentinel, $sentinelText)
   $lockDirectory = Join-Path $EvidenceRoot 'persistent-lock'
   New-Item -ItemType Directory -Path $lockDirectory -ErrorAction Stop | Out-Null
-  $previousDiagnosticDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $env:TEMP)
+  $installerTemporary = Get-DesktopQualificationInstallerTemp $CandidateStart $EvidenceRoot
+  $previousDiagnosticDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $installerTemporary)
   $locker = Start-DesktopUpgradeLock -Executable $oldExecutable -Directory $lockDirectory -Persistent -Seconds 1800
   try {
     $candidateExit = Invoke-DesktopQualificationInstaller -Start $CandidateStart
@@ -423,20 +486,28 @@ function Initialize-DesktopPreviousReleaseQualification {
     persistentLockExitCode = $candidateExit
     previousStatePreserved = $null
     previousNativeEntryVerified = $false
+    boundary = @{ filePathLength = $boundary.FilePathLength; emptyDirectoryPathLength = $boundary.EmptyPathLength; sha256 = $boundary.Sha256; restored = $false }
+    installerTemporaryPathLength = $installerTemporary.Length
     oldUninstallBudgetVerified = $false
     interactive = -not $CandidateStart.Arguments.StartsWith('/S ', [StringComparison]::Ordinal)
     guiObservation = 'not-verified'
   }
   $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
-  Assert-DesktopAtomicCleanupBudget -Root $env:TEMP -PreviousDirectories $previousDiagnosticDirectories -InstallDirectory $Directory -EvidenceRoot $EvidenceRoot
-  $evidence.oldUninstallBudgetVerified = $true
+  Assert-DesktopAtomicCleanupBudget -Root $installerTemporary -PreviousDirectories $previousDiagnosticDirectories -InstallDirectory $Directory -EvidenceRoot $EvidenceRoot
+  $retryRecords = @(Get-Content -LiteralPath (Join-Path $EvidenceRoot 'persistent-lock-upgrade.jsonl') | ForEach-Object { $_ | ConvertFrom-Json })
+  $stageFailureFlow = @($retryRecords | Where-Object { $_.stage -eq 'uninstall-files-stage-failed' }).Count -gt 0
+  $evidence.oldUninstallBudgetVerified = -not $stageFailureFlow
+  $evidence.cleanupRetryBudgetVerified = $true
+  $evidence.retryFlow = if ($stageFailureFlow) { 'restored-stage-failure; legacy-not-started' } else { 'legacy-uninstall-exit-2' }
   $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
   $after = Get-DesktopUpgradeState -Directory $Directory
   Assert-DesktopUpgradeFailurePreservedState -ExitCode $candidateExit -Before $before -After $after -Sentinel $sentinel -ExpectedSentinel $sentinelText
+  Assert-DesktopQualificationBoundaryPreserved $boundary
+  $evidence.boundary.restored = $true
   $evidence.previousStatePreserved = $true
   $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
   Assert-PreviousDesktopNativeEntry -Executable $oldExecutable -EvidenceRoot $EvidenceRoot
   $evidence.previousNativeEntryVerified = $true
   $evidence | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $evidencePath -Encoding utf8
-  return [pscustomobject]@{ Sentinel = $sentinel; SentinelText = $sentinelText; PreviousDirectory = $Directory }
+  return [pscustomobject]@{ Sentinel = $sentinel; SentinelText = $sentinelText; PreviousDirectory = $Directory; Boundary = $boundary }
 }

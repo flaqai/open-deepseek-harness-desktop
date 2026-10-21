@@ -53,6 +53,7 @@ test('contracts preserve each platform check and add both shared runner checks',
   assert.equal(behavior.args[1], 'run')
   assert.ok(behavior.args.some(arg => arg.endsWith('windows-installer-extract.spec.ts')))
   assert.ok(behavior.args.some(arg => arg.endsWith('windows-installer-upgrade.spec.ts')))
+  assert.ok(behavior.args.some(arg => arg.endsWith('windows-installer-payload-long-path.spec.ts')))
   assert.ok(behavior.args.some(arg => arg.endsWith('windows-installer-long-path-upgrade.spec.ts')))
   assert.ok(behavior.args.some(arg => arg.endsWith('windows-installer-removal.spec.ts')))
 })

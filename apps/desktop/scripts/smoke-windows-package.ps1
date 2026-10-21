@@ -51,6 +51,13 @@ $originalUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 $processGuardDiagnostic = Join-Path $env:TEMP 'DeepSeek-Harness-process-guard.log'
 Remove-Item -LiteralPath $processGuardDiagnostic -Force -ErrorAction SilentlyContinue
 $similarRoot = "$installRoot-old"
+$installerTemporary = $env:TEMP
+if ($InstallationMode -eq 'allusers' -and $ChangeUpgradeDirectory) {
+  # Allocate before baseline setup, but only candidate processes receive this
+  # TEMP. The immutable alpha.2 extractor still runs in the original short TEMP.
+  $installerTemporary = Get-DesktopQualificationLongTempPath $env:RUNNER_TEMP
+  New-Item -ItemType Directory -Path $installerTemporary -ErrorAction Stop | Out-Null
+}
 
 $previousQualification = $null
 $previousReleaseLocker = $null
@@ -61,6 +68,8 @@ if (-not [string]::IsNullOrWhiteSpace($PreviousInstaller)) {
   $PreviousInstaller = (Resolve-Path -LiteralPath $PreviousInstaller).Path
   $previousRoot = $fixtureDirectories.Previous
   $candidateStart = New-DesktopQualificationInstallerStart -Installer $installer -Directory $installRoot -Mode $InstallationMode -Interactive:$InteractiveUpgrade
+  $candidateStart.Environment['TEMP'] = $installerTemporary
+  $candidateStart.Environment['TMP'] = $installerTemporary
   $previousQualification = Initialize-DesktopPreviousReleaseQualification -Installer $PreviousInstaller -Version $PreviousVersion `
     -Directory $previousRoot -CandidateStart $candidateStart -EvidenceRoot $env:RUNNER_TEMP -Mode $InstallationMode
   $shortLockDirectory = Join-Path $env:RUNNER_TEMP 'previous-release-short-lock'
@@ -72,10 +81,12 @@ if (-not [string]::IsNullOrWhiteSpace($PreviousInstaller)) {
 
 Start-SmokePhase -Name 'install'
 $installStart = New-DesktopQualificationInstallerStart -Installer $installer -Directory $installRoot -Mode $InstallationMode -Interactive:$InteractiveUpgrade
+$installStart.Environment['TEMP'] = $installerTemporary
+$installStart.Environment['TMP'] = $installerTemporary
 $mainDiagnosticDirectories = @()
 $mainSnapshotAvailable = $false
 try {
-  $mainDiagnosticDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $env:TEMP)
+  $mainDiagnosticDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $installerTemporary)
   $mainSnapshotAvailable = $true
 } catch { Write-Warning 'Pre-install diagnostic snapshot unavailable; installation will still be checked.' }
 try {
@@ -109,7 +120,7 @@ if ($install.ExitCode -ne 0) {
   throw "Windows installer exited with $($install.ExitCode)"
 }
 } finally {
-  Save-DesktopMainInstallerDiagnostics -Root $env:TEMP -PreviousDirectories $mainDiagnosticDirectories -SnapshotAvailable $mainSnapshotAvailable -OldInstallationMetadata $oldInstallationMetadata -ShortLocker $previousReleaseLocker -ShortLockBeforeMain $shortLockBeforeMain
+  Save-DesktopMainInstallerDiagnostics -Root $installerTemporary -PreviousDirectories $mainDiagnosticDirectories -SnapshotAvailable $mainSnapshotAvailable -OldInstallationMetadata $oldInstallationMetadata -ShortLocker $previousReleaseLocker -ShortLockBeforeMain $shortLockBeforeMain
 }
 if ($null -ne $previousQualification) {
   if (-not $previousReleaseLocker.WaitForExit(30000) -or $previousReleaseLocker.ExitCode -ne 0) {
@@ -130,6 +141,7 @@ if ($null -ne $previousQualification) {
   if ($ChangeUpgradeDirectory -and (Test-Path -LiteralPath (Join-Path $previousRoot 'Open DeepSeek Harness Desktop.exe'))) {
     throw 'Changed-directory upgrade retained an executable in the old installation.'
   }
+  if ([DshRemovalNative]::Exists($previousQualification.Boundary.Payload) -or [DshRemovalNative]::Exists($previousQualification.Boundary.EmptyDirectory)) { throw 'Successful upgrade retained the old long-path qualification payload.' }
   if ($InteractiveUpgrade -and $env:DSH_WINDOWS_GUI_AUTOMATION -ne '1') {
     if ((Read-Host 'Confirm that both candidate installers displayed their wizard, persistent-lock failure was actionable, and the second upgrade succeeded. Type observed') -ne 'observed') {
       throw 'Interactive upgrade requires a human GUI observation; automatic process exit is not GUI acceptance.'
@@ -449,11 +461,14 @@ if ($bundledFailure) {
 }
 
 Start-SmokePhase -Name 'uninstall'
+$uninstallBoundary = New-DesktopQualificationBoundaryPayload -InstallationRoot $installRoot -OwnerRoot $env:RUNNER_TEMP
 $uninstaller = Join-Path $installRoot 'Uninstall Open DeepSeek Harness Desktop.exe'
 if (-not (Test-Path $uninstaller)) { throw "Installed package is missing $uninstaller" }
 $uninstallStart = [System.Diagnostics.ProcessStartInfo]::new()
 $uninstallStart.FileName = $uninstaller
 $uninstallStart.UseShellExecute = $false
+$uninstallStart.Environment['TEMP'] = $installerTemporary
+$uninstallStart.Environment['TMP'] = $installerTemporary
 $uninstallStart.ArgumentList.Add('/S')
 $uninstall = [System.Diagnostics.Process]::Start($uninstallStart)
 if (-not $uninstall.WaitForExit(180000)) {
@@ -484,6 +499,12 @@ if (-not $pathRestored -or -not $registrationRemoved -or -not $installationRemov
   } | ForEach-Object { "PID $($_.ProcessId) $($_.Name) $($_.ExecutablePath)" })
   throw "Windows uninstaller did not finish restoring owned state within 2 minutes.`nBefore PATH: $originalUserPath`nAfter PATH: $restoredUserPath`nRegistration removed: $registrationRemoved`nInstallation removed: $installationRemoved`nRemaining processes:`n$($uninstallProcesses -join "`n")"
 }
+if ([DshRemovalNative]::Exists($uninstallBoundary.Payload) -or [DshRemovalNative]::Exists($uninstallBoundary.EmptyDirectory)) { throw 'Uninstall retained the long-path payload or deep empty directory.' }
+$pathEvidenceFile = Join-Path $env:RUNNER_TEMP 'qualification-paths.json'
+$pathEvidence = Get-Content -LiteralPath $pathEvidenceFile -Raw | ConvertFrom-Json
+$pathEvidence | Add-Member -NotePropertyName uninstallBoundary -NotePropertyValue @{ filePathLength = $uninstallBoundary.FilePathLength; emptyDirectoryPathLength = $uninstallBoundary.EmptyPathLength; sha256 = $uninstallBoundary.Sha256; removed = $true }
+$pathEvidence | Add-Member -NotePropertyName installerTemporaryPathLength -NotePropertyValue $installerTemporary.Length
+$pathEvidence | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $pathEvidenceFile -Encoding utf8
 
 Write-Host 'Installed and upgraded the Windows package, precisely cleaned owned processes without touching a prefix-similar decoy, reached Harness readiness, seeded startup plugins, ran desktop dsh, kept external tools online-only, and restored PATH on uninstall.'
 if ($null -ne $previousQualification) {

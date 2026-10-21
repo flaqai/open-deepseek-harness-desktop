@@ -17,6 +17,14 @@ function Assert-UpgradeRejects([scriptblock] $Action, [string] $Expected) {
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "dsh-upgrade-behavior-$([Guid]::NewGuid())"
 New-Item -ItemType Directory -Path $testRoot -ErrorAction Stop | Out-Null
 try {
+  $boundaryInstallation = Join-Path $testRoot 'boundary-installation'
+  New-Item -ItemType Directory -Path (Join-Path $boundaryInstallation 'resources') -ErrorAction Stop | Out-Null
+  $boundary = New-DesktopQualificationBoundaryPayload -InstallationRoot $boundaryInstallation -OwnerRoot $testRoot
+  Assert-UpgradeTest ($boundary.FilePathLength -ge 261 -and $boundary.EmptyPathLength -ge 260 -and $boundary.Sha256 -cmatch '^[A-F0-9]{64}$') 'Real boundary fixtures must contain a >=261 file, deep empty directory and content hash.'
+  Assert-DesktopQualificationBoundaryPreserved $boundary
+  [DshRemovalNative]::WriteJournal($boundary.Payload, 'tampered', $false)
+  Assert-UpgradeRejects { Assert-DesktopQualificationBoundaryPreserved $boundary } 'did not preserve'
+  Assert-UpgradeRejects { New-DesktopQualificationBoundaryPayload -InstallationRoot $testRoot -OwnerRoot $boundaryInstallation } 'qualification root'
   if ($IsWindows) {
     # Real Windows sharing semantics, using the exact fault injector exercised
     # by installed qualification. POSIX rename behavior cannot prove this test.
@@ -213,6 +221,23 @@ try {
     & $serializeRecords $changed
     Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'Atomic cleanup retry evidence'
   }
+  $stageRecords = @(@{ stage = 'uninstall-start'; installDirectory = $testRoot })
+  for ($attempt = 1; $attempt -le 12; $attempt++) { $stageRecords += @{ stage = 'uninstall-files-stage-failed'; attempt = $attempt; disposition = 'files-restored; legacy-not-started' } }
+  & $serializeRecords $stageRecords
+  Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot
+  foreach ($case in @('eleven', 'thirteen', 'duplicate', 'not-restored', 'mixed-legacy', 'wrong-root')) {
+    $changed = $stageRecords | ConvertTo-Json -Depth 5 | ConvertFrom-Json
+    switch ($case) {
+      'eleven' { $changed = $changed[0..11] }
+      'thirteen' { $changed += [pscustomobject]@{ stage = 'uninstall-files-stage-failed'; attempt = 13; disposition = 'files-restored; legacy-not-started' } }
+      'duplicate' { $changed[2].attempt = 1 }
+      'not-restored' { $changed[6].disposition = 'restoration-unknown' }
+      'mixed-legacy' { $changed += [pscustomobject]@{ stage = 'uninstall-result'; attempt = 12; exitCode = 2 } }
+      'wrong-root' { $changed[0].installDirectory = $oldDiagnostic }
+    }
+    & $serializeRecords $changed
+    Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'Atomic cleanup retry evidence'
+  }
   & $serializeRecords $records
   Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories @() -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'exactly one'
   Remove-Item -LiteralPath $log -ErrorAction Stop
@@ -249,6 +274,16 @@ try {
     Assert-UpgradeTest ($mainRecord.files[0].events[1].stage -eq 'uninstall-result' -and $mainRecord.files[0].events[1].result -eq 3) 'Installer UTF-16 numeric result must survive projection.'
     Assert-UpgradeTest ($mainRecord.files[1].events[0].errorKind -eq 'previous-runtime-remains') 'Upgrade invalid-state failure must retain its classified cause.'
     Assert-UpgradeTest ($report.temporaryRootLength -eq $diagnosticRoot.Length -and $report.evidenceRootLength -eq $env:RUNNER_TEMP.Length) 'Diagnostics must record numeric original TEMP and nested evidence lengths.'
+    $longTemporary = Get-DesktopQualificationLongTempPath $env:RUNNER_TEMP
+    New-Item -ItemType Directory -Path $longTemporary -ErrorAction Stop | Out-Null
+    $tempStart = [Diagnostics.ProcessStartInfo]::new()
+    $tempStart.Environment['TEMP'] = $longTemporary
+    Assert-UpgradeTest ((Get-DesktopQualificationInstallerTemp $tempStart $env:RUNNER_TEMP) -eq $longTemporary) 'Only the fixed owned long TEMP may be forwarded to candidate processes.'
+    $tempStart.Environment['TEMP'] = $testRoot
+    Assert-UpgradeRejects { Get-DesktopQualificationInstallerTemp $tempStart $env:RUNNER_TEMP } 'not an owned'
+    Save-DesktopMainInstallerDiagnostics -Root $longTemporary -PreviousDirectories @() -SnapshotAvailable $true
+    $longReport = Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'main-installer-diagnostics.json') -Raw | ConvertFrom-Json
+    Assert-UpgradeTest ($longReport.status -eq 'present' -and $longReport.temporaryRootLength -eq $longTemporary.Length) 'Long TEMP diagnostics must retain exact ownership and numeric length without raw paths.'
     Remove-Item -LiteralPath $reportPath -ErrorAction Stop
     $validEvidenceRoot = $env:RUNNER_TEMP
     $env:RUNNER_TEMP = $testRoot
