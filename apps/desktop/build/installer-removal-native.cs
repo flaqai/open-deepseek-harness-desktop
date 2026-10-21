@@ -125,14 +125,15 @@ public static class DshRemovalNative {
     if (GetFileAttributesW(Extended(path)) != UInt32.MaxValue) return true;
     int error = Marshal.GetLastWin32Error(); if (error == 2 || error == 3) return false; throw new Win32Exception(error);
   }
-  private static FileStream OpenStream(string path, bool create, bool exclusive) {
-    if (!Windows) return new FileStream(path, create ? FileMode.CreateNew : FileMode.Open, FileAccess.ReadWrite, exclusive ? FileShare.None : FileShare.Read);
-    SafeFileHandle h = CreateFileW(Extended(path), 0xc0000000, exclusive ? 0u : 1u, IntPtr.Zero, create ? 1u : 3u, 0x00200000, IntPtr.Zero);
+  private static FileStream OpenStream(string path, bool create, bool exclusive, bool readOnly = false) {
+    FileAccess access = readOnly ? FileAccess.Read : FileAccess.ReadWrite;
+    if (!Windows) return new FileStream(path, create ? FileMode.CreateNew : FileMode.Open, access, exclusive ? FileShare.None : FileShare.Read);
+    SafeFileHandle h = CreateFileW(Extended(path), readOnly ? 0x80000000u : 0xc0000000u, exclusive ? 0u : 1u, IntPtr.Zero, create ? 1u : 3u, 0x00200000, IntPtr.Zero);
     if (h.IsInvalid) { int error = Marshal.GetLastWin32Error(); h.Dispose(); throw new Win32Exception(error); }
     try {
       FileInfo info; Check(GetFileInformationByHandle(h, out info));
       if ((info.Attributes & (0x400 | 16)) != 0) throw new IOException("Removal journal is not an ordinary file.");
-      return new FileStream(h, FileAccess.ReadWrite);
+      return new FileStream(h, access);
     } catch { h.Dispose(); throw; }
   }
   public static FileStream OpenLock(string path) { return OpenStream(path, true, true); }
@@ -143,7 +144,7 @@ public static class DshRemovalNative {
     }
   }
   public static string ReadJournal(string path, int limit) {
-    using (FileStream stream = OpenStream(path, false, false)) {
+    using (FileStream stream = OpenStream(path, false, false, true)) {
       if (stream.Length > limit) throw new IOException("Removal journal exceeds its size limit.");
       using (StreamReader reader = new StreamReader(stream, Encoding.UTF8, true)) return reader.ReadToEnd();
     }
