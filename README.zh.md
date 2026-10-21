@@ -12,7 +12,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.2.1 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.1-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.2) 为核心，**支持 DeepSeek 4.1-1017（DeepSeek-V4.1-Flash，1017 更新）**，模型选择器会为匹配的官方 Flash 模型显示 `1017` 标记。
+> **[v0.2.1-rc.2.2 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.2)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.1-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.2) 为核心，**支持 DeepSeek 4.1-1017（DeepSeek-V4.1-Flash，1017 更新）**，模型选择器会为匹配的官方 Flash 模型显示 `1017` 标记。
 >
 > 虽然版本名包含 `rc`，社区构建已在 GitHub 上按正式 Release 发布。升级前仍建议备份重要配置，并将遇到的问题连同日志或诊断报告反馈给我们。
 
@@ -414,17 +414,17 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 ## 下载安装
 
-请只从本项目的 [`v0.2.1-rc.2.1` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1) 页面下载安装包：
+请只从本项目的 [`v0.2.1-rc.2.2` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.2) 页面下载安装包：
 
 | 平台 | 架构 | 发行包 | 状态 |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.1/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.1/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
-| macOS | Intel（`x64`） | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.1/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.1/DeepSeek-Harness-macos-x64.zip) | 已提供 |
-| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.1/DeepSeek-Harness-windows-x64.exe) | 已提供 |
-| Linux | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.1/DeepSeek-Harness-linux-x64.deb) | 已提供 |
-| Linux | Fedora / RHEL（`x64`） | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.1/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
+| macOS | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
+| macOS | Intel（`x64`） | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-macos-x64.zip) | 已提供 |
+| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-windows-x64.exe) | 已提供 |
+| Linux | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-linux-x64.deb) | 已提供 |
+| Linux | Fedora / RHEL（`x64`） | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
 
-Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.1/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
+Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
 
 ### macOS
 
