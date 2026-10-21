@@ -119,11 +119,34 @@ $target = Join-Path $fixture.Case 'external-target'
 [DshRemovalNative]::WriteJournal((Join-Path $target 'sentinel'), 'must survive', $true)
 $kind = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { 'Junction' } else { 'SymbolicLink' }
 [void](New-Item -ItemType $kind -Path (Join-Path $fixture.Root 'linked') -Target $target)
-Assert-RemovalRejects { Start-FixtureRemoval $fixture } 'A reparse point inside the installation must stop staging.'
+$reparseFailure = $null
+try { Start-FixtureRemoval $fixture } catch { $reparseFailure = $_.Exception.ToString() }
+Assert-Removal ($null -ne $reparseFailure -and $reparseFailure -match 'reparse') 'A real junction/symlink must be refused specifically as a reparse entry, not an unrelated path-alias error.'
 Assert-Removal ([DshRemovalNative]::Exists($fixture.App) -and ([DshRemovalNative]::ReadJournal((Join-Path $target 'sentinel'), 1024)).TrimEnd() -ceq 'must survive') 'Reparse refusal must preserve the installation and external target.'
 Write-Output 'PASS reparse-refusal'
 
 if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+  Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class DshRemovalAliasFixture {
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  public static extern uint GetShortPathNameW(string path, StringBuilder output, uint size);
+}
+'@
+  $fixture = New-RemovalFixture 'native long alias directory'
+  $aliasBuffer = [Text.StringBuilder]::new(32768)
+  $aliasSize = [DshRemovalAliasFixture]::GetShortPathNameW($fixture.Root, $aliasBuffer, [uint32]$aliasBuffer.Capacity)
+  if ($aliasSize -eq 0 -or $aliasSize -ge $aliasBuffer.Capacity) { throw 'Native short-path lookup failed for the owned fixture.' }
+  $alias = $aliasBuffer.ToString()
+  if ($alias -match '~[0-9]') {
+    Assert-Removal (([DshRemovalNative]::Inspect($alias)).Identity -eq ([DshRemovalNative]::Inspect($fixture.Root)).Identity) 'Legitimate native 8.3 alias must resolve to the same ordinary directory identity.'
+    $tx = Start-DesktopRemovalTransaction -InstallDirectory $alias -UninstallerName 'Uninstall Test.exe' -DiagnosticDirectory $fixture.Diagnostic
+    try { Undo-DesktopRemovalTransaction -Transaction $tx } finally { Close-DesktopRemovalLock $tx }
+    Assert-Removal (([DshRemovalNative]::ReadJournal($fixture.App, 1024)).TrimEnd() -ceq 'original application') 'Alias staging/undo must restore the same physical payload.'
+    Write-Output 'PASS native-8dot3-alias'
+  } else { Write-Output 'UNVERIFIED native-8dot3-alias filesystem returned no short-name alias' }
   $fixture = New-RemovalFixture 'held-file'
   $held = [IO.File]::Open($fixture.App, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
   try {

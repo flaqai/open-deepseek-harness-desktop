@@ -9,7 +9,7 @@ const powershell = process.env.DSH_TEST_PWSH ?? (process.platform === 'win32' ? 
 
 it.skipIf(!powershell)('stages, restores and commits real long-path payloads while refusing unsafe recovery', () => {
   if (!powershell) throw new Error('PowerShell runtime was not selected')
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'removal-')))
+  const directory = realpathSync.native(mkdtempSync(join(tmpdir(), 'removal-')))
   try {
     const result = spawnSync(powershell, [
       '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
@@ -22,6 +22,9 @@ it.skipIf(!powershell)('stages, restores and commits real long-path payloads whi
     for (const scenario of ['transaction-boundary-259', 'transaction-boundary-260', 'transaction-boundary-261', 'interrupted-marker', 'nested-bridge-validation', 'rollback-collision', 'cleanup-warning-retains-journal', 'reparse-refusal']) {
       expect(result.stdout).toContain(`PASS ${scenario}`)
     }
-    if (process.platform === 'win32') expect(result.stdout).toContain('PASS native-file-lock-rollback')
+    if (process.platform === 'win32') {
+      expect(result.stdout).toContain('PASS native-file-lock-rollback')
+      expect(result.stdout).toMatch(/(?:PASS native-8dot3-alias|UNVERIFIED native-8dot3-alias filesystem returned no short-name alias)/u)
+    }
   } finally { rmSync(directory, { recursive: true, force: true }) }
 }, 35_000)

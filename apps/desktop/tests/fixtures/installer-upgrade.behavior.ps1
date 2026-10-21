@@ -71,6 +71,13 @@ function Invoke-DesktopUninstallerProcess($Executable, $Arguments, $WorkingDirec
     [System.IO.File]::Delete($logFile)
     [void][System.IO.Directory]::CreateDirectory($logFile)
   }
+  if ($next.launched -and $next.exitCode -ne 0 -and $null -ne $script:desktopRemovalBridge) {
+    foreach ($stagedFile in $script:desktopRemovalBridge.Files) {
+      Assert-Upgrade ($stagedFile.Moved -and [DshRemovalNative]::Exists($stagedFile.Destination)) 'Mock legacy failure observed missing staged payload before returning its exit code.'
+      Assert-Upgrade (([DshRemovalNative]::Inspect($stagedFile.Destination)).Identity -eq $stagedFile.Entry.Identity) 'Mock legacy failure changed the identity of a staged payload.'
+      Assert-Upgrade (-not [DshRemovalNative]::Exists($stagedFile.Source)) 'Mock legacy failure unexpectedly recreated staged source payload.'
+    }
+  }
   return $next
 }
 function Wait-DesktopUpgradeRetry { $script:waits += 1 }

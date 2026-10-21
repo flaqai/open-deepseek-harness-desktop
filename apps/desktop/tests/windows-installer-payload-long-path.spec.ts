@@ -9,7 +9,7 @@ const powershell = process.env.DSH_TEST_PWSH ?? (process.platform === 'win32' ? 
 
 it.skipIf(!powershell)('inventories real 259/260/261-character files and long directories with exact sizes', () => {
   if (!powershell) throw new Error('PowerShell runtime was not selected')
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'payload-long-')))
+  const directory = realpathSync.native(mkdtempSync(join(tmpdir(), 'payload-long-')))
   try {
     const result = spawnSync(powershell, [
       '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',

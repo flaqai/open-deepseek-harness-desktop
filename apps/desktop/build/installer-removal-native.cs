@@ -41,6 +41,7 @@ public static class DshRemovalNative {
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern SafeFileHandle CreateFileW(string path, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
   [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out FileInfo info);
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern uint GetFinalPathNameByHandleW(SafeFileHandle handle, StringBuilder path, uint length, uint flags);
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern uint GetLongPathNameW(string path, StringBuilder longPath, uint length);
   [DllImport("kernel32.dll", SetLastError = true)] private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int kind, IntPtr info, uint length);
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern bool CreateDirectoryW(string path, ref SecurityAttributes attributes);
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern uint GetFileAttributesW(string path);
@@ -77,17 +78,30 @@ public static class DshRemovalNative {
     if (full.StartsWith("\\\\")) throw new IOException("Network and device paths are not supported.");
     return "\\\\?\\" + full;
   }
+  // Expands existing 8.3 components without resolving junctions. Comparing this
+  // spelling to the opened handle still detects a redirected/reparse ancestor.
+  public static string Canonical(string path) {
+    string normalized = Normalize(path);
+    if (!Windows) return normalized;
+    StringBuilder expanded = new StringBuilder(32768);
+    uint size = GetLongPathNameW(Extended(normalized), expanded, (uint)expanded.Capacity);
+    if (size == 0) { int error = Marshal.GetLastWin32Error(); throw new IOException("Cannot expand existing path: " + path + "; Win32=" + error, new Win32Exception(error)); }
+    if (size >= expanded.Capacity) throw new IOException("Expanded path exceeds the supported Unicode length.");
+    string value = expanded.ToString();
+    if (!value.StartsWith("\\\\?\\", StringComparison.Ordinal)) throw new IOException("Expanded path is not a local extended path.");
+    return Normalize(value.Substring(4));
+  }
   private static SafeFileHandle Open(string path, bool mutate) {
     SafeFileHandle handle = CreateFileW(Extended(path), (uint)(0x80 | (mutate ? 0x10000 : 0)), 7, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
-    if (handle.IsInvalid) { int error = Marshal.GetLastWin32Error(); handle.Dispose(); throw new Win32Exception(error); }
+    if (handle.IsInvalid) { int error = Marshal.GetLastWin32Error(); handle.Dispose(); throw new IOException("Cannot open removal entry: " + path + "; Win32=" + error, new Win32Exception(error)); }
     try {
       FileInfo info; Check(GetFileInformationByHandle(handle, out info));
       if ((info.Attributes & 0x400) != 0) throw new IOException("Reparse-point entries are not supported.");
       StringBuilder resolved = new StringBuilder(32768);
       uint size = GetFinalPathNameByHandleW(handle, resolved, (uint)resolved.Capacity, 0);
       if (size == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
-      if (size >= resolved.Capacity || !String.Equals(resolved.ToString().TrimEnd('\\'), Extended(path).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
-        throw new IOException("The file path resolves through a different directory.");
+      if (size >= resolved.Capacity || !String.Equals(resolved.ToString().TrimEnd('\\'), Extended(Canonical(path)).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+        throw new IOException("The file path resolves through a different directory: " + path);
       return handle;
     } catch { handle.Dispose(); throw; }
   }
@@ -180,13 +194,20 @@ public static class DshRemovalNative {
       int rootOffset = IntPtr.Size == 8 ? 8 : 4;
       int lengthOffset = rootOffset + IntPtr.Size;
       int nameOffset = lengthOffset + 4;
-      IntPtr buffer = Marshal.AllocHGlobal(nameOffset + name.Length);
+      int bufferLength = nameOffset + name.Length + 2;
+      IntPtr buffer = Marshal.AllocHGlobal(bufferLength);
       try {
         for (int i = 0; i < nameOffset; i++) Marshal.WriteByte(buffer, i, 0);
         Marshal.WriteIntPtr(buffer, rootOffset, IntPtr.Zero);
         Marshal.WriteInt32(buffer, lengthOffset, name.Length);
         Marshal.Copy(name, 0, IntPtr.Add(buffer, nameOffset), name.Length);
-        Check(SetFileInformationByHandle(h, 3, buffer, (uint)(nameOffset + name.Length)));
+        // FILE_RENAME_INFO.FileName is also documented as NUL-terminated; keep
+        // its counted length exclusive of the terminator, and own both bytes.
+        Marshal.WriteInt16(buffer, nameOffset + name.Length, 0);
+        if (!SetFileInformationByHandle(h, 3, buffer, (uint)bufferLength)) {
+          int error = Marshal.GetLastWin32Error();
+          throw new IOException("Cannot rename removal entry from '" + source + "' to '" + destination + "'; Win32=" + error, new Win32Exception(error));
+        }
       } finally { Marshal.FreeHGlobal(buffer); }
     }
   }

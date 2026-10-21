@@ -9,7 +9,7 @@ const powershell = process.env.DSH_TEST_PWSH ?? (process.platform === 'win32' ? 
 
 it.skipIf(!powershell)('upgrades legacy payloads at source and rollback MAX_PATH boundaries without losing user data', () => {
   if (!powershell) throw new Error('PowerShell runtime was not selected')
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'lp-')))
+  const directory = realpathSync.native(mkdtempSync(join(tmpdir(), 'lp-')))
   try {
     const result = spawnSync(powershell, [
       '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
@@ -27,7 +27,7 @@ it.skipIf(!powershell)('upgrades legacy payloads at source and rollback MAX_PATH
 
 it.skipIf(!powershell)('preserves actual upgrade script arguments and restores files after both uninstaller launches fail', () => {
   if (!powershell) throw new Error('PowerShell runtime was not selected')
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'lp-entry-')))
+  const directory = realpathSync.native(mkdtempSync(join(tmpdir(), 'lp-entry-')))
   try {
     const installation = join(directory, 'actual installation')
     const temporary = join(directory, 'temporary')
@@ -57,7 +57,10 @@ it.skipIf(!powershell)('preserves actual upgrade script arguments and restores f
       }
       return { stage: record.stage, installDirectory: 'installDirectory' in record ? record.installDirectory : undefined }
     })
-    expect(records.find(record => record.stage === 'uninstall-start')?.installDirectory).toBe(installation)
+    const recordedInstallation = records.find(record => record.stage === 'uninstall-start')?.installDirectory
+    expect(typeof recordedInstallation).toBe('string')
+    if (typeof recordedInstallation !== 'string') throw new Error('Upgrade journal omitted the actual installation directory')
+    expect(realpathSync.native(recordedInstallation)).toBe(realpathSync.native(installation))
     expect(records.some(record => record.stage === 'uninstall-launch-failed')).toBe(true)
     expect(records.some(record => record.stage === 'uninstall-files-restored')).toBe(true)
     expect(readFileSync(executable, 'utf8')).toBe('original application')

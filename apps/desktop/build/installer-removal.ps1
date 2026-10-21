@@ -14,7 +14,7 @@ function Get-DesktopRemovalRoot([string]$Directory, [switch]$ForDiagnostics) {
   if ([string]::IsNullOrWhiteSpace($Directory) -or -not [IO.Path]::IsPathRooted($Directory) -or $Directory.StartsWith('\\') -or $Directory -match '^[A-Za-z]:[^\\/]') {
     throw 'Removal requires a fully qualified local directory.'
   }
-  $full = [DshRemovalNative]::Normalize($Directory).TrimEnd([char[]]@('\', '/'))
+  $full = [DshRemovalNative]::Canonical($Directory).TrimEnd([char[]]@('\', '/'))
   $drive = [IO.Path]::GetPathRoot($full).TrimEnd([char[]]@('\', '/'))
   if ($full -eq $drive) { throw 'Removal refuses a filesystem root.' }
   foreach ($folder in @('Windows', 'System', 'SystemX86', 'ProgramFiles', 'ProgramFilesX86', 'CommonProgramFiles', 'CommonProgramFilesX86', 'CommonApplicationData', 'UserProfile', 'ApplicationData', 'LocalApplicationData', 'DesktopDirectory', 'MyDocuments')) {
