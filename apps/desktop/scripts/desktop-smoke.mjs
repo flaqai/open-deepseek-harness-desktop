@@ -47,7 +47,7 @@ export function createSmokePlan(request, repositoryRoot = REPOSITORY_ROOT, node 
       steps.push(step('windows-gui-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-installer-ui-automation.test.ps1')]))
       steps.push(step('windows-host-contract', 'pwsh', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script('windows-qualification-host.test.ps1')]))
       steps.push(step('windows-installer-behavior', node, [join(repositoryRoot, 'node_modules/vitest/vitest.mjs'), 'run',
-        ...['windows-installer-upgrade.spec.ts', 'windows-installer-extract.spec.ts', 'windows-installer-payload.spec.ts',
+        ...['windows-installer-upgrade.spec.ts', 'windows-installer-long-path-upgrade.spec.ts', 'windows-installer-removal.spec.ts', 'windows-installer-extract.spec.ts', 'windows-installer-payload.spec.ts',
           'windows-installer-process-guard-behavior.spec.ts', 'windows-installer-process-guard.spec.ts']
           .map(name => join(repositoryRoot, 'apps/desktop/tests', name))]))
     }

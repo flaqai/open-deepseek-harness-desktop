@@ -11,6 +11,7 @@ $script:outcomes = @()
 $script:runs = @()
 $script:waits = 0
 $script:keepOldFiles = $false
+$script:recreateResources = $false
 $script:breakLogAfterProcess = $false
 $script:runArguments = @()
 $script:tamperUninstaller = $false
@@ -44,8 +45,19 @@ function Invoke-DesktopUninstallerProcess($Executable, $Arguments, $WorkingDirec
   $script:runArguments += $Arguments
   $next = $script:outcomes[0]
   $script:outcomes = @($script:outcomes | Select-Object -Skip 1)
-  if ($next.launched -and $next.exitCode -eq 0 -and -not $script:keepOldFiles) {
-    Remove-Item -LiteralPath $script:activeExecutable -Force
+  if ($next.launched -and $next.exitCode -eq 0) {
+    if ($script:keepOldFiles) {
+      # A success report with a newly appeared application is still invalid
+      # even when the original payload was already transactionally staged.
+      [System.IO.File]::WriteAllText($script:activeExecutable, 'unexpected application created during uninstall')
+    } elseif (Test-Path -LiteralPath $script:activeExecutable) {
+      Remove-Item -LiteralPath $script:activeExecutable -Force
+    }
+    if ($script:recreateResources) {
+      $resources = Join-Path ([IO.Path]::GetDirectoryName($script:activeExecutable)) 'resources'
+      [void][IO.Directory]::CreateDirectory($resources)
+      [IO.File]::WriteAllText((Join-Path $resources 'unexpected-runtime.txt'), 'unexpected runtime created during uninstall')
+    }
     if ($script:tamperUninstaller) { [System.IO.File]::WriteAllText($script:activeUninstaller, 'changed after uninstall') }
     if ($script:replaceUninstallerWithLink) {
       [System.IO.File]::Delete($script:activeUninstaller)
@@ -80,10 +92,11 @@ function Run-UpgradeCase([string]$Name, [object[]]$Outcomes, [int]$Expected, [in
   $script:runArguments = @()
   $script:waits = 0
   $code = Invoke-DesktopOldUninstall -InstallDirectory $install -UninstallerPath $uninstaller -UninstallerName 'Uninstall Test Desktop.exe' -AppExecutable 'Test Desktop.exe' -UninstallArguments '/currentuser --updated --keep-shortcuts' -TemporaryDirectory $temporary -DiagnosticDirectory $diagnostics
+  Assert-Upgrade (@($code).Count -eq 1) "$Name returned more than one exit result"
   Assert-Upgrade ($code -eq $Expected) "$Name returned $code rather than $Expected"
   Assert-Upgrade ($script:runs.Count -eq $Runs) "$Name executed $($script:runs.Count) times"
   Assert-Upgrade ($script:waits -eq $Waits) "$Name waited $($script:waits) times"
-  Assert-Upgrade ($script:runArguments[0].Contains('/KEEP_APP_DATA /currentuser --updated --keep-shortcuts _?=' + $install)) "$Name lost data-preservation, mode, or actual old-directory arguments"
+  if ($Runs -gt 0) { Assert-Upgrade ($script:runArguments[0].Contains('/KEEP_APP_DATA /currentuser --updated --keep-shortcuts _?=' + $install)) "$Name lost data-preservation, mode, or actual old-directory arguments" }
   $trace = Get-Content -LiteralPath (Join-Path $diagnostics 'upgrade.jsonl') -Raw
   Assert-Upgrade ($trace.Contains('old install')) "$Name did not retain the actual old directory"
   if ($Expected -ne 0) { Assert-Upgrade (Test-Path -LiteralPath $script:activeExecutable) "$Name damaged the old app" }
@@ -115,6 +128,7 @@ function Run-RefusedUpgradeCase([string]$Name, [scriptblock]$Configure, [int]$Ex
   $script:waits = 0
   & $Configure $parameters
   $code = Invoke-DesktopOldUninstall @parameters
+  Assert-Upgrade (@($code).Count -eq 1) "$Name returned more than one exit result"
   Assert-Upgrade ($code -eq 3) "$Name returned $code instead of refusing the upgrade"
   Assert-Upgrade ($script:runs.Count -eq $ExpectedRuns) "$Name ran the uninstaller an unsafe number of times"
   Assert-Upgrade ((Test-Path -LiteralPath $script:activeExecutable) -eq $ExpectOldExecutable) "$Name reported the wrong old-file state"
@@ -124,6 +138,35 @@ try {
   [System.IO.File]::WriteAllText($hashFixture, 'fixture')
   Assert-Upgrade ((Get-DesktopUninstallerHash $hashFixture) -eq 'F16D05EC6B29248D2C61ADB1E9263F78E4F7BACE1B955014A2D17872CFE4064D') 'Uninstaller SHA256 differs from the known file digest.'
   Write-Output 'PASS module-independent-sha256'
+  $script:originalRemovalStart = (Get-Command Start-DesktopRemovalTransaction).ScriptBlock
+  $stageSentinel = Join-Path $root 'stage-user-data.txt'
+  [IO.File]::WriteAllText($stageSentinel, 'unchanged user data')
+  foreach ($stageFailures in @(1, 12)) {
+    $script:remainingStageFailures = $stageFailures
+    $script:stageCalls = 0
+    try {
+      function Start-DesktopRemovalTransaction {
+        param([string] $InstallDirectory, [string] $UninstallerName, [string] $DiagnosticDirectory)
+        $script:stageCalls++
+        if ($script:remainingStageFailures -gt 0) {
+          $script:remainingStageFailures--
+          $failure = [IO.IOException]::new('Synthetic stage sharing violation after successful restoration.')
+          $failure.Data['RemovalStage'] = 'stage'
+          throw $failure
+        }
+        & $script:originalRemovalStart @PSBoundParameters
+      }
+      $name = "stage-retry-$stageFailures"
+      if ($stageFailures -eq 1) { Run-UpgradeCase $name @(@{ launched = $true; exitCode = 0 }) 0 1 1 }
+      else { Run-UpgradeCase $name @(@{ launched = $true; exitCode = 0 }) 2 0 11 }
+      $expectedStageCalls = if ($stageFailures -eq 1) { 2 } else { 12 }
+      Assert-Upgrade ($script:stageCalls -eq $expectedStageCalls) "$name used an unexpected stage-attempt budget"
+      $events = @(Get-Content -LiteralPath (Join-Path $root "$name/diagnostics/upgrade.jsonl") | ForEach-Object { $_ | ConvertFrom-Json })
+      Assert-Upgrade (@($events | Where-Object { $_.stage -eq 'uninstall-files-stage-failed' }).Count -eq $stageFailures) "$name lost stage-failure evidence"
+      Assert-Upgrade (([IO.File]::ReadAllText($stageSentinel)) -ceq 'unchanged user data') "$name changed user data"
+      if ($stageFailures -eq 12) { Assert-Upgrade (@($events | Where-Object { $_.stage -eq 'uninstall-result' }).Count -eq 0) 'Persistent stage failure must not launch legacy uninstall.' }
+    } finally { Set-Item Function:Start-DesktopRemovalTransaction -Value $script:originalRemovalStart }
+  }
   Run-UpgradeCase 'success' @(@{ launched = $true; exitCode = 0 }) 0 1 0
   Run-UpgradeCase 'retry-cleanup' @(@{ launched = $true; exitCode = 2 }, @{ launched = $true; exitCode = 0 }) 0 2 1
   Run-UpgradeCase 'persistent-cleanup' @(1..12 | ForEach-Object { @{ launched = $true; exitCode = 2 } }) 2 12 11
@@ -148,12 +191,11 @@ try {
   $script:keepOldFiles = $true
   Run-RefusedUpgradeCase 'success-with-old-files' { param($parameters) } 1
   $script:keepOldFiles = $false
+  $script:recreateResources = $true
   Run-RefusedUpgradeCase 'success-with-old-resources' {
     param($parameters)
-    $resources = Join-Path $parameters.InstallDirectory 'resources'
-    [void][System.IO.Directory]::CreateDirectory($resources)
-    [System.IO.File]::WriteAllText((Join-Path $resources 'old-runtime.txt'), 'old runtime')
-  } 1 $false
+  } 1 $true
+  $script:recreateResources = $false
   Write-Output 'PASS incomplete-cleanup'
 
   foreach ($arguments in @('/allusers /currentuser --updated', '/currentuser --updated --updated', '/currentuser', '/currentuser --updated /REMOVE_APP_DATA', '/currentuser --updated "injected"', "/currentuser --updated`n--keep-shortcuts")) {
@@ -178,14 +220,14 @@ try {
   Write-Output 'PASS log-write-failure'
 
   $script:tamperUninstaller = $true
-  Run-RefusedUpgradeCase 'changed-old-uninstaller' { param($parameters) } 1 $false
+  Run-RefusedUpgradeCase 'changed-old-uninstaller' { param($parameters) } 1 $true
   $script:tamperUninstaller = $false
   Assert-Upgrade ((Get-Content -LiteralPath $script:activeUninstaller -Raw) -eq 'changed after uninstall') 'A changed old uninstaller was deleted.'
   $script:tamperTarget = Join-Path $root 'external-link-target'
   [void][System.IO.Directory]::CreateDirectory($script:tamperTarget)
   [System.IO.File]::WriteAllText((Join-Path $script:tamperTarget 'preserved.txt'), 'preserve')
   $script:replaceUninstallerWithLink = $true
-  Run-RefusedUpgradeCase 'linked-old-uninstaller' { param($parameters) } 1 $false
+  Run-RefusedUpgradeCase 'linked-old-uninstaller' { param($parameters) } 1 $true
   $script:replaceUninstallerWithLink = $false
   Assert-Upgrade ((Get-Content -LiteralPath (Join-Path $script:tamperTarget 'preserved.txt') -Raw) -eq 'preserve') 'Old uninstaller cleanup followed a replacement link.'
   Remove-UpgradeFixtureLink $script:fixtureLink

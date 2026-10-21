@@ -34,6 +34,8 @@ LangString InstallerExtractFailed 2052 "安装包解压失败，安装尚未完�
 LangString InstallerExtractFailed 1033 "Package extraction failed; installation is incomplete. The previous version may already have been removed and is not confirmed usable. Keep the logs, check free disk space, or download the installer again."
 LangString InstallerCopyFailed 2052 "新文件写入或完整性核验失败，安装不完整，未登记新版本成功。旧版可能已经卸载，本次未恢复旧版。请保留日志，排除文件占用、磁盘空间或权限问题后重新运行安装包。"
 LangString InstallerCopyFailed 1033 "Writing or verifying the new files failed. Installation is incomplete; the new version was not registered as successful. The previous version may already have been removed and was not restored. Keep the logs, resolve file locks, disk space or permissions, then run the installer again."
+LangString UninstallFilesFailed 2052 "应用文件移除失败，卸载已停止，尚未清理命令行注册、快捷方式和卸载注册信息，也未按本次选择删除个人数据。请保留诊断日志；文件恢复结果以日志为准，不能据此确认应用仍可用。"
+LangString UninstallFilesFailed 1033 "Application-file removal failed. Uninstall stopped before command-line registration, shortcuts, uninstall registration, or the selected personal data were removed. Keep the diagnostics. File restoration is recorded in the logs; the application is not confirmed usable."
 LangString UninstallDataPageTitle 2052 "本地配置和数据"
 LangString UninstallDataPageTitle 1033 "Local configuration and data"
 LangString UninstallDataPageSubtitle 2052 "选择卸载应用后是否保留个人数据"
@@ -150,6 +152,8 @@ Var DesktopDiagnosticDirectory
     !insertmacro DesktopLog "uninstall-start mode=$DesktopUninstallArguments old=$DesktopOldDirectory target=$INSTDIR uninstaller=$DesktopOldUninstaller"
     !insertmacro DesktopCheckProcesses "$DesktopOldDirectory"
     File /oname=$PLUGINSDIR\installer-upgrade.ps1 "${BUILD_RESOURCES_DIR}\installer-upgrade.ps1"
+    File /oname=$PLUGINSDIR\installer-removal.ps1 "${BUILD_RESOURCES_DIR}\installer-removal.ps1"
+    File /oname=$PLUGINSDIR\installer-removal-native.cs "${BUILD_RESOURCES_DIR}\installer-removal-native.cs"
     nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-upgrade.ps1" -InstallDirectory "$DesktopOldDirectory" -UninstallerPath "$DesktopOldUninstaller" -UninstallerName "${UNINSTALL_FILENAME}" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -UninstallArguments "$DesktopUninstallArguments" -TemporaryDirectory "$PLUGINSDIR" -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
     Pop $R0
     Pop $ProcessGuardOutput
@@ -328,23 +332,12 @@ Var DesktopDiagnosticDirectory
 !endif
 
 !macro customUnInit
-  # The uninstaller owns its PATH cleanup helper. Extracting it from the
-  # uninstaller avoids depending on installed resources during the NSIS
-  # self-copy and upgrade lifecycle.
+  # Initialization must not alter PATH, credentials, or personal data. Embed
+  # helpers here so file removal never depends on installed resources.
   InitPluginsDir
   File /oname=$PLUGINSDIR\manage-path.ps1 "${BUILD_RESOURCES_DIR}\cli-bin\manage-path.ps1"
-  ReadRegStr $2 HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_DIRECTORY_VALUE}"
-  ${If} $2 == ""
-    StrCpy $2 "$INSTDIR\resources\cli-bin"
-  ${EndIf}
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\manage-path.ps1" -Action remove -Directory "$2"'
-  Pop $0
-  Pop $1
-  DetailPrint "Desktop CLI PATH cleanup exit $0: $1"
-  ${If} $0 == 0
-    DeleteRegValue HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_REGISTRY_VALUE}"
-    DeleteRegValue HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_DIRECTORY_VALUE}"
-  ${EndIf}
+  File /oname=$PLUGINSDIR\installer-removal.ps1 "${BUILD_RESOURCES_DIR}\installer-removal.ps1"
+  File /oname=$PLUGINSDIR\installer-removal-native.cs "${BUILD_RESOURCES_DIR}\installer-removal-native.cs"
 !macroend
 
 !ifdef BUILD_UNINSTALLER
@@ -440,26 +433,73 @@ Var DesktopDiagnosticDirectory
   FunctionEnd
 
   !macro customUnInstall
+    # Upstream invokes this before customRemoveFiles. Defer all irreversible
+    # CLI and optional personal-data effects until the file phase succeeds.
+  !macroend
+
+  !macro customRemoveFiles
+    !insertmacro DesktopEnsureDiagnostics
+    !insertmacro DesktopLog "uninstall-files-start target=$INSTDIR"
+    # Neither NSIS's recursive RMDir nor its upgrade Rename loop supports the
+    # installed long-path layout. The helper owns staging and failure recovery.
+    SetOutPath "$TEMP"
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-removal.ps1" -InstallDirectory "$INSTDIR" -UninstallerName "${UNINSTALL_FILENAME}" -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
+    Pop $0
+    Pop $ProcessGuardOutput
+    DetailPrint "$ProcessGuardOutput"
+    ${If} $0 != 0
+      !insertmacro DesktopLog "uninstall-files-failed result=$0 metadata-cleanup=not-started"
+      MessageBox MB_OK|MB_ICONSTOP "$(UninstallFilesFailed)$\r$\n$ProcessGuardOutput$\r$\n$DesktopDiagnosticDirectory" /SD IDOK
+      SetErrorLevel 2
+      Abort
+    ${EndIf}
+    !insertmacro DesktopLog "uninstall-files-complete"
+    # The helper deliberately excludes the exact uninstaller. NSIS normally
+    # runs a temporary copy; an in-place upgrade fallback may retain itself
+    # until the validated upgrade bridge removes it after process exit.
+    ClearErrors
+    Delete "$INSTDIR\${UNINSTALL_FILENAME}"
+    RMDir "$INSTDIR"
+    ClearErrors
+
+    ReadRegStr $2 HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_DIRECTORY_VALUE}"
+    ${If} $2 == ""
+      StrCpy $2 "$INSTDIR\resources\cli-bin"
+    ${EndIf}
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\manage-path.ps1" -Action remove -Directory "$2"'
+    Pop $0
+    Pop $1
+    DetailPrint "Desktop CLI PATH cleanup exit $0: $1"
+    ${If} $0 == 0
+      DeleteRegValue HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_REGISTRY_VALUE}"
+      DeleteRegValue HKCU "${CLI_PATH_REGISTRY_KEY}" "${CLI_PATH_DIRECTORY_VALUE}"
+    ${EndIf}
+
     ${GetParameters} $R0
     ${GetOptions} $R0 "--updated" $R1
     ${IfNot} ${Errors}
       DetailPrint "Preserving application-owned local configuration and data during update"
     ${Else}
-      ReadINIStr $R0 "$PLUGINSDIR\desktop-uninstall.ini" "data" "delete"
-      ${If} $R0 == "1"
-      DetailPrint "Removing application-owned local configuration and data"
-      ${If} $installMode == "all"
-        SetShellVarContext current
-      ${EndIf}
-      Call un.RemoveInstalledDesktopData
-      StrCmp $R8 "0" uninstall_data_removed
-        MessageBox MB_OK|MB_ICONEXCLAMATION "$(UninstallDataDeleteFailed)"
-      uninstall_data_removed:
-      ${If} $installMode == "all"
-        SetShellVarContext all
-      ${EndIf}
+      ${GetOptions} $R0 "/KEEP_APP_DATA" $R1
+      ${IfNot} ${Errors}
+        DetailPrint "Preserving application-owned local configuration and data as requested"
       ${Else}
-        DetailPrint "Preserving application-owned local configuration and data"
+        ReadINIStr $R0 "$PLUGINSDIR\desktop-uninstall.ini" "data" "delete"
+        ${If} $R0 == "1"
+          DetailPrint "Removing application-owned local configuration and data"
+          ${If} $installMode == "all"
+            SetShellVarContext current
+          ${EndIf}
+          Call un.RemoveInstalledDesktopData
+          StrCmp $R8 "0" uninstall_data_removed
+            MessageBox MB_OK|MB_ICONEXCLAMATION "$(UninstallDataDeleteFailed)"
+          uninstall_data_removed:
+          ${If} $installMode == "all"
+            SetShellVarContext all
+          ${EndIf}
+        ${Else}
+          DetailPrint "Preserving application-owned local configuration and data"
+        ${EndIf}
       ${EndIf}
     ${EndIf}
   !macroend

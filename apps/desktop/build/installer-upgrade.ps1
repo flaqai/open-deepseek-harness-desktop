@@ -10,6 +10,60 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'installer-removal.ps1') -InstallDirectory $InstallDirectory -UninstallerName $UninstallerName -DiagnosticDirectory $DiagnosticDirectory
+
+function Get-DesktopLegacyCliState([string]$InstallDirectory) {
+  if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return $null }
+  $registration = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\FLAQ.AI\DeepSeek Harness')
+  $environment = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+  try {
+    $values = @{}
+    foreach ($name in @('CliPathRegistered', 'CliPathDirectory')) {
+      if ($null -ne $registration -and $registration.GetValueNames() -contains $name) {
+        $values[$name] = @{ Value = $registration.GetValue($name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames); Kind = $registration.GetValueKind($name) }
+      }
+    }
+    $present = $null -ne $environment -and $environment.GetValueNames() -contains 'Path'
+    $path = if ($present) { [string]$environment.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames) } else { '' }
+    $legacyPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if ($null -eq $legacyPath) { $legacyPath = '' }
+    $target = if ($values.ContainsKey('CliPathDirectory')) { [string]$values.CliPathDirectory.Value } else { Join-Path $InstallDirectory 'resources\cli-bin' }
+    $remaining = @($legacyPath.Split(';') | Where-Object { -not [string]::Equals($_.Trim().Trim('"').TrimEnd('\', '/'), $target.Trim().Trim('"').TrimEnd('\', '/'), [StringComparison]::OrdinalIgnoreCase) }) -join ';'
+    return @{ Values = $values; PathPresent = $present; Path = $path; RemovedPath = $remaining; PathKind = $(if ($present) { $environment.GetValueKind('Path') } else { [Microsoft.Win32.RegistryValueKind]::ExpandString }) }
+  } finally {
+    if ($null -ne $registration) { $registration.Dispose() }
+    if ($null -ne $environment) { $environment.Dispose() }
+  }
+}
+
+function Restore-DesktopLegacyCliState($State) {
+  if ($null -eq $State) { return }
+  $environment = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Environment')
+  $registration = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Software\FLAQ.AI\DeepSeek Harness')
+  try {
+    $current = [string]$environment.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+    $currentPresent = $environment.GetValueNames() -contains 'Path'
+    # Restore only the exact change made by the legacy helper, never concurrent PATH edits.
+    if ($current -cne $State.Path -and $current -cne $State.RemovedPath) { throw 'CLI PATH changed concurrently; automatic restoration refused.' }
+    if ($currentPresent -and $State.PathPresent -and $environment.GetValueKind('Path') -ne $State.PathKind) { throw 'CLI PATH type changed concurrently; automatic restoration refused.' }
+    foreach ($name in @('CliPathRegistered', 'CliPathDirectory')) {
+      $present = $registration.GetValueNames() -contains $name
+      if ($present) {
+        if (-not $State.Values.ContainsKey($name) -or $registration.GetValue($name) -cne $State.Values[$name].Value -or $registration.GetValueKind($name) -ne $State.Values[$name].Kind) { throw 'CLI registration changed concurrently; automatic restoration refused.' }
+      }
+    }
+    if ($current -cne $State.Path -or $currentPresent -ne $State.PathPresent) {
+      if ($State.PathPresent) { $environment.SetValue('Path', $State.Path, $State.PathKind) }
+      else { $environment.DeleteValue('Path', $false) }
+    }
+    foreach ($name in @('CliPathRegistered', 'CliPathDirectory')) {
+      if ($registration.GetValueNames() -notcontains $name -and $State.Values.ContainsKey($name)) {
+        $registration.SetValue($name, $State.Values[$name].Value, $State.Values[$name].Kind)
+      }
+    }
+    [DshRemovalNative]::BroadcastEnvironmentChange()
+  } finally { $environment.Dispose(); $registration.Dispose() }
+}
 
 function Get-DesktopUpgradeDirectory([string]$Directory, [switch]$AllowMissing) {
   if ([string]::IsNullOrWhiteSpace($Directory) -or -not [System.IO.Path]::IsPathRooted($Directory)) { throw 'An absolute directory is required.' }
@@ -44,6 +98,10 @@ function Invoke-DesktopUninstallerProcess([string]$Executable, [string]$Argument
     $info.Arguments = $Arguments
     $info.WorkingDirectory = $WorkingDirectory
     $info.UseShellExecute = $false
+    if ($null -ne $script:desktopRemovalBridge) {
+      $info.EnvironmentVariables['DSH_REMOVAL_BRIDGE_ROOT'] = $script:desktopRemovalBridge.Root
+      $info.EnvironmentVariables['DSH_REMOVAL_BRIDGE_QUARANTINE'] = $script:desktopRemovalBridge.Quarantine
+    }
     $process = [System.Diagnostics.Process]::Start($info)
   } catch {
     return @{ launched = $false; errorCode = $_.Exception.HResult }
@@ -69,11 +127,14 @@ function Get-DesktopUninstallerHash([string]$FilePath) {
   }
 }
 
-function Invoke-DesktopOldUninstall {
+function Invoke-DesktopOldUninstallCore {
   param([string]$InstallDirectory, [string]$UninstallerPath, [string]$UninstallerName,
     [string]$AppExecutable, [string]$UninstallArguments, [string]$TemporaryDirectory, [string]$DiagnosticDirectory)
   $temporaryUninstaller = $null
   $diagnostics = $null
+  $transaction = $null
+  $committed = $false
+  $cliState = $null
   try {
     $install = Get-DesktopUpgradeDirectory $InstallDirectory
     $temporary = Get-DesktopUpgradeDirectory $TemporaryDirectory
@@ -116,6 +177,20 @@ function Invoke-DesktopOldUninstall {
     $arguments = '/S /KEEP_APP_DATA ' + $UninstallArguments.Trim() + ' _?=' + $install
     $selectedUninstaller = if ($copyAvailable) { $temporaryUninstaller } else { $registered }
     for ($attempt = 1; $attempt -le 12; $attempt += 1) {
+      if ($null -eq $transaction) {
+        try {
+          $transaction = Start-DesktopRemovalTransaction -InstallDirectory $install -UninstallerName $UninstallerName -DiagnosticDirectory $diagnostics
+        } catch {
+          if ($_.Exception.Data['RemovalStage'] -ne 'stage') { throw }
+          Write-DesktopUpgradeEvent $diagnostics 'uninstall-files-stage-failed' @{ attempt = $attempt; error = $_.Exception.Message; disposition = 'files-restored; legacy-not-started' }
+          if ($attempt -eq 12) { return 2 }
+          Wait-DesktopUpgradeRetry
+          continue
+        }
+        $cliState = Get-DesktopLegacyCliState $install
+        $script:desktopRemovalBridge = $transaction
+        Write-DesktopUpgradeEvent $diagnostics 'uninstall-files-staged' @{ quarantine = $transaction.Quarantine; disposition = 'recoverable-until-legacy-success' }
+      }
       $outcome = Invoke-DesktopUninstallerProcess $selectedUninstaller $arguments $temporary
       if (-not $outcome.launched -and $selectedUninstaller -ne $registered) {
         Write-DesktopUpgradeEvent $diagnostics 'temporary-launch-failed' @{ attempt = $attempt; errorCode = $outcome.errorCode }
@@ -146,7 +221,9 @@ function Invoke-DesktopOldUninstall {
           if (Test-Path -LiteralPath $registered) { throw 'The remaining old uninstaller could not be removed.' }
           Write-DesktopUpgradeEvent $diagnostics 'old-uninstaller-removed' @{ uninstaller = $registered }
         }
-        Write-DesktopUpgradeEvent $diagnostics 'uninstall-complete' @{ exitCode = 0 }
+        $cleanup = Complete-DesktopRemovalTransaction -Transaction $transaction
+        $committed = $true
+        Write-DesktopUpgradeEvent $diagnostics 'uninstall-complete' @{ exitCode = 0; cleanupWarning = $cleanup.Warning }
         return 0
       }
       if ($code -ne 2 -or $attempt -eq 12) {
@@ -165,9 +242,33 @@ function Invoke-DesktopOldUninstall {
     [Console]::Error.WriteLine('Old-version uninstall stopped: ' + $failure.Message)
     return 3
   } finally {
+    $script:desktopRemovalBridge = $null
+    if ($null -ne $transaction -and -not $committed) {
+      try {
+        Undo-DesktopRemovalTransaction -Transaction $transaction
+        Restore-DesktopLegacyCliState $cliState
+        Write-DesktopUpgradeEvent $diagnostics 'uninstall-files-restored' @{ disposition = 'files-restored; legacy-metadata-not-independently-verified' }
+      } catch {
+        [Console]::Error.WriteLine('Old installation restoration requires attention: ' + $_.Exception.Message + '; quarantine: ' + $transaction.Quarantine)
+        throw
+      }
+    }
     if ($null -ne $temporaryUninstaller -and [System.IO.File]::Exists($temporaryUninstaller)) {
       try { [System.IO.File]::Delete($temporaryUninstaller) } catch { [Console]::Error.WriteLine('Temporary uninstaller cleanup failed: ' + $_.Exception.Message) }
     }
+  }
+}
+
+function Invoke-DesktopOldUninstall {
+  param([string]$InstallDirectory, [string]$UninstallerPath, [string]$UninstallerName,
+    [string]$AppExecutable, [string]$UninstallArguments, [string]$TemporaryDirectory, [string]$DiagnosticDirectory)
+  try {
+    $result = Invoke-DesktopOldUninstallCore @PSBoundParameters
+    return $result
+  }
+  catch {
+    [Console]::Error.WriteLine('Old-version uninstall recovery stopped: ' + $_.Exception.Message)
+    return 3
   }
 }
 

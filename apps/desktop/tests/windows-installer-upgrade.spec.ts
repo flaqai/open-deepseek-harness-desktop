@@ -12,7 +12,7 @@ it.skipIf(!powershell)('bounds old-uninstaller retries and preserves installatio
   ], { encoding: 'utf8', timeout: 30_000 })
   expect(result.error).toBeUndefined()
   expect(result.status, result.stderr + result.stdout).toBe(0)
-  for (const scenario of ['module-independent-sha256', 'success', 'retry-cleanup', 'persistent-cleanup', 'non-retryable',
+  for (const scenario of ['module-independent-sha256', 'stage-retry-1', 'stage-retry-12', 'success', 'retry-cleanup', 'persistent-cleanup', 'non-retryable',
     'fallback-in-place', 'both-launch-failed', 'fallback-retry', 'invalid-registration',
     'unsafe-directories', 'incomplete-cleanup', 'invalid-arguments', 'log-write-failure', 'missing-uninstaller', 'uninstaller-tampering']) {
     expect(result.stdout).toContain(`PASS ${scenario}`)
