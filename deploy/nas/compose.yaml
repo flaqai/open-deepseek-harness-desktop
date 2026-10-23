@@ -63,7 +63,7 @@ services:
       - no-new-privileges:true
 
   identity:
-    image: node:24-alpine
+    image: node:24.22.1-alpine
     profiles: [tools]
     depends_on:
       https:
@@ -79,7 +79,7 @@ services:
       - no-new-privileges:true
 
   discovery:
-    image: node:24-alpine
+    image: node:24.22.1-alpine
     restart: unless-stopped
     network_mode: host
     environment:

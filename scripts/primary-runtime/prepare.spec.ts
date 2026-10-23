@@ -7,6 +7,18 @@ import { zipSync } from 'fflate'
 import { expect, it } from 'vitest'
 import { downloadPrimaryRuntimeAsset, prepareOfficeSkillAssets, primaryRuntimePayloadDigest, smokePrimaryRuntime, unpackPrimaryRuntimeWheel } from './prepare.ts'
 import lock from './lock.json' with { type: 'json' }
+import desktopLock from '../../apps/desktop/scripts/primary-runtime-lock.json' with { type: 'json' }
+
+it('pins the same CPython security release and archives for desktop and SDK carriers', () => {
+  for (const runtimeLock of [lock, desktopLock]) {
+    expect(runtimeLock.pythonVersion).toBe('3.12.15')
+    expect(runtimeLock.pythonRelease).toBe('20261021')
+    for (const target of Object.values(runtimeLock.targets)) expect(target.pythonSha256).toMatch(/^[0-9a-f]{64}$/u)
+  }
+  expect(lock.targets).toMatchObject(Object.fromEntries(Object.entries(desktopLock.targets).map(([target, artifact]) => [
+    target, { pythonTarget: artifact.pythonTarget, pythonSha256: artifact.pythonSha256 },
+  ])))
+})
 
 it('covers every SDK wheel target with the shared interpreter lock', () => {
   const platforms = JSON.parse(readFileSync(new URL('../../python/sdk-runtime/platforms.json', import.meta.url), 'utf8')) as Record<string, unknown>

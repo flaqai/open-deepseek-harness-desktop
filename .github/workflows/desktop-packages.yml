@@ -45,7 +45,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PRIMARY_NODE_VERSION: '24.17.0'
+  PRIMARY_NODE_VERSION: '24.22.1'
   DSH_TELEMETRY_DISABLED: '1'
   PNPM_CONFIG_REGISTRY: https://registry.npmjs.org
   NO_PROXY: 127.0.0.1,localhost,::1

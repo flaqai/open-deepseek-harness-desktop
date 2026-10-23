@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-desktop",
   "description": "Cross-platform Electron host for the DeepSeek Harness Web GUI",
-  "version": "0.2.1-rc.2.2",
+  "version": "0.2.1-rc.2.3",
   "private": true,
   "homepage": "https://github.com/flaqai/open-deepseek-harness-desktop",
   "author": {
@@ -32,7 +32,8 @@
     "package:macos:x64": "pnpm --dir ../.. run prepare:desktop:bundled-plugins && pnpm --dir ../.. run build:community-desktop && pnpm exec tsx scripts/prepare-workspace-runtime.ts mac-x64 && node scripts/prepare-unix-runtime.mjs --target darwin-x64 && CSC_IDENTITY_AUTO_DISCOVERY=false node node_modules/electron-builder/out/cli/cli.js --config electron-builder.macos.yml --mac dmg zip --x64 --publish never",
     "package:linux:x64": "pnpm --dir ../.. run prepare:desktop:bundled-plugins && pnpm --dir ../.. run build:community-desktop && pnpm exec tsx scripts/prepare-workspace-runtime.ts linux-x64 && node scripts/prepare-unix-runtime.mjs --target linux-x64 && node node_modules/electron-builder/out/cli/cli.js --config electron-builder.linux.yml --linux deb rpm --x64 --publish never",
     "start": "node scripts/start-electron.mjs",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "test:markdown-image-layout": "electron scripts/check-markdown-image-layout.mjs"
   },
   "license": "MIT",
   "devDependencies": {
@@ -44,7 +45,7 @@
     "@types/semver": "^7.7.1",
     "@types/node": "^22.20.0",
     "@types/ws": "^8.18.1",
-    "electron": "44.7.0",
+    "electron": "44.9.3",
     "electron-builder": "26.17.0",
     "extract-zip": "2.0.1",
     "pnpm": "11.28.5",

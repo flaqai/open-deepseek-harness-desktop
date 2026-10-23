@@ -1,13 +1,13 @@
 {
-  "nodeVersion": "24.21.0",
-  "pythonVersion": "3.12.14",
-  "pythonRelease": "20260901",
+  "nodeVersion": "24.22.1",
+  "pythonVersion": "3.12.15",
+  "pythonRelease": "20261021",
   "targets": {
     "win-x64": {
       "nodeArchive": "win-x64.zip",
-      "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
+      "nodeSha256": "d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5",
       "pythonTarget": "x86_64-pc-windows-msvc",
-      "pythonSha256": "7c45c9622400d578709a9b2cddbe8124cc21d382409d9f13406d706d28e31b14",
+      "pythonSha256": "aac5d331fc3307343f95928fdbea4583f0d53973d08c7e1d081884fbd229a0e1",
       "wheels": [
         {
           "url": "https://files.pythonhosted.org/packages/2d/57/8aeaf160312f7f489dea47ab61e430b5cb051f59a98ae68b7133ce8fa06a/numpy-2.3.5-cp312-cp312-win_amd64.whl",
@@ -29,9 +29,9 @@
     },
     "mac-arm64": {
       "nodeArchive": "darwin-arm64.tar.gz",
-      "nodeSha256": "bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057",
+      "nodeSha256": "89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7",
       "pythonTarget": "aarch64-apple-darwin",
-      "pythonSha256": "81a359f1cfadd4da11766534c5913791cea55f26e1bb902cacd2a531bb1e4b2b",
+      "pythonSha256": "7b8d00b751db21cea87dc551a8f8165147c5fbc5251d5537d7e5497dde00a219",
       "wheels": [
         {
           "url": "https://files.pythonhosted.org/packages/c5/65/df0db6c097892c9380851ab9e44b52d4f7ba576b833996e0080181c0c439/numpy-2.3.5-cp312-cp312-macosx_11_0_arm64.whl",
@@ -53,9 +53,9 @@
     },
     "mac-x64": {
       "nodeArchive": "darwin-x64.tar.gz",
-      "nodeSha256": "1462cb3b3046b815cf8ea436d3da450ec1a9f11dac7e5a46b0ada5305d7e8097",
+      "nodeSha256": "d132557e7ee2b85af08b0c8c34338e65c6430f2238d01f727728ef42dc83b035",
       "pythonTarget": "x86_64-apple-darwin",
-      "pythonSha256": "65b195c9cedc1fef6767f044f9822069adbd1bd9204d424ece4628776fdc04bb",
+      "pythonSha256": "f12e0504397683d6be0745ffd4c39ef45a455cec169adf35c628840d06133773",
       "wheels": [
         {
           "url": "https://files.pythonhosted.org/packages/44/37/e669fe6cbb2b96c62f6bbedc6a81c0f3b7362f6a59230b23caa673a85721/numpy-2.3.5-cp312-cp312-macosx_10_13_x86_64.whl",
@@ -77,9 +77,9 @@
     },
     "linux-x64": {
       "nodeArchive": "linux-x64.tar.gz",
-      "nodeSha256": "6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff",
+      "nodeSha256": "eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c",
       "pythonTarget": "x86_64-unknown-linux-gnu",
-      "pythonSha256": "72748da13197c1fb161e3afeef20a6a385ff24f2165e6e2758e47008e7faba4c",
+      "pythonSha256": "6d7521138fd33afddc1ccd08abb007d9a2829e38117c2576f9efdc0ec73ce772",
       "wheels": [
         {
           "url": "https://files.pythonhosted.org/packages/b6/23/2a1b231b8ff672b4c450dac27164a8b2ca7d9b7144f9c02d2396518352eb/numpy-2.3.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
@@ -101,9 +101,9 @@
     },
     "linux-arm64": {
       "nodeArchive": "linux-arm64.tar.gz",
-      "nodeSha256": "724282c3b43aec998aa9527380465b45d229e021b58035f5f4f63095eabfe5d5",
+      "nodeSha256": "33c37be234ba8bee041961047b19160f4d7d0f164e8e246f78bdd10feff148b3",
       "pythonTarget": "aarch64-unknown-linux-gnu",
-      "pythonSha256": "577b4bec0793ad1ff0cbff9adbd0df078eddde38a4c41bf5d83ad381a85ee39d",
+      "pythonSha256": "b4567aa5a11f51b540c4dfd9e082ebf23e554f8ac17b85caa6cea23e83693394",
       "wheels": [
         {
           "url": "https://files.pythonhosted.org/packages/74/78/fcd41e5a0ce4f3f7b003da85825acddae6d7ecb60cf25194741b036ca7d6/numpy-2.3.5-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",

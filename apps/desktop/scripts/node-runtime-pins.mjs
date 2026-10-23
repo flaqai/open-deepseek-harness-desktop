@@ -1,22 +1,22 @@
 /** Official Node.js runtime archives embedded by the desktop packages. */
 
-export const nodeVersion = '24.21.0'
+export const nodeVersion = '24.22.1'
 
 export const nodeRuntimeArchivesByTarget = Object.freeze({
   'darwin-arm64': Object.freeze({
     name: `node-v${nodeVersion}-darwin-arm64.tar.gz`,
-    sha256: 'bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057',
+    sha256: '89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7',
   }),
   'darwin-x64': Object.freeze({
     name: `node-v${nodeVersion}-darwin-x64.tar.gz`,
-    sha256: '1462cb3b3046b815cf8ea436d3da450ec1a9f11dac7e5a46b0ada5305d7e8097',
+    sha256: 'd132557e7ee2b85af08b0c8c34338e65c6430f2238d01f727728ef42dc83b035',
   }),
   'linux-x64': Object.freeze({
     name: `node-v${nodeVersion}-linux-x64.tar.gz`,
-    sha256: '6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff',
+    sha256: 'eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c',
   }),
   'win32-x64': Object.freeze({
     name: `node-v${nodeVersion}-win-x64.zip`,
-    sha256: '158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541',
+    sha256: 'd2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5',
   }),
 })

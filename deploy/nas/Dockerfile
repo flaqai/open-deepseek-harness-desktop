@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS build
+FROM node:24.22.1-bookworm-slim AS build
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -12,7 +12,7 @@ RUN pnpm --config.allow-unused-patches=true --filter @deepseek-ai/dsh deploy \
   && test -f /runtime/lib/bin.js \
   && test -f /runtime/node_modules/@deepseek-ai/dsh-web-frontend/dist/index.html
 
-FROM node:24-bookworm-slim AS runtime
+FROM node:24.22.1-bookworm-slim AS runtime
 
 ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm

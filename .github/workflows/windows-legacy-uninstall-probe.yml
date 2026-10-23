@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v6
         with:
-          node-version: '24.17.0'
+          node-version: '24.22.1'
       - name: Probe behavior checks
         shell: pwsh
         run: pwsh -NoLogo -NoProfile -NonInteractive -File apps/desktop/tests/qualification/windows-legacy-uninstall-probe.test.ps1

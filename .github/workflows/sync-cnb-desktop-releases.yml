@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 24.17.0
+          node-version: 24.22.1
           package-manager-cache: false
       - name: Prepare CNB index checkout
         env:

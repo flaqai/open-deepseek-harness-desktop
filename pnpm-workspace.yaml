@@ -126,8 +126,8 @@ minimumReleaseAgeExclude:
   # The package manager is a workspace devDependency, so its own exact pin
   # must be exempt from the release-age window that guards other packages.
   - pnpm@11.28.5
-  # Desktop packaging requires this Electron fingerprint with node-addon-require-builtin 0.1.9.
-  - electron@44.7.0
+  # Reviewed stable 44-series maintenance update; other packages keep the age window.
+  - electron@44.9.3
 patchedDependencies:
   '@earendil-works/pi-ai@1.1.0': patches/@earendil-works__pi-ai@1.1.0.patch
   '@electron/osx-sign@1.3.3': patches/@electron__osx-sign@1.3.3.patch
