@@ -300,6 +300,12 @@
   object-fit: contain;
 }
 
+/* Text-edge trimming can collapse inline image buttons' line boxes in
+   Chromium. Media-bearing blocks retain their complete painted height. */
+.markdown :is(p, h1, h2, h3, h4, h5, h6, li, blockquote):has(.image) {
+  text-box-trim: none;
+}
+
 /* Inline file mention: the same link language this sheet gives anchors (and
    thereby URL-promoted inline code) — link-blue at rest, dotted underline only
    on hover/focus. An underline at rest reads badly inside the code chip, where

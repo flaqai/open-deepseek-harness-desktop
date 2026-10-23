@@ -158,6 +158,8 @@ kind: "package-library"
 
 [`input-modality.ts`](src/input-modality.ts) 为 tooltip 跟踪输入，并在 `<html>` 上发布 `data-input-modality`，供[主题焦点样式](../ui-theme/README.zh.md#understand-the-implementation)使用。`pointerModality()` 在指针输入后为 true，在任意按键后为 false，包括 IME（输入法）组合输入按键；`Tooltip` 据此决定聚焦时是否可以显示气泡。发布的属性保持 `pointer`，直到非组合输入的导航键（Tab、方向键、Home/End、PageUp/PageDown）到达，或非组合输入按键之后焦点移到不同控件。重新聚焦同一控件不会恢复键盘模态。指针输入、IME 组合输入按键和 window blur 都会清除待处理按键；没有待处理按键的焦点变化不改变模态。监听器与文档同寿命；从 Node 导入时不安装监听器。 焦点变化规则只观察传到 window 的事件；shadow root 内部不向外暴露这些事件的额外导航由组件负责。
 
+含图片的 Markdown 块即使在宿主启用 `text-box-trim` 时也保留完整行盒高度；纯文字块保留宿主的排版设置。[原生几何检查](../../../apps/desktop/scripts/check-markdown-image-layout.mjs) 使用桌面版 Electron 与合成图片，验证窄屏布局、图片比例、延迟解码、链接、列表、引用和多图，不读取用户数据。在原生图形环境中，从仓库根目录运行 `pnpm --dir apps/desktop run test:markdown-image-layout`。
+
 ### 流式 Markdown
 
 回复流式输出期间，`MarkdownText` 增量解析：除末尾两个块外全部冻结为缓存的 React 元素，每个分片只重新解析其后的源文本尾部，因此每分片的工作量跟随尾部而非整个回复。末尾的顶层未闭合 fence 会保留已解析的 code node，只把最后一个已完成行与当前未完成行交给同一套 GFM grammar；闭合 fence 或有歧义的解析会回到普通尾部路径。高亮同样从保存的 Shiki grammar state 续接，并只发布新完成行与可变尾部。`CodeBlock` 把已完成行封入固定大小的 React 分组、复用更早的分组，并在代码与语言未变化时跨定稿保留整棵高亮树。定稿时的全量解析仍会解析跨过冻结边界的引用。
