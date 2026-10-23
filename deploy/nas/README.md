@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 This Compose deployment runs Harness on a NAS. Desktop clients share plugins, model settings, and sessions under `/config`, plus workspaces under `/workspaces`. The stack neither mounts the Docker socket nor publishes Harness HTTP to the LAN; only Caddy HTTPS is exposed.
 
+Both Harness image stages pin Node 24.22.1; the discovery and certificate-identity helpers pin the same Node security release. An existing container keeps its installed runtime until its image is rebuilt or pulled and the container is recreated. Restarting it alone does not apply the update. Preserve the mounted data and certificate volumes during replacement.
+
 ## Start
 
 1. Copy `.env.example` to `.env` and configure a dedicated root hostname such as `harness.local`. Version 1 does not support a URL subpath.

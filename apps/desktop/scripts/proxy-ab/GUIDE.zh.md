@@ -17,7 +17,7 @@
 
 ## 本机运行
 
-在仓库根目录使用 Node 24.11.1，并确保桌面端的仓库 pnpm 已安装：
+在仓库根目录使用已修补的 Node 24.22.1，并确保桌面端的仓库 pnpm 已安装：
 
 ```sh
 node apps/desktop/scripts/proxy-ab/benchmark.mjs --rounds 10 --output .local-user-errors/releases/v0.1.2-alpha.5/proxy-ab

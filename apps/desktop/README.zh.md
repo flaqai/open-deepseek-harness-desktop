@@ -6,7 +6,9 @@
 
 ## 运行时与会话兼容性
 
-本工作区使用 Harness 0.2.1-rc.2 和开发版 Desktop 0.2.1-rc.2.1，以及外部 Node 24.21.0。Electron 固定为 44.7.0，electron-builder 固定为 26.17.0，pnpm 固定为 11.28.5。macOS 安装版要求 macOS 13.5 或更高版本；这是内置 Node 二进制的最低要求，不能只根据 Electron 推断系统兼容性。
+本工作区使用 Harness 0.2.1-rc.2 和开发版 Desktop 0.2.1-rc.2.3，以及外部 Node 24.22.1。Electron 固定为 44.9.3，electron-builder 固定为 26.17.0，pnpm 固定为 11.28.5。macOS 安装版要求 macOS 13.5 或更高版本；这是内置 Node 二进制的最低要求，不能只根据 Electron 推断系统兼容性。
+
+托管 Python 运行时采用 Astral 20261021 构建的 CPython 3.12.15，保留 cp312 wheel 包 ABI。独立 Node 更新包含 [CVE-2026-111497 修复](https://nodejs.org/en/blog/release/v24.22.1)；Electron 则链接 Chromium 的 Brotli，不能只凭其显示的 Node 版本判断解码库补丁状态。Pillow 12.3.0 仍携带独立构建、尚未验证包含该修复的 Brotli 库，更新 CPython 不会替换它。Office 原生依赖也需单独核验供应方修复。这些源码更新不代表新安装包已验收，也不会修复已经安装的副本。用户选择的自定义解释器保持不变。
 
 会话历史遵循完整的 V0 → V1 → V2 → V3 → V4 迁移链。迁移保留旧代文件并写入经过校验的后继文件，但不能假设旧客户端能理解新写入的 V4 数据。插件快照不包含会话，也不能撤销会话格式升级。复用重要历史数据前，应使用数据目录的隔离副本验证升级。
 
@@ -14,7 +16,7 @@
 
 ## 从当前仓库运行
 
-使用 Node `^22.19.0 || >=24.0.0`，先构建仓库，再启动桌面应用：
+开发时使用已修补的 Node 24.22.1，先构建仓库，再启动桌面应用。包声明中更宽的引擎范围表示兼容性，不代表已覆盖安全补丁：
 
 ```sh
 node scripts/install-dependencies.mjs
@@ -38,6 +40,8 @@ pnpm run dev:desktop
 
 <a id="plugin-changes"></a>
 ## 插件变更
+
+桌面端以 block YAML 写入 Agents Anywhere 开关，让按行读取的市场控件能够识别其停用状态。启动时也会通过现有、带备份的候选迁移，规范化可明确识别的旧 flow 桥接行，保留其启停状态与配置；block 根列表中的其他行保留原始字节。整份混合 flow 列表、重复桥接行及动态开关表达式保持不变。这不替代市场的通用 YAML 解析器。市场目录区域和生命周期脚本批准仍由用户明确选择；桌面端不强制下载区域，也不自动批准被拦截的依赖脚本。
 
 alpha.3 集成不再向新 Profile 预设安装 Smooth Stream。保留的版本和稳定版 `0.7.0` 依赖已删除的 `ui-attachment.ImageGallery` 导出；作者的 `0.8.0-rc.1` 回退会使这些图片不再渲染。不会删除用户既有安装或保留归档。在兼容的原版插件通过图片与激活检查前，请使用内置流式渲染。
 
@@ -73,6 +77,8 @@ Web Profile 内置 Schedule 服务与任务页面，提醒工具属于 `standard
 RC.2 快捷键编辑器通过原子写入将本机按键设置保存在 Electron 的 `userData/keybindings.json`。预加载脚本只向当前选中的 Harness 渲染进程提供快捷键读取、编辑、录制、输入和关窗操作；IPC 会拒绝标题栏、其他窗口以及不属于当前本机或 NAS 运行端的来源。Windows 与 Linux 的原生按键送入 Harness WebContentsView，而不是单独的标题栏渲染进程。快捷键设置不会修改 `DSH_HOME` 或 NAS Profile。
 
 macOS 使用名为 Open DeepSeek Harness Desktop 的系统原生菜单。Windows 与 Linux 在独立的 36 px 标题栏中显示横向菜单、应用图标、可拖动标题和窗口按钮。窄窗口会把菜单收进“更多”。原生弹出菜单可以超出顶栏高度，但不在 Harness 内部覆盖插件。编辑操作保留原始文本目标；缩放只影响 Harness。菜单文案跟随客户端语言，缺失语言回退为英文。开发者工具只在源码运行时提供。
+
+Harness 主文档中未被页面处理的 HTTP(S) 链接点击会通过现有、经过身份校验的系统浏览器桥接打开，包括插件面板中的 `noopener noreferrer` 链接。页面自有导航优先，例如聊天的侧栏浏览器偏好。下载和内部链接保留原有处理。嵌入文档不会获得链接桥接；没有 referrer 的程序化弹窗仍被拒绝，不会仅因顶层页面是 Harness 而被判为可信。
 
 “快速重启”和“完整退出”需要等待进行中的插件修改及恢复完成。普通关闭保留用户的隐藏或退出偏好。托盘创建失败时，后台启动会显示窗口，“隐藏到托盘”会提供取消或完整退出，避免窗口无法访问。Linux 不会从托盘对象创建成功推断图标实际可见，设置中会说明其对桌面环境的依赖。Linux 更新操作保留现有 Release 页面回退，不宣称支持安装 DEB/RPM。
 
@@ -146,7 +152,7 @@ npm run package:desktop:macos:arm64
 npm run package:desktop:macos:x64
 ```
 
-产物写入 `.artifacts/desktop-macos/`。原生安装包携带 Harness 生产依赖、Node 24.21.0、pnpm 11.28.5、目标平台 Python 归档和官方 LibreOffice Kit 引擎、小型工作运行时适配模块、内置 Office Skill 资源，以及独立的预构建 Profile 模板。macOS 与 Linux 将 Harness 存在 `harness-runtime.tar` 中，启动时先解压到按版本划分的用户数据目录，再从实际运行时定位 Office 引擎；Windows 使用展开的 `Resources/harness`。打包在 Harness 运行时中保留并校验针对目标平台选择的引擎；缺少引擎会使安装包校验失败。复制 `.app` 时一并安装核心资源。安装程序不执行用户插件脚本，也不选择配置目录。准备阶段验证固定 Node 与 Python 校验值，将模板迁移到含空格的路径，检查正常启动和离线卸载插件。最终资源校验在打包及 macOS 签名后执行。安装、文件部署、Doctor、服务端就绪、客户端就绪和第二次启动分别记录耗时；部署加快不代表整个启动已经加快。
+产物写入 `.artifacts/desktop-macos/`。原生安装包携带 Harness 生产依赖、Node 24.22.1、pnpm 11.28.5、目标平台 Python 归档和官方 LibreOffice Kit 引擎、小型工作运行时适配模块、内置 Office Skill 资源，以及独立的预构建 Profile 模板。macOS 与 Linux 将 Harness 存在 `harness-runtime.tar` 中，启动时先解压到按版本划分的用户数据目录，再从实际运行时定位 Office 引擎；Windows 使用展开的 `Resources/harness`。打包在 Harness 运行时中保留并校验针对目标平台选择的引擎；缺少引擎会使安装包校验失败。复制 `.app` 时一并安装核心资源。安装程序不执行用户插件脚本，也不选择配置目录。准备阶段验证固定 Node 与 Python 校验值，将模板迁移到含空格的路径，检查正常启动和离线卸载插件。最终资源校验在打包及 macOS 签名后执行。安装、文件部署、Doctor、服务端就绪、客户端就绪和第二次启动分别记录耗时；部署加快不代表整个启动已经加快。
 
 重定位后的 Profile 元数据在 JSON 与 pnpm 锁文件中统一使用正斜杠配置目录路径，Windows 也如此。本地归档的依赖地址必须一致，才能执行冻结安装与离线维护。
 
@@ -160,7 +166,7 @@ npm run package:desktop:macos:x64
 npm run package:desktop:win:x64
 ```
 
-安装程序写入 `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`。它包含官方 Windows x64 Node 24.21.0 可执行文件、pnpm 11.28.5，以及保留真实 `node_modules` 层级且无符号链接的 Harness 生产依赖闭包，用户无需在 `PATH` 中安装 Node 或 pnpm。Harness 环境会把内置运行时放在最前面，保证包含 `%SystemRoot%`、`System32`、Wbem 与 Windows PowerShell，再保留 Electron 启动时继承的用户 PATH。因此插件可以按裸命令名启动 Windows 系统程序和已继承的第三方命令。未出现在这份继承 PATH 中的第三方工具仍不可用；客户端运行期间修改注册表 PATH 或安装新命令后需要重启应用，客户端不会执行 PowerShell profile 来发现其他命令。Electron Builder 运行前，准备脚本会校验官方 Node 归档的 SHA-256、必需的 Windows 原生模块、内置 pnpm 版本，并实际启动 Harness 等待就绪。
+安装程序写入 `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`。它包含官方 Windows x64 Node 24.22.1 可执行文件、pnpm 11.28.5，以及保留真实 `node_modules` 层级且无符号链接的 Harness 生产依赖闭包，用户无需在 `PATH` 中安装 Node 或 pnpm。Harness 环境会把内置运行时放在最前面，保证包含 `%SystemRoot%`、`System32`、Wbem 与 Windows PowerShell，再保留 Electron 启动时继承的用户 PATH。因此插件可以按裸命令名启动 Windows 系统程序和已继承的第三方命令。未出现在这份继承 PATH 中的第三方工具仍不可用；客户端运行期间修改注册表 PATH 或安装新命令后需要重启应用，客户端不会执行 PowerShell profile 来发现其他命令。Electron Builder 运行前，准备脚本会校验官方 Node 归档的 SHA-256、必需的 Windows 原生模块、内置 pnpm 版本，并实际启动 Harness 等待就绪。
 
 Windows CI 会在构建安装包前运行首次启动候选事务的聚焦测试和原生打包检查。安装版烟雾测试先检查首次启动，再检查升级与卸载。若只修改验收代码，已完成的候选安装包可免于重新构建，但打包输入指纹、打包工作流、预装插件内容和 EXE 哈希必须一致；快速预检和完整安装版烟雾测试仍会执行。产品代码或打包工作流有改动时必须重新构建安装包。
 

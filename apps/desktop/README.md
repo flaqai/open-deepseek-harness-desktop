@@ -6,7 +6,9 @@ English | [中文](README.zh.md)
 
 ## Runtime and session compatibility
 
-This checkout uses Harness 0.2.1-rc.2 and development Desktop 0.2.1-rc.2.1 with external Node 24.21.0. Electron is pinned to 44.7.0, electron-builder to 26.17.0, and pnpm to 11.28.5. Packaged macOS builds require macOS 13.5 or later; this records the embedded Node binary's minimum rather than promising compatibility from Electron alone.
+This checkout uses Harness 0.2.1-rc.2 and development Desktop 0.2.1-rc.2.3 with external Node 24.22.1. Electron is pinned to 44.9.3, electron-builder to 26.17.0, and pnpm to 11.28.5. Packaged macOS builds require macOS 13.5 or later; this records the embedded Node binary's minimum rather than promising compatibility from Electron alone.
+
+The managed Python runtime is CPython 3.12.15 from Astral's 20261021 build, retaining the cp312 wheel ABI. The standalone Node update includes [CVE-2026-111497's fix](https://nodejs.org/en/blog/release/v24.22.1); Electron instead links Chromium's Brotli, so its reported Node version alone does not determine decoder patch status. Pillow 12.3.0 still carries a separately built Brotli library without verified coverage of this fix; updating CPython does not replace it. Office native dependencies also require their own vendor verification. These source updates do not qualify a new installer or repair already-installed copies. User-selected custom interpreters remain unchanged.
 
 Session history follows the complete V0 → V1 → V2 → V3 → V4 migration chain. Migration preserves older generation files and writes validated successors, but old clients cannot be assumed to understand newly written V4 data. Plugin snapshots do not include sessions and cannot undo a session-format upgrade. Validate upgrades using an isolated copy of the data directory before reusing important history.
 
@@ -14,7 +16,7 @@ Only ordinary Profile readiness can verify a successful-startup plugin snapshot.
 
 ## Run from this checkout
 
-Use Node `^22.19.0 || >=24.0.0`, then build the repository before starting the desktop app:
+Use patched Node 24.22.1 for development, then build the repository before starting the desktop app. The package's wider engine range describes compatibility, not security-patch coverage:
 
 ```sh
 node scripts/install-dependencies.mjs
@@ -38,6 +40,8 @@ On packaged macOS and Windows, General Settings, the File menu, and the tray men
 
 <a id="plugin-changes"></a>
 ## Plugin changes
+
+Desktop writes the Agents Anywhere toggle as block YAML so line-oriented market controls recognize its disabled state. Startup also normalizes an unambiguous older flow-form bridge row through the existing backed-up candidate migration, preserving its enablement and configuration; unrelated block-root rows retain their original bytes. Mixed whole-file flow lists, duplicate bridge rows, and dynamic toggle expressions stay unchanged. This does not replace the market's general YAML parser. Market catalog region and lifecycle-script approvals remain explicit user choices; Desktop does not force a download region or automatically approve blocked dependency scripts.
 
 The alpha.3 integration does not seed Smooth Stream into new Profiles. Its retained version and stable `0.7.0` require the removed `ui-attachment.ImageGallery` export; the author's `0.8.0-rc.1` fallback renders those images as nothing. Existing user installations and the retained archive are not removed. Use the built-in streaming renderer until a compatible original plugin release passes image and activation checks.
 
@@ -73,6 +77,8 @@ The application menu provides New Conversation, Settings, plugin management and 
 The RC.2 shortcut editor stores device-local bindings in Electron `userData/keybindings.json` using an atomic write. The preload exposes only shortcut read, edit, recording, input, and close-window operations to the selected Harness renderer; IPC rejects the titlebar, other windows, and origins other than the currently selected Local or NAS Runtime. Windows and Linux use the Harness WebContentsView rather than the separate titlebar renderer for native key delivery. Shortcut settings do not modify `DSH_HOME` or the NAS Profile.
 
 macOS uses the native system menu named Open DeepSeek Harness Desktop. Windows and Linux place horizontal menus, the application icon, a draggable title, and window controls in the isolated 36 px title bar. Narrow windows collect menus under More. Native popup menus extend beyond that strip without rendering over plugins inside Harness. Editing preserves the original text target; zoom affects only Harness. Menu labels follow the client language, with English fallback. Developer Tools is available only in source runs.
+
+Unhandled HTTP(S) anchor clicks in the Harness main document open through the existing authenticated system-browser bridge, including `noopener noreferrer` links in plugin panels. Page-owned navigation, such as the chat sidebar browser preference, takes precedence. Downloads and internal links retain their existing handling. Embedded documents receive no anchor bridge; referrer-less programmatic popups remain denied rather than being trusted because the top frame is Harness.
 
 Quick Restart and Quit Completely wait until active plugin mutations and recovery finish. Ordinary close retains the user's hide-or-quit preference. When tray creation fails, a background launch shows its window and Hide to tray offers Cancel or Quit Completely instead of making the window inaccessible. Linux cannot infer actual tray visibility from object creation; its settings explain the desktop-environment dependency. Linux update actions retain the existing Release-page fallback rather than claiming DEB/RPM installation support.
 
@@ -146,7 +152,7 @@ npm run package:desktop:macos:arm64
 npm run package:desktop:macos:x64
 ```
 
-Artifacts are written to `.artifacts/desktop-macos/`. Native packages carry Harness production dependencies, Node 24.21.0, pnpm 11.28.5, the target-specific Python archive and official LibreOffice Kit engine, a small workspace-runtime adapter, bundled Office Skill resources, and a separate prebuilt Profile template. macOS and Linux store Harness in `harness-runtime.tar` and extract it into versioned user data before resolving its Office engine; Windows uses expanded `Resources/harness`. Packaging retains and verifies the engine selected for its target platform in the Harness runtime; a missing engine fails the package check. Copying the `.app` installs the core resources. The installer never executes user plugin scripts or selects a configuration directory. Preparation verifies the pinned Node and Python checksums, relocates the template to a path containing spaces, and checks ordinary startup plus offline plugin removal. Final resource verification runs after packaging and macOS signing. Record installation, deployment, Doctor, server readiness, client readiness, and second-launch times separately; faster deployment is not proof of faster total startup.
+Artifacts are written to `.artifacts/desktop-macos/`. Native packages carry Harness production dependencies, Node 24.22.1, pnpm 11.28.5, the target-specific Python archive and official LibreOffice Kit engine, a small workspace-runtime adapter, bundled Office Skill resources, and a separate prebuilt Profile template. macOS and Linux store Harness in `harness-runtime.tar` and extract it into versioned user data before resolving its Office engine; Windows uses expanded `Resources/harness`. Packaging retains and verifies the engine selected for its target platform in the Harness runtime; a missing engine fails the package check. Copying the `.app` installs the core resources. The installer never executes user plugin scripts or selects a configuration directory. Preparation verifies the pinned Node and Python checksums, relocates the template to a path containing spaces, and checks ordinary startup plus offline plugin removal. Final resource verification runs after packaging and macOS signing. Record installation, deployment, Doctor, server readiness, client readiness, and second-launch times separately; faster deployment is not proof of faster total startup.
 
 Relocated Profile metadata uses forward-slash home paths consistently in JSON and pnpm lockfiles, including on Windows. Local archive specifiers must agree before frozen installation and offline maintenance.
 
@@ -160,7 +166,7 @@ Build the unsigned Windows x64 NSIS installer on Windows with:
 npm run package:desktop:win:x64
 ```
 
-The installer is written to `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`. It carries the official Windows x64 Node 24.21.0 executable, pnpm 11.28.5, and a symlink-free production Harness closure with its real `node_modules` hierarchy, so a user does not need Node or pnpm on `PATH`. The Harness environment puts the embedded runtime first, guarantees `%SystemRoot%`, `System32`, Wbem, and Windows PowerShell, then preserves the user PATH inherited when Electron started. Plugins can therefore spawn Windows system executables and inherited third-party commands by bare name. A third-party tool remains unavailable when it is absent from that inherited PATH; changing the registry PATH or installing a command while the desktop is running requires an application restart, and the desktop does not evaluate PowerShell profiles to discover extra commands. Preparation verifies the official Node archive SHA-256, required Windows native modules, the embedded pnpm version, and a real Harness readiness launch before Electron Builder runs.
+The installer is written to `.artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe`. It carries the official Windows x64 Node 24.22.1 executable, pnpm 11.28.5, and a symlink-free production Harness closure with its real `node_modules` hierarchy, so a user does not need Node or pnpm on `PATH`. The Harness environment puts the embedded runtime first, guarantees `%SystemRoot%`, `System32`, Wbem, and Windows PowerShell, then preserves the user PATH inherited when Electron started. Plugins can therefore spawn Windows system executables and inherited third-party commands by bare name. A third-party tool remains unavailable when it is absent from that inherited PATH; changing the registry PATH or installing a command while the desktop is running requires an application restart, and the desktop does not evaluate PowerShell profiles to discover extra commands. Preparation verifies the official Node archive SHA-256, required Windows native modules, the embedded pnpm version, and a real Harness readiness launch before Electron Builder runs.
 
 Windows CI runs focused first-start/candidate tests and native packaging checks before the installer build. Its installed smoke verifies initial startup before later upgrade and uninstall scenarios. If only qualification code changes, a completed candidate may be requalified without rebuilding, but its package-input fingerprint, packaging workflow, bundled-plugin content and EXE hash must match; preflight and the full installed smoke still run. A product-code or packaging-workflow change requires a new installer.
 

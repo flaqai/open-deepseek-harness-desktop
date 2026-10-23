@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write deploy/nas/README.md
 /nas-deployment-preview:
-  en: 3ed1ba05125affab
-  zh: f3939596202e83bb
+  en: a7a3c13e06b7497a
+  zh: e3fbb6de1643ae95
 /nas-deployment-preview/start:
   en: c88c078480fb2a4b
   zh: 2bae8695e66aabf3

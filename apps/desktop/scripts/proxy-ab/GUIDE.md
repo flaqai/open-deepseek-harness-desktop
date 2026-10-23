@@ -17,7 +17,7 @@ Compare broad ChatGPT-proxy inheritance with Codex-only inheritance using the sa
 
 ## Run locally
 
-From the repository root with Node 24.11.1 and the checkout's desktop pnpm installed:
+From the repository root with patched Node 24.22.1 and the checkout's desktop pnpm installed:
 
 ```sh
 node apps/desktop/scripts/proxy-ab/benchmark.mjs --rounds 10 --output .local-user-errors/releases/v0.1.2-alpha.5/proxy-ab

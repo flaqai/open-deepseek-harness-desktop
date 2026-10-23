@@ -4,6 +4,8 @@
 
 此 Compose 方案在 NAS 上运行 Harness，并让桌面客户端共享 `/config` 中的插件、模型配置和历史记录，以及 `/workspaces` 中的工作区。容器不会挂载 Docker Socket，也不会把 Harness 的 HTTP 端口暴露到局域网；只有 Caddy 的 HTTPS 端口对外开放。
 
+Harness 镜像的构建和运行阶段均固定 Node 24.22.1，发现与证书身份辅助服务也固定同一 Node 安全版本。已有容器会继续使用原运行时，直到重新构建或拉取镜像并重建容器；仅重启不会应用更新。替换容器时保留挂载的数据目录和证书卷。
+
 ## 启动
 
 1. 复制 `.env.example` 为 `.env`，设置 NAS 专用的根域名，例如 `harness.local`。v1 不支持子路径。
