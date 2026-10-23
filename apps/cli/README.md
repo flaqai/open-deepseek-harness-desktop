@@ -32,6 +32,8 @@ With explicit Community Desktop transaction authorization, mutating plugin comma
 
 Profile plugin operations keep the pnpm cache in `$DSH_HOME/.pnpm-store` (default `~/.dsh/.pnpm-store`), including repair and snapshot restore. A local dependency tree using the same store format keeps its installed files and build results while its cache locator is atomically rebound. Shared old caches are not moved or deleted. Different store formats and external virtual stores retain pnpm's compatibility checks. Uncached packages still need their original local archives or network access; changing the cache location does not make an offline snapshot complete.
 
+Desktop package operations apply the selected npm registry through pnpm's configuration environment. Explicit Direct connection or Custom proxy choices also override pnpm's inherited global proxy for that operation; Keep existing configuration preserves it. If an existing proxy is unreachable, choose a working route in Desktop download settings or inspect pnpm's global configuration. The CLI does not delete proxy settings, change private registry scopes, or approve dependency build scripts automatically.
+
 ## App arguments
 
 The launcher parses only its own flags and hands everything after them to the booted profile, where any injected app plugin may parse the shared immutable snapshot ([`dsh-cmdline`](../../packages/boot/cmdline/README.md)). The first token the launcher does not recognize starts the app's arguments:

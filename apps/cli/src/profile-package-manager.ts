@@ -258,19 +258,33 @@ export function resolvePnpmInvocation(environment: NodeJS.ProcessEnv, args: read
   }
 }
 
-/** Resolve desktop-owned package download settings for one pnpm operation. */
+/**
+ * Resolve desktop package download settings without rewriting pnpm configuration files.
+ * Explicit npm proxy choices override pnpm's global proxy; existing mode preserves it.
+ * @param environment - Inherited package-operation environment and desktop settings location.
+ * @returns A copied environment with the selected registry and explicit proxy overrides.
+ */
 export function profilePackageDownloadEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const resolved = { ...environment }
   const networkFile = environment.DSH_DESKTOP_DOWNLOAD_NETWORK_FILE?.trim()
   let networkRevision: number | undefined
+  let explicitNpmProxy = false
   if (networkFile !== undefined && networkFile !== '') {
     try {
-      const raw = JSON.parse(readFileSync(networkFile, 'utf8')) as { revision?: unknown; npm?: { registry?: unknown; registryUrl?: unknown } }
+      const raw = JSON.parse(readFileSync(networkFile, 'utf8')) as {
+        revision?: unknown
+        npm?: { registry?: unknown; registryUrl?: unknown; proxy?: { mode?: unknown } }
+      }
       if (Number.isSafeInteger(raw.revision) && Number(raw.revision) >= 0) networkRevision = Number(raw.revision)
       const registry = raw.npm?.registry === 'npmjs' ? 'https://registry.npmjs.org'
         : raw.npm?.registry === 'npmmirror' ? 'https://registry.npmmirror.com'
           : raw.npm?.registry === 'custom' && typeof raw.npm.registryUrl === 'string' ? raw.npm.registryUrl : undefined
-      if (registry !== undefined) resolved.npm_config_registry = registry
+      if (registry !== undefined) {
+        resolved.npm_config_registry = registry
+        resolved.pnpm_config_registry = registry
+        resolved.PNPM_CONFIG_REGISTRY = registry
+      }
+      explicitNpmProxy = raw.npm?.proxy?.mode === 'direct' || raw.npm?.proxy?.mode === 'custom'
     } catch {
       // The desktop validates and atomically replaces this file. Preserve the inherited registry if it cannot be read.
     }
@@ -289,6 +303,15 @@ export function profilePackageDownloadEnvironment(environment: NodeJS.ProcessEnv
     resolved.HTTP_PROXY = operationProxy
     resolved.HTTPS_PROXY = operationProxy
     resolved.NO_PROXY = ''
+    if (explicitNpmProxy) {
+      for (const name of ['proxy', 'http_proxy', 'https_proxy']) {
+        resolved[`pnpm_config_${name}`] = operationProxy
+        resolved[`PNPM_CONFIG_${name.toUpperCase()}`] = operationProxy
+      }
+      // pnpm ignores empty environment values; whitespace represents an empty bypass list.
+      resolved.pnpm_config_no_proxy = ' '
+      resolved.PNPM_CONFIG_NO_PROXY = ' '
+    }
   }
   return resolved
 }
@@ -401,7 +424,7 @@ export function runProfilePackageManager(
     }
     const networkHint = result.status === 0
       ? undefined
-      : packageNetworkDiagnostic(diagnostic, performance.now() - startedAt, process.env)
+      : packageNetworkDiagnostic(diagnostic, performance.now() - startedAt, environment)
     const retainedDiagnostic = progress === undefined || result.status !== 0
       ? [diagnostic, ...recoveryDiagnostics, networkHint].filter(Boolean).join('\n')
       : recoveryDiagnostics.join('\n')

@@ -37,11 +37,16 @@ export async function configureNewAgentsAnywhere(home: string, profileHome: stri
   }
   if (document.contents.items.some((item, index) => isMap(item)
     && document.getIn([index, 'id']) === AGENTS_ANYWHERE_ROW)) return false
-  document.add({
+  const row = document.createNode({
     id: AGENTS_ANYWHERE_ROW,
     disabled: true,
     config: { dshHome: home, stateRoot: join(home, 'agents-anywhere') },
   })
+  // An empty [] template otherwise makes the new disable row invisible to
+  // line-oriented plugin controls that expect block-form id/disabled pairs.
+  document.contents.flow = false
+  row.flow = false
+  document.add(row)
   await writeFileAtomic(filename, String(document), { mode: 0o600 })
   return true
 }

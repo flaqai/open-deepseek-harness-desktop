@@ -55,12 +55,22 @@ describe('package network diagnostics', () => {
     ['UND_ERR_CONNECT_TIMEOUT', 'connect-timeout'], ['ENOTFOUND', 'dns'],
     ['ERR_PNPM_FETCH_407', 'proxy-auth'], ['SELF_SIGNED_CERT_IN_CHAIN', 'tls'],
     ['ERR_PNPM_FETCH_403', 'authentication'], ['ECONNRESET', 'connection'],
+    ['ERR_PNPM_META_FETCH_FAIL', 'metadata-fetch'],
   ])('classifies %s without disclosing values', (code, category) => {
     const hint = packageNetworkDiagnostic(`${code} https://private:secret@private.example/repo?token=secret`, 125.8,
       { https_proxy: 'http://private:secret@proxy', SECRET_TOKEN: 'secret' })
     expect(hint).toContain(`network ${category} after 126 ms`)
     expect(hint).toContain('explicit proxy environment present')
     expect(hint).not.toMatch(/secret|private\.example|https?:\/\//u)
+  })
+  it('explains pnpm configuration precedence without exposing a saved proxy', () => {
+    const hint = packageNetworkDiagnostic('ERR_PNPM_META_FETCH_FAIL', 50,
+      { PNPM_CONFIG_HTTPS_PROXY: 'http://private:secret@proxy' })
+    expect(hint).toContain('pnpm global proxy')
+    expect(hint).toContain('Direct connection')
+    expect(hint).toContain('Custom proxy')
+    expect(hint).toContain('explicit proxy environment present')
+    expect(hint).not.toMatch(/private:secret|https?:\/\//u)
   })
   it('does not mislabel tool config as direct access or non-network errors as timeouts', () => {
     expect(packageNetworkDiagnostic('ETIMEDOUT', 50, environment)).toContain('effective route unverified')

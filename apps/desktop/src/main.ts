@@ -1327,7 +1327,8 @@ function configureNavigation(renderer: WebContents): void {
     event.preventDefault()
   })
   // Electron supplies no initiator frame for popups. A trusted referrer keeps
-  // ordinary Harness links working; noreferrer links use the main-frame bridge.
+  // ordinary Harness links working; preload routes noreferrer anchors through
+  // the main-frame bridge, without trusting referrer-less embedded popups.
   renderer.setWindowOpenHandler(({ url, referrer, postBody }) => {
     const target = trustedRendererPopupUrl(url, referrer.url, harnessOrigin, postBody !== undefined)
     if (target !== undefined) void shell.openExternal(target)
@@ -3336,7 +3337,7 @@ async function startApplication(): Promise<void> {
       if (launchOptions.harnessBin === undefined) throw new Error('desktop: packaged Harness entry is unavailable')
       const core = JSON.parse(await readFile(join(dirname(dirname(launchOptions.harnessBin)), 'package.json'), 'utf8')) as { version: string }
       if (candidate?.identity.target === `${process.platform}-${process.arch}`
-        && candidate.identity.nodeVersion === '24.21.0' && candidate.identity.pnpmVersion === DESKTOP_PNPM_VERSION
+        && candidate.identity.nodeVersion === '24.22.1' && candidate.identity.pnpmVersion === DESKTOP_PNPM_VERSION
         && candidate.identity.runtimeVersion === core.version
         && candidate.identity.pluginManifestSha256 === createHash('sha256').update(bundledManifestSource).digest('hex')
         && !Object.values(startupBuildRules).includes(false)
@@ -3533,11 +3534,11 @@ async function startApplication(): Promise<void> {
       try {
         await desktopMutations.prepareStartup()
         await desktopMutations.applyAtStartup({
-          operation: 'legacy-instruction-home-migration',
+          operation: 'legacy-config-normalization',
           run: async context => migrateLegacyConfigCandidate(context.home, dshHome,
             await inspectLegacyConfig(context.home, dshHome, harnessEnvironment.DSH_TOOLS_MODE)),
         })
-        await appendDesktopStartupLog('Removed equivalent legacy instruction-home fields in the startup candidate. Original configuration bytes are retained in diagnostics/config-backups.')
+        await appendDesktopStartupLog('Normalized compatible legacy configuration in the startup candidate. Original configuration bytes are retained in diagnostics/config-backups.')
       } catch (error) {
         await desktopMutations.abortStartup()
         showIncompletePreparation(error instanceof Error ? error.message : String(error))

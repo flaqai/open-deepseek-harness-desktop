@@ -32,6 +32,27 @@ it('keeps a new bridge disabled and stores its state beneath the selected home',
   expect(entries.find(entry => entry.id === 'agents-anywhere-bridge-next')).toMatchObject({ disabled: true })
 })
 
+it.each([undefined, '[]\n', '[{ id: user-plugin, disabled: false }]\n'])(
+  'writes new bridge defaults as block rows for line-oriented plugin controls (%s)', async (source) => {
+    const root = await fixture()
+    const path = join(root, 'profiles', 'web', 'cordis.patch.yml')
+    if (source !== undefined) await writeFile(path, source)
+    expect(await configureNewAgentsAnywhere(root, root)).toBe(true)
+    const result = await readFile(path, 'utf8')
+    expect(result).toMatch(/^- id: agents-anywhere-bridge-next\n  disabled: true\n/mu)
+    const entries: unknown = parse(result)
+    expect(entries).toContainEqual({
+      id: 'agents-anywhere-bridge-next', disabled: true,
+      config: { dshHome: root, stateRoot: join(root, 'agents-anywhere') },
+    })
+    if (source !== undefined && source.includes('user-plugin')) {
+      expect(entries).toContainEqual({ id: 'user-plugin', disabled: false })
+    }
+    expect(await configureNewAgentsAnywhere(root, root)).toBe(false)
+    expect(await readFile(path, 'utf8')).toBe(result)
+  },
+)
+
 it('does not reset a user-enabled bridge or its custom server state', async () => {
   const root = await fixture()
   const path = join(root, 'profiles', 'web', 'cordis.patch.yml')

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { build } from 'tsdown'
+import { JSDOM } from 'jsdom'
 import { expect, it, vi } from 'vitest'
 import configs from '../tsdown.preload.config.ts'
 
@@ -103,6 +104,37 @@ it('boots every bundled preload before DOM globals are available with only Elect
       }
     }
   } finally {
+    await rm(outDir, { recursive: true, force: true })
+  }
+}, 20_000)
+
+it.each(['win32', 'darwin', 'linux'])('opens a noreferrer market link through the %s main-frame bridge without a popup referrer', async (platform) => {
+  const outDir = await mkdtemp(join(tmpdir(), 'dsh-preload-links-'))
+  const dom = new JSDOM('<a href="https://github.com/example/plugin" target="_blank" rel="noopener noreferrer"><span>Plugin</span></a>', {
+    url: 'http://127.0.0.1:38123/',
+  })
+  try {
+    if (!Array.isArray(configs)) throw new Error('Expected preload configurations')
+    await build({ ...configs[0], config: false, cwd: fileURLToPath(new URL('..', import.meta.url)),
+      entry: ['src/preload.ts'], outDir, logLevel: 'silent' })
+    const invoke = vi.fn(() => Promise.resolve())
+    runInNewContext(await readFile(join(outDir, 'preload.cjs'), 'utf8'), {
+      require: (id: string) => {
+        if (id !== 'electron') throw new Error(`Sandbox cannot require ${id}`)
+        return { contextBridge: { exposeInMainWorld: vi.fn() },
+          ipcRenderer: { invoke, send: vi.fn(), on: vi.fn(), removeListener: vi.fn() } }
+      },
+      window: dom.window, document: dom.window.document, location: dom.window.location,
+      MutationObserver: dom.window.MutationObserver, URL: dom.window.URL, console,
+      process: { platform, argv: [], isMainFrame: true },
+    }, { timeout: 1000 })
+    dom.window.dispatchEvent(new dom.window.Event('DOMContentLoaded'))
+    const click = new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+    dom.window.document.querySelector('span')!.dispatchEvent(click)
+    expect(invoke).toHaveBeenCalledWith('dsh:desktop:external-browser:open', 'https://github.com/example/plugin')
+    expect(click.defaultPrevented).toBe(true)
+  } finally {
+    dom.window.close()
     await rm(outDir, { recursive: true, force: true })
   }
 }, 20_000)

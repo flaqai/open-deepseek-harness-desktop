@@ -38,6 +38,7 @@ import type {
   ExternalToolInstallResolution,
 } from './external-tool-compatibility-manifest.ts'
 import { installLoadingPage } from './loading-page.ts'
+import { installExternalAnchorNavigation } from './external-anchor-navigation.ts'
 import type { StartupDiagnosticIncident } from './startup-diagnostics.ts'
 import type { DesktopProcessSnapshot } from './process-observer.ts'
 import type { PersistentServiceSummary } from '@deepseek-ai/dsh-subprocess'
@@ -723,6 +724,10 @@ function installDesktopThemeSync(): void {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  const disposeExternalLinks = installExternalAnchorNavigation(document,
+    url => commonDesktopBridge.externalBrowser.open(url),
+    () => { console.error('desktop: system browser could not open the external link') })
+  window.addEventListener('unload', disposeExternalLinks, { once: true })
   installDesktopThemeSync()
   installClientBootFailureBridge()
   installLoadingPage(ipcRenderer)

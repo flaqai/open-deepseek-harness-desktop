@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
+import { parse } from 'yaml'
 import { inspectLegacyConfig, legacyConfigExternalWriterActive, migrateLegacyConfigCandidate } from '../src/legacy-config-migration.ts'
 
 const roots: string[] = []
@@ -14,6 +15,82 @@ async function fixture(source: string): Promise<string> {
   await writeFile(join(root, 'profiles/web/cordis.patch.yml'), source)
   return root
 }
+
+it.each([true, false])('backs up a known bridge flow row and preserves its explicit disabled=%s state', async (disabled) => {
+  const unrelated = '# unrelated expression\n- { id: custom-provider, config: { script: !!js ctx.webRuntime.host } } # keep exactly\n'
+  const source = `# bridge comment\n- { id: agents-anywhere-bridge-next, disabled: ${disabled}, config: { stateRoot: /custom/state, label: "User choice" } } # bridge tail\n${unrelated}`
+  const active = await fixture(source)
+  const candidate = await fixture(source)
+  const plan = await inspectLegacyConfig(candidate, active)
+  expect(plan.issues).toEqual([])
+  expect(plan.changes).toHaveLength(1)
+  expect(await migrateLegacyConfigCandidate(candidate, active, plan)).toBe(1)
+  const after = await readFile(join(candidate, 'profiles/web/cordis.patch.yml'), 'utf8')
+  expect(after).toMatch(new RegExp(`^- id: agents-anywhere-bridge-next\\n  disabled: ${disabled}\\n`, 'mu'))
+  expect(after).toContain('# bridge comment')
+  expect(after).toContain('# bridge tail')
+  expect(after).toContain(unrelated)
+  const options = { customTags: [{ tag: 'tag:yaml.org,2002:js', resolve: (value: string) => value }] }
+  expect(parse(after, options)).toEqual(parse(source, options))
+  expect(await readFile(join(active, 'profiles/web/cordis.patch.yml'), 'utf8')).toBe(source)
+  const backups = await readdir(join(active, 'diagnostics/config-backups'))
+  expect(backups).toHaveLength(1)
+  expect(await readFile(join(active, 'diagnostics/config-backups', backups[0]!), 'utf8')).toBe(source)
+  expect((await inspectLegacyConfig(candidate, active)).changes).toEqual([])
+})
+
+it('normalizes a bridge-only flow list without changing user configuration expressions', async () => {
+  const source = '# preserve\n[{ id: agents-anywhere-bridge-next, disabled: false, config: { script: !!js ctx.home } }]\n'
+  const home = await fixture(source)
+  const plan = await inspectLegacyConfig(home, home)
+  expect(plan.issues).toEqual([])
+  expect(plan.changes).toHaveLength(1)
+  const after = plan.changes[0]!.after
+  expect(after).toMatch(/^- id: agents-anywhere-bridge-next\n  disabled: false\n/mu)
+  expect(after).toContain('# preserve')
+  expect(after).toContain('script: !!js ctx.home')
+})
+
+it('preserves a bridge alias whose anchor belongs to another unchanged row', async () => {
+  const unrelated = '- id: custom-provider\n  config: &shared { stateRoot: /custom/state }\n'
+  const source = `${unrelated}- { id: agents-anywhere-bridge-next, disabled: true, config: *shared }\n`
+  const home = await fixture(source)
+  const plan = await inspectLegacyConfig(home, home)
+  expect(plan.issues).toEqual([])
+  expect(plan.changes).toHaveLength(1)
+  const after = plan.changes[0]!.after
+  expect(after).toContain(unrelated)
+  expect(after).toMatch(/^- id: agents-anywhere-bridge-next\n  disabled: true\n  config: \*shared\n/mu)
+  expect(parse(after)).toEqual(parse(source))
+})
+
+it.each(['\n', '\r\n'])('preserves merge aliases, expression tags and inline comments with %j line endings', async (newline) => {
+  const unrelated = '- id: custom-provider\n  config: &paths { stateRoot: /custom/state }\n'.replaceAll('\n', newline)
+  const source = `${unrelated}- { id: agents-anywhere-bridge-next, disabled: false, config: { <<: *paths, target: !!js ctx.webRuntime.host } } # keep bridge comment${newline}`
+  const home = await fixture(source)
+  const plan = await inspectLegacyConfig(home, home)
+  expect(plan.issues).toEqual([])
+  expect(plan.changes).toHaveLength(1)
+  const after = plan.changes[0]!.after
+  expect(after).toContain(unrelated)
+  expect(after).toContain(`- id: agents-anywhere-bridge-next${newline}  disabled: false${newline}`)
+  expect(after).toContain('<<: *paths')
+  expect(after).toContain('target: !!js ctx.webRuntime.host')
+  expect(after).toContain(`# keep bridge comment${newline}`)
+  const options = { customTags: [{ tag: 'tag:yaml.org,2002:js', resolve: (value: string) => value }] }
+  expect(parse(after, options)).toEqual(parse(source, options))
+})
+
+it.each([
+  '[{ id: custom, disabled: true }, { id: agents-anywhere-bridge-next, disabled: true }]\n',
+  '- { id: agents-anywhere-bridge-next, disabled: !!js ctx.flag }\n',
+  '- { id: agents-anywhere-bridge-next, disabled: true }\n- { id: agents-anywhere-bridge-next, disabled: false }\n',
+])('leaves ambiguous or mixed whole-flow patches intact without blocking startup', async (source) => {
+  const home = await fixture(source)
+  const plan = await inspectLegacyConfig(home, home)
+  expect(plan).toEqual({ issues: [], changes: [] })
+  expect(await readFile(join(home, 'profiles/web/cordis.patch.yml'), 'utf8')).toBe(source)
+})
 
 it('preserves both mode and every instruction field when an explicit tools choice is needed', async () => {
   const home = await fixture('- id: tools\n  config:\n    mode: both\n')

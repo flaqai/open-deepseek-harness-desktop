@@ -1,11 +1,12 @@
-/** Inspect retired configuration fields before Desktop starts or changes a user Profile. */
+/** Inspect legacy configuration fields and bridge toggle formatting before Desktop starts. */
 import { createHash } from 'node:crypto'
 import { lstat, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
-import { isMap, isScalar, isSeq, parseDocument } from 'yaml'
+import { Document, isMap, isScalar, isSeq, parseDocument } from 'yaml'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { inspectProfileMutationLock } from './menu-mutation-guard.ts'
+import { AGENTS_ANYWHERE_ROW } from './agents-anywhere-profile.ts'
 
 const PATCHES = ['cordis.patch.yml', 'profiles/web/cordis.patch.yml'] as const
 
@@ -24,6 +25,46 @@ function explicitHome(value: string): string | undefined {
   const expanded = value === '~' ? homedir()
     : value.startsWith('~/') || value.startsWith('~\\') ? join(homedir(), value.slice(2)) : value
   return isAbsolute(expanded) ? resolve(expanded) : undefined
+}
+
+/** Convert only the bridge's literal toggle row; unrelated source bytes stay intact. */
+function blockBridgePatch(source: string): string {
+  const document = parseDocument(source, {
+    customTags: [{ tag: 'tag:yaml.org,2002:js', resolve: (value: string) => value }],
+  })
+  if (document.errors.length > 0 || !isSeq(document.contents)) return source
+  const rows = document.contents.items.filter((item) => {
+    if (!isMap(item)) return false
+    const id: unknown = item.get('id', true)
+    return isScalar(id) && id.tag === undefined && id.value === AGENTS_ANYWHERE_ROW
+  })
+  const row = rows[0]
+  if (rows.length !== 1 || !isMap(row)) return source
+  const id = row.items[0]?.key
+  const disabled = row.items[1]?.key
+  const value: unknown = row.get('disabled', true)
+  if (!isScalar(id) || id.value !== 'id' || !isScalar(disabled) || disabled.value !== 'disabled'
+    || !isScalar(value) || value.tag !== undefined || typeof value.value !== 'boolean') return source
+  if (document.contents.flow) {
+    // A mixed flow list cannot contain one block entry without rewriting the
+    // other rows. Preserve that user-authored representation for manual review.
+    if (document.contents.items.length !== 1) return source
+    document.contents.flow = false
+    row.flow = false
+    return String(document)
+  }
+  if (!row.flow) return source
+  const [start, end] = row.range
+  if (!/(?:^|\n)- $/u.test(source.slice(0, start))) return source
+  const normalized = row.clone()
+  normalized.flow = false
+  // Container comments fall outside range[0..1] and remain in the source;
+  // pair/scalar comments inside the row are serialized with their owners.
+  normalized.commentBefore = null
+  normalized.comment = null
+  const block = new Document(normalized, document.options).toString({ verifyAliasOrder: false }).replace(/\n$/u, '')
+  const newline = source.includes('\r\n') ? '\r\n' : '\n'
+  return source.slice(0, start) + block.split('\n').join(`${newline}  `) + source.slice(end)
 }
 
 /**
@@ -47,6 +88,7 @@ export async function legacyConfigExternalWriterActive(home: string): Promise<bo
 /**
  * Inspect local user patches without evaluating expressions or inferring a replacement tools mode.
  * Only literal instruction roots equal to the active process home qualify for field removal.
+ * A known bridge's literal flow toggle may change to block form without changing its configuration.
  * @param home Directory containing the patches being inspected, including a startup candidate.
  * @param activeHome Process home whose instruction semantics the user selected.
  * @param toolsMode Effective environment override, when present.
@@ -100,7 +142,10 @@ export async function inspectLegacyConfig(home: string, activeHome: string, tool
       const children = node.items.map(pair => visit(pair.value))
       return changed || children.some(Boolean)
     }
-    if (visit(document.contents)) changes.push({ file, before, after: String(document) })
+    const legacyChanged = visit(document.contents)
+    let after = legacyChanged ? String(document) : before
+    if (file === 'profiles/web/cordis.patch.yml') after = blockBridgePatch(after)
+    if (after !== before) changes.push({ file, before, after })
   }
   return { issues, changes }
 }
