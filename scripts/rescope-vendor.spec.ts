@@ -1,10 +1,36 @@
 /** Recorded npm evidence stays intact while authored files and exact edits remain checked. */
 
 import { describe, expect, it } from 'vitest'
-import { exactEditState, isRescopeExcluded } from './rescope-vendor.ts'
+import { exactEditState, isRescopeExcluded, rewriteVendorReferences } from './rescope-vendor.ts'
 
 const ANCHOR = '\n## Sync procedure'
 const INSERTED = `\n15. **rescope**: one log entry.\n${ANCHOR}`
+const framework = 'cor' + 'dis'
+
+describe('preset identifiers versus package references', () => {
+  it.each([
+    `const options = { agentPreset: '${framework}' }`,
+    `const entry = { preset: '${framework}', category: 'creator' }`,
+    `switch(id) { case '${framework}': return 'creator' }`,
+    `const rows = [['${framework}', 'creator']]`,
+    `const owner = agent('${framework}')`,
+    `for (const preset of ['standard', '${framework}', 'ptc']) {}`,
+  ])('preserves preset syntax but still rewrites imports in the same file: %s', (data) => {
+    const source = `import { Context } from '${framework}'\n${data}\n`
+    expect(rewriteVendorReferences(source, 'packages/example.ts'))
+      .toBe(`import { Context } from '@deepseek-ai/cordis'\n${data}\n`)
+  })
+
+  it.each([
+    `const dependencies = { cordis: '${framework}' }`,
+    `const moduleName = '${framework}'`,
+    `const owner = require('${framework}')`,
+    `const entries = ['${framework}', 'loader']`,
+    `const moduleName = '${framework}/client'`,
+  ])('retains package checks outside known preset positions: %s', (source) => {
+    expect(rewriteVendorReferences(source, 'packages/example.ts')).toContain('@deepseek-ai/cordis')
+  })
+})
 
 describe('rescope file selection', () => {
   it('preserves the recorded npm resolution', () => {

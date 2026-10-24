@@ -6,7 +6,7 @@
 
 ## 运行时与会话兼容性
 
-本工作区使用 Harness 0.2.1-rc.2 和开发版 Desktop 0.2.1-rc.2.3，以及外部 Node 24.22.1。Electron 固定为 44.9.3，electron-builder 固定为 26.17.0，pnpm 固定为 11.28.5。macOS 安装版要求 macOS 13.5 或更高版本；这是内置 Node 二进制的最低要求，不能只根据 Electron 推断系统兼容性。
+本工作区使用 Harness 0.2.1-rc.3 和开发版 Desktop 0.2.1-rc.3，以及外部 Node 24.22.1。Electron 固定为 44.9.3，electron-builder 固定为 26.17.0，pnpm 固定为 11.28.5。macOS 安装版要求 macOS 13.5 或更高版本；这是内置 Node 二进制的最低要求，不能只根据 Electron 推断系统兼容性。
 
 托管 Python 运行时采用 Astral 20261021 构建的 CPython 3.12.15，保留 cp312 wheel 包 ABI。独立 Node 更新包含 [CVE-2026-111497 修复](https://nodejs.org/en/blog/release/v24.22.1)；Electron 则链接 Chromium 的 Brotli，不能只凭其显示的 Node 版本判断解码库补丁状态。Pillow 12.3.0 仍携带独立构建、尚未验证包含该修复的 Brotli 库，更新 CPython 不会替换它。Office 原生依赖也需单独核验供应方修复。这些源码更新不代表新安装包已验收，也不会修复已经安装的副本。用户选择的自定义解释器保持不变。
 

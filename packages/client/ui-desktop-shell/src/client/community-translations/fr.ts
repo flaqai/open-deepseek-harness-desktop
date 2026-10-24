@@ -120,6 +120,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'notice.attachmentsUnsupported': "/{command} n'accepte pas les pièces jointes ; supprimez-les d'abord",
   },
   'conversation': {
+    'session.moreViews': 'Autres vues de conversation',
+    'session.moreViewsCurrent': 'Autres vues de conversation · {name}',
     'hint.plan': 'décrivez votre tâche pour générer un plan',
     'hint.goal': "décrivez l'objectif d'une tâche de longue durée",
     'hint.goal.active': 'objectif actif — modifier / mettre en pause / reprendre / effacer',
@@ -1174,10 +1176,18 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': "Les sous-agents utilisent les valeurs par défaut configurées ou héritent du modèle de l'agent parent. Les choix de modèles enregistrés sont conservés.",
   },
   'sidebar': {
+    'panels.more': 'Plus',
     'session.new': 'Nouvelle session',
     'session.new.label': 'Nouvelle session',
     'toggle.open': 'Ouvrir la barre latérale',
     'toggle.collapse': 'Réduire la barre latérale'
+  },
+  'entryCustomization': {
+    install: 'Parcourir les autres plugins',
+    create: 'Créer votre plugin',
+    'createPrompt.sidebar': 'Crée un plugin DSH avec une entrée dans la barre latérale gauche.',
+    'createPrompt.conversation': 'Crée un plugin de vue de conversation DSH.',
+    'createPrompt.rightbar': 'Crée un plugin DSH avec une entrée dans la barre latérale droite.',
   },
   'sidebarFiles': {
     'type.label': 'Fichiers',
@@ -1195,6 +1205,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'error.unavailable': 'Échec de la lecture : {message}'
   },
   'sidebarRight': {
+    'tab.guide.more': 'Plus d’outils',
     'chrome.expand': 'Ouvrir la barre latérale',
     'chrome.collapse': 'Fermer la barre latérale',
     'chrome.toFullscreen': 'Afficher la barre latérale en plein écran',

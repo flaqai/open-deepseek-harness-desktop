@@ -1,18 +1,16 @@
 /** Credential-scoped `/models` cache with single-flight loads, background refresh, and last-known-good retention. */
 import { createHash } from 'node:crypto'
 import { deadline } from '@deepseek-ai/dsh-timeout'
-import type { CatalogSettings } from './config.ts'
+import type { ListingSettings } from './listing-config.ts'
 import { LISTING_TIMEOUT } from './listing.ts'
 import type { ModelListing } from './listing.ts'
 
-/** Host-owned inputs of one catalog instance. */
-export interface CatalogDependencies {
-  /** Current endpoint settings, re-read on every access. */
-  readonly settings: () => CatalogSettings
-  /** The account token allowed for `url`, or `undefined` while signed out. */
-  readonly token: (url: string) => Promise<string | undefined>
-  /** Perform one listing request authenticated with `token`; `signal` carries the {@link LISTING_TIMEOUT} request deadline. */
-  readonly load: (url: string, token: string, signal: AbortSignal) => Promise<ModelListing>
+/** Host-owned inputs of one cache instance. */
+export interface ListingCacheDependencies {
+  /** The credential the route sends to `url`, or `undefined` when it has none. */
+  readonly credential: (url: string) => Promise<string | undefined>
+  /** Perform one listing request authenticated with `credential`; `signal` carries the {@link LISTING_TIMEOUT} request deadline. */
+  readonly load: (url: string, credential: string, signal: AbortSignal) => Promise<ModelListing>
   /** Wall clock used for listing age. */
   readonly now: () => number
   /** Report a loaded listing. */
@@ -22,9 +20,9 @@ export interface CatalogDependencies {
 }
 
 /** What request resolution reads. */
-export interface CatalogView {
-  /** Whether an account token is available for the listing endpoint. */
-  readonly signedIn: boolean
+export interface ListingView {
+  /** Whether a credential is available for the listing endpoint. */
+  readonly authenticated: boolean
   /** Last successful listing for this credential and endpoint; `undefined` until one succeeds. */
   readonly listing: ModelListing | undefined
 }
@@ -42,8 +40,8 @@ async function abandonable(task: Promise<void>, signal: AbortSignal | undefined)
   }
 }
 
-/** One account route's listing cache; each endpoint and credential pair has its own scope. */
-export class AccountModelCatalog {
+/** One route's listing cache; each endpoint and credential pair has its own scope. */
+export class ModelListingCache {
   private scope: string | undefined
   private listing: ModelListing | undefined
   /** Settle time of the latest load in this scope; `undefined` before the first one settles. */
@@ -54,36 +52,41 @@ export class AccountModelCatalog {
   private failing = false
   private closed = false
 
-  /** @param dependencies - settings, credential, transport, clock, and diagnostic callbacks. */
-  constructor(private readonly dependencies: CatalogDependencies) {}
+  /** @param dependencies - credential, transport, clock, and diagnostic callbacks. */
+  constructor(private readonly dependencies: ListingCacheDependencies) {}
 
   /**
    * The last published view, without I/O.
-   * @returns the signed-in state and listing of the current scope.
+   * @returns the credential state and listing of the current scope.
    */
-  current(): CatalogView {
-    return { signedIn: this.scope !== undefined, listing: this.listing }
+  current(): ListingView {
+    return { authenticated: this.scope !== undefined, listing: this.listing }
   }
 
   /**
    * Resolve the view for the current credential. The first access of a scope
    * waits for its load, which the request deadline bounds; later accesses
    * return at once and refresh a stale listing in the background.
+   * @param settings - endpoint and timing of the caller's configuration generation.
    * @param signal - abandons this wait only; the shared load continues.
    * @returns the view after any first load of the scope settles.
    */
-  async view(signal?: AbortSignal): Promise<CatalogView> {
-    const settings = this.dependencies.settings()
-    const token = await this.dependencies.token(settings.url)
+  async view(settings: ListingSettings, signal?: AbortSignal): Promise<ListingView> {
+    const credential = await this.dependencies.credential(settings.url)
     signal?.throwIfAborted()
     if (this.closed) return this.current()
-    const scope = token === undefined ? undefined : `${settings.url}\n${createHash('sha256').update(token).digest('hex')}`
+    const scope = credential === undefined ? undefined : `${settings.url}\n${createHash('sha256').update(credential).digest('hex')}`
     if (scope !== this.scope) this.rescope(scope)
-    if (token !== undefined) {
-      if (this.settledAt === undefined) await abandonable(this.start(settings, token), signal)
-      else if (this.dependencies.now() - this.settledAt >= settings.maxAgeMs) void this.start(settings, token)
+    if (credential !== undefined) {
+      if (this.settledAt === undefined) await abandonable(this.start(settings, credential), signal)
+      else if (this.dependencies.now() - this.settledAt >= settings.maxAgeMs) void this.start(settings, credential)
     }
     return this.current()
+  }
+
+  /** Discard the listing and abort any in-flight load; the next access loads again and waits like a first access. */
+  invalidate(): void {
+    this.rescope(this.scope)
   }
 
   /** Abort in-flight loads; later results and accesses change nothing. */
@@ -103,14 +106,14 @@ export class AccountModelCatalog {
     this.generation += 1
   }
 
-  private start(settings: CatalogSettings, token: string): Promise<void> {
+  private start(settings: ListingSettings, credential: string): Promise<void> {
     if (this.inflight !== undefined) return this.inflight
     this.generation += 1
     const generation = this.generation
     const request = new AbortController()
     this.request = request
     const limit = deadline(request.signal, settings.timeoutMs, LISTING_TIMEOUT)
-    const run = this.dependencies.load(settings.url, token, limit.signal)
+    const run = this.dependencies.load(settings.url, credential, limit.signal)
       .then((listing) => {
         if (generation !== this.generation) return
         this.listing = listing

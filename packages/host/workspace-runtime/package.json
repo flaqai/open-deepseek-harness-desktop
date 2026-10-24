@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-host-workspace-runtime",
   "description": "Profile adapter for an application-managed Python workspace runtime and Office skills",
-  "version": "0.2.1-alpha.4",
+  "version": "0.2.1-rc.3",
   "publishConfig": {
     "access": "public"
   },

@@ -10,6 +10,8 @@ This page documents slot ownership, component inputs, extension APIs, and the sh
 
 The plugin catalog declares `plugins.add.actions`, a root-scoped list for `MenuItemButton` rows after installation in the Add plugin menu. Its owner supplies `onDismiss()` to close the menu before starting an action. The slot follows the owning Plugins page declaration lifetime.
 
+The root-scoped lists `sidebar.panellist.actions`, `conversation.session.header.views.actions`, and `sidebar.right.tab.guide.actions` supply the rows of the More menus after the panel rows, the View tabs, and the right-sidebar guide cards. A region draws its More button and menu only while its list has registrations, and passes the customizable entries with their pin state, `onOpen`, `onPinnedChange`, and `onDismiss`. Panel and View entries also carry optional `active` state for the current selection, independently of pin state. Each region keeps its own unpinned entry ids in memory; [`ui-entry-customization`](../../packages/client/ui-entry-customization/README.md) registers the shipped rows.
+
 ## Declaration and lifecycle
 
 `SlotMap` is the compile-time registry. A package declaration-merges the key, cardinality, scope, owner props, keyed props, and optional slot-level inject face. The runtime declaration is the matching `children` entry on the component that owns the render location.
@@ -125,6 +127,7 @@ root [AppFrame]
       │     ├─ conversation.session.header.lineage
       │     ├─ conversation.session.header.actions
       │     ├─ conversation.session.header.utilities
+      │     ├─ conversation.session.header.views.actions
       │     └─ conversation.session.header.corner
       └─ calls Factory: conversation.content
 

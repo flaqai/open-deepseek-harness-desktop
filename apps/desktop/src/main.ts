@@ -3517,7 +3517,7 @@ async function startApplication(): Promise<void> {
   if (startupProfileMutationAllowed) {
     if (await legacyConfigExternalWriterActive(dshHome)) {
       recoveryRestartRequired = true
-      showLoading('failed', { message: 'Another Profile writer is active; shared configuration was preserved.',
+      showLoading('failed', { message: shellMessages(app.getLocale()).profileWriterActive,
         diagnosticCode: 'desktop.legacy-config-writer', logPath: harnessLogPath })
       return
     }

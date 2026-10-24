@@ -123,6 +123,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'description.plan': 'Войти или выйти из режима планирования'
   },
   'conversation': {
+    'session.moreViews': 'Другие виды беседы',
+    'session.moreViewsCurrent': 'Другие виды беседы · {name}',
     'hint.plan': 'опишите вашу задачу, чтобы составить план',
     'hint.goal': 'опишите цель для длительной задачи',
     'hint.goal.active': 'цель активна — edit / pause / resume / clear',
@@ -1177,10 +1179,18 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': 'Субагенты используют настроенные значения по умолчанию или наследуют модель родительского агента. Сохранённые выборки моделей остаются.'
   },
   'sidebar': {
+    'panels.more': 'Ещё',
     'session.new': 'Новая сессия',
     'session.new.label': 'Новая сессия',
     'toggle.open': 'Открыть боковую панель',
     'toggle.collapse': 'Свернуть боковую панель'
+  },
+  'entryCustomization': {
+    install: 'Просмотреть другие плагины',
+    create: 'Создать свой плагин',
+    'createPrompt.sidebar': 'Создай плагин DSH с пунктом в левой боковой панели.',
+    'createPrompt.conversation': 'Создай плагин DSH для просмотра беседы.',
+    'createPrompt.rightbar': 'Создай плагин DSH с пунктом в правой боковой панели.',
   },
   'sidebarFiles': {
     'type.label': 'Файлы',
@@ -1198,6 +1208,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'error.unavailable': 'Ошибка чтения: {message}'
   },
   'sidebarRight': {
+    'tab.guide.more': 'Другие инструменты',
     'chrome.expand': 'Открыть боковую панель',
     'chrome.collapse': 'Закрыть боковую панель',
     'chrome.toFullscreen': 'Показать боковую панель на весь экран',

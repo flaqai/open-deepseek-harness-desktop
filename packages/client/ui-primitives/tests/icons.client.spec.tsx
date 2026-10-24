@@ -19,7 +19,7 @@ const iconNames = Object.keys(icons)
 describe('product icon set', () => {
   const weightedNames = iconNames.filter(name => name.endsWith('Regular') || name.endsWith('Medium'))
   it('exports both weights for upstream glyphs and retains community glyph names', () => {
-    expect(weightedNames.length).toBeGreaterThanOrEqual(186)
+    expect(weightedNames.length).toBeGreaterThanOrEqual(190)
     const regular = weightedNames.filter(name => name.endsWith('Regular')).map(name => name.slice(0, -'Regular'.length))
     const medium = weightedNames.filter(name => name.endsWith('Medium')).map(name => name.slice(0, -'Medium'.length))
     expect(weightedNames.some(name => /\d+$/.test(name))).toBe(false)
@@ -122,6 +122,18 @@ describe('product icon set', () => {
     const { container } = render(<><IconGoalOutlineRegular /><IconGoalOutlineRegular /></>)
     expect(container.querySelector('[id]')).toBeNull()
     expect(container.querySelector('[clip-path]')).toBeNull()
+  })
+
+  it('draws the apps-add tiles closer together in the compact variant', () => {
+    const tiles = (compact: boolean) => {
+      const { container, unmount } = render(<primitives.IconAppsAddOutlineRegular compact={compact} />)
+      const result = [...container.querySelectorAll('rect')].map(rect => `${rect.getAttribute('x')},${rect.getAttribute('y')}`)
+      const plus = container.querySelector('path')?.getAttribute('d')
+      unmount()
+      return { result, plus }
+    }
+    expect(tiles(false)).toEqual({ result: ['2.25,2.25', '2.25,9.75', '9.75,9.75'], plus: 'M11.75 1.75v5M9.25 4.25h5' })
+    expect(tiles(true)).toEqual({ result: ['2.75,2.75', '2.75,9.25', '9.25,9.25'], plus: 'M11.25 2.25v5M8.75 4.75h5' })
   })
 })
 

@@ -43,16 +43,16 @@ export interface ExternalToolInstallResolution {
 /** Last-known-good pins shipped in the application and used only after signed lookup fails. */
 export const EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY: ExternalToolCompatibilityManifest = {
   schema: 'dsh/desktop-external-tool-compatibility/v2',
-  revision: 22,
-  desktopVersion: '0.2.1-rc.2.3',
-  reviewedSourceVersion: '0.2.1-rc.2',
-  issuedAt: '2026-10-22T00:00:00.000Z',
-  expiresAt: '2027-04-22T00:00:00.000Z',
+  revision: 23,
+  desktopVersion: '0.2.1-rc.3',
+  reviewedSourceVersion: '0.2.1-rc.3',
+  issuedAt: '2026-10-24T00:00:00.000Z',
+  expiresAt: '2027-04-24T00:00:00.000Z',
   tools: {
     codex: {
       packageName: '@deepseek-ai/dsh-subagent-codex',
-      version: '0.2.1-rc.2',
-      integrity: 'sha512-ajbb0gFeDwNHE4cqKlFxmP77xsm6XsG2L55YDHWTSZVTjK3t6iSlmpwLY2tI08F7hkez6jgv4MqkVswC6IAQXA==',
+      version: '0.2.1-rc.3',
+      integrity: 'sha512-1h+CFRyRnvRYR96UT2IRCO5CgOF5Zm2u+AcDsRu7sBEEyU2ZHiDmsdGYyhfv+jHirp6WQa4NtoZmiDG2Xdfizg==',
       runtimePackage: {
         packageName: '@openai/codex',
         version: '0.153.4',
@@ -62,8 +62,8 @@ export const EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY: ExternalToolCompatibilityMani
     },
     'claude-code': {
       packageName: '@deepseek-ai/dsh-subagent-claude-code',
-      version: '0.2.1-rc.2',
-      integrity: 'sha512-iyfQyKN+gM/gxS12uh904ddo7jbW7ezyerYWVStZf/bsLQ26hUwxf89sMv6sF1kuVTt+Zi9nOkjbA/tbM89nWA==',
+      version: '0.2.1-rc.3',
+      integrity: 'sha512-IT4TFJf0qmxTxH9c93La8EElzp27rRy4slrJTXNjXNvqsSGHrhGd7HKCCYt/E4HA4YTN8xh2+vZx9u3oE6t3TA==',
       runtimePackage: {
         packageName: '@anthropic-ai/claude-agent-sdk',
         version: '0.3.263',

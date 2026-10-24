@@ -120,6 +120,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'notice.attachmentsUnsupported': '/{command} akzeptiert keine Anhänge; bitte zuerst entfernen'
   },
   'conversation': {
+    'session.moreViews': 'Weitere Gesprächsansichten',
+    'session.moreViewsCurrent': 'Weitere Gesprächsansichten · {name}',
     'hint.plan': 'Beschreibe deine Aufgabe, um einen Plan zu erstellen',
     'hint.goal': 'Beschreibe das Ziel für eine lang laufende Aufgabe',
     'hint.goal.active': 'Ziel aktiv — bearbeiten / pausieren / fortsetzen / löschen',
@@ -1174,10 +1176,18 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': 'Subagenten verwenden konfigurierte Standardwerte oder übernehmen das Modell des übergeordneten Agenten. Gespeicherte Modelloptionen bleiben erhalten.'
   },
   'sidebar': {
+    'panels.more': 'Mehr',
     'session.new': 'Neue Sitzung',
     'session.new.label': 'Neue Sitzung',
     'toggle.open': 'Seitenleiste öffnen',
     'toggle.collapse': 'Seitenleiste zusammenklappen'
+  },
+  'entryCustomization': {
+    install: 'Weitere Plugins durchsuchen',
+    create: 'Eigenes Plugin erstellen',
+    'createPrompt.sidebar': 'Erstelle ein DSH-Plugin mit einem Eintrag in der linken Seitenleiste.',
+    'createPrompt.conversation': 'Erstelle ein DSH-Plugin für eine Gesprächsansicht.',
+    'createPrompt.rightbar': 'Erstelle ein DSH-Plugin mit einem Eintrag in der rechten Seitenleiste.',
   },
   'sidebarFiles': {
     'type.label': 'Dateien',
@@ -1195,6 +1205,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'error.unavailable': 'Lesen fehlgeschlagen: {message}'
   },
   'sidebarRight': {
+    'tab.guide.more': 'Weitere Werkzeuge',
     'chrome.expand': 'Seitenleiste öffnen',
     'chrome.collapse': 'Seitenleiste schließen',
     'chrome.toFullscreen': 'Seitenleiste im Vollbildmodus anzeigen',

@@ -15,6 +15,7 @@ import {
   WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_SETTINGS_NAMESPACE, WELCOME_NOTICE_VERSION,
 } from '../src/onboarding-copy.ts'
 import { ModelsSection } from '../src/client/ModelsSection.tsx'
+import { ModelsSettingsStore } from '../src/client/store.ts'
 import { SetupWizard } from '../src/client/SetupWizard.tsx'
 import { DeepSeekOnboardingDialog } from '../src/client/DeepSeekOnboardingDialog.tsx'
 import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
@@ -369,18 +370,16 @@ describe('pushed invalidations', () => {
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = b.slots.entries('settings.section')
       .find(candidate => candidate.options.id === 'models')!
-    const injected = (
-      entry.inject as unknown as
-      () => import('../src/client/ModelsSection.tsx').ModelsSectionInjected
-    )()
-    await injected.controller.load()
-    expect(injected.hooks.snapshot.getSnapshot().namespaces.get('llm-test')?.revision).toBe(1)
+    const { controller } = entry.inject!()
+    if (!(controller instanceof ModelsSettingsStore)) throw new Error('models section did not inject its settings store')
+    await controller.load()
+    expect(controller.store.getSnapshot().namespaces.get('llm-test')?.revision).toBe(1)
 
     describe.mockResolvedValue(ok({ ...document, namespaces: [{ ...namespace, revision: 2 }] }))
     b.remote.emit('settings/document-updated', ['llm-test', 2])
 
     await vi.waitFor(() => {
-      expect(injected.hooks.snapshot.getSnapshot().namespaces.get('llm-test')?.revision).toBe(2)
+      expect(controller.store.getSnapshot().namespaces.get('llm-test')?.revision).toBe(2)
     })
     expect(describe).toHaveBeenCalledTimes(2)
   })

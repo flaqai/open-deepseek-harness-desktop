@@ -122,6 +122,23 @@ describe('product package use', () => {
     expect(failures(root)).toBe('')
   })
 
+  it('follows the source of subprocess artifact URLs without reading emitted chunks', () => {
+    const root = fixture()
+    pkg(root, candidateDir, candidate)
+    write(root, 'apps/desktop/src/main.ts', "new URL('../../cli/lib/bin.js', import.meta.url)")
+    write(root, 'apps/cli/lib/bin.js', "import '@deepseek-ai/dsh-nonexistent-generated-chunk'")
+    write(root, 'apps/cli/src/bin.ts', `import '${candidate}'`)
+    expect(failures(root)).toBe('')
+  })
+
+  it('does not count emitted artifact URLs without a source counterpart', () => {
+    const root = fixture()
+    pkg(root, candidateDir, candidate)
+    write(root, 'apps/desktop/src/main.ts', "new URL('../../cli/lib/generated-only.js', import.meta.url)")
+    write(root, 'apps/cli/lib/generated-only.js', `import '${candidate}'`)
+    expect(failures(root)).toContain('no product runtime use')
+  })
+
   it.each(['apps/desktop/src/main.ts', 'apps/web/src/main.ts'])('reaches the %s entrypoint', (entry) => {
     const root = fixture()
     pkg(root, candidateDir, candidate)

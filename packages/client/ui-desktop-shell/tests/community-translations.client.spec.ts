@@ -10,6 +10,7 @@ import { en as documentHtml } from '../../ui-sidebar-documentpreview/src/client/
 import { en as sidebarCodePreview } from '../../ui-sidebar-documentpreview/src/client/code/locales.ts'
 import { en as sidebarImage } from '../../ui-sidebar-documentpreview/src/client/image/locales.ts'
 import { en as feedback } from '../../ui-message-feedback/src/client/locales.ts'
+import { en as entryCustomization } from '../../ui-entry-customization/src/client/locales.ts'
 
 const localeIds = ['ja', 'ko', 'es', 'fr', 'de', 'pt-BR', 'ru'] as const
 type TranslationDictionary = Record<string, string>
@@ -25,6 +26,7 @@ const translations: Record<(typeof localeIds)[number], TranslationCatalog> = {
 }
 
 const currentSurfaceKeys: TranslationCatalog = {
+  entryCustomization,
   sidebarRight,
   sidebarFiles,
   sidebarDocumentPreview,
@@ -45,6 +47,14 @@ function placeholders(value: string): string[] {
 }
 
 describe('community desktop translations', () => {
+  it('translates the new sidebar and conversation More controls', () => {
+    for (const locale of localeIds) {
+      expect(translations[locale].sidebar?.['panels.more']).toBeTruthy()
+      expect(translations[locale].conversation?.['session.moreViews']).toBeTruthy()
+      expect(placeholders(required(translations[locale].conversation?.['session.moreViewsCurrent'], `${locale}:conversation.session.moreViewsCurrent`)))
+        .toEqual(['{name}'])
+    }
+  })
   it('translates every current feedback field in all desktop locales', () => {
     for (const locale of localeIds) {
       for (const key of Object.keys(feedback)) {

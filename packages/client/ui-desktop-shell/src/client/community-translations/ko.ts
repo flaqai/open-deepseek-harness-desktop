@@ -120,6 +120,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'notice.attachmentsUnsupported': '/{command}는 첨부 파일을 허용하지 않습니다. 먼저 제거하세요'
   },
   'conversation': {
+    'session.moreViews': '다른 대화 보기',
+    'session.moreViewsCurrent': '다른 대화 보기 · {name}',
     'hint.plan': '계획 생성을 위해 작업을 설명하세요',
     'hint.goal': '장기 실행 작업 목표 설명',
     'hint.goal.active': '목표 활성 — 편집 / 일시정지 / 재개 / 삭제',
@@ -1174,10 +1176,18 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': '하위 에이전트는 구성된 기본값을 사용하거나 상위 에이전트의 모델을 상속합니다. 저장된 모델 선택은 유지됩니다.'
   },
   'sidebar': {
+    'panels.more': '더 보기',
     'session.new': '새 세션',
     'session.new.label': '새 세션',
     'toggle.open': '사이드바 열기',
     'toggle.collapse': '사이드바 축소'
+  },
+  'entryCustomization': {
+    install: '다른 플러그인 둘러보기',
+    create: '플러그인 만들기',
+    'createPrompt.sidebar': '왼쪽 사이드바에 진입점이 있는 DSH 플러그인을 만들어 주세요.',
+    'createPrompt.conversation': 'DSH 대화 보기 플러그인을 만들어 주세요.',
+    'createPrompt.rightbar': '오른쪽 사이드바에 진입점이 있는 DSH 플러그인을 만들어 주세요.',
   },
   'sidebarFiles': {
     'type.label': '파일',
@@ -1195,6 +1205,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'error.unavailable': '읽기 실패: {message}'
   },
   'sidebarRight': {
+    'tab.guide.more': '더 많은 도구',
     'chrome.expand': '사이드바 열기',
     'chrome.collapse': '사이드바 닫기',
     'chrome.toFullscreen': '사이드바 전체 화면으로 표시',

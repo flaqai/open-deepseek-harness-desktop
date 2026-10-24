@@ -1,9 +1,10 @@
 /** Catalog resolution: version gating, this build's model knowledge, and model overrides. */
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_REQUEST_IMAGE_MAX_BYTES, resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
-import type { ModelOverride } from '../src/config.ts'
+import { resolveAdapterOptions } from '../src/config.ts'
+import { resolveListedCatalog } from '../src/listed-catalog.ts'
+import type { ModelOverride } from '../src/listed-catalog.ts'
 import { parseModelListing } from '../src/listing.ts'
-import { resolveAccountCatalog } from '../src/resolve-catalog.ts'
+import { DEFAULT_REQUEST_IMAGE_MAX_BYTES } from '../src/request-pricing.ts'
 
 const FLASH = {
   id: 'deepseek-flash', name: 'DeepSeek-V4.1-Flash', context_window: 1_048_576, max_output_tokens: 393_216,
@@ -16,7 +17,7 @@ const PRO = {
   api_capabilities: { anthropic_messages: { system_prompt_update: 'leading-only' } },
 }
 const requires = (version: unknown) => ({ client_requirements: { 'deepseek-harness': { min_version: version } } })
-const resolve = (rows: object[] | undefined, overrides: Record<string, ModelOverride> = {}) => resolveAccountCatalog({
+const resolve = (rows: object[] | undefined, overrides: Record<string, ModelOverride> = {}) => resolveListedCatalog({
   listing: rows === undefined ? undefined : parseModelListing({ data: rows }).entries,
   supported: resolveAdapterOptions({}).models,
   overrides,
@@ -28,7 +29,7 @@ describe('without a listing', () => {
   it('offers the bundled catalog', () => {
     const catalog = resolve(undefined)
     expect(catalog.offered.map(model => [model.id, model.name, model.contextWindow])).toEqual([
-      ['deepseek-flash', 'DeepSeek-V4.1-Flash', 1_000_000], ['deepseek-v4-pro', 'DeepSeek-V4-Pro', 1_000_000],
+      ['deepseek-flash', 'DeepSeek-V4.1-Flash', 1_048_576], ['deepseek-v4-pro', 'DeepSeek-V4-Pro', 1_048_576],
     ])
     expect(catalog.resolution).toEqual(catalog.offered)
     expect(catalog.refusals.size).toBe(0)
@@ -56,7 +57,7 @@ describe('with a listing', () => {
 
   it('keeps this build\'s values for fields a listing omits', () => {
     const [pro] = resolve([{ id: 'deepseek-v4-pro', api_capabilities: { anthropic_messages: {} } }]).offered
-    expect(pro).toMatchObject({ name: 'DeepSeek-V4-Pro', contextWindow: 1_000_000, inputModalities: ['text'] })
+    expect(pro).toMatchObject({ name: 'DeepSeek-V4-Pro', contextWindow: 1_048_576, inputModalities: ['text'] })
     expect(pro).not.toHaveProperty('maxTokens')
   })
 
@@ -72,6 +73,28 @@ describe('with a listing', () => {
   it('removes an inherited in-history declaration the listing does not make', () => {
     const [flash] = resolve([{ ...FLASH, api_capabilities: { anthropic_messages: { system_prompt_update: 'leading-only' } } }]).offered
     expect(flash).not.toHaveProperty('systemPromptUpdate')
+  })
+
+  it.each(['in-history', 'addition-only'])('takes a listed %s tool update mode over this build\'s', (toolUpdate) => {
+    const [flash] = resolve([{ ...FLASH, api_capabilities: { anthropic_messages: { system_prompt_update: 'in-history', tool_update: toolUpdate } } }]).offered
+    expect(flash?.toolUpdate).toBe(toolUpdate)
+  })
+
+  it('removes an inherited tool update mode the listing declares unsupported', () => {
+    const [flash] = resolve([{ ...FLASH, api_capabilities: { anthropic_messages: { system_prompt_update: 'in-history', tool_update: 'leading-only' } } }]).offered
+    expect(flash).not.toHaveProperty('toolUpdate')
+    expect(flash?.systemPromptUpdate).toBe('in-history')
+  })
+
+  it('keeps this build\'s protocol modes when the listing declares them null', () => {
+    const undeclared = { system_prompt_update: null, tool_update: null }
+    const [flash] = resolve([{ ...FLASH, api_capabilities: { anthropic_messages: undeclared } }]).offered
+    expect(flash).toMatchObject({ systemPromptUpdate: 'in-history', toolUpdate: 'addition-only' })
+  })
+
+  it('declares a listed tool update mode on a vouched unknown model', () => {
+    const [model] = resolve([{ ...FLASH, id: 'deepseek-v5', ...requires('0.1.0'), api_capabilities: { anthropic_messages: { tool_update: 'in-history' } } }]).offered
+    expect(model?.toolUpdate).toBe('in-history')
   })
 
   it('drops inherited image limits from a model the listing makes text-only', () => {
@@ -136,7 +159,7 @@ describe('with a listing', () => {
     expect(catalog.offered[0]).not.toHaveProperty('imageMaxBytes')
     expect(catalog.overrideErrors).toEqual([
       expect.stringMatching(/^modelOverrides\.deepseek-v4-pro does not apply \(.*cannot declare image request limits/),
-      'modelOverrides names "retired", which neither the account listing nor the built-in catalog describes',
+      'modelOverrides names "retired", which neither the model listing nor the built-in catalog describes',
     ])
   })
 })

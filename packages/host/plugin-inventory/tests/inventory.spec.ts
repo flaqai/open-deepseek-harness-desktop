@@ -15,7 +15,9 @@ import type {
   SubprocessTerminalSpawnSpec,
 } from '@deepseek-ai/dsh-subprocess'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
-import type { AgentPresetRegistry, ExternalToolProjector } from '@deepseek-ai/dsh-agent-preset-registry'
+import { AgentPresetRegistry } from '@deepseek-ai/dsh-agent-preset-registry'
+import type { ExternalToolProjector } from '@deepseek-ai/dsh-agent-preset-registry'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import PluginInventoryGateway, { readPluginInventory } from '../src/index.ts'
 import type { PluginDiagnosticExport } from '../src/types.ts'
@@ -329,31 +331,37 @@ describe('PluginInventoryGateway', () => {
 
   it('projects external backend tools into managed activations without local model selection', async () => {
     const { ctx } = await harness()
-    let projector: ExternalToolProjector | undefined
+    const projectors: ExternalToolProjector[] = []
     const unregister = vi.fn()
-    ctx.provide('agentPresets', {
-      registerExternalToolProjector(value: ExternalToolProjector) {
-        projector = value
-        return unregister
-      },
-    } as unknown as AgentPresetRegistry)
-    await vi.waitFor(() => { expect(projector).toBeTypeOf('function') })
-    const dispose = vi.fn()
-    const plugin = vi.fn((_plugin: typeof ToolSubagent, _config: ToolSubagent.Config) => ({ dispose }))
-    const agent = { ctx: { plugin } } as unknown as Parameters<ExternalToolProjector>[0]
+    class TestAgentPresetRegistry extends AgentPresetRegistry {
+      override registerExternalToolProjector(value: ExternalToolProjector): () => void {
+        projectors.push(value)
+        const dispose = super.registerExternalToolProjector(value)
+        return () => { unregister(); dispose() }
+      }
+    }
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(TestAgentPresetRegistry, { default: 'standard' })
+    await vi.waitFor(() => { expect(projectors).toHaveLength(1) })
+    const projector = projectors[0]!
+    const agentContext = new Context()
+    contexts.push(agentContext)
+    const plugin = vi.spyOn(agentContext, 'plugin')
+    const agent = { ctx: agentContext } as Parameters<ExternalToolProjector>[0]
     for (const tool of ['codex', 'claude-code'] as const) {
-      const unmount = projector!(agent, tool)
+      const unmount = projector(agent, tool)
       expect(plugin).toHaveBeenLastCalledWith(ToolSubagent, expect.objectContaining({
         provider: tool,
         toolName: tool === 'codex' ? 'subagent_codex' : 'subagent_claude_code',
         modelSelectionSettings: false,
         maxDepth: 'provider-managed',
       }))
-      const config = plugin.mock.calls.at(-1)![1]
-      expect(config).not.toHaveProperty('backgroundMode')
+      expect(plugin.mock.calls.at(-1)![1]).not.toHaveProperty('backgroundMode')
+      const fiber = [...agentContext.registry.get(ToolSubagent)!.fibers].at(-1)!
+      const dispose = vi.spyOn(fiber, 'dispose')
       await unmount()
+      expect(dispose).toHaveBeenCalledOnce()
     }
-    expect(dispose).toHaveBeenCalledTimes(2)
     await ctx.fiber.dispose()
     expect(unregister).toHaveBeenCalledOnce()
   })

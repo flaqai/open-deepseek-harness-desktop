@@ -1,10 +1,13 @@
-/** The account catalog: version gating, this build's model knowledge, and deployment overrides. */
+/** A listed catalog: version gating, this build's model knowledge, and deployment overrides. */
 import semver from 'semver'
+import { APP_IDENTITY, LlmError } from '@deepseek-ai/dsh-llm'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
-import { resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
-import type { DeepSeekCatalogModel } from '@deepseek-ai/dsh-llm-deepseek'
-import type { ModelOverride } from './config.ts'
+import { resolveAdapterOptions } from './config.ts'
 import type { ListedFacts, ListingEntry } from './listing.ts'
+import type { DeepSeekCatalogModel } from './types.ts'
+
+/** Field overrides for one model; unset fields and empty lists inherit the underlying entry. */
+export type ModelOverride = Omit<DeepSeekCatalogModel, 'id'>
 
 /** Why this build refuses one listed model before network I/O. */
 export type CatalogRefusal =
@@ -12,7 +15,7 @@ export type CatalogRefusal =
   | { readonly kind: 'unsupported' }
 
 /** Inputs of one catalog resolution. */
-export interface AccountCatalogInput {
+export interface ListedCatalogInput {
   /** Entries of the last successful listing, or `undefined` before one succeeds. */
   readonly listing: readonly ListingEntry[] | undefined
   /** Validated models this build supports, carrying its client-side knowledge. */
@@ -25,8 +28,8 @@ export interface AccountCatalogInput {
   readonly clientVersion: string
 }
 
-/** One resolved account catalog. */
-export interface AccountCatalog {
+/** One resolved listed catalog. */
+export interface ListedCatalog {
   /** Selectable models in listing order, or this build's models when no listing succeeded. */
   readonly offered: readonly DeepSeekCatalogModel[]
   /** Entries request resolution consults: offered models, then supported models the listing does not offer. */
@@ -49,14 +52,20 @@ function layered(model: DeepSeekCatalogModel, layer: ModelOverride): DeepSeekCat
   return merged
 }
 
-/** Layer one usable listing entry over this build's entry for the same id. */
+/** Layer one usable listing entry over this build's entry for the same id; a declared `leading-only` mode removes the inherited one. */
 function listed(base: DeepSeekCatalogModel, entry: ListingEntry, facts: ListedFacts, routeMaxTokens: number): DeepSeekCatalogModel {
-  const { systemPromptUpdate: _replaced, ...leadingOnly } = base
-  return layered(facts.systemPromptUpdate === 'leading-only' ? leadingOnly : base, {
+  const { systemPromptUpdate, toolUpdate, ...rest } = base
+  const inherited: DeepSeekCatalogModel = {
+    ...rest,
+    ...systemPromptUpdate === undefined || facts.systemPromptUpdate === 'leading-only' ? {} : { systemPromptUpdate },
+    ...toolUpdate === undefined || facts.toolUpdate === 'leading-only' ? {} : { toolUpdate },
+  }
+  return layered(inherited, {
     ...entry.name === undefined ? {} : { name: entry.name },
     ...facts.contextWindow === undefined ? {} : { contextWindow: facts.contextWindow },
     ...facts.maxOutputTokens === undefined ? {} : { maxTokens: Math.min(routeMaxTokens, facts.maxOutputTokens) },
     ...facts.systemPromptUpdate === 'in-history' ? { systemPromptUpdate: 'in-history' as const } : {},
+    ...facts.toolUpdate === undefined || facts.toolUpdate === 'leading-only' ? {} : { toolUpdate: facts.toolUpdate },
     inputModalities: [...facts.inputModalities],
   })
 }
@@ -82,13 +91,13 @@ function gateOf(entry: ListingEntry, known: boolean, clientVersion: string, prob
 }
 
 /**
- * Resolve the account catalog. A declared minimum client version decides a
+ * Resolve a route's catalog from its listing. A declared minimum client version decides a
  * listed model's availability; without one, only models this build supports
  * are offered and the other listed models stay hidden.
  * @param input - listing, supported models, overrides, route cap, and this build's version.
  * @returns offered models, request-resolution entries, refusals, and diagnostics.
  */
-export function resolveAccountCatalog(input: AccountCatalogInput): AccountCatalog {
+export function resolveListedCatalog(input: ListedCatalogInput): ListedCatalog {
   const supported = new Map(input.supported.map(model => [model.id, model]))
   const problems: string[] = []
   const overrideErrors: string[] = []
@@ -127,11 +136,33 @@ export function resolveAccountCatalog(input: AccountCatalogInput): AccountCatalo
   const listedIds = new Set(input.listing.map(entry => entry.id))
   for (const id of Object.keys(input.overrides)) {
     if (!listedIds.has(id) && !supported.has(id)) {
-      overrideErrors.push(`modelOverrides names "${id}", which neither the account listing nor the built-in catalog describes`)
+      overrideErrors.push(`modelOverrides names "${id}", which neither the model listing nor the built-in catalog describes`)
     }
   }
   const resolution = resolveAdapterOptions({
     models: [...offered, ...input.supported.filter(model => !offeredIds.has(model.id)).map(withOverride)],
   }).models
   return { offered: resolution.slice(0, offered.length), resolution, refusals, problems, overrideErrors }
+}
+
+/**
+ * Refuse a listed model this build cannot serve, before any network I/O.
+ * @param model - requested wire model id.
+ * @param refusal - the catalog's refusal for `model`, or `undefined` when it is admitted.
+ * @throws LlmError `CLIENT_UPGRADE_REQUIRED` naming the required and current versions, or `MODEL_UNSUPPORTED`.
+ */
+export function refuseListedModel(model: string, refusal: CatalogRefusal | undefined): void {
+  if (refusal === undefined) return
+  switch (refusal.kind) {
+    case 'upgrade-required':
+      throw new LlmError(
+        `DeepSeek model "${model}" requires DeepSeek Harness ${refusal.requiredVersion} or later; current version is ${APP_IDENTITY.version}`,
+        'CLIENT_UPGRADE_REQUIRED',
+      )
+    case 'unsupported':
+      throw new LlmError(`DeepSeek model "${model}" is not supported by DeepSeek Harness; current version is ${APP_IDENTITY.version}`, 'MODEL_UNSUPPORTED')
+    /* v8 ignore next 2 -- catalog resolution produces only the closed refusal union */
+    default:
+      assertNever(refusal, 'listed catalog refusal')
+  }
 }

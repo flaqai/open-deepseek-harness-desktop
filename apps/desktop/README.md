@@ -6,7 +6,7 @@ English | [中文](README.zh.md)
 
 ## Runtime and session compatibility
 
-This checkout uses Harness 0.2.1-rc.2 and development Desktop 0.2.1-rc.2.3 with external Node 24.22.1. Electron is pinned to 44.9.3, electron-builder to 26.17.0, and pnpm to 11.28.5. Packaged macOS builds require macOS 13.5 or later; this records the embedded Node binary's minimum rather than promising compatibility from Electron alone.
+This checkout uses Harness 0.2.1-rc.3 and development Desktop 0.2.1-rc.3 with external Node 24.22.1. Electron is pinned to 44.9.3, electron-builder to 26.17.0, and pnpm to 11.28.5. Packaged macOS builds require macOS 13.5 or later; this records the embedded Node binary's minimum rather than promising compatibility from Electron alone.
 
 The managed Python runtime is CPython 3.12.15 from Astral's 20261021 build, retaining the cp312 wheel ABI. The standalone Node update includes [CVE-2026-111497's fix](https://nodejs.org/en/blog/release/v24.22.1); Electron instead links Chromium's Brotli, so its reported Node version alone does not determine decoder patch status. Pillow 12.3.0 still carries a separately built Brotli library without verified coverage of this fix; updating CPython does not replace it. Office native dependencies also require their own vendor verification. These source updates do not qualify a new installer or repair already-installed copies. User-selected custom interpreters remain unchanged.
 

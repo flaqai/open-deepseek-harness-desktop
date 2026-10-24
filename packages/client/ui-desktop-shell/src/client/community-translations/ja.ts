@@ -120,6 +120,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'notice.attachmentsUnsupported': '/{command} は添付ファイルを受け付けません。先に削除してください'
   },
   'conversation': {
+    'session.moreViews': 'その他の会話ビュー',
+    'session.moreViewsCurrent': 'その他の会話ビュー · {name}',
     'hint.plan': 'タスクを記述してプランを生成',
     'hint.goal': '目標を入力すると、エージェントが継続的に実行します',
     'hint.goal.active': '目標を実行中です。edit で編集 / pause で一時停止 / resume で再開 / clear でクリア',
@@ -1174,10 +1176,18 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': 'サブエージェントは設定済みの既定値を使用するか、親エージェントのモデルを継承します。保存されたモデルの選択は保持されます。'
   },
   'sidebar': {
+    'panels.more': 'その他',
     'session.new': '新規セッション',
     'session.new.label': '新規セッションを作成',
     'toggle.open': 'サイドバーを開く',
     'toggle.collapse': 'サイドバーを折りたたむ'
+  },
+  'entryCustomization': {
+    install: '他のプラグインを見る',
+    create: 'プラグインを作成',
+    'createPrompt.sidebar': '左サイドバーに入口を持つ DSH プラグインを作成してください。',
+    'createPrompt.conversation': 'DSH の会話ビュープラグインを作成してください。',
+    'createPrompt.rightbar': '右サイドバーに入口を持つ DSH プラグインを作成してください。',
   },
   'sidebarFiles': {
     'type.label': 'ファイル',
@@ -1195,6 +1205,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'error.unavailable': '読み取り失敗: {message}'
   },
   'sidebarRight': {
+    'tab.guide.more': 'その他のツール',
     'chrome.expand': 'サイドバーを開く',
     'chrome.collapse': 'サイドバーを閉じる',
     'chrome.toFullscreen': 'サイドバーを全画面表示',

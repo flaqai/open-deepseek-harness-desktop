@@ -50,6 +50,7 @@ function surface(locale: keyof typeof COMMUNITY_TRANSLATIONS, extra: SurfaceExtr
       'dock.drop.center': extra.right[2], 'dock.drop.left': extra.right[3], 'dock.drop.right': extra.right[4],
       'dock.drop.top': extra.right[5], 'dock.drop.bottom': extra.right[6],
       'tab.guide.title': right['tab.guide.title'] ?? '', 'tab.unavailable': right['tab.unavailable'] ?? '',
+      'tab.guide.more': right['tab.guide.more'] ?? '',
       'command.close': extra.commands[0], 'command.refresh': extra.commands[1], 'command.noRefresh': extra.commands[2],
       'command.toggle': extra.commands[3], 'command.fullscreen': extra.commands[4], 'command.noSession': extra.commands[5],
       'command.noFocus': extra.commands[6], 'command.stale': extra.commands[7], 'command.collapsed': extra.commands[8],

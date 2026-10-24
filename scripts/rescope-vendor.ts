@@ -31,6 +31,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 
 const root = resolve(import.meta.dirname, '..')
 
@@ -507,7 +508,9 @@ function patterns(reverse: boolean): Pattern[] {
       from: reverse ? rename.scoped : rename.upstream,
       to: reverse ? rename.upstream : rename.scoped,
     }))
-    .sort((left, right) => right.from.length - left.from.length)
+    // Preset offsets refer to the original source; process that ambiguous name
+    // before another package replacement on the same line can shift it.
+    .sort((left, right) => Number(right.upstream === 'cordis') - Number(left.upstream === 'cordis') || right.from.length - left.from.length)
     .map(rename => ({
       ...rename,
       token: new RegExp(`(['"\`])${escapeRegExp(rename.from)}((?:/[^'"\`\\s]*)?)\\1`, 'g'),
@@ -519,11 +522,47 @@ function skipped(file: string, pattern: Pattern): boolean {
   return GENERIC_SKIPS.some(skip => skip.file === file && skip.upstream.includes(pattern.upstream))
 }
 
-function rewriteLine(line: string, file: string, all: readonly Pattern[]): string {
+function presetLiteralOffsets(text: string, file: string): Set<number> {
+  const offsets = new Set<number>()
+  if (!/\.[cm]?[jt]sx?$/.test(file)) return offsets
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+  const visit = (node: ts.Node): void => {
+    if (ts.isStringLiteral(node) && node.text === 'cordis') {
+      const parent = node.parent
+      const presetProperty = ts.isPropertyAssignment(parent)
+        && (parent.name.getText(source) === 'agentPreset'
+          || parent.name.getText(source) === 'preset' && ts.isObjectLiteralExpression(parent.parent)
+            && parent.parent.properties.some(property => ts.isPropertyAssignment(property)
+              && property.name.getText(source) === 'category' && ts.isStringLiteral(property.initializer)
+              && property.initializer.text === 'creator'))
+      const creatorCase = ts.isCaseClause(parent) && parent.expression === node
+        && parent.statements.some(statement => ts.isReturnStatement(statement)
+          && statement.expression !== undefined && ts.isStringLiteral(statement.expression) && statement.expression.text === 'creator')
+      const tupleCategory = ts.isArrayLiteralExpression(parent) ? parent.elements[1] : undefined
+      const creatorTuple = ts.isArrayLiteralExpression(parent) && parent.elements.length === 2
+        && parent.elements[0] === node && tupleCategory !== undefined && ts.isStringLiteral(tupleCategory) && tupleCategory.text === 'creator'
+      const agentCall = ts.isCallExpression(parent) && ts.isIdentifier(parent.expression)
+        && parent.expression.text === 'agent' && parent.arguments[0] === node
+      const presetRoster = ts.isArrayLiteralExpression(parent) && ts.isForOfStatement(parent.parent)
+        && parent.parent.expression === parent && ts.isVariableDeclarationList(parent.parent.initializer)
+        && parent.parent.initializer.declarations.length === 1
+        && parent.parent.initializer.declarations[0]?.name.getText(source) === 'preset'
+      if (presetProperty || creatorCase || creatorTuple || agentCall || presetRoster) offsets.add(node.getStart(source))
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return offsets
+}
+
+function rewriteLine(line: string, file: string, all: readonly Pattern[], preserved: Set<number>, start: number): string {
   let out = line
   for (const pattern of all) {
     if (skipped(file, pattern)) continue
-    out = out.replace(pattern.token, (_match, quote: string, subpath: string) => `${quote}${pattern.to}${subpath}${quote}`)
+    out = out.replace(pattern.token, (match: string, quote: string, subpath: string, offset: number) => {
+      if (pattern.upstream === 'cordis' && subpath === '' && preserved.has(start + offset)) return match
+      return `${quote}${pattern.to}${subpath}${quote}`
+    })
     out = out.replace(pattern.yamlName, (_match, prefix: string, suffix: string) => `${prefix}${pattern.to}${suffix}`)
   }
   return out
@@ -545,7 +584,11 @@ function rewrite(text: string, file: string, all: readonly Pattern[]): { text: s
   const prose = markdown && file.startsWith('docs/')
   let insideFence = false
   let lines = 0
+  const preserved = presetLiteralOffsets(text, file)
+  let start = 0
   const out = text.split('\n').map((line) => {
+    const lineStart = start
+    start += line.length + 1
     if (markdown) {
       if (/^\s*```/.test(line)) {
         insideFence = !insideFence
@@ -553,11 +596,20 @@ function rewrite(text: string, file: string, all: readonly Pattern[]): { text: s
       }
       if (!insideFence && !prose) return line
     }
-    const next = rewriteLine(line, file, all)
+    const next = rewriteLine(line, file, all, preserved, lineStart)
     if (next !== line) lines += 1
     return next
   })
   return { text: out.join('\n'), lines }
+}
+
+/** Rewrite package references while retaining syntactically identified preset data.
+ * @param text - Authored source content.
+ * @param file - Repository-relative source path.
+ * @returns Rewritten source content.
+ */
+export function rewriteVendorReferences(text: string, file: string): string {
+  return rewrite(text, file, patterns(false)).text
 }
 
 function classify(file: string): string {

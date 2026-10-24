@@ -271,6 +271,9 @@ function validCategory(path: string, category: ProductPackagePolicy['category'])
 
 function sourceFile(path: string): string | undefined {
   if (!/\.[cm]?[jt]sx?$/.test(path)) return undefined
+  // Runtime subprocess URLs name emitted files; inspect their source counterpart,
+  // never generated chunks that happen to exist in a developer checkout.
+  if (/[\\/]lib[\\/]/.test(path)) path = path.replace(/([\\/])lib([\\/])/, '$1src$2')
   const stem = path.slice(0, -extname(path).length)
   return [path, `${stem}.ts`, `${stem}.tsx`, `${stem}.mts`, `${stem}.cts`]
     .find(candidate => existsSync(candidate) && statSync(candidate).isFile() && !candidate.endsWith('.d.ts'))

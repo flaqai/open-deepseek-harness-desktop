@@ -7,7 +7,7 @@ import { deadline } from '@deepseek-ai/dsh-timeout'
 import { LISTING_TIMEOUT, parseModelListing, requestModelListing } from '../src/listing.ts'
 import type { ListedCapabilities } from '../src/listing.ts'
 
-/** The account listing the service returned on 2026-09-24. */
+/** The listing the service returned to an account token on 2026-09-24. */
 const LISTING = {
   object: 'list',
   data: [
@@ -91,6 +91,23 @@ describe('parseModelListing', () => {
       api_capabilities: { anthropic_messages: { system_prompt_update: 'future-mode' } },
     })?.capabilities).toEqual({ usable: true, facts: { inputModalities: ['text'], systemPromptUpdate: 'leading-only' } })
     expect(only(MESSAGES)?.capabilities).toEqual({ usable: true, facts: { inputModalities: ['text'] } })
+  })
+
+  it.each([
+    ['addition-only', 'addition-only'],
+    ['in-history', 'in-history'],
+    ['leading-only', 'leading-only'],
+    ['future-mode', 'leading-only'],
+    [false, 'leading-only'],
+    [1, 'leading-only'],
+  ])('reads tool_update %j as %s', (declared, toolUpdate) => {
+    expect(only({ api_capabilities: { anthropic_messages: { tool_update: declared } } })?.capabilities)
+      .toEqual({ usable: true, facts: { inputModalities: ['text'], toolUpdate } })
+  })
+
+  it('reads a null protocol mode as undeclared', () => {
+    expect(only({ api_capabilities: { anthropic_messages: { system_prompt_update: null, tool_update: null } } })?.capabilities)
+      .toEqual({ usable: true, facts: { inputModalities: ['text'] } })
   })
 })
 
