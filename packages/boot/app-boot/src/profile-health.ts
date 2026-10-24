@@ -918,20 +918,7 @@ function unavailableStaticLoaderDependency(
       request.resolve(specifier)
       continue
     } catch {
-      if (resolveProfileLoaderModule(profileDir, specifier) !== undefined) continue
-      // The profile runs with an installation-scoped module table. A direct
-      // or transitive Host dependency can be available at runtime even when
-      // pnpm deliberately leaves the plugin's peer out of the Profile tree.
-      // Require membership in the runtime table and a resolvable export;
-      // merely finding an unrelated package in Host node_modules is not enough.
-      const packageName = packageNameFromSpecifier(specifier)
-      const installationDir = packageName === undefined ? undefined : installationPackages.get(packageName)
-      if (installationDir !== undefined) {
-        try {
-          createRequire(join(installationDir, 'package.json')).resolve(specifier)
-          continue
-        } catch { /* not exported by the runtime package */ }
-      }
+      if (resolveProfileLoaderModule(profileDir, specifier, installationPackages) !== undefined) continue
       return specifier
     }
   }
@@ -1035,7 +1022,7 @@ export function inspectUnresolvableProfileBundleEntries(
   for (const entry of owned.ownership) {
     if (entry.moduleName.startsWith('cordis:') || entry.moduleName.startsWith('file:')
       || entry.moduleName.startsWith('.') || entry.moduleName.startsWith('/')) continue
-    const resolved = resolveProfileLoaderModule(owned.profile.dir, entry.moduleName)
+    const resolved = resolveProfileLoaderModule(owned.profile.dir, entry.moduleName, installationPackages)
     if (resolved === undefined) {
       issues.push({ ...entry, failureKind: 'loader-module' })
       continue

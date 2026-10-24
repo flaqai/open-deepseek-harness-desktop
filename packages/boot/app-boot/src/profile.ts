@@ -869,27 +869,34 @@ export function loadDiagnosticProfile(
 }
 
 /**
- * Resolve an installed Loader package without importing plugin code. This is
- * limited to the Profile's installed dependency tree for diagnostic attribution;
- * installation-owned rows are handled by the immutable runtime resolution.
+ * Resolve an installed Loader package without importing plugin code. The
+ * Profile dependency tree takes precedence; an optional installation package
+ * table supplies the same fallback packages available to runtime resolution.
  * @param profileDir - active Profile directory.
  * @param specifier - bare package or explicit exported subpath.
- * @returns the existing entry URL, if the Profile installation provides it.
+ * @param installationPackages - runtime installation mappings; omitted means Profile-only lookup.
+ * @returns the existing entry URL, if the selected package provides it.
  */
-export function resolveProfileLoaderModule(profileDir: string, specifier: string): string | undefined {
+export function resolveProfileLoaderModule(
+  profileDir: string,
+  specifier: string,
+  installationPackages?: ReadonlyMap<string, string>,
+): string | undefined {
   if (specifier.startsWith('.') || specifier.startsWith('/') || specifier.startsWith('cordis:')) return undefined
   const segments = specifier.split('/')
   const packageName = specifier.startsWith('@') ? segments.slice(0, 2).join('/') : segments[0]
   if (packageName === undefined || packageName === '' || (specifier.startsWith('@') && segments.length < 2)) {
     return undefined
   }
-  const packageDir = packageDirFromAnchor(join(profileDir, 'package.json'), packageName)
+  const profilePackageDir = packageDirFromAnchor(join(profileDir, 'package.json'), packageName)
+  const packageDir = profilePackageDir ?? installationPackages?.get(packageName)
   if (packageDir === undefined) return undefined
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')) as {
     exports?: ResolvePackageManifest['exports']
   }
   if (manifest.exports === undefined) {
-    try { return pathToFileURL(createRequire(join(profileDir, 'package.json')).resolve(specifier)).href }
+    const anchor = profilePackageDir === undefined ? join(packageDir, 'package.json') : join(profileDir, 'package.json')
+    try { return pathToFileURL(createRequire(anchor).resolve(specifier)).href }
     catch { return undefined }
   }
   const suffix = specifier.slice(packageName.length)

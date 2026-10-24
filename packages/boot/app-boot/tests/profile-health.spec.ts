@@ -15,7 +15,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   approveQuarantinedProfilePluginHostVersion,
   createRuntimeResolution,
+  getDshRuntimeVersion,
   initProfile,
+  loadProfile,
   inspectProfileDependencies,
   inspectProfileHostCompatibility,
   inspectProfileLoaderEntryCollisions,
@@ -33,6 +35,7 @@ import {
   repairProfileDependencies,
   retryQuarantinedProfilePlugin,
   resolveProfileDir,
+  resolveProfileLoaderModule,
   SHARED_HOST_PACKAGES,
   uninstallQuarantinedProfilePlugin,
   writeProfileManifest,
@@ -553,6 +556,7 @@ describe('profile composition inspection', () => {
 
   it('accepts a static peer supplied by the installation runtime but not the Profile', async () => {
     const { anchor } = stageHarness()
+    const runtimeVersion = getDshRuntimeVersion()
     const hostPeers = [
       '@deepseek-ai/dsh-settings',
       '@deepseek-ai/dsh-tools',
@@ -588,7 +592,7 @@ describe('profile composition inspection', () => {
       name: packageName,
       version: '1.0.0',
       exports: './index.js',
-      peerDependencies: Object.fromEntries(hostPeers.map(hostPeer => [hostPeer, '^0.1.0-rc.7'])),
+      peerDependencies: Object.fromEntries(hostPeers.map(hostPeer => [hostPeer, runtimeVersion])),
       dsh: { bundle: { patch: './cordis.patch.yml' } },
     })
     writeFileSync(join(pluginDir, 'index.js'), `${hostPeers.map(hostPeer => `import '${hostPeer}'`).join('\n')}\nexport function apply() {}\n`)
@@ -686,6 +690,65 @@ describe('profile composition inspection', () => {
       }],
     })
     expect(readProfileManifest('test', profileDir).dependencies?.[packageName]).toBeUndefined()
+  })
+
+  it('keeps a bundle patch that loads an installation-scoped MCP module', async () => {
+    const { anchor } = stageHarness()
+    const moduleName = '@fixture/installation-mcp-client'
+    const hostManifest = JSON.parse(readFileSync(anchor, 'utf8')) as { dependencies: Record<string, string> }
+    hostManifest.dependencies[moduleName] = '0.1.0-rc.7'
+    writeManifest(anchor, hostManifest)
+    const moduleDir = join(dirname(anchor), 'node_modules', moduleName)
+    writeManifest(join(moduleDir, 'package.json'), {
+      name: moduleName, version: '0.1.0-rc.7', type: 'module',
+      exports: { '.': { default: './index.js' } },
+    })
+    writeFileSync(join(moduleDir, 'index.js'), 'export function apply() {}\n')
+
+    const home = temporaryDirectory('dsh-health-home-')
+    const { profileDir, pluginDir } = stageProfile(home, {})
+    writeFileSync(join(pluginDir, 'cordis.patch.yml'), [
+      '- insert:',
+      '  - id: mcp-rea',
+      `    name: '${moduleName}'`,
+      '    config: {}',
+      '',
+    ].join('\n'))
+
+    const runtime = await createRuntimeResolution({
+      installAnchor: anchor, home, profile: loadProfile('test', 'web', anchor, home),
+    })
+    expect(runtime.entries).toContainEqual(expect.objectContaining({ name: moduleName, scope: 'installation' }))
+    const options = { binName: 'test', profile: 'web', installAnchor: anchor, home }
+    expect(inspectProfileBundleEntryOwnership(options, 'mcp-rea', moduleName)).toMatchObject({
+      rootPackage: 'fixture-plugin', entryId: 'mcp-rea', moduleName,
+    })
+    expect(resolveProfileLoaderModule(profileDir, moduleName)).toBeUndefined()
+    expect(inspectUnresolvableProfileBundleEntries(options)).toEqual([])
+    expect(repairProfileDependencies({
+      ...options,
+      runPackageManager: () => ({ exitCode: 0 }),
+    }).quarantined).toEqual([])
+    expect(readProfileManifest('test', profileDir).dependencies?.['fixture-plugin']).toBe('^2.3.0')
+
+    writeManifest(join(moduleDir, 'package.json'), {
+      name: moduleName, version: '0.1.0-rc.7', type: 'module', main: './index.js',
+    })
+    expect(inspectUnresolvableProfileBundleEntries(options)).toEqual([])
+
+    writeManifest(join(moduleDir, 'package.json'), {
+      name: moduleName, version: '0.1.0-rc.7', type: 'module',
+      exports: { '.': { import: './index.js' } },
+    })
+    expect(inspectUnresolvableProfileBundleEntries(options)).toEqual([])
+
+    writeManifest(join(moduleDir, 'package.json'), {
+      name: moduleName, version: '0.1.0-rc.7', type: 'module',
+      exports: { '.': { default: './missing.js' } },
+    })
+    expect(inspectUnresolvableProfileBundleEntries(options)).toEqual([expect.objectContaining({
+      rootPackage: 'fixture-plugin', entryId: 'mcp-rea', failureKind: 'loader-module',
+    })])
   })
 
   it('does not claim a missing Loader module when the user patch targets its entry', () => {
