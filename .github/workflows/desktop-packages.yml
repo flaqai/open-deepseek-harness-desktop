@@ -292,12 +292,18 @@ jobs:
       - name: Deploy Windows runtime
         run: node apps/desktop/scripts/prepare-windows-runtime.mjs
 
-      - name: Build Windows installer
+      - name: Verify embedded Windows repair launchers
+        run: node tools/windows-install-repair/generate-launchers.mjs --check
+
+      - name: Build Windows installer and extract-and-run ZIP
         working-directory: apps/desktop
-        run: node node_modules/electron-builder/out/cli/cli.js --win nsis --x64 --publish never
+        run: node node_modules/electron-builder/out/cli/cli.js --win nsis zip --x64 --publish never
 
       - name: Probe unpacked app.asar and Electron entries
         run: node apps/desktop/scripts/desktop-smoke.mjs unpacked windows-x64
+
+      - name: Qualify extracted Windows ZIP
+        run: node apps/desktop/scripts/smoke-windows-zip.mjs
 
       - name: Record Windows candidate identity
         run: >-
@@ -313,6 +319,7 @@ jobs:
           name: qualification-windows-x64-candidate
           path: |
             .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe
+            .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.zip
             .artifacts/desktop-windows/windows-package-candidate.json
           if-no-files-found: warn
           retention-days: 3
@@ -418,6 +425,7 @@ jobs:
         run: >-
           node apps/desktop/scripts/report-package-sizes.mjs
           .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe
+          .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.zip
 
       - name: Publish qualified Windows artifact
         if: ${{ matrix.scenario == 'fresh' }}
@@ -426,6 +434,7 @@ jobs:
           name: desktop-windows-x64
           path: |
             .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.exe
+            .artifacts/desktop-windows/DeepSeek-Harness-windows-x64.zip
           if-no-files-found: error
           retention-days: 14
           compression-level: '0'

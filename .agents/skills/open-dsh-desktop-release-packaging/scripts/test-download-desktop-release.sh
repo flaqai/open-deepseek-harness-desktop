@@ -37,7 +37,7 @@ make_payload() {
   (cd "$payload_directory" && zip -qr "$artifact_store/$artifact_name.zip" .)
 }
 
-make_payload desktop-windows-x64 DeepSeek-Harness-windows-x64.exe
+make_payload desktop-windows-x64 DeepSeek-Harness-windows-x64.exe DeepSeek-Harness-windows-x64.zip
 make_payload desktop-macos-arm64 DeepSeek-Harness-macos-arm64.dmg DeepSeek-Harness-macos-arm64.zip
 make_payload desktop-macos-x64 DeepSeek-Harness-macos-x64.dmg DeepSeek-Harness-macos-x64.zip
 make_payload desktop-linux-x64 DeepSeek-Harness-linux-x64.deb DeepSeek-Harness-linux-x64.rpm
@@ -46,7 +46,7 @@ make_payload bundled-plugin-snapshot snapshot.json
 checksum_payload="$fixture_root/payload-desktop-checksums"
 mkdir -p "$checksum_payload"
 for filename in \
-  DeepSeek-Harness-windows-x64.exe \
+  DeepSeek-Harness-windows-x64.exe DeepSeek-Harness-windows-x64.zip \
   DeepSeek-Harness-macos-arm64.dmg DeepSeek-Harness-macos-arm64.zip \
   DeepSeek-Harness-macos-x64.dmg DeepSeek-Harness-macos-x64.zip \
   DeepSeek-Harness-linux-x64.deb DeepSeek-Harness-linux-x64.rpm; do

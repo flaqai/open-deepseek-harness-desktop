@@ -28,7 +28,7 @@ test('accepts only the fixed stages, targets, and trailing preview flag', () => 
 test('contracts preserve each platform check and add both shared runner checks', () => {
   const basenames = target => createSmokePlan({ stage: 'contracts', target }).steps[0].args.map(arg => arg.replaceAll('\\', '/').split('/').at(-1))
   assert.deepEqual(basenames('windows-x64'), ['--test', 'runtime-deploy-config.test.mjs', 'prepare-windows-installer-tools.test.mjs', 'collect-windows-smoke-evidence.test.mjs',
-    'windows-package-candidate.test.mjs', 'electron-package-probe.test.mjs', 'desktop-smoke.test.mjs'])
+    'windows-package-candidate.test.mjs', 'smoke-windows-zip.test.mjs', 'electron-package-probe.test.mjs', 'desktop-smoke.test.mjs'])
   assert.deepEqual(basenames('macos-arm64'), ['--test', 'smoke-macos-package.test.mjs', 'electron-package-probe.test.mjs', 'desktop-smoke.test.mjs'])
   assert.deepEqual(basenames('linux-x64'), ['--test', 'runtime-file-policy.test.mjs', 'workspace-runtime-packaging.test.mjs',
     'packaged-resource-contract.test.mjs', 'electron-package-probe.test.mjs', 'desktop-smoke.test.mjs'])

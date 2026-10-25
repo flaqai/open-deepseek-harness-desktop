@@ -5,7 +5,7 @@ import { readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, join, relative, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
-const SCHEMA = 'open-dsh/windows-package-candidate/v1'
+const SCHEMA = 'open-dsh/windows-package-candidate/v2'
 const GIT_OUTPUT_LIMIT_BYTES = 64 * 1024 * 1024
 const QUALIFICATION_ONLY = [
   /^\.artifacts\//u,
@@ -100,6 +100,7 @@ async function createManifest(root, installer, plugins, output) {
     packagingInputDigest: packagingInputDigest(root),
     bundledPluginDigest: await directoryDigest(plugins),
     installer: await installerIdentity(installer),
+    archive: await installerIdentity(installer.replace(/\.exe$/u, '.zip')),
   }
   await writeFile(output, `${JSON.stringify(document, undefined, 2)}\n`, 'utf8')
   return document
@@ -113,12 +114,15 @@ async function verifyManifest(root, installer, plugins, manifest) {
     packagingInputDigest: packagingInputDigest(root),
     bundledPluginDigest: await directoryDigest(plugins),
     installer: await installerIdentity(installer),
+    archive: await installerIdentity(installer.replace(/\.exe$/u, '.zip')),
   }
   for (const field of ['packagingInputDigest', 'bundledPluginDigest']) {
     if (document[field] !== expected[field]) throw new Error(`candidate ${field} does not match the current release inputs`)
   }
-  for (const field of ['name', 'size', 'sha256']) {
-    if (document.installer?.[field] !== expected.installer[field]) throw new Error(`candidate installer ${field} does not match its manifest`)
+  for (const asset of ['installer', 'archive']) {
+    for (const field of ['name', 'size', 'sha256']) {
+      if (document[asset]?.[field] !== expected[asset][field]) throw new Error(`candidate ${asset} ${field} does not match its manifest`)
+    }
   }
   return document
 }

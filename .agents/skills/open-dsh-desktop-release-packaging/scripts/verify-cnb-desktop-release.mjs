@@ -17,6 +17,7 @@ export const INSTALLER_NAMES = Object.freeze([
   'DeepSeek-Harness-macos-x64.dmg',
   'DeepSeek-Harness-macos-x64.zip',
   'DeepSeek-Harness-windows-x64.exe',
+  'DeepSeek-Harness-windows-x64.zip',
 ])
 
 function parseChecksums(source) {
@@ -45,13 +46,15 @@ export async function verifyCnbDesktopRelease({ tag, releaseDirectory, metadataD
   const expectedVersion = tag.replace(/^odsh-v/u, '')
   const resolvedDirectory = resolve(releaseDirectory)
   const entries = (await readdir(resolvedDirectory)).sort()
-  const expectedEntries = [...INSTALLER_NAMES, 'SHA256SUMS'].sort()
+  const installerNames = entries.includes('DeepSeek-Harness-windows-x64.zip')
+    ? INSTALLER_NAMES : INSTALLER_NAMES.filter(name => !name.endsWith('windows-x64.zip'))
+  const expectedEntries = [...installerNames, 'SHA256SUMS'].sort()
   if (JSON.stringify(entries) !== JSON.stringify(expectedEntries)) {
-    throw new Error('local release directory must contain exactly seven installers and SHA256SUMS')
+    throw new Error('local release directory must contain the exact current or historical installer set and SHA256SUMS')
   }
   const checksums = parseChecksums(await readFile(resolve(resolvedDirectory, 'SHA256SUMS'), 'utf8'))
-  if (checksums.size !== INSTALLER_NAMES.length || INSTALLER_NAMES.some(name => !checksums.has(name))) {
-    throw new Error('local SHA256SUMS does not describe exactly the seven installers')
+  if (checksums.size !== installerNames.length || installerNames.some(name => !checksums.has(name))) {
+    throw new Error('local SHA256SUMS does not describe exactly the local installers')
   }
 
   const indexResponse = await checkedFetch(fetchImpl, indexUrl, { redirect: 'follow', headers: { Accept: 'application/json' } })
@@ -71,16 +74,16 @@ export async function verifyCnbDesktopRelease({ tag, releaseDirectory, metadataD
   if (release.withdrawn !== false) throw new Error(`CNB Release is withdrawn: ${tag}`)
   const expectedReleaseUrl = `https://cnb.cool/${CNB_REPOSITORY}/-/releases/tag/${tag}`
   if (release.releaseUrl !== expectedReleaseUrl) throw new Error(`CNB Release URL does not match ${tag}`)
-  if (!Array.isArray(release.assets) || release.assets.length !== INSTALLER_NAMES.length) {
-    throw new Error(`CNB Release does not contain exactly seven indexed installers: ${tag}`)
+  if (!Array.isArray(release.assets) || release.assets.length !== installerNames.length) {
+    throw new Error(`CNB Release does not contain the exact indexed installer set: ${tag}`)
   }
 
   const indexedNames = release.assets.map(asset => asset?.name).sort()
-  if (JSON.stringify(indexedNames) !== JSON.stringify([...INSTALLER_NAMES].sort())) {
+  if (JSON.stringify(indexedNames) !== JSON.stringify([...installerNames].sort())) {
     throw new Error(`CNB indexed installer names do not match the local Release: ${tag}`)
   }
   const verifiedAssets = []
-  for (const name of INSTALLER_NAMES) {
+  for (const name of installerNames) {
     const localPath = resolve(resolvedDirectory, name)
     const bytes = await readFile(localPath)
     const localSize = (await stat(localPath)).size

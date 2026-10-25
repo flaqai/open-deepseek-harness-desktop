@@ -39,10 +39,10 @@ After the notes and local assets are ready, show the user:
 
 - GitHub repository, CNB repository, exact tag source SHA, each accepted platform run ID and actual SHA (including any compatible older runs), title, and intended prerelease/latest state;
 - absolute notes path and the complete notes or a reviewable rendering;
-- all eight project upload paths and their SHA-256 values from the exact desktop handoff;
+- all nine project upload paths and their SHA-256 values from the exact desktop handoff;
 - confirmation that the GitHub Tag and Release do not already exist, and that CNB has no conflicting Release with the same tag;
 - confirmation that repository variable `CNB_SYNC_ENABLED` is `true`, the `CNB_TOKEN` secret name exists, and `sync-cnb-desktop-releases.yml` is available on the GitHub default branch;
-- the CNB asset model: seven installers are mirrored to the CNB Release, while `SHA256SUMS` is converted into the checksum-bearing `desktop-update-v1.json` anonymous index rather than uploaded.
+- the CNB asset model: eight packages are mirrored to the CNB Release, while `SHA256SUMS` is converted into the checksum-bearing `desktop-update-v1.json` anonymous index rather than uploaded.
 
 Stop for explicit authorization immediately before publication. Do not treat the earlier selection of the publish endpoint as that final authorization.
 
@@ -63,7 +63,7 @@ skill=.agents/skills/open-dsh-desktop-release-packaging
   "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/release/<version>"
 ```
 
-Only after the final dual-target authorization, repeat the same invocation with `--publish`. The helper creates a Draft and lightweight tag at the exact SHA, uploads the seven installers and `SHA256SUMS`, verifies every uploaded size and SHA-256, and publishes only after all eight assets match. Each filename and elapsed upload time is visible while the operation runs. Use `stable` for a dual GitHub and CNB publication. Use `prerelease` only for an explicitly GitHub-only prerelease, because the CNB synchronization intentionally excludes it.
+Only after the final dual-target authorization, repeat the same invocation with `--publish`. The helper creates a Draft and lightweight tag at the exact SHA, uploads the eight packages and `SHA256SUMS`, verifies every uploaded size and SHA-256, and publishes only after all nine assets match. Each filename and elapsed upload time is visible while the operation runs. Use `stable` for a dual GitHub and CNB publication. Use `prerelease` only for an explicitly GitHub-only prerelease, because the CNB synchronization intentionally excludes it.
 
 The helper refuses to update a published Release, move a mismatched tag, clobber an asset, or delete a partial Draft. If GitHub leaves a Draft after an interrupted upload, report its URL. After confirming the same reviewed tag, SHA, title, state, notes and local asset set, validate the recovery plan without mutation by adding `--resume-draft` to the dry run, then repeat it with both `--publish` and `--resume-draft`. Recovery skips only same-name assets whose remote size and SHA-256 already match; an unexpected, duplicate or mismatched asset stops recovery without replacement.
 
@@ -76,8 +76,8 @@ GitHub publication triggers `sync-cnb-desktop-releases.yml` through the `release
 1. Record the GitHub publication completion time and find the corresponding release-event sync run. Do not mistake an older scheduled or manually dispatched run for this publication.
 2. If no release-event run appears after a bounded wait, dispatch the same workflow once under the existing dual-target authorization. Do not dispatch a duplicate while the release-event run is queued or active.
    Set `target_tag` to the exact reviewed GitHub tag. The workflow mirrors only that Release. Leave `delete_tags` empty unless the user has explicitly approved deletion of the listed CNB Releases.
-3. Wait for the sync job to finish and require a successful, non-skipped conclusion. The job must read the verified GitHub assets, create or reuse the matching CNB Release, upload the seven installers, and push the refreshed index to CNB `master`.
-4. Run the anonymous verifier against the exact local handoff. It fetches `desktop-update-v1.json`, requires a non-expired entry whose version and tag match the GitHub Release and whose `withdrawn` value is `false`, compares all seven installer names, sizes and SHA-256 values, and probes every indexed installer URL:
+3. Wait for the sync job to finish and require a successful, non-skipped conclusion. The job must read the verified GitHub assets, create or reuse the matching CNB Release, upload the eight packages, and push the refreshed index to CNB `master`.
+4. Run the anonymous verifier against the exact local handoff. It fetches `desktop-update-v1.json`, requires a non-expired entry whose version and tag match the GitHub Release and whose `withdrawn` value is `false`, compares all eight package names, sizes and SHA-256 values, and probes every indexed installer URL:
 
    ```sh
   node "$skill/scripts/verify-cnb-desktop-release.mjs" \
@@ -85,7 +85,7 @@ GitHub publication triggers `sync-cnb-desktop-releases.yml` through the `release
     "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/release/<version>"
    ```
 
-5. Record the verifier's index revision, generation time, expiry, Release URL and seven installer results. Never log the CNB token or credential-bearing clone URL. The synchronization index defaults to a six-hour lifetime: release events still refresh it immediately, while the longer lifetime tolerates delayed hourly runners without keeping withdrawn versions eligible indefinitely.
+5. Record the verifier's index revision, generation time, expiry, Release URL and eight package results. Never log the CNB token or credential-bearing clone URL. The synchronization index defaults to a six-hour lifetime: release events still refresh it immediately, while the longer lifetime tolerates delayed hourly runners without keeping withdrawn versions eligible indefinitely.
 
 The sync is idempotent for an identical tag and asset identity. One retry is allowed for a diagnosed transient GitHub Actions or CNB transport failure while completing the same authorized publication. Stop on invalid credentials, disabled configuration, mismatched remote assets, an ineligible GitHub prerelease, or any change to the tag, notes, asset bytes, or Release state.
 
@@ -93,4 +93,4 @@ GitHub and CNB cannot be committed atomically. If GitHub succeeds and CNB fails,
 
 ## 6. Publication completion
 
-Report both public Release URLs, the GitHub tag target, title, prerelease/latest state, eight verified project-uploaded GitHub assets, seven verified CNB installers, CNB sync run, anonymous index revision and expiry, and the local notes and installer directories. GitHub's generated source ZIP and TAR are additional page entries, so the page shows ten entries. Do not describe the release as fully published until both providers pass their verification.
+Report both public Release URLs, the GitHub tag target, title, prerelease/latest state, nine verified project-uploaded GitHub assets, eight verified CNB packages, CNB sync run, anonymous index revision and expiry, and the local notes and installer directories. GitHub's generated source ZIP and TAR are additional page entries, so the page shows eleven entries. Do not describe the release as fully published until both providers pass their verification.

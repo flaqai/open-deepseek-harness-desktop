@@ -22,6 +22,11 @@
       "config": "apps/desktop/electron-builder.yml",
       "resources": [
         {
+          "from": "../../tools/windows-install-repair",
+          "to": "support/windows-install-repair",
+          "filter": ["START-REPAIR.cmd", "README.md", "README.zh.md", "START-ALL-USERS-REPAIR.cmd"]
+        },
+        {
           "from": "../../.artifacts/desktop-runtime-win-x64/harness",
           "to": "harness",
           "filter": ["**/*", "!node_modules{,/**/*}"]

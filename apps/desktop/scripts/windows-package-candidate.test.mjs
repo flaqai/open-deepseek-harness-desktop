@@ -22,6 +22,7 @@ async function fixture() {
   await writeFile(join(root, 'apps', 'desktop', 'scripts', 'smoke-windows-package.ps1'), 'Write-Host smoke\n')
   await writeFile(join(root, 'apps', 'desktop', 'bundled-plugins', 'plugin.tgz'), 'plugin-v1')
   await writeFile(join(root, '.artifacts', 'desktop-windows', 'DeepSeek-Harness-windows-x64.exe'), 'installer-v1')
+  await writeFile(join(root, '.artifacts', 'desktop-windows', 'DeepSeek-Harness-windows-x64.zip'), 'archive-v1')
   run('git', ['init', '-q'], root)
   run('git', ['config', 'user.name', 'fixture'], root)
   run('git', ['config', 'user.email', 'fixture@example.invalid'], root)
@@ -39,7 +40,7 @@ test('verifies reusable candidates by packaged inputs, plugin bytes and installe
   const item = await fixture()
   run(process.execPath, [script, 'create', item.root, item.installer, item.plugins, item.manifest], item.root)
   const document = JSON.parse(await readFile(item.manifest, 'utf8'))
-  assert.equal(document.schema, 'open-dsh/windows-package-candidate/v1')
+  assert.equal(document.schema, 'open-dsh/windows-package-candidate/v2')
   run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root)
 
   await writeFile(join(item.root, 'apps', 'desktop', 'scripts', 'smoke-windows-package.ps1'), 'Write-Host fixed-smoke\n')
@@ -59,6 +60,13 @@ test('rejects changed plugin and installer bytes', async () => {
   await writeFile(join(item.plugins, 'plugin.tgz'), 'plugin-v1')
   await writeFile(item.installer, 'installer-v2')
   assert.throws(() => run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root), /installer/u)
+})
+
+test('rejects a missing or changed ZIP even when the installer remains identical', async () => {
+  const item = await fixture()
+  run(process.execPath, [script, 'create', item.root, item.installer, item.plugins, item.manifest], item.root)
+  await writeFile(item.installer.replace(/\.exe$/u, '.zip'), 'archive-v2')
+  assert.throws(() => run(process.execPath, [script, 'verify', item.root, item.installer, item.plugins, item.manifest], item.root), /archive/u)
 })
 
 test('allows a committed smoke-only fix but rejects a changed packaging workflow', async () => {

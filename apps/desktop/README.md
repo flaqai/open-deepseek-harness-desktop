@@ -160,7 +160,7 @@ Offline plugin-edit qualification first warms a private metadata cache from the 
 
 The staged production `node_modules` omits packages excluded by their OS/CPU manifests, other-platform Office engines and native prebuilds, source maps, TypeScript declarations and build caches, package-manager metadata, and known test/compiler/debug files. Unknown runtime assets, licenses, target binaries, and the selected Office engine are retained. This selection does not alter bundled plugin archives or a user's Profile.
 
-Build the unsigned Windows x64 NSIS installer on Windows with:
+Build the unsigned Windows x64 NSIS installer and ZIP on Windows with:
 
 ```sh
 npm run package:desktop:win:x64
@@ -170,7 +170,11 @@ The installer is written to `.artifacts/desktop-windows/DeepSeek-Harness-windows
 
 Windows CI runs focused first-start/candidate tests and native packaging checks before the installer build. Its installed smoke verifies initial startup before later upgrade and uninstall scenarios. If only qualification code changes, a completed candidate may be requalified without rebuilding, but its package-input fingerprint, packaging workflow, bundled-plugin content and EXE hash must match; preflight and the full installed smoke still run. A product-code or packaging-workflow change requires a new installer.
 
-Windows upgrades validate the registered old directory separately from the new destination. Only old-uninstaller exit code `0` permits file deployment. Atomic cleanup exit code `2` has at most twelve attempts, with five-second gaps; another failure stops immediately. A failed temporary launch allows one in-place fallback. The installer never kills an uninstaller during atomic cleanup, so these limits do not bound its total execution time. If a potentially associated process has an unreadable path, the guard takes at most three additional complete CIM snapshots at 200 ms intervals and reclassifies ownership from the latest snapshot; it never stops uncertain processes. Invalid registration, a missing uninstaller, or persistently uncertain application-process ownership stops installation without bypassing cleanup.
+The same output directory also contains `DeepSeek-Harness-windows-x64.zip`. Extract the entire ZIP into a separate folder and run `Open DeepSeek Harness Desktop.exe`. This build does not run NSIS or register installation records or PATH. It retains the standard user-data locations described above; moving the extracted folder does not move configuration or history. Do not extract over an installed application. Both Windows formats include the self-contained registration repair launchers and instructions under `resources/support/windows-install-repair/`; their [source folder](../../tools/windows-install-repair/README.md) owns repair usage and safety limits.
+
+Windows upgrades validate the registered old directory separately from the new destination. An existing installation requires old-uninstaller exit code `0` before file deployment. Atomic cleanup exit code `2` has at most twelve attempts, with five-second gaps; another failure stops immediately. A failed temporary launch allows one in-place fallback. The installer never kills an uninstaller during atomic cleanup, so these limits do not bound its total execution time. If a potentially associated process has an unreadable path, the guard takes at most three additional complete CIM snapshots at 200 ms intervals and reclassifies ownership from the latest snapshot; it never stops uncertain processes. Invalid registration, a missing uninstaller in an existing directory, or persistently uncertain application-process ownership stops installation without bypassing cleanup.
+
+When verified installation records point to an absent local directory, interactive setup can offer metadata-only repair with default-No consent, backup, and revalidation before fresh installation. Silent setup stops with an actionable repair-tool message instead of clearing the records automatically. An unavailable drive is not an absent installation. The uninstaller also checks the registered directory and version before file, CLI, or data cleanup, so an obsolete uninstaller cannot clean a differently registered installation. See [registration repair](../../tools/windows-install-repair/README.md) for supported scopes and retained diagnostics.
 
 Parent PID relationships reject any ancestor created after its child, so a reused PID cannot establish that relationship. Missing creation times remain uncertain when associated with the application. Before closing or terminating a process, the guard holds a native process handle and verifies its creation time and executable path; stale identities receive no action, and force termination uses that verified handle rather than a PID lookup.
 
@@ -188,7 +192,7 @@ Build the Linux x64 packages on Linux with:
 npm run package:desktop:linux:x64
 ```
 
-The DEB and RPM files are written to `.artifacts/desktop-linux/`. Like macOS, they carry a target-native Node, pnpm, and production Harness runtime archive. The manually dispatched `Desktop packages` workflow builds the selected native targets and produces `SHA256SUMS`. With all targets selected, it uploads seven package assets: four macOS DMG/ZIP files, one Windows EXE, and two Linux DEB/RPM files. Outputs remain Actions artifacts; the workflow has no GitHub Release publication permission.
+The DEB and RPM files are written to `.artifacts/desktop-linux/`. Like macOS, they carry a target-native Node, pnpm, and production Harness runtime archive. The manually dispatched `Desktop packages` workflow builds the selected native targets and produces `SHA256SUMS`. With all targets selected, it uploads eight package assets: four macOS DMG/ZIP files, Windows EXE and ZIP files, and two Linux DEB/RPM files. Outputs remain Actions artifacts; the workflow has no GitHub Release publication permission.
 
 <a id="nas-runtime-mode"></a>
 ## NAS runtime mode
@@ -259,7 +263,7 @@ The source host uses only Electron and Node process APIs that are shared by macO
 | --- | --- | --- |
 | macOS arm64 | `macos-15` | DMG and ZIP |
 | macOS x64 | `macos-15-intel` | DMG and ZIP |
-| Windows x64 | `windows-2025` | NSIS EXE |
+| Windows x64 | `windows-2025` | NSIS EXE and ZIP |
 | Linux x64 | `ubuntu-24.04` | DEB and RPM |
 
 The Windows job silently installs its final NSIS artifact into a path containing spaces and Chinese characters, verifies the installed runtime, launches the installed application with isolated app data, and requires Harness readiness, all six startup dependencies and bundle entries, the profile lockfile, and their durable seed markers before uploading the artifact. Better Sidebar must already be installed before Harness becomes ready, while Codex and Claude Code must remain absent before user action. Native installation, first launch, shutdown, child cleanup, directory selection, file opening, PTY, and sandbox behavior remain release validation requirements for the other platforms. Signed update metadata waits for release signing and rollback support.

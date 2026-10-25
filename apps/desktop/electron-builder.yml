@@ -15,6 +15,13 @@ extraResources:
     to: bundled-plugins
     filter:
       - "**/*"
+  - from: ../../tools/windows-install-repair
+    to: support/windows-install-repair
+    filter:
+      - START-REPAIR.cmd
+      - README.md
+      - README.zh.md
+      - START-ALL-USERS-REPAIR.cmd
   - from: ../../.artifacts/desktop-runtime-win-x64/harness
     to: harness
     filter:
@@ -48,6 +55,9 @@ win:
   icon: build/icon.ico
   target:
     - target: nsis
+      arch:
+        - x64
+    - target: zip
       arch:
         - x64
   artifactName: DeepSeek-Harness-windows-${arch}.${ext}

@@ -13,7 +13,7 @@ export const CNB_DEFAULT_BRANCH = 'master'
 export const DEFAULT_CNB_INDEX_TTL_HOURS = 6
 const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}`
 const CNB_API = `https://api.cnb.cool/${CNB_REPOSITORY}`
-const ASSET_PATTERN = /^DeepSeek-Harness-(?:macos-(?:arm64|x64)\.(?:dmg|zip)|windows-x64\.exe|linux-x64\.(?:deb|rpm))$/u
+const ASSET_PATTERN = /^DeepSeek-Harness-(?:macos-(?:arm64|x64)\.(?:dmg|zip)|windows-x64\.(?:exe|zip)|linux-x64\.(?:deb|rpm))$/u
 const RELEASE_TAG_PATTERN = /^odsh-v[0-9A-Za-z][0-9A-Za-z._-]*$/u
 export const DESKTOP_INSTALLER_NAMES = Object.freeze([
   'DeepSeek-Harness-linux-x64.deb',
@@ -23,7 +23,15 @@ export const DESKTOP_INSTALLER_NAMES = Object.freeze([
   'DeepSeek-Harness-macos-x64.dmg',
   'DeepSeek-Harness-macos-x64.zip',
   'DeepSeek-Harness-windows-x64.exe',
+  'DeepSeek-Harness-windows-x64.zip',
 ])
+
+/** Accept the current eight-package set or the immutable historical seven-package set. */
+export function isDesktopInstallerSet(names) {
+  const sorted = [...names].sort()
+  const legacyNames = DESKTOP_INSTALLER_NAMES.filter(name => !name.endsWith('windows-x64.zip'))
+  return [DESKTOP_INSTALLER_NAMES, legacyNames].some(expected => JSON.stringify(sorted) === JSON.stringify([...expected].sort()))
+}
 
 export function parseChecksums(source) {
   const checksums = new Map()
@@ -131,9 +139,13 @@ export async function syncCnbDesktopReleases({ githubToken, cnbToken, outputPath
   const checksumBytes = await assetBytes(fetchImpl, githubToken, checksumAsset)
   if (checksumBytes.byteLength > 1024 * 1024) throw new Error(`SHA256SUMS is too large for ${distributableRelease.tag_name}`)
   const checksums = parseChecksums(checksumBytes.toString('utf8'))
-  const installers = distributableRelease.assets.filter(asset => ASSET_PATTERN.test(asset.name) && checksums.has(asset.name))
+  const installers = distributableRelease.assets.filter(asset => ASSET_PATTERN.test(asset.name))
   const installerNames = installers.map(asset => asset.name).sort()
-  if (JSON.stringify(installerNames) !== JSON.stringify([...DESKTOP_INSTALLER_NAMES].sort())) {
+  const checksumNames = [...checksums.keys()].filter(name => ASSET_PATTERN.test(name)).sort()
+  if (JSON.stringify(installerNames) !== JSON.stringify(checksumNames)) {
+    throw new Error(`GitHub installer assets and SHA256SUMS disagree: ${distributableRelease.tag_name}`)
+  }
+  if (!isDesktopInstallerSet(installerNames)) {
     throw new Error(`GitHub Release does not contain the exact desktop installer set: ${distributableRelease.tag_name}`)
   }
   const cnbRelease = await ensureCnbRelease(fetchImpl, cnbToken, cnbReleases, distributableRelease)

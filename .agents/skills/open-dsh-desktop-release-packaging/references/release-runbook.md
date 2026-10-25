@@ -124,7 +124,7 @@ The accepted jobs are:
 - SHA-256 checksum generation;
 - artifact upload.
 
-Each native job builds and verifies the Python archive for its own target before electron-builder runs. The archive is an installer resource, not a separate Actions or Release artifact, so `SHA256SUMS` continues to describe only the seven installers. The target's official LibreOffice Kit engine is retained and verified inside the Harness runtime; do not add independent Office or Python Release assets to the seven-installer desktop handoff.
+Each native job builds and verifies the Python archive for its own target before electron-builder runs. The archive is an installer resource, not a separate Actions or Release artifact, so `SHA256SUMS` continues to describe only the eight packages. The target's official LibreOffice Kit engine is retained and verified inside the Harness runtime; do not add independent Office or Python Release assets to the eight-package desktop handoff.
 
 If a run fails:
 
@@ -199,7 +199,7 @@ skill=.agents/skills/open-dsh-desktop-release-packaging
   <linux-run-id>
 ```
 
-The resulting directory is flat and contains exactly these eight files:
+The resulting directory is flat and contains exactly these nine files:
 
 ```text
 DeepSeek-Harness-linux-x64.deb
@@ -209,12 +209,13 @@ DeepSeek-Harness-macos-arm64.zip
 DeepSeek-Harness-macos-x64.dmg
 DeepSeek-Harness-macos-x64.zip
 DeepSeek-Harness-windows-x64.exe
+DeepSeek-Harness-windows-x64.zip
 SHA256SUMS
 ```
 
-GitHub displays ten Release entries: eight project-uploaded assets from the desktop handoff and the automatically generated `Source code (zip)` and `Source code (tar.gz)` archives. The generated source archives are not files in the local desktop handoff directory.
+GitHub displays eleven Release entries: nine project-uploaded assets from the desktop handoff and the automatically generated `Source code (zip)` and `Source code (tar.gz)` archives. The generated source archives are not files in the local desktop handoff directory.
 
-The helper requires each run to match the final source commit or pass the platform-impact checker through `--source-sha <final-commit>`, and requires one identical bundled-plugin snapshot. It validates each run conclusion, exact artifact ID, expected filename, and workflow checksum; validates ZIP payloads and optionally DMGs on macOS; and combines the seven checksum entries. A direct invocation without `--source-sha` still requires one common run SHA. Record per-platform SHA when mixing compatible runs. It refuses to replace an existing release directory by default. For an intentional same-version rebuild, pass `--replace-existing` (or use an explicit orchestrator stage retry); the old exact set is moved to `release/.archive/` before the new verified directory is activated. The active directory is made read-only so Finder cannot add `.DS_Store` after verification.
+The helper requires each run to match the final source commit or pass the platform-impact checker through `--source-sha <final-commit>`, and requires one identical bundled-plugin snapshot. It validates each run conclusion, exact artifact ID, expected filename, and workflow checksum; validates ZIP payloads and optionally DMGs on macOS; and combines the eight checksum entries. A direct invocation without `--source-sha` still requires one common run SHA. Record per-platform SHA when mixing compatible runs. It refuses to replace an existing release directory by default. For an intentional same-version rebuild, pass `--replace-existing` (or use an explicit orchestrator stage retry); the old exact set is moved to `release/.archive/` before the new verified directory is activated. The active directory is made read-only so Finder cannot add `.DS_Store` after verification.
 
 Downloads use a stable directory below the system temporary directory, keyed by repository, run IDs, and version. Before each large incomplete artifact starts or resumes, the helper measures that exact artifact's signed route against `ODSH_MIN_DOWNLOAD_MIBPS`. With `aria2c`, a monitor observes aggregate download telemetry after a 15-second warmup and exits with status 75 when it remains below the floor for 30 seconds; `ODSH_LOW_SPEED_WARMUP_SECONDS` and `ODSH_LOW_SPEED_WINDOW_SECONDS` change those windows. With `curl`, the equivalent speed floor and sustained window stop the transfer. A speed stop prints the measured condition and preserves the resumable staging directory; do not lower the floor or resume until the user chooses another network or threshold.
 
@@ -232,8 +233,8 @@ Run the exact-set check again:
 "$skill/scripts/verify-release-directory.sh" "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/release/<version>"
 ```
 
-The verifier requires exactly seven installers and one checksum file at the directory root. Any nested directory, workflow metadata, bundled-plugin snapshot, source archive, partial download, or unrelated file makes verification fail. Artifact-container ZIPs are transport files, not GitHub Release assets. A successful CI run does not imply that a local download exists.
+The verifier requires exactly eight packages and one checksum file at the directory root. Any nested directory, workflow metadata, bundled-plugin snapshot, source archive, partial download, or unrelated file makes verification fail. Artifact-container ZIPs are transport files, not GitHub Release assets. A successful CI run does not imply that a local download exists.
 
 ## 8. Publication boundary
 
-The packaging workflow does not run on tag pushes and never publishes a Release. Publication uses the eight files already verified in `<primary-checkout>/release/<version>/`; it does not rebuild or replace them. Do not create a tag, create a GitHub Release, or upload assets until the user explicitly selects publication, reviews the notes and asset plan, and gives fresh authorization immediately before the external mutation. Packaging authorization alone is insufficient.
+The packaging workflow does not run on tag pushes and never publishes a Release. Publication uses the nine files already verified in `<primary-checkout>/release/<version>/`; it does not rebuild or replace them. Do not create a tag, create a GitHub Release, or upload assets until the user explicitly selects publication, reviews the notes and asset plan, and gives fresh authorization immediately before the external mutation. Packaging authorization alone is insufficient.

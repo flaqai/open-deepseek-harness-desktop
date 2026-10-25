@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { INSTALLER_NAMES, verifyCnbDesktopRelease } from './verify-cnb-desktop-release.mjs'
@@ -50,7 +50,7 @@ const fetchImpl = async (input, init) => {
 const verified = await verifyCnbDesktopRelease({ tag, releaseDirectory: directory, metadataDirectory, fetchImpl,
   now: new Date('2026-09-17T02:00:00.000Z') })
 assert.equal(verified.revision, 39)
-assert.equal(verified.assets.length, 7)
+assert.equal(verified.assets.length, 8)
 assert.equal(verified.metadata.length, 2)
 
 await assert.rejects(verifyCnbDesktopRelease({ tag, releaseDirectory: directory, fetchImpl,
@@ -71,4 +71,15 @@ const wrongMetadataFetch = async (input, init) => {
 await assert.rejects(verifyCnbDesktopRelease({ tag, releaseDirectory: directory, metadataDirectory,
   fetchImpl: wrongMetadataFetch, now: new Date('2026-09-17T02:00:00.000Z') }), /metadata identity mismatch/u)
 
+const zipName = 'DeepSeek-Harness-windows-x64.zip'
+await rm(join(directory, zipName))
+await assert.rejects(verifyCnbDesktopRelease({ tag, releaseDirectory: directory, fetchImpl,
+  now: new Date('2026-09-17T02:00:00.000Z') }), /SHA256SUMS/u)
+assets.splice(assets.findIndex(asset => asset.name === zipName), 1)
+await writeFile(join(directory, 'SHA256SUMS'), checksums.filter(line => !line.endsWith(zipName)).join('\n') + '\n')
+const legacy = await verifyCnbDesktopRelease({ tag, releaseDirectory: directory, fetchImpl,
+  now: new Date('2026-09-17T02:00:00.000Z') })
+assert.equal(legacy.assets.length, 7)
+await rm(directory, { recursive: true, force: true })
+await rm(metadataDirectory, { recursive: true, force: true })
 console.log('verify-cnb-desktop-release tests passed')

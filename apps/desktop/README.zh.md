@@ -160,7 +160,7 @@ npm run package:desktop:macos:x64
 
 暂存的生产 `node_modules` 会排除由 OS/CPU 清单标记为不兼容的包、其他平台的 Office 引擎及原生预构建文件、源映射、TypeScript 声明与构建缓存、包管理器元数据，以及已识别的测试、编译器和调试文件。未知运行时资源、许可证、目标平台二进制文件和选定的 Office 引擎仍会保留。此筛选不修改内置插件归档或用户的 Profile。
 
-在 Windows 上使用下列命令构建未签名的 Windows x64 NSIS 安装程序：
+在 Windows 上使用下列命令构建未签名的 Windows x64 NSIS 安装程序与 ZIP：
 
 ```sh
 npm run package:desktop:win:x64
@@ -170,7 +170,11 @@ npm run package:desktop:win:x64
 
 Windows CI 会在构建安装包前运行首次启动候选事务的聚焦测试和原生打包检查。安装版烟雾测试先检查首次启动，再检查升级与卸载。若只修改验收代码，已完成的候选安装包可免于重新构建，但打包输入指纹、打包工作流、预装插件内容和 EXE 哈希必须一致；快速预检和完整安装版烟雾测试仍会执行。产品代码或打包工作流有改动时必须重新构建安装包。
 
-Windows 升级会分别校验注册的旧安装目录与新目标目录。旧卸载器仅退出码 `0` 允许继续部署文件；原子清理退出码 `2` 最多执行十二次，间隔五秒，其他失败立即停止。临时卸载器启动失败时只允许一次原位置回退。安装器不会在原子清理期间强杀卸载器，因此这些限制不保证整个卸载过程的最长耗时。可疑关联进程的路径无法读取时，进程检查会以 200 毫秒间隔额外完整采样 CIM 最多三次，按最新快照重新判断归属，且不会终止归属不明的进程。注册信息损坏、卸载器缺失或应用进程归属持续无法确认时，安装会停止，不绕过旧版清理。
+同一产物目录还包含 `DeepSeek-Harness-windows-x64.zip`。请将整个 ZIP 解压到独立文件夹，运行 `Open DeepSeek Harness Desktop.exe`。此版本不运行 NSIS，也不注册安装记录或 PATH。它仍使用上文所述的标准用户数据位置；移动解压目录不会移动配置或历史。请勿覆盖解压到已有安装目录。两种 Windows 发行格式均在 `resources/support/windows-install-repair/` 提供独立的注册记录修复启动器及说明；修复用法与安全限制见其[源码目录](../../tools/windows-install-repair/README.zh.md)。
+
+Windows 升级会分别校验注册的旧安装目录与新目标目录。仍存在的安装只有旧卸载器退出码为 `0` 时才允许继续部署文件；原子清理退出码 `2` 最多执行十二次，间隔五秒，其他失败立即停止。临时卸载器启动失败时只允许一次原位置回退。安装器不会在原子清理期间强杀卸载器，因此这些限制不保证整个卸载过程的最长耗时。可疑关联进程的路径无法读取时，进程检查会以 200 毫秒间隔额外完整采样 CIM 最多三次，按最新快照重新判断归属，且不会终止归属不明的进程。注册信息损坏、仍存在的目录中缺少卸载器或应用进程归属持续无法确认时，安装会停止，不绕过旧版清理。
+
+经过核验的安装记录指向已不存在的本地目录时，交互式安装可在默认选择“否”的确认框中提供仅修复注册信息的操作，先备份并重新校验，再进行全新安装。静默安装会停止并提示修复工具，不会自动清理记录。磁盘不可用不等于安装已删除。卸载器也会在文件、CLI 或数据清理前核对注册的目录与版本，避免旧卸载器清理注册信息已不同的安装。[安装记录修复说明](../../tools/windows-install-repair/README.zh.md)列出支持的安装范围和保留的诊断。
 
 父 PID 关联会排除创建时间晚于其子进程的祖先，因此重用的 PID 不能建立该关系。与应用有关联但缺少创建时间时，归属仍记为不确定。关闭或终止进程前，检查会持有原生进程句柄并核验创建时间与可执行路径；身份过期时不执行操作，强制终止使用已核验的句柄，不再按 PID 查找。
 
@@ -188,7 +192,7 @@ Windows 升级会分别校验注册的旧安装目录与新目标目录。旧卸
 npm run package:desktop:linux:x64
 ```
 
-DEB 与 RPM 文件写入 `.artifacts/desktop-linux/`。与 macOS 相同，它们包含目标平台原生的 Node、pnpm 与 Harness 生产运行时归档。手动触发的 `Desktop packages` 工作流会构建所选原生目标并生成 `SHA256SUMS`。选择全部目标时上传七个安装包资产：四个 macOS DMG/ZIP 文件、一个 Windows EXE，以及两个 Linux DEB/RPM 文件。产物只保留为 Actions artifact；工作流没有发布 GitHub Release 的权限。
+DEB 与 RPM 文件写入 `.artifacts/desktop-linux/`。与 macOS 相同，它们包含目标平台原生的 Node、pnpm 与 Harness 生产运行时归档。手动触发的 `Desktop packages` 工作流会构建所选原生目标并生成 `SHA256SUMS`。选择全部目标时上传八个安装包资产：四个 macOS DMG/ZIP 文件、Windows EXE 与 ZIP 文件，以及两个 Linux DEB/RPM 文件。产物只保留为 Actions artifact；工作流没有发布 GitHub Release 的权限。
 
 <a id="nas-runtime-mode"></a>
 ## NAS 运行端模式
@@ -259,7 +263,7 @@ Profile 插件属于可信的可执行代码。内置包管理运行时让插件
 | --- | --- | --- |
 | macOS arm64 | `macos-15` | DMG 与 ZIP |
 | macOS x64 | `macos-15-intel` | DMG 与 ZIP |
-| Windows x64 | `windows-2025` | NSIS EXE |
+| Windows x64 | `windows-2025` | NSIS EXE 与 ZIP |
 | Linux x64 | `ubuntu-24.04` | DEB 与 RPM |
 
 Windows 任务会把最终 NSIS 产物静默安装到包含空格和中文字符的路径，检查安装后的运行时，使用隔离的应用数据启动已安装程序，并在上传产物前要求 Harness 输出就绪行，同时确认六个启动预设的依赖、bundle 条目、Profile 锁文件和持久化 seed 标记均已生成。Better Sidebar 必须在 Harness 就绪前完成安装，而 Codex 与 Claude Code 在用户操作前必须保持未安装。其他平台仍需完成原生安装、首次启动、退出、子进程清理、目录选择、文件打开、PTY 与沙箱行为的发布验证。只有在发布签名与回滚可用后才添加已签名的更新元数据。

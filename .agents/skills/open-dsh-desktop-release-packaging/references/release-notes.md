@@ -25,7 +25,7 @@ Select the immediately previous published, non-draft desktop Release by publicat
 - merged upstream tag and upstream notes, when an upstream synchronization is present;
 - issue fixes supported by commits, tests, or retained incident evidence;
 - bundled plugin snapshot versions from the accepted package workflows compared with the previous published snapshot;
-- platform qualification actually completed for the seven installers;
+- platform qualification actually completed for the eight packages;
 - confirmed upgrade limitations, unsigned-package instructions, data migration boundaries, and known issues.
 
 Repeat this derivation whenever the user asks to rebuild or repackage, including another build of the same version. Resolve the latest release-branch commit again and regenerate the notes from the previous published Release to that commit. An unpublished Draft, an earlier workflow run, and an earlier notes draft for the same version are preparation state, not the comparison baseline.
@@ -75,7 +75,7 @@ Open DeepSeek Harness Desktop is an independently maintained community desktop d
 
 ### 下载与校验
 
-- Windows x64: `DeepSeek-Harness-windows-x64.exe`
+- Windows x64: `DeepSeek-Harness-windows-x64.exe` or `DeepSeek-Harness-windows-x64.zip` (extract and run; standard per-user data, no automatic PATH registration)
 - macOS Apple Silicon: `DeepSeek-Harness-macos-arm64.dmg` or `.zip`
 - macOS Intel: `DeepSeek-Harness-macos-x64.dmg` or `.zip`
 - Linux Debian/Ubuntu: `DeepSeek-Harness-linux-x64.deb`
@@ -106,7 +106,7 @@ Open DeepSeek Harness Desktop is an independently maintained community desktop d
 
 ### Downloads and Verification
 
-<same seven installer choices and SHA256SUMS guidance>
+<same eight package choices and SHA256SUMS guidance>
 
 ### Installation Notes
 
@@ -142,7 +142,7 @@ Before requesting a packaging-preparation handoff or publication authorization, 
 - version, tag, title, heading, notes filename, release directory, and source SHA agree;
 - every material claim maps to the selected commit range, accepted plugin snapshot, test, or platform run;
 - Chinese and English headings and bullets have one-to-one semantic coverage;
-- installer names are exact and `SHA256SUMS` belongs to the same seven files;
+- installer names are exact and `SHA256SUMS` belongs to the same nine files;
 - warnings match the reviewed GitHub Release state and CNB eligibility;
 - Markdown links resolve and no credentials, local usernames, private paths, raw logs, or temporary signed URLs appear.
 

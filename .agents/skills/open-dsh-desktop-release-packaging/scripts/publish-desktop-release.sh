@@ -53,6 +53,7 @@ installers=(
   DeepSeek-Harness-macos-x64.dmg
   DeepSeek-Harness-macos-x64.zip
   DeepSeek-Harness-windows-x64.exe
+  DeepSeek-Harness-windows-x64.zip
 )
 assets=("${installers[@]}" SHA256SUMS)
 

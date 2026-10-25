@@ -2,11 +2,16 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 <release-directory>" >&2
+  echo "usage: $0 [--macos-only|--legacy-seven] <release-directory>" >&2
   exit 2
 }
 
 macos_only=0
+legacy_seven=0
+if [[ $# -eq 2 && $1 == --legacy-seven ]]; then
+  legacy_seven=1
+  shift
+fi
 if [[ $# -eq 2 && $1 == --macos-only ]]; then
   macos_only=1
   shift
@@ -21,7 +26,11 @@ installers=(
   DeepSeek-Harness-macos-x64.dmg
   DeepSeek-Harness-macos-x64.zip
   DeepSeek-Harness-windows-x64.exe
+  DeepSeek-Harness-windows-x64.zip
 )
+if [[ "$legacy_seven" == 1 ]]; then
+  unset 'installers[7]'
+fi
 if [[ "$macos_only" == 1 ]]; then
   installers=(DeepSeek-Harness-macos-arm64.dmg DeepSeek-Harness-macos-arm64.zip DeepSeek-Harness-macos-x64.dmg DeepSeek-Harness-macos-x64.zip)
 fi

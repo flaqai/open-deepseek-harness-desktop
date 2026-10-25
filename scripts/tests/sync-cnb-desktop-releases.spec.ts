@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 // @ts-expect-error The workflow entry stays native ESM so GitHub Actions can run it without installing dependencies.
-import { CNB_DEFAULT_BRANCH, DEFAULT_CNB_INDEX_TTL_HOURS, DESKTOP_INSTALLER_NAMES, distributableGithubReleases, parseChecksums, syncCnbDesktopReleases } from '../sync-cnb-desktop-releases.mjs'
+import { CNB_DEFAULT_BRANCH, DEFAULT_CNB_INDEX_TTL_HOURS, DESKTOP_INSTALLER_NAMES, distributableGithubReleases, isDesktopInstallerSet, parseChecksums, syncCnbDesktopReleases } from '../sync-cnb-desktop-releases.mjs'
 
 const checkedParseChecksums = parseChecksums as (source: string) => Map<string, string>
 const checkedDistributableReleases = distributableGithubReleases as (releases: unknown[]) => unknown[]
@@ -24,6 +24,13 @@ const checkedSync = syncCnbDesktopReleases as (options: {
 }) => Promise<{ revision: number; expiresAt: string; releases: unknown[] }>
 
 describe('CNB desktop Release sync', () => {
+  it('mirrors current ZIP delivery and historical releases without accepting partial sets', () => {
+    const check = isDesktopInstallerSet as (names: readonly string[]) => boolean
+    expect(check(installerNames)).toBe(true)
+    expect(check(installerNames.filter(name => !name.endsWith('windows-x64.zip')))).toBe(true)
+    expect(check(installerNames.filter(name => !name.endsWith('windows-x64.exe')))).toBe(false)
+    expect(check([...installerNames, 'DeepSeek-Harness-windows-x64.zip'])).toBe(false)
+  })
   it('accepts only exact checksum lines and excludes withdrawn GitHub releases', () => {
     expect(checkedParseChecksums(`${'a'.repeat(64)}  DeepSeek-Harness-windows-x64.exe\ninvalid ../escape.exe`))
       .toEqual(new Map([['DeepSeek-Harness-windows-x64.exe', 'a'.repeat(64)]]))
@@ -34,19 +41,20 @@ describe('CNB desktop Release sync', () => {
     ])).toHaveLength(1)
   })
 
-  it('mirrors verified formal assets before advancing the existing index revision', async () => {
+  it.each([false, true])('mirrors verified formal assets and rejects a missing ZIP before advancing the index (legacy=%s)', async (legacy) => {
+    const selectedNames = legacy ? installerNames.filter(name => !name.endsWith('windows-x64.zip')) : installerNames
     const directory = await mkdtemp(join(tmpdir(), 'dsh-cnb-sync-'))
     const outputPath = join(directory, 'desktop-update-v1.json')
     await writeFile(outputPath, JSON.stringify({ revision: 8 }))
     const installer = Buffer.from('installer')
     const checksum = createHash('sha256').update(installer).digest('hex')
-    const checksumText = installerNames.map(name => `${checksum}  ${name}`).join('\n') + '\n'
+    const checksumText = selectedNames.map(name => `${checksum}  ${name}`).join('\n') + '\n'
     const tag = 'odsh-v1.0.0'
     const githubRelease = {
       draft: false, prerelease: false, tag_name: tag, published_at: '2026-09-10T00:00:00Z',
       assets: [
         { name: 'SHA256SUMS', size: Buffer.byteLength(checksumText), url: 'https://api.github.com/assets/checksums' },
-        ...installerNames.map((name, index) => ({ name, size: installer.byteLength,
+        ...selectedNames.map((name, index) => ({ name, size: installer.byteLength,
           url: `https://api.github.com/assets/installer-${index}` })),
         { name: 'workspace-runtimes-1.0.0.v2.json', size: installer.byteLength,
           url: 'https://api.github.com/assets/runtime-catalog' },
@@ -95,7 +103,7 @@ describe('CNB desktop Release sync', () => {
     expect(result.expiresAt).toBe('2026-09-10T07:00:00.000Z')
     expect(DEFAULT_CNB_INDEX_TTL_HOURS).toBe(6)
     expect(result.releases).toHaveLength(1)
-    expect((result.releases[0] as { assets: unknown[] }).assets).toHaveLength(installerNames.length)
+    expect((result.releases[0] as { assets: unknown[] }).assets).toHaveLength(selectedNames.length)
     expect(fetchMock.mock.calls.some(([input]) => requestUrl(input).endsWith('/assets/runtime-catalog'))).toBe(false)
     expect(JSON.parse(await readFile(outputPath, 'utf8'))).toMatchObject({ revision: 9 })
     expect(CNB_DEFAULT_BRANCH).toBe('master')
@@ -112,6 +120,13 @@ describe('CNB desktop Release sync', () => {
       'https://api.cnb.cool/hecoococ/open-deepseek-harness-desktop/-/releases/old-2',
     ])
     expect(fetchMock.mock.calls.some(([input]) => requestUrl(input).includes('releases?per_page=20'))).toBe(false)
+    if (!legacy) {
+      githubRelease.assets = githubRelease.assets.filter(asset => !asset.name.endsWith('windows-x64.zip'))
+      await expect(checkedSync({ githubToken: 'github-token', cnbToken: 'cnb-token', outputPath,
+        targetTag: tag, fetchImpl: fetchMock, now: new Date('2026-09-10T01:00:00Z') }))
+        .rejects.toThrow('installer assets and SHA256SUMS disagree')
+      expect(JSON.parse(await readFile(outputPath, 'utf8'))).toMatchObject({ revision: 9 })
+    }
   })
 
   it('refuses to publish an index for an incomplete installer set', async () => {

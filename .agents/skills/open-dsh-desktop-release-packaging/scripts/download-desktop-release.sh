@@ -340,7 +340,7 @@ for index in "${!run_ids[@]}"; do
   case "$target" in
     windows-x64)
       artifact_names=(desktop-windows-x64)
-      expected=(DeepSeek-Harness-windows-x64.exe)
+      expected=(DeepSeek-Harness-windows-x64.exe DeepSeek-Harness-windows-x64.zip)
       ;;
     macos)
       artifact_names=(desktop-macos-arm64 desktop-macos-x64)

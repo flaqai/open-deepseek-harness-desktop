@@ -203,6 +203,7 @@ describe('desktop package workflow bundled plugins', () => {
     expect(build?.steps?.some(step => step.run === 'pnpm run build:community-desktop')).toBe(true)
     expect(build?.steps?.some(step => step.run === 'node apps/desktop/scripts/prepare-windows-runtime.mjs')).toBe(true)
     expect(build?.steps?.some(step => step.run === 'node apps/desktop/scripts/desktop-smoke.mjs unpacked windows-x64')).toBe(true)
+    expect(build?.steps?.some(step => step.run === 'node apps/desktop/scripts/smoke-windows-zip.mjs')).toBe(true)
     expect(build?.steps?.some(step => (
       step.name === 'Record Windows candidate identity'
       && step.run?.includes('windows-package-candidate.mjs create')
@@ -212,6 +213,7 @@ describe('desktop package workflow bundled plugins', () => {
       && step.if === '${{ always() }}'
       && step.with?.name === 'qualification-windows-x64-candidate'
       && step.with?.path?.includes('DeepSeek-Harness-windows-x64.exe')
+      && step.with?.path?.includes('DeepSeek-Harness-windows-x64.zip')
       && step.with?.path?.includes('windows-package-candidate.json')
       && !step.with?.path?.includes('win-unpacked')
       && step.with?.['if-no-files-found'] === 'warn'
@@ -230,13 +232,17 @@ describe('desktop package workflow bundled plugins', () => {
     expect(smoke?.steps?.some(step => step.name === 'Verify reused candidate commit')).toBe(false)
     expect(smoke?.steps?.some(step => step.with?.['run-id'] === '${{ inputs.windows_candidate_run_id || github.run_id }}')).toBe(true)
     const installedSmoke = smoke?.steps?.find(step => step.name === 'Smoke test installed Windows package')
-    expect(installedSmoke?.run).toBe('node apps/desktop/scripts/desktop-smoke.mjs package windows-x64')
+    expect(installedSmoke?.run).toBe('pwsh -NoLogo -NoProfile -NonInteractive -File apps/desktop/scripts/windows-qualification-host.ps1 -Privilege ${{ matrix.privilege }}')
     expect(smoke?.steps?.some(step => (
       step.name === 'Preserve Windows smoke evidence'
-      && step.with?.name === 'qualification-windows-x64-evidence'
+      && step.with?.name?.includes('qualification-windows-x64-evidence')
       && step.with?.path === '.artifacts/windows-smoke-evidence'
       && step.if === '${{ always() }}'
     ))).toBe(true)
     expect(smoke?.steps?.some(step => step.with?.name === 'desktop-windows-x64')).toBe(true)
+    expect(build?.steps?.some(step => step.run === 'node tools/windows-install-repair/generate-launchers.mjs --check')).toBe(true)
+    expect(build?.steps?.some(step => step.run?.includes('--win nsis zip --x64'))).toBe(true)
+    expect(smoke?.steps?.find(step => step.with?.name === 'desktop-windows-x64')?.with?.path)
+      .toContain('DeepSeek-Harness-windows-x64.zip')
   })
 })

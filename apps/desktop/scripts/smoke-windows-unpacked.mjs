@@ -7,7 +7,9 @@ import { runElectronPackageProbe } from './electron-package-probe.mjs'
 if (process.platform !== 'win32') throw new Error(`Windows package probe requires win32, received ${process.platform}`)
 
 const repositoryRoot = resolve(import.meta.dirname, '../../..')
-const unpackedRoot = join(repositoryRoot, '.artifacts', 'desktop-windows', 'win-unpacked')
+if (process.argv.length > 3) throw new Error('usage: smoke-windows-unpacked.mjs [extracted-app-directory]')
+const unpackedRoot = process.argv[2] === undefined
+  ? join(repositoryRoot, '.artifacts', 'desktop-windows', 'win-unpacked') : resolve(process.argv[2])
 const executable = join(unpackedRoot, 'Open DeepSeek Harness Desktop.exe')
 const asarPath = join(unpackedRoot, 'resources', 'app.asar')
 const require = createRequire(import.meta.url)

@@ -17,6 +17,7 @@ installers=(
   DeepSeek-Harness-macos-x64.dmg
   DeepSeek-Harness-macos-x64.zip
   DeepSeek-Harness-windows-x64.exe
+  DeepSeek-Harness-windows-x64.zip
 )
 for filename in "${installers[@]}"; do
   if [[ "$filename" == *.zip ]]; then
@@ -103,7 +104,7 @@ grep -q 'release state: stable' "$temporary/dry-run.log"
 : > "$FAKE_GH_LOG"
 "$script_directory/publish-desktop-release.sh" --publish --release-state stable "${common[@]}" > "$temporary/publish.log"
 grep -q 'release create' "$FAKE_GH_LOG"
-[[ $(grep -c 'release upload' "$FAKE_GH_LOG") == 8 ]]
+[[ $(grep -c 'release upload' "$FAKE_GH_LOG") == 9 ]]
 grep -q 'release edit' "$FAKE_GH_LOG"
 grep -q -- '--latest' "$FAKE_GH_LOG"
 ! grep -q -- '--prerelease' "$FAKE_GH_LOG"
@@ -155,7 +156,7 @@ cp "$release_directory/DeepSeek-Harness-linux-x64.deb" "$FAKE_ASSETS_DIRECTORY/"
 : > "$FAKE_GH_LOG"
 FAKE_GH_EXISTING=1 "$script_directory/publish-desktop-release.sh" --publish --resume-draft \
   --release-state stable "${common[@]}" > "$temporary/resume.log"
-[[ $(grep -c 'release upload' "$FAKE_GH_LOG") == 7 ]]
+[[ $(grep -c 'release upload' "$FAKE_GH_LOG") == 8 ]]
 grep -q 'already uploaded with matching SHA-256 and size' "$temporary/resume.log"
 grep -q 'published verified Release' "$temporary/resume.log"
 

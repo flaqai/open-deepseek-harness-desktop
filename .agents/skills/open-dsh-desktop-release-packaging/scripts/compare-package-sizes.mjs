@@ -4,7 +4,7 @@ import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const installerName = /^DeepSeek-Harness-(?:windows-x64\.exe|macos-(?:arm64|x64)\.(?:dmg|zip)|linux-x64\.(?:deb|rpm))$/u
+const installerName = /^DeepSeek-Harness-(?:windows-x64\.(?:exe|zip)|macos-(?:arm64|x64)\.(?:dmg|zip)|linux-x64\.(?:deb|rpm))$/u
 const mib = bytes => (bytes / 1048576).toFixed(1)
 
 async function readInstallers(directory) {
