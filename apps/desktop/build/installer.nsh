@@ -6,6 +6,10 @@
 !define CLI_PATH_REGISTRY_VALUE "CliPathRegistered"
 !define CLI_PATH_DIRECTORY_VALUE "CliPathDirectory"
 
+Var DesktopOldDirectory
+Var DesktopDiagnosticDirectory
+Var DesktopRegistrationRoot
+
 # This include is expanded before electron-builder inserts MUI_LANGUAGE, so the
 # symbolic LANG_* constants do not exist yet. Use stable Windows LCIDs instead.
 LangString CliPageTitle 2052 "命令行工具"
@@ -28,6 +32,12 @@ LangString AppProcessInspectionFailed 2052 "安装程序无法安全检查 Open 
 LangString AppProcessInspectionFailed 1033 "The installer could not safely inspect Open DeepSeek Harness Desktop processes. Installation has stopped to avoid corrupting the application."
 LangString UpgradeCleanupFailed 2052 "旧版本卸载失败或安装注册信息损坏，本次升级已停止，未写入新版本文件。具体失败文件未知；旧版本是否恢复需检查日志，不能据此确认旧版可用。请关闭占用程序或使用匹配权限后重新运行安装包。"
 LangString UpgradeCleanupFailed 1033 "The previous version could not be uninstalled, or its installation registration is invalid. Upgrade stopped before copying new files. The failed file is unknown; restoration of the old version is not confirmed. Review the logs, close locking programs or use matching privileges, then run the installer again."
+LangString OrphanRegistrationConfirm 2052 "已确认旧程序目录不存在，但仍有本应用的安装记录。是否先备份并移除这些残留记录，然后继续全新安装？$\r$\n$\r$\n只处理下方注册范围中的本应用记录，不会删除任何用户的配置、历史或其他个人数据。请先关闭其他安装程序。$\r$\n注册范围：$DesktopRegistrationRoot$\r$\n旧目录：$DesktopOldDirectory$\r$\n备份目录：$DesktopDiagnosticDirectory"
+LangString OrphanRegistrationConfirm 1033 "The previous application directory is missing, but this app's installation records remain. Back up and remove these verified stale records, then continue with a new installation?$\r$\n$\r$\nOnly this app's records in the registry scope below are affected. All users' settings, history, and other personal data are preserved. Close other installers first.$\r$\nRegistry scope: $DesktopRegistrationRoot$\r$\nOld directory: $DesktopOldDirectory$\r$\nBackups: $DesktopDiagnosticDirectory"
+LangString OrphanRegistrationStopped 2052 "旧程序目录已不存在，安装记录尚未清理。本次未写入新文件。请交互式运行安装包并确认修复，或使用仓库 tools/windows-install-repair 中的修复工具；静默安装不会自动删除注册信息。"
+LangString OrphanRegistrationStopped 1033 "The previous application directory is missing and its installation records remain. No new files were written. Run the installer interactively and confirm repair, or use the tool in the repository's tools/windows-install-repair folder. Silent installation does not remove registration automatically."
+LangString UninstallRegistrationChanged 2052 "卸载器与当前安装记录的目录或版本不一致，或无法安全确认所属关系。卸载已在移除文件和个人数据之前停止。请使用当前安装目录中的卸载器，或保留日志联系支持。"
+LangString UninstallRegistrationChanged 1033 "This uninstaller does not match the registered installation directory or version, or ownership could not be verified safely. Uninstall stopped before removing files or personal data. Use the uninstaller in the current installation, or keep the diagnostics and contact support."
 LangString InstallerDiagnosticsFailed 2052 "无法创建或写入安装诊断日志。为避免无法追踪的安装失败，本次操作已停止。请检查临时目录权限和磁盘空间。"
 LangString InstallerDiagnosticsFailed 1033 "Installation diagnostics could not be created or written. Installation stopped. Check temporary-directory permissions and free disk space."
 LangString InstallerExtractFailed 2052 "安装包解压失败，安装尚未完成。旧版可能已经卸载，不能确认旧版仍可用。请保留日志并检查磁盘空间或重新下载安装包。"
@@ -54,7 +64,7 @@ LangString UninstallDataDeleteFailed 2052 "部分安装版数据无法删除，�
 LangString UninstallDataDeleteFailed 1033 "Some installed-app data could not be deleted, possibly because another process is still using it. After uninstalling, close that program and remove the contents below except development:$\r$\n$APPDATA\open-deepseek-harness-desktop"
 
 Var ProcessGuardOutput
-Var DesktopDiagnosticDirectory
+Var DesktopRegistrationPowerShellPath
 
 # Persistent, unique per invocation; never put the only evidence in PLUGINSDIR.
 !macro DesktopEnsureDiagnostics
@@ -87,6 +97,16 @@ Var DesktopDiagnosticDirectory
     MessageBox MB_OK|MB_ICONSTOP "$(InstallerDiagnosticsFailed)" /SD IDOK
     Quit
   FileClose $3
+!macroend
+
+!macro DesktopRegistrationHelpers
+  InitPluginsDir
+  File /oname=$PLUGINSDIR\windows-registration.ps1 "${BUILD_RESOURCES_DIR}\windows-registration.ps1"
+  File /oname=$PLUGINSDIR\installer-registration.ps1 "${BUILD_RESOURCES_DIR}\installer-registration.ps1"
+  StrCpy $DesktopRegistrationPowerShellPath "$SYSDIR\WindowsPowerShell\v1.0\powershell.exe"
+  # A 32-bit NSIS process must export the same 64-bit registry view it inspected.
+  IfFileExists "$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe" 0 +2
+    StrCpy $DesktopRegistrationPowerShellPath "$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
 !macroend
 
 !macro DesktopCheckProcesses DIRECTORY
@@ -132,9 +152,10 @@ Var DesktopDiagnosticDirectory
 !ifndef BUILD_UNINSTALLER
   Var CliPathCheckboxHandle
   Var CliPathRequested
-  Var DesktopOldDirectory
   Var DesktopOldUninstaller
+  Var DesktopOldUninstallerName
   Var DesktopUninstallArguments
+  Var DesktopRegistrationResult
 
   !macro customUnInstallCheck
     Call DesktopHandleOldUninstallResult
@@ -148,13 +169,25 @@ Var DesktopDiagnosticDirectory
   !macro customUninstallOldVersion
     StrCpy $DesktopOldDirectory "$installationDir"
     StrCpy $DesktopOldUninstaller "$uninstallerFileName"
+    ${GetFileName} "$DesktopOldUninstaller" $DesktopOldUninstallerName
     StrCpy $DesktopUninstallArguments "$0"
+    StrCpy $DesktopRegistrationRoot "$rootKey"
     !insertmacro DesktopLog "uninstall-start mode=$DesktopUninstallArguments old=$DesktopOldDirectory target=$INSTDIR uninstaller=$DesktopOldUninstaller"
+    Call DesktopTryOrphanRegistrationRepair
+    ${If} $DesktopRegistrationResult == 10
+      StrCpy $R0 0
+      ClearErrors
+      Return
+    ${ElseIf} $DesktopRegistrationResult != 0
+      StrCpy $R0 3
+      ClearErrors
+      Return
+    ${EndIf}
     !insertmacro DesktopCheckProcesses "$DesktopOldDirectory"
     File /oname=$PLUGINSDIR\installer-upgrade.ps1 "${BUILD_RESOURCES_DIR}\installer-upgrade.ps1"
     File /oname=$PLUGINSDIR\installer-removal.ps1 "${BUILD_RESOURCES_DIR}\installer-removal.ps1"
     File /oname=$PLUGINSDIR\installer-removal-native.cs "${BUILD_RESOURCES_DIR}\installer-removal-native.cs"
-    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-upgrade.ps1" -InstallDirectory "$DesktopOldDirectory" -UninstallerPath "$DesktopOldUninstaller" -UninstallerName "${UNINSTALL_FILENAME}" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -UninstallArguments "$DesktopUninstallArguments" -TemporaryDirectory "$PLUGINSDIR" -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-upgrade.ps1" -InstallDirectory "$DesktopOldDirectory" -UninstallerPath "$DesktopOldUninstaller" -UninstallerName "$DesktopOldUninstallerName" -AppExecutable "${APP_EXECUTABLE_FILENAME}" -UninstallArguments "$DesktopUninstallArguments" -TemporaryDirectory "$PLUGINSDIR" -DiagnosticDirectory "$DesktopDiagnosticDirectory"'
     Pop $R0
     Pop $ProcessGuardOutput
     DetailPrint "$ProcessGuardOutput"
@@ -164,9 +197,15 @@ Var DesktopDiagnosticDirectory
 
   !macro customUninstallMissingRegistration
     !insertmacro readReg $DesktopOldDirectory "$rootKey" "${INSTALL_REGISTRY_KEY}" InstallLocation
+    StrCpy $DesktopRegistrationRoot "$rootKey"
     ${If} $DesktopOldDirectory != ""
-      StrCpy $R0 3
       !insertmacro DesktopLog "uninstall-invalid-registration mode=$rootKey old=$DesktopOldDirectory missing=UninstallString"
+      Call DesktopTryOrphanRegistrationRepair
+      ${If} $DesktopRegistrationResult == 10
+        StrCpy $R0 0
+      ${Else}
+        StrCpy $R0 3
+      ${EndIf}
     ${EndIf}
   !macroend
 
@@ -244,6 +283,40 @@ Var DesktopDiagnosticDirectory
 
   # Electron Builder inserts customHeader after MUI2 and selected languages.
   !macro customHeader
+    Function DesktopTryOrphanRegistrationRepair
+      !insertmacro DesktopRegistrationHelpers
+      nsExec::ExecToStack '"$DesktopRegistrationPowerShellPath" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-registration.ps1" -Action inspect -RegistryRoot "$DesktopRegistrationRoot" -ExpectedInstallDirectory "$DesktopOldDirectory"'
+      Pop $DesktopRegistrationResult
+      Pop $ProcessGuardOutput
+      DetailPrint "$ProcessGuardOutput"
+      !insertmacro DesktopLog "registration-inspect result=$DesktopRegistrationResult $ProcessGuardOutput"
+      ${If} $DesktopRegistrationResult != 10
+        Return
+      ${EndIf}
+      !insertmacro DesktopLog "orphan-registration-verified mode=$DesktopRegistrationRoot old=$DesktopOldDirectory"
+      ${If} ${Silent}
+        !insertmacro DesktopLog "orphan-registration-stopped reason=silent-no-consent"
+        DetailPrint "$(OrphanRegistrationStopped)"
+        SetErrorLevel 45
+        Quit
+      ${EndIf}
+      MessageBox MB_YESNO|MB_DEFBUTTON2|MB_ICONEXCLAMATION "$(OrphanRegistrationConfirm)" /SD IDNO IDYES desktop_orphan_confirmed
+        !insertmacro DesktopLog "orphan-registration-stopped reason=user-declined"
+        DetailPrint "$(OrphanRegistrationStopped)"
+        SetErrorLevel 45
+        Quit
+      desktop_orphan_confirmed:
+      nsExec::ExecToStack '"$DesktopRegistrationPowerShellPath" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-registration.ps1" -Action repair -RegistryRoot "$DesktopRegistrationRoot" -ExpectedInstallDirectory "$DesktopOldDirectory" -DiagnosticDirectory "$DesktopDiagnosticDirectory" -Confirmed'
+      Pop $DesktopRegistrationResult
+      Pop $ProcessGuardOutput
+      DetailPrint "$ProcessGuardOutput"
+      !insertmacro DesktopLog "registration-repair result=$DesktopRegistrationResult $ProcessGuardOutput"
+      ${If} $DesktopRegistrationResult == 0
+        StrCpy $DesktopRegistrationResult 10
+        !insertmacro DesktopLog "orphan-registration-repaired old=$DesktopOldDirectory new-install-target=$INSTDIR"
+      ${EndIf}
+    FunctionEnd
+
     Function DesktopHandleOldUninstallResult
       IfErrors desktop_uninstall_failed
       ${If} $R0 == 0
@@ -335,9 +408,11 @@ Var DesktopDiagnosticDirectory
   # Initialization must not alter PATH, credentials, or personal data. Embed
   # helpers here so file removal never depends on installed resources.
   InitPluginsDir
+  StrCpy $DesktopOldDirectory "$INSTDIR"
   File /oname=$PLUGINSDIR\manage-path.ps1 "${BUILD_RESOURCES_DIR}\cli-bin\manage-path.ps1"
   File /oname=$PLUGINSDIR\installer-removal.ps1 "${BUILD_RESOURCES_DIR}\installer-removal.ps1"
   File /oname=$PLUGINSDIR\installer-removal-native.cs "${BUILD_RESOURCES_DIR}\installer-removal-native.cs"
+  !insertmacro DesktopRegistrationHelpers
 !macroend
 
 !ifdef BUILD_UNINSTALLER
@@ -440,6 +515,19 @@ Var DesktopDiagnosticDirectory
   !macro customRemoveFiles
     !insertmacro DesktopEnsureDiagnostics
     !insertmacro DesktopLog "uninstall-files-start target=$INSTDIR"
+    StrCpy $DesktopRegistrationRoot "HKEY_CURRENT_USER"
+    ${If} $installMode == "all"
+      StrCpy $DesktopRegistrationRoot "HKEY_LOCAL_MACHINE"
+    ${EndIf}
+    nsExec::ExecToStack '"$DesktopRegistrationPowerShellPath" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\installer-registration.ps1" -Action validateUninstall -RegistryRoot "$DesktopRegistrationRoot" -ExpectedInstallDirectory "$INSTDIR" -ExpectedVersion "${VERSION}"'
+    Pop $0
+    Pop $ProcessGuardOutput
+    ${If} $0 != 0
+      !insertmacro DesktopLog "uninstall-registration-refused result=$0 $ProcessGuardOutput"
+      MessageBox MB_OK|MB_ICONSTOP "$(UninstallRegistrationChanged)$\r$\n$ProcessGuardOutput$\r$\n$DesktopDiagnosticDirectory" /SD IDOK
+      SetErrorLevel 3
+      Abort
+    ${EndIf}
     # Neither NSIS's recursive RMDir nor its upgrade Rename loop supports the
     # installed long-path layout. The helper owns staging and failure recovery.
     SetOutPath "$TEMP"

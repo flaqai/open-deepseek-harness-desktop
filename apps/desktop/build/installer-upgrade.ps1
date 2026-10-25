@@ -136,7 +136,7 @@ function Invoke-DesktopOldUninstallCore {
   $committed = $false
   $cliState = $null
   try {
-    $install = Get-DesktopUpgradeDirectory $InstallDirectory
+    $install = Get-DesktopUpgradeDirectory $InstallDirectory -AllowMissing
     $temporary = Get-DesktopUpgradeDirectory $TemporaryDirectory
     $diagnosticRoot = Get-DesktopUpgradeDirectory $DiagnosticDirectory -AllowMissing
     foreach ($external in @($temporary, $diagnosticRoot)) {
@@ -147,6 +147,7 @@ function Invoke-DesktopOldUninstallCore {
     }
     [void][System.IO.Directory]::CreateDirectory($diagnosticRoot)
     $diagnostics = Get-DesktopUpgradeDirectory $diagnosticRoot
+    $install = Get-DesktopUpgradeDirectory $InstallDirectory
     foreach ($name in @($UninstallerName, $AppExecutable)) {
       if ([string]::IsNullOrWhiteSpace($name) -or [System.IO.Path]::GetFileName($name) -ne $name -or $name -match '[\\/:]' -or -not $name.EndsWith('.exe', [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid installation executable name.' }
     }

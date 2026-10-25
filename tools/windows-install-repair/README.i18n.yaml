@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write tools/windows-install-repair/README.md
+/windows-installation-record-repair:
+  en: dde79b792a3e13f7
+  zh: db86147da775cfee
+/windows-installation-record-repair/summary:
+  en: fc9bec2060363935
+  zh: ddbf4e1b3648bef2
+/windows-installation-record-repair/repair-a-missing-installation:
+  en: 02dcc89c13477f18
+  zh: 57f2f6923f73c0f7
+/windows-installation-record-repair/safety-and-diagnostics:
+  en: 62c09b3afc857bba
+  zh: a0b46b99de65d07d
+/windows-installation-record-repair/source-and-verification:
+  en: a6944214640e3832
+  zh: a5d5115a408649e0
