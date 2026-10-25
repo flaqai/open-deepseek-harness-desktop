@@ -10,7 +10,7 @@ Idiomas: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.2.1 ya está disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1).** Basada en DeepSeek Harness `0.2.1-rc.2`, esta versión mejora las conversaciones y los flujos de plugins, añade un navegador lateral de escritorio aislado por Workspace y actualiza los plugins incluidos y las herramientas opcionales instaladas bajo demanda.
+> **[v0.2.1-rc.3 ya está disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).** Esta versión integra DeepSeek Harness oficial `dsh-v0.2.1-rc.3`, mejora los accesos a plugins y los borradores de sesiones, añade el descubrimiento dinámico de modelos de la API oficial y corrige la cuarentena errónea de algunos plugins. **Compatible con DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, actualización 1017).**
 >
 > Aunque el nombre contiene `rc`, se publica como una versión normal en GitHub. Haz una copia de seguridad de las conversaciones y la configuración importante antes de actualizar y adjunta registros o informes de diagnóstico al comunicar problemas.
 
@@ -160,7 +160,7 @@ Si la sesión espera una elección, confirmación o respuesta, o el editor está
 
 ### Plugins predefinidos
 
-El instalador incluye ocho presets de inicio como archivos locales con integridad verificada: Plugin Marketplace, dsh-im, Better Sidebar, dsh-pocket, `@ychris12138/dsh-usage-stats`, `dsh-smooth-stream`, `dsh-mermaid` y `dsh-whale-widget`. Usage Stats añade uso de tokens, cuentas de proveedores, estimaciones de costes por sesión, presupuestos y exportaciones; Smooth Stream ofrece renderizado y desplazamiento fluidos para Markdown, bloques de código, tablas y resultados de herramientas. `dsh-font` se proporciona únicamente como muestra para los ejercicios de diagnóstico. Si el usuario desinstala un preset, el cliente no lo reinstala automáticamente.
+El instalador incluye nueve presets de inicio como archivos locales con integridad verificada: Plugin Marketplace, dsh-im, Better Sidebar, `@agents-anywhere/dsh-bridge-next`, `@ychris12138/dsh-usage-stats`, `dsh-mermaid`, `dsh-whale-widget`, `@weibaohui/skills-management` y `@dsh-plugins/mcp-panel`. Agents Anywhere permanece desactivado hasta que el usuario lo habilita explícitamente. Smooth Stream no forma parte de los presets de inicio. `dsh-font` solo se incluye como muestra para los ejercicios de diagnóstico. Si el usuario desinstala un preset, el cliente no lo reinstala automáticamente.
 
 #### Agradecimientos a los plugins predefinidos
 
@@ -188,7 +188,7 @@ Admite sistema, claro, oscuro y ocho temas de producto, ocho ilustraciones inclu
 
 ## Descargar e instalar
 
-Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1).
+Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).
 
 | Sistema | Arquitectura | Paquete |
 | --- | --- | --- |
@@ -199,6 +199,10 @@ Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/
 | Linux | Fedora / RHEL x64 | DeepSeek-Harness-linux-x64.rpm |
 
 Verifica los archivos con SHA256SUMS. Las compilaciones de macOS usan firma ad-hoc y no están notarizadas; si Gatekeeper las bloquea, usa **Ajustes del sistema → Privacidad y seguridad → Abrir igualmente**. Windows puede mostrar una advertencia de reputación para una compilación nueva o sin firma.
+
+Si la Release elegida ofrece `DeepSeek-Harness-windows-x64.zip`, extrae el archivo completo en una carpeta independiente y ejecuta `Open DeepSeek Harness Desktop.exe`. La versión ZIP no requiere instalación ni crea registros de instalación ni registra PATH automáticamente. La configuración y el historial permanecen en el directorio de datos de usuario habitual y no se trasladan con la carpeta ZIP. No extraigas el ZIP sobre una instalación existente. La versión rc.3 publicada aún no incluye un ZIP de Windows.
+
+Borrar manualmente la carpeta del programa anterior puede dejar registros que bloquean la reinstalación. La herramienta general de reparación está en [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md); las compilaciones de Windows que la incluyen también la proporcionan en `resources/support/windows-install-repair/` dentro de la carpeta del programa. Verifica los registros de esta aplicación y, tras tu confirmación, los respalda antes de repararlos; no elimina configuración, historial ni archivos del programa.
 
 ## Ejecutar desde el código fuente
 

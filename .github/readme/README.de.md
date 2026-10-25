@@ -10,7 +10,7 @@ Sprachen: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.2.1 ist verfügbar](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1).** Auf Basis von DeepSeek Harness `0.2.1-rc.2` verbessert diese Version Unterhaltungen und Plugin-Abläufe, ergänzt einen pro Workspace isolierten Desktop-Seitenleistenbrowser und aktualisiert mitgelieferte Plugins sowie bei Bedarf installierte optionale Werkzeuge.
+> **[v0.2.1-rc.3 ist verfügbar](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).** Diese Version integriert das offizielle DeepSeek Harness `dsh-v0.2.1-rc.3`, verbessert Plugin-Einstiege und Sitzungsentwürfe, ergänzt die dynamische Modellliste der offiziellen API und behebt die fälschliche Quarantäne einiger Plugins. **DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, Update 1017) wird unterstützt.**
 >
 > Obwohl der Versionsname `rc` enthält, ist sie auf GitHub als reguläres Release veröffentlicht. Sichern Sie wichtige Unterhaltungen und Konfigurationen vor dem Upgrade und fügen Sie Problemmeldungen relevante Protokolle oder Diagnoseberichte bei.
 
@@ -154,7 +154,7 @@ Wartet die Sitzung auf Auswahl, Bestätigung oder Antwort oder ist der Editor ge
 
 ### Voreingestellte Plugins
 
-Der Installer enthält acht Start-Presets als integritätsgeprüfte lokale Archive: Plugin Marketplace, dsh-im, Better Sidebar, dsh-pocket, `@ychris12138/dsh-usage-stats`, `dsh-smooth-stream`, `dsh-mermaid` und `dsh-whale-widget`. Usage Stats ergänzt Token-Nutzung, Provider-Konten, Kostenschätzungen für Sitzungen, Budgets und Exporte; Smooth Stream sorgt für flüssiges Streaming und Scrollen bei Markdown, Codeblöcken, Tabellen und Werkzeugergebnissen. `dsh-font` wird ausschließlich als Beispiel für Diagnoseübungen bereitgestellt. Deinstalliert ein Benutzer ein Preset, installiert der Client es nicht automatisch erneut.
+Der Installer enthält neun Start-Presets als integritätsgeprüfte lokale Archive: Plugin Marketplace, dsh-im, Better Sidebar, `@agents-anywhere/dsh-bridge-next`, `@ychris12138/dsh-usage-stats`, `dsh-mermaid`, `dsh-whale-widget`, `@weibaohui/skills-management` und `@dsh-plugins/mcp-panel`. Agents Anywhere bleibt bis zur ausdrücklichen Aktivierung deaktiviert. Smooth Stream gehört nicht zu den Start-Presets. `dsh-font` wird ausschließlich als Beispiel für Diagnoseübungen bereitgestellt. Deinstalliert ein Benutzer ein Preset, installiert der Client es nicht automatisch erneut.
 
 #### Dank an die Preset-Plugins
 
@@ -182,7 +182,7 @@ Unterstützt System, Hell, Dunkel und acht Produkt-Themes, acht integrierte Illu
 
 ## Download und Installation
 
-Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1) herunter.
+Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3) herunter.
 
 | System | Architektur | Paket |
 | --- | --- | --- |
@@ -193,6 +193,10 @@ Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/ope
 | Linux | Fedora / RHEL x64 | DeepSeek-Harness-linux-x64.rpm |
 
 Prüfen Sie Dateien mit SHA256SUMS. macOS-Builds sind ad-hoc signiert und nicht notarisiert; bei einer Gatekeeper-Sperre wählen Sie **Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen**. Windows kann für neue oder unsignierte Builds eine Reputationswarnung anzeigen.
+
+Falls das gewählte Release `DeepSeek-Harness-windows-x64.zip` anbietet, entpacken Sie das gesamte Archiv in einen eigenen Ordner und starten Sie `Open DeepSeek Harness Desktop.exe`. Die ZIP-Ausgabe benötigt keine Installation und registriert weder Installationseinträge noch automatisch PATH. Einstellungen und Verlauf bleiben im normalen Benutzerdatenverzeichnis und ziehen nicht mit dem ZIP-Ordner um. Entpacken Sie nicht über eine bestehende Installation. Das veröffentlichte rc.3 enthält noch keine Windows-ZIP-Datei.
+
+Nach dem manuellen Löschen des alten Programmordners können verwaiste Installationseinträge eine Neuinstallation blockieren. Das allgemeine Reparaturwerkzeug liegt unter [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md); Windows-Builds mit diesem Werkzeug enthalten es auch unter `resources/support/windows-install-repair/` im Programmordner. Es prüft die Einträge dieser Anwendung und sichert sie nach Ihrer Bestätigung vor der Reparatur; Einstellungen, Verlauf und Programmdateien werden nicht gelöscht.
 
 ## Aus dem Quellcode starten
 

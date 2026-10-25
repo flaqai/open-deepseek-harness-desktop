@@ -10,7 +10,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.2.1이 출시되었습니다](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1).** 공식 DeepSeek Harness `0.2.1-rc.2`을 기반으로 대화와 플러그인 사용 경험을 개선하고, Workspace별로 분리된 데스크톱 사이드바 브라우저를 추가했습니다. 번들 플러그인과 필요할 때 설치하는 선택적 도구도 업데이트했습니다.
+> **[v0.2.1-rc.3이 출시되었습니다](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).** 공식 DeepSeek Harness `dsh-v0.2.1-rc.3`을 통합해 플러그인 진입점과 세션 초안을 개선하고, 공식 API의 동적 모델 목록을 지원하며 일부 플러그인의 잘못된 격리를 수정했습니다. **DeepSeek 4.1-1017(DeepSeek-V4.1-Flash, 1017 업데이트)을 지원합니다.**
 >
 > 버전 이름에는 `rc`가 포함되어 있지만 GitHub에서는 일반 Release로 게시되었습니다. 업그레이드 전에 중요한 설정과 대화를 백업하고, 문제를 보고할 때 관련 로그나 진단 보고서를 첨부해 주세요.
 
@@ -160,7 +160,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 ### 프리셋 플러그인
 
-설치 프로그램에는 무결성을 확인한 로컬 아카이브로 Plugin Marketplace, dsh-im, Better Sidebar, dsh-pocket, `@ychris12138/dsh-usage-stats`, `dsh-smooth-stream`, `dsh-mermaid`, `dsh-whale-widget`의 8개 시작 프리셋이 포함됩니다. Usage Stats는 Token 사용량, Provider 계정, 세션 비용 추정, 예산 및 내보내기 기능을 제공하며, Smooth Stream은 Markdown, 코드 블록, 표, 도구 결과의 부드러운 스트리밍 렌더링과 스크롤을 제공합니다. `dsh-font`는 진단 연습 샘플로만 제공됩니다. 사용자가 프리셋을 제거하면 클라이언트가 자동으로 다시 설치하지 않습니다.
+설치 프로그램에는 무결성을 확인한 로컬 아카이브로 Plugin Marketplace, dsh-im, Better Sidebar, `@agents-anywhere/dsh-bridge-next`, `@ychris12138/dsh-usage-stats`, `dsh-mermaid`, `dsh-whale-widget`, `@weibaohui/skills-management`, `@dsh-plugins/mcp-panel`의 9개 시작 프리셋이 포함됩니다. Agents Anywhere는 사용자가 명시적으로 활성화하기 전까지 꺼져 있습니다. Smooth Stream은 시작 프리셋에 포함되지 않습니다. `dsh-font`는 진단 연습 샘플로만 제공됩니다. 사용자가 프리셋을 제거하면 클라이언트가 자동으로 다시 설치하지 않습니다.
 
 #### 프리셋 플러그인 감사
 
@@ -188,7 +188,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 ## 다운로드 및 설치
 
-[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.1)에서 운영체제에 맞는 파일을 다운로드하세요.
+[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3)에서 운영체제에 맞는 파일을 다운로드하세요.
 
 | 운영체제 | 아키텍처 | 패키지 |
 | --- | --- | --- |
@@ -199,6 +199,10 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 | Linux | Fedora / RHEL x64 | DeepSeek-Harness-linux-x64.rpm |
 
 SHA256SUMS로 다운로드를 검증하세요. macOS 빌드는 ad-hoc 서명이고 공증되지 않았습니다. 차단되면 “시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기”를 사용하세요. Windows에서는 서명되지 않았거나 새로 게시된 앱에 평판 경고가 나타날 수 있습니다.
+
+선택한 Release에 `DeepSeek-Harness-windows-x64.zip`이 있다면 전체를 별도 폴더에 압축 해제한 뒤 `Open DeepSeek Harness Desktop.exe`를 실행하세요. ZIP 버전은 설치가 필요 없으며 설치 레지스트리 항목이나 PATH를 자동 등록하지 않습니다. 설정과 기록은 표준 사용자 데이터 디렉터리에 저장되므로 ZIP 폴더를 옮겨도 함께 이동하지 않습니다. 기존 설치 폴더에 덮어 압축 해제하지 마세요. 공개된 rc.3에는 아직 Windows ZIP이 포함되지 않습니다.
+
+이전 프로그램 폴더를 수동으로 삭제하면 남은 설치 기록이 재설치를 막을 수 있습니다. 범용 복구 도구는 [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md)에 있으며, 도구가 포함된 Windows 빌드는 프로그램 폴더의 `resources/support/windows-install-repair/`에도 제공합니다. 이 앱의 등록 정보를 확인하고 사용자 동의를 받은 후 백업하여 복구하며, 설정·기록·프로그램 파일은 삭제하지 않습니다.
 
 ## 소스에서 실행
 

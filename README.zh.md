@@ -12,7 +12,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.2.2 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.2)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.1-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.2) 为核心，**支持 DeepSeek 4.1-1017（DeepSeek-V4.1-Flash，1017 更新）**，模型选择器会为匹配的官方 Flash 模型显示 `1017` 标记。
+> **[v0.2.1-rc.3 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.1-rc.3`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.3) 为核心，**支持 DeepSeek 4.1-1017（DeepSeek-V4.1-Flash，1017 更新）**，模型选择器会为匹配的官方 Flash 模型显示 `1017` 标记。
 >
 > 虽然版本名包含 `rc`，社区构建已在 GitHub 上按正式 Release 发布。升级前仍建议备份重要配置，并将遇到的问题连同日志或诊断报告反馈给我们。
 
@@ -408,23 +408,23 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
   </tr>
 </table>
 
-## 同步 DeepSeek Harness 0.2.1-rc.2
+## 同步 DeepSeek Harness 0.2.1-rc.3
 
-当前社区 Release 以官方 [`dsh-v0.2.1-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.2) 为核心基线，支持 DeepSeek 4.1-1017，并整合模型标签、账号多通知、终端恢复与技能菜单刷新等改进。Search/Fetch API 默认关闭，按需启用；社区桌面继续提供独立数据目录、NAS 三级权限、工作运行时、候选插件事务、诊断恢复、预置插件和 GitHub/CNB 更新渠道。升级前请备份重要会话、工作区和配置；旧版客户端不保证能读取新版写入的会话数据。
+当前社区 Release 以官方 [`dsh-v0.2.1-rc.3`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.3) 为核心基线，支持 DeepSeek 4.1-1017，新增插件入口与 Creator 会话草稿、官方 API 模型动态发现，并修复运行时选中的安装范围已提供 Loader 模块却被错误隔离的问题。Search/Fetch API 默认关闭，按需启用；社区桌面继续提供独立数据目录、NAS 三级权限、工作运行时、候选插件事务、诊断恢复、预置插件和 GitHub/CNB 更新渠道。升级前请备份重要会话、工作区和配置；旧版客户端不保证能读取新版写入的会话数据。
 
 ## 下载安装
 
-请只从本项目的 [`v0.2.1-rc.2.2` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.2.2) 页面下载安装包：
+请只从本项目的 [`v0.2.1-rc.3` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3) 页面下载安装包：
 
 | 平台 | 架构 | 发行包 | 状态 |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
-| macOS | Intel（`x64`） | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-macos-x64.zip) | 已提供 |
-| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-windows-x64.exe) | 已提供 |
-| Linux | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-linux-x64.deb) | 已提供 |
-| Linux | Fedora / RHEL（`x64`） | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
+| macOS | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
+| macOS | Intel（`x64`） | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-x64.zip) | 已提供 |
+| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-windows-x64.exe) | 已提供 |
+| Linux | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-linux-x64.deb) | 已提供 |
+| Linux | Fedora / RHEL（`x64`） | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
 
-Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.2.2/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
+Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
 
 ### macOS
 
@@ -445,6 +445,10 @@ xattr -dr com.apple.quarantine "/Applications/Open DeepSeek Harness Desktop.app"
 ### Windows
 
 下载并运行 Windows x64 安装程序。未签名或刚发布的版本可能触发 Windows 信誉提示，请先确认仓库来源和 SHA-256。升级安装会识别真正属于客户端的主程序与内置运行时进程，并避免把相似目录或无关 Node 进程误判为正在运行的客户端。
+
+若所选 Release 同时提供 `DeepSeek-Harness-windows-x64.zip`，可将其全部解压到独立文件夹，再运行 `Open DeepSeek Harness Desktop.exe`，无需安装。ZIP 版不写安装注册表，也不自动注册 PATH；配置和历史仍保存在标准用户数据目录，不随 ZIP 文件夹移动。请勿把 ZIP 覆盖解压到已有安装目录。
+
+旧程序文件夹被手动删除后，残留的安装记录可能阻止重新安装。通用修复工具及使用说明位于 [`tools/windows-install-repair/`](tools/windows-install-repair/README.zh.md)；支持该工具的 Windows 构建还在程序目录的 `resources/support/windows-install-repair/` 提供它。工具先核验本应用的注册项，经用户确认后备份并修复；不会删除配置、历史或程序文件。
 
 ### Linux
 
