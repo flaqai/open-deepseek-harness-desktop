@@ -126,6 +126,8 @@ With sandbox evidence, retry unchanged using the narrowest host escalation; neve
 
 Before pushing, follow [dsh-pre-push-checks](.agents/skills/dsh-pre-push-checks/SKILL.md); report only commands run. After `gh stack sync`, validate immediately; do not merge before checks pass.
 
+For major upstream-version pushes, check default-branch ahead/behind counts before and after publication; distinguish functional integration from [history-only alignment](.agents/notes/implemented/process/2026-10-27-upstream-history-alignment.md).
+
 - Match evidence to the surface: focused behavior tests, model/user-output snapshots, `doc-sync` for docs, built smokes for published paths, and real-API e2e for providers.
 - Treat every documentation-gate failure as current task work: fix it immediately and rerun the failing aggregate to green, even when the failure predates or is outside the initiating diff.
 - Never default to the full suite or repeat a passing check for commit or push. CI owns exhaustive coverage and the platform matrix; rehearse all locally only by explicit request, for CI diagnosis, or for an irreducibly repository-wide change.

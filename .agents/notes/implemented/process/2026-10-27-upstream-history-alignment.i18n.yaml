@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-27-upstream-history-alignment.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-27-upstream-history-alignment.md
+/agent-note-upstream-ancestry-and-functional-integration:
+  en: fd131ae069215c9e
+  zh: 5aa48fcfdf11dce5
+/agent-note-upstream-ancestry-and-functional-integration/problem:
+  en: f9b45abacbfc9c5b
+  zh: b9f29c13151b7d45
+/agent-note-upstream-ancestry-and-functional-integration/decision:
+  en: 4c022cc203e03c36
+  zh: 05f17e1ce9ad1016
+/agent-note-upstream-ancestry-and-functional-integration/alternatives-considered:
+  en: c352620411eec6cf
+  zh: 62967b3c192ec972
+/agent-note-upstream-ancestry-and-functional-integration/consequences:
+  en: 94e4e4a975f436d3
+  zh: 045875d100cab91a

@@ -1,0 +1,13 @@
+{
+  "schema": "open-dsh/upstream-integration/v1",
+  "functionalBaseline": {
+    "ref": "dsh-v0.2.1-rc.3"
+  },
+  "historyAlignment": {
+    "ref": "upstream/master",
+    "mergeSubject": "chore(git): align upstream master ancestry for rc.3 on 2026-10-27",
+    "upstreamParent": 2,
+    "strategy": "ours",
+    "contentMerged": false
+  }
+}
