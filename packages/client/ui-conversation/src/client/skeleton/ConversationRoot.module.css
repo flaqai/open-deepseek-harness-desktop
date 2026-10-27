@@ -55,6 +55,20 @@
 
 :global(body[data-dsh-chat-background]) .header,
 :global(body[data-dsh-chat-background]) .composerSeat {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Keep blur off the controls' ancestors: it would re-anchor fixed tooltips
+   into the seat and let their viewport coordinates expand the scroll range. */
+:global(body[data-dsh-chat-background]) .header::before,
+:global(body[data-dsh-chat-background]) .composerSeat::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
   backdrop-filter: blur(12px) saturate(1.08);
 }
 
