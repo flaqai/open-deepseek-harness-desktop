@@ -529,9 +529,9 @@ These items describe direction, not completed support. See the [desktop release 
 Scan the QR code to join the Open DeepSeek Harness Desktop WeChat group for usage tips, troubleshooting, and feature suggestions.
 
 <p align="center">
-  <img src="../../assets/readme/wechat-group-qr-2026-10-25.jpg" width="360" alt="Open DeepSeek Harness Desktop WeChat group QR code">
+  <img src="../../assets/readme/wechat-group-qr-2026-11-03.png" width="360" alt="Open DeepSeek Harness Desktop WeChat group QR code">
   <br>
-  <sub>This QR code is valid until October 25, 2026; check this README for a replacement after it expires.</sub>
+  <sub>This QR code is valid until November 3, 2026; check this README for a replacement after it expires.</sub>
 </p>
 
 ## Acknowledgements
