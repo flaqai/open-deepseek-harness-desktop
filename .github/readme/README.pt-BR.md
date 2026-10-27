@@ -22,6 +22,7 @@ Open DeepSeek Harness Desktop é uma distribuição independente e mantida pela 
 
 ## Principais recursos atuais
 
+- **9 idiomas de interface integrados**: chinês simplificado, inglês, japonês, coreano, alemão, francês, espanhol, português (Brasil) e russo. Altere o idioma nas configurações sem instalar um plugin de idioma.
 - Espaço de conversa com largura ajustável, navegação por turnos, uso exato de Token e fila de envio.
 - Importação para ambiente independente, compartilhamento direto de diretório ou início limpo.
 - Descoberta de plugins com catálogo real, categorias, estado local e instalação direta.
@@ -43,31 +44,19 @@ Na primeira execução, o cliente verifica o diretório oficial padrão ~/.dsh. 
 
 Configurações, credenciais, sessões, informações de workspaces, presets de Agent, Skills e conexões são copiados sem alterar a origem. Profiles, node_modules, lockfiles, runtimes de plugins, registros de quarentena/saúde e identificadores anônimos não são copiados. Os plugins são reinstalados no Profile do Desktop e as alterações posteriores ficam separadas do CLI/Web oficial.
 
-<p align="center"><img src="../../assets/readme/data-home-import-en.png" width="900" alt="Importar uma configuração DSH oficial para um ambiente independente"><br><sub>Copiar os dados compatíveis e manter a origem inalterada</sub></p>
-
 ### Reutilizar uma configuração do desktop comunitário
 
 O diretório oficial ~/.dsh só pode ser importado para um ambiente independente. Diretórios com a identidade deste produto ou um registro válido de uma versão Desktop anterior podem ser reutilizados diretamente. Quando uma pasta antiga contém dados DSH reconhecíveis sem nenhum desses registros, o aplicativo pede confirmação de que ela veio de uma versão antiga do Open DeepSeek Harness Desktop. Identidades danificadas ou explicitamente estrangeiras continuam sendo recusadas para evitar o carregamento silencioso de Profiles ou plugins incompatíveis.
-
-<p align="center"><img src="../../assets/readme/data-home-reuse-en.png" width="900" alt="Reutilizar uma configuração comunitária identificada"><br><sub>Reutilização após verificar a identidade do produto</sub></p>
 
 ### Começar do zero
 
 Cria um ambiente vazio e independente sem ler ou importar configurações, sessões ou plugins existentes.
 
-<p align="center"><img src="../../assets/readme/data-home-fresh-en.png" width="900" alt="Criar um ambiente DSH independente e limpo"><br><sub>Nenhuma configuração DSH existente é lida ou alterada</sub></p>
-
 ### Escolher um diretório de dados independente
 
 **Importar para um ambiente independente** e **Começar do zero** permitem escolher, antes de continuar, entre o local padrão gerenciado e uma pasta vazia personalizada. Essa pasta passa a ser a raiz independente do cliente; a origem não é alterada nem sincronizada. No Windows, sessões, Profiles de plugins e outros dados crescentes podem ficar em D: ou outro volume que não seja do sistema, reduzindo a pressão sobre C:.
 
-<p align="center"><img src="../../assets/readme/data-home-import-custom-location-zh.png" width="900" alt="Escolher uma pasta vazia ao importar configurações"><br><sub>Importação independente: escolher o local padrão ou uma pasta vazia antes da cópia</sub></p>
-
-<p align="center"><img src="../../assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="Escolher uma pasta vazia ao começar do zero"><br><sub>Começar do zero: colocar os novos dados independentes no local escolhido</sub></p>
-
 Depois da configuração inicial, o diretório de dados ainda pode ser alterado em **Configurações → Configurações gerais**. É possível voltar ao diretório independente do cliente, usar diretamente o `~/.dsh` oficial, selecionar outro diretório DSH existente ou criar uma nova configuração em uma pasta vazia. A troca apenas seleciona o diretório usado após reiniciar; ela não copia, move, combina nem exclui os dados originais. Uma pasta vazia inicia novamente o fluxo de primeira instalação depois da reinicialização.
-
-<p align="center"><img src="../../assets/readme/data-home-switch-after-start-zh.png" width="900" alt="Trocar o diretório de dados nas Configurações gerais depois de entrar no cliente"><br><sub>Alternar com segurança para uma configuração existente ou criar uma nova configuração independente em uma pasta vazia</sub></p>
 
 Depois, o assistente orienta a configuração da API Key do modelo, o acesso pelo celular, bots IM como WeChat e Feishu e uma conexão opcional com Codex. Todas as etapas podem ser ignoradas e concluídas mais tarde nas Configurações.
 
@@ -160,7 +149,7 @@ O instalador contém nove presets de inicialização como arquivos locais com in
 
 Agradecemos aos autores e mantenedores de [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) e [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget). Este projeto cuida da integração desktop e da distribuição de arquivos com integridade verificada; direitos autorais, licenças e manutenção contínua permanecem com cada projeto de plugin.
 
-<p align="center"><img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Conectar um celular pelo QR code ou endereço LAN do Pocket"><br><sub>Acesso móvel: escanear na mesma rede e ativar acesso público somente quando necessário</sub></p>
+As instalações e configurações existentes do Pocket são preservadas na atualização; o Pocket pode ser desinstalado manualmente pelo gerenciamento de plugins.
 
 <p align="center"><img src="../../assets/readme/preset-im-robot-zh.png" width="900" alt="Conectar WeChat e outros bots IM pelo dsh-im"><br><sub>Bots IM: WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord e WhatsApp</sub></p>
 

@@ -22,6 +22,7 @@ Open DeepSeek Harness Desktop는 [DeepSeek Harness](https://github.com/deepseek-
 
 ## 현재 주요 기능
 
+- **9개 인터페이스 언어 기본 지원**: 중국어 간체, 영어, 일본어, 한국어, 독일어, 프랑스어, 스페인어, 포르투갈어(브라질), 러시아어. 별도의 언어 플러그인 없이 설정에서 전환할 수 있습니다.
 - 조절 가능한 본문, 턴 탐색, 정확한 Token 사용량과 전송 대기열을 갖춘 AI 대화 작업 공간.
 - 공식 설정을 독립 환경으로 가져오기, 기존 디렉터리 공유 또는 완전히 새로 시작하기.
 - 실제 시장 데이터, 분류, 로컬 상태와 직접 설치를 사용하는 플러그인 탐색.
@@ -43,31 +44,19 @@ Open DeepSeek Harness Desktop는 [DeepSeek Harness](https://github.com/deepseek-
 
 설정, 자격 증명, 세션, 작업 공간 정보, Agent 프리셋, Skill, 연결 상태를 데스크톱 전용 디렉터리로 복사하며 원본은 변경하지 않습니다. Profile, node_modules, 잠금 파일, 플러그인 런타임, 격리·상태 기록, 익명 식별자는 복사하지 않습니다. 플러그인은 데스크톱 Profile에 다시 설치되며 이후 공식 CLI/Web과 독립적으로 변경됩니다.
 
-<p align="center"><img src="../../assets/readme/data-home-import-en.png" width="900" alt="공식 DSH 설정을 독립 데스크톱 환경으로 가져오기"><br><sub>지원 데이터만 복사하고 원본 환경은 유지합니다</sub></p>
-
 ### 커뮤니티 데스크톱 설정 재사용
 
 공식 ~/.dsh는 독립 환경으로만 가져올 수 있습니다. 이 앱의 제품 식별 파일이나 유효한 이전 데스크톱 설정 기록이 있는 디렉터리는 직접 재사용할 수 있습니다. 인식 가능한 DSH 데이터는 있지만 두 기록이 모두 없는 이전 폴더라면, 앱이 이전 Open DeepSeek Harness Desktop에서 만든 데이터인지 확인한 뒤 계속할 수 있습니다. 손상되었거나 명백히 다른 제품의 식별 정보는 호환되지 않는 Profile이나 플러그인을 알림 없이 불러오지 않도록 계속 거부됩니다.
-
-<p align="center"><img src="../../assets/readme/data-home-reuse-en.png" width="900" alt="식별된 커뮤니티 데스크톱 설정 재사용"><br><sub>제품 식별을 확인한 뒤 커뮤니티 설정을 재사용합니다</sub></p>
 
 ### 새로 시작
 
 기존 설정, 세션, 플러그인을 읽지 않고 완전히 독립적인 빈 환경을 만듭니다.
 
-<p align="center"><img src="../../assets/readme/data-home-fresh-en.png" width="900" alt="새로운 독립 DSH 환경 만들기"><br><sub>기존 DSH 설정을 읽거나 변경하지 않습니다</sub></p>
-
 ### 독립 데이터 디렉터리 직접 선택
 
 **독립 환경으로 가져오기**와 **새로 시작** 모두 계속하기 전에 관리형 기본 위치나 비어 있는 사용자 지정 폴더를 선택할 수 있습니다. 선택한 빈 폴더가 이 클라이언트의 독립 데이터 루트가 되며 원본 설정은 변경되거나 동기화되지 않습니다. Windows에서는 계속 커지는 세션과 플러그인 Profile을 D 드라이브 등 비시스템 볼륨에 두어 C 드라이브 부담을 줄일 수 있습니다.
 
-<p align="center"><img src="../../assets/readme/data-home-import-custom-location-zh.png" width="900" alt="설정 가져오기 중 비어 있는 사용자 지정 디렉터리 선택"><br><sub>독립 가져오기: 복사 전에 기본 위치 또는 빈 폴더 선택</sub></p>
-
-<p align="center"><img src="../../assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="새로 시작할 때 비어 있는 사용자 지정 디렉터리 선택"><br><sub>새로 시작: 독립 데이터를 사용자가 선택한 위치에 저장</sub></p>
-
 최초 설정을 마친 뒤에도 **설정 → 일반 설정**에서 데이터 디렉터리를 바꿀 수 있습니다. 클라이언트 독립 디렉터리로 돌아가거나, 공식 `~/.dsh`를 직접 사용하거나, 다른 기존 DSH 디렉터리를 선택하거나, 빈 폴더에 새 구성을 만들 수 있습니다. 전환은 재시작 후 사용할 디렉터리만 선택하며 기존 데이터를 복사, 이동, 병합 또는 삭제하지 않습니다. 빈 폴더를 선택하면 재시작 후 최초 설치 절차가 다시 시작됩니다.
-
-<p align="center"><img src="../../assets/readme/data-home-switch-after-start-zh.png" width="900" alt="클라이언트 진입 후 일반 설정에서 데이터 디렉터리 전환"><br><sub>기존 구성을 안전하게 전환하거나 빈 폴더에 새 독립 구성 생성</sub></p>
 
 진입 후 설정 마법사에서 모델 API Key, 휴대폰 접속, WeChat·Feishu 등 IM 봇과 선택적인 Codex 연결을 구성할 수 있습니다. 모든 단계는 건너뛰고 나중에 설정에서 완료할 수 있습니다.
 
@@ -166,7 +155,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)의 제작자와 유지관리자에게 감사드립니다. 이 프로젝트는 데스크톱 통합과 무결성이 확인된 아카이브 배포를 담당하며, 각 플러그인의 저작권, 라이선스 및 지속적인 유지관리는 해당 프로젝트에 귀속됩니다.
 
-<p align="center"><img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Pocket QR 코드 또는 LAN 주소로 휴대폰 연결"><br><sub>휴대폰 접속: 같은 네트워크에서 스캔하고 필요할 때만 공용 접속 활성화</sub></p>
+기존 Pocket 설치와 설정은 업그레이드 후에도 유지되며 플러그인 관리에서 직접 제거할 수 있습니다.
 
 <p align="center"><img src="../../assets/readme/preset-im-robot-zh.png" width="900" alt="dsh-im으로 WeChat 등 IM 봇 연결"><br><sub>IM 봇: WeChat, Feishu, DingTalk, WeCom, QQ, Slack, Telegram, Discord, WhatsApp 연결</sub></p>
 

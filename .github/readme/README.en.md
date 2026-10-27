@@ -32,6 +32,7 @@ Installers include Node.js, pnpm, and the Harness runtime, so users do not need 
 
 ## Current feature highlights
 
+- **Built-in support for 9 interface languages**: Simplified Chinese, English, Japanese, Korean, German, French, Spanish, Portuguese (Brazil), and Russian. Switch languages in Settings without installing a language plugin.
 - [AI conversation workspace](#ai-conversation-workspace): adjustable content, turn navigation, exact token usage, queued messages, and richer image and file handling.
 - [First launch and independent data environments](#first-launch-and-independent-data-environments): import an official configuration, share a directory directly, or start fresh.
 - [NAS runtime (preview)](#nas-runtime-preview): a community-provided Linux runtime that lets multiple desktop clients use one Profile, conversation store, and Workspace set.
@@ -62,57 +63,21 @@ Supported data is copied into a desktop-owned directory while the source remains
 
 Profiles, `node_modules`, lockfiles, plugin runtimes, bundled-plugin markers, quarantine and health records, and anonymous identifiers are not copied. Plugin configuration and a restoration list are retained, but plugin packages are installed again into the desktop Profile. After import, later changes in Desktop and the official DSH CLI/Web environment remain independent.
 
-<p align="center">
-  <img src="../../assets/readme/data-home-import-en.png" width="900" alt="Import an official DSH configuration into an independent desktop environment">
-  <br>
-  <sub>Import into an independent environment: copy supported data and leave the source unchanged</sub>
-</p>
-
 ### Reuse a community desktop configuration
 
 The official `~/.dsh` directory can only be imported into an independent environment; it is no longer offered as a shared live directory. Open DeepSeek Harness Desktop writes a product-identity file when it creates or adopts a data directory. A community configuration carrying that identity or a valid legacy desktop record can be reused directly. When recognizable DSH data has neither record, the app asks the user to confirm that it came from an older Open DeepSeek Harness Desktop release before continuing. Malformed or explicitly foreign identity records remain rejected to avoid silently loading an incompatible Profile, plugin set, or desktop state.
 
 After the identity check passes, settings, credentials, sessions, Agent presets, Skills, Profiles, and plugins are shared by Open DeepSeek Harness Desktop instances using that directory.
 
-<p align="center">
-  <img src="../../assets/readme/data-home-reuse-en.png" width="900" alt="Reuse an identified Open DeepSeek Harness Desktop configuration">
-  <br>
-  <sub>Reuse a community desktop configuration after its product identity is verified</sub>
-</p>
-
 ### Start fresh
 
 Create an empty, desktop-owned data directory without importing existing settings, sessions, or plugins. This is suitable for first-time DSH users and for testing a clean environment.
-
-<p align="center">
-  <img src="../../assets/readme/data-home-fresh-en.png" width="900" alt="Create a clean independent data environment for Desktop">
-  <br>
-  <sub>Start fresh: do not read or modify an existing DSH configuration</sub>
-</p>
 
 ### Choose a custom independent data directory
 
 Both **Import into an independent environment** and **Start fresh** offer a choice between the managed default and a custom data directory before continuing. A custom target must be an empty folder and becomes this client's independent data root; the source configuration is not modified or kept in sync. On Windows, sessions, plugin Profiles, and other growing data can live on drive D: or another non-system volume instead of putting continued pressure on drive C:.
 
-<p align="center">
-  <img src="../../assets/readme/data-home-import-custom-location-zh.png" width="900" alt="Choose an empty custom data directory while importing official configuration">
-  <br>
-  <sub>Independent import: choose the managed default or an empty folder before copying data</sub>
-</p>
-
-<p align="center">
-  <img src="../../assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="Choose an empty custom data directory when starting fresh">
-  <br>
-  <sub>Start fresh: place the new independent data root in a user-selected location</sub>
-</p>
-
 After initial setup, the data directory can still be changed from **Settings → General settings**. Return to the client-managed directory, use the official `~/.dsh`, select another existing DSH directory, or create a new configuration in an empty folder. Switching only selects the directory used after restart; it does not copy, move, merge, or delete data in the original directory. An empty folder starts the first-install flow again after restart.
-
-<p align="center">
-  <img src="../../assets/readme/data-home-switch-after-start-zh.png" width="900" alt="Switch the data directory from General settings after entering the client">
-  <br>
-  <sub>Switch safely to an existing configuration or create a new independent configuration in an empty folder</sub>
-</p>
 
 After entry, the setup wizard can configure a model API key, connect phone access, set up WeChat or Feishu and other IM bots, and optionally connect Codex. Every task can be skipped and completed later from Settings.
 
@@ -334,11 +299,7 @@ The installer carries integrity-checked archives for eight startup presets and a
 
 Thank you to the authors and maintainers of [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), and [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget). This project provides desktop integration and integrity-checked unmodified archive distribution; code, assets, licensing, and ongoing maintenance remain with each plugin project.
 
-<p align="center">
-  <img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Connect a phone through the Pocket QR code or LAN address">
-  <br>
-  <sub>Mobile access: scan on the same network or explicitly enable public access when needed</sub>
-</p>
+Existing Pocket installations and configuration are preserved on upgrade; Pocket can be uninstalled manually through plugin management.
 
 <p align="center">
   <img src="../../assets/readme/preset-im-robot-zh.png" width="900" alt="Connect WeChat and other IM bots through dsh-im">

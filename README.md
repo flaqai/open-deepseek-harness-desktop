@@ -32,6 +32,7 @@ Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](htt
 
 ## 当前功能亮点
 
+- **原生支持 9 种界面语言**：简体中文、英语、日语、韩语、德语、法语、西班牙语、葡萄牙语（巴西）、俄语，可在设置中切换，无需额外语言插件。
 - [AI 会话工作台](#ai-会话工作台)：可调正文、回合导航、精确 Token、发送队列，以及更完整的图片与文件体验。
 - [首次启动与独立配置环境](#首次启动与独立配置环境)：导入官方配置、复用社区桌面版配置或全新开始。
 - [NAS 运行端（预览）](#nas-运行端预览)：社区提供的 Linux NAS 运行端，让多台桌面客户端连接同一套 Profile、会话和 Workspace。
@@ -62,57 +63,21 @@ Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](htt
 
 导入不会复制 Profile、`node_modules`、锁文件、插件运行时、内置插件标记、隔离与健康记录或匿名用户标识。插件配置和插件清单会被识别，但插件本体需要在客户端的独立 Profile 中重新安装。导入完成后，客户端与官方 DSH CLI/Web 环境互不影响。
 
-<p align="center">
-  <img src="./assets/readme/data-home-import-zh.png" width="900" alt="将官方 DSH 配置导入桌面客户端的独立环境">
-  <br>
-  <sub>导入到独立环境：复制受支持数据，来源目录保持不变</sub>
-</p>
-
 ### 复用社区桌面版配置
 
 官方 `~/.dsh` 只能导入到独立环境，不再提供直接共享选项。Open DeepSeek Harness Desktop 创建或采用配置目录时会写入专用身份文件；具有该身份文件或有效旧版桌面设置记录的社区配置可以直接复用。对于只有可识别 DSH 数据、但缺少两种记录的旧目录，应用会明确询问是否确实来自旧版 Open DeepSeek Harness Desktop；用户确认后才允许继续。损坏或明确属于其他发行版的身份记录仍会拒绝，以免无提示地加载不兼容的 Profile、插件或桌面状态。
 
 通过身份检查后，设置、凭据、会话、Agent 预设、Skill、Profile 和插件均与所选社区配置共享；使用该目录的 Open DeepSeek Harness Desktop 实例会读写同一份数据。
 
-<p align="center">
-  <img src="./assets/readme/data-home-reuse-zh.png" width="900" alt="桌面客户端直接使用已识别的社区桌面版配置目录">
-  <br>
-  <sub>复用社区桌面版配置：通过产品身份检查后与所选目录共享数据</sub>
-</p>
-
 ### 全新开始
 
 创建完全独立的客户端数据目录，不导入任何现有设置、会话或插件。适合首次使用 DSH，或希望测试干净环境的用户。
-
-<p align="center">
-  <img src="./assets/readme/data-home-fresh-zh.png" width="900" alt="为桌面客户端创建全新的独立配置环境">
-  <br>
-  <sub>全新开始：不读取或修改任何已有 DSH 配置</sub>
-</p>
 
 ### 自定义独立配置目录
 
 “导入到独立环境”和“全新开始”都会在继续前提供“默认设置”与“自定义配置目录”。自定义位置必须是空文件夹，确认后成为本客户端独立的数据根目录；来源配置不会被修改，之后也不会与官方目录同步。Windows 用户可以将会话、插件 Profile 等会持续增长的数据放到 D 盘或其他非系统盘，减少 C 盘空间压力。
 
-<p align="center">
-  <img src="./assets/readme/data-home-import-custom-location-zh.png" width="900" alt="导入官方配置时选择自定义空配置目录">
-  <br>
-  <sub>导入到独立环境：复制数据前选择默认位置或自定义空文件夹</sub>
-</p>
-
-<p align="center">
-  <img src="./assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="全新开始时选择自定义空配置目录">
-  <br>
-  <sub>全新开始：把新的独立数据目录放到用户选择的位置</sub>
-</p>
-
 完成首次设置后，仍可在“设置 → 通用设置”中切换数据目录：回到客户端独立目录、直接使用官方 `~/.dsh`、选择其他已有 DSH 目录，或在空文件夹创建一套新配置。切换只决定重启后使用哪个目录，不会复制、移动、合并或删除原目录中的数据；选择空文件夹时，重启后会重新进入首次安装流程。
-
-<p align="center">
-  <img src="./assets/readme/data-home-switch-after-start-zh.png" width="900" alt="进入客户端后从通用设置切换数据目录">
-  <br>
-  <sub>进入后仍可安全切换已有配置，或在空文件夹创建新的独立配置</sub>
-</p>
 
 进入客户端后，初始化向导会引导配置模型 API Key、连接手机访问、设置微信或飞书等 IM 机器人，以及按需连接 Codex。所有步骤都可以跳过，并在之后从设置页继续完成。
 
@@ -369,11 +334,7 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 感谢现有及历史启动预设的作者与维护者：[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) 和 [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)。本项目负责桌面集成和经过校验的原样归档分发；各插件的代码、素材、许可证与后续维护归各自项目。
 
-<p align="center">
-  <img src="./assets/readme/preset-mobile-access-zh.png" width="900" alt="旧版 dsh-pocket 手机访问界面">
-  <br>
-  <sub>旧版 Pocket 手机访问界面；升级后现有 Pocket 配置继续保留，可在插件管理中手动卸载</sub>
-</p>
+旧版 Pocket 的安装与配置在升级后继续保留，可在插件管理中手动卸载。
 
 <p align="center">
   <img src="./assets/readme/preset-im-robot-zh.png" width="900" alt="通过 dsh-im 连接微信等十二种 IM 机器人">

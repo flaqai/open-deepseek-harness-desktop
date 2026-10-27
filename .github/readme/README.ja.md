@@ -26,6 +26,7 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 
 ## 現在の主な機能
 
+- **9 言語のインターフェースを標準搭載**：簡体字中国語、英語、日本語、韓国語、ドイツ語、フランス語、スペイン語、ポルトガル語（ブラジル）、ロシア語。追加の言語プラグインなしで、設定から切り替えられます。
 - 調整可能な本文、ターン移動、正確な Token 使用量、送信キューを備えた AI 会話ワークスペース。
 - 公式設定の独立環境へのコピー、既存ディレクトリの共有、または新規作成。
 - 実際の市場データ、カテゴリ、ローカル状態、直接インストールを使うプラグイン探索。
@@ -47,40 +48,19 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 
 設定、資格情報、セッション、ワークスペース情報、Agent プリセット、Skill、接続状態をデスクトップ専用ディレクトリへコピーし、元のディレクトリは変更しません。Profile、node_modules、ロックファイル、プラグイン実体、隔離記録、匿名識別子はコピーしません。プラグインはデスクトップ側で再インストールされ、その後の変更は公式 CLI/Web 環境と共有されません。
 
-<p align="center">
-  <img src="../../assets/readme/data-home-import-en.png" width="900" alt="公式 DSH 設定を独立したデスクトップ環境へインポート">
-  <br><sub>独立環境へインポート：対応データのみをコピーし、元の環境を維持</sub>
-</p>
-
 ### コミュニティデスクトップ設定を再利用
 
 公式 ~/.dsh は独立環境へのインポート専用です。本アプリの製品識別ファイルまたは有効な旧版デスクトップ設定記録を持つディレクトリは直接再利用できます。認識可能な DSH データがありながら両方の記録がない旧フォルダーでは、旧版 Open DeepSeek Harness Desktop のデータであることを確認してから続行できます。壊れた識別情報や明らかに別製品の識別情報は、互換性のない Profile やプラグインを無断で読み込まないよう引き続き拒否されます。
-
-<p align="center">
-  <img src="../../assets/readme/data-home-reuse-en.png" width="900" alt="識別済みのコミュニティデスクトップ設定を再利用">
-  <br><sub>製品識別を確認してコミュニティ設定を再利用</sub>
-</p>
 
 ### 新しく開始
 
 既存の設定、セッション、プラグインを読み込まず、完全に独立した空の環境を作成します。
 
-<p align="center">
-  <img src="../../assets/readme/data-home-fresh-en.png" width="900" alt="新しい独立 DSH 環境を作成">
-  <br><sub>新しく開始：既存 DSH 設定を読み取りも変更もしません</sub>
-</p>
-
 ### 独立データディレクトリを自由に選択
 
 「独立環境へインポート」と「新しく開始」は、続行前に管理された既定位置または空のカスタムフォルダを選択できます。選択した空フォルダがこのクライアント専用のデータルートになり、元の設定は変更も同期もされません。Windows では、増え続けるセッションやプラグイン Profile を D ドライブなどへ置き、C ドライブの負担を減らせます。
 
-<p align="center"><img src="../../assets/readme/data-home-import-custom-location-zh.png" width="900" alt="設定のインポート時に空のカスタムディレクトリを選択"><br><sub>独立インポート：コピー前に既定位置または空フォルダを選択</sub></p>
-
-<p align="center"><img src="../../assets/readme/data-home-fresh-custom-location-zh.png" width="900" alt="新しく開始するときに空のカスタムディレクトリを選択"><br><sub>新しく開始：独立データをユーザーが選んだ場所へ保存</sub></p>
-
 初回設定の完了後も、**設定 → 一般設定** からデータディレクトリを切り替えられます。クライアント専用ディレクトリへ戻る、公式の `~/.dsh` を直接使用する、別の既存 DSH ディレクトリを選ぶ、または空フォルダに新しい設定を作成できます。切り替えは再起動後に使用するディレクトリを選ぶだけで、元のデータをコピー、移動、統合、削除しません。空フォルダを選ぶと、再起動後に初回インストール手順が再び始まります。
-
-<p align="center"><img src="../../assets/readme/data-home-switch-after-start-zh.png" width="900" alt="クライアント起動後に一般設定からデータディレクトリを切り替える"><br><sub>既存設定へ安全に切り替えるか、空フォルダに新しい独立設定を作成</sub></p>
 
 セットアップウィザードでは、モデル API Key、スマートフォンアクセス、WeChat／Feishu などの IM ボット、任意の Codex 接続を設定できます。すべての手順はスキップでき、後から設定画面で完了できます。
 
@@ -182,7 +162,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 [`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid)、[`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) の作者とメンテナーに感謝します。本プロジェクトはデスクトップ統合と整合性を検証したアーカイブ配布を担当し、各プラグインの著作権、ライセンス、継続的な保守はそれぞれのプロジェクトに帰属します。
 
-<p align="center"><img src="../../assets/readme/preset-mobile-access-zh.png" width="900" alt="Pocket の QR コードまたは LAN アドレスでスマートフォンを接続"><br><sub>スマートフォンアクセス：同じネットワークでスキャンし、必要に応じて公開アクセスも有効化</sub></p>
+既存の Pocket のインストールと設定はアップグレード後も保持され、プラグイン管理から手動でアンインストールできます。
 
 <p align="center"><img src="../../assets/readme/preset-im-robot-zh.png" width="900" alt="dsh-im で WeChat などの IM ボットを接続"><br><sub>IM ボット：WeChat、Feishu、DingTalk、WeCom、QQ、Slack、Telegram、Discord、WhatsApp に接続</sub></p>
 
