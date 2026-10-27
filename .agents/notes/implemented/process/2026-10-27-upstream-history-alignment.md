@@ -14,6 +14,8 @@ The [integration record](../../../upstream-integration.json) distinguishes the r
 
 Major upstream-version pushes fetch both remotes, compare `origin/master...upstream/master` using `git rev-list --left-right --count`, and inspect missing commits before choosing content integration or authorized history alignment. After pushing master, re-read its remote SHA and compare again. Report the remaining behind count and the actual functional baseline separately; a release-branch push alone does not complete this check.
 
+Before and after these pushes, enumerate `git worktree list --porcelain`. Keep the main checkout and worktrees with active tasks, uncommitted or untracked work, or commits absent from master. Remove a redundant integration worktree only after its full status is clean, its tip is an ancestor of master, and ignored files have been inspected for needed artifacts or local data. Use the exact path with `git worktree remove`, or archive an attached app-managed worktree through the app tool. Retain branch references, avoid force removal, and report removed and retained worktrees separately. Cleanup alone does not authorize a push.
+
 When history alignment extends past the functional baseline, the next source integration compares the complete delta from the resolved `functionalBaseline.ref` to its fixed target. Git's automatic merge base is insufficient. An explicit-base `git merge-tree --write-tree --merge-base=<functional-baseline> HEAD <target>` retains the skipped delta for conflict review. The integration record updates alongside the resulting source changes.
 
 ## Alternatives considered

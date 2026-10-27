@@ -14,6 +14,8 @@ GitHub 比较 fork 的默认分支与上游 master，而社区发行版集成固
 
 大版本上游更新推送时，获取两个远端，用 `git rev-list --left-right --count` 比较 `origin/master...upstream/master`，检查缺少的提交，再选择内容集成或经授权的历史对齐。推送 master 后重新读取远端 SHA 并再次比较。分别报告剩余落后数与真实功能基线；只推送发行分支不算完成这项检查。
 
+这些推送前后都要用 `git worktree list --porcelain` 列出工作树。保留主工作区，以及仍有活跃任务、未提交或未跟踪内容、或尚未合入 master 的提交的工作树。无用的集成工作树只有在完整状态干净、其末端提交是 master 的祖先、且已检查忽略文件中是否有需保留的产物或本地数据后才可移除。对准确路径执行 `git worktree remove`；若属于应用管理并已附加的工作树，则通过应用工具归档。保留分支引用，不强制移除，并分别报告移除和保留的工作树。仅请求清理不代表授权推送。
+
 历史对齐超过真实功能基线时，下次源码集成要解析 `functionalBaseline.ref`，比较从该提交到固定目标的完整差异。Git 自动选择的合并基线不足以覆盖这些变化。显式基线命令 `git merge-tree --write-tree --merge-base=<functional-baseline> HEAD <target>` 会保留此前跳过的增量以供冲突审阅。集成记录与最终源码改动一起更新。
 
 ## 考虑过的替代方案
