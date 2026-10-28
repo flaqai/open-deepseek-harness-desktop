@@ -49,8 +49,8 @@ export function PresentedFileCard({ file, cwd, phase, host, onPreview, actions, 
             style={succeeded ? { animationDelay: `${PRESENTED_SUCCESS_HOLD_MS}ms`, animationDuration: `${PRESENTED_SUCCESS_FADE_MS}ms` } : undefined}>
             {status}
           </span>
-          <span className={css.previewHint}>{t('presented.preview')}</span>
         </span>
+        <button type="button" className={css.previewButton} onClick={onPreview}>{t('presented.preview')}</button>
       </div>
       <div className={css.actions}>{actions}</div>
     </div>

@@ -70,3 +70,12 @@ it('renders the supplied action independently from the card preview', () => {
   fireEvent.click(view.getByRole('button', { name: 'Preview out/report.pdf in sidebar' }))
   expect(p.onPreview).toHaveBeenCalledOnce()
 })
+
+
+it.each([en, zh].flatMap(dictionary => ['pdf', 'docx', 'pptx', 'xlsx', 'doc', 'ppt', 'xls'].map(extension => ({ dictionary, extension }))))('offers sidebar preview for $extension without a desktop file opener', ({ dictionary, extension }) => {
+  const p = { ...props(), file: { ...props().file, path: `out/report.${extension}` } }
+  const view = render(<PresentedFileCard {...p} host={null} actions={null} t={makeTranslate(dictionary)} />)
+  const preview = view.getByRole('button', { name: dictionary['presented.preview'] })
+  fireEvent.click(preview)
+  expect(p.onPreview).toHaveBeenCalledOnce()
+})
