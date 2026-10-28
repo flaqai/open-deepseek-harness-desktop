@@ -65,7 +65,7 @@
     ".leading: border-radius: 10px"
   ],
   "ui-schedule/src/client/TaskManagerPage.module.css": [
-    ".newButton: border-radius: 16px",
+    ".headerAction: border-radius: 16px",
     ".filterTab: border-radius: 14px",
     ".searchField: border-radius: 12px",
     ".row: border-radius: 12px",
@@ -94,12 +94,6 @@
     ".dialogButton: border-radius: 12px",
     ".page .action: border-radius: 12px",
     ".indicator: border-radius: 6px"
-  ],
-  "ui-settings-general/src/client/SettingsRoot.module.css": [
-    ".navItem: border-radius: 12px",
-    ".dragHandle: border-radius: 8px",
-    ".onboardingPanel: border-radius: 24px",
-    ".onboardingBack, .onboardingDone: border-radius: 12px"
   ],
   "ui-settings-models/src/client/DeepSeekOnboardingDialog.module.css": [
     ".defaultConnection: border-radius: 12px"
@@ -179,9 +173,6 @@
     ".keyBadge: border-radius: 10px",
     ".unbound: border-radius: 10px",
     ".recorder: border-radius: 10px"
-  ],
-  "ui-sidebar/src/client/SidebarRoot.module.css": [
-    ".mobileTrigger: border-radius: 12px"
   ],
   "ui-theme/src/client/AppearanceRow.module.css": [
     ".choiceCard, .backgroundCard: border-radius: 14px",

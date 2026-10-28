@@ -28,13 +28,13 @@ kind: "package-reference"
 
 `@deepseek-ai/dsh-web-app` 组合包默认加载本包，无需在插件页开启或由 profile 选择。区域只在其 actions slot 有注册项时显示“更多”按钮，因此卸载本包会移除三个按钮。
 
-打开左侧导航入口下方的**更多**、会话 View 标签之后的**更多会话视图**，或右侧栏起始页卡片之后的**更多工具**。左侧栏和起始页菜单仅提供**浏览更多插件**与**创建你的插件**。会话菜单在这两个操作之前列出收起的 View，并标记当前 View。所有菜单都不提供 Pin 或排序操作。
+打开左侧导航入口下方的**更多**、会话 View 标签之后的**更多会话视图**，或右侧栏起始页卡片之后的**更多工具**。左侧栏和起始页菜单仅提供**浏览更多插件**（可用时）与**创建你的插件**。会话菜单在这些操作之前列出收起的 View，并在当前 View 右侧显示勾选标记。所有菜单都不提供 Pin 或排序操作。
 
-**浏览更多插件**进入插件页主列表，不打开安装弹窗。**创建你的插件**用 Creator 预设打开新 Session 或可复用的空白 Session，并把对应区域的简短本地化插件创建请求加入草稿：空草稿直接以该请求为文字，已有草稿保留其文字、引用和附件，请求另起一段追加在后面。它绝不发送消息。请自行审阅并发送草稿。两项操作不受区域条目数量影响；仅当前面有收起的 View 时，在浏览操作之前显示分隔线。
-
-连接设备没有 `session/create` 权限时，创建入口隐藏，NAS 只读设备也适用；浏览入口保留。权限变化会同步更新已打开的菜单，服务端仍独立校验 Session 创建权限。
+**浏览更多插件**进入插件页主列表，不打开安装弹窗。**创建你的插件**用 Creator 预设打开新 Session 或可复用的空白 Session，并把对应区域的简短本地化插件创建请求加入草稿：空草稿直接以该请求为文字，已有草稿保留其文字、引用和附件，请求另起一段追加在后面。它绝不发送消息。请自行审阅并发送草稿。无论区域是否有入口，创建操作始终可用；分隔线仅显示在收起的 View 与操作之间，浏览可用时位于浏览之前，否则位于创建之前。
 
 在桌面端，**浏览更多插件**与**创建你的插件**在执行前上报 `more_menu_item_click`，`action` 为 `browse_plugins` 或 `create_plugin`，`region` 为菜单所在区域：**更多**为 `sidebar`，**更多会话视图**为 `conversation`，**更多工具**为 `rightbar`。菜单不上报曝光事件。没有埋点服务时，两项操作行为不变且不上报。
+
+「浏览插件」一行只在 `pluginNavigation` 服务存在时出现；没有该服务时插件照常启动。该服务缺失时仅移除浏览操作，不影响“更多”按钮、收起的 View 或创建操作。
 
 -----
 
@@ -46,7 +46,7 @@ kind: "package-reference"
 
 [`apply`](src/client/index.ts) 通过 `ctx.slots.inject` 以 id `entry-customization` 把 [`EntryMenuContent`](src/client/EntryMenuContent.tsx) 注册到 `sidebar.panellist.actions`、`conversation.session.header.views.actions` 和 `sidebar.right.tab.guide.actions`，每个注册项跟随所在区域声明的生命周期。各区域在自己的 `Menu` 中渲染这些 slot；菜单行先调用 `onDismiss`，再执行浏览或创建操作。仅会话菜单消费 owner 提供的收起入口列表及导航回调；Pin 回调不被消费。
 
-每个注册项的 `inject` 提供所属区域与两个回调。每个回调先调用 `ctx.get('productAnalytics')?.track('more_menu_item_click', { region, action })`。浏览随后调用 `pluginNavigation.openList()`。创建随后按区域取本地化提示语，调用 `uiWorkspace.startSession(undefined, { agentPreset: 'cordis', prompt, whenDraftExists: 'append' })`；该调用不经过 `ui-agent-preset`，预设标签不播放介绍动画。[`dsh-web-app` bundle patch](../../bundle/web-app/cordis.patch.yml) 挂载浏览器插件。
+每个注册项的 `inject` 提供所属区域与两个回调。每个回调先调用 `ctx.get('productAnalytics')?.track('more_menu_item_click', { region, action })`。浏览随后调用 `ctx.get('pluginNavigation')?.openList()`；ui-plugin-manager 只在插件页有权限时提供该服务，因此本包按可选方式读取，不把它写进 `inject`。创建随后按区域取本地化提示语，调用 `uiWorkspace.startSession(undefined, { agentPreset: 'cordis', prompt, whenDraftExists: 'append' })`；该调用不经过 `ui-agent-preset`，预设标签不播放介绍动画。[`dsh-web-app` bundle patch](../../bundle/web-app/cordis.patch.yml) 挂载浏览器插件。
 
 </details>
 

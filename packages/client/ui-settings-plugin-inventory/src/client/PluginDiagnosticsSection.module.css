@@ -305,8 +305,11 @@
   color: var(--dsw-alias-label-primary);
 }
 
+@media (hover: hover) {
+
 .fixtureCancel:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
 }
 
 .fixtureConfirm {
@@ -315,9 +318,12 @@
   color: var(--dsw-alias-label-primary-foreground);
 }
 
+@media (hover: hover) {
+
 .fixtureConfirm:hover {
   border-color: var(--dsw-alias-button-primary-hover);
   background: var(--dsw-alias-button-primary-hover);
+}
 }
 
 .inlineError button {

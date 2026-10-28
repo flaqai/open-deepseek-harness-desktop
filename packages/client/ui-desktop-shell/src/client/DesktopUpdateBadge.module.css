@@ -4,8 +4,11 @@
   transition: color 160ms ease;
 }
 
+@media (hover: hover) {
+
 .badge:hover {
   color: var(--dsw-alias-label-primary);
+}
 }
 
 .dot {

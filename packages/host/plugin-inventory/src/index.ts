@@ -117,11 +117,18 @@ export async function readPluginInventory(ctx: Context): Promise<LoaderPluginInv
     if (entry.options.group) continue
     const base = entry.parent.tree.ctx.baseUrl
     const meta = base === undefined ? undefined : packages?.metaOf(entry.options.name, base)
+    const fiber = entry.fiber
+    const fiberPhase = fiber === undefined ? null : FIBER_PHASE[fiber.state]
+    let diagnostic: string | undefined
+    if (fiber !== undefined && fiberPhase === 'failed') {
+      try { await fiber.await() } catch (error) { diagnostic = error instanceof Error ? error.message : String(error) }
+    }
     entries.push({
       entryId: pluginEntryId(entry.id),
       moduleName: entry.options.name,
       enabled: !entry.disabled,
-      fiberPhase: entry.fiber === undefined ? null : FIBER_PHASE[entry.fiber.state],
+      fiberPhase,
+      ...diagnostic === undefined ? {} : { diagnostic },
       ...meta === undefined ? {} : { meta },
     })
   }
@@ -289,14 +296,14 @@ const EXTERNAL_TOOL_CONFIGS = {
     provider: 'codex',
     toolName: 'subagent_codex',
     usageHint: 'Codex is connected through the subagent_codex tool. When the user asks to use Codex or asks for work to be done in Codex, call subagent_codex instead of searching for or invoking a Codex CLI through shell tools.',
-    modelSelectionSettings: false,
+    modelSelection: false,
     maxDepth: 'provider-managed',
   },
   'claude-code': {
     provider: 'claude-code',
     toolName: 'subagent_claude_code',
     usageHint: 'Claude Code is connected through the subagent_claude_code tool. When the user asks to use Claude Code or asks for work to be done in Claude Code, call subagent_claude_code instead of searching for or invoking a Claude CLI through shell tools.',
-    modelSelectionSettings: false,
+    modelSelection: false,
     maxDepth: 'provider-managed',
   },
 } as const satisfies Record<ExternalToolId, ToolSubagent.Config>

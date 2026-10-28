@@ -1,3 +1,4 @@
+import { DEFAULT_PROFILE_BUNDLES, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 /**
  * Shared profile boot for every `dsh` surface: resolve the profile, stack its
  * patch layers (bundle layers in `dsh.profile.bundles` order, the profile's
@@ -25,7 +26,6 @@ import {
   finalizeProfilePluginSnapshot,
   composeEntries,
   createRuntimeResolution,
-  DEFAULT_PROFILE_BUNDLES,
   initProfile,
   installFailLoud,
   loadDiagnosticProfile,
@@ -45,7 +45,6 @@ import {
   repairProfileDependencies,
   resolveProfileDir,
   PROFILE_PATCH_FILENAME,
-  PROFILE_TEMPLATES,
   writeProfileDiagnosticReport,
   type Profile,
   type ProfileContext,

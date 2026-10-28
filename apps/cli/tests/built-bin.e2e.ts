@@ -1274,6 +1274,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
         ['session-title', '@deepseek-ai/dsh-session-title'],
         ['system-prompt', '@deepseek-ai/dsh-system-prompt'],
         ['tools', '@deepseek-ai/dsh-tools'],
+        ['tool-executor-native', '@deepseek-ai/dsh-tool-executor-native'],
         ['mcp-resources', '@deepseek-ai/dsh-mcp-resources'],
         ['agent', '@deepseek-ai/dsh-agent'],
         ['llm-retry', '@deepseek-ai/dsh-llm-retry'],
@@ -1282,6 +1283,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
         ['persistent-bash', '@deepseek-ai/dsh-tool-bash-persistent'],
         ['persistent-pwsh', '@deepseek-ai/dsh-tool-pwsh-persistent'],
         ['sessions', '@deepseek-ai/dsh-session-persistence-jsonl'],
+        ['session-checkpoint-policy', '@deepseek-ai/dsh-session-checkpoint-policy'],
       ])
       expect(stdout).toContain('# == @deepseek-ai/dsh-sdk-minimal')
       expect(stdout).not.toContain('@deepseek-ai/dsh-base')

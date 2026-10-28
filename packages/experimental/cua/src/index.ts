@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { Buffer } from 'node:buffer'
 import { tmpdir } from 'node:os'
 import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
-import type { Context, Volatile } from '@deepseek-ai/cordis'
+import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { ComputerUseProviderName } from '@deepseek-ai/dsh-computer-use/brand'
@@ -13,27 +13,32 @@ import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { z } from 'zod'
 import { NativeClient, NativeError, type NativeClientConfig, type NativeChannelFactory } from './native-client.ts'
-import { ApplicationAuthorizationResult, ApplicationAccess } from './application-access.ts'
-import type { CuaApplicationGrant, CuaApplicationId } from './application-types.ts'
+import { CuaPermissionStore } from './permission-store.ts'
+import { ApplicationAuthorizationResult, installCuaAccess } from './access.ts'
+import type { CuaApplicationGrant, CuaApplicationId } from './access-types.ts'
 import type { CuaAppHandle, CuaOperation } from './types.ts'
-import { AppResult, NativeScreenshotResult, Request, ScreenshotResult, StateResult, WindowsResult } from './protocol.ts'
+import { ApplicationIcon, AppResult, NativeScreenshotResult, Request, ScreenshotResult, StateResult, WindowsResult } from './protocol.ts'
 import { CuaCoordinates } from './coordinates.ts'
-import type {} from '@deepseek-ai/dsh-system-prompt'
-import type { ToolExecution } from '@deepseek-ai/dsh-tools'
+import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
+import type { PromptSection } from '@deepseek-ai/dsh-system-prompt'
+import type { ToolDefinition, ToolExecution } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/dsh-computer-use'
 import type {} from '@deepseek-ai/dsh-ptc-runtime'
-import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 
+export { CuaAccess } from './access.ts'
 
 /** Native executable and per-operation resource bounds. */
 export interface CuaConfig {
-  /** Signed applications explicitly approved for future tasks in this profile. */
-  allowedApps: Volatile<Array<Omit<CuaApplicationGrant, 'id'> & {
+  /** Register tools for Agents using this preset; defaults to ptc. False enables global registration. */
+  agentPreset: string | false
+  /** Legacy grants imported once into profile-scoped storage; later edits are ignored. */
+  allowedApps: Array<Omit<CuaApplicationGrant, 'id'> & {
     /** Unbranded digest at the profile configuration boundary; admitted by the Config schema. */
     id: string
-  }>>
+  }>
   /** Absolute native helper override; omission prepares the package-owned executable. */
   helperPath?: string
   /** Maximum time in milliseconds for native component preparation. */
@@ -58,6 +63,8 @@ export interface CuaConfig {
   maxRequestBytes: number
   /** Duration in milliseconds of one same-window drag. */
   dragDurationMs: number
+  /** Maximum explicitly requested mouse-button hold in milliseconds; zero allows immediate release only. */
+  maxClickHoldMs: number
   /** Number of movement segments dispatched during a drag. */
   dragSteps: number
   /** Delay in milliseconds after each Unicode key-down or key-up event. */
@@ -72,10 +79,11 @@ export interface CuaConfig {
 
 /** Validated host configuration; no driver is downloaded at runtime. */
 export const CuaConfig = Schema.object({
+  agentPreset: Schema.union([Schema.string().min(1), Schema.const(false)]).default('ptc'),
   allowedApps: Schema.array(Schema.object({
     id: Schema.string().pattern(/^[a-f0-9]{64}$/).required(),
-    name: Schema.string().required(), executablePath: Schema.string().min(1).required(),
-  })).default([]).volatile(),
+    name: Schema.string().required(), executablePath: Schema.string().min(1),
+  })).default([]),
   helperPath: Schema.string(),
   buildTimeoutMs: Schema.number().step(1).min(1).max(2 ** 31 - 1).default(300_000),
   timeoutMs: Schema.number().step(1).min(1).max(2 ** 31 - 1).default(30_000),
@@ -87,6 +95,7 @@ export const CuaConfig = Schema.object({
   pasteReadTimeoutMs: Schema.number().step(1).min(1).max(2 ** 31 - 1).default(1000),
   maxRequestBytes: Schema.number().step(1).min(1024).default(1024 * 1024),
   dragDurationMs: Schema.number().step(1).min(1).max(5000).default(400),
+  maxClickHoldMs: Schema.number().step(1).min(0).max(2 ** 31 - 1).default(5000),
   dragSteps: Schema.number().step(1).min(1).max(240).default(20),
   maxResponseBytes: Schema.number().step(1).min(1024).default(32 * 1024 * 1024),
   textEventIntervalMs: Schema.number().min(0).max(1000).default(0.25),
@@ -149,25 +158,16 @@ export interface CuaBackend {
  */
 export function installCua(ctx: Context, config: CuaConfig, backend: CuaBackend): void {
   const { helperPath } = backend
+  const guidance = `${backend.guidance}\n\nMaximum click holdMs: ${config.maxClickHoldMs} ms.`
   const native: NativeClientConfig = {
     helperPath, cwd: process.cwd(), timeoutMs: config.timeoutMs, axTimeoutMs: config.axTimeoutMs,
     connectTimeoutMs: config.connectTimeoutMs, screenshotTimeoutMs: config.screenshotTimeoutMs,
     maxRequestBytes: config.maxRequestBytes, maxResponseBytes: config.maxResponseBytes, graceMs: config.graceMs,
-    textEventIntervalMs: config.textEventIntervalMs,
+    textEventIntervalMs: config.textEventIntervalMs, maxClickHoldMs: config.maxClickHoldMs,
   }
-  const entryId = ctx.fiber.entry?.options.id
-  ctx.inject(['settings'], scope => scope.effect(() => scope.settings.configure({ auto: false }, ctx.fiber)))
-  const access = new ApplicationAccess(ctx, {
-    grants: () => config.allowedApps.get().map(grant => ({ ...grant, id: grant.id as CuaApplicationId })),
-    get save() {
-      const settings = ctx.get('settings')
-      if (entryId === undefined || settings === undefined) return undefined
-      const descriptor = settings.describe().find(entry => entry.ns === entryId)
-      if (!descriptor) return undefined
-      return async (grants: readonly CuaApplicationGrant[]) => {
-        await settings.mutate(entryId, [{ op: 'set', path: ['allowedApps'], value: grants }], descriptor.revision)
-      }
-    },
+  const access = installCuaAccess(ctx, {
+    native, createChannel: backend.createChannel,
+    store: new CuaPermissionStore(ctx, config.allowedApps.map(grant => ({ ...grant, id: grant.id as CuaApplicationId })), config.timeoutMs),
   })
   const clients = new Map<Agent, NativeClient>()
   const lifetime = new AbortController()
@@ -256,8 +256,10 @@ export function installCua(ctx: Context, config: CuaConfig, backend: CuaBackend)
         : await requestNative()
       if (method === 'getApp') {
         const prepared = AppResult.extend({ pid: AppResult.shape.pid.nullable() }).parse(result)
-        const { authorization } = z.object({ authorization: ApplicationAuthorizationResult }).parse(result)
-        await access.select(agent, client, prepared.appHandle, authorization, signal)
+        const { authorization, applicationIcon } = z.object({ authorization: ApplicationAuthorizationResult,
+          applicationIcon: ApplicationIcon.optional(),
+        }).parse(result)
+        await access.select(agent, client, prepared.appHandle, authorization, signal, applicationIcon)
         signal.throwIfAborted()
         const selected = prepared.pid === null
           ? AppResult.parse(await access.run(client, prepared.appHandle, signal,
@@ -276,7 +278,7 @@ export function installCua(ctx: Context, config: CuaConfig, backend: CuaBackend)
       if (method === 'listWindows') execution.coordinates.observe(parsedParams.appHandle as CuaAppHandle, WindowsResult.parse(result))
       return result
     }
-    yield ctx.tools.register({
+    const tool: ToolDefinition = {
       name: 'cua', description: backend.description,
       parameters: { ...z.record(z.string(), z.json()).parse(z.toJSONSchema(Request)), type: 'object' },
       output: { schema: {}, render: renderResult },
@@ -319,14 +321,56 @@ export function installCua(ctx: Context, config: CuaConfig, backend: CuaBackend)
           pending.delete(operation)
         }
       },
-    })
-    yield ctx.systemPrompt.section({
+    }
+    const prompt: PromptSection = {
       name: 'computer-use:dsh-cua', order: ctx.systemPrompt.getSectionOrder('TOOL_COMPUTER_USE'),
-      text: () => ctx.get('ptcRuntime')?.programFormat !== 'repl' ? backend.guidance : `${backend.guidance}
+      text: () => {
+        const runtime = ctx.get('ptcRuntime')
+        return !runtime?.retainsState ? guidance : `${guidance}
 
 Persistent PTC initialization:
+
+\`\`\`ts
 var { connectCua } = await import(${JSON.stringify(new URL('../lib/bridge.js', import.meta.url).href)});
-var cua = connectCua(() => tools.cua, text => console.log(text));`,
-    })
+var cua = connectCua(() => tools.cua, text => console.log(text));
+\`\`\``
+      },
+    }
+    const register = (scope: Context): void => {
+      scope.tools.register(tool)
+      scope.systemPrompt.section(prompt)
+    }
+    if (config.agentPreset === false) register(ctx)
+    else {
+      const consumer = ctx.inject(['agentPresets'], async (presetCtx) => {
+        const scopes = new Map<Agent, Scope>()
+        const sync = async (agent: Agent): Promise<void> => {
+          const previous = scopes.get(agent)
+          if (presetCtx.agentPresets.composedPreset(agent.ctx) !== config.agentPreset) {
+            scopes.delete(agent)
+            await previous?.dispose()
+            return
+          }
+          if (previous !== undefined) return
+          const scope = createScope(agent.ctx, agent)
+          scopes.set(agent, scope)
+          scope.ctx.effect(() => () => {
+            if (scopes.get(agent) === scope) scopes.delete(agent)
+          }, 'cua.agent-tools')
+          register(scope.ctx)
+        }
+        presetCtx.effect(() => async () => { await Promise.all([...scopes.values()].map(scope => scope.dispose())) }, 'cua.agent-tools')
+        presetCtx.on('agent/created', async ({ agent }) => { await sync(agent) })
+        presetCtx.on('agent-preset/selected', (id) => {
+          const agent = presetCtx.agents.get(id)
+          if (agent !== undefined) void sync(agent).catch((error: unknown) => { presetCtx.logger.warn(`CUA tool scope update failed: ${String(error)}`) })
+        })
+        await Promise.all(presetCtx.agents.list().map(sync))
+      })
+      yield () => consumer.dispose()
+    }
   }, 'dsh-cua.runtime')
 }
+
+/** Host marker for the optional Client contribution; platform providers install native execution separately. */
+export function apply(): void {}

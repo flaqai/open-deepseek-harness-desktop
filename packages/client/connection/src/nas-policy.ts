@@ -17,7 +17,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 }
 
 const READ: readonly RemoteAccessAction[] = [
-  'session/list', 'session/search', 'session/page', 'session/follow', 'session/projections', 'session/control',
+  'session/list', 'session/search', 'session/page', 'session/events', 'session/state', 'session/observeEvent', 'session/observeProjections', 'session/observeState', 'session/follow', 'session/projections', 'session/control',
   'session/attachment', 'session/modelCatalog', 'workspace/follow',
   'workspaceFiles/read', 'workspaceFiles/readBytes', 'workspaceFiles/stat', 'workspaceFiles/list', 'workspaceFiles/changes',
   'officeToPdf/render', 'officeToPdf/generation',

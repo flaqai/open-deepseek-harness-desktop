@@ -6,9 +6,6 @@
  * roster's Connection, and it survives a Loader rebuild of the declarer.
  */
 import { describe, expect, onTestFinished, vi } from 'vitest'
-import { ok } from '@deepseek-ai/dsh-remote-mock'
-import type { SettingsNamespaceView } from '@deepseek-ai/dsh-settings/types'
-import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import { inject } from '../src/client/index.ts'
@@ -19,6 +16,7 @@ import type { DesktopUpdatePresentation } from '../src/types.ts'
 const SELF = '@deepseek-ai/dsh-client-ui-settings-general'
 const SIDEBAR = '@deepseek-ai/dsh-client-ui-sidebar'
 const it = createClientTest({ roster: webApp })
+const withoutSettingsAccess = createClientTest({ roster: webApp }, { access: action => action !== 'settings/describe' })
 /** The whole roster's first boot pays the cold module transform of every plugin package. */
 const COLD_BOOT_TIMEOUT_MS = 60_000
 
@@ -41,14 +39,11 @@ const CHILD_NAMES = Object.keys(CHILD_SPECS) as Array<keyof typeof CHILD_SPECS>
 
 /**
  * Section ids the web-app roster registers, in nav order: this package, then
- * ui-settings-models, ui-settings-plugins, ui-agent-preset, and custom-instructions.
- * A plugin adding a section changes this list.
+ * ui-settings-models, ui-settings-plugins, and ui-agent-preset. A plugin
+ * adding a section changes this list.
  */
-const PRODUCT_SECTIONS: readonly string[] = [
-  'general', 'models', 'plugins', 'external-tools', 'agent-presets', 'custom-instructions',
-  'diagnostics',
-]
-/** Onboarding steps the web-app roster registers, in coordinator order. */
+const PRODUCT_SECTIONS: readonly string[] = ['general', 'models', 'plugins', 'external-tools', 'agent-presets', 'custom-instructions', 'diagnostics']
+/** Onboarding steps the web-app roster registers, in coordinator order; both come from ui-settings-models. */
 const PRODUCT_ONBOARDING: readonly { id: string; order: number }[] = [
   { id: 'setup-wizard', order: 0 },
   { id: 'deepseek-official', order: 10 },
@@ -83,9 +78,7 @@ describe('ui-settings-general shell', () => {
   }, COLD_BOOT_TIMEOUT_MS)
 
   it('declares its services', () => {
-    expect(inject).toEqual([
-      'slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'settingsNavigation', 'shortcuts', 'modules',
-    ])
+    expect(inject).toEqual(['slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'settingsNavigation', 'shortcuts', 'modules', 'remoteAccess'])
   })
 
   it('occupies sidebar.settings, declared by ui-sidebar, and declares every child slot', async ({ start }) => {
@@ -94,11 +87,16 @@ describe('ui-settings-general shell', () => {
     for (const name of CHILD_NAMES) expect(c.ctx.slots.spec(name)).toEqual(CHILD_SPECS[name])
   }, COLD_BOOT_TIMEOUT_MS)
 
+  withoutSettingsAccess('leaves sidebar.settings unoccupied while the current Peer may not read the settings description', async ({ start }) => {
+    const c = await start()
+    expect(c.ctx.slots.entries('sidebar.settings')).toEqual([])
+  }, COLD_BOOT_TIMEOUT_MS)
+
   it('projects the section ledger: product sections in order, defaults for bare rows, stable snapshots', async ({ start }) => {
     const c = await start()
     const { sections } = injectedOf(c).hooks
     const product = sections.getSnapshot()
-    expect(product.map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS])
+    expect(product.map(row => row.id)).toEqual(PRODUCT_SECTIONS)
     c.ctx.slots.register({ name: 'settings.section', id: 'z', order: 1_000, label: 'Z' } as never, () => null)
     // No order and no label: both projection defaults apply, and order 0 sorts among the product rows.
     c.ctx.slots.register({ name: 'settings.section', id: 'a' } as never, () => null)
@@ -117,13 +115,11 @@ describe('ui-settings-general shell', () => {
     off()
   })
 
-  it('keeps Connect to DeepSeek first in Desktop before and after sign-in', async ({ start }) => {
-    vi.stubGlobal('dshDesktop', {})
-    onTestFinished(() => { vi.unstubAllGlobals() })
+  it('shows Account first only while signed in and removes it on sign-out', async ({ start }) => {
     const c = await start()
     const { sections } = injectedOf(c).hooks
     await c.mock.streams.opened('account/watch', 1)
-    expect(sections.getSnapshot().map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS])
+    expect(sections.getSnapshot().map(row => row.id)).toEqual(PRODUCT_SECTIONS)
     c.mock.streams.push('account/watch', { status: 'credential-stored', attempt: null })
     await vi.waitFor(() => {
       expect(sections.getSnapshot().map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS])
@@ -131,7 +127,7 @@ describe('ui-settings-general shell', () => {
     c.mock.streams.push('account/watch', { status: 'credential-stored', attempt: null })
     await vi.waitFor(() => { expect(sections.getSnapshot().filter(row => row.id === 'account')).toHaveLength(1) })
     c.mock.streams.push('account/watch', { status: 'signed-out', attempt: null })
-    await vi.waitFor(() => { expect(sections.getSnapshot().map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS]) })
+    await vi.waitFor(() => { expect(sections.getSnapshot().map(row => row.id)).toEqual(PRODUCT_SECTIONS) })
   })
 
   it('projects the roster Connection control without copying its state; reconnect opens a new $events generation', async ({ start }) => {
@@ -164,36 +160,6 @@ describe('ui-settings-general shell', () => {
     await Promise.resolve()
     expect(listener).toHaveBeenCalledOnce()
     off()
-  })
-
-  it('exposes the durable section-order source and write operation', async ({ start, mock }) => {
-    const current: SettingsNamespaceView = {
-      ns: 'ui-settings-general',
-      schema: JSON.parse(JSON.stringify(z.object({
-        sectionOrder: z.array(z.string()).default([]),
-      }).toJSON())) as SettingsNamespaceView['schema'],
-      value: { sectionOrder: [] },
-      autoGenerate: true,
-      applies: 'live',
-      secrets: [],
-      revision: 0,
-    }
-    mock.remote.settings.describe.mockResolvedValueOnce(ok({
-      writable: true,
-      hasDocument: true,
-      namespaces: [current],
-    }))
-    const c = await start()
-    await c.ctx.configForms.describe().ensure()
-    const injected = injectedOf(c)
-    expect(injected.hooks.sectionOrder.getSnapshot()).toEqual([])
-    mock.remote.settings.mutate.mockResolvedValueOnce(ok({
-      ...current,
-      value: { sectionOrder: ['models', 'general'] },
-      revision: current.revision + 1,
-    }))
-    await expect(injected.setSectionOrder(['models', 'general'])).resolves.toBeUndefined()
-    expect(injected.hooks.sectionOrder.getSnapshot()).toEqual(['models', 'general'])
   })
 
   it('re-registers after the declarer reloads: the cascade removes the shell, the rebuilt declaration takes it back', async ({ start }) => {

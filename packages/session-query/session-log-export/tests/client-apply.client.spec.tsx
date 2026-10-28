@@ -5,13 +5,18 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { SessionMarkdownCopyToast } from '../src/client/CopyToast.tsx'
+import type { SessionMarkdownCopyToastInjected } from '../src/client/CopyToast.tsx'
 import { SessionLogDownloadHeaderAction } from '../src/client/HeaderAction.tsx'
 import { apply, inject } from '../src/client/index.ts'
 import type { SessionLogDownloadHeaderInjected } from '../src/client/HeaderAction.tsx'
 
 const SID = 'session-export-apply' as SessionId
 
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 function declare(slots: SlotRegistry): () => void {
   return slots.register({
@@ -19,8 +24,14 @@ function declare(slots: SlotRegistry): () => void {
     children: {
       'conversation.session.header.actions': { kind: 'list', scope: 'session' },
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
+      'shell.overlay': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
+}
+
+function injectedOf(entry: { inject?: ((...args: never[]) => object) | undefined } | undefined): object {
+  if (entry?.inject === undefined) throw new Error('slot entry has no injection')
+  return entry.inject()
 }
 
 async function bench(allowed = true) {
@@ -72,7 +83,7 @@ describe('session-log-download browser plugin', () => {
     await b.fiber.dispose()
   })
 
-  it('provides one controller and removes its Header contribution on disposal', async () => {
+  it('provides one controller and removes its Header and overlay contributions on disposal', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })))
     const b = await bench()
     expect(inject).toEqual(['slots', 'locale', 'configForms', 'remoteAccess'])
@@ -87,8 +98,18 @@ describe('session-log-download browser plugin', () => {
     injected.dismiss(SID)
     expect(b.ctx.sessionLogDownload.store.getSnapshot().bySession[SID]?.open).toBe(false)
 
+    const overlay = b.slots.entries('shell.overlay')[0]
+    expect(overlay?.component).toBe(SessionMarkdownCopyToast)
+    expect(overlay?.options).toMatchObject({ id: 'session-log-download.copy-toast' })
+    const overlayInjected = injectedOf(overlay) as SessionMarkdownCopyToastInjected
+    await injected.copyMarkdown(SID)
+    expect(injected.hooks.sessionMarkdownCopy.getSnapshot().notice?.kind).toBe('preparationFailed')
+    overlayInjected.dismiss()
+    expect(injected.hooks.sessionMarkdownCopy.getSnapshot().notice).toBeNull()
+
     await b.fiber.dispose()
     expect(b.slots.entries('conversation.session.header.utilities')).toHaveLength(0)
+    expect(b.slots.entries('shell.overlay')).toHaveLength(0)
   })
 
   it('downloads only for an export execution acknowledged by this browser client', async () => {
@@ -126,9 +147,11 @@ describe('session-log-download browser plugin', () => {
     const b = await bench()
     b.declaration()
     expect(b.slots.entries('conversation.session.header.utilities')).toHaveLength(0)
+    expect(b.slots.entries('shell.overlay')).toHaveLength(0)
     const redeclare = declare(b.slots)
     await Promise.resolve()
     expect(b.slots.entries('conversation.session.header.utilities')[0]?.component).toBe(SessionLogDownloadHeaderAction)
+    expect(b.slots.entries('shell.overlay')[0]?.component).toBe(SessionMarkdownCopyToast)
     redeclare()
     await b.fiber.dispose()
   })

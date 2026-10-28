@@ -49,11 +49,19 @@
   cursor: pointer;
 }
 
-.action:hover,
 .action:focus-visible {
   outline: none;
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
+}
+
+@media (hover: hover) {
+
+.action:hover {
+  outline: none;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
 }
 
 .menu .action {

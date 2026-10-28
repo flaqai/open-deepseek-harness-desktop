@@ -1,6 +1,7 @@
 /** Profile dependency identity checks, convergence, and quarantine persistence. */
 
 import { randomUUID } from 'node:crypto'
+import { DEFAULT_PROFILE_BUNDLES, OPTIONAL_BUNDLES, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import {
   existsSync,
   lstatSync,
@@ -26,11 +27,8 @@ import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { loadOverlayPatches } from './index.ts'
 import {
   composeEntries,
-  DEFAULT_PROFILE_BUNDLES,
   installationRuntimePackageDirs,
   loadProfile,
-  OPTIONAL_BUNDLES,
-  PROFILE_TEMPLATES,
   PROFILES_DIR,
   readProfileManifest,
   resolveProfileLoaderModule,

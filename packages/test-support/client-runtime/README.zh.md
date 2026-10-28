@@ -40,7 +40,7 @@ expect(view.container).toMatchSnapshot()
 await runtime.dispose()
 ```
 
-`mount` 会预检必需服务，缺失时自明报错——先用 `provide(name, value)` 提供额外服务。运行时提供的 `fileUpload` 替身会拒绝每次调用，直到测试套件替换 `runtime.fileUpload.upload`。`storeOf(key, scopeKey)` 返回渲染器交给 slot 组件的实时存储实例，用于身份与动作驱动写入断言。
+`mount` 会预检必需服务，缺失时自明报错——先用 `provide(name, value)` 提供额外服务。运行时提供的 `fileUpload` 替身，其 `upload` 与 `uploadImage` 会拒绝每次调用，直到测试套件替换它们。`storeOf(key, scopeKey)` 返回渲染器交给 slot 组件的实时存储实例，用于身份与动作驱动写入断言。
 
 运行时在 ui-session 之前安装 `allowAllAccessPlugin`：它的 `remoteAccess` 服务对每个资源都回答 true，因此每个访问 Hook 都允许每个 action。装配式权限测试可传入 `create({ access: { source, global } })`：`source(kind, id, action)` 提供资源级权限，`global(action)` 提供全局权限，两者均返回实时可观察值。手工构造的组件 props 展开 `...allowAllAccess` 以获得同样的 Hook；测试被拒绝路径的 spec 覆盖其中一个 Hook。
 
@@ -127,7 +127,7 @@ test('registers into the sidebar', async ({ remote, start }) => {
 | [`src/sessions.ts`](src/sessions.ts) + [`src/workspaces.ts`](src/workspaces.ts) | `ISessions`/`IWorkspaces` 测试替身与 `FixtureSession` 行为桩 |
 | [`src/fixtures.ts`](src/fixtures.ts) | 普通 fixture 构造器：会话快照、workspace 列表状态 |
 | [`src/snapshot.ts`](src/snapshot.ts) | DOM 快照序列化器（类名哈希折叠、`<svg>` 指纹） |
-| [`src/access.ts`](src/access.ts) | `allowAllAccess` props 与 `allowAllAccessPlugin`：remote-access Client 行的全允许替身 |
+| [`src/access.ts`](src/access.ts) | `allowAllAccess` props、`StaticRemoteAccess`、`staticAccessPlugin` 与 `allowAllAccessPlugin`：remote-access Client 行的固定答案替身 |
 | [`src/remote.ts`](src/remote.ts) | 用于 host RPC 的 `TestRemote` 替身、`RemoteError` 值转出 |
 | [`src/translate.ts`](src/translate.ts) + [`src/locale-env.ts`](src/locale-env.ts) | 翻译与固定浏览器语言测试辅助 |
 | [`src/config-form.ts`](src/config-form.ts) | 带测试驱动发布与写入 spy 的 `stubConfigForm` |

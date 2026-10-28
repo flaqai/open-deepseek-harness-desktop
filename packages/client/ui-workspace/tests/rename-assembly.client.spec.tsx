@@ -23,6 +23,7 @@ import type { PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-
 import { RemoteError, SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
+import { whenAllowed } from '@deepseek-ai/dsh-api-remote-access/src/client/when-allowed.ts'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-workspace/client'
 
 // The service reads its initial locale from the browser; these specs assert
@@ -37,6 +38,10 @@ beforeEach(() => { localStorage.clear() })
 /** Runtime with the locale face installed (the browser entry declares `locale:` — zh default backs the t seat). */
 async function createRuntime(access?: NonNullable<Parameters<typeof SlotTestRuntime.create>[0]>['access']): Promise<SlotTestRuntime> {
   const runtime = await SlotTestRuntime.create(access === undefined ? {} : { access })
+  if (access !== undefined) {
+    access.whenAccess = (action, callback) => whenAllowed(runtime.ctx, access.global(action), callback, 'test global access')
+    access.whenResourceAccess = (kind, id, action, callback) => whenAllowed(runtime.ctx, access.source(kind, id, action), callback, 'test resource access')
+  }
   runtime.ctx.provide('shortcuts', { register: () => () => {}, catalog: createSnapshotStore([]) })
   runtime.ctx.provide('layout', { selectPanel: vi.fn(), beginNavigation: () => new AbortController().signal })
   runtime.releaseWorkspaceSource()
@@ -85,7 +90,9 @@ async function seedWorkspace(runtime: SlotTestRuntime): Promise<void> {
 describe('session rename through the assembled browser', () => {
   it('keeps readonly browsing available without workspace mutations or session rename gestures', async () => {
     const denied = createSnapshotStore(false)
-    const runtime = await createRuntime({ source: () => denied, global: () => denied })
+    const runtime = await createRuntime({
+      source: () => denied, global: () => denied, whenAccess: () => () => {}, whenResourceAccess: () => () => {},
+    })
     onTestFinished(() => runtime.dispose())
     const rename = vi.fn<ISession['rename']>()
     await runtime.sessions.add({
@@ -113,7 +120,9 @@ describe('session rename through the assembled browser', () => {
 
   it('withdraws an open rename dialog when the live Session permission is revoked', async () => {
     const allowed = createSnapshotStore(true)
-    const runtime = await createRuntime({ source: () => allowed, global: () => allowed })
+    const runtime = await createRuntime({
+      source: () => allowed, global: () => allowed, whenAccess: () => () => {}, whenResourceAccess: () => () => {},
+    })
     onTestFinished(() => runtime.dispose())
     const rename = vi.fn<ISession['rename']>()
     await runtime.sessions.add({
@@ -126,6 +135,7 @@ describe('session rename through the assembled browser', () => {
     await declareFrame(runtime)
     await runtime.mount({ inject: [...inject], apply })
     const view = runtime.renderRoot()
+    fireEvent.mouseDown(await view.findByText('待重命名'), { detail: 1 })
     fireEvent.doubleClick(await view.findByText('待重命名'))
     await view.findByLabelText('会话名称')
     await act(async () => { allowed.set(false) })

@@ -21,13 +21,10 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
         <svg
           aria-hidden="true"
           class="panelIcon"
-          data-content="88020f34"
-          fill="none"
+          data-content="d95b7908"
+          data-icon="dsw-icon-panel-left-outline-regular"
           height="16"
-          stroke-width="1"
-          viewBox="0 0 16 16"
           width="16"
-          xmlns="http://www.w3.org/2000/svg"
         />
         <div
           data-slot="sidebar.toggle.badge"
@@ -48,13 +45,10 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
         >
           <svg
             aria-hidden="true"
-            data-content="47b5e433"
-            fill="none"
+            data-content="6e5e38f3"
+            data-icon="dsw-icon-new-chat-outline-regular"
             height="16"
-            stroke-width="1"
-            viewBox="0 0 16 16"
             width="16"
-            xmlns="http://www.w3.org/2000/svg"
           />
         </span>
       </span>
@@ -79,24 +73,12 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
         />
       </div>
       <div
-        class="settingsLine"
+        class="settingsArea"
       >
         <div
-          class="settingsArea"
-        >
-          <div
-            data-slot="sidebar.settings"
-            style="display: contents;"
-          />
-        </div>
-        <div
-          class="settingsActions"
-        >
-          <div
-            data-slot="sidebar.settings.action"
-            style="display: contents;"
-          />
-        </div>
+          data-slot="sidebar.settings"
+          style="display: contents;"
+        />
       </div>
     </div>
   </div>
@@ -132,14 +114,19 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
               data-slot="sidebar.brand.mark"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="965fe321"
-                fill="none"
-                height="17.6580310880829"
-                viewBox="0 0 23.16 17.04"
-                width="24"
-              />
+              <span
+                class="copyVersion"
+                data-copy-version="true"
+              >
+                <svg
+                  aria-hidden="true"
+                  data-content="965fe321"
+                  fill="none"
+                  height="17.6580310880829"
+                  viewBox="0 0 23.16 17.04"
+                  width="24"
+                />
+              </span>
             </div>
           </span>
           <span
@@ -150,7 +137,8 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
               style="display: contents;"
             >
               <span
-                class="localBuildBrand"
+                class="localBuildBrand copyVersion"
+                data-copy-version="true"
               >
                 <span
                   class="localBuildTitle"
@@ -175,13 +163,10 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
         <svg
           aria-hidden="true"
           class="panelIcon"
-          data-content="88020f34"
-          fill="none"
+          data-content="d95b7908"
+          data-icon="dsw-icon-panel-left-outline-regular"
           height="16"
-          stroke-width="1"
-          viewBox="0 0 16 16"
           width="16"
-          xmlns="http://www.w3.org/2000/svg"
         />
       </button>
     </div>
@@ -198,13 +183,10 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
         >
           <svg
             aria-hidden="true"
-            data-content="47b5e433"
-            fill="none"
+            data-content="532cf99a"
+            data-icon="dsw-icon-new-chat-outline-medium"
             height="14"
-            stroke-width="1.3"
-            viewBox="0 0 16 16"
             width="14"
-            xmlns="http://www.w3.org/2000/svg"
           />
           <span
             class="newSessionLabel wide"
@@ -234,24 +216,12 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
         />
       </div>
       <div
-        class="settingsLine"
+        class="settingsArea"
       >
         <div
-          class="settingsArea"
-        >
-          <div
-            data-slot="sidebar.settings"
-            style="display: contents;"
-          />
-        </div>
-        <div
-          class="settingsActions"
-        >
-          <div
-            data-slot="sidebar.settings.action"
-            style="display: contents;"
-          />
-        </div>
+          data-slot="sidebar.settings"
+          style="display: contents;"
+        />
       </div>
     </div>
   </div>
@@ -297,13 +267,10 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         <svg
           aria-hidden="true"
           class="panelIcon"
-          data-content="88020f34"
-          fill="none"
+          data-content="d95b7908"
+          data-icon="dsw-icon-panel-left-outline-regular"
           height="18"
-          stroke-width="1"
-          viewBox="0 0 16 16"
           width="18"
-          xmlns="http://www.w3.org/2000/svg"
         />
         <div
           data-slot="sidebar.toggle.badge"
@@ -324,13 +291,10 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         >
           <svg
             aria-hidden="true"
-            data-content="47b5e433"
-            fill="none"
+            data-content="6e5e38f3"
+            data-icon="dsw-icon-new-chat-outline-regular"
             height="18"
-            stroke-width="1"
-            viewBox="0 0 16 16"
             width="18"
-            xmlns="http://www.w3.org/2000/svg"
           />
         </span>
       </span>
@@ -355,24 +319,12 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         />
       </div>
       <div
-        class="settingsLine"
+        class="settingsArea"
       >
         <div
-          class="settingsArea"
-        >
-          <div
-            data-slot="sidebar.settings"
-            style="display: contents;"
-          />
-        </div>
-        <div
-          class="settingsActions"
-        >
-          <div
-            data-slot="sidebar.settings.action"
-            style="display: contents;"
-          />
-        </div>
+          data-slot="sidebar.settings"
+          style="display: contents;"
+        />
       </div>
     </div>
   </div>
@@ -408,14 +360,19 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               data-slot="sidebar.brand.mark"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="965fe321"
-                fill="none"
-                height="17.6580310880829"
-                viewBox="0 0 23.16 17.04"
-                width="24"
-              />
+              <span
+                class="copyVersion"
+                data-copy-version="true"
+              >
+                <svg
+                  aria-hidden="true"
+                  data-content="965fe321"
+                  fill="none"
+                  height="17.6580310880829"
+                  viewBox="0 0 23.16 17.04"
+                  width="24"
+                />
+              </span>
             </div>
           </span>
           <span
@@ -426,7 +383,8 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               style="display: contents;"
             >
               <span
-                class="localBuildBrand"
+                class="localBuildBrand copyVersion"
+                data-copy-version="true"
               >
                 <span
                   class="localBuildTitle"
@@ -451,13 +409,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         <svg
           aria-hidden="true"
           class="panelIcon"
-          data-content="88020f34"
-          fill="none"
+          data-content="d95b7908"
+          data-icon="dsw-icon-panel-left-outline-regular"
           height="16"
-          stroke-width="1"
-          viewBox="0 0 16 16"
           width="16"
-          xmlns="http://www.w3.org/2000/svg"
         />
       </button>
     </div>
@@ -474,13 +429,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         >
           <svg
             aria-hidden="true"
-            data-content="47b5e433"
-            fill="none"
+            data-content="532cf99a"
+            data-icon="dsw-icon-new-chat-outline-medium"
             height="14"
-            stroke-width="1.3"
-            viewBox="0 0 16 16"
             width="14"
-            xmlns="http://www.w3.org/2000/svg"
           />
           <span
             class="newSessionLabel wide"
@@ -510,24 +462,12 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         />
       </div>
       <div
-        class="settingsLine"
+        class="settingsArea"
       >
         <div
-          class="settingsArea"
-        >
-          <div
-            data-slot="sidebar.settings"
-            style="display: contents;"
-          />
-        </div>
-        <div
-          class="settingsActions"
-        >
-          <div
-            data-slot="sidebar.settings.action"
-            style="display: contents;"
-          />
-        </div>
+          data-slot="sidebar.settings"
+          style="display: contents;"
+        />
       </div>
     </div>
   </div>
@@ -563,14 +503,19 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               data-slot="sidebar.brand.mark"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="965fe321"
-                fill="none"
-                height="17.6580310880829"
-                viewBox="0 0 23.16 17.04"
-                width="24"
-              />
+              <span
+                class="copyVersion"
+                data-copy-version="true"
+              >
+                <svg
+                  aria-hidden="true"
+                  data-content="965fe321"
+                  fill="none"
+                  height="17.6580310880829"
+                  viewBox="0 0 23.16 17.04"
+                  width="24"
+                />
+              </span>
             </div>
           </span>
           <span
@@ -581,7 +526,8 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               style="display: contents;"
             >
               <span
-                class="localBuildBrand"
+                class="localBuildBrand copyVersion"
+                data-copy-version="true"
               >
                 <span
                   class="localBuildTitle"
@@ -606,13 +552,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         <svg
           aria-hidden="true"
           class="panelIcon"
-          data-content="88020f34"
-          fill="none"
+          data-content="d95b7908"
+          data-icon="dsw-icon-panel-left-outline-regular"
           height="16"
-          stroke-width="1"
-          viewBox="0 0 16 16"
           width="16"
-          xmlns="http://www.w3.org/2000/svg"
         />
       </button>
     </div>
@@ -629,13 +572,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         >
           <svg
             aria-hidden="true"
-            data-content="47b5e433"
-            fill="none"
+            data-content="532cf99a"
+            data-icon="dsw-icon-new-chat-outline-medium"
             height="14"
-            stroke-width="1.3"
-            viewBox="0 0 16 16"
             width="14"
-            xmlns="http://www.w3.org/2000/svg"
           />
           <span
             class="newSessionLabel wide"
@@ -665,24 +605,12 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         />
       </div>
       <div
-        class="settingsLine"
+        class="settingsArea"
       >
         <div
-          class="settingsArea"
-        >
-          <div
-            data-slot="sidebar.settings"
-            style="display: contents;"
-          />
-        </div>
-        <div
-          class="settingsActions"
-        >
-          <div
-            data-slot="sidebar.settings.action"
-            style="display: contents;"
-          />
-        </div>
+          data-slot="sidebar.settings"
+          style="display: contents;"
+        />
       </div>
     </div>
   </div>

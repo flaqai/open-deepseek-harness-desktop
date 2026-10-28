@@ -28,6 +28,8 @@ For complete schemas grouped by Session format, use the [format references](hist
 
 The generated [catalog](../persistence-catalog.md) provides readable declarations and digests; the [schema inventory](../persistence-schema.json) contains the normalized types. Roots cover the logical Session header, the physical JSONL header line, the event envelope, and every repository-declared event. Referenced types contribute transitively to each affected root's digest.
 
+Each `.schema.json` file stores one node table keyed by the first 16 hexadecimal digits of each node's subgraph digest, with one root, type, or node per line. Roots and types locate their graphs through their own digests, so a type change rewrites only the changed nodes, their ancestors, and the affected digests. Generators own the exact text; verifiers reject any other layout.
+
 Each dated record has four sibling files:
 
 | File | Owner |
@@ -73,7 +75,7 @@ When a reader rejects a JSON property by name, declare the property as optional 
 <a id="history-and-limitations"></a>
 ## History and limitations
 
-One baseline records the complete initial inventory. Later records use their predecessor's after schema as the before schema. The verifier rejects missing predecessors, cycles, duplicate successors for one root, digest mismatches, and current roots that disagree with their latest records. Independent roots can advance independently. Two changes to the same predecessor require a single ordered history after integration.
+One baseline records the complete initial inventory. Later records use their predecessor’s after schema as the before schema. The verifier rejects missing predecessors, cycles, digest mismatches, unresolved forks, and current roots without one unique resulting tip. Independent roots evolve separately. When integrating parallel histories, a new record may retain its primary `previous` and list additional distinct parent record IDs in `mergedPrevious`; it must validate the compatibility decision against every parent. Baselines cannot merge predecessors, and existing records and snapshots remain unchanged.
 
 Accepted records describe historical transitions; preserve their machine declarations and schema snapshots when adding a successor. An unaccepted terminal record can be refreshed explicitly; the command rejects baselines, records with dependants, and checkpoint-locked records before producing artifacts. Verification checks retained checkpoint hashes; it does not prove that the checkpoints and their authority record were never edited together. No Git ref, remote service, or released checkout supplies the baseline.
 

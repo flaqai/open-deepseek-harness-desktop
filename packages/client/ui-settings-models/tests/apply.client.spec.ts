@@ -15,12 +15,14 @@ import {
   WELCOME_NOTICE_ACK_FIELD, WELCOME_NOTICE_SETTINGS_NAMESPACE, WELCOME_NOTICE_VERSION,
 } from '../src/onboarding-copy.ts'
 import { ModelsSection } from '../src/client/ModelsSection.tsx'
-import { ModelsSettingsStore } from '../src/client/store.ts'
-import { SetupWizard } from '../src/client/SetupWizard.tsx'
 import { DeepSeekOnboardingDialog } from '../src/client/DeepSeekOnboardingDialog.tsx'
-import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
+import { SetupWizard } from '../src/client/SetupWizard.tsx'
+import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import * as hostPlugin from '../src/index.ts'
 import { ONBOARDING_CONFIG_GLOBAL } from '../src/onboarding-config.ts'
+
+/** The Peer an index render speaks for; this listener reads no field of it. */
+const PAGE_PEER = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
 
 afterEach(() => { vi.unstubAllGlobals() })
 
@@ -28,7 +30,7 @@ afterEach(() => { vi.unstubAllGlobals() })
 // so browser-language detection never runs and a fresh LocaleRuntime opens on
 // FALLBACK_LOCALE (en); bench stages zh explicitly on the locale instead.
 
-async function bench(mock = RemoteMock.create().load(remoteDefaultResponses), services: object = {}, isLoopback = true) {
+async function bench(mock = RemoteMock.create().load(remoteDefaultResponses), services: object = {}) {
   onTestFinished(() => { mock.assertNoUnmatched() })
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
@@ -50,7 +52,6 @@ async function bench(mock = RemoteMock.create().load(remoteDefaultResponses), se
     settings: mock.remote.settings,
     session: { initializeDefaultModel: vi.fn(async () => ({ ok: true, value: undefined })) },
   })
-  remote.$host = { home: undefined, isLoopback }
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, remote }
 }
@@ -69,39 +70,40 @@ function declare(slots: SlotRegistry): () => void {
 }
 
 describe('ui-settings-models apply', () => {
-  it('keeps the community setup wizard when the native shell owns onboarding', async () => {
+  it('keeps manual credential onboarding available when the native shell owns automatic onboarding', async () => {
     const { ctx, slots } = await bench()
     declare(slots)
     try {
       const host = ctx.plugin(hostPlugin, { credentialOnboarding: false })
       await host.await()
       const rows: IndexInjection[] = []
-      ctx.emit('webserver/index-inject', rows)
+      ctx.emit('webserver/index-inject', rows, PAGE_PEER)
       expect(rows).toEqual([{ kind: 'global', name: ONBOARDING_CONFIG_GLOBAL, value: { credentialOnboarding: false } }])
       for (const row of rows) if (row.kind === 'global') vi.stubGlobal(row.name, row.value)
       const plugin = ctx.plugin({ inject: [...inject], apply })
       await plugin.await()
       expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).toEqual(['setup-wizard', 'deepseek-official'])
-      expect(slots.entries('settings.onboarding')[0]?.component).toBe(SetupWizard)
+      const onboarding = slots.entries('settings.onboarding').find(entry => entry.options.id === 'deepseek-official')!
+      expect((onboarding.inject as () => { automatic: boolean })().automatic).toBe(false)
       expect(slots.entries('settings.section').map(entry => entry.options.id)).toEqual(['models'])
       await plugin.dispose()
       expect(slots.entries('settings.onboarding')).toEqual([])
       await host.dispose()
       const after: IndexInjection[] = []
-      ctx.emit('webserver/index-inject', after)
+      ctx.emit('webserver/index-inject', after, PAGE_PEER)
       expect(after).toEqual([])
     } finally {
       await ctx.fiber.dispose()
     }
   })
 
-  it('validates the host onboarding option while the community wizard owns desktop setup', async () => {
+  it('defaults to browser onboarding and rejects malformed bootstrap options', async () => {
     expect(hostPlugin.Config({})).toEqual({ credentialOnboarding: true })
     expect(hostPlugin.Config['~standard'].validate({ credentialOnboarding: 'false' })).toHaveProperty('issues')
     const { ctx } = await bench()
     try {
       vi.stubGlobal(ONBOARDING_CONFIG_GLOBAL, { credentialOnboarding: 'false' })
-      expect(() => { apply(ctx) }).not.toThrow()
+      expect(() => { apply(ctx) }).toThrow()
     } finally {
       await ctx.fiber.dispose()
     }
@@ -134,21 +136,10 @@ describe('ui-settings-models apply', () => {
     expect(typeof injected.operations.writeSettings).toBe('function')
     const onboarding = before.slots.entries('settings.onboarding')
     expect(onboarding).toHaveLength(2)
-    const setup = onboarding.find(entry => entry.options.id === 'setup-wizard')!
-    expect(setup.component).toBe(SetupWizard)
-    expect(setup.options).toMatchObject({ id: 'setup-wizard', order: 0 })
-    const setupInjected = setup.inject?.()
-    if (typeof setupInjected?.setLocale !== 'function') throw new Error('setup wizard injection was not registered')
-    const setLocale = setupInjected.setLocale as import('../src/client/SetupWizard.tsx').SetupWizardInjected['setLocale']
-    const hooks = setupInjected.hooks
-    if (typeof hooks !== 'object' || hooks === null || !('models' in hooks)
-      || !('welcome' in hooks) || !('locale' in hooks)) {
-      throw new Error('setup wizard hooks were not registered')
-    }
-    const welcomeController = setupInjected.welcomeController
-    if (typeof welcomeController !== 'object' || welcomeController === null || !('store' in welcomeController)) {
-      throw new Error('setup wizard welcome controller was not registered')
-    }
+    expect(onboarding.find(entry => entry.options.id === 'setup-wizard')).toMatchObject({
+      component: SetupWizard,
+      options: { id: 'setup-wizard', order: 0 },
+    })
     const deepSeek = onboarding.find(entry => entry.options.id === 'deepseek-official')!
     expect(deepSeek.component).toBe(DeepSeekOnboardingDialog)
     const analytics = (deepSeek.inject!() as object) as import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
@@ -161,13 +152,8 @@ describe('ui-settings-models apply', () => {
     const deepSeekInjected = (
       deepSeek.inject as unknown as () => import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
     )()
-    expect(deepSeekInjected.controller).toBe(injected.controller)
-    expect(hooks.models).toBe(injected.controller.store)
-    expect(setupInjected.modelsController).toBe(injected.controller)
-    expect(hooks.welcome).toBe(welcomeController.store)
-    expect(hooks.locale).toBe(before.locale)
-    setLocale('en')
-    expect(before.locale.getLocale().active).toBe('en')
+    expect(deepSeekInjected.hooks.models).toBe(injected.controller.store)
+    expect(typeof deepSeekInjected.operations.storeCredential).toBe('function')
 
     const after = await bench()
     await after.ctx.plugin({ inject: [...inject], apply }).await()
@@ -257,24 +243,6 @@ describe('ui-settings-models apply', () => {
     expect(() => b.locale.register('settings.models', 'zh', {})).not.toThrow()
     expect(() => b.locale.register('settings.models', 'en', {})).not.toThrow()
   })
-
-  it('keeps remote-browser acknowledgement in process memory', async () => {
-    const b = await bench(undefined, {}, false)
-    declare(b.slots)
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const entry = b.slots.entries('settings.onboarding')
-      .find(candidate => candidate.options.id === 'setup-wizard')!
-    const injected = (
-      entry.inject as unknown as () => import('../src/client/SetupWizard.tsx').SetupWizardInjected
-    )()
-
-    await injected.welcomeController.load()
-    expect(injected.welcomeController.store.getSnapshot()).toEqual({
-      status: 'ready', acknowledged: false, error: null,
-    })
-    await expect(injected.welcomeController.acknowledge()).resolves.toBe(true)
-    expect(injected.welcomeController.store.getSnapshot().acknowledged).toBe(true)
-  })
 })
 
 describe('pushed invalidations', () => {
@@ -310,13 +278,13 @@ describe('pushed invalidations', () => {
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = b.slots.entries('settings.onboarding')
-      .find(candidate => candidate.options.id === 'setup-wizard')!
+      .find(candidate => candidate.options.id === 'deepseek-official')!
     const injected = (
       entry.inject as unknown as
-      () => import('../src/client/SetupWizard.tsx').SetupWizardInjected
+      () => import('../src/client/DeepSeekOnboardingDialog.tsx').DeepSeekOnboardingInjected
     )()
-    injected.modelsController.store.update((state) => { state.status = 'ready' })
-    const load = vi.spyOn(injected.modelsController, 'load').mockResolvedValue()
+    injected.controller.store.update((state) => { state.status = 'ready' })
+    const load = vi.spyOn(injected.controller, 'load').mockResolvedValue()
     b.remote.emit('credentials/reference-updated', ['DEEPSEEK_API_KEY'])
     expect(load).toHaveBeenCalledTimes(1)
   })
@@ -370,16 +338,18 @@ describe('pushed invalidations', () => {
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = b.slots.entries('settings.section')
       .find(candidate => candidate.options.id === 'models')!
-    const { controller } = entry.inject!()
-    if (!(controller instanceof ModelsSettingsStore)) throw new Error('models section did not inject its settings store')
-    await controller.load()
-    expect(controller.store.getSnapshot().namespaces.get('llm-test')?.revision).toBe(1)
+    const injected = (
+      entry.inject as unknown as
+      () => import('../src/client/ModelsSection.tsx').ModelsSectionInjected
+    )()
+    await injected.controller.load()
+    expect(injected.hooks.snapshot.getSnapshot().namespaces.get('llm-test')?.revision).toBe(1)
 
     describe.mockResolvedValue(ok({ ...document, namespaces: [{ ...namespace, revision: 2 }] }))
     b.remote.emit('settings/document-updated', ['llm-test', 2])
 
     await vi.waitFor(() => {
-      expect(controller.store.getSnapshot().namespaces.get('llm-test')?.revision).toBe(2)
+      expect(injected.hooks.snapshot.getSnapshot().namespaces.get('llm-test')?.revision).toBe(2)
     })
     expect(describe).toHaveBeenCalledTimes(2)
   })

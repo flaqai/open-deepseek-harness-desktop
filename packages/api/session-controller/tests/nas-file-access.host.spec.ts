@@ -74,11 +74,18 @@ it('denies external files, escaping directory links and home control files witho
   ctx.provide('connection', { fetch: { register: (value: ConnectionFetchRoute) => { route = value; return () => {} } } } as never)
   ctx.provide('attachments', { imageLimits: { maxImageBytes: 1024 } } as never)
   await ctx.plugin(SessionMediaReferences)
-  const preview = (path: string, peer = reader) => {
+  const preview = async (path: string, peer = reader) => {
     if (route === undefined) throw new Error('media route did not mount')
-    return route.fetch(new Request(`http://localhost/api/file?path=${encodeURIComponent(path)}`), peer)
+    const url = `http://localhost/api/file?path=${encodeURIComponent(path)}`
+    const response = await route.fetch(new Request(url), peer)
+    if (response.status !== 302) return response
+    const location = response.headers.get('Location')
+    if (location === null) throw new Error('version redirect has no location')
+    return route.fetch(new Request(new URL(location, url)), peer)
   }
-  expect((await preview(join(workspace, 'allowed.md'))).status).toBe(200)
+  const allowedPreview = await preview(join(workspace, 'allowed.md'))
+  expect(allowedPreview.status).toBe(200)
+  expect(allowedPreview.headers.get('Cache-Control')).toBe('private, no-store')
   for (const path of [join(outside, 'secret.md'), join(workspace, 'escape', 'secret.md'), join(workspace, '.credentials.yaml')]) {
     expect((await preview(path)).status).toBe(403)
   }

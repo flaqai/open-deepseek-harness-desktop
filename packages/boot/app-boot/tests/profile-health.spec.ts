@@ -1,3 +1,4 @@
+import { OPTIONAL_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
 import {
   existsSync,
   mkdirSync,
@@ -25,7 +26,6 @@ import {
   inspectProfileBundleEntryOwnership,
   inspectUnresolvableProfileBundleEntries,
   listQuarantinedProfilePlugins,
-  OPTIONAL_BUNDLES,
   inspectQuarantineRemovalResidue,
   quarantineProfilePluginAfterLoadFailure,
   reconcileRestoredQuarantinedProfilePlugins,

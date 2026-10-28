@@ -19,7 +19,14 @@ import {
 } from './experimental-package-policy.ts'
 import { hasTypertRemoteNavigation, isForbiddenPublicationFile } from './publication-payload.ts'
 import type { DshBundleManifest } from '../packages/util/package-manifest/src/types.ts'
-import { OPTIONAL_BUNDLES, bundlePatchFiles } from '../packages/boot/app-boot/src/profile.ts'
+import { detailPath } from '../packages/util/plugin-detail/src/document.ts'
+import { bundlePatchFiles } from '../packages/boot/app-boot/src/profile.ts'
+import { OPTIONAL_BUNDLES } from '../packages/util/official-bundles/src/bundles.ts'
+import {
+  PACKAGE_ASSET_EXPORT,
+  PACKAGE_ASSET_EXPORT_TARGET,
+  PACKAGE_ASSET_FILES_ENTRY,
+} from '../packages/client/modules/src/assets.ts'
 import { collectProjectReferenceFaceViolations } from './project-reference-faces.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -185,10 +192,24 @@ export function readWorkspaceManifests(repositoryRoot: string): WorkspaceManifes
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
+  // Tools entry points share error classes and invocation stages through runtime chunks.
+  '@deepseek-ai/dsh-tools': ['lib/pipeline.js', 'lib/shared-*.js'],
+  // The embedded OAR implementation retains its upstream license.
+  '@deepseek-ai/dsh-experimental-subagent-oar': ['LICENSE-OAR'],
   // CUA publishes its client API and attributed native source for local macOS builds.
-  '@deepseek-ai/dsh-cua': ['lib/api.js', 'lib/bridge.js', 'lib/native-client.js', 'lib/protocol.js'],
+  '@deepseek-ai/dsh-cua': ['lib/remote-types.js', 'lib/api.js', 'lib/bridge.js', 'lib/native-client.js', 'lib/protocol.js'],
   '@deepseek-ai/dsh-experimental-cua-macos': ['native/bin', 'native/Package.swift', 'native/Sources', 'native/tests/swift', 'native/tests/test_swift.py', 'native/LICENSE.cua-driver', 'native/upstream.json', 'native/README.md', 'native/README.zh.md', 'native/protocol.schema.json'],
   '@deepseek-ai/dsh-webhook-github': ['examples/github-review/cordis.yml', 'examples/github-review/github-ready-review-rule.mjs'],
+  // Liveshare publishes its built Relay gateway entry and the shared runtime
+  // chunk that entry imports, plus the declaration-plane entry and its chunk.
+  // Its `./types` export is a type-only module, so the emitted tree contributes
+  // that one runtime file; the declarations still ship as the whole tree.
+  '@deepseek-ai/dsh-experimental-liveshare': [
+    'lib/owner-gateway/cli.js',
+    'lib/retry-backoff-*.js',
+    'lib/viewer-declarations.js',
+    'lib/viewer-declarations-*.js',
+  ],
   // Owned Worker bundles import this public bootstrap before their business entry.
   '@deepseek-ai/dsh-app-boot': ['lib/worker/profile-resolution-bootstrap.js'],
   // Statically linked client libraries keep their stylesheets next to the emitted
@@ -209,14 +230,18 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // The CPython side ships as source .py files, published as-is rather than built.
   '@deepseek-ai/dsh-experimental-ptc-runtime-python': ['py/**/*.py'],
   '@deepseek-ai/dsh-experimental-speech-to-text-sensevoice': ['runtime/assets.json'],
-  // Node execution modes each launch a separately bundled bootstrap.
-  '@deepseek-ai/dsh-ptc-runtime-node': ['lib/process.js', 'lib/persistent-process.js'],
+  // Node profile configuration and process bootstraps have separate bundles.
+  '@deepseek-ai/dsh-ptc-runtime-node': ['lib/configuration.js', 'lib/process.js', 'lib/persistent-process.js'],
   // The Inspector owns a Worker and a mirrored frontend outside package export paths.
   '@deepseek-ai/dsh-experimental-inspector': ['lib/client.*.js', 'lib/worker.js', 'lib/devtools/**'],
   // Creator's composition guidance travels with the declaration package.
   '@deepseek-ai/dsh-agent-preset': ['skills'],
-  // The Web Host mounts the default-off settings owner independently of each
-  // Agent-scoped delegation-tool instance.
+  // Personalized pages ship the location guidance used by their Creator.
+  '@deepseek-ai/dsh-creation-recommendations': ['references/*.md', 'skills/*.md'],
+  // Official-plugin recommendations ship the skill text their provider loads.
+  '@deepseek-ai/dsh-plugin-recommendations': ['skills/*.md'],
+  // The Web Host mounts the default-off settings owner independently of the
+  // delegation-tool instances.
   '@deepseek-ai/dsh-tool-subagent': ['lib/model-selection-settings.js'],
   // The JSONL backend resolves its private verification Worker relative to
   // import.meta.url; it is shipped without a public package subpath.
@@ -264,11 +289,43 @@ function sameStringList(actual: readonly string[] | undefined, expected: readonl
 }
 
 /**
- * Compute canonical publication patterns, including declared and exported icon paths and exported locale JSON resources.
- * @param manifest - workspace package manifest.
- * @returns the icon and deduplicated locale targets followed by runtime and declaration payloads.
+ * List the publication entries that locale `meta.detail` documents need: the top-level directory holding
+ * each document and its images.
+ * @param packageDir - absolute package directory.
+ * @returns sorted, deduplicated entries.
+ * @throws Error when a declared document is not a package-relative Markdown file in a subdirectory or does not exist,
+ * so a typo cannot publish a directory that holds no document.
  */
-export function expectedDshPackageFiles(manifest: PackageManifest): readonly string[] {
+export function detailDocumentFiles(packageDir: string): readonly string[] {
+  const entries = new Set<string>()
+  for (const file of globSync('locale/*.json', { cwd: packageDir })) {
+    let meta: unknown
+    try {
+      meta = (JSON.parse(readFileSync(join(packageDir, file), 'utf8')) as { meta?: unknown } | null)?.meta
+    } catch (error: unknown) {
+      // SyntaxError: verify-package-meta reports malformed locale files; this check only adds publication entries.
+      void error
+      continue
+    }
+    const label = `${join(packageDir, file)}: meta.detail`
+    const detail = detailPath(typeof meta === 'object' && meta !== null ? (meta as { detail?: unknown }).detail : undefined, label)
+    if (detail === undefined) continue
+    const slash = detail.indexOf('/')
+    if (slash < 0) throw new Error(`${label} ${JSON.stringify(detail)} must name a file in a subdirectory such as docs/`)
+    if (!existsSync(join(packageDir, detail))) throw new Error(`${label} ${JSON.stringify(detail)} does not exist`)
+    entries.add(detail.slice(0, slash))
+  }
+  return [...entries].sort()
+}
+
+/**
+ * Compute canonical publication patterns, including declared and exported icon paths, exported locale JSON resources,
+ * detail documents, and the built package-asset directory when `exports["./assets/*"]` targets it.
+ * @param manifest - workspace package manifest.
+ * @param detailFiles - entries from {@link detailDocumentFiles}.
+ * @returns the icon, deduplicated locale targets, and detail documents followed by runtime, package-asset, and declaration payloads.
+ */
+export function expectedDshPackageFiles(manifest: PackageManifest, detailFiles: readonly string[] = []): readonly string[] {
   const localeFiles = new Set<string>()
   for (const resource of Object.keys(manifest.exports ?? {})) {
     if (!/^\.\/(?:.+\/)?locale\/[^/]+\.json$/u.test(resource)) continue
@@ -292,6 +349,7 @@ export function expectedDshPackageFiles(manifest: PackageManifest): readonly str
   return [
     ...new Set(icons),
     ...[...localeFiles].sort(),
+    ...detailFiles,
     'lib/index.js',
     ...manifest.bin ? ['lib/bin.js'] : [],
     // Worker-thread packages ship a CJS worker entry; the browser worker
@@ -304,6 +362,7 @@ export function expectedDshPackageFiles(manifest: PackageManifest): readonly str
     ...browserClient === './lib/client.js' ? ['lib/client.js'] : [],
     ...browserClient === './lib/client.browser.js' ? ['lib/client.browser.js'] : [],
     ...exportCondition(manifest, './client', 'node') === './lib/client.node.js' ? ['lib/client.node.js'] : [],
+    ...exportDefault(manifest, PACKAGE_ASSET_EXPORT) === PACKAGE_ASSET_EXPORT_TARGET ? [PACKAGE_ASSET_FILES_ENTRY] : [],
     // runtime's shell-held loader subpath ships as its own bundle beside the client half.
     ...exportDefault(manifest, './loader') === './lib/loader.js' ? ['lib/loader.js'] : [],
     // A store subpath ships its own bundle (single-entry builds; no shared chunk).
@@ -552,7 +611,11 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     if (rootEntry?.default !== './lib/index.js') {
       errors.push(`${label}: package.json exports["."].default must be "./lib/index.js"`)
     }
-    const expectedFiles = expectedDshPackageFiles(manifest)
+    if (manifest.name === '@deepseek-ai/dsh-tools'
+      && !hasExportPair(manifest, './pipeline', './lib/types/pipeline.d.ts', './lib/pipeline.js')) {
+      errors.push(`${label}: exports["./pipeline"] must expose lib/types/pipeline.d.ts and lib/pipeline.js`)
+    }
+    const expectedFiles = expectedDshPackageFiles(manifest, detailDocumentFiles(join(root, dir)))
     if (!sameStringList(manifest.files, expectedFiles)) {
       errors.push(`${label}: package.json files must be ${JSON.stringify(expectedFiles)}`)
     }

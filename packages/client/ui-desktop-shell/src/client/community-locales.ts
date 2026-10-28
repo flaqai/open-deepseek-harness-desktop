@@ -14,7 +14,7 @@ export const DESKTOP_LANGUAGE_DEFINITIONS = [
   { id: 'ru', label: 'Русский', fallback: 'en' },
   { id: 'es', label: 'Español', fallback: 'en' },
   { id: 'fr', label: 'Français', fallback: 'en' },
-  { id: 'pt-BR', label: 'Português (Brasil)', fallback: 'en' },
+  { id: 'pt-BR', label: 'Português (Brasil)', fallback: 'pt' },
   { id: 'de', label: 'Deutsch', fallback: 'en' },
   { id: 'ja', label: '日本語', fallback: 'en' },
   { id: 'ko', label: '한국어', fallback: 'en' },
@@ -33,10 +33,10 @@ export function registerDesktopLanguages(ctx: Context): () => void {
       // A separately installed language pack owns both its catalog row and
       // namespace dictionaries. Leave that locale untouched instead of
       // aborting the complete client plugin tree with duplicate registration.
-      if (occupied.has(definition.id.toLowerCase())) continue
-      disposers.push(ctx.locale.addLanguage(definition))
+      const existing = occupied.has(definition.id.toLowerCase()) || (definition.id === 'pt-BR' && occupied.has('pt'))
+      if (!existing) disposers.push(ctx.locale.addLanguage({ ...definition, fallback: definition.id === 'pt-BR' && !occupied.has('pt') ? 'en' : definition.fallback }))
       occupied.add(definition.id.toLowerCase())
-      disposers.push(ctx.locale.register('settings.locale', definition.id, {
+      disposers.push(ctx.locale.registerFallback('settings.locale', definition.id, {
         'language.title': desktopLanguageTitles[definition.id],
       }))
       const dictionaries: Record<string, Record<string, string>> = {}
@@ -52,7 +52,7 @@ export function registerDesktopLanguages(ctx: Context): () => void {
         ...(definition.id === 'ru' ? {} : NAS_TRANSLATIONS[definition.id]),
       }
       for (const [namespace, dictionary] of Object.entries(dictionaries)) {
-        disposers.push(ctx.locale.register(namespace, definition.id, dictionary))
+        disposers.push(ctx.locale.registerFallback(namespace, definition.id, dictionary))
       }
     }
   } catch (error) {

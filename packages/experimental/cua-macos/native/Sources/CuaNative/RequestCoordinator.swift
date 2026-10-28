@@ -9,6 +9,7 @@ import Darwin
     private let cancellation: CancellationLatch
     private let worker: AXWorker
     private let capture: WindowCapture
+    private let permissions: SystemPermissions
     private let clipboard = ClipboardPaste()
     private let input: JSONLInput
     private let writer: JSONLWriter
@@ -27,18 +28,19 @@ import Darwin
     private var nextCancelled = false
 
     init(configuration: HelperConfiguration, capture: WindowCapture, channel: SharedSocket,
-         cancellation: CancellationLatch, scheduler: RequestScheduler, writer: JSONLWriter,
+         cancellation: CancellationLatch, scheduler: RequestScheduler, writer: JSONLWriter, permissions: SystemPermissions,
          onClose: @escaping @MainActor @Sendable () -> Void,
          onFatal: @escaping @Sendable (NativeFailure, Double) -> Void) {
         self.configuration = configuration
         self.capture = capture
+        self.permissions = permissions
         self.cancellation = cancellation
         self.channel = channel
         self.scheduler = scheduler
         self.onClose = onClose
         self.onFatal = onFatal
         worker = AXWorker(cancellation: cancellation, axTimeout: configuration.axTimeoutSeconds,
-                          textEventInterval: configuration.textEventIntervalSeconds)
+                          textEventInterval: configuration.textEventIntervalSeconds, maxClickHoldMs: configuration.maxClickHoldMs)
         input = JSONLInput(limit: configuration.maxRequestBytes, cancellation: cancellation, channel: channel)
         self.writer = writer
     }
@@ -159,11 +161,25 @@ import Darwin
     }
     private func execute(_ request: NativeRequest, trace: ScreenshotTrace?) async throws -> JSONValue {
         let params = try RequestParameters(request)
+        try cancellation.check()
         if request.method == "screenshot" { try capture.requireAvailable() }
         let requiresCatalog = ["getApp", "listApps", "findApps", "typeText", "pressKey"].contains(request.method)
         let catalog = requiresCatalog ? ApplicationCatalog.snapshot() : ApplicationCatalogSnapshot(applications: [], frontPID: nil)
         let result: JSONValue
-        if request.method == "findApps" {
+        if request.method == "permissionStatus" {
+            result = permissions.status()
+        } else if request.method == "applicationIcons" {
+            var icons: [String: JSONValue] = [:]
+            for path in try params.strings("paths") {
+                try cancellation.check()
+                if let icon = ApplicationCatalog.icon(at: path) { icons[path] = .string(icon) }
+            }
+            result = .object(icons)
+        } else if request.method == "requestPermission" {
+            result = try permissions.request(params.string("permission"))
+        } else if request.method == "openPermissionSettings" {
+            result = try permissions.openSettings(params.string("permission"))
+        } else if request.method == "findApps" {
             result = .array(try ApplicationDiscovery.applications(matching: params.string("query"), exact: false,
                 limit: params.integer("maxAppMatches", in: 1...1000), cancellation: cancellation).map { $0.json(catalog: catalog) })
         } else {
@@ -179,7 +195,12 @@ import Darwin
             let outcome = try await worker.execute(request.method, params: params, catalog: catalog, installed: installed, trace: trace)
             trace?.mark("worker.end")
             switch outcome {
-            case .result(let value): result = value
+            case .result(let value):
+                if request.method == "getApp", var fields = value.object {
+                    let path = installed?.path ?? catalog.applications.first { Double($0.pid) == value["pid"].number }?.path
+                    if let path, let icon = ApplicationCatalog.icon(at: path) { fields["applicationIcon"] = .string(icon) }
+                    result = .object(fields)
+                } else { result = value }
             case .capture(let target):
                 let image = try await capture.capture(target, cancellation: cancellation, trace: trace)
                 result = try await worker.finishCapture(target, image: image, trace: trace)

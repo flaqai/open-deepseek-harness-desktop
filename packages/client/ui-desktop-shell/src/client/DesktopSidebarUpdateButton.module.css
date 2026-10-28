@@ -20,7 +20,10 @@
   transition: filter 160ms ease, transform 160ms ease;
 }
 
+@media (hover: hover) {
+
 .button:hover { filter: brightness(0.94); }
+}
 .button:active { transform: translateY(1px); }
 .button:disabled { cursor: wait; filter: saturate(0.75); }
 

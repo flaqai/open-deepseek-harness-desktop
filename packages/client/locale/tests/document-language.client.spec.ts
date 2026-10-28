@@ -93,9 +93,9 @@ describe('document language', () => {
 
   it('uses an external locale definition for the document language', async () => {
     const { locale } = await bench()
-    locale.addLanguage({ id: 'pt-BR', label: 'Português', fallback: 'en' })
     locale.setLocale('pt-BR')
-    expect(langOf()).toBe('pt-BR')
+    expect(locale.getLocale().active).toBe('pt')
+    expect(langOf()).toBe('pt')
   })
 
   it('does not rewrite the document language for catalog changes with the same active locale', async () => {
@@ -103,7 +103,7 @@ describe('document language', () => {
     const observer = new MutationObserver(() => {})
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] })
     try {
-      const remove = locale.addLanguage({ id: 'ja', label: '日本語', fallback: 'en' })
+      const remove = locale.addLanguage({ id: 'it', label: 'Italiano', fallback: 'en' })
       expect(observer.takeRecords()).toHaveLength(0)
       remove()
       expect(observer.takeRecords()).toHaveLength(0)

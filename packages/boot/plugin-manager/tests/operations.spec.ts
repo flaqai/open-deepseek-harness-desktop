@@ -8,6 +8,9 @@ import { expect, it, onTestFinished, vi } from 'vitest'
 import { getDshRuntimeVersion, initProfile, readProfileManifest } from '@deepseek-ai/dsh-app-boot'
 import { anchorPathSpec, readProfileRegistry, runPluginCommand, runProfilePnpm, viewProfilePackage } from '../src/operations.ts'
 
+/** The manifest fields an inspection prints. */
+const VIEW_FIELDS = ['name', 'version', 'description', 'dsh'] as const
+
 /** What execa resolves for a run that settled, including the buffered output the pre-install lookup is read for. */
 interface FakeOutcome {
   exitCode: number | undefined
@@ -168,6 +171,40 @@ function install(dir: string, name: string) {
   manifest.dependencies = { ...manifest.dependencies, [name]: '1' }
   writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
 }
+
+it.each(['service', 'cli'] as const)('reports unsupported activation through %s diagnostics without saving any selection changes', async (execution) => {
+  const { dir, context, pnpm } = fixture()
+  pnpm.mutate = (target) => {
+    install(target, 'supported')
+    install(target, 'restricted')
+    writeFileSync(join(target, 'node_modules/restricted/package.json'), JSON.stringify({ name: 'restricted', version: '1',
+      dsh: { bundle: { patch: './cordis.patch.yml', platforms: [process.platform === 'darwin' ? 'win32' : 'darwin'] } } }))
+  }
+  const messages: string[] = []
+  const result = await runPluginCommand(context, ['add', 'restricted'], {
+    execution, outputBytes: 8192, onOutput: (text) => { messages.push(text) },
+  })
+  expect(result.exitCode).toBe(1)
+  expect(result.output).toContain('restricted: Bundle supports Host platforms')
+  expect(result.output).toContain('installed dependencies remain; bundle selection is unchanged')
+  expect(result.output).toContain('dsh plugin remove <package>')
+  expect(readFileSync(result.logPath, 'utf8')).toContain(result.output)
+  expect(messages.join('')).toContain(result.output)
+  expect(readProfileManifest('test', dir).dependencies).toMatchObject({ supported: '1', restricted: '1' })
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toEqual([])
+})
+
+it('preserves malformed platform metadata errors without selecting the installed bundle', async () => {
+  const { dir, context, pnpm } = fixture()
+  pnpm.mutate = (target) => {
+    install(target, 'malformed')
+    writeFileSync(join(target, 'node_modules/malformed/package.json'), JSON.stringify({ name: 'malformed', version: '1',
+      dsh: { bundle: { patch: './cordis.patch.yml', platforms: ['macos'] } } }))
+  }
+  await expect(runProfilePnpm(context, ['add', 'malformed'], { execution: 'service', outputBytes: 8192 }))
+    .rejects.toThrow('dsh.bundle.platforms must be a nonempty list of Node platform names')
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toEqual([])
+})
 
 function installGuarded(dir: string, dependency: string, name = dependency, version = '1.0.0', peer = '>=999.0.0') {
   install(dir, dependency)
@@ -936,26 +973,26 @@ it('asks the registry through pnpm view in the profile directory, without pnpm\'
   const { dir } = fixture()
   const answer = (value: object) => command.run.mockResolvedValueOnce(value as never)
   answer({ exitCode: 0, stdout: '{"name":"x"}', stderr: '', timedOut: false, isCanceled: false })
-  expect(await viewProfilePackage(dir, 'x@^1', { timeoutMs: 5 })).toEqual({ exitCode: 0, stdout: '{"name":"x"}', stderr: '', timedOut: false })
+  expect(await viewProfilePackage(dir, 'x@^1', { fields: VIEW_FIELDS, timeoutMs: 5 })).toEqual({ exitCode: 0, stdout: '{"name":"x"}', stderr: '', timedOut: false })
   expect(command.run).toHaveBeenLastCalledWith('pnpm', ['view', 'x@^1', 'name', 'version', 'description', 'dsh', '--json', '--config.fetch-retries=0'],
     expect.objectContaining({ cwd: dir, timeout: 5, reject: false, stdin: 'ignore' }))
   expect((command.run.mock.lastCall as unknown[])[2]).not.toHaveProperty('cancelSignal')
   // A registry asked by URL goes on the command line; null leaves the choice to pnpm's own configuration.
   answer({ exitCode: 0, stdout: '{"name":"x"}', stderr: '', timedOut: false, isCanceled: false })
-  await viewProfilePackage(dir, 'x', { timeoutMs: 5, registry: 'https://registry.npmmirror.com/' })
+  await viewProfilePackage(dir, 'x', { fields: VIEW_FIELDS, timeoutMs: 5, registry: 'https://registry.npmmirror.com/' })
   expect((command.run.mock.lastCall as unknown[])[1]).toEqual(['view', 'x', 'name', 'version', 'description', 'dsh', '--json', '--registry=https://registry.npmmirror.com/', '--config.fetch-retries=0'])
   answer({ exitCode: 0, stdout: '{"name":"x"}', stderr: '', timedOut: false, isCanceled: false })
-  await viewProfilePackage(dir, 'x', { timeoutMs: 5, registry: null })
+  await viewProfilePackage(dir, 'x', { fields: VIEW_FIELDS, timeoutMs: 5, registry: null })
   expect((command.run.mock.lastCall as unknown[])[1]).toEqual(['view', 'x', 'name', 'version', 'description', 'dsh', '--json', '--config.fetch-retries=0'])
   const signal = AbortSignal.abort()
   answer({ exitCode: undefined, stdout: '', stderr: '', timedOut: true, isCanceled: false })
-  expect(await viewProfilePackage(dir, 'x', { timeoutMs: 5, signal })).toEqual({ exitCode: null, stdout: '', stderr: '', timedOut: true })
+  expect(await viewProfilePackage(dir, 'x', { fields: VIEW_FIELDS, timeoutMs: 5, signal })).toEqual({ exitCode: null, stdout: '', stderr: '', timedOut: true })
   expect((command.run.mock.lastCall as unknown[])[2]).toMatchObject({ cancelSignal: signal })
   answer({ exitCode: undefined, stdout: '', stderr: '', timedOut: false, isCanceled: true })
-  expect(await viewProfilePackage(dir, 'x', { command: 'node', timeoutMs: 5 })).toEqual({ exitCode: null, stdout: '', stderr: '', timedOut: false })
+  expect(await viewProfilePackage(dir, 'x', { command: 'node', fields: VIEW_FIELDS, timeoutMs: 5 })).toEqual({ exitCode: null, stdout: '', stderr: '', timedOut: false })
   expect((command.run.mock.lastCall as unknown[])[0]).toBe('node')
   answer({ exitCode: undefined, stdout: '', stderr: '', timedOut: false, isCanceled: false, code: 'ENOENT', shortMessage: 'spawn pnpm ENOENT' })
-  const missing = await viewProfilePackage(dir, 'x', { timeoutMs: 5 })
+  const missing = await viewProfilePackage(dir, 'x', { fields: VIEW_FIELDS, timeoutMs: 5 })
   expect(missing).toMatchObject({ exitCode: null, timedOut: false })
   expect(missing.cause).toMatchObject({ message: 'spawn pnpm ENOENT', code: 'ENOENT' })
 })
@@ -967,7 +1004,7 @@ it('uses application-owned executable arguments and environment for package oper
   expect(command.run.mock.calls[0]).toEqual([runtime.command, [...runtime.args, 'add', resolve(context.cwd, 'extra')],
     expect.objectContaining({ env: expect.objectContaining(runtime.env) as unknown })])
   command.run.mockResolvedValueOnce(Object.assign({ exitCode: 0, failed: false }, { stdout: '{}', stderr: '', timedOut: false }))
-  await viewProfilePackage(dir, 'example', { ...runtime, timeoutMs: 1000 })
+  await viewProfilePackage(dir, 'example', { ...runtime, fields: VIEW_FIELDS, timeoutMs: 1000 })
   expect(command.run).toHaveBeenLastCalledWith(runtime.command,
     [...runtime.args, 'view', 'example', 'name', 'version', 'description', 'dsh', '--json', '--config.fetch-retries=0'],
     expect.objectContaining({ env: expect.objectContaining(runtime.env) as unknown }))

@@ -3,38 +3,35 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/development.md
 /development-guide:
-  en: 1df43c5b7deba49f
+  en: dd46df776b6c0a69
   zh: 1a46cfc92cca2266
 /development-guide/setup-tutorial:
   en: 5207d17725c07a27
   zh: 258884c4300ac63a
 /development-guide/setup-tutorial/prerequisites:
-  en: ae47d95cd48bbb1d
-  zh: 2378e6ed3305e28d
+  en: 89e7008a741a290a
+  zh: 78012740025203b0
 /development-guide/setup-tutorial/windows-and-wsl-2:
   en: e86be579be6f1813
   zh: 14f6a220337d0861
 /development-guide/setup-tutorial/first-time-setup:
-  en: aeefefd5b2136e3c
-  zh: 4fc6052bc2d4c944
-/development-guide/setup-tutorial/linked-worktree-dependencies:
-  en: e7f0482aaaef6cb9
-  zh: 6d740da7992e1194
+  en: bb2bab0ef17bfc32
+  zh: 8b7cf7e9e703e6af
 /development-guide/contributor-reference:
-  en: a33d694c12cb4427
+  en: 3221d1076554001f
   zh: 29f166be6a5c04d9
 /development-guide/contributor-reference/typescript-project-layout:
-  en: f1efbb1a267e9b50
-  zh: 78b53f20d95834d6
+  en: ddbc3976e6447d27
+  zh: d6ed7c4873f1677e
 /development-guide/contributor-reference/environment-variables:
   en: dba2c72ee6ffa930
   zh: b65c27fbb9129ec8
 /development-guide/contributor-reference/git-integrations:
-  en: b2767984ba4ad45c
-  zh: 781307679ed186b2
+  en: 2efb7c4e482413fc
+  zh: 75386476a283111a
 /development-guide/contributor-reference/ci-gates:
-  en: 1fbfb312224a6cc3
-  zh: b78eb2df42f3dadf
+  en: dfa3a24d9070478f
+  zh: fa889b3536ab58e2
 /development-guide/contributor-reference/daily-commands:
   en: 08aa6ec1cdabfeb7
   zh: dcce5ae9d3c829d0
@@ -45,7 +42,7 @@
   en: 98828fc2b972bf39
   zh: 1dc889a3d766bf35
 /development-guide/contributor-reference/todo-markers:
-  en: 1a8ea57d5984dbc4
+  en: 85b38f78d87fc88f
   zh: 00d5eb625e7dfb61
 /development-guide/contributor-reference/documenting-types-verbatim-ts-type-equiv:
   en: 9d578b6797be921b

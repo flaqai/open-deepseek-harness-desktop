@@ -9,6 +9,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
@@ -59,8 +60,11 @@ async function loadComposition(
     "  name: '@deepseek-ai/dsh-llm'",
     '- id: session',
     "  name: '@deepseek-ai/dsh-session'",
+    '- id: session-projection',
+    "  name: '@deepseek-ai/dsh-session-projection'",
     '- id: agents',
     "  name: '@deepseek-ai/dsh-agent'",
+    "- name: '@deepseek-ai/dsh-session-projection'",
     '- id: deepseek-llm-api-extensions',
     "  name: '@deepseek-ai/dsh-deepseek-llm-api-extensions'",
     '- id: session-log-deepseek',
@@ -94,7 +98,9 @@ async function loadComposition(
   const modules = new Map<string, unknown>([
     ['@deepseek-ai/dsh-llm', LlmRuntime],
     ['@deepseek-ai/dsh-session', SessionStore],
+    ['@deepseek-ai/dsh-session-projection', SessionProjectionRegistry],
     ['@deepseek-ai/dsh-agent', AgentRegistry],
+    ['@deepseek-ai/dsh-session-projection', SessionProjectionRegistry],
     ['@deepseek-ai/dsh-deepseek-llm-api-extensions', DeepSeekLlmApiExtensionRegistry],
     ['@deepseek-ai/dsh-session-log-deepseek', SessionLogDeepSeek],
     ['@deepseek-ai/dsh-plugin-package-inventory-deepseek', DeepSeekPluginPackageInventory],
@@ -174,6 +180,26 @@ describe('llm-deepseek real dynamic composition', () => {
     await ctx.settings.mutate(NS, [{ op: 'unset', path: ['models'] }])
     expect(await ids()).toEqual(['deepseek-flash', 'deepseek-v5'])
     expect(keys).toEqual(['boot-key', 'boot-key'])
+  })
+
+  it('advertises listed badges through the composed route and drops them with a customized catalog', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', '')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const messages = { api_capabilities: { anthropic_messages: {} } }
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ data: [
+      { id: 'deepseek-flash', ...messages, client_metadata: { 'deepseek-harness': { badge: { text: { en: 'New', zh: '新' }, tone: 'info' } } } },
+      { id: 'deepseek-v4-pro', ...messages, client_metadata: { 'deepseek-harness': { badge: { text: 'far too long a badge' } } } },
+    ] }))))
+    const { ctx } = await loadComposition({ withDynamic: true, baseURL: 'https://api.deepseek.com/anthropic' })
+    const badges = async () => (await ctx.llm.listModels('deepseek-official')).map(model => [model.id, model.badge])
+    expect(await badges()).toEqual([
+      ['deepseek-flash', { text: { en: 'New', zh: '新' }, tone: 'info' }],
+      ['deepseek-v4-pro', undefined],
+    ])
+    expect(warn).toHaveBeenCalledWith('[llm-deepseek-api-key]', expect.stringMatching(/^model "deepseek-v4-pro" shows no badge: /))
+    await ctx.settings.mutate(NS, [{ op: 'set', path: ['models'], value: [{ id: 'deepseek-flash' }] }])
+    expect(await badges()).toEqual([['deepseek-flash', undefined]])
   })
 
   it('keeps package inventory on when the Loader composition disables session upload', async () => {

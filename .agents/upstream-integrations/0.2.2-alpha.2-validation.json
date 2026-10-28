@@ -1,0 +1,85 @@
+{
+  "target": "dsh-v0.2.2-alpha.2",
+  "scope": "development integration, not installer qualification",
+  "checks": [
+    {
+      "command": "pnpm run build:community-desktop",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run test:gui",
+      "environment": "native macOS arm64",
+      "result": "passed",
+      "files": 750,
+      "passedTests": 12497,
+      "skippedTests": 1
+    },
+    {
+      "command": "pnpm run lint",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm run verify:desktop:external-tools",
+      "result": "passed",
+      "providers": [
+        "codex",
+        "claude-code"
+      ]
+    },
+    {
+      "scope": "NAS and LiveShare independent review",
+      "result": "passed",
+      "files": 5,
+      "tests": 29
+    },
+    {
+      "scope": "frozen Session schema compatibility",
+      "result": "unchanged committed schema bytes; explicit history merge acknowledgement"
+    },
+    {
+      "command": "pnpm run doc-sync",
+      "result": "passed",
+      "gates": 43
+    },
+    {
+      "command": "node apps/desktop/scripts/prepare-unix-runtime.mjs --target darwin-arm64",
+      "result": "passed",
+      "resourceCount": 22013,
+      "profileFingerprint": "15027bb42bc30ff03e0c78be48449d52934629550db20334c2b2d6ef93440edf",
+      "nodeVersion": "24.22.1",
+      "pythonVersion": "3.12.15",
+      "officeKitVersion": "0.1.5",
+      "bundledPluginsVerified": 9,
+      "relocatedHarnessAndClientHttp": "passed",
+      "warmCacheOfflineMutation": "passed",
+      "nativeOfficeConversion": "passed with missing Liberation Sans reported"
+    }
+  ],
+  "startupRegression": {
+    "causes": [
+      "Supplemental locale registration could precede primary namespace owner.",
+      "General settings omitted its remoteAccess injection."
+    ],
+    "verified": "isolated native Electron 44.9.3",
+    "normalReadyMarkers": true,
+    "livenessSeconds": 15,
+    "anonymousHttpStatus": 401,
+    "exitCode": 0,
+    "realKeychainAccessed": false,
+    "configurationHome": "isolated development home",
+    "artifactSource": "final runtime archive plus freshly relocated prebuilt Profile"
+  },
+  "remainingEvidence": [
+    "iPhone Safari and Android Chrome keyboards, orientation and input methods",
+    "Windows, Linux and the other macOS architecture native installers",
+    "Actual self-hosted LiveShare OAuth, sharing and revocation",
+    "Actual desktop local-to-NAS switch and worker termination",
+    "Final offline installers without system Python/Office for PDF/DOCX/PPTX/XLSX; development tests do not qualify these installers"
+  ],
+  "knownLimitations": [
+    "Existing v0 summary-requires-notice refusal is outside scope.",
+    "Warm-cache offline Profile mutation does not prove cold-cache offline editing.",
+    "Native Office conversion reports missing Liberation Sans; rendering fidelity needs installer verification.",
+    "Opaque package identities are known only after resolution; NAS activation remains guarded with transaction recovery."
+  ]
+}

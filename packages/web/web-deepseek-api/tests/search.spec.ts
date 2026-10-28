@@ -6,6 +6,7 @@ import type { Session } from '@deepseek-ai/dsh-session'
 import WebRuntime from '@deepseek-ai/dsh-web'
 import type { DeepSeekAccount } from '@deepseek-ai/dsh-deepseek-account'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import {
   DeepSeekSearchApiProvider,
   DEEPSEEK_WEB_API_BASE_URL,
@@ -45,9 +46,9 @@ function searchResponse() {
 afterEach(() => { vi.unstubAllGlobals() })
 
 describe('mapSearchResponse', () => {
-  it('maps source titles, snippets and nullable dates in provider order', () => {
+  it('maps source titles, snippets, summaries and nullable dates in provider order', () => {
     expect(mapSearchResponse(searchResponse())).toEqual({ sources: [
-      { url: 'https://a.test', title: 'A', snippet: 'excerpt for A', publishedAt: '2026-02-02T16:00:00+00:00' },
+      { url: 'https://a.test', title: 'A', snippet: 'excerpt for A', summary: 'longer summary for A', publishedAt: '2026-02-02T16:00:00+00:00' },
       { url: 'https://b.test', title: 'B' },
     ], truncated: false })
   })
@@ -62,6 +63,7 @@ describe('mapSearchResponse', () => {
     { results: [{ url: 'https://a.test', title: 1, snippet: '', date: null }] },
     { results: [{ url: 'https://a.test', title: '', snippet: 1, date: null }] },
     { results: [{ url: 'https://a.test', title: '', snippet: '', date: 1 }] },
+    { results: [{ url: 'https://a.test', title: '', snippet: '', summary: 1, date: null }] },
   ])('rejects malformed remote JSON %j', (body) => {
     expect(() => mapSearchResponse(body)).toThrow(expect.objectContaining({ code: 'WEB_PROVIDER_ERROR' }))
   })
@@ -158,6 +160,7 @@ describe('Search API triggering question', () => {
     vi.stubGlobal('fetch', fetchMock)
     const ctx = new Context()
     try {
+      await ctx.plugin(SessionProjectionRegistry)
       await ctx.plugin(AgentRegistry)
       await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-search-api' })
       await ctx.plugin(webApiPlugin, { apiKey: 'ds-key', ...config })
@@ -239,6 +242,7 @@ describe('Search API account route', () => {
     const ctx = new Context()
     try {
       await ctx.plugin(SessionStore)
+      await ctx.plugin(SessionProjectionRegistry)
       await ctx.plugin(AgentRegistry)
       await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-search-api' })
       ctx.provide('deepseekAccount', {

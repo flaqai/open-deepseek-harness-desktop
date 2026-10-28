@@ -1,4 +1,4 @@
-/* Sidebar column (figma 133:7629): vertical stack, padding 12/6, sidebar
+/* Sidebar column: vertical stack, padding 8/6, sidebar
    fill + 1px right border painted by the layout column. Collapse is a
    slide + crossfade, not a morph: the content holds its frozen expanded
    layout (inline width set by the component) and fades in place (.fading)
@@ -7,7 +7,10 @@
    mid-slide. */
 
 .root {
-  --dsh-sidebar-inline-padding: 12px;
+  --dsh-sidebar-inline-padding: 8px;
+  --dsh-sidebar-row-padding: 12px;
+  --dsh-sidebar-label-gap: 6px;
+  --dsh-sidebar-paint-inset: 3px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -20,104 +23,6 @@
      scrollbar uses the l2 pair. .quietBars hides it without changing layout. */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
-}
-
-.mobileTrigger {
-  position: fixed;
-  top: max(8px, env(safe-area-inset-top));
-  left: max(8px, env(safe-area-inset-left));
-  z-index: 32;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: none;
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-base);
-  box-shadow: var(--dsw-elevation-soft);
-  color: var(--dsw-alias-label-primary);
-  cursor: pointer;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.mobileTrigger[data-visible] {
-  visibility: visible;
-  pointer-events: auto;
-}
-
-.mobileTrigger:hover,
-.mobileTrigger:focus-visible {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.drawerLayer {
-  position: fixed;
-  inset: 0;
-  z-index: 31;
-  visibility: hidden;
-  pointer-events: none;
-  transition: visibility 0s linear var(--ds-transition-duration-slow);
-}
-
-.drawerLayer[data-open] {
-  visibility: visible;
-  pointer-events: auto;
-  transition-delay: 0s;
-}
-
-.drawerBackdrop {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: none;
-  background: var(--dsw-alias-bg-mask-1);
-  opacity: 0;
-  cursor: default;
-  transition: opacity var(--ds-transition-duration-slow) var(--ds-ease-in-out);
-}
-
-.drawerLayer[data-open] .drawerBackdrop {
-  opacity: 1;
-}
-
-.drawerPanel {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  max-width: calc(100vw - 38px);
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  box-sizing: border-box;
-  overflow: hidden;
-  background: var(--dsw-specific-sidebar-fill);
-  border-right: none;
-  box-shadow: var(--dsw-elevation-prominent);
-  transform: translateX(-100%);
-  transition: transform var(--ds-transition-duration-slow) var(--ds-ease-in-out);
-}
-
-.drawerLayer[data-open] .drawerPanel {
-  transform: none;
-}
-
-.drawerPanel > .root {
-  width: 100% !important;
-}
-
-.drawerPanel .iconButton,
-.drawerPanel .newSession {
-  min-width: 44px;
-  min-height: 44px;
-}
-
-.drawerPanel .panelRow {
-  min-height: 44px;
 }
 
 /* macOS desktop: the AppFrame column owns the translucent sidebar tint; an
@@ -153,7 +58,7 @@
 }
 
 :global([data-windows-titlebar]) .root:not(.collapsed) .brand {
-  padding-left: 4px;
+  padding-left: 8px;
 }
 
 :global([data-windows-titlebar]) .brandIdentity {
@@ -173,8 +78,7 @@
 }
 
 :global([data-windows-titlebar]) .root:not(.collapsed) .newSession {
-  margin-top: 8px;
-  margin-left: 0;
+  margin-top: 6px;
 }
 
 :global([data-windows-titlebar]) .collapsed .panelList,
@@ -290,6 +194,10 @@
   padding: 0 12px 2px;
 }
 
+:global(html[data-platform='darwin']:not([data-fullscreen])) .root:not(.collapsed) > .topStrip > .toggle {
+  transform: translateX(4px);
+}
+
 /* Window fullscreen hides the traffic lights (html[data-fullscreen], desktop
    preload): the toggle takes their spot at the strip's left edge. */
 :global([data-fullscreen]) .topStrip {
@@ -303,14 +211,16 @@
   margin-top: -12px;
 }
 
-/* Logo row (figma pad (4,8,4,8)): expanded keeps the panel toggle at the
+/* Logo row: 8px vertical and leading padding, with no trailing padding or
+   bottom margin. Expanded keeps the panel toggle at the
    right edge; the rail gives every control the same base left anchor before
    the shared entry translation is applied. macOS hiddenInset titlebar: the row
    is marked `data-window-drag` in markup (SidebarRoot), so ui-web base.css's
    single darwin rule carries the drag over its own box — below the top strip
    (40–100px: the strip's 52px foot with the row's -12px tuck). The brand rides
    that box (SidebarRoot renders the wordmark as a plain span there, so the
-   global interactive no-drag rule never subtracts it); the dedicated New
+   global interactive no-drag rule never subtracts it; only the local-build
+   fallbacks opt out through .copyVersion); the dedicated New
    Session button below keeps the pointer and keyboard paths. Safe as a drag
    source: it precedes the sidebar's overlay slots in document order, so their
    no-drag still wins. */
@@ -321,8 +231,8 @@
   justify-content: flex-end;
   gap: 8px;
   height: 60px;
-  padding: 8px 0 8px 4px;
-  margin-bottom: 4px;
+  padding: 8px 0 8px 8px;
+  margin-bottom: 0;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -365,7 +275,7 @@
 .brandIdentity {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   height: 24px;
   min-width: 0;
 }
@@ -406,6 +316,14 @@
   white-space: nowrap;
 }
 
+/* Local-build fallbacks copy the version, also on macOS, where the
+   surrounding brand is a window-drag surface. */
+.copyVersion {
+  display: inline-flex;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
 .localBuildTitle {
   font-size: 12px;
   line-height: 13px;
@@ -428,8 +346,10 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.iconButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .iconButton:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 /* The toggle is flush with .logoRow, which clips its own overflow, so an outward ring loses
@@ -453,12 +373,14 @@
   display: none;
 }
 
-.collapsed .toggle:hover .panelIcon {
-  display: inline;
-}
+@media (hover: hover) {
+  .collapsed .toggle:hover .panelIcon {
+    display: inline;
+  }
 
-.collapsed .toggle:hover .railMark {
-  display: none;
+  .collapsed .toggle:hover .railMark {
+    display: none;
+  }
 }
 
 .railMark {
@@ -501,7 +423,7 @@
   gap: 0;
   height: 38px;
   padding: 8px 12px;
-  margin: 0 2px 12px;
+  margin: 0 calc(var(--dsh-sidebar-paint-inset) + 1px) 10px;
   box-sizing: border-box;
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-md);
@@ -514,8 +436,10 @@
   overflow: hidden;
 }
 
-.newSession:hover {
-  background: var(--dsw-alias-button-floating-hover);
+@media (hover: hover) {
+  .newSession:hover {
+    background: var(--dsw-alias-button-floating-hover);
+  }
 }
 
 /* macOS: the themed elevated fill reads as a foreign slab on the vibrancy
@@ -525,16 +449,20 @@
   background: rgb(255 255 255 / 0.55);
 }
 
-:global([data-platform='darwin']) .newSession:hover {
-  background: rgb(255 255 255 / 0.3);
+@media (hover: hover) {
+  :global([data-platform='darwin']) .newSession:hover {
+    background: rgb(255 255 255 / 0.3);
+  }
 }
 
 :global([data-platform='darwin']) :global([data-ds-dark-theme]) .newSession {
   background: rgb(255 255 255 / 0.15);
 }
 
-:global([data-platform='darwin']) :global([data-ds-dark-theme]) .newSession:hover {
-  background: rgb(255 255 255 / 0.2);
+@media (hover: hover) {
+  :global([data-platform='darwin']) :global([data-ds-dark-theme]) .newSession:hover {
+    background: rgb(255 255 255 / 0.2);
+  }
 }
 
 .collapsed .newSession {
@@ -548,8 +476,10 @@
   background: transparent;
 }
 
-.collapsed .newSession:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .collapsed .newSession:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .newSessionLabel {
@@ -563,7 +493,18 @@
 }
 
 .newSessionLabelMask { flex: 1; min-width: 0; }
-.newSession:is(:hover, :focus-visible) .newSessionLabelMask:has(+ .newSessionShortcut) { overflow: hidden; mask-image: linear-gradient(to right, black calc(100% - 16px), transparent); }
+
+.newSession:focus-visible .newSessionLabelMask:has(+ .newSessionShortcut) {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
+}
+
+@media (hover: hover) {
+  .newSession:hover .newSessionLabelMask:has(+ .newSessionShortcut) {
+    overflow: hidden;
+    mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
+  }
+}
 .newSessionContent { display: flex; width: 100cqw; align-items: center; justify-content: center; gap: 6px; }
 .newSessionContent > svg { flex: none; }
 
@@ -575,7 +516,15 @@
   font-weight: 400;
 }
 
-.newSession:is(:hover, :focus-visible) .newSessionShortcut { opacity: 1; }
+.newSession:focus-visible .newSessionShortcut {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .newSession:hover .newSessionShortcut {
+    opacity: 1;
+  }
+}
 
 .panelList {
   flex: none;
@@ -585,19 +534,21 @@
   margin-bottom: 8px;
 }
 
-/* Panel entries share the New Session bar's 12px radius and 2px inset, the
-   session rows' hover/selected surface, and the primary ink. */
+/* Panel entries use a 3px paint inset, the New Session bar's 12px radius,
+   the session rows' hover/selected fill, and the primary ink. */
 .panelRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 2px;
+  gap: var(--dsh-sidebar-label-gap);
+  margin: 0;
   min-height: 36px;
-  padding: 7px 8px;
+  padding: 7px calc(var(--dsh-sidebar-row-padding) - var(--dsh-sidebar-paint-inset));
   box-sizing: border-box;
   border: none;
+  border-inline: var(--dsh-sidebar-paint-inset) solid transparent;
   border-radius: var(--dsw-radius-md);
   background: transparent;
+  background-clip: padding-box;
   color: var(--dsw-alias-label-primary);
   font: inherit;
   line-height: 22px;
@@ -605,12 +556,14 @@
   cursor: pointer;
 }
 
-.panelRow:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .panelRow:hover {
+    background-color: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .panelRow.panelActive {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background-color: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
 
@@ -626,7 +579,7 @@
 }
 
 .panelRow[aria-expanded='true'] {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background-color: var(--dsw-alias-interactive-bg-hover);
 }
 
 .moreMenu {
@@ -658,6 +611,8 @@
   height: 36px;
   justify-content: center;
   margin: 0;
+  border-inline: 0;
+  background-clip: border-box;
   padding: 0;
   color: var(--dsw-alias-label-primary);
 }
@@ -697,25 +652,6 @@
   width: 100%;
 }
 
-.settingsLine {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  width: 100%;
-}
-
-.settingsLine .settingsArea {
-  flex: 1;
-  width: auto;
-}
-
-.settingsActions {
-  flex: none;
-  display: flex;
-  align-items: center;
-}
-
 .footerActions {
   display: flex;
 }
@@ -731,14 +667,7 @@
   width: auto;
 }
 
-.collapsed .settingsLine {
-  width: auto;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .drawerLayer,
-  .drawerBackdrop,
-  .drawerPanel,
   .wide,
   .fading > *,
   .railIn .iconButton,

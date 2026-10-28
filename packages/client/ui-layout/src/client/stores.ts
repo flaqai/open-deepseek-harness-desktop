@@ -7,7 +7,6 @@ import type { MainPanelId } from './service.ts'
 import {
   clampWidth, RIGHTBAR_DEFAULT_RATIO, RIGHTBAR_MAX_RATIO, RIGHTBAR_MIN,
   SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
-  PHONE_MAX_WIDTH,
 } from './columns.ts'
 
 /**
@@ -27,8 +26,6 @@ type LayoutInfo = {
   /** Last positive frame measurement; window width bootstraps the first render. */
   viewportWidth: number
   narrowExpanded: boolean
-  /** Transient visibility of the overlay drawer on phone-width frames. */
-  phoneDrawerOpen: boolean
   /**
    * Saved right panel width in px, or null before its first opening. Resizing
    * the frame and closing the panel preserve this preference.
@@ -63,7 +60,6 @@ type LayoutActions = {
   retainMainPanels: (draft: LayoutState, panelIds: readonly string[]) => void
   setSidebar: (draft: LayoutState, px: number) => void
   toggleSidebar: (draft: LayoutState) => void
-  dismissSidebar: (draft: LayoutState) => void
   setViewportWidth: (draft: LayoutState, width: number) => void
   setRightbar: (draft: LayoutState, px: number) => void
   openRightbar: (draft: LayoutState, track: boolean, fullscreen: boolean) => void
@@ -76,8 +72,7 @@ type LayoutActions = {
  * default. The right panel initializes at 45% of the frame on first opening
  * and keeps that px preference across resizes and close. Drag writes clamp to
  * the current frame's range. Narrow sidebar toggles change only the expansion
- * override; the phone drawer has separate transient visibility, and opening a
- * right or main panel closes it.
+ * override; opening the right panel clears that override.
  * @returns the store handle (spec + type + identity + factory in one).
  */
 export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutActions>  {
@@ -88,7 +83,6 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         sidebar: SIDEBAR_DEFAULT,
         viewportWidth: window.innerWidth,
         narrowExpanded: false,
-        phoneDrawerOpen: false,
         rightbar: null,
         rightbarShown: false,
         rightbarTrack: false,
@@ -99,7 +93,6 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
     actions: {
       selectPanel: (d, panelId: MainPanelId | null) => {
         d.panelInfo.activePanelId = panelId
-        d.layoutInfo.phoneDrawerOpen = false
       },
       retainMainPanels: (d, panelIds: readonly string[]) => {
         if (d.panelInfo.activePanelId !== null && !panelIds.includes(d.panelInfo.activePanelId)) {
@@ -114,13 +107,8 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
       // untouched, so re-widening restores the pre-squeeze layout.
       toggleSidebar: (d) => {
         d.layoutInfo.rightbarInstant = false
-        if (d.layoutInfo.viewportWidth <= PHONE_MAX_WIDTH) d.layoutInfo.phoneDrawerOpen = !d.layoutInfo.phoneDrawerOpen
-        else if (d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) d.layoutInfo.narrowExpanded = !d.layoutInfo.narrowExpanded
+        if (d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) d.layoutInfo.narrowExpanded = !d.layoutInfo.narrowExpanded
         else d.layoutInfo.sidebar = d.layoutInfo.sidebar === 0 ? SIDEBAR_DEFAULT : 0
-      },
-      dismissSidebar: (d) => {
-        if (!d.layoutInfo.phoneDrawerOpen) return
-        d.layoutInfo.phoneDrawerOpen = false
       },
       // Crossing the breakpoint in either direction drops the override: the
       // narrow default is auto-collapsed, the wide state is the preference.
@@ -129,9 +117,6 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         d.layoutInfo.rightbarInstant = false
         if ((d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) !== (width < SIDEBAR_AUTO_COLLAPSE)) {
           d.layoutInfo.narrowExpanded = false
-        }
-        if ((d.layoutInfo.viewportWidth <= PHONE_MAX_WIDTH) !== (width <= PHONE_MAX_WIDTH)) {
-          d.layoutInfo.phoneDrawerOpen = false
         }
         d.layoutInfo.viewportWidth = width
       },
@@ -144,7 +129,6 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
           d.layoutInfo.rightbarInstant = d.layoutInfo.rightbarFullscreen && !fullscreen
         }
         if (!d.layoutInfo.rightbarShown && d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) d.layoutInfo.narrowExpanded = false
-        d.layoutInfo.phoneDrawerOpen = false
         d.layoutInfo.rightbar ??= Math.max(RIGHTBAR_MIN, Math.round(d.layoutInfo.viewportWidth * RIGHTBAR_DEFAULT_RATIO))
         d.layoutInfo.rightbarShown = true
         d.layoutInfo.rightbarTrack = track

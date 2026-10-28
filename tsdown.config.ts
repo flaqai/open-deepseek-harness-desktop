@@ -1,11 +1,7 @@
+import { globSync } from 'node:fs'
 import { defineConfig } from 'tsdown'
-import { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { typertPlugin } from './packages/typert/generator/lib/types/tsdown-plugin.js'
-import { workspaceBuildPackages } from './scripts/workspace-build-packages.ts'
-import { WORKSPACE_TYPERT_FACES } from './scripts/typert-faces.ts'
-
-const root = dirname(fileURLToPath(import.meta.url))
+import { decoratorPlugin } from './packages/typert/generator/lib/types/tsdown-plugin.js'
+import { workspacePackageGlobs } from './scripts/workspace-package-globs.ts'
 
 function isBuildFaceClient(value: unknown): boolean {
   if (value === undefined || value === 'host') return false
@@ -15,18 +11,18 @@ function isBuildFaceClient(value: unknown): boolean {
 
 /**
  * The ordinary workspace build consumes JavaScript emitted by the Host
- * TypeScript project and runs Typert. The Client pass selects packages that
+ * TypeScript project after source-only Typert generation. The Client pass selects packages that
  * declare a browser bundle and lets their package-local configs emit both
- * their Node loader entry and browser artifact. The community Desktop bundles
- * after the library passes through `build:desktop`; tsdown builds workspace
- * members concurrently without ordering them.
+ * their Node loader entry and browser artifact. `apps/desktop` bundles after
+ * this pass (root package.json `build:lib:host`): its main bundle inlines
+ * workspace devDependencies from their lib/ output, and tsdown builds
+ * workspace members concurrently without ordering them.
  */
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)
+  const packages = workspacePackageGlobs(globSync(['vendor/*/package.json', 'packages/*/*/package.json'], { cwd: import.meta.dirname }))
   return {
-    workspace: workspaceBuildPackages(root, client
-      ? ['vendor/*', 'packages/*/*', 'apps/cli']
-      : ['vendor/*', 'packages/*/*', 'apps/cli', 'apps/desktop-host']),
+    workspace: [...packages, 'apps/cli', ...client ? [] : ['apps/desktop-host']],
     entry: client ? '' : ['lib/types/{index,startup}.js'],
     outDir: 'lib',
     format: ['esm'],
@@ -35,6 +31,6 @@ export default defineConfig(({ env }) => {
     fixedExtension: false,
     dts: false,
     clean: false,
-    plugins: client ? [] : [typertPlugin({ mode: 'workspace', faces: WORKSPACE_TYPERT_FACES })],
+    plugins: client ? [] : [decoratorPlugin()],
   }
 })

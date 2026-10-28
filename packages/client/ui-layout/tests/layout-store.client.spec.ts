@@ -16,7 +16,6 @@ describe('createLayoutStore', () => {
         sidebar: 280,
         viewportWidth: 1920,
         narrowExpanded: false,
-        phoneDrawerOpen: false,
         rightbar: null,
         rightbarShown: false,
         rightbarTrack: false,
@@ -76,29 +75,6 @@ describe('createLayoutStore', () => {
     actions.setViewportWidth(980)
     expect(store.getSnapshot().layoutInfo.narrowExpanded).toBe(false)
   })
-
-  it('keeps phone drawer state transient across the 680px boundary', () => {
-    const { store, actions } = createLayoutStore().create()
-    actions.setSidebar(400)
-    actions.setViewportWidth(680)
-    actions.toggleSidebar()
-    expect(store.getSnapshot().layoutInfo).toMatchObject({
-      sidebar: 400, phoneDrawerOpen: true, narrowExpanded: false,
-    })
-    actions.setViewportWidth(681)
-    expect(store.getSnapshot().layoutInfo).toMatchObject({
-      sidebar: 400, phoneDrawerOpen: false, narrowExpanded: false,
-    })
-  })
-
-  it('closes the phone drawer when the right panel opens', () => {
-    const { store, actions } = createLayoutStore().create()
-    actions.setViewportWidth(390)
-    actions.toggleSidebar()
-    expect(store.getSnapshot().layoutInfo.phoneDrawerOpen).toBe(true)
-    actions.openRightbar(false, true)
-    expect(store.getSnapshot().layoutInfo.phoneDrawerOpen).toBe(false)
-  })
 })
 
 describe('main panel selection', () => {
@@ -129,17 +105,6 @@ describe('main panel selection', () => {
     expect(store.getSnapshot().panelInfo.activePanelId).toBe(panelA)
   })
 
-  it('dismisses the phone drawer when selecting a global panel', () => {
-    const { store, actions } = createLayoutStore().create()
-    actions.setViewportWidth(390)
-    actions.toggleSidebar()
-    actions.selectPanel(panelA)
-    expect(store.getSnapshot()).toMatchObject({
-      panelInfo: { activePanelId: panelA },
-      layoutInfo: { phoneDrawerOpen: false },
-    })
-  })
-
   it('returns to the Conversation only when the selected main registration disappears', () => {
     const { store, actions } = createLayoutStore().create()
     const initial = store.getSnapshot()
@@ -154,20 +119,15 @@ describe('main panel selection', () => {
     expect(store.getSnapshot().layoutInfo).toBe(selected.layoutInfo)
   })
 
-  it.each(['setSidebar', 'toggleSidebar', 'dismissSidebar', 'setViewportWidth', 'setRightbar', 'openRightbar', 'closeRightbar'] as const)(
+  it.each(['setSidebar', 'toggleSidebar', 'setViewportWidth', 'setRightbar', 'openRightbar', 'closeRightbar'] as const)(
     'preserves panelInfo identity when %s changes layoutInfo', (action) => {
       const { store, actions } = createLayoutStore().create()
       actions.selectPanel(panelA)
       if (action === 'closeRightbar') actions.openRightbar(true, true)
-      if (action === 'dismissSidebar') {
-        actions.setViewportWidth(390)
-        actions.toggleSidebar()
-      }
       const previous = store.getSnapshot()
       switch (action) {
         case 'setSidebar': actions.setSidebar(400); break
         case 'toggleSidebar': actions.toggleSidebar(); break
-        case 'dismissSidebar': actions.dismissSidebar(); break
         case 'setViewportWidth': actions.setViewportWidth(980); break
         case 'setRightbar': actions.setRightbar(500); break
         case 'openRightbar': actions.openRightbar(true, true); break

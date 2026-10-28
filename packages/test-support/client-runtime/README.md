@@ -40,7 +40,7 @@ expect(view.container).toMatchSnapshot()
 await runtime.dispose()
 ```
 
-`mount` prechecks required services and fails loud when one is missing — `provide(name, value)` supplies an extra service first. The runtime provides a `fileUpload` stub that rejects every call until a suite replaces `runtime.fileUpload.upload`. `storeOf(key, scopeKey)` returns the live store instance the renderer hands a slot's component for identity and action-driven-write assertions.
+`mount` prechecks required services and fails loud when one is missing — `provide(name, value)` supplies an extra service first. The runtime provides a `fileUpload` stub whose `upload` and `uploadImage` reject every call until a suite replaces them. `storeOf(key, scopeKey)` returns the live store instance the renderer hands a slot's component for identity and action-driven-write assertions.
 
 The runtime installs `allowAllAccessPlugin` before ui-session: its `remoteAccess` service answers true for every resource, so every access Hook allows every action. For assembled permission tests, pass `create({ access: { source, global } })`: `source(kind, id, action)` supplies resource answers and `global(action)` supplies global answers, both as live observables. Hand-built component props spread `...allowAllAccess` to receive the same Hooks; a spec of a refused path overrides one Hook.
 
@@ -127,7 +127,7 @@ The bench copies no production logic: it mounts the production `SlotRegistry`, p
 | [`src/sessions.ts`](src/sessions.ts) + [`src/workspaces.ts`](src/workspaces.ts) | `ISessions`/`IWorkspaces` test doubles and `FixtureSession` behavior stubs |
 | [`src/fixtures.ts`](src/fixtures.ts) | Plain fixture builders: conversation snapshots, workspace list state |
 | [`src/snapshot.ts`](src/snapshot.ts) | DOM snapshot serializer (class-hash folding, `<svg>` fingerprint) |
-| [`src/access.ts`](src/access.ts) | `allowAllAccess` props and `allowAllAccessPlugin`, the allow-all stand-in for the remote-access Client row |
+| [`src/access.ts`](src/access.ts) | `allowAllAccess` props, `StaticRemoteAccess`, `staticAccessPlugin`, and `allowAllAccessPlugin`, the fixed-answer stand-ins for the remote-access Client row |
 | [`src/remote.ts`](src/remote.ts) | `TestRemote` double for host RPC, `RemoteError` value re-export |
 | [`src/translate.ts`](src/translate.ts) + [`src/locale-env.ts`](src/locale-env.ts) | Translation and pinned-browser-language test helpers |
 | [`src/config-form.ts`](src/config-form.ts) | `stubConfigForm` with test-driven publications and write spies |

@@ -1,3 +1,4 @@
+import { DEFAULT_PROFILE_BUNDLES, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 /**
  * `dsh plugin --profile <name> <args...>` — profile plugin management as a
  * thin pnpm forwarder: initialize the profile on first use, run
@@ -24,7 +25,6 @@ import {
   classifyProfileDiagnostic,
   createProfilePluginSnapshot,
   createProfileDiagnosticReport,
-  DEFAULT_PROFILE_BUNDLES,
   endProfilePluginMutationLease,
   finalizeProfilePluginSnapshot,
   initProfile,
@@ -38,7 +38,6 @@ import {
   listProfilePluginSnapshots,
   inspectQuarantineRemovalResidue,
   orphanedBundleDiagnostic,
-  PROFILE_TEMPLATES,
   profileDependencyConflictDiagnostic,
   profileHostCompatibilityDiagnostic,
   profileLoaderEntryCollisionDiagnostic,

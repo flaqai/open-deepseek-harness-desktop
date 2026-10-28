@@ -18,7 +18,7 @@ import { AppFrame } from './AppFrame.tsx'
 import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
-import { en, zh } from './shortcut-locales.ts'
+import { en, ja, es, fr, de, ru, pt, zh } from './shortcut-locales.ts'
 import { ThemePresenter } from './theme-presenter.ts'
 
 // Contract exports only (export-convergence rule: cross-package consumers
@@ -62,10 +62,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * the seats it declares disappear with it. To add something to the
      * sidebar, register into one of those inner seats instead.
      *
-     * The occupant receives the frame's live column or drawer presentation.
-     * Column mode renders the compact rail while collapsed; drawer mode
-     * renders only a menu trigger while closed and dismisses independently of
-     * the saved desktop width.
+     * The occupant receives the frame's live column state (collapsed, width)
+     * and is expected to render the compact control rail while collapsed.
      */
     'sidebar': { kind: 'single'; scope: 'root'; owner: SidebarOwnerProps }
     /**
@@ -129,14 +127,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Sidebar owner share: live column state from the frame's concession solve. */
 export interface SidebarOwnerProps {
-  /** True when the sidebar is closed. Column presentation renders a compact rail; drawer presentation renders only its opener. */
+  /** True when the sidebar is closed (the column renders the compact control rail). */
   collapsed: boolean
-  /** Rendered column or drawer width in px. */
+  /** Rendered column width in px (SIDEBAR_COLLAPSED when collapsed). */
   width: number
-  /** Responsive presentation selected by the AppFrame. */
-  presentation: 'column' | 'drawer'
-  /** Close the transient phone drawer without changing desktop width preferences. */
-  dismiss: () => void
 }
 
 /** Right column owner share: resolved normal geometry and opening eligibility. */
@@ -162,7 +156,7 @@ export const inject = ['slots', 'theme', 'locale', 'shortcuts']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register('shortcuts.layout', { zh, en }), 'layout: command labels')
+  ctx.effect(() => ctx.locale.register('shortcuts.layout', { zh, en, ja, es, fr, de, ru, pt }), 'layout: command labels')
   const t = ctx.locale.bind('shortcuts.layout')
 
   ctx.effect(() => {

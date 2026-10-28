@@ -1,5 +1,6 @@
 /** Declarative Agent capability sets, activation and session binding. */
-import { Context } from '@deepseek-ai/cordis'
+import type { ProjectionHandle } from '@deepseek-ai/dsh-session-projection'
+import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { bindScopeParent, createScope, scopeOf, scopeParentOf, type Scope, type ScopeKey, type ScopeParentBinding } from '@deepseek-ai/dsh-scope'
@@ -7,11 +8,12 @@ import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { dump } from 'js-yaml'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type SettingsForms from '@deepseek-ai/dsh-settings'
+import type { Session } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-tools'
 import type { AgentPresetDocument, AgentPresetRoster } from './types.ts'
 import { entryListProblem, type PresetDefinition } from './definition.ts'
 import type { AgentPreset, Config } from './preset.ts'
-import { agentPresetProjectionDefinition, externalToolsResolvedProjectionDefinition } from './session.ts'
+import { agentPresetProjectionDefinition, externalToolsResolvedProjectionDefinition, type ExternalToolsResolvedProjection } from './session.ts'
 import { acceptsExternalTools, externalToolEnabled, type ExternalToolId, type ExternalToolsState } from './external-tools.ts'
 import { auditRows, leakedServices, mountPreset, serviceForMount, type PresetMount } from './mount.ts'
 import { activeCompositionModules, definitionComposition, mountedCompositionRows, type AgentPresetComposition, type AgentPresetInspection } from './composition-inventory.ts'
@@ -55,13 +57,15 @@ export type ExternalToolProjector = (agent: Agent, tool: ExternalToolId) => () =
 
 /** Registry of YAML-declared presets and the revisions live Agents retain. */
 export class AgentPresetRegistry extends TypertRemoteService {
-  static inject = ['loader', 'sessionProjections']
+  static inject = ['loader', 'sessionProjections', 'agents']
   static Config = z.object({
     default: z.string().required(),
     selectedDefault: z.string().volatile(),
     modeSelectionEnabled: z.boolean().default(true).volatile(),
     externalTools: z.object({ codex: z.boolean(), claudeCode: z.boolean() }).volatile(),
   })
+  private externalToolsProjectionHandle!: ProjectionHandle<ExternalToolsResolvedProjection | null>
+  private agentPresetProjectionHandle!: ProjectionHandle<string | null>
   private readonly owner: Context
   private readonly definitions = new Map<string, Definition>()
   private readonly generations = new Map<ScopeKey, Generation>()
@@ -74,8 +78,12 @@ export class AgentPresetRegistry extends TypertRemoteService {
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'agentPresets')
     this.owner = ctx
-    ctx.sessionProjections.register(agentPresetProjectionDefinition)
-    ctx.sessionProjections.register(externalToolsResolvedProjectionDefinition)
+  }
+
+  protected async [Service.init](): Promise<void> {
+    const ctx = this.owner
+    this.agentPresetProjectionHandle = await ctx.sessionProjections.register(agentPresetProjectionDefinition)
+    this.externalToolsProjectionHandle = await ctx.sessionProjections.register(externalToolsResolvedProjectionDefinition)
     ctx.inject(['settings'], (child) => {
       this.settings = child.settings
       child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
@@ -85,11 +93,11 @@ export class AgentPresetRegistry extends TypertRemoteService {
     ctx.on('agent/status', ({ agent }) => { this.reconcileExternalTools(agent) })
     ctx.on('agent/disposed', ({ agent }) => { this.externalToolMounts.delete(agent) })
     ctx.on('agent/request', ({ agent, turn, step }, next) => {
-      const previous = ctx.sessionProjections.stateOf(agent.session, 'externalToolsResolved')
+      const previous = this.externalToolsProjectionHandle.stateOf(agent.session)
       if (previous?.turn !== turn || previous.step !== step) {
         const mounted = this.externalToolMounts.get(agent)
         const tools = (['codex', 'claude-code'] as const).filter(tool => mounted?.has(tool) === true)
-        if (tools.length > 0 || previous !== undefined) {
+        if (tools.length > 0 || previous !== null) {
           agent.session.append('external-tools/resolved', { turn, step, tools: [...tools] })
         }
       }
@@ -174,6 +182,15 @@ export class AgentPresetRegistry extends TypertRemoteService {
       if (agent.status === 'idle') this.reconcileExternalTools(agent)
     }
     return this.externalToolsSnapshot()
+  }
+
+  /**
+   * Read the preset recorded for a Session, including selections no longer in the roster.
+   * @param session - Session whose committed preset selection is read.
+   * @returns the recorded preset, or null when none was selected.
+   */
+  presetForSession(session: Session): string | null {
+    return this.agentPresetProjectionHandle.stateOf(session)
   }
 
   /** Register and eagerly load a definition; activation failure remains visible in the roster.
@@ -452,13 +469,13 @@ export class AgentPresetRegistry extends TypertRemoteService {
   @Remote('select')
   async select(agent: Agent, agentPreset: string): Promise<string> {
     const turn = (this.switches.get(agent.id) ?? Promise.resolve()).then(async () => {
-      const boundary = this.owner.sessionProjections.stateOf(agent.session, 'turnBoundary')
-      if (boundary !== undefined && (boundary.openTurnStartSeq !== null || boundary.lastTurn > 0)) {
+      const boundary = this.owner.agents.turnBoundaryOf(agent.session)
+      if (boundary.openTurnStartSeq !== null || boundary.lastTurn > 0) {
         throw new RemoteError('agent-preset/locked', 'This session has already started', { sessionId: agent.id, agentPreset })
       }
       const current = this.definitions.get(agentPreset)?.generation
       if (current !== undefined && this.generationFor(agent.ctx) === current
-        && this.owner.sessionProjections.stateOf(agent.session, 'agentPreset') === agentPreset) return agentPreset
+        && this.agentPresetProjectionHandle.stateOf(agent.session) === agentPreset) return agentPreset
       const preset = await this.recompose(agent.ctx, agentPreset)
       agent.session.append('agent-preset/selected', { agentPreset: preset.id })
       return preset.id

@@ -216,6 +216,8 @@ export interface HostConnectionHandle {
    * when a validated `trustedHosts` entry names a non-loopback hostname.
    */
   readonly allowsRemoteAuthorities: boolean
+  /** True only when the Host is configured as a NAS deployment. */
+  readonly nasDeployment?: boolean
 
   /**
    * Compose exact Fetch routes and the shared-channel RPC interceptor.

@@ -289,7 +289,7 @@ function bench(options: BenchOptions = {}) {
   if (options.conversation !== false) ctx.provide('conversation', { input: { requestDraftInitialization } })
   const layout = new LayoutController({
     selectPanel: vi.fn(), retainMainPanels: vi.fn(),
-    setSidebar: vi.fn(), toggleSidebar: vi.fn(), dismissSidebar: vi.fn(), setViewportWidth: vi.fn(),
+    setSidebar: vi.fn(), toggleSidebar: vi.fn(), setViewportWidth: vi.fn(),
     setRightbar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn(),
   }, () => true, createSnapshotStore({ activePanelId: null }))
   const selectPanel = vi.spyOn(layout, 'selectPanel')
@@ -1339,6 +1339,41 @@ describe('UiWorkspaceService', () => {
     await vi.waitFor(() => {
       expect(b.sessions.retain).toHaveBeenCalledExactlyOnceWith(sid('blank'), { source: 'mainView' })
     })
+  })
+
+  it('keeps an explicit creation failure visible after a failed startup and a catalog update', async () => {
+    const startupFailure = new Error('startup failed')
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const creating = Promise.withResolvers<undefined>()
+    const created = Promise.withResolvers<SessionId>()
+    const b = bench({
+      sessions: sessionState(),
+      workspaces: workspaceState([workspace('a')]),
+      configureSessions: (sessions) => {
+        sessions.create.mockRejectedValueOnce(startupFailure).mockImplementationOnce(() => {
+          creating.resolve(undefined)
+          return created.promise
+        })
+      },
+    })
+    await vi.waitFor(() => {
+      expect(warning).toHaveBeenCalledExactlyOnceWith('initial Session restoration failed:', startupFailure)
+    })
+
+    b.uiWorkspace.startSession(wid('a'))
+    await creating.promise
+    b.sessions.list.set(sessionState([summary('creating', { blank: true, cwd: '/w/a' })]))
+    created.reject(new Error('creation refused'))
+
+    await vi.waitFor(() => {
+      expect(b.notify).toHaveBeenCalledExactlyOnceWith({ kind: 'createFailed', message: 'creation refused' })
+    })
+    expect(b.sessions.create).toHaveBeenCalledTimes(2)
+    expect(b.sessions.retain).not.toHaveBeenCalled()
+    expect(warning.mock.calls).toEqual([
+      ['initial Session restoration failed:', startupFailure],
+      ['new session failed:', expect.any(Error)],
+    ])
   })
 
   it('settles empty startup without creating a Session on later catalog updates', () => {

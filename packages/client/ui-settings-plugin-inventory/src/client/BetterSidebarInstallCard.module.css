@@ -160,8 +160,11 @@
   color: var(--better-sidebar-accent);
 }
 
+@media (hover: hover) {
+
 .primaryAction:hover:not(:disabled) {
   background: color-mix(in srgb, var(--better-sidebar-accent) 8%, transparent);
+}
 }
 
 @media (max-width: 640px) {

@@ -21,6 +21,8 @@ export interface AssistantMarkdownProps extends
   useDisclosure: UseDisclosure
   blocks: readonly AssistantBlock[]
   streaming: boolean
+  /** Only finalized durable Assistant messages supply selection sources. */
+  textInteractionSource?: boolean
   /** Frozen partial of an aborted turn: rendered with a stopped marker. */
   interrupted?: boolean | undefined
   /** Hide reasoning that belongs to the Turn-level process disclosure. */
@@ -45,8 +47,8 @@ export interface AssistantMarkdownProps extends
 
 /** Renders non-blank reasoning blocks as independent disclosures alongside the response. */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
-  blocks, streaming, interrupted, loadImage, groupPart, useDisclosure,
-  reasoningHidden = false, usePresentation, renderSlot, useGroupAction, revealProcess, mentions, cwd, openFile, revealFile, t,
+  blocks, streaming, textInteractionSource = false, interrupted, loadImage, groupPart, useDisclosure,
+  reasoningHidden = false, usePresentation, revealProcess, mentions, renderSlot, useGroupAction, cwd, openFile, revealFile, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
@@ -85,6 +87,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
             labels={labels}
             fileMentions={mentions}
             pathImages={pathImages}
+            textInteractionSource={textInteractionSource}
           />,
         )
         break
@@ -98,7 +101,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
             useGroupAction={useGroupAction}
           >
             <ReasoningRow text={block.text} running={streaming && i === last} usePresentation={usePresentation}
-              useDisclosure={useDisclosure} renderSlot={renderSlot} t={t} />
+              useDisclosure={useDisclosure} renderSlot={renderSlot} textInteractionSource={textInteractionSource} t={t} />
           </ProcessReasoning>,
         )
         break

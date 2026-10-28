@@ -1,4 +1,6 @@
 /** The read-only market listing tool over the same service the Discover page uses. */
+import { executeToolFixture } from '@deepseek-ai/dsh-tool-testkit'
+import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { Context, Service } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
@@ -6,6 +8,9 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import PluginMarket from '../src/index.ts'
 import * as tool from '../src/tools.ts'
+
+/** Clone cache directory of services whose tests read no repository; nothing creates it. */
+const UNUSED_CACHE = '/nonexistent/plugin-market-detail-cache'
 
 const URL_A = 'https://market.example/index.json'
 
@@ -26,12 +31,13 @@ async function fixture() {
     listVersionExemptions() { return { exemptions: {}, warnings: [] } }
   }
   await ctx.plugin(Manager)
-  await ctx.plugin(PluginMarket, { indexes: [URL_A] })
+  await ctx.plugin(PluginMarket, { indexes: [URL_A], detailCacheDir: UNUSED_CACHE })
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   const fiber = await ctx.plugin(tool)
   const call = async (args: unknown, signal = new AbortController().signal) => {
-    const result = await ctx.tools.execute({ name: 'plugin_market', arguments: args, callId: ToolCallId('market-call'), signal })
+    const result = await executeToolFixture(ctx, { name: 'plugin_market', arguments: args, callId: ToolCallId('market-call'), signal })
     return { ...result, json: typeof result.value === 'string' ? JSON.parse(result.value) as Record<string, unknown> : undefined }
   }
   return { ctx, call, fiber }
@@ -165,9 +171,10 @@ it('registers the tool only while the pluginMarket service is mounted', async ()
   await ctx.plugin(Manager)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(NativeToolExecutor)
   await ctx.plugin(tool)
   expect(ctx.tools.get('plugin_market')).toBeUndefined()
-  const market = await ctx.plugin(PluginMarket, { indexes: [] })
+  const market = await ctx.plugin(PluginMarket, { indexes: [], detailCacheDir: UNUSED_CACHE })
   await vi.waitFor(() => { expect(ctx.tools.get('plugin_market')).toBeDefined() })
   await market.dispose()
   await vi.waitFor(() => { expect(ctx.tools.get('plugin_market')).toBeUndefined() })

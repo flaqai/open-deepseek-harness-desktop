@@ -125,6 +125,12 @@ function createApplicationState(socket, record, application, captureBroker, conn
   function refuse(code, message) { throw Object.assign(new Error(message), { code }) }
   function call(requestId, method, params) {
     record('call', { requestId, method, params })
+    if (method === 'applicationIcons') return Object.fromEntries(params.paths.map(path => [path, `data:image/png;base64,${png}`]))
+    if (method === 'openPermissionSettings') return { opened: true }
+    if (method === 'permissionStatus' || method === 'requestPermission') {
+      const state = JSON.parse(readFileSync(new URL('./permissions.json', import.meta.url), 'utf8'))
+      return { ...state, helper: { pid: process.pid }, parent: { pid: process.ppid } }
+    }
     if (method === 'getCapabilities') return { platform: 'macos', sessionLocked: false, permissions: { accessibility: true, screenRecording: true }, methods, coordinateSpace: 'window-points', browser: false }
     if (method === 'listApps') return [{ pid: app.pid, name: app.name, bundleId: app.bundleId }]
     if (method === 'getApp') {
@@ -136,7 +142,7 @@ function createApplicationState(socket, record, application, captureBroker, conn
       }
       if (!['Fixture', 'test.fixture', '9'].includes(params.selector)) refuse('APP_NOT_FOUND', 'Select the running Fixture application')
       acquired = true
-      return { ...app, authorization: {"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "name": "Fixture", "executablePath": "/fixture/app", "persistable": true} }
+      return { ...app, applicationIcon: `data:image/png;base64,${png}`, authorization: {"id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "name": "Fixture", "executablePath": "/fixture/app", "persistable": true} }
     }
     if (!acquired || params.appHandle !== app.appHandle) refuse('APP_NOT_FOUND', 'Acquire an application in this helper first')
     if (method === 'show') return { dispatched: true, verified: false, windowId: params.windowId ?? window.windowId, foregroundChanged: false }

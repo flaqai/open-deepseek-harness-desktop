@@ -6,15 +6,18 @@ import type { CuaAppHandle, CuaSnapshotId } from './types.ts'
 const id = z.number().int().positive().max(2 ** 32 - 1)
 const pid = z.number().int().positive().max(2 ** 31 - 1)
 const point = z.number().nonnegative()
-const relativePoint = z.number().int().min(0).max(1000)
+const relativePoint = z.number().int().min(0).max(999)
 const app = { appHandle: z.string().min(1) }
 const pointer = { mouseButton: z.enum(['left', 'right', 'middle']).optional(),
   modifiers: z.array(z.enum(['command', 'control', 'option', 'shift', 'fn'])).optional() }
+const click = { ...pointer, clickCount: z.union([z.literal(1), z.literal(2)]).optional(),
+  holdMs: z.number().int().nonnegative().optional()
+    .describe('Milliseconds between each mouse press and release; omitted for an ordinary click.') }
 const window = { ...app, windowId: id }
 const snapshot = { ...app, snapshotId: z.string().min(1), elementIndex: z.number().int().nonnegative() }
 const coordinate = { ...window, snapshotId: z.string().min(1).optional(), x: point, y: point }
 const absoluteCoordinate = { ...coordinate, relative: z.literal(false).optional().describe('Omitted or false uses pixels in the latest screenshot returned by this tool.') }
-const relativeCoordinate = { ...coordinate, relative: z.literal(true).describe('Use integer thousandths of the window width and height, from 0 to 1000.'), x: relativePoint, y: relativePoint }
+const relativeCoordinate = { ...coordinate, relative: z.literal(true).describe('Use integer thousandths of the window width and height, from 0 to 999.'), x: relativePoint, y: relativePoint }
 const bounds = z.object({
   x: z.number(), y: z.number(), width: z.number().nonnegative(), height: z.number().nonnegative(),
 })
@@ -43,9 +46,9 @@ export const Request = z.discriminatedUnion('method', [
     z.object(snapshot).strict(), z.object(absoluteCoordinate).strict(), z.object(relativeCoordinate).strict(),
   ]) }).strict(),
   z.object({ method: z.literal('click'), params: z.union([
-    z.object({ ...snapshot, ...pointer, clickCount: z.union([z.literal(1), z.literal(2)]).optional() }).strict(),
-    z.object({ ...absoluteCoordinate, ...pointer, clickCount: z.union([z.literal(1), z.literal(2)]).optional() }).strict(),
-    z.object({ ...relativeCoordinate, ...pointer, clickCount: z.union([z.literal(1), z.literal(2)]).optional() }).strict(),
+    z.object({ ...snapshot, ...click }).strict(),
+    z.object({ ...absoluteCoordinate, ...click }).strict(),
+    z.object({ ...relativeCoordinate, ...click }).strict(),
   ]) }).strict(),
   operation('setValue', { ...snapshot, value: z.string() }),
   operation('selectText', { ...snapshot, text: z.string().min(1), prefix: z.string().optional(), suffix: z.string().optional(),
@@ -63,7 +66,7 @@ export const Request = z.discriminatedUnion('method', [
   z.object({ method: z.literal('drag'), params: z.union([
     z.object({ ...window, ...pointer, snapshotId: z.string().min(1).optional(), relative: z.literal(false).optional(),
       fromX: point, fromY: point, toX: point, toY: point }).strict(),
-    z.object({ ...window, ...pointer, snapshotId: z.string().min(1).optional(), relative: z.literal(true),
+    z.object({ ...window, ...pointer, snapshotId: z.string().min(1).optional(), relative: relativeCoordinate.relative,
       fromX: relativePoint, fromY: relativePoint, toX: relativePoint, toY: relativePoint }).strict(),
   ]) }).strict(),
   operation('screenshot', window),
@@ -78,8 +81,13 @@ export const NativeResourceParameters = {
   }).strict(),
   findApps: z.object({ maxAppMatches: z.number().int().min(1).max(1000) }).strict(),
 }
-/** Executor-only continuation after application consent; absent from the model Request union. */
-export const NativeOnlyOperations = [operation('launchApp', app)] as const
+/** Host-only launch continuation and user-facing system permission controls; absent from model arguments. */
+export const NativeOnlyOperations = [
+  operation('launchApp', app), operation('permissionStatus', {}),
+  operation('applicationIcons', { paths: z.array(z.string().min(1)) }),
+  operation('requestPermission', { permission: z.enum(['accessibility', 'screenRecording']) }),
+  operation('openPermissionSettings', { permission: z.enum(['accessibility', 'screenRecording']) }),
+] as const
 
 /** Process identity returned only after a successful app selection. */
 export const AppResult = z.object({
@@ -124,3 +132,6 @@ export const ActionResult = z.object({ dispatched: z.literal(true), verified: z.
 export const HoverResult = ActionResult.extend({ hoverRoute: z.enum(['accessibility', 'system-pointer']), systemPointerMoved: z.boolean() })
 /** Background restoration dispatch and sampled foreground changes; null means the observation was unavailable. */
 export const ShowResult = ActionResult.extend({ windowId: id.nullable(), foregroundChanged: z.boolean().nullable() })
+
+/** Bounded native PNG thumbnail for human presentation, excluded from model results and saved grants. */
+export const ApplicationIcon = z.string().max(65536).regex(/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/)

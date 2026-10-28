@@ -36,8 +36,7 @@ afterEach(async () => {
   }
 })
 
-async function bench(collapsed = false, track?: TrackProductEvent, drawer = false) {
-  const dismiss = vi.fn()
+async function bench(collapsed = false, track?: TrackProductEvent) {
   const runtime = await SlotTestRuntime.create()
   runtimes.add(runtime)
   const locale = new LocaleRuntime(runtime.ctx)
@@ -72,9 +71,7 @@ async function bench(collapsed = false, track?: TrackProductEvent, drawer = fals
     const activePanelId = usePanelInfo(info => info.activePanelId)
     return (
       <>
-        <aside>{renderSlot('sidebar', {
-          collapsed, width: collapsed ? 56 : 300, presentation: drawer ? 'drawer' : 'column', dismiss,
-        })}</aside>
+        <aside>{renderSlot('sidebar', { collapsed, width: collapsed ? 56 : 300 })}</aside>
         <main>{renderSlot('main', {}, { entryKey: activePanelId ?? 'conversation' })}</main>
       </>
     )
@@ -85,7 +82,7 @@ async function bench(collapsed = false, track?: TrackProductEvent, drawer = fals
   }, Frame)
   const sidebar = await runtime.mount({ inject: [...inject], apply })
   const view = runtime.renderRoot()
-  return { runtime, locale, layout, sidebar, view, dismiss }
+  return { runtime, locale, layout, sidebar, view }
 }
 
 /** A More menu occupant that exposes each owner callback as a plain button. */
@@ -339,16 +336,6 @@ describe('sidebar global panels', () => {
 
 describe('sidebar launcher pins', () => {
   const PINS_KEY = 'dsh.slot.manual-order.sidebar.panellist.v1'
-
-  it('dismisses the mobile drawer after opening a panel through More', async () => {
-    const { runtime, locale, layout, view, dismiss } = await bench(false, undefined, true)
-    await mountPanels(runtime, locale)
-    await mountProbeActions(runtime)
-    fireEvent.click(await view.findByRole('button', { name: 'More' }))
-    fireEvent.click(view.getByRole('menuitem', { name: 'Open Alpha panel' }))
-    expect(layout.selectPanel).toHaveBeenLastCalledWith(ALPHA)
-    expect(dismiss).toHaveBeenCalledOnce()
-  })
 
   it('ignores stored unpinned panels and shows all registered launchers', async () => {
     localStorage.setItem(PINS_KEY, JSON.stringify({ unpinned: [ALPHA, BETA, PLUGINS, 'removed-plugin'] }))

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-desktop",
   "description": "Cross-platform Electron host for the DeepSeek Harness Web GUI",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-alpha.2",
   "private": true,
   "homepage": "https://github.com/flaqai/open-deepseek-harness-desktop",
   "author": {
@@ -33,7 +33,8 @@
     "package:linux:x64": "pnpm --dir ../.. run prepare:desktop:bundled-plugins && pnpm --dir ../.. run build:community-desktop && pnpm exec tsx scripts/prepare-workspace-runtime.ts linux-x64 && node scripts/prepare-unix-runtime.mjs --target linux-x64 && node node_modules/electron-builder/out/cli/cli.js --config electron-builder.linux.yml --linux deb rpm --x64 --publish never",
     "start": "node scripts/start-electron.mjs",
     "test": "vitest run --config vitest.config.ts",
-    "test:markdown-image-layout": "electron scripts/check-markdown-image-layout.mjs"
+    "test:markdown-image-layout": "electron scripts/check-markdown-image-layout.mjs",
+    "purge:latest": "tsx scripts/upload-target.ts --latest --purge-only"
   },
   "license": "MIT",
   "devDependencies": {
@@ -54,6 +55,11 @@
     "typescript": "^6.0.3",
     "vitest": "^4.1.8",
     "vite": "^6.0.0",
-    "@deepseek-ai/dsh-client-product-analytics": "workspace:*"
+    "@deepseek-ai/dsh-client-product-analytics": "workspace:*",
+    "@deepseek-ai/dsh-official-bundles": "workspace:*",
+    "@deepseek-ai/dsh-plugin-manager": "workspace:*",
+    "zod": "4.4.3",
+    "@deepseek-ai/dsh-util-file-drag": "workspace:*",
+    "tencentcloud-sdk-nodejs-teo": "4.1.330"
   }
 }

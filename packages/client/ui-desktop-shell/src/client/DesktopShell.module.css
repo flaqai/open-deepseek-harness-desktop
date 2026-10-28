@@ -46,7 +46,8 @@
 .modalActions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 20px; }
 .dataHomeChoices { display: grid; gap: 10px; padding-top: 4px; }
 .dataHomeChoice { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 13px 14px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 12px; background: var(--dsw-alias-bg-base); cursor: pointer; transition: border-color .16s ease, background .16s ease, box-shadow .16s ease; }
-.dataHomeChoice:hover { border-color: var(--dsw-alias-label-tertiary); }
+@media (hover: hover) {
+.dataHomeChoice:hover { border-color: var(--dsw-alias-label-tertiary); } }
 .dataHomeChoice[data-selected='true'] { border-color: var(--dsw-alias-label-primary); background: color-mix(in srgb, var(--dsw-alias-bg-module-platform) 72%, transparent); box-shadow: 0 0 0 1px var(--dsw-alias-label-primary); }
 .dataHomeChoice[data-disabled='true'] { cursor: not-allowed; opacity: .52; }
 .dataHomeChoice input { margin: 3px 0 0; accent-color: var(--dsw-alias-label-primary); }

@@ -119,8 +119,11 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+
 .close:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
 }
 
 .language {
@@ -139,8 +142,11 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+
 .language:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
 }
 
 .language:focus-visible,
@@ -280,10 +286,13 @@
   background: var(--dsw-alias-bg-layer-2);
 }
 
+@media (hover: hover) {
+
 .taskSkip:hover,
 .skipAll:hover,
 .taskConfigure:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
 }
 
 .footer {

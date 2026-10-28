@@ -12,9 +12,12 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+
 .iconButton:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
+}
 }
 
 .iconButton:disabled {

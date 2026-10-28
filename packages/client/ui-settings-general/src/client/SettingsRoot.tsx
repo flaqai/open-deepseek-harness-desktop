@@ -1,49 +1,33 @@
 /**
  * Settings shell root: the sidebar-foot trigger row plus the centered modal
- * panel (figma 2552:26025, 760x500) with the section nav rail. The shell is
- * a pure composition face — slot-owned text (trigger label, panel title,
- * close label, sections) arrives from registrants through slots; accessible
- * names resolve from localized content (trigger: shell locale; dialog:
- * aria-labelledby the title node; close: visually-hidden slot text). Modal
- * open state and the active section id belong to the declared owner store;
- * the onboarding coordinator mounts exactly one ordered registrant while the
- * sessions-derived empty-Hero fact is active. Visible dialog chrome belongs
- * to the step, so a mounted-but-deciding step paints nothing here.
+ * panel with the section nav rail. In browsers below 768px the panel fills
+ * the viewport and the rail turns into a horizontal strip; Windows and macOS
+ * desktop windows retain the rail
+ * (SettingsRoot.module.css). The shell is a pure composition face —
+ * slot-owned text (trigger label, panel title, close label, sections) arrives
+ * from registrants through slots; accessible names resolve from localized
+ * content (trigger: shell locale; dialog: aria-labelledby the title node;
+ * close: visually-hidden slot text). Modal open state and the active section
+ * id belong to the declared owner store; the onboarding coordinator mounts
+ * exactly one ordered registrant while the sessions-derived empty-Hero fact
+ * is active. Visible dialog chrome belongs to the step, so a
+ * mounted-but-deciding step paints nothing here.
  */
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
   ConnectionIndicator, Tooltip, useModalLayer,
-  IconCheckOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconReorderOutline16,
-  IconLinkOutline16, IconWarningOutline16,
   IconAgentPresetOutlineMedium, IconArchiveOutlineMedium, IconCloseOutlineRegular, IconDataOutlineMedium,
   IconPersonalizationOutlineMedium, IconSettingsOutlineMedium, IconUserOutlineMedium,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConnectionIndicatorState } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SettingsOnboardingSectionRequest } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
-import { DesktopUpdateIndicator } from './DesktopUpdateIndicator.tsx'
-import {
-  moveSettingsSection, moveSettingsSectionToIndex, orderSettingsSections,
-  settingsSectionAutoScroll, settingsSectionRowShift, settingsSectionTargetIndex,
-  type SettingsSectionBox,
-} from './section-order.ts'
+import { orderSettingsSections } from './section-order.ts'
 import css from './SettingsRoot.module.css'
+import { DesktopUpdateIndicator } from './DesktopUpdateIndicator.tsx'
 
 const RECOVERY_CONFIRMATION_MS = 2_000
-const PHONE_MAX_WIDTH = 680
-
-/** Track the settings shell's phone presentation while the dialog is mounted. */
-function usePhoneViewport(): boolean {
-  const [phone, setPhone] = useState(() => window.innerWidth <= PHONE_MAX_WIDTH)
-  useEffect(() => {
-    const update = (): void => { setPhone(window.innerWidth <= PHONE_MAX_WIDTH) }
-    window.addEventListener('resize', update)
-    return () => { window.removeEventListener('resize', update) }
-  }, [])
-  return phone
-}
 
 /** Minimum visible time for the connecting pill; shorter attempts read as flicker. */
 const CONNECTING_MIN_VISIBLE_MS = 800
@@ -53,131 +37,18 @@ function navIcon(id: string) {
   if (id === 'account') return <IconUserOutlineMedium className={css.navIcon} size={16} />
   if (id === 'models') return <IconDataOutlineMedium className={css.navIcon} size={16} />
   if (id === 'agent-presets') return <IconAgentPresetOutlineMedium className={css.navIcon} size={16} />
-  if (id === 'external-tools') return <IconLinkOutline16 className={css.navIcon} size={16} />
-  if (id === 'plugin-restore') return <IconPersonalizationOutlineMedium className={css.navIcon} size={16} />
   if (id === 'plugins') return <IconPersonalizationOutlineMedium className={css.navIcon} size={16} />
-  if (id === 'diagnostics') return <IconWarningOutline16 className={css.navIcon} size={16} />
   if (id === 'archived-sessions') return <IconArchiveOutlineMedium className={css.navIcon} size={16} />
   return <IconSettingsOutlineMedium className={css.navIcon} size={16} />
 }
 
 type PanelProps = {
   rows: readonly SettingsSectionRow[]
-  storedOrder: readonly string[]
   renderSlot: SettingsRootComponentProps['renderSlot']
-  t: SettingsRootComponentProps['t']
   activeId: string | undefined
-  onSelect: (id: string | undefined) => void
-  onReorder: (ids: readonly string[]) => void
+  onSelect: (id: string) => void
   onClose: () => void
   preferredSubsectionId?: string
-}
-
-const POINTER_DRAG_THRESHOLD = 4
-const SECTION_SORT_ANIMATION_MS = 180
-
-/** Query motion preference while tolerating DOM test hosts without matchMedia. */
-function prefersReducedMotion(): boolean {
-  return typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
-type SectionDragState = {
-  id: string
-  phase: 'dragging' | 'settling' | 'cancelling'
-  sourceIndex: number
-  targetIndex: number
-  startPointerY: number
-  pointerY: number
-  originTop: number
-  originLeft: number
-  width: number
-  height: number
-  listTop: number
-  listScrollTop: number
-  boxes: readonly SettingsSectionBox[]
-}
-
-type ArmedSectionDrag = {
-  id: string
-  pointerId: number
-  startX: number
-  startY: number
-  handle: HTMLButtonElement
-}
-
-type OnboardingPanelProps = {
-  request: SettingsOnboardingSectionRequest
-  available: boolean
-  renderSlot: SettingsRootComponentProps['renderSlot']
-  t: SettingsRootComponentProps['t']
-  onBack: () => void
-  onComplete: () => void
-}
-
-const ONBOARDING_SECTION_STEPS = [
-  'onboarding.step.models',
-  'onboarding.step.phone',
-  'onboarding.step.messages',
-  'onboarding.step.codex',
-  'onboarding.step.ready',
-] as const
-
-/** Reuse one settings section inside the selected first-run progress shell. */
-function OnboardingSectionPanel({ request, available, renderSlot, t, onBack, onComplete }: OnboardingPanelProps) {
-  const titleId = useId()
-  const backButton = useRef<HTMLButtonElement | null>(null)
-
-  useEffect(() => { backButton.current?.focus() }, [])
-
-  return createPortal((
-    <div className={clsx(css.overlay, css.onboardingOverlay)} role="presentation">
-      <div className={css.mask} aria-hidden="true" />
-      <div className={css.onboardingPanel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <aside className={css.onboardingRail}>
-          <h2 id={titleId} className={css.onboardingRailTitle}>{t('onboarding.start')}</h2>
-          {ONBOARDING_SECTION_STEPS.map((label, index) => {
-            const step = index + 1
-            const active = step === request.step
-            const complete = step < request.step
-            return (
-              <div key={step} className={css.onboardingStep} data-active={active ? 'true' : undefined}>
-                <span className={clsx(css.onboardingStepNumber, complete && css.onboardingStepComplete)}>
-                  {complete ? <IconCheckOutline16 size={14} /> : step}
-                </span>
-                <span>{t(label)}</span>
-              </div>
-            )
-          })}
-        </aside>
-        <div className={css.onboardingSectionContent}>
-          <div className={css.onboardingSectionBody}>
-            {available
-              ? renderSlot('settings.section', {
-                close: onBack,
-                ...request.subsectionId === undefined
-                  ? {}
-                  : { preferredSubsectionId: request.subsectionId },
-              }, { only: request.sectionId })
-              : (
-                <div className={css.onboardingSectionUnavailable} role="status">
-                  <h3>{t('onboarding.sectionUnavailable.title')}</h3>
-                  <p>{t('onboarding.sectionUnavailable.description')}</p>
-                </div>
-              )}
-          </div>
-          <footer className={css.onboardingFooter}>
-            <button ref={backButton} type="button" className={css.onboardingBack} onClick={onBack}>
-              {t('onboarding.back')}
-            </button>
-            <button type="button" className={css.onboardingDone} disabled={!available} onClick={onComplete}>
-              {t('onboarding.done')}
-            </button>
-          </footer>
-        </div>
-      </div>
-    </div>
-  ), document.body)
 }
 
 /**
@@ -185,356 +56,55 @@ function OnboardingSectionPanel({ request, available, renderSlot, t, onBack, onC
  * header button, a mask click, and document-level Escape (mounted only while
  * open, so the listener lifetime is the panel's).
  */
-function SettingsPanel({
-  rows, storedOrder, renderSlot, t, activeId, onSelect, onReorder, onClose, preferredSubsectionId,
-}: PanelProps) {
-  const phone = usePhoneViewport()
+function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferredSubsectionId }: PanelProps) {
   // Entries can unmount underneath the requested id, so the render-time
-  // projection falls back to the first row on wide screens. Phones keep the
-  // section list as their first page until the user chooses one.
-  const active = rows.find(r => r.id === activeId)?.id ?? (phone ? undefined : rows[0]?.id)
+  // projection falls back to the first row when the id is gone.
+  const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
   const titleId = useId()
-  const navList = useRef<HTMLDivElement | null>(null)
-  const rowElements = useRef(new Map<string, HTMLDivElement>())
-  const armedDrag = useRef<ArmedSectionDrag>()
-  const dragFrame = useRef<number | null>(null)
-  const settleTimer = useRef<number | null>(null)
-  const latestPointer = useRef({ x: 0, y: 0 })
-  const dragState = useRef<SectionDragState>()
-  const [drag, setDrag] = useState<SectionDragState>()
-
-  const publishDrag = useCallback((next: SectionDragState | undefined) => {
-    dragState.current = next
-    setDrag(next)
-  }, [])
-
-  const clearScheduledDragWork = useCallback(() => {
-    if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current)
-    if (settleTimer.current !== null) window.clearTimeout(settleTimer.current)
-    dragFrame.current = null
-    settleTimer.current = null
-  }, [])
-
-  const releasePointer = useCallback(() => {
-    const armed = armedDrag.current
-    armedDrag.current = undefined
-    if (armed === undefined || typeof armed.handle.releasePointerCapture !== 'function') return
-    if (typeof armed.handle.hasPointerCapture === 'function'
-      && !armed.handle.hasPointerCapture(armed.pointerId)) return
-    armed.handle.releasePointerCapture(armed.pointerId)
-  }, [])
-
-  const measureRows = useCallback(() => {
-    const list = navList.current
-    if (list === null) return undefined
-    const listBox = list.getBoundingClientRect()
-    const boxes: SettingsSectionBox[] = []
-    for (const row of rows) {
-      const element = rowElements.current.get(row.id)
-      if (element === undefined) return undefined
-      const box = element.getBoundingClientRect()
-      const top = box.top - listBox.top + list.scrollTop
-      boxes.push({ id: row.id, top, bottom: top + box.height, height: box.height })
-    }
-    return { list, listBox, boxes }
-  }, [rows])
-
-  const reorderRelativeTo = useCallback((
-    dragged: string,
-    target: string,
-    position: 'before' | 'after',
-  ) => {
-    const ids = rows.map(row => row.id)
-    const next = moveSettingsSection(ids, storedOrder, dragged, target, position)
-    if (next.join('\u0000') !== storedOrder.join('\u0000')) onReorder(next)
-  }, [onReorder, rows, storedOrder])
-
-  const updateDragFrame = useRef<() => void>(() => {})
-  const scheduleDragFrame = useCallback(() => {
-    dragFrame.current ??= requestAnimationFrame(() => {
-      dragFrame.current = null
-      updateDragFrame.current()
-    })
-  }, [])
-
-  updateDragFrame.current = () => {
-    const current = dragState.current
-    const list = navList.current
-    if (current === undefined || current.phase !== 'dragging' || list === null) return
-    const listBox = list.getBoundingClientRect()
-    const point = latestPointer.current
-    const scrollVelocity = settingsSectionAutoScroll(point.y, listBox.top, listBox.bottom)
-    const previousScrollTop = list.scrollTop
-    if (scrollVelocity !== 0) list.scrollTop += scrollVelocity
-    const draggedCenterInList = current.originTop
-      + (point.y - current.startPointerY)
-      + current.height / 2
-      - listBox.top
-      + list.scrollTop
-    const targetIndex = settingsSectionTargetIndex(
-      current.boxes,
-      current.sourceIndex,
-      draggedCenterInList,
-    )
-    publishDrag({
-      ...current,
-      pointerY: point.y,
-      targetIndex,
-      listTop: listBox.top,
-      listScrollTop: list.scrollTop,
-    })
-    if (list.scrollTop !== previousScrollTop) scheduleDragFrame()
-  }
-
-  const finishVisualDrag = useCallback((commit: boolean) => {
-    const current = dragState.current
-    if (current === undefined) return
-    clearScheduledDragWork()
-    publishDrag({
-      ...current,
-      phase: commit ? 'settling' : 'cancelling',
-      targetIndex: commit ? current.targetIndex : current.sourceIndex,
-    })
-    const reduced = prefersReducedMotion()
-    settleTimer.current = window.setTimeout(() => {
-      const settled = dragState.current
-      if (commit && settled !== undefined) {
-        const next = moveSettingsSectionToIndex(
-          rows.map(row => row.id),
-          storedOrder,
-          settled.id,
-          settled.targetIndex,
-        )
-        if (next.join('\u0000') !== storedOrder.join('\u0000')) onReorder(next)
-      }
-      publishDrag(undefined)
-      settleTimer.current = null
-    }, reduced ? 0 : SECTION_SORT_ANIMATION_MS)
-  }, [clearScheduledDragWork, onReorder, publishDrag, rows, storedOrder])
-
-  const cancelPointerDrag = useCallback(() => {
-    releasePointer()
-    if (dragState.current === undefined) {
-      clearScheduledDragWork()
-      return
-    }
-    finishVisualDrag(false)
-  }, [clearScheduledDragWork, finishVisualDrag, releasePointer])
-
-  const beginPointerDrag = useCallback((event: PointerEvent<HTMLButtonElement>, id: string) => {
-    if (event.button !== 0 || !event.isPrimary || dragState.current !== undefined) return
-    event.preventDefault()
-    if (typeof event.currentTarget.setPointerCapture === 'function') {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    }
-    latestPointer.current = { x: event.clientX, y: event.clientY }
-    armedDrag.current = {
-      id,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      handle: event.currentTarget,
-    }
-  }, [])
-
-  const movePointerDrag = useCallback((event: PointerEvent<HTMLButtonElement>) => {
-    const armed = armedDrag.current
-    if (armed === undefined || armed.pointerId !== event.pointerId) return
-    event.preventDefault()
-    latestPointer.current = { x: event.clientX, y: event.clientY }
-    if (dragState.current === undefined) {
-      const distance = Math.hypot(event.clientX - armed.startX, event.clientY - armed.startY)
-      if (distance < POINTER_DRAG_THRESHOLD) return
-      const measured = measureRows()
-      const sourceIndex = rows.findIndex(row => row.id === armed.id)
-      const sourceElement = rowElements.current.get(armed.id)
-      if (measured === undefined || sourceIndex === -1 || sourceElement === undefined) return
-      const sourceBox = sourceElement.getBoundingClientRect()
-      publishDrag({
-        id: armed.id,
-        phase: 'dragging',
-        sourceIndex,
-        targetIndex: sourceIndex,
-        startPointerY: armed.startY,
-        pointerY: event.clientY,
-        originTop: sourceBox.top,
-        originLeft: sourceBox.left,
-        width: sourceBox.width,
-        height: sourceBox.height,
-        listTop: measured.listBox.top,
-        listScrollTop: measured.list.scrollTop,
-        boxes: measured.boxes,
-      })
-    }
-    scheduleDragFrame()
-  }, [measureRows, publishDrag, rows, scheduleDragFrame])
-
-  const endPointerDrag = useCallback((event: PointerEvent<HTMLButtonElement>) => {
-    const armed = armedDrag.current
-    if (armed === undefined || armed.pointerId !== event.pointerId) return
-    latestPointer.current = { x: event.clientX, y: event.clientY }
-    updateDragFrame.current()
-    const current = dragState.current
-    const listBox = navList.current?.getBoundingClientRect()
-    releasePointer()
-    if (current === undefined) return
-    const inside = listBox !== undefined
-      && event.clientX >= listBox.left && event.clientX <= listBox.right
-      && event.clientY >= listBox.top && event.clientY <= listBox.bottom
-    finishVisualDrag(inside)
-  }, [finishVisualDrag, releasePointer])
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      if (armedDrag.current !== undefined || dragState.current !== undefined) {
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        cancelPointerDrag()
-      }
-    }
-    document.addEventListener('keydown', onKeyDown, true)
-    return () => { document.removeEventListener('keydown', onKeyDown, true) }
-  }, [cancelPointerDrag])
-
-  useEffect(() => () => {
-    clearScheduledDragWork()
-    armedDrag.current = undefined
-    dragState.current = undefined
-  }, [clearScheduledDragWork])
-
-  const draggedRow = drag === undefined ? undefined : rows.find(row => row.id === drag.id)
-  const targetBox = drag === undefined ? undefined : drag.boxes[drag.targetIndex]
-  const ghostOffset = drag === undefined
-    ? 0
-    : drag.phase === 'dragging'
-      ? drag.pointerY - drag.startPointerY
-      : drag.phase === 'settling' && targetBox !== undefined
-        ? drag.listTop - drag.listScrollTop + targetBox.top - drag.originTop
-        : 0
 
   const panel = useRef<HTMLDivElement>(null)
   useModalLayer(panel, true, onClose)
 
+  // Portalled beside #root like the Modal primitive: a covering surface mounted
+  // inside the root would precede the columns' chrome in document order, so a
+  // chrome row that declares window drag after it would override its subtraction.
+  // Beside the root, base.css's `body > :not(#root)` rule subtracts it instead.
   return createPortal((
     <div className={css.overlay} role="presentation">
       <div className={css.mask} aria-hidden="true" onClick={onClose} />
-      <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" className={css.panel} data-mobile-view={active === undefined ? 'list' : 'detail'} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-label={t('title')}>
+      <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        {/* The four seats stay direct children of the panel and take their
+            places from its grid: title and header share the first row, the
+            navigation and the active section the second. */}
+        <div className={css.navTitle} id={titleId} tabIndex={-1}
+          data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</div>
         <nav className={css.nav}>
-          <div className={css.navTitleRow}>
-            <div className={css.navTitle} id={titleId} tabIndex={-1}
-              data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</div>
-            {phone && (
-              <button type="button" className={css.mobileNavClose} onClick={onClose}>
-                <IconCloseOutline16 size={14} />
-                <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
+          <div className={css.navList}>
+            {rows.map(row => (
+              <button
+                key={row.id}
+                type="button"
+                className={clsx(css.navCell, row.id === active && css.active)}
+                aria-current={row.id === active ? 'true' : undefined}
+                data-modal-autofocus={row.id === active ? '' : undefined}
+                onFocus={(event) => { event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }}
+                onClick={() => { onSelect(row.id) }}
+              >
+                {navIcon(row.id)}
+                <span className={css.navLabel}>{row.label}</span>
               </button>
-            )}
+            ))}
           </div>
-          <div
-            ref={navList}
-            className={css.navList}
-            role="list"
-            data-sorting={drag === undefined ? undefined : 'true'}
-          >
-            {rows.map((row, index) => {
-              const rowShift = drag === undefined || drag.phase === 'cancelling'
-                ? 0
-                : settingsSectionRowShift(drag.boxes, drag.sourceIndex, drag.targetIndex, index)
-              return (
-                <div
-                  key={row.id}
-                  ref={(element) => {
-                    if (element === null) rowElements.current.delete(row.id)
-                    else rowElements.current.set(row.id, element)
-                  }}
-                  className={css.navItem}
-                  role="listitem"
-                  style={{ transform: `translateY(${rowShift}px)` }}
-                  data-active={row.id === active ? 'true' : undefined}
-                  data-placeholder={drag?.id === row.id ? 'true' : undefined}
-                >
-                  <button
-                    type="button"
-                    className={clsx(css.navCell, row.id === active && css.active)}
-                    aria-current={row.id === active ? 'true' : undefined}
-                    data-modal-autofocus={row.id === active ? '' : undefined}
-                    onClick={() => { onSelect(row.id) }}
-                  >
-                    {navIcon(row.id)}
-                    <span className={css.navLabel}>{row.label}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={css.dragHandle}
-                    aria-label={`${t('nav.reorder')}: ${row.label}`}
-                    onPointerDown={(event) => { beginPointerDrag(event, row.id) }}
-                    onPointerMove={movePointerDrag}
-                    onPointerUp={endPointerDrag}
-                    onPointerCancel={() => { cancelPointerDrag() }}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
-                      const index = rows.findIndex(candidate => candidate.id === row.id)
-                      const target = rows[index + (event.key === 'ArrowUp' ? -1 : 1)]
-                      if (target === undefined) return
-                      event.preventDefault()
-                      reorderRelativeTo(row.id, target.id, event.key === 'ArrowUp' ? 'before' : 'after')
-                    }}
-                  >
-                    <IconReorderOutline16 size={16} />
-                  </button>
-                </div>
-              )
-            })}
-            {drag !== undefined && drag.phase !== 'cancelling' && targetBox !== undefined && (
-              <span
-                className={css.dropIndicator}
-                style={{ top: targetBox.top }}
-                aria-hidden="true"
-              />
-            )}
-          </div>
-          {drag !== undefined && draggedRow !== undefined && (
-            <div
-              className={clsx(css.navItem, css.dragGhost)}
-              data-active={draggedRow.id === active ? 'true' : undefined}
-              data-phase={drag.phase}
-              style={{
-                top: drag.originTop,
-                left: drag.originLeft,
-                width: drag.width,
-                height: drag.height,
-                transform: `translateY(${ghostOffset}px)`,
-              }}
-              aria-hidden="true"
-            >
-              <div className={css.navCell}>
-                {navIcon(draggedRow.id)}
-                <span className={css.navLabel}>{draggedRow.label}</span>
-              </div>
-              <div className={css.dragHandle}>
-                <IconReorderOutline16 size={16} />
-              </div>
-            </div>
-          )}
         </nav>
-        <div className={css.content}>
-          <div className={css.header}>
-            <button type="button" className={css.mobileBack} aria-label={t('nav.back')} onClick={() => { onSelect(undefined) }}>
-              <IconChevronLeftOutline14 size={18} />
-            </button>
-            <div className={css.actions}>{renderSlot('settings.action', active === undefined ? {} : { activeSectionId: active })}</div>
-            <button type="button" className={css.close} onClick={onClose}>
-              <IconCloseOutlineRegular size={14} />
-              <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
-            </button>
-          </div>
-          <div className={css.options}>
-            {active !== undefined && renderSlot('settings.section', {
-              close: onClose,
-              ...(preferredSubsectionId === undefined ? {} : { preferredSubsectionId }),
-            }, { only: active })}
-          </div>
+        <div className={css.header}>
+          <div className={css.actions}>{renderSlot('settings.action', {})}</div>
+          <button type="button" className={css.close} onClick={onClose}>
+            <IconCloseOutlineRegular size={14} />
+            <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
+          </button>
+        </div>
+        <div className={css.options}>
+          {active !== undefined && renderSlot('settings.section', { close: onClose, ...(preferredSubsectionId === undefined ? {} : { preferredSubsectionId }) }, { only: active })}
         </div>
       </div>
     </div>
@@ -548,58 +118,39 @@ function SettingsPanel({
  */
 export function SettingsRoot(props: SettingsRootComponentProps) {
   const {
-    wide, dismissSidebar, reconnect, openDesktopUpdate, useDesktopUpdate, useConnectionState, useSections,
-    useOnboardingSteps, useNavigation, useSectionOrder, useSessions, setSectionOrder, renderSlot, t,
-    useStore, actions, useShortcuts,
+    wide, reconnect, useConnectionState, useSections, useOnboardingSteps, useSessions, renderSlot, t,
+    useDesktopUpdate, openDesktopUpdate, useStore, actions, useShortcuts, useNavigation, useSectionOrder,
   } = props
   const { open, activeId } = useStore(state => state)
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'settings.open'))
-  const [preferredSubsectionId, setPreferredSubsectionId] = useState<string | undefined>()
-  const [onboardingSection, setOnboardingSection] = useState<SettingsOnboardingSectionRequest>()
+  const { close, openSection } = actions
   const [requestedOnboarding, setRequestedOnboarding] = useState<string | undefined>()
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const [showRecovery, setShowRecovery] = useState(false)
   const [holdConnecting, setHoldConnecting] = useState(false)
   const connectingShownAt = useRef<number | undefined>(undefined)
-  const close = useCallback(() => {
-    actions.close()
-    setPreferredSubsectionId(undefined)
-  }, [actions])
+
   // The ledger tick keeps the nav rows fresh: registrants re-register with
   // freshly localized text on locale change, and the trigger/header/close
   // seats re-render through their own outlets' subscriptions.
-  const rows = useSections(s => s)
-  const connectionState = useConnectionState(state => state)
-  const desktopUpdate = useDesktopUpdate(state => state)
-  const previousConnectionState = useRef(connectionState)
-  const onboardingSteps = useOnboardingSteps(s => s)
+  const rawRows = useSections(s => s)
+  const storedOrder = useSectionOrder(s => s)
+  const rows = orderSettingsSections(rawRows, storedOrder)
   const navigation = useNavigation(s => s)
-  const storedSectionOrder = useSectionOrder(s => s)
-  const [optimisticSectionOrder, setOptimisticSectionOrder] = useState<readonly string[]>()
-  const persistGeneration = useRef(0)
-  const effectiveSectionOrder = optimisticSectionOrder ?? storedSectionOrder
-  const orderedRows = useMemo(
-    () => orderSettingsSections(rows, effectiveSectionOrder),
-    [effectiveSectionOrder, rows],
-  )
-  const reorderSections = useCallback((ids: readonly string[]) => {
-    const generation = ++persistGeneration.current
-    setOptimisticSectionOrder(ids)
-    void setSectionOrder(ids).finally(() => {
-      if (persistGeneration.current === generation) setOptimisticSectionOrder(undefined)
-    })
-  }, [setSectionOrder])
-
+  const [preferredSubsectionId, setPreferredSubsectionId] = useState<string | undefined>()
   useEffect(() => {
     if (navigation === undefined) return
     actions.openSection(navigation.sectionId)
     setPreferredSubsectionId(navigation.subsectionId)
   }, [actions, navigation?.revision])
+  const desktopUpdate = useDesktopUpdate(state => state)
+  const connectionState = useConnectionState(state => state)
+  const previousConnectionState = useRef(connectionState)
+  const onboardingSteps = useOnboardingSteps(s => s)
   const onboardingActive = useSessions((state) => {
-    if (state.phase !== 'ready') return false
-    const current = Object.values(state.byId)
+    const main = Object.values(state.byId)
       .find(session => (session.retainedBy.mainView ?? 0) > 0)
-    return current === undefined || current.blank
+    return state.phase === 'ready' && (main === undefined || main.blank)
   })
   const onboardingStep = requestedOnboarding !== undefined
     ? onboardingSteps.find(step => step.id === requestedOnboarding)
@@ -610,7 +161,6 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   useEffect(() => {
     if (onboardingActive) return
     setCompletedOnboarding(new Set())
-    setOnboardingSection(undefined)
   }, [onboardingActive])
 
   const onboardingStepSeen = useRef(onboardingStep)
@@ -692,13 +242,13 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
             aria-keyshortcuts={shortcut?.aria}
             aria-haspopup="dialog"
             aria-expanded={open}
-            onClick={() => { actions.open(); dismissSidebar() }}
+            onClick={() => { actions.open() }}
           >
             {renderSlot('settings.trigger', { wide })}
           </button>
         </Tooltip> })}
         <ConnectionIndicator
-          state={wide ? connectionIndicator : undefined}
+          state={wide && desktopUpdate.presentation?.phase !== 'installing' ? connectionIndicator : undefined}
           disconnectedLabel={t('connection.error')}
           connectingLabel={t('connection.connecting')}
           recoveredLabel={t('connection.connected')}
@@ -706,25 +256,17 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
           restartActionLabel={t('connection.restart')}
           onReconnect={reconnect}
         />
-        <DesktopUpdateIndicator
-          wide={wide}
-          hidden={connectionIndicator !== undefined}
-          t={t}
-          view={desktopUpdate}
-          onOpen={openDesktopUpdate}
-        />
+        <DesktopUpdateIndicator wide={wide} hidden={connectionIndicator !== undefined && desktopUpdate.presentation?.phase !== 'installing'}
+          t={t} view={desktopUpdate} onOpen={openDesktopUpdate} />
       </div>
       {open && (
         <SettingsPanel
-          rows={orderedRows}
-          storedOrder={effectiveSectionOrder}
-          renderSlot={renderSlot}
-          t={t}
-          activeId={activeId}
-          onSelect={(id) => { actions.select(id); setPreferredSubsectionId(undefined) }}
-          onReorder={reorderSections}
-          onClose={close}
           {...preferredSubsectionId === undefined ? {} : { preferredSubsectionId }}
+          rows={rows}
+          renderSlot={renderSlot}
+          activeId={activeId}
+          onSelect={actions.select}
+          onClose={close}
         />
       )}
       {/* Dialog chrome and `#root` inert ownership live inside each step's
@@ -734,21 +276,11 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
         stepId: onboardingStep.id,
         explicit: requestedOnboarding !== undefined,
         complete: () => { completeOnboardingStep(onboardingStep.id) },
-        openSection: setOnboardingSection,
+        openSection: (request) => {
+          openSection(request.sectionId)
+          setPreferredSubsectionId(request.subsectionId)
+        },
       }, { only: onboardingStep.id })}
-      {onboardingSection !== undefined && (
-        <OnboardingSectionPanel
-          request={onboardingSection}
-          available={orderedRows.some(row => row.id === onboardingSection.sectionId)}
-          renderSlot={renderSlot}
-          t={t}
-          onBack={() => { setOnboardingSection(undefined) }}
-          onComplete={() => {
-            onboardingSection.complete()
-            setOnboardingSection(undefined)
-          }}
-        />
-      )}
     </>
   )
 }

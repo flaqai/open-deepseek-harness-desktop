@@ -1,0 +1,2047 @@
+{
+  "upstreamTag": "dsh-v0.2.2-alpha.2",
+  "functionalBase": "dsh-v0.2.1-rc.3",
+  "conflicts": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "scope": "build-or-docs",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": ".github/workflows/desktop-publish.yml",
+      "scope": "build-or-docs",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": ".github/workflows/e2e.yml",
+      "scope": "build-or-docs",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": ".github/workflows/macos-package.yml",
+      "scope": "build-or-docs",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": ".github/workflows/windows-package.yml",
+      "scope": "build-or-docs",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/cli/package.json",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/cli/src/plugin.ts",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/cli/src/profile-boot.ts",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/cli/tests/plugin.spec.ts",
+      "scope": "build-or-docs",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "apps/desktop-host/package.json",
+      "scope": "community-desktop",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/desktop-host/src/index.ts",
+      "scope": "community-desktop",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/desktop-host/tests/office.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/.env.macos.example",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/.env.windows.example",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/README.i18n.yaml",
+      "scope": "community-desktop",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/desktop/README.md",
+      "scope": "community-desktop",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/desktop/README.zh.md",
+      "scope": "community-desktop",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/desktop/config/macos-packaging/production.env.example",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/config/macos-packaging/test.env.example",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/config/windows-packaging/production.env.example",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/config/windows-packaging/test.env.example",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/electron-builder.config.d.mts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/installer/lifecycle.nsh",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/installer/pages.nsh",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/installer/theme.nsh",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/installer/window-frame.cpp",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/package.json",
+      "scope": "community-desktop",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "apps/desktop/packaging/README.i18n.yaml",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/packaging/README.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/packaging/README.zh.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/publishing/README.i18n.yaml",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/publishing/README.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/publishing/README.zh.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/publishing/ci/README.i18n.yaml",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/publishing/ci/README.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/publishing/ci/README.zh.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/renderer/mandatory-update.css",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/renderer/mandatory-update.html",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/renderer/mandatory-update.js",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/renderer/update-dialog.css",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/renderer/update-dialog.html",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-auto-update-environment.d.mts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-auto-update-environment.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-build-paths.d.mts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-build-paths.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-package-environment.d.mts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-package-environment.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-publish-route.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/desktop-upload-plan.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/electron-builder-config.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/installed-update-builder.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/installer.nsh",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/macos-package-settings.d.mts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/macos-package-settings.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/package-target.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/preflight-desktop-publish.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-dsh.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-installed-update-application.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-macos-ci.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-package-set.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-runtime.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-windows-ci.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/prepare-windows-installer.ps1",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/publish-desktop-ci.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/resolve-desktop-publish-ci.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/run-windows-runner-task.ps1",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/runtime-patch-policy.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/sign-primary-runtime.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/start-windows-packaging-runner.ps1",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/test-windows-installer.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/upload-target.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/upload-with-credentials.ps1",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/windows-package-settings.d.mts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/windows-package-settings.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/windows-runner-task.ps1",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/windows-runtime-signature.d.mts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/windows-runtime-signature.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/windows-sign.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/scripts/windows-signing-preflight.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/crash-report.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/fatal-recovery.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/host-process.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/ipc.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/locale.ts",
+      "scope": "community-desktop",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "apps/desktop/src/main.ts",
+      "scope": "community-desktop",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "apps/desktop/src/mandatory-update-window.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/platform-view.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/preload-app.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/project-manager.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/runtime-tree.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/update-dialog.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/update-overlay.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/src/update-presentation.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/README.i18n.yaml",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/README.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/README.zh.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/desktop-build-paths.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/desktop-package-environment.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/desktop-package-selection.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/desktop-publish-preflight.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/desktop-publish-route.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/expected/fatal-address-in-use-en.txt",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/expected/fatal-address-in-use-zh-CN.txt",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/expected/fatal-dialog-en.txt",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/expected/fatal-dialog-zh-CN.txt",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/expected/update-overlay-visibility.json",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/fatal-recovery.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/fixtures/local-updater.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/fixtures/platform-storage-smoke.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/fixtures/update-dialogs.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/fixtures/update-overlay-visibility.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/fixtures/workspace-updates.mjs",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/host-process.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/installed-update-builder.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/installed-update-package-content.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/installer-packaging.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/keyboard.spec.ts",
+      "scope": "community-desktop",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "apps/desktop/tests/locale.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/macos-package-preset.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/macos-package-settings.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/macos-signature.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/main-startup.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/mandatory-update-window.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/package-target-stages.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/platform-view.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/preload-app.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/prepare-package-set.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/prepare-runtime-patches.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/primary-runtime-signing.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/retain-desktop-ci.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/runtime-preparation.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/runtime-tree.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/update-coordinator.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/update-dialog.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/update-error-renderer.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/update-overlay.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/update-presentation.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/upload-target.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/upload-with-credentials.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/welcome-flow.e2e.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/windows-asar-unpack.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/windows-installer-smoke.ps1",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/windows-package-preset.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/windows-runner-task.ps1",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/windows-sign.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/windows-signing-preflight.spec.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tests/windows-uninstall-smoke.ps1",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/tsconfig.host.json",
+      "scope": "community-desktop",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "apps/desktop/tsdown.config.ts",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/windows-signing/README.i18n.yaml",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/windows-signing/README.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "apps/desktop/windows-signing/README.zh.md",
+      "scope": "community-desktop",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "docs/config-catalog.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/config-catalog.zh.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/development.i18n.yaml",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/development.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/development.zh.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/event-producer-consumer.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/event-producer-consumer.zh.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/module-graph.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/module-graph.zh.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/persistence-catalog.i18n.yaml",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/persistence-catalog.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/persistence-catalog.zh.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/persistence-changes/historical-formats/README.i18n.yaml",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/persistence-changes/historical-formats/README.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/persistence-changes/historical-formats/README.zh.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/persistence-schema.json",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/subsystems/core.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/subsystems/core.zh.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/subsystems/web-server.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "docs/subsystems/web-server.zh.md",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "package.json",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/README.i18n.yaml",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/api/gateway/README.i18n.yaml",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/api/remote-access/README.i18n.yaml",
+      "scope": "core",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "packages/api/remote-access/README.md",
+      "scope": "core",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "packages/api/remote-access/README.zh.md",
+      "scope": "core",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "packages/api/remote-access/src/index.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/api/session-controller/src/media-references.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/api/session-controller/tests/remote-access.host.spec.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/boot/app-boot/README.i18n.yaml",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/boot/app-boot/src/profile.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/bundle/web-app/README.i18n.yaml",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/bundle/web-app/README.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/bundle/web-app/README.zh.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/bundle/web-app/package.json",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/locale/README.i18n.yaml",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/locale/README.md",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/locale/src/client/index.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-approval/src/client/ApprovalPanel.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-attachment/README.i18n.yaml",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-attachment/src/MessageImage.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-attachment/src/client/MessageImages.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-attachment/tests/message-image.client.spec.tsx",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/chat/AssistantMarkdown.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-chat/src/client/chat/ChatView.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-conversation/README.i18n.yaml",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-conversation/src/client/skeleton/InputBar.tsx",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-conversation/tests/input-bar.client.spec.tsx",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-deliverables/README.i18n.yaml",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-deliverables/README.md",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-deliverables/README.zh.md",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-deliverables/src/client/Deliverables.module.css",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-entry-customization/README.i18n.yaml",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-entry-customization/README.zh.md",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-entry-customization/src/client/EntryMenuContent.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-entry-customization/tests/menu.client.spec.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-model-selection/README.i18n.yaml",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-open-in-app/src/client/index.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-open-in-app/src/client/locales.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/README.i18n.yaml",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/README.md",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/README.zh.md",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/src/client/PluginManagerPage.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/src/client/index.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-plugin-manager/tests/components.client.spec.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-primitives/tests/icons.client.spec.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-account/README.i18n.yaml",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-settings-account/README.md",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-settings-account/README.zh.md",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-settings-account/src/client/AccountMenu.module.css",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-settings-account/src/client/AccountMenu.tsx",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-settings-account/src/client/index.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-account/tests/account.client.spec.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-general/src/client/SettingsRoot.module.css",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-settings-general/src/client/SettingsRoot.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-general/src/client/index.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-general/tests/apply.client.spec.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-general/tests/settings-root.client.spec.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-general/tests/shell.client.spec.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-models/src/client/index.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-models/tests/apply.client.spec.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-settings-plugin-inventory/src/client/index.ts",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-theme/src/client/AppearanceRow.module.css",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/rows/Rows.module.css",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/rows/Rows.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/session-actions/ArchiveSession.tsx",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/session-actions/PinSession.tsx",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-workspace/src/client/session-actions/RenameSession.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/ui-workspace/tests/browser-styles.client.spec.ts",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/client/ui-workspace/tests/rows.client.spec.tsx",
+      "scope": "client",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/client/web/README.i18n.yaml",
+      "scope": "client",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/core/agent-loop/src/inbox.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/core/agent-loop/tests/loop.spec.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/experimental/client-ui-agent-team/src/client/TeamAction.module.css",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/experimental/client-ui-agent-team/src/client/locales.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/experimental/client-ui-agent-team/src/client/mount.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/extensions/cordis-client-runner/src/client/api-catalog.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/extensions/tool-cordis/src/api-catalog.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/host/plugin-inventory/README.i18n.yaml",
+      "scope": "core",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "packages/host/plugin-inventory/README.md",
+      "scope": "core",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "packages/host/plugin-inventory/README.zh.md",
+      "scope": "core",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "packages/host/plugin-inventory/tests/inventory.spec.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/host/webserver/README.i18n.yaml",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/host/webserver/README.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/host/webserver/README.zh.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/host/webserver/src/index.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/preset/agent-preset-registry/src/index.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/session-query/session-log-export/README.i18n.yaml",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/session-query/session-log-export/src/client/HeaderAction.tsx",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/session-query/session-log-export/src/client/index.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/session-query/session-log-export/tests/client-apply.client.spec.tsx",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/session-query/session-log-export/tests/header-action.client.spec.tsx",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/subagent/tool-subagent/README.i18n.yaml",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/subagent/tool-subagent/README.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/subagent/tool-subagent/README.zh.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/subagent/tool-subagent/src/index.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/test-support/client-runtime/README.i18n.yaml",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/test-support/client-runtime/README.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/test-support/client-runtime/README.zh.md",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "packages/test-support/client-runtime/src/assembly/bundle-roster.ts",
+      "scope": "core",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "packages/web/tool-web/tests/tool-web.spec.ts",
+      "scope": "core",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "scripts/build.spec.ts",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "scripts/build.ts",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "scripts/ci-workflow.spec.ts",
+      "scope": "build-or-docs",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "scripts/client-build-environment.ts",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "scripts/compile-referenced-projects.spec.ts",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "scripts/gen-cordis-catalog.ts",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "scripts/macos-package-workflow.spec.ts",
+      "scope": "build-or-docs",
+      "result": "deleted",
+      "rationale": "Keep the community removal; do not restore the replaced official desktop or publishing path."
+    },
+    {
+      "path": "scripts/no-unknown-casts.baseline.json",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "scripts/package-dependency-policy.ts",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "scripts/product-package-policy.ts",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "scripts/rescope-vendor.spec.ts",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "scripts/rescope-vendor.ts",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "scripts/type-equiv.manifest.json",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "scripts/verify-md-wrap.ts",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    },
+    {
+      "path": "scripts/windows-package-workflow.spec.ts",
+      "scope": "build-or-docs",
+      "result": "community",
+      "rationale": "Preserve the community-owned implementation or its immutable persisted contract."
+    },
+    {
+      "path": "tsconfig.base.json",
+      "scope": "build-or-docs",
+      "result": "integrated-or-generated",
+      "rationale": "Reconcile both implementations and regenerate derived output from the resulting source."
+    },
+    {
+      "path": "tsdown.config.ts",
+      "scope": "build-or-docs",
+      "result": "upstream",
+      "rationale": "Adopt the fixed official implementation; integrate community extensions at their owned boundaries."
+    }
+  ],
+  "automaticOverlapPaths": [
+    ".agents/notes/archived/manifest.json",
+    ".agents/notes/implemented/process/2026-09-15-shipped-optional-bundles.i18n.yaml",
+    ".agents/notes/implemented/process/2026-09-15-shipped-optional-bundles.md",
+    ".agents/notes/implemented/process/2026-09-15-shipped-optional-bundles.zh.md",
+    ".github/workflows/build-exe-for-python-sdk.yml",
+    ".github/workflows/build-preview-cloudflare.yml",
+    ".github/workflows/release-publish.yml",
+    ".github/workflows/release.yml",
+    "AGENTS.md",
+    "THIRD_PARTY_NOTICES.md",
+    "apps/cli/reference/README.i18n.yaml",
+    "apps/cli/reference/README.md",
+    "apps/cli/reference/README.zh.md",
+    "apps/cli/tests/built-bin.e2e.ts",
+    "apps/cli/tests/web-agent-presets.e2e.ts",
+    "apps/cli/tsconfig.json",
+    "apps/desktop-host/tsconfig.json",
+    "apps/desktop/installer/strings.nsh",
+    "apps/desktop/renderer/welcome.html",
+    "apps/desktop/src/client/welcome.tsx",
+    "apps/web/tests/agent-preset-selection.e2e.ts",
+    "apps/web/tests/desktop-onboarding.e2e.ts",
+    "apps/web/tests/message-actions.e2e.ts",
+    "apps/web/tests/onboarding-deepseek-config.e2e.ts",
+    "docs/cli-help.md",
+    "docs/cli-help.zh.md",
+    "docs/subsystems/session.md",
+    "docs/subsystems/session.zh.md",
+    "docs/subsystems/typert.md",
+    "docs/subsystems/typert.zh.md",
+    "docs/subsystems/web-server.i18n.yaml",
+    "docs/tool-catalog.i18n.yaml",
+    "docs/tool-catalog.md",
+    "docs/tool-catalog.zh.md",
+    "packages/README.md",
+    "packages/README.zh.md",
+    "packages/api/gateway/README.md",
+    "packages/api/gateway/README.zh.md",
+    "packages/api/gateway/src/access.ts",
+    "packages/api/gateway/src/index.ts",
+    "packages/api/gateway/tests/gateway-access.host.spec.ts",
+    "packages/api/gateway/tests/gateway-stream.host.spec.ts",
+    "packages/api/remote-access/package.json",
+    "packages/api/remote-access/tests/remote-access.host.spec.ts",
+    "packages/api/session-controller/src/agent.ts",
+    "packages/api/session-controller/src/client/sessions/session.ts",
+    "packages/api/session-controller/src/index.ts",
+    "packages/api/session-controller/tests/client-contract.client.spec.ts",
+    "packages/api/session-controller/tests/media-references.host.spec.ts",
+    "packages/api/session-controller/tests/session-presets.host.spec.ts",
+    "packages/boot/app-boot/README.md",
+    "packages/boot/app-boot/README.zh.md",
+    "packages/boot/app-boot/package.json",
+    "packages/boot/app-boot/src/index.ts",
+    "packages/boot/app-boot/tests/app-boot.spec.ts",
+    "packages/boot/app-boot/tests/user-patches.spec.ts",
+    "packages/boot/hmr/src/index.ts",
+    "packages/boot/plugin-manager/src/index.ts",
+    "packages/boot/plugin-manager/tests/manager.spec.ts",
+    "packages/bundle/web-app/cordis.patch.yml",
+    "packages/client/connection/package.json",
+    "packages/client/connection/tests/node-half.host.spec.ts",
+    "packages/client/product-analytics/tests/collection.host.spec.ts",
+    "packages/client/product-analytics/tests/fixtures/environment.patch.yml",
+    "packages/client/ui-agent-preset/src/client/AgentPresetSection.module.css",
+    "packages/client/ui-approval/README.i18n.yaml",
+    "packages/client/ui-approval/README.md",
+    "packages/client/ui-approval/README.zh.md",
+    "packages/client/ui-approval/src/client/ApprovalPanel.module.css",
+    "packages/client/ui-approval/src/client/locales.ts",
+    "packages/client/ui-approval/tests/ui-approval.client.spec.tsx",
+    "packages/client/ui-attachment/README.md",
+    "packages/client/ui-attachment/README.zh.md",
+    "packages/client/ui-chat/src/client/apply.ts",
+    "packages/client/ui-chat/src/client/chat/AssistantNodeView.tsx",
+    "packages/client/ui-chat/src/client/chat/ChatFlow.tsx",
+    "packages/client/ui-chat/src/client/chat/ChatNodeSeat.tsx",
+    "packages/client/ui-chat/src/client/chat/ChatView.module.css",
+    "packages/client/ui-chat/src/client/chat/MessageIconActions.module.css",
+    "packages/client/ui-chat/src/client/contract/slots.ts",
+    "packages/client/ui-chat/src/client/locale.ts",
+    "packages/client/ui-chat/tests/apply-inject.client.spec.tsx",
+    "packages/client/ui-conversation/README.md",
+    "packages/client/ui-conversation/README.zh.md",
+    "packages/client/ui-conversation/src/client/apply.ts",
+    "packages/client/ui-conversation/src/client/contract/slots.ts",
+    "packages/client/ui-conversation/src/client/index.ts",
+    "packages/client/ui-conversation/src/client/locales.ts",
+    "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+    "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
+    "packages/client/ui-deliverables/src/client/PresentedFileCard.tsx",
+    "packages/client/ui-deliverables/tests/presented-file-card.client.spec.tsx",
+    "packages/client/ui-directory-picker-native/tests/client-flow.client.spec.tsx",
+    "packages/client/ui-entry-customization/README.md",
+    "packages/client/ui-layout/src/client/index.ts",
+    "packages/client/ui-model-selection/README.zh.md",
+    "packages/client/ui-model-selection/src/client/ModelSelect.module.css",
+    "packages/client/ui-model-selection/src/client/ModelSelect.tsx",
+    "packages/client/ui-model-selection/src/client/locales.ts",
+    "packages/client/ui-model-selection/tests/browser-plugin.client.spec.ts",
+    "packages/client/ui-model-selection/tests/model-select.client.spec.tsx",
+    "packages/client/ui-plugin-manager/package.json",
+    "packages/client/ui-plugin-manager/src/client/locales.ts",
+    "packages/client/ui-plugin-manager/src/client/manager-store.ts",
+    "packages/client/ui-plugin-manager/src/client/slot-contract.ts",
+    "packages/client/ui-plugin-manager/tests/browser-plugin.client.spec.tsx",
+    "packages/client/ui-plugin-manager/tests/manager-store.client.spec.ts",
+    "packages/client/ui-primitives/README.i18n.yaml",
+    "packages/client/ui-primitives/README.md",
+    "packages/client/ui-primitives/README.zh.md",
+    "packages/client/ui-primitives/src/Modal.module.css",
+    "packages/client/ui-primitives/src/icons/index.tsx",
+    "packages/client/ui-primitives/src/markdown/MarkdownText.module.css",
+    "packages/client/ui-settings-account/src/client/AccountSection.module.css",
+    "packages/client/ui-settings-account/src/client/locales.ts",
+    "packages/client/ui-settings-account/tests/apply.client.spec.ts",
+    "packages/client/ui-settings-account/tests/quota-notice-hold.client.spec.tsx",
+    "packages/client/ui-settings-general/README.i18n.yaml",
+    "packages/client/ui-settings-general/README.md",
+    "packages/client/ui-settings-general/README.zh.md",
+    "packages/client/ui-settings-general/package.json",
+    "packages/client/ui-settings-general/src/client/locales.ts",
+    "packages/client/ui-settings-models/README.i18n.yaml",
+    "packages/client/ui-settings-models/README.md",
+    "packages/client/ui-settings-models/README.zh.md",
+    "packages/client/ui-settings-models/package.json",
+    "packages/client/ui-settings-models/src/client/ModelsSection.module.css",
+    "packages/client/ui-settings-models/src/client/locales.ts",
+    "packages/client/ui-settings-models/tests/components.client.spec.tsx",
+    "packages/client/ui-settings-plugin-inventory/README.i18n.yaml",
+    "packages/client/ui-settings-plugin-inventory/README.md",
+    "packages/client/ui-settings-plugin-inventory/README.zh.md",
+    "packages/client/ui-settings-plugin-inventory/package.json",
+    "packages/client/ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.module.css",
+    "packages/client/ui-settings-plugin-inventory/src/client/locales.ts",
+    "packages/client/ui-settings-plugins/src/client/PluginsSettingsSection.module.css",
+    "packages/client/ui-settings-web-search/README.i18n.yaml",
+    "packages/client/ui-settings-web-search/README.md",
+    "packages/client/ui-settings-web-search/README.zh.md",
+    "packages/client/ui-settings-web-search/src/client/locales.ts",
+    "packages/client/ui-settings-web-search/tests/controller.client.spec.ts",
+    "packages/client/ui-sidebar-browser/src/client/index.ts",
+    "packages/client/ui-sidebar-browser/tests/apply.client.spec.ts",
+    "packages/client/ui-sidebar-documentpreview/src/client/office/locales.ts",
+    "packages/client/ui-sidebar-right/src/client/shell/SidebarRight.module.css",
+    "packages/client/ui-sidebar-right/src/client/shell/SidebarRight.tsx",
+    "packages/client/ui-sidebar-right/tests/seat.client.spec.tsx",
+    "packages/client/ui-sidebar-terminal/tests/apply.client.spec.ts",
+    "packages/client/ui-sidebar/src/client/SidebarRoot.module.css",
+    "packages/client/ui-sidebar/src/client/index.ts",
+    "packages/client/ui-sidebar/tests/__snapshots__/sidebar-snapshot.client.spec.tsx.snap",
+    "packages/client/ui-sidebar/tests/sidebar-root.client.spec.tsx",
+    "packages/client/ui-sidebar/tests/sidebar-styles.client.spec.ts",
+    "packages/client/ui-theme/src/client/index.ts",
+    "packages/client/ui-theme/src/client/locales.ts",
+    "packages/client/ui-theme/tests/expected/radius-exceptions.expected.json",
+    "packages/client/ui-trajectory/src/client/TrajectoryView.tsx",
+    "packages/client/ui-trajectory/src/client/locales.ts",
+    "packages/client/ui-trajectory/src/client/views.module.css",
+    "packages/client/ui-trajectory/tests/views.client.spec.tsx",
+    "packages/client/ui-workspace/package.json",
+    "packages/client/ui-workspace/src/client/contract/slots.ts",
+    "packages/client/ui-workspace/src/client/index.ts",
+    "packages/client/ui-workspace/src/client/locales.ts",
+    "packages/client/ui-workspace/tests/apply.client.spec.ts",
+    "packages/client/ui-workspace/tests/session-actions.client.spec.tsx",
+    "packages/client/ui-workspace/tests/workspace-browser.client.spec.tsx",
+    "packages/client/ui-workspace/tests/workspaces-service.client.spec.ts",
+    "packages/client/web/README.md",
+    "packages/client/web/README.zh.md",
+    "packages/client/web/src/boot.ts",
+    "packages/client/web/tests/boot.client.spec.ts",
+    "packages/core/agent-loop/README.i18n.yaml",
+    "packages/core/agent-loop/README.md",
+    "packages/core/agent-loop/README.zh.md",
+    "packages/core/agent-loop/tests/inbox.spec.ts",
+    "packages/core/system-prompt/README.i18n.yaml",
+    "packages/core/system-prompt/README.md",
+    "packages/core/system-prompt/README.zh.md",
+    "packages/core/system-prompt/src/index.ts",
+    "packages/document/office-to-pdf/package.json",
+    "packages/experimental/client-ui-agent-team/package.json",
+    "packages/experimental/client-ui-agent-team/src/client/TeamAction.tsx",
+    "packages/experimental/client-ui-agent-team/tests/browser-plugin.client.spec.ts",
+    "packages/experimental/client-ui-agent-team/tsconfig.json",
+    "packages/fs/tool-fs-search/tests/tools.spec.ts",
+    "packages/fs/tool-fs/src/sandbox.ts",
+    "packages/fs/tool-fs/tests/tools.spec.ts",
+    "packages/host/plugin-inventory/package.json",
+    "packages/host/plugin-inventory/src/index.ts",
+    "packages/host/plugin-inventory/src/types.ts",
+    "packages/host/webserver/tests/webserver.spec.ts",
+    "packages/preset/agent-preset-registry/tests/registry.spec.ts",
+    "packages/sandbox/sandbox/src/escalation.ts",
+    "packages/sdk/client/src/client.ts",
+    "packages/sdk/client/tests/sdk-client.spec.ts",
+    "packages/session-query/session-log-export/README.md",
+    "packages/session-query/session-log-export/README.zh.md",
+    "packages/session-query/session-log-export/package.json",
+    "packages/session-query/session-log-export/src/client/locales.ts",
+    "packages/session-query/session-log-export/src/index.ts",
+    "packages/session-query/session-log-export/tsconfig.client.json",
+    "packages/session/session-format-v0-to-v1/src/payload-validation.ts",
+    "packages/session/session-format-v0-to-v1/tests/validation.spec.ts",
+    "packages/session/session-format-v3-to-v4/README.i18n.yaml",
+    "packages/session/session-format-v3-to-v4/README.md",
+    "packages/session/session-format-v3-to-v4/README.zh.md",
+    "packages/session/session-log-deepseek/package.json",
+    "packages/session/session-persistence-jsonl/src/index.ts",
+    "packages/settings/settings/src/index.ts",
+    "packages/settings/settings/tests/configuration.spec.ts",
+    "packages/shell/tool-bash/tests/tools.spec.ts",
+    "packages/shell/tool-pwsh/src/index.ts",
+    "packages/shell/tool-pwsh/tests/tools.spec.ts",
+    "packages/skill/skill-office/package.json",
+    "packages/subagent/tool-subagent/tests/tool-subagent.spec.ts",
+    "packages/subprocess/subprocess-local/package.json",
+    "packages/test-support/client-runtime/package.json",
+    "packages/test-support/client-runtime/src/index.ts",
+    "packages/test-support/client-runtime/tests/assembly-bundle-roster.client.spec.ts",
+    "packages/workspace/workspace/tests/workspace.spec.ts",
+    "pnpm-workspace.yaml",
+    "python/sdk-runtime/package.json",
+    "scripts/build-exe-for-python-sdk.ts",
+    "scripts/check-workspace-constraints.ts",
+    "scripts/compile-referenced-projects.ts",
+    "scripts/doc-standard.spec.ts",
+    "scripts/gen-config-catalog.spec.ts",
+    "scripts/optional-bundles.spec.ts",
+    "scripts/primary-runtime/prepare.spec.ts",
+    "scripts/release/families.ts",
+    "scripts/run-gates.spec.ts",
+    "scripts/run-gates.ts",
+    "scripts/verify-md-links.ts",
+    "scripts/verify-package-dependencies.spec.ts",
+    "scripts/verify-package-readme-model-experience.ts",
+    "scripts/verify-product-use.spec.ts",
+    "scripts/verify-product-use.ts",
+    "snapshots/sdk/tool-error-details/system-prompt.expected.md",
+    "snapshots/sdk/tool-error-details/tool-schemas.expected.json",
+    "snapshots/session/advanced-toolchain/system-prompt.1.expected.md",
+    "snapshots/session/advanced-toolchain/system-prompt.2.expected.md",
+    "snapshots/session/advanced-toolchain/system-prompt.expected.md",
+    "snapshots/session/advanced-toolchain/tool-schemas.expected.json",
+    "snapshots/session/both-mode-turn/system-prompt.expected.md",
+    "snapshots/session/cua-ptc/system-prompt.expected.md",
+    "snapshots/session/mcp-resources-ptc/system-prompt.expected.md",
+    "snapshots/session/office-progressive-ptc/system-prompt.expected.md",
+    "snapshots/session/ptc-node-read-only/system-prompt.expected.md",
+    "snapshots/session/ptc-node-workspace/system-prompt.expected.md",
+    "snapshots/session/ptc-persistent/system-prompt.expected.md",
+    "snapshots/session/ptc-policy-change/system-prompt.expected.md",
+    "snapshots/session/ptc-python-turn/system-prompt.expected.md",
+    "snapshots/session/ptc-read-image/system-prompt.expected.md",
+    "snapshots/session/ptc-turn/system-prompt.expected.md",
+    "snapshots/web/navigation-panes/trajectory.expected.md",
+    "snapshots/web/official-subagent-bundle/system-prompt.expected.md",
+    "snapshots/web/optional-string-editor/system-prompt.expected.md",
+    "snapshots/web/ptc-round/system-prompt.expected.md",
+    "tsconfig.client.json",
+    "tsconfig.host.json"
+  ],
+  "reviewBoundaries": [
+    "Official mobile UI and locale ownership; community-only extension points retained.",
+    "NAS explicit role allowlists and server-side LiveShare rejection.",
+    "Community candidate transactions, restart consent and plugin marker reconciliation.",
+    "Frozen historical schema bytes preserved; history graphs joined by explicit acknowledgement.",
+    "Community native packaging retained; no installer or release qualified by development checks."
+  ],
+  "communityBaseRef": "backup/pre-alpha22-integration"
+}

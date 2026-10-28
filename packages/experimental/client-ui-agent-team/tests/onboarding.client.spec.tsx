@@ -43,6 +43,7 @@ const sessionProps = {
   useChat: unused,
   useTrajectory: unused,
   inputActions: {
+    insertQuote: () => false,
     persistDraft: unused,
     captureInsertion: unused, insertText: unused, setDraft: unused,
     addAttachments: unused, removeAttachment: unused, pruneAttachments: unused, submit: unused,

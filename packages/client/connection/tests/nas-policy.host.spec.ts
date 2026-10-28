@@ -34,6 +34,11 @@ it('explicitly grants workspace and session reads, denies readonly writes and da
   const decide = (action: RemoteAccessAction, resources: readonly RemoteAccessResource[] = [{ kind: 'global' }]) =>
     ctx.remoteAccess.decide({ principal: { kind: 'nas', deviceId: 'device' }, action, resources }).kind
   expect(decide('session/page', [{ kind: 'session', id: session.id }])).toBe('allow')
+  for (const action of ['session/events', 'session/state', 'session/observeEvent', 'session/observeProjections', 'session/observeState'] as const) {
+    expect(decide(action, [{ kind: 'session', id: session.id }])).toBe('allow')
+    expect(decide(action, [{ kind: 'session', id: SessionId('unlisted-session') }])).toBe('deny')
+  }
+  expect(decide('liveshareShares/create', [{ kind: 'session', id: session.id }])).toBe('deny')
   expect(decide('workspace/follow', [{ kind: 'workspace', id: workspaceId }])).toBe('allow')
   expect(decide('session/page', [{ kind: 'session', id: SessionId('unlisted-session') }])).toBe('deny')
   expect(decide('session/prompt', [{ kind: 'session', id: session.id }])).toBe('deny')

@@ -28,7 +28,7 @@ import { desktopPluginSnapshotsAvailable } from './plugin-snapshot-bridge.ts'
 import { desktopSettingsRecoveryAvailable } from './settings-recovery-bridge.ts'
 import { desktopStartupDiagnosticsAvailable } from './startup-diagnostics-bridge.ts'
 import { preparePersistentPluginUninstall } from './persistent-process-bridge.ts'
-import { en, zh, type PluginInventoryLocaleKey } from './locales.ts'
+import { en, ja, es, fr, de, ru, pt, zh, type PluginInventoryLocaleKey } from './locales.ts'
 import {
   cancelDesktopDiagnosticLabRun,
   restoreAllDesktopDiagnosticLabRun,
@@ -70,7 +70,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory', 's
 
 /** Contribute the lazy inventory tab and new-session discovery entry. */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-plugin-inventory: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-plugin-inventory: dictionaries')
 
   const t = ctx.locale.bind(NS)
   const importedPluginRestoreAvailable = readImportedPluginRestoreBridge() !== undefined

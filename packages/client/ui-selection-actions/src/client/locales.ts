@@ -42,6 +42,7 @@ export const en = {
 
 /** Japanese dictionary. */
 export const ja = {
+  ...en,
   'action.copy': 'コピー',
   'action.ask': '新しい会話で質問',
   'action.append': '現在の会話に追加',
@@ -59,6 +60,7 @@ export const ja = {
 
 /** Korean dictionary. */
 export const ko = {
+  ...en,
   'action.copy': '복사',
   'action.ask': '새 대화에서 질문',
   'action.append': '현재 대화에 추가',
@@ -76,6 +78,7 @@ export const ko = {
 
 /** Spanish dictionary. */
 export const es = {
+  ...en,
   'action.copy': 'Copiar',
   'action.ask': 'Preguntar en una conversación nueva',
   'action.append': 'Añadir a la conversación actual',
@@ -93,6 +96,7 @@ export const es = {
 
 /** French dictionary. */
 export const fr = {
+  ...en,
   'action.copy': 'Copier',
   'action.ask': 'Demander dans une nouvelle conversation',
   'action.append': 'Ajouter à la conversation actuelle',
@@ -110,6 +114,7 @@ export const fr = {
 
 /** German dictionary. */
 export const de = {
+  ...en,
   'action.copy': 'Kopieren',
   'action.ask': 'In einer neuen Unterhaltung fragen',
   'action.append': 'Zur aktuellen Unterhaltung hinzufügen',
@@ -127,6 +132,7 @@ export const de = {
 
 /** Brazilian Portuguese dictionary. */
 export const ptBR = {
+  ...en,
   'action.copy': 'Copiar',
   'action.ask': 'Perguntar em uma nova conversa',
   'action.append': 'Adicionar à conversa atual',
@@ -144,6 +150,7 @@ export const ptBR = {
 
 /** Russian dictionary supplied by the ru-locale contributor. */
 export const ru = {
+  ...en,
   'action.copy': 'Копировать',
   'action.ask': 'Спросить в новом диалоге',
   'action.append': 'Добавить в текущий диалог',

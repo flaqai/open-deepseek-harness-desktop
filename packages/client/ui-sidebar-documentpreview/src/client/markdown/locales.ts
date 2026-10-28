@@ -23,3 +23,57 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     documentMarkdown: MarkdownPreviewKey
   }
 }
+
+/** Japanese copy, checked against the English keys. */
+export const ja = {
+  ...en,
+  'viewer.label': 'Markdown',
+  'code.copy': 'コピー',
+  'code.copied': 'コピーしました',
+  'footnotes': '脚注',
+} satisfies Record<keyof typeof en, string>
+
+/** Spanish dictionary, checked against the English keys. */
+export const es = {
+  ...en,
+  'viewer.label': 'Markdown',
+  'code.copy': 'Copiar',
+  'code.copied': 'Copiado',
+  'footnotes': 'Notas a pie de página',
+} satisfies Record<keyof typeof en, string>
+
+/** French dictionary, checked against the English keys. */
+export const fr = {
+  ...en,
+  'viewer.label': 'Markdown',
+  'code.copy': 'Copier',
+  'code.copied': 'Copié',
+  'footnotes': 'Notes de bas de page',
+} satisfies Record<keyof typeof en, string>
+
+/** German dictionary, checked against the English keys. */
+export const de = {
+  ...en,
+  'viewer.label': 'Markdown',
+  'code.copy': 'Kopieren',
+  'code.copied': 'Kopiert',
+  'footnotes': 'Fußnoten',
+} satisfies Record<keyof typeof en, string>
+
+/** Russian dictionary, checked against the English keys. */
+export const ru = {
+  ...en,
+  'viewer.label': 'Markdown',
+  'code.copy': 'Копировать',
+  'code.copied': 'Скопировано',
+  'footnotes': 'Сноски',
+} satisfies Record<keyof typeof en, string>
+
+/** Portuguese dictionary, checked against the English keys. */
+export const pt = {
+  ...en,
+  'viewer.label': 'Markdown',
+  'code.copy': 'Copiar',
+  'code.copied': 'Copiado',
+  'footnotes': 'Notas de rodapé',
+} satisfies Record<keyof typeof en, string>

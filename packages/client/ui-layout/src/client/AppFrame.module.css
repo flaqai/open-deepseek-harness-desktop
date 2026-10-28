@@ -62,24 +62,6 @@
   border-right: 0.5px solid var(--dsw-alias-border-l3);
 }
 
-.sidebarCol[data-sidebar-presentation='drawer'] {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  overflow: visible;
-  border-right: none;
-  background: transparent;
-  pointer-events: none;
-}
-
-.sidebarCol[data-sidebar-presentation='drawer'] > * {
-  pointer-events: auto;
-}
-
-.frame[data-phone] {
-  transition: none;
-}
-
 .centerCol {
   min-width: 0;
   display: flex;

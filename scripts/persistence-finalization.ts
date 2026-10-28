@@ -46,6 +46,7 @@ function recordDigest(entry: PersistenceHistoryEntry): string {
   const semantic = { record: { schemaVersion: record.schemaVersion, id: record.id, baseline: record.baseline,
     changes: [...record.changes].sort((a, b) => compare(a.root, b.root)).map(change => ({
       root: change.root, previous: change.previous, after: change.after, decision: change.decision,
+      ...change.mergedPrevious === undefined ? {} : { mergedPrevious: change.mergedPrevious },
     })) }, snapshot: { formatVersion: entry.snapshot.formatVersion,
     roots: [...entry.snapshot.roots].sort((a, b) => compare(a.key, b.key)).map(root => ({
       key: root.key, ...identity(root), schema: root.schema,
@@ -140,9 +141,10 @@ export function loadPersistenceFinalization(root: string, history: Pick<Persiste
     if (selected.length === 0 || !selected.some(entry => entry.record.baseline)) throw new Error(`${file}: accepted records must include the persistence baseline`)
     const predecessors = new Set<string>()
     for (const entry of selected) for (const change of entry.record.changes) {
-      if (change.previous !== null) {
-        if (!Object.hasOwn(locked, change.previous)) throw new Error(`${file}: accepted history omits predecessor ${change.previous}`)
-        predecessors.add(JSON.stringify([change.previous, change.root]))
+      for (const parent of [change.previous, ...change.mergedPrevious ?? []]) {
+        if (parent === null) continue
+        if (!Object.hasOwn(locked, parent)) throw new Error(`${file}: accepted history omits predecessor ${parent}`)
+        predecessors.add(JSON.stringify([parent, change.root]))
       }
     }
     const tips = new Map<string, PersistenceRoot>()

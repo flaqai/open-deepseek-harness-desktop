@@ -80,6 +80,8 @@ export class HostConnectionService extends Service implements HostConnectionHand
   private readonly nasPeers = new Map<string, { readonly peer: Peer; readonly timer: ReturnType<typeof setTimeout> }>()
 
   readonly allowsRemoteAuthorities: boolean
+  /** Whether this Host owns a NAS device authorization deployment. */
+  readonly nasDeployment: boolean
 
   /**
    * Provide the Host half over the active HTTP server.
@@ -96,6 +98,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
     this.owner = ctx
     this.browserPeer = new Peer(ctx, { principal: { kind: 'owner' } })
     const nas = browserAuth.nasAccess
+    this.nasDeployment = nas !== undefined
     if (nas !== undefined) ctx.effect(() => nas.onChanged(id => this.disposeNasPeer(id)), 'client-connection: NAS permission changes')
     ctx.effect(() => async () => {
       this.disposed = true

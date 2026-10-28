@@ -289,11 +289,17 @@
   border-left: 0.5px solid color-mix(in srgb, currentColor 35%, transparent);
 }
 
-.pauseButton:hover:not(:disabled),
 .pauseButton:focus-visible,
-.stopButton:hover:not(:disabled),
 .stopButton:focus-visible {
   background: color-mix(in srgb, var(--dsw-alias-interactive-bg-hover) 34%, transparent);
+}
+
+@media (hover: hover) {
+
+.pauseButton:hover:not(:disabled),
+.stopButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-hover) 34%, transparent);
+}
 }
 
 .pauseButton:disabled,

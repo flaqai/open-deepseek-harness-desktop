@@ -14,12 +14,14 @@ afterEach(cleanup)
 describe('NAS role permissions through the Slot renderer', () => {
   it.each(['admin', 'user', 'readonly'] as const)('binds the %s create grant to the actual sidebar and reacts to revocation', async (role) => {
     const allowed = createSnapshotStore(role !== 'readonly')
-    const runtime = await SlotTestRuntime.create({ access: { source: () => allowed, global: () => allowed } })
+    const runtime = await SlotTestRuntime.create({
+      access: { source: () => allowed, global: () => allowed, whenAccess: () => () => {}, whenResourceAccess: () => () => {} },
+    })
     onTestFinished(() => runtime.dispose())
     const createSession = vi.fn()
     const t: SidebarRootComponentProps['t'] = makeTranslate(en, commonEn)
     function Frame(props: PropsRuntime<'root'>) {
-      return <SidebarRoot {...props} collapsed={false} width={300} presentation="column" dismiss={() => {}}
+      return <SidebarRoot {...props} collapsed={false} width={300}
         useSessionStatus={selector => selector(new Map())} usePanels={selector => selector([])}
         useShortcuts={selector => selector([])} selectPanel={() => {}}
         useEntryPins={selector => selector([])} useEntryActions={selector => selector(false)}
@@ -28,15 +30,13 @@ describe('NAS role permissions through the Slot renderer', () => {
     }
     runtime.slots.register({ name: 'root' }, Frame)
     runtime.renderRoot()
-    const buttons = screen.getAllByRole<HTMLButtonElement>('button', { name: en['session.new.label'] })
+    const buttons = screen.queryAllByRole<HTMLButtonElement>('button', { name: en['session.new.label'] })
+    expect(buttons.length > 0).toBe(role !== 'readonly')
     const target = buttons.at(-1)
-    if (target === undefined) throw new Error('Expected the sidebar New session button')
-    expect(buttons.every(button => button.disabled)).toBe(role === 'readonly')
-    fireEvent.click(target)
+    if (target !== undefined) fireEvent.click(target)
     expect(createSession).toHaveBeenCalledTimes(role === 'readonly' ? 0 : 1)
     act(() => { allowed.set(false) })
-    expect(buttons.every(button => button.disabled)).toBe(true)
-    fireEvent.click(target)
-    expect(createSession).toHaveBeenCalledTimes(role === 'readonly' ? 0 : 1)
+    expect(screen.queryAllByRole('button', { name: en['session.new.label'] })).toHaveLength(0)
+
   })
 })

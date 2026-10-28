@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createSettingsShellStore } from '../src/client/shell-store.ts'
@@ -9,9 +9,6 @@ import { allowAllAccess, bindSnapshotSelector, makeTranslate } from '@deepseek-a
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
-import type {
-  SettingsNavigationRequest, SettingsOnboardingSectionRequest,
-} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 import { en, zh } from '../src/client/locales.ts'
 import type { DesktopUpdateView } from '../src/types.ts'
@@ -21,11 +18,20 @@ import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 const useResource = (() => ({ status: 'none' as const, value: undefined, failure: undefined, reload: () => {} })) as GlobalStandardProps['useResource']
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({ activePanelId: null })
 
+const scrollIntoView = vi.fn()
+let scrollIntoViewDescriptor: PropertyDescriptor | undefined
+
+beforeEach(() => {
+  scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
+  Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView })
+  scrollIntoView.mockClear()
+})
+
 afterEach(() => {
   cleanup()
+  if (scrollIntoViewDescriptor === undefined) Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
+  else Object.defineProperty(Element.prototype, 'scrollIntoView', scrollIntoViewDescriptor)
   vi.useRealTimers()
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
 })
 
 type Row = { id: string; order: number; label: string }
@@ -39,7 +45,10 @@ const SEAT_CONTENT: Record<string, string> = {
   'settings.close': 'Close',
 }
 
+type AttentionSnapshot = Parameters<Parameters<SettingsRootComponentProps['useSessionStatus']>[0]>[0]
 type ConnectionSnapshot = Parameters<Parameters<SettingsRootComponentProps['useConnectionState']>[0]>[0]
+const noAttention: AttentionSnapshot = new Map()
+const useSessionStatus: SettingsRootComponentProps['useSessionStatus'] = selector => selector(noAttention)
 
 function mount({
   shortcuts = [],
@@ -58,20 +67,16 @@ function mount({
     { id: 'welcome', order: -100 },
     { id: 'credential', order: 0 },
   ],
-  sectionOrder = [],
-  navigation,
 }: {
   shortcuts?: readonly ShortcutCatalogEntry[]
   wide?: boolean
   dictionary?: typeof en | typeof zh
+  connectionState?: ConnectionSnapshot
+  desktopUpdate?: DesktopUpdateView
   onboardingActive?: boolean
   mainView?: boolean
-  desktopUpdate?: DesktopUpdateView
   rows?: Row[]
   steps?: Step[]
-  sectionOrder?: readonly string[]
-  navigation?: SettingsNavigationRequest
-  connectionState?: ConnectionSnapshot
 } = {}) {
   // Mutable row source standing in for the bound useSections hook; bump()
   // plays a ledger change through the same observable contract.
@@ -89,30 +94,36 @@ function mount({
   const activeId = SessionId('active-session')
   const sessions: SessionListState = {
     ids: [activeId],
-    byId: { [activeId]: {
-      id: activeId, displayTitle: 'Active', blank: onboardingActive, running: false,
-      retainedBy: mainView ? { mainView: 1 } : {}, updatedAt: 0,
-    } },
+    byId: {
+      [activeId]: {
+        id: activeId,
+        displayTitle: 'Active',
+        blank: onboardingActive,
+        running: false,
+        retainedBy: mainView ? { mainView: 1 } : {},
+        updatedAt: 0,
+      },
+    },
     phase: 'ready', projectionsBySession: {},
   }
   const unusedHook = (() => { throw new Error('unused by SettingsRoot') }) as never
-  const setSectionOrder = vi.fn<(ids: readonly string[]) => Promise<void>>(() => Promise.resolve())
-  const dismissSidebar = vi.fn()
   const shell = createSettingsShellStore().create()
   const props: SettingsRootComponentProps = {
     useStore: bindSnapshotSelector(shell), actions: shell.actions,
+    dismissSidebar: () => {}, useNavigation: select => select(undefined),
+    useSectionOrder: select => select([]),
+    setSectionOrder: async () => {},
     useShortcuts: select => select(shortcuts),
     useSessions: select => select(sessions),
-    useSessionStatus: unusedHook,
+    useSessionStatus,
     usePanelInfo, useSessionRetainInfo: () => undefined, useResource,
     useWorkspaces: unusedHook,
     ...allowAllAccess,
     wide,
-    dismissSidebar,
-    openDesktopUpdate: vi.fn(),
     reconnect,
-    t: makeTranslate(dictionary),
+    openDesktopUpdate: () => {},
     useDesktopUpdate: select => select(desktopUpdate),
+    t: makeTranslate(dictionary),
     useConnectionState: (select) => {
       const [, force] = useState(0)
       useEffect(() => {
@@ -123,9 +134,6 @@ function mount({
       return select(currentConnectionState)
     },
     useOnboardingSteps: select => select(steps),
-    useNavigation: select => select(navigation),
-    useSectionOrder: select => select(sectionOrder),
-    setSectionOrder,
     useSections: (select) => {
       const [, force] = useState(0)
       useEffect(() => {
@@ -165,8 +173,7 @@ function mount({
     act(() => { sessions.byId[activeId] = { ...session, blank: next } })
     view.rerender(<SettingsRoot {...props} />)
   }
-  return { view, renderSlot, bump, listeners, reconnect, setConnectionState, setSectionOrder, dismissSidebar,
-    setDesktopUpdate, setShortcuts, setOnboardingActive }
+  return { view, renderSlot, bump, listeners, reconnect, setConnectionState, setDesktopUpdate, setShortcuts, setOnboardingActive }
 }
 
 function openPanel() {
@@ -176,47 +183,17 @@ function openPanel() {
   return trigger
 }
 
-function installPointerGeometry() {
-  const list = screen.getByRole('list')
-  Object.defineProperty(list, 'scrollTop', { configurable: true, writable: true, value: 0 })
-  vi.spyOn(list, 'getBoundingClientRect').mockReturnValue({
-    top: 100, bottom: 232, left: 0, right: 188, width: 188, height: 132, x: 0, y: 100,
-    toJSON: () => ({}),
-  })
-  const items = [...list.querySelectorAll<HTMLElement>('[role="listitem"]')]
-  items.forEach((item, index) => {
-    const top = 100 + index * 44
-    vi.spyOn(item, 'getBoundingClientRect').mockReturnValue({
-      top, bottom: top + 40, left: 0, right: 164, width: 164, height: 40, x: 0, y: top,
-      toJSON: () => ({}),
-    })
-  })
-  let nextFrame = 0
-  const frames = new Map<number, FrameRequestCallback>()
-  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-    const id = ++nextFrame
-    frames.set(id, callback)
-    return id
-  })
-  vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id) })
-  return {
-    list,
-    items,
-    flushFrame: () => {
-      act(() => {
-        const pending = [...frames.values()]
-        frames.clear()
-        pending.forEach((callback) => { callback(performance.now()) })
-      })
-    },
-  }
-}
-
 describe('SettingsRoot trigger', () => {
-  it('dismisses the phone drawer when settings opens', () => {
-    const mounted = mount()
-    openPanel()
-    expect(mounted.dismissSidebar).toHaveBeenCalledOnce()
+  it('shows installation instead of expected backend reconnection and restores connection feedback after failure', () => {
+    const presentation = { phase: 'installing' as const, version: '1.0.1' }
+    const f = mount({ dictionary: zh, connectionState: 'connecting',
+      desktopUpdate: { failed: false, opening: false, presentation } })
+    expect(screen.getByRole('button', { name: '正在准备重启…' })).toBeTruthy()
+    expect(screen.queryByText('重新连接中')).toBeNull()
+    f.setDesktopUpdate({ failed: false, opening: false,
+      presentation: { phase: 'error', version: presentation.version, failure: 'install' } })
+    expect(screen.queryByRole('button', { name: '重试更新' })).toBeNull()
+    expect(screen.getByText('重新连接中')).toBeTruthy()
   })
   it.each([
     { column: 'expanded English', wide: true, dictionary: en, name: 'Settings' },
@@ -335,7 +312,7 @@ describe('SettingsPanel chrome seats', () => {
     const { renderSlot } = mount()
     openPanel()
     expect(screen.getByText('Open configuration file')).toBeTruthy()
-    expect(renderSlot).toHaveBeenCalledWith('settings.action', { activeSectionId: 'general' })
+    expect(renderSlot).toHaveBeenCalledWith('settings.action', {})
   })
 })
 
@@ -398,46 +375,6 @@ describe('SettingsPanel close paths', () => {
 })
 
 describe('SettingsPanel navigation', () => {
-  it('uses list then detail navigation on a 320px phone', () => {
-    vi.stubGlobal('innerWidth', 320)
-    mount()
-    openPanel()
-    expect(screen.queryByTestId('section-general')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Models' }))
-    expect(screen.getByTestId('section-models')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Back to settings' }))
-    expect(screen.queryByTestId('section-models')).toBeNull()
-    expect(screen.getByRole('button', { name: 'General' })).toBeTruthy()
-  })
-
-  it.each([
-    ['German', 'Heruntergeladene Anwendungen und Proxy-Einstellungen verwalten'],
-    ['Russian', 'Управление загрузками приложений и настройками прокси-сервера'],
-    ['Brazilian Portuguese', 'Gerenciar downloads de aplicativos e configurações de proxy'],
-  ])('keeps a long %s section name operable in the 320px phone list', (_locale, label) => {
-    vi.stubGlobal('innerWidth', 320)
-    mount({ rows: [{ id: 'general', order: 0, label }] })
-    openPanel()
-    const row = screen.getByRole('button', { name: label })
-    expect(row).toBeTruthy()
-    fireEvent.click(row)
-    expect(screen.getByTestId('section-general')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Back to settings' })).toBeTruthy()
-  })
-
-  it('opens a requested section and forwards its subsection', () => {
-    const { renderSlot } = mount({
-      navigation: { sectionId: 'models', subsectionId: 'provider', revision: 1 },
-    })
-    expect(screen.getByRole('dialog')).toBeTruthy()
-    expect(screen.getByTestId('section-models')).toBeTruthy()
-    expect(renderSlot).toHaveBeenCalledWith(
-      'settings.section',
-      expect.objectContaining({ preferredSubsectionId: 'provider' }),
-      { only: 'models' },
-    )
-  })
-
   it('projects rows, marks the first active, and renders only that section', () => {
     mount()
     openPanel()
@@ -458,9 +395,9 @@ describe('SettingsPanel navigation', () => {
       ],
     })
     openPanel()
-    // Glyphs carry no id of their own, so the drawn paths are what tells them apart.
+    // Each product glyph names its sprite symbol id in data-icon.
     const glyphs = ['General', 'Models', 'Agent presets', 'Plugins', 'Archived sessions', 'Contributed']
-      .map(name => screen.getByRole('button', { name }).querySelector('svg')?.innerHTML)
+      .map(name => screen.getByRole('button', { name }).querySelector('svg')?.getAttribute('data-icon'))
 
     expect(glyphs.every(glyph => glyph !== undefined && glyph !== '')).toBe(true)
     // The four ids the shell names get their own glyph; every other section —
@@ -478,151 +415,6 @@ describe('SettingsPanel navigation', () => {
     expect(screen.queryByTestId('section-general')).toBeNull()
   })
 
-  it('follows the pointer, animates a full-row gap, then persists exactly once after settling', () => {
-    vi.useFakeTimers()
-    const { setSectionOrder } = mount({ sectionOrder: ['models', 'general', 'agent-presets'] })
-    openPanel()
-    const { list, items, flushFrame } = installPointerGeometry()
-    expect([...list.querySelectorAll('[role="listitem"]')].map(item => item.textContent)).toEqual([
-      expect.stringContaining('Models'),
-      expect.stringContaining('General'),
-      expect.stringContaining('Agent presets'),
-    ])
-
-    const modelsHandle = screen.getByRole('button', { name: `${en['nav.reorder']}: Models` })
-    fireEvent.pointerDown(modelsHandle, {
-      button: 0, isPrimary: true, pointerId: 7, clientX: 150, clientY: 120,
-    })
-    fireEvent.pointerMove(modelsHandle, { pointerId: 7, clientX: 150, clientY: 220 })
-    flushFrame()
-
-    expect(list.dataset.sorting).toBe('true')
-    expect(items[0]?.dataset.placeholder).toBe('true')
-    expect(items[1]?.style.transform).toBe('translateY(-44px)')
-    expect(items[2]?.style.transform).toBe('translateY(-44px)')
-    const ghost = document.querySelector<HTMLElement>('[data-phase="dragging"]')
-    expect(ghost?.style.transform).toBe('translateY(100px)')
-    expect(setSectionOrder).not.toHaveBeenCalled()
-
-    fireEvent.pointerUp(modelsHandle, { pointerId: 7, clientX: 150, clientY: 220 })
-    expect(setSectionOrder).not.toHaveBeenCalled()
-    act(() => { vi.advanceTimersByTime(180) })
-
-    expect(setSectionOrder).toHaveBeenCalledOnce()
-    expect(setSectionOrder).toHaveBeenCalledWith(['general', 'agent-presets', 'models'])
-    expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBeNull()
-    expect(screen.getByRole('button', { name: 'General' }).getAttribute('aria-current')).toBe('true')
-  })
-
-  it('moves the last contributed section into the first slot', () => {
-    vi.useFakeTimers()
-    const { setSectionOrder } = mount()
-    openPanel()
-    const { items, flushFrame } = installPointerGeometry()
-    const handle = screen.getByRole('button', { name: `${en['nav.reorder']}: Agent presets` })
-    fireEvent.pointerDown(handle, {
-      button: 0, isPrimary: true, pointerId: 10, clientX: 150, clientY: 208,
-    })
-    fireEvent.pointerMove(handle, { pointerId: 10, clientX: 150, clientY: 105 })
-    flushFrame()
-    expect(items[0]?.style.transform).toBe('translateY(44px)')
-    expect(items[1]?.style.transform).toBe('translateY(44px)')
-    fireEvent.pointerUp(handle, { pointerId: 10, clientX: 150, clientY: 105 })
-    act(() => { vi.advanceTimersByTime(180) })
-    expect(setSectionOrder).toHaveBeenCalledWith(['agent-presets', 'general', 'models'])
-  })
-
-  it('auto-scrolls a long navigation rail near its bottom edge', () => {
-    vi.useFakeTimers()
-    mount()
-    openPanel()
-    const { list, flushFrame } = installPointerGeometry()
-    const handle = screen.getByRole('button', { name: `${en['nav.reorder']}: Models` })
-    fireEvent.pointerDown(handle, {
-      button: 0, isPrimary: true, pointerId: 11, clientX: 150, clientY: 164,
-    })
-    fireEvent.pointerMove(handle, { pointerId: 11, clientX: 150, clientY: 229 })
-    flushFrame()
-    expect(list.scrollTop).toBeGreaterThan(0)
-    fireEvent.keyDown(document, { key: 'Escape' })
-    act(() => { vi.advanceTimersByTime(180) })
-  })
-
-  it('does not start sorting from the row or before the handle passes the four-pixel threshold', () => {
-    const { setSectionOrder } = mount()
-    openPanel()
-    const { list, flushFrame } = installPointerGeometry()
-    const models = screen.getByRole('button', { name: 'Models' })
-    fireEvent.pointerDown(models, { pointerId: 3, clientX: 80, clientY: 164 })
-    fireEvent.pointerMove(models, { pointerId: 3, clientX: 80, clientY: 220 })
-    expect(list.dataset.sorting).toBeUndefined()
-
-    const handle = screen.getByRole('button', { name: `${en['nav.reorder']}: Models` })
-    fireEvent.pointerDown(handle, {
-      button: 0, isPrimary: true, pointerId: 4, clientX: 150, clientY: 164,
-    })
-    fireEvent.pointerMove(handle, { pointerId: 4, clientX: 152, clientY: 166 })
-    flushFrame()
-    fireEvent.pointerUp(handle, { pointerId: 4, clientX: 152, clientY: 166 })
-    expect(list.dataset.sorting).toBeUndefined()
-    expect(setSectionOrder).not.toHaveBeenCalled()
-  })
-
-  it.each(['outside', 'cancel', 'escape'] as const)(
-    'restores the original order without persisting on %s cancellation',
-    (method) => {
-      vi.useFakeTimers()
-      const { setSectionOrder } = mount()
-      openPanel()
-      const { list, items, flushFrame } = installPointerGeometry()
-      const handle = screen.getByRole('button', { name: `${en['nav.reorder']}: Models` })
-      fireEvent.pointerDown(handle, {
-        button: 0, isPrimary: true, pointerId: 8, clientX: 150, clientY: 164,
-      })
-      fireEvent.pointerMove(handle, { pointerId: 8, clientX: 150, clientY: 215 })
-      flushFrame()
-      expect(list.dataset.sorting).toBe('true')
-
-      if (method === 'outside') {
-        fireEvent.pointerUp(handle, { pointerId: 8, clientX: 240, clientY: 215 })
-      } else if (method === 'cancel') {
-        fireEvent.pointerCancel(handle, { pointerId: 8 })
-      } else {
-        fireEvent.keyDown(document, { key: 'Escape' })
-      }
-      expect(items.every(item => item.style.transform === 'translateY(0px)')).toBe(true)
-      act(() => { vi.advanceTimersByTime(180) })
-      expect(setSectionOrder).not.toHaveBeenCalled()
-      expect(list.dataset.sorting).toBeUndefined()
-      expect(screen.getByRole('dialog')).toBeTruthy()
-    },
-  )
-
-  it('skips the settle delay when reduced motion is requested', () => {
-    vi.useFakeTimers()
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })))
-    const { setSectionOrder } = mount()
-    openPanel()
-    const { flushFrame } = installPointerGeometry()
-    const handle = screen.getByRole('button', { name: `${en['nav.reorder']}: Models` })
-    fireEvent.pointerDown(handle, {
-      button: 0, isPrimary: true, pointerId: 9, clientX: 150, clientY: 164,
-    })
-    fireEvent.pointerMove(handle, { pointerId: 9, clientX: 150, clientY: 215 })
-    flushFrame()
-    fireEvent.pointerUp(handle, { pointerId: 9, clientX: 150, clientY: 215 })
-    expect(setSectionOrder).not.toHaveBeenCalled()
-    act(() => { vi.advanceTimersByTime(0) })
-    expect(setSectionOrder).toHaveBeenCalledOnce()
-  })
-
-  it('supports keyboard reordering from the same drag handle', () => {
-    const { setSectionOrder } = mount()
-    openPanel()
-    fireEvent.keyDown(screen.getByRole('button', { name: `${en['nav.reorder']}: Models` }), { key: 'ArrowUp' })
-    expect(setSectionOrder).toHaveBeenCalledWith(['models', 'general', 'agent-presets'])
-  })
-
   it('mounts onboarding steps in order and transfers ownership only on completion', () => {
     const { renderSlot } = mount()
     const first = renderSlot.mock.calls.find(call => call[0] === 'settings.onboarding')
@@ -637,66 +429,19 @@ describe('SettingsPanel navigation', () => {
     expect(second?.[1]).toMatchObject({ stepId: 'credential' })
     expect(second?.[2]).toEqual({ only: 'credential' })
 
-    const finishSection = vi.fn()
     act(() => {
-      (second?.[1] as {
-        openSection: (request: {
-          sectionId: string
-          subsectionId?: string
-          step: 1 | 2 | 3 | 4
-          complete: () => void
-        }) => void
-      }).openSection({
-        sectionId: 'models',
-        subsectionId: 'provider',
-        step: 1,
-        complete: finishSection,
-      })
+      (second?.[1] as { openSection: (request: { sectionId: string; step: 1; complete: () => void }) => void }).openSection({ sectionId: 'models', step: 1, complete: () => {} })
     })
-    expect(screen.getByRole('dialog', { name: en['onboarding.start'] })).toBeTruthy()
-    expect(screen.getByRole('dialog', { name: en['onboarding.start'] }).parentElement?.parentElement)
-      .toBe(document.body)
+    expect(screen.getByRole('dialog')).toBeTruthy()
     expect(screen.getByTestId('section-models')).toBeTruthy()
-    expect(renderSlot).toHaveBeenCalledWith(
-      'settings.section',
-      expect.objectContaining({ preferredSubsectionId: 'provider' }),
-      { only: 'models' },
-    )
-    expect(screen.queryByRole('button', { name: 'General' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: en['onboarding.done'] }))
-    expect(finishSection).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('dialog', { name: en['onboarding.start'] })).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Models' }))
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest', inline: 'nearest' })
+    expect(scrollIntoView.mock.instances.at(-1)).toBe(document.activeElement)
 
     cleanup()
     const inactive = mount({ onboardingActive: false }).renderSlot.mock.calls
       .filter(call => call[0] === 'settings.onboarding')
     expect(inactive).toHaveLength(0)
-  })
-
-  it('never presents a blank onboarding page while an optional settings section is unavailable', () => {
-    const { renderSlot, bump } = mount()
-    const step = renderSlot.mock.calls.find(call => call[0] === 'settings.onboarding')
-    act(() => {
-      (step?.[1] as {
-        openSection: (request: SettingsOnboardingSectionRequest) => void
-      }).openSection({
-        sectionId: 'pocket',
-        step: 2,
-        complete: vi.fn(),
-      })
-    })
-    expect(screen.getByRole('status').textContent).toContain(en['onboarding.sectionUnavailable.title'])
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: en['onboarding.done'] }).disabled).toBe(true)
-    expect(renderSlot).not.toHaveBeenCalledWith('settings.section', expect.anything(), { only: 'pocket' })
-
-    bump([
-      { id: 'general', order: 0, label: 'General' },
-      { id: 'models', order: 10, label: 'Models' },
-      { id: 'pocket', order: 15, label: 'Phone access' },
-    ])
-    expect(screen.queryByRole('status')).toBeNull()
-    expect(screen.getByTestId('section-pocket')).toBeTruthy()
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: en['onboarding.done'] }).disabled).toBe(false)
   })
 
   it('takes the panel down when an onboarding step appears beneath it', () => {

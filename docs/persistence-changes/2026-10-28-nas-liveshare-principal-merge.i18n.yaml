@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-10-28-nas-liveshare-principal-merge.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-10-28-nas-liveshare-principal-merge.md
+/:
+  en: 9c789b613435a5f5
+  zh: bc05167ef301fb55
+/2026-10-28-nas-liveshare-principal-merge:
+  en: c4a50a4b3a1a62d0
+  zh: 1d289cec2751ae2f
+/2026-10-28-nas-liveshare-principal-merge/summary:
+  en: 37579ee5ee4c3a91
+  zh: 0c35d48600819345
+/2026-10-28-nas-liveshare-principal-merge/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 4c68b9c83c466785
+/2026-10-28-nas-liveshare-principal-merge/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-10-28-nas-liveshare-principal-merge/compatibility:
+  en: c72916ec4c190501
+  zh: fbb422d21563dd2a
+/2026-10-28-nas-liveshare-principal-merge/verification:
+  en: 15e8d809c7b1aa07
+  zh: 3ef38ad80101dd3e
+/2026-10-28-nas-liveshare-principal-merge/dev-note:
+  en: b75c8458928b72b9
+  zh: a1f8a33fb09d661a

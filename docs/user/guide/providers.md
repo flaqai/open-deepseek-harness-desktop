@@ -34,13 +34,15 @@ The Provider ID is permanent because requests, saved sessions, model defaults, a
 
 ### Discover models
 
-Under **Model catalog**, choose **Fetch available models** to ask the endpoint which models it serves. The request uses the base URL, protocol, and key currently in the form, or a saved provider's stored key, and the reply opens a searchable picker: search, tick the models you want, and choose **Add selected**. Nothing is stored until you save or create the provider.
+Under **Model catalog**, choose **Fetch available models** to ask the endpoint which models it serves. The request uses the base URL, protocol, and key currently in the form, or a saved provider's stored key, and the reply opens a searchable picker: models already in the list start ticked, so search, tick the models to add, untick the ones to remove, and choose **Update list**. Configured models the endpoint does not list stay. Nothing is stored until you save or create the provider.
 
 Discovery reads the listing formats common gateways publish, but not every endpoint answers in one of them, so treat it as a convenience rather than a guarantee: when it fails or lists nothing, add the model ids by hand and they work just the same. A built-in provider is always answered from the installed catalog, even when its base URL points at a gateway, so fetch through a custom provider to see what the gateway really serves.
 
 ## Select a model
 
 Configured providers appear in the model picker. Selecting a model also makes it the default for new sessions. A session that has already sent a request retains the model recorded in its own log.
+
+To change a provider’s model order, edit it in **Settings → Models**, open **Customized settings**, and drag a model’s three-line handle. You can also focus the handle and press the up or down arrow key. **Apply** keeps the order; **Cancel** discards it. The model picker follows the saved order within that provider.
 
 If a saved default names a provider that was deleted, the composer displays **Select model** and blocks input until another model is selected.
 

@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-10-28-upstream-alpha22-integration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-28-upstream-alpha22-integration.md
+/agent-note-official-mobile-ui-in-the-community-alpha-2-integration:
+  en: dad414d253051a68
+  zh: dccd5e7db66b5f57
+/agent-note-official-mobile-ui-in-the-community-alpha-2-integration/problem:
+  en: cea29cf43ee4459f
+  zh: c2e19d90c9e1c579
+/agent-note-official-mobile-ui-in-the-community-alpha-2-integration/decision:
+  en: 4e3690f4b30089fe
+  zh: 447c8d81dbe146c9
+/agent-note-official-mobile-ui-in-the-community-alpha-2-integration/alternatives-considered:
+  en: 4e4749e8fa5fb90f
+  zh: 2e98cf9644f47251
+/agent-note-official-mobile-ui-in-the-community-alpha-2-integration/consequences:
+  en: 494cc6adcdb99e5d
+  zh: 47efb1cf44a923a1

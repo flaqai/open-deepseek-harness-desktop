@@ -15,9 +15,15 @@
   cursor: pointer;
 }
 
-.trigger:hover,
 .trigger[aria-expanded='true'] {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+@media (hover: hover) {
+
+.trigger:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
 }
 
 .dialog {
@@ -102,9 +108,12 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+
 .categoryChoice:hover {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
+}
 }
 
 .categoryChoice[aria-pressed='true'] {

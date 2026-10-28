@@ -195,19 +195,22 @@ export function resolveClientBuildEnvironment(
   profile: string | undefined = environment[CLIENT_BUILD_PROFILE_SELECTOR],
 ): ClientBuildEnvironment {
   if (profile === undefined) return clientBuildEnvironment(environment)
-  if (profile === 'official') {
+  if (profile === 'official' || profile === 'local') {
     const commitHash = environment[CLIENT_COMMIT_HASH_VARIABLE]
     const version = environment[CLIENT_VERSION_VARIABLE]
     if (commitHash === undefined) {
-      throw new Error(`${CLIENT_COMMIT_HASH_VARIABLE} is required for the official client build profile`)
+      throw new Error(`${CLIENT_COMMIT_HASH_VARIABLE} is required for the ${profile} client build profile`)
     }
     if (version === undefined) {
-      throw new Error(`${CLIENT_VERSION_VARIABLE} is required for the official client build profile`)
+      throw new Error(`${CLIENT_VERSION_VARIABLE} is required for the ${profile} client build profile`)
     }
     return {
       DSH_CLIENT_COMMIT_HASH: commitHash,
       DSH_CLIENT_VERSION: version,
-      ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT,
+      ...(profile === 'official' ? OFFICIAL_CLIENT_BUILD_ENVIRONMENT : {
+        DSH_CLIENT_BUILD_PROFILE: 'local',
+        ...(environment.DSH_CLIENT_GIT_DIRTY === 'true' ? { DSH_CLIENT_GIT_DIRTY: 'true' } : {}),
+      }),
     }
   }
   if (profile === 'community-desktop') {
@@ -218,7 +221,7 @@ export function resolveClientBuildEnvironment(
     return { DSH_CLIENT_COMMIT_HASH: commitHash, ...COMMUNITY_DESKTOP_CLIENT_BUILD_ENVIRONMENT }
   }
   throw new Error(
-    `unknown client build profile ${JSON.stringify(profile)}; expected "official" or "community-desktop"`,
+    `unknown client build profile ${JSON.stringify(profile)}; expected "official", "local", or "community-desktop"`,
   )
 }
 

@@ -158,12 +158,29 @@
   padding-inline-start: max(0px, calc(var(--dsh-frame-leading-clearance, 0px) - 20px));
 }
 
+/* Header actions do not shrink, so on a narrow row they overflow the cluster.
+   The cluster clips them, hit testing included, so the next control keeps
+   every click. The trailing padding spans the gap before that control and
+   holds the fade: content that fits ends before it, and only overflowing
+   content reaches it. The 4px block and start padding, offset by negative
+   margins, keeps focus rings inside the clip. `clip` rather than `hidden`
+   keeps the cluster from becoming a scroll container that focus could scroll. */
 .titleCluster {
   display: flex;
   flex: 1;
   align-items: center;
   gap: 10px;
   min-width: 0;
+  --title-cluster-fade: 20px;
+  margin: -4px calc(-1 * var(--title-cluster-fade)) -4px -4px;
+  padding: 4px var(--title-cluster-fade) 4px 4px;
+  overflow: clip;
+  mask-image: linear-gradient(to left, transparent calc(0.3 * var(--title-cluster-fade)), #000 var(--title-cluster-fade));
+}
+
+/* Without utilities the corner's 8px margin is the gap the fade spans. */
+.titleCluster:has(+ .headerUtilities:empty) {
+  --title-cluster-fade: 8px;
 }
 
 /* The auto grid column collapses with an empty or CSS-hidden occupant.
@@ -221,8 +238,10 @@
   line-height: 18px;
 }
 
-button.crumb:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  button.crumb:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .crumbCurrent {
@@ -290,12 +309,20 @@ button.crumb:hover {
   min-height: 25px;
 }
 
-/* The 16px text line retains 9px below it. The active bar reaches 1px past
-   the tab box to sit over the header rule. */
+/* The 16px text line retains 9px below it. The press target extends 10px
+   above the text into the strip's top margin and 10px to each side, matching
+   the inline padding of the Sidebar tab chips (ui-dockkit `.tab`); negative
+   margins keep the layout box at its 25px row and text width. The active bar
+   spans the text and reaches 1px past the tab box to sit over the header
+   rule. */
 .tab {
+  --dsh-tab-hit-inline: 10px;
+
   position: relative;
-  min-height: 25px;
-  padding: 0 0 9px;
+  box-sizing: border-box;
+  min-height: 35px;
+  margin: -10px calc(-1 * var(--dsh-tab-hit-inline)) 0;
+  padding: 10px var(--dsh-tab-hit-inline) 9px;
   border: none;
   background: transparent;
   font-size: 13px;
@@ -308,9 +335,9 @@ button.crumb:hover {
 .tab::after {
   content: '';
   position: absolute;
-  right: 0;
+  right: var(--dsh-tab-hit-inline);
   bottom: -1px;
-  left: 0;
+  left: var(--dsh-tab-hit-inline);
   height: 2px;
   border-radius: 2px;
   background: transparent;
@@ -428,9 +455,14 @@ button.crumb:hover {
   left: 4px;
 }
 
-.widthHandle:hover::after,
 .widthHandle[data-dragging]::after {
   opacity: 1;
+}
+
+@media (hover: hover) {
+  .widthHandle:hover::after {
+    opacity: 1;
+  }
 }
 
 /* A drag starts above the composer band. Pointer capture keeps it active when
@@ -673,59 +705,4 @@ button.crumb:hover {
 .root[data-phase='settling'] .composerSeat,
 .embeddedBody[data-content-phase='settling'] .composerSeat {
   visibility: hidden;
-}
-
-@media (max-width: 680px) {
-  .root {
-    height: 100vh;
-    height: 100dvh;
-    max-width: 100vw;
-    overflow-x: hidden;
-    --dsh-chat-content-width: calc(var(--dsh-conversation-column-width, 100vw) - 24px);
-    --dsh-composer-card-max-width: var(--dsh-chat-content-width);
-    --dsh-composer-side-clearance: 12px;
-  }
-
-  .header {
-    min-height: 68px;
-    padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 64px;
-  }
-
-  .titleCluster,
-  .crumbs {
-    min-width: 0;
-  }
-
-  .crumb {
-    max-width: min(42vw, 180px);
-  }
-
-  .headerUtilities {
-    gap: 4px;
-    margin-left: 8px;
-  }
-
-  .headerCorner {
-    margin-left: 4px;
-    margin-right: 0;
-  }
-
-  .widthHandle {
-    display: none;
-  }
-
-  .scrollBody {
-    max-width: 100vw;
-    margin-right: 0;
-    overflow-x: hidden;
-    scrollbar-gutter: auto;
-  }
-
-  .composerSeat {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .composerHero {
-    padding-bottom: max(20px, env(safe-area-inset-bottom));
-  }
 }

@@ -35,8 +35,11 @@
   white-space: nowrap;
 }
 
+@media (hover: hover) {
+
 .prompt:hover {
   color: var(--dsw-alias-label-primary);
+}
 }
 
 .dismiss {
@@ -50,8 +53,11 @@
   corner-shape: round;
 }
 
+@media (hover: hover) {
+
 .dismiss:hover {
   background: var(--dsw-alias-interactive-bg-hover);
+}
 }
 
 .prompt:focus-visible,

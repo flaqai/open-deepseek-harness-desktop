@@ -19,6 +19,20 @@ it.each(rejectedRequests)('rejects $reason at operation admission', ({ request }
 })
 
 it.each([
+  { appHandle: 'app', snapshotId: 'snapshot', elementIndex: 0 },
+  { appHandle: 'app', windowId: 23, x: 1, y: 2 },
+  { appHandle: 'app', windowId: 23, x: 1, y: 2, relative: true },
+])('validates optional per-press hold duration for %j', (params) => {
+  for (const holdMs of [0, 1, 800, 5000, 7000]) {
+    const request = { method: 'click', params: { ...params, holdMs } }
+    expect(Request.parse(request)).toEqual(request)
+  }
+  for (const holdMs of [-1, 1.5, Infinity, NaN, '800', null]) {
+    expect(Request.safeParse({ method: 'click', params: { ...params, holdMs } }).success).toBe(false)
+  }
+})
+
+it.each([
   '', 'not base64!', 'AQ', 'AQ===', 'AQ==\n', 'A Q==', 'AQ-_', 'AB==', 'AAF=',
 ])('rejects noncanonical screenshot base64 %j', (data) => {
   expect(ScreenshotResult.safeParse({
@@ -62,13 +76,16 @@ it.each([
   expect(Request.safeParse({ method: 'hover', params }).success).toBe(false)
 })
 
-it.each(['click', 'hover', 'scroll', 'drag'])('validates integer thousandths for %s', (method) => {
+it.each(['click', 'hover', 'scroll', 'drag'])('validates 0–999 integer coordinates for %s', (method) => {
   const params = { appHandle: 'app', windowId: 7, relative: true,
-    ...method === 'drag' ? { fromX: 0, fromY: 0, toX: 1000, toY: 1000 } : { x: 0, y: 1000 },
+    ...method === 'drag' ? { fromX: 0, fromY: 0, toX: 999, toY: 999 } : { x: 0, y: 999 },
     ...method === 'scroll' ? { deltaLinesX: 0, deltaLinesY: -1 } : {},
   }
   expect(Request.safeParse({ method, params }).success).toBe(true)
-  for (const value of [-1, 1001, 0.5]) {
-    expect(Request.safeParse({ method, params: { ...params, [method === 'drag' ? 'toX' : 'x']: value } }).success).toBe(false)
+  for (const field of method === 'drag' ? ['fromX', 'fromY', 'toX', 'toY'] : ['x', 'y']) {
+    for (const value of [-1, 1000, 0.5]) {
+      expect(Request.safeParse({ method, params: { ...params, [field]: value } }).success).toBe(false)
+    }
+    expect(Request.safeParse({ method, params: { ...params, relative: false, [field]: 1000 } }).success).toBe(true)
   }
 })

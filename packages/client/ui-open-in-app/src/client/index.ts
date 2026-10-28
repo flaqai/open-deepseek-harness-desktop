@@ -21,11 +21,13 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/remote'
 import { OPEN_IN_APP_ICON_PREFIX_ROUTE } from '@deepseek-ai/dsh-host-open-in-app/shared'
 import { OpenInAppController } from './controller.ts'
 import { OpenInAppAction, type OpenInAppActionInjected, type OpenInAppActionProps } from './OpenInAppAction.tsx'
-import { de, en, es, fr, ja, ko, NS, ptBR, ru, zh, type OpenInAppKey } from './locales.ts'
 import { OpenInAppPathController } from './open-path.ts'
 import { OpenPathAction, type OpenPathInjected } from './OpenPathAction.tsx'
 import { FileRouteAction } from './FileRouteAction.tsx'
 import { OpenPathEmptyAction } from './OpenPathEmptyAction.tsx'
+import type { OpenTargetReporter } from './OpenTargetButton.tsx'
+import { en, ja, es, fr, de, ru, pt, ko, ptBR, NS, zh, type OpenInAppKey } from './locales.ts'
+import { createOpenInAppToastSource, OpenInAppToast } from './open-toast.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -35,7 +37,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 export type { OpenInAppActionInjected, OpenInAppActionProps } from './OpenInAppAction.tsx'
-export type { OpenInAppPathAction, OpenInAppPathFailure, OpenInAppPathRemote } from './open-path.ts'
+export type { OpenInAppPathAction, OpenInAppPathRemote } from './open-path.ts'
+export type { OpenInAppOutcome, OpenInAppPathFailure } from './outcome.ts'
 export type { OpenPathActionProps, OpenPathInjected } from './OpenPathAction.tsx'
 export type { OpenPathEmptyActionProps } from './OpenPathEmptyAction.tsx'
 
@@ -51,8 +54,14 @@ export function apply(ctx: ClientContext): void {
   const controller = new OpenInAppController()
   void controller.load()
   const paths = new OpenInAppPathController(ctx.remote)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, ko, es, fr, de, 'pt-BR': ptBR, ru }), 'open-in-app: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt, ko, 'pt-BR': ptBR }), 'open-in-app: dictionaries')
   const t = ctx.locale.bind(NS)
+  // Keep operation feedback visible after its initiating panel closes.
+  const announcement = createOpenInAppToastSource()
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'open-in-app.toast', locale: NS,
+    inject: () => ({ hooks: announcement.hooks, dismiss: announcement.dismiss }),
+  }, OpenInAppToast))
   const target = () => {
     if (ctx.layout.panelInfo.getSnapshot().activePanelId !== null) return undefined
     const session = Object.values(ctx.sessions.list.getSnapshot().byId)
@@ -75,9 +84,7 @@ export function apply(ctx: ClientContext): void {
       const selected = target()
       if (selected === undefined) return { status: 'blocked', reason: t('shortcut.unavailable') }
       return { status: 'handled', run: () => {
-        void controller.launch(selected.appId, selected.path).catch((error: unknown) => {
-          console.warn('workspace open rejected:', error)
-        })
+        void controller.launch(selected.appId, selected.path).then(announcement.report)
       } }
     },
   }), 'open-in-app: workspace command')
@@ -89,6 +96,7 @@ export function apply(ctx: ClientContext): void {
       shortcuts: ctx.shortcuts.catalog,
     },
     launch: (appId, path) => controller.launch(appId, path),
+    report: announcement.report,
     choose: (appId) => { controller.choose(appId) },
     iconUrl: appId => `${OPEN_IN_APP_ICON_PREFIX_ROUTE}/${appId}`,
   })
@@ -113,6 +121,7 @@ export function apply(ctx: ClientContext): void {
     loadDesktop: () => paths.load(),
     openPath: (path, action, application) => paths.openPath(path, action, application),
     applications,
+    report: announcement.report,
   })
   ctx.slots.inject('sidebar.right.tab.document.actions', () => ctx.slots.register({
     name: 'sidebar.right.tab.document.actions',
@@ -126,10 +135,11 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: pathInjected,
   }, OpenPathEmptyAction))
+  const routeInjected = (): OpenTargetReporter => ({ report: announcement.report })
   ctx.slots.inject('deliverables.file.actions', () => ctx.slots.register({
-    name: 'deliverables.file.actions', id: 'open-in-app', locale: NS,
+    name: 'deliverables.file.actions', id: 'open-in-app', locale: NS, inject: routeInjected,
   }, FileRouteAction))
   ctx.slots.inject('deliverables.review.file.actions', () => ctx.slots.register({
-    name: 'deliverables.review.file.actions', id: 'open-in-app', locale: NS,
+    name: 'deliverables.review.file.actions', id: 'open-in-app', locale: NS, inject: routeInjected,
   }, FileRouteAction))
 }

@@ -139,6 +139,7 @@ Windows 与 macOS 安装版可以注册由桌面客户端管理的 `dsh` 命令�
 
 启动器始终使用应用内置的 Node、Harness 和 pnpm 路径，并在每次调用时读取 `data-home-setup.json`：导入与全新模式跟随首次设置时确认的独立 home（包括可选的自定义空文件夹目标），复用模式跟随用户选择的社区桌面版 home。已有记录中直接复用官方 home 的旧设置仍可读取，但首次启动选择页不会再创建这种设置。首次目录选择尚未完成、设置文件损坏或内置运行时不完整时，命令会明确失败并提示打开客户端修复，不会静默创建另一套环境。发现其他来源的 `dsh` 时会先显示冲突，只有用户明确确认后才让客户端入口优先。卸载仅删除本应用写入的精确 PATH 条目或 Shell 标记区块。
 
+<a id="desktop-packages"></a>
 ## 桌面发行包
 
 在仓库根目录运行 `node apps/desktop/scripts/desktop-smoke.mjs <contracts|unpacked|package> <windows-x64|macos-arm64|macos-x64|linux-x64> --plan`，可预览固定验收命令而不执行。`contracts` 检查验收规则；`unpacked` 仅检查 Windows 未压缩应用；`package` 在匹配的原生宿主上检查已有目标产物。Windows 保留安装后启动、升级、卸载、CLI 和插件验收。macOS 通过原生入口检查最终 DMG 与 ZIP；Linux 只校验打包资源，不代表完成安装验收。

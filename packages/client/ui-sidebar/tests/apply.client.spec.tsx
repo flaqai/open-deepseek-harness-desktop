@@ -23,7 +23,7 @@ afterEach(async () => {
 
 function SidebarFrame({ renderSlot }: PropsRenderSlots<'sidebar'>) {
   return renderSlot('sidebar', {
-    collapsed: false, width: 300, presentation: 'column', dismiss: () => {},
+    collapsed: false, width: 300,
   })
 }
 

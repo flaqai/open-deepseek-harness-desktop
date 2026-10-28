@@ -10,7 +10,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { TeamAction, type TeamActionInjected } from './TeamAction.tsx'
 import { AgentTeamComposerHint, AgentTeamUseAction, type AgentTeamOnboardingInjected } from './AgentTeamOnboarding.tsx'
-import { en, NS, zh, type TeamKey } from './locales.ts'
+import { en, ja, es, fr, de, ru, pt, NS, zh, type TeamKey } from './locales.ts'
 import { AgentTeamOnboardingController } from './onboarding.ts'
 
 const AGENT_TEAM_BUNDLE = '@deepseek-ai/dsh-experimental-agent-team-profile'
@@ -32,7 +32,7 @@ export const inject = ['sessions', 'uiWorkspace', 'conversation', 'slots', 'loca
  * @param ctx - Client Context carrying the injected navigation, locale, slot, and Session services.
  */
 export function registerAgentTeamUi(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'client-ui-agent-team: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'client-ui-agent-team: dictionaries')
   const t = ctx.locale.bind(NS)
   const sessions = ctx.sessions
   const onboarding = new AgentTeamOnboardingController()

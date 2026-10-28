@@ -341,7 +341,9 @@ describe('PluginInventoryGateway', () => {
       }
     }
     await ctx.plugin(SessionProjectionRegistry)
-    await ctx.plugin(TestAgentPresetRegistry, { default: 'standard' })
+    ctx.provide('agents', { list: () => [] } as never)
+    const presetFiber = ctx.plugin(TestAgentPresetRegistry, { default: 'standard' })
+    await presetFiber.await()
     await vi.waitFor(() => { expect(projectors).toHaveLength(1) })
     const projector = projectors[0]!
     const agentContext = new Context()
@@ -353,7 +355,7 @@ describe('PluginInventoryGateway', () => {
       expect(plugin).toHaveBeenLastCalledWith(ToolSubagent, expect.objectContaining({
         provider: tool,
         toolName: tool === 'codex' ? 'subagent_codex' : 'subagent_claude_code',
-        modelSelectionSettings: false,
+        modelSelection: false,
         maxDepth: 'provider-managed',
       }))
       expect(plugin.mock.calls.at(-1)![1]).not.toHaveProperty('backgroundMode')

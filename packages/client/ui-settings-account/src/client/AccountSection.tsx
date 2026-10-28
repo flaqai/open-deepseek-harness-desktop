@@ -167,7 +167,7 @@ export function AccountSection({
         </div>
         <div className={css.accountActions}>
           <Button variant="outline" onClick={contactUs}>{t('contactUsSignedOut')}</Button>
-          <Button variant="primary" className={css.signInButton} disabled={busy}
+          <Button variant="primary" className={css.signInButton} disabled={busy || state === undefined}
             onClick={() => { void run(start) }}>{t('signIn')}</Button>
         </div>
       </div>
