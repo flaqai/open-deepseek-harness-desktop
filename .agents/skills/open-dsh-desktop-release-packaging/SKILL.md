@@ -99,6 +99,17 @@ Do not run Playwright or `test:web` as part of this workflow unless the user sep
 
 For a local packaging retry or size investigation, first read the [network, snapshot, and size-probe guidance](references/release-runbook.md#local-retries-and-size-probes). It records the pnpm registry variable, loopback proxy exclusion, resumable phase boundary, and how to report a failed qualification without mistaking an older installer for a new one.
 
+## Artifact retention and cleanup
+
+After successful qualification, and before the completion report, clean redundant validation data as part of the run:
+
+- Retain final installers, checksums, accepted qualification reports, release identity records, and necessary failure logs. Never delete the only verified local handoff or infer publication from a directory name.
+- Keep at most one explicitly identified reproduction environment for the latest qualified release. Preserve active jobs and unresolved investigations. Remove other successful unpacked apps, temporary user-data roots, relocated Profiles, and staging stores after extracting their evidence.
+- Retain failed environments for seven days by default; record their creation time, failure, and expiry with the evidence. At the next packaging or cleanup run, remove expired environments after preserving logs unless an unresolved investigation explicitly pins them. This is a workflow checkpoint, not a background cleanup service.
+- Before deletion, inventory exact paths and sizes, check active processes, exclude symlink targets and real user data, and preserve any installer files inside the candidates. Verify duplicates against the retained handoff by SHA-256 before removing downloaded release copies. Do not use broad version globs as deletion authority.
+- Record removed and retained paths plus the reason in a local cleanup report. Compare filesystem free space before and after; summed directory sizes are not a promise of reclaimed space because hard links and filesystem clones may share storage.
+- Cleanup does not commit or push source changes and must preserve unrelated working-tree edits.
+
 ## Completion report
 
 Lead with the outcome. Include endpoint connectivity and, when downloading, the measured artifact speed and floor; release and fix branch names, final commit, commits created, exact checks run, workflow run links, local artifact directory, per-file checksum result, bilingual notes path, and any non-blocking workflow warning. During preparation, include the tag, title, and complete Chinese and English draft in the handoff. State explicitly whether `master`, tags, or a public Release was pushed or created. For publication, report the GitHub and CNB URLs, tag target, prerelease/latest state, CNB sync run and index revision, and remote identity verification for both providers. If only one provider completed, call the result partial and name the remaining recovery action.
