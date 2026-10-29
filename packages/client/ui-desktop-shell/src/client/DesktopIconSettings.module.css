@@ -1,5 +1,5 @@
-.card { margin: 16px 0; padding: 18px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 16px; color: var(--dsw-alias-label-primary); }
-.card h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.card { margin: 16px 0; padding: 18px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 16px; color: var(--dsw-alias-label-primary); font: var(--dsw-font-s-14); }
+.card h3 { margin: 0 0 6px; font: var(--dsw-font-s-strong-14); }
 .hint { margin: 6px 0 12px; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 1.6; }
 .iconRow { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0; font-size: 13px; }
 .iconRow > img, .trayPreview { flex: none; }

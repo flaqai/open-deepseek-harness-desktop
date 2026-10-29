@@ -5,6 +5,13 @@ const styles = readFileSync(new URL('../src/client/CustomInstructions.module.css
 const theme = readFileSync(new URL('../../../client/ui-theme/src/styles/design-platform.css', import.meta.url), 'utf8')
 
 describe('custom prompt theme styling', () => {
+  it('uses the shared settings type scale instead of oversized headings', () => {
+    expect(styles).toContain('font: var(--dsw-font-s-14)')
+    expect(styles).toContain('font: var(--dsw-font-base-strong-16)')
+    expect(styles).toContain('font: var(--dsw-font-xs-13)')
+    expect(styles).not.toContain('font-size: 20px')
+    expect(styles).toContain('@media (pointer: coarse)')
+  })
   it('uses shared theme colors instead of light-only fallback colors', () => {
     expect(styles).not.toContain('--dsh-color-')
     expect(styles).not.toMatch(/#[\da-f]{3,8}\b/iu)

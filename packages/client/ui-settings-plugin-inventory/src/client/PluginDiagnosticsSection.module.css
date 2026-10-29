@@ -1,4 +1,5 @@
 .section {
+  font: var(--dsw-font-s-14);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -34,8 +35,7 @@
 }
 
 .header h2 {
-  font-size: 18px;
-  line-height: 26px;
+  font: var(--dsw-font-base-strong-16);
 }
 
 .header p,

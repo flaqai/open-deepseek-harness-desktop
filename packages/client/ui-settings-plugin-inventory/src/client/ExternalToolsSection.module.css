@@ -1,4 +1,5 @@
 .section {
+  font: var(--dsw-font-s-14);
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   display: flex;
@@ -31,9 +32,7 @@
 
 .intro h2 {
   margin: 0;
-  font-size: 22px;
-  line-height: 30px;
-  font-weight: 600;
+  font: var(--dsw-font-base-strong-16);
 }
 
 .intro p:not(.eyebrow) {
@@ -81,9 +80,7 @@
 
 .groupHeading h3 {
   margin: 0;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 600;
+  font: var(--dsw-font-s-strong-14);
 }
 
 .groupHeading p {
@@ -99,21 +96,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 9px;
-}
-
-.releaseBadge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 0 8px;
-  border: 0.5px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 34%, transparent);
-  border-radius: 999px;
-  corner-shape: round;
-  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);
-  color: var(--dsw-alias-state-business-primary);
-  font-size: 11px;
-  line-height: 18px;
-  font-weight: 600;
 }
 
 .card {
@@ -210,9 +192,7 @@
 
 .toolTitle h3 {
   margin: 0;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 600;
+  font: var(--dsw-font-s-strong-14);
 }
 
 .communityBadge {

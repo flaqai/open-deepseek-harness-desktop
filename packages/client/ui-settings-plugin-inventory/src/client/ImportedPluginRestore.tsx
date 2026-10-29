@@ -401,7 +401,7 @@ export function ImportedPluginRestore({
       </div>
     </section>
   )
-  return <>{body}<PortablePluginExport t={t} /></>
+  return <div className={css.page}>{body}<PortablePluginExport t={t} /></div>
 }
 
 /** Dedicated Settings page for imported plugin recovery. */

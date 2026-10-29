@@ -75,11 +75,11 @@ describe('ExternalToolsSection download progress', () => {
     expect(within(dialog).getByRole('button', { name: en['external.action.resume'] })).toBeTruthy()
   })
 
-  it('places the 0.1.6 experimental capabilities above the aligned external-tools grid', async () => {
+  it('places experimental capabilities above the external-tools grid without a release badge', async () => {
     render(<ExternalToolsSection {...props()} />)
 
     await screen.findByRole('heading', { name: en['external.title'] })
-    expect(screen.getByText(en['external.capability.releaseBadge'])).toBeTruthy()
+    expect(screen.queryByText('New in 0.1.6')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Browser Use' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Computer Use' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Auto review' })).toBeTruthy()

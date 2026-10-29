@@ -4,6 +4,7 @@
  * under the dark theme. */
 
 .section {
+  font: var(--dsw-font-s-14);
   display: flex;
   flex-direction: column;
   gap: 12px;

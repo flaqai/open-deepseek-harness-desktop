@@ -1,5 +1,6 @@
 /* The tab's own width, not the window's, decides the card columns below. */
 .section {
+  font: var(--dsw-font-s-14);
   container: plugin-inventory / inline-size;
   display: flex;
   flex-direction: column;

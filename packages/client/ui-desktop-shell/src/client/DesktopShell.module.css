@@ -1,4 +1,4 @@
-.group { width: 100%; }
+.group { width: 100%; font: var(--dsw-font-s-14); }
 .aboutIntro, .feedbackSection { display: grid; gap: 10px; padding: 18px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
 .aboutIntro h2, .feedbackSection h2 { margin: 0; color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 24px; }
 .aboutIntro p, .feedbackSection p { margin: 0; }

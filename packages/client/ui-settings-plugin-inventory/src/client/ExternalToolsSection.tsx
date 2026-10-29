@@ -402,7 +402,6 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
         <div>
           <div className={css.headingLine}>
             <h3>{t('external.capability.title')}</h3>
-            <span className={css.releaseBadge}>{t('external.capability.releaseBadge')}</span>
           </div>
           <p>{t('external.capability.description')}</p>
         </div>

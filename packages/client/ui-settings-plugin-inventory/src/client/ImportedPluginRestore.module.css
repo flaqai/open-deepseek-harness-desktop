@@ -1,4 +1,12 @@
+.page {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  font: var(--dsw-font-s-14);
+}
+
 .surface {
+  font: var(--dsw-font-s-14);
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   box-sizing: border-box;
@@ -9,12 +17,11 @@
   min-width: 0;
   container-name: imported-plugin-restore;
   container-type: inline-size;
-  border: 0;
-  border-radius: 14px;
-  padding: 18px;
-  background: var(--dsw-alias-bg-layer-1);
+  border: 0.5px solid var(--dsw-alias-settings-card-stroke);
+  border-radius: var(--dsw-radius-md);
+  padding: 16px;
+  background: var(--dsw-alias-settings-card-fill);
   color: var(--dsw-alias-label-primary);
-  box-shadow: var(--dsw-elevation-panel);
 }
 
 .heading,
@@ -35,8 +42,7 @@
 
 .heading h3 {
   margin-top: 3px;
-  font-size: 18px;
-  line-height: 26px;
+  font: var(--dsw-font-base-strong-16);
 }
 
 .heading p,

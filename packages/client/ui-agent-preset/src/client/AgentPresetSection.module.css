@@ -1,4 +1,5 @@
 .section {
+  font: var(--dsw-font-s-14);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -9,8 +10,7 @@
 
 .title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font: var(--dsw-font-base-strong-16);
 }
 
 .intro {
