@@ -1568,3 +1568,87 @@ describe('UiWorkspaceService', () => {
     })
   })
 })
+
+describe('mouse conversation history', () => {
+  function setup() {
+    const view = new EventTarget()
+    vi.stubGlobal('window', view)
+    const b = bench({ sessions: sessionState(['a', 'b', 'c'].map(id => summary(id))) })
+    const press = (button: number) => {
+      const event = Object.assign(new Event('mousedown', { cancelable: true }), { button })
+      view.dispatchEvent(event)
+      return event
+    }
+    return { ...b, view, press }
+  }
+
+  it('consumes side buttons and traverses visited conversations without document navigation', () => {
+    const b = setup()
+    b.uiWorkspace.openSession(sid('a'))
+    b.uiWorkspace.openSession(sid('b'))
+    expect(b.press(3).defaultPrevented).toBe(true)
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('a'), { source: 'mainView' })
+    expect(b.press(4).defaultPrevented).toBe(true)
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('b'), { source: 'mainView' })
+    expect(b.press(0).defaultPrevented).toBe(false)
+  })
+
+  it('does not traverse twice on mouse release and auxiliary click', () => {
+    const b = setup()
+    for (const id of ['a', 'b', 'c']) b.uiWorkspace.openSession(sid(id))
+    b.press(3)
+    for (const type of ['mouseup', 'auxclick']) {
+      const event = Object.assign(new Event(type, { cancelable: true }), { button: 3 })
+      b.view.dispatchEvent(event)
+      expect(event.defaultPrevented).toBe(true)
+    }
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('b'), { source: 'mainView' })
+  })
+
+  it.each(['win32', 'linux'])('delegates %s Desktop buttons exclusively to native commands', (platform) => {
+    const b = setup()
+    vi.stubGlobal('document', { documentElement: { dataset: { platform } } })
+    b.uiWorkspace.openSession(sid('a'))
+    b.uiWorkspace.openSession(sid('b'))
+    expect(b.press(3).defaultPrevented).toBe(false)
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('b'), { source: 'mainView' })
+    b.view.dispatchEvent(new CustomEvent('dsh:conversation-navigation', { detail: 'back' }))
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('a'), { source: 'mainView' })
+  })
+
+  it('drops forward history after opening another conversation and consumes boundary presses', () => {
+    const b = setup()
+    b.uiWorkspace.openSession(sid('a'))
+    b.uiWorkspace.openSession(sid('b'))
+    b.press(3)
+    b.uiWorkspace.openSession(sid('c'))
+    const count = b.sessions.retain.mock.calls.length
+    expect(b.press(4).defaultPrevented).toBe(true)
+    expect(b.sessions.retain).toHaveBeenCalledTimes(count)
+    b.press(3)
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('a'), { source: 'mainView' })
+  })
+
+  it('handles native navigation commands and removes listeners on unload', async () => {
+    const b = setup()
+    b.uiWorkspace.openSession(sid('a'))
+    b.uiWorkspace.openSession(sid('b'))
+    b.view.dispatchEvent(new CustomEvent('dsh:conversation-navigation', { detail: 'back' }))
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('a'), { source: 'mainView' })
+    await b.ctx.fiber.dispose()
+    expect(b.press(3).defaultPrevented).toBe(false)
+  })
+
+  it('skips archived conversations and keeps the cursor after a failed open', () => {
+    const b = setup()
+    b.uiWorkspace.openSession(sid('a'))
+    b.uiWorkspace.openSession(sid('b'))
+    b.uiWorkspace.openSession(sid('c'))
+    b.workspaces.list.set(workspaceState([], [sid('b')]))
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    b.sessions.retain.mockImplementationOnce(() => { throw new Error('unavailable') })
+    b.press(3)
+    b.press(3)
+    expect(b.sessions.retain).toHaveBeenLastCalledWith(sid('a'), { source: 'mainView' })
+  })
+})

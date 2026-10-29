@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { CandidateWelcomeGate } from '../src/candidate-welcome-gate.ts'
 import { BundledPresetVersionGate } from '../src/bundled-preset-version-gate.ts'
 import {
   DesktopProfileMutation,
@@ -85,6 +86,52 @@ function createFixture(overrides: Partial<DesktopProfileMutationOptions> = {}): 
 }
 
 describe('Desktop Profile mutation interface', () => {
+  it.each([true, false])('loads the validation client before welcome for first-start=%s', async (firstStart) => {
+    const gate = new CandidateWelcomeGate()
+    const events: string[] = []
+    const fixture = createFixture({
+      isFirstStart: () => firstStart,
+      onFirstStartCommit: () => gate.committed(async () => { events.push('welcome') }),
+      onRollback: () => { gate.rolledBack() },
+    })
+    expect(fixture.mutations.awaitingReadiness).toBe(false)
+    await fixture.mutations.prepareStartup()
+    expect(fixture.mutations.hasCandidate).toBe(true)
+    expect(fixture.mutations.awaitingReadiness).toBe(false)
+    await fixture.mutations.finishStartup()
+    expect(fixture.mutations.hasCandidate).toBe(false)
+    expect(fixture.mutations.awaitingReadiness).toBe(true)
+    fixture.mutations.observeHarness({ type: 'starting' })
+    fixture.mutations.observeHarness({ type: 'server-ready' })
+    await gate.serverReady('http://127.0.0.1:1234/', fixture.mutations.awaitingReadiness, {
+      loadClient: async () => { events.push('client') },
+      openWelcome: async () => { events.push('early-welcome') },
+    })
+    expect(events).toEqual(['client'])
+    expect(fixture.mutations.awaitingReadiness).toBe(true)
+    fixture.mutations.observeHarness({ type: 'normal-ready' })
+    await vi.waitFor(() => { expect(events).toEqual(['client', 'welcome']) })
+    expect(fixture.mutations.awaitingReadiness).toBe(false)
+  })
+
+  it('drops deferred upgrade welcome when the real candidate rolls back', async () => {
+    const gate = new CandidateWelcomeGate()
+    const events: string[] = []
+    const fixture = createFixture({ onRollback: () => { gate.rolledBack() } })
+    await fixture.mutations.prepareStartup()
+    await fixture.mutations.finishStartup()
+    await gate.serverReady('http://127.0.0.1:1234/', fixture.mutations.awaitingReadiness, {
+      loadClient: async () => { events.push('client') },
+      openWelcome: async () => { events.push('early-welcome') },
+    })
+    fixture.mutations.observeHarness({ type: 'failed', error: new Error('client unavailable') })
+    await vi.waitFor(() => { expect(fixture.calls.some(call => call.includes('transaction rollback'))).toBe(true) })
+    await vi.waitFor(() => { expect(fixture.mutations.awaitingReadiness).toBe(false) })
+    await gate.committed(async () => { events.push('late-welcome') })
+    expect(events).toEqual(['client'])
+    expect(fixture.calls.some(call => call.includes('transaction commit'))).toBe(false)
+  })
+
   it('marks a preset upgrade complete only after ordinary candidate readiness commits it', async () => {
     const fixture: Fixture = createFixture({ onFirstStartCommit: async () => { await versionGate.markCompleted('0.2.1-rc.2') } })
     const versionGate = new BundledPresetVersionGate(fixture.home)

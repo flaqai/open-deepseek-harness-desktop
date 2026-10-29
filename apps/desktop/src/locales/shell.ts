@@ -1,4 +1,5 @@
-/** Bilingual copy for native dialogs and the community desktop shell. */
+/** Localized copy for native dialogs and the community desktop shell. */
+import { shellAdditionalDictionaries, importResultAdditionalDictionaries } from './shell-extra.ts'
 import { desktopDictionary } from '../desktop-locale.ts'
 import { trayDictionaries, type TrayCopy } from './tray.ts'
 
@@ -45,7 +46,10 @@ const en = {
   bundledPreparationFailed: (detail: string) => `First-start plugin preparation is incomplete. The client has not started. Choose Continue to restart and retry, or open the logs. Uncommitted preparation will be rolled back before retrying. Details: ${detail}`,
 }
 
-const zh: typeof en = {
+/** Native dialog message contract. */
+export type ShellCopy = typeof en
+
+const zh: ShellCopy = {
   productName: 'Open DeepSeek Harness Desktop',
   quitTitle: '退出 Open DeepSeek Harness Desktop？',
   quitActiveTasks: '当前正在运行的任务将会中断。',
@@ -90,7 +94,7 @@ const zh: typeof en = {
 
 /** Select native-shell copy. @param locale - Electron locale. @returns The matching dictionary. */
 export function shellMessages(locale: string): typeof en {
-  return locale.toLowerCase().startsWith('zh') ? zh : en
+  return desktopDictionary(locale, { zh, en, ...shellAdditionalDictionaries })
 }
 
 /** Select tray-menu copy. @param locale - Electron locale. @returns The matching tray labels. */
@@ -104,13 +108,15 @@ export function dataHomeMessages(locale: string): {
   completeMessage: string
   failedTitle: string
 } {
-  return locale.toLowerCase().startsWith('zh')
-    ? {
+  return desktopDictionary(locale, {
+    zh: {
       completeTitle: '导入完成', completeMessage: '用户数据与插件恢复清单已复制到独立桌面目录。进入客户端后可选择重新安装插件。',
       failedTitle: '无法导入官方数据',
-    }
-    : {
+    },
+    en: {
       completeTitle: 'Import complete', completeMessage: 'User data and a plugin restore list were copied into the independent desktop directory. Choose plugins to reinstall after entering Desktop.',
       failedTitle: 'Could not import official data',
-    }
+    },
+    ...importResultAdditionalDictionaries,
+  })
 }

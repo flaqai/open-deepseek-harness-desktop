@@ -2,6 +2,8 @@
 
 import { lstat, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import semver from 'semver'
+import type { PluginSnapshotSummary } from './plugin-snapshot-manager.ts'
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/iu
 const MAX_MANIFEST_BYTES = 1024 * 1024
@@ -16,6 +18,29 @@ export interface RecoveryPluginSummary {
   readonly source: RecoveryPluginSource
   readonly status: 'attention' | 'normal'
   readonly diagnosticCode?: string
+  readonly rollbackVersion?: string
+}
+
+/**
+ * Resolve the most recent retained lower version of one plugin; safety snapshots are excluded.
+ * @param plugin - Current direct dependency identity and resolved version.
+ * @param snapshots - Host-owned snapshot catalog; source paths never enter the renderer.
+ * @returns Exact install target, or undefined when no restorable previous version is known.
+ */
+export function recoveryPluginRollbackTarget(
+  plugin: RecoveryPluginSummary,
+  snapshots: readonly PluginSnapshotSummary[],
+): { version: string; packageSpec: string } | undefined {
+  if (plugin.version === undefined || semver.valid(plugin.version) === null) return undefined
+  for (const snapshot of [...snapshots].filter(item => item.kind !== 'safety').sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    const previous = snapshot.packages.find(item => item.name === plugin.packageName)
+    if (previous?.version === undefined || semver.valid(previous.version) === null
+      || !semver.lt(previous.version, plugin.version)) continue
+    if (previous.source === 'registry') {
+      return { version: previous.version, packageSpec: `${plugin.packageName}@${previous.version}` }
+    }
+  }
+  return undefined
 }
 
 /** Complete recovery-page inventory; installation-owned bundles stay protected. */

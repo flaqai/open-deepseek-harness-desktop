@@ -679,3 +679,9 @@
     animation: none;
   }
 }
+
+/* Community desktop actions share the official footer without changing navigation. */
+.settingsLine { display: flex; align-items: center; min-width: 0; }
+.settingsLine .settingsArea { flex: 1; width: auto; }
+.settingsActions { display: flex; align-items: center; flex: none; }
+.collapsed .settingsLine { flex-direction: column; }

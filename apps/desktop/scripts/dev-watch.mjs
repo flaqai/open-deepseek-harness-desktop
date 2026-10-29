@@ -38,7 +38,7 @@ function workspaceStamp() {
 }
 
 function startElectron() {
-  electron = spawn(developmentElectron(), ['lib/main.js'], { cwd: APP_DIRECTORY, stdio: 'inherit', env: process.env })
+  electron = spawn(developmentElectron(), [APP_DIRECTORY], { cwd: APP_DIRECTORY, stdio: 'inherit', env: process.env })
   electron.once('exit', () => {
     electron = undefined
     if (restarting) {

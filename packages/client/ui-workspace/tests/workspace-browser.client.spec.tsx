@@ -2521,6 +2521,44 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByRole('dialog', { name: '删除工作区' })).toBeNull()
   })
 
+  it.each([false, true])('reveals preserved conversations after committed project removal (archived: %s)', async (archived) => {
+    const preferences = createWorkspaceViewStore().create()
+    preferences.actions.setGroupBy('workspace')
+    preferences.actions.setGroupExpanded('alpha', true)
+    preferences.actions.setGroupExpanded('beta', false)
+    preferences.actions.setGroupExpanded(UNGROUPED_KEY, false)
+    const archivedIds = archived ? [sid('preserved')] : []
+    const loose = Array.from({ length: 8 }, (_, index) => summary(`loose-${index}`, 100 + index))
+    const browser = mount({
+      useSessions: hook(sessionState([...loose, summary('preserved', 1), summary('other', 2)])),
+      useWorkspaces: hook(workspaceState([
+        workspace('alpha', ['preserved'], 'Alpha'), workspace('beta', ['other'], 'Beta'),
+      ], archivedIds)),
+    })
+    fireEvent.click(screen.getByRole('button', { name: '工作区“Alpha”的操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除工作区' }))
+    fireEvent.click(screen.getByRole('button', { name: '删除工作区' }))
+    await act(async () => {})
+    expect(browser.store.getSnapshot().groupExpansion[UNGROUPED_KEY]).toBe(false)
+    expect(scrollIntoView).not.toHaveBeenCalled()
+
+    rerender(browser, { useWorkspaces: hook(workspaceState([workspace('beta', ['other'], 'Beta')], archivedIds)) })
+    await waitFor(() => { expect(screen.queryByRole('dialog', { name: '删除工作区' })).toBeNull() })
+    expect(browser.store.getSnapshot().archivedFilter).toBe('default')
+    expect(browser.store.getSnapshot().groupExpansion.beta).toBe(false)
+    if (archived) {
+      expect(browser.store.getSnapshot().groupExpansion[UNGROUPED_KEY]).toBe(false)
+      expect(screen.queryByText('preserved')).toBeNull()
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    } else {
+      expect(browser.store.getSnapshot().groupExpansion[UNGROUPED_KEY]).toBe(true)
+      const row = screen.getByText('preserved').closest('[role="treeitem"]')
+      expect(row).toBeTruthy()
+      expect(scrollIntoView.mock.instances.at(-1)).toBe(row)
+    }
+    expect(screen.queryByText('other')).toBeNull()
+  })
+
   it('keeps the delete dialog open on failure and allows retry or cancellation', async () => {
     const deleteWorkspace = vi.fn()
       .mockRejectedValueOnce(new Error('storage unavailable'))

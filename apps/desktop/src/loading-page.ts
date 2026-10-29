@@ -520,7 +520,33 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
         remove.disabled = false
       })
     })
-    row.append(name, version, status, remove)
+    const rollback = document.createElement('button')
+    rollback.type = 'button'
+    rollback.className = 'plugin-rollback'
+    rollback.textContent = copy.rollback
+    rollback.disabled = plugin.rollbackVersion === undefined
+    rollback.title = plugin.rollbackVersion === undefined ? copy.rollbackUnavailable : copy.rollbackTarget(plugin.rollbackVersion)
+    rollback.setAttribute('aria-label', `${copy.rollback} ${plugin.packageName}`)
+    rollback.addEventListener('click', () => {
+      const target = plugin.rollbackVersion
+      if (target === undefined || !window.confirm(copy.rollbackConfirm(plugin.packageName, target))) return
+      rollback.disabled = true
+      remove.disabled = true
+      pluginStatus.hidden = false
+      pluginStatus.textContent = copy.rollingBack(plugin.packageName)
+      void ipcRenderer.invoke('dsh:desktop:recovery-plugins:rollback', plugin.packageName, target).then(() => loadPlugins(true)).then(() => {
+        pluginStatus.hidden = false
+        pluginStatus.textContent = copy.rolledBack(plugin.packageName, target)
+      }).catch((error: unknown) => {
+        pluginStatus.textContent = `${copy.rollbackFailed}: ${error instanceof Error ? error.message : String(error)}`
+        rollback.disabled = false
+        remove.disabled = false
+      })
+    })
+    const actions = document.createElement('div')
+    actions.className = 'plugin-actions'
+    actions.append(rollback, remove)
+    row.append(name, version, status, actions)
     return row
   }
 
@@ -691,6 +717,13 @@ interface RecoveryCopy {
   readonly pluginAttention: (code?: string) => string
   readonly protectedComponents: (count: number) => string
   readonly uninstall: string
+  readonly rollback: string
+  readonly rollbackUnavailable: string
+  readonly rollbackTarget: (version: string) => string
+  readonly rollbackConfirm: (name: string, version: string) => string
+  readonly rollingBack: (name: string) => string
+  readonly rolledBack: (name: string, version: string) => string
+  readonly rollbackFailed: string
   readonly uninstallConfirm: (name: string, attributed: boolean) => string
   readonly uninstalling: (name: string) => string
   readonly uninstalled: (name: string) => string
@@ -740,6 +773,11 @@ const chineseCopy: RecoveryCopy = {
   pluginSource: source => ({ registry: '在线安装', bundled: '桌面预装', local: '本地来源', other: '其他来源' })[source],
   pluginAttention: code => code === undefined ? '诊断异常' : `诊断异常 · ${code}`,
   protectedComponents: count => `核心组件 ${count} 项 · 已锁定保护`, uninstall: '卸载',
+  rollback: '回退至上一版本', rollbackUnavailable: '未找到可恢复的旧版本快照。可查看“回退插件快照”。',
+  rollbackTarget: version => `回退至 ${version}`,
+  rollbackConfirm: (name, version) => `将 ${name} 回退至历史快照记录的 ${version}？可能需要联网下载。仅更改此插件，不恢复其他插件或配置；完成后请重新尝试启动。`,
+  rollingBack: name => `正在回退 ${name}…`,
+  rolledBack: (name, version) => `${name} 的 ${version} 回退已准备。请重新尝试启动以应用并验证插件。`, rollbackFailed: '插件回退失败',
   uninstallConfirm: (name, attributed) => attributed
     ? `诊断已指向 ${name}。确认卸载？将先暂停 Harness，并为本次变更创建插件快照。`
     : `${name} 未被本次诊断标记为异常。仍要卸载吗？将先暂停 Harness，并为本次变更创建插件快照。`,
@@ -779,6 +817,11 @@ const englishCopy: RecoveryCopy = {
   pluginSource: source => ({ registry: 'Online install', bundled: 'Desktop preset', local: 'Local source', other: 'Other source' })[source],
   pluginAttention: code => code === undefined ? 'Diagnostic issue' : `Diagnostic issue · ${code}`,
   protectedComponents: count => `${count} core components · protected`, uninstall: 'Uninstall',
+  rollback: 'Roll back version', rollbackUnavailable: 'No restorable previous version was found. Check Plugin snapshots.',
+  rollbackTarget: version => `Restore ${version}`,
+  rollbackConfirm: (name, version) => `Restore ${name} to ${version} recorded in a previous snapshot? A network download may be required. Only this plugin is changed; other plugins and settings are not restored. Retry startup afterwards.`,
+  rollingBack: name => `Rolling back ${name}…`,
+  rolledBack: (name, version) => `Rollback of ${name} to ${version} is prepared. Retry startup to apply and verify the plugin.`, rollbackFailed: 'Plugin rollback failed',
   uninstallConfirm: (name, attributed) => attributed
     ? `Diagnostics identified ${name}. Uninstall it? Harness will pause first and a plugin snapshot will protect this change.`
     : `${name} was not identified by this diagnostic. Uninstall it anyway? Harness will pause first and a plugin snapshot will protect this change.`,

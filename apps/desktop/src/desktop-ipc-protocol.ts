@@ -9,6 +9,7 @@ export const DESKTOP_IPC = {
   bundledPluginsStart: 'dsh:desktop:bundled-plugins:start',
   bundledPluginsStartDeferred: 'dsh:desktop:bundled-plugins:start-deferred',
   capabilities: 'dsh:desktop:capabilities',
+  conversationNavigation: 'dsh:desktop:conversation-navigation',
   chatBackgroundRead: 'dsh:desktop:chat-background:read',
   chatBackgroundWrite: 'dsh:desktop:chat-background:write',
   clientBootFailure: 'dsh:desktop:client-boot-failure',

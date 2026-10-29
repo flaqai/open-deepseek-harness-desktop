@@ -723,6 +723,11 @@ function installDesktopThemeSync(): void {
   window.addEventListener('unload', () => { observer.disconnect() }, { once: true })
 }
 
+ipcRenderer.on(DESKTOP_IPC.conversationNavigation, (_event, direction: unknown) => {
+  if (direction !== 'back' && direction !== 'forward') return
+  window.dispatchEvent(new CustomEvent('dsh:conversation-navigation', { detail: direction }))
+})
+
 window.addEventListener('DOMContentLoaded', () => {
   const disposeExternalLinks = installExternalAnchorNavigation(document,
     url => commonDesktopBridge.externalBrowser.open(url),

@@ -70,6 +70,7 @@ it('registers account sign-in in a plain browser without the Desktop-only surfac
     if (reload) await c.reload(SELF)
     await c.mock.streams.opened('account/watch', reload ? 2 : 1)
     expect(c.ctx.slots.entries('settings.launcher')).toHaveLength(1)
+    expect(injectedOf(c.ctx.slots.entries('settings.launcher')[0]!)).toMatchObject({ desktopLauncher: false })
     expect(c.ctx.slots.entries('settings.models.sign-in')).toHaveLength(1)
     expect(quotaNoticeEntry(c)).toBeDefined()
     expect(platformHostEntry(c)).toBeUndefined()
@@ -118,6 +119,7 @@ it('shares account actions across active desktop seats and opens contextual supp
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
   const actions = operations(c)
+  expect(injectedOf(c.ctx.slots.entries('settings.launcher')[0]!)).toMatchObject({ desktopLauncher: true })
   expect(c.ctx.slots.entries('shell.overlay').some(entry => entry.options.id === 'desktop-onboarding')).toBe(true)
   expect(c.ctx.slots.entries('settings.models.sign-in')).toHaveLength(1)
   // The account UI follows the live theme service through the framework hook channel.

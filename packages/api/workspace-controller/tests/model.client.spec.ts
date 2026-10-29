@@ -559,6 +559,29 @@ describe('ClientWorkspaceModel', () => {
     expect(listener).toHaveBeenCalledOnce()
   })
 
+  it('archives one conversation and removes its project without clearing another project projection', async () => {
+    const remote = new FakeWorkspaceRemote()
+    const model = modelFor(remote)
+    const removed = workspace('gone', [sid('target'), sid('sibling')])
+    const retained = workspace('kept', [sid('other')])
+    baseline(model, [removed, retained], [], [sid('target'), sid('other')])
+
+    await model.archiveSession(sid('target'))
+    expect(model.getSnapshot().items).toEqual([removed, retained])
+    expect(model.getSnapshot().archivedSessionIds).toEqual(['target'])
+    expect(model.getSnapshot().pinnedSessionIds).toEqual(['other'])
+    model.replaceArchived([sid('target')])
+    await model.delete(wid('gone'))
+    model.removeView(wid('gone'))
+    expect(model.getSnapshot().items).toEqual([retained])
+    expect(model.getSnapshot().archivedSessionIds).toEqual(['target'])
+    expect(model.getSnapshot().pinnedSessionIds).toEqual(['other'])
+    expect(remote.calls).toEqual([
+      { method: 'archiveSession', request: { sessionId: 'target' } },
+      { method: 'delete', request: { workspaceId: 'gone' } },
+    ])
+  })
+
   it('removes from a unary delete echo before the operation resolves', async () => {
     const remote = new FakeWorkspaceRemote()
     const model = modelFor(remote)

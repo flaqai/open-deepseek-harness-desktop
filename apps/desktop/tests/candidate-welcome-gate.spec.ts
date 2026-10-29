@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { CandidateWelcomeGate } from '../src/candidate-welcome-gate.ts'
 
 describe('candidate welcome gate', () => {
-  it('uses the unfinished first-start gate after candidate selection has been cleared for activation', async () => {
+  it('uses transaction readiness after candidate selection has been cleared for activation', async () => {
     const main = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8')
     const call = main.match(/candidateWelcomeGate\.serverReady\(([^\n]+), \{/u)?.[1]
-    expect(call).toBe('url, firstStartPending')
+    expect(call).toBe('url, desktopMutations.awaitingReadiness')
   })
 
   it('loads the Harness client for first-start verification before opening welcome', async () => {

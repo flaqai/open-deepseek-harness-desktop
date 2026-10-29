@@ -62,6 +62,9 @@ export class ProfileTransactionManager {
 
   constructor(options: ProfileTransactionManagerOptions) { this.#options = options }
 
+  /** Whether an activated candidate still needs ordinary client and event-dispatch readiness. */
+  get awaitingReadiness(): boolean { return this.#checking !== undefined }
+
   async #pending(): Promise<PendingTransaction | undefined> {
     let source: string
     const path = join(this.#options.home, 'plugin-transactions', 'web', 'pending.json')

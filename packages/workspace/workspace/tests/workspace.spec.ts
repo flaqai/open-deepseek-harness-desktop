@@ -535,6 +535,36 @@ describe('WorkspaceRegistry create and lookup', () => {
     expect(reregistered.sessionIds).toEqual([])
   })
 
+  it('removing one project and archiving its session preserves other projects across restart', async () => {
+    const firstDir = await makeDir('remove-one-project')
+    const secondDir = await makeDir('keep-other-project')
+    const sessions = [header('target', firstDir, 100), header('sibling', firstDir, 200), header('other', secondDir, 300)]
+    const first = await harness({ sessions })
+    const target = first.registry.list().find(workspace => workspace.path === firstDir)!
+    const other = first.registry.list().find(workspace => workspace.path === secondDir)!
+    await first.registry.pinSession(SessionId('other'))
+
+    await first.registry.archiveSession(SessionId('target'))
+    expect(first.registry.archivedSessionIds).toEqual(['target'])
+    expect(target.sessionIds).toEqual(['sibling', 'target'])
+    expect(other.sessionIds).toEqual(['other'])
+    await first.registry.delete(target.id)
+    expect(first.registry.list().map(workspace => workspace.id)).toEqual([other.id])
+    expect(first.registry.pinnedSessionIds).toEqual(['other'])
+    expect(first.open).not.toHaveBeenCalled()
+    await first.ctx.fiber.dispose()
+
+    const restarted = await harness({ sessions, pool: first.pool })
+    expect(restarted.registry.list().map(workspace => workspace.id)).toEqual([other.id])
+    expect(restarted.registry.get(other.id)?.sessionIds).toEqual(['other'])
+    expect(restarted.registry.archivedSessionIds).toEqual(['target'])
+    expect(restarted.registry.pinnedSessionIds).toEqual(['other'])
+    expect(restarted.list).toHaveBeenCalledTimes(1)
+    expect(restarted.open).not.toHaveBeenCalled()
+    await expect(realpath(firstDir)).resolves.toBe(firstDir)
+    await expect(realpath(secondDir)).resolves.toBe(secondDir)
+  })
+
   it('rolls registry order and cache back when record deletion fails', async () => {
     const dir = await makeDir('delete-rollback')
     const pool = new MemoryMediaPool()

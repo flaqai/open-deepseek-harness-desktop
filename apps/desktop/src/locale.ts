@@ -1,4 +1,5 @@
-/** Typed English and Chinese copy owned by the Electron shell. */
+/** Typed copy owned by the Electron shell. */
+import { additionalWelcomeDictionaries } from './locales/welcome-upstream.ts'
 
 export const en = {
   application: 'Application',
@@ -287,15 +288,18 @@ export const zh = {
 
 /** Locale payload exposed to the Desktop-owned renderer. */
 export interface DesktopLocale {
-  readonly id: 'en' | 'zh-CN'
+  readonly id: 'en' | 'zh-CN' | keyof typeof additionalWelcomeDictionaries
   readonly messages: DesktopMessages
 }
 
 /** Resolve Electron's locale to one shipped Desktop dictionary. */
 export function resolveDesktopLocale(locale: string): DesktopLocale {
-  return locale.toLowerCase().startsWith('zh')
-    ? { id: 'zh-CN', messages: zh }
-    : { id: 'en', messages: en }
+  const id = locale.toLowerCase().replaceAll('_', '-').split('-')[0]
+  if (id === 'zh') return { id: 'zh-CN', messages: zh }
+  if (id === 'ja' || id === 'es' || id === 'fr' || id === 'de' || id === 'ru' || id === 'pt' || id === 'ko') {
+    return { id, messages: additionalWelcomeDictionaries[id] }
+  }
+  return { id: 'en', messages: en }
 }
 
 /**
@@ -305,11 +309,12 @@ export function resolveDesktopLocale(locale: string): DesktopLocale {
  * @returns the supported dictionary, falling back to English.
  */
 export function resolveDesktopStartupLocale(preference: string | null, languages: readonly string[]): DesktopLocale {
-  const selected = preference?.toLowerCase()
-  if (selected === 'zh' || selected === 'en') return resolveDesktopLocale(selected)
+  const supported = new Set(['zh', 'en', ...Object.keys(additionalWelcomeDictionaries)])
+  const selected = preference?.toLowerCase().replaceAll('_', '-').split('-')[0]
+  if (selected !== undefined && supported.has(selected)) return resolveDesktopLocale(selected)
   for (const language of languages) {
     const primary = language.toLowerCase().split('-')[0]
-    if (primary === 'zh' || primary === 'en') return resolveDesktopLocale(primary)
+    if (primary !== undefined && supported.has(primary)) return resolveDesktopLocale(primary)
   }
   return resolveDesktopLocale('en')
 }

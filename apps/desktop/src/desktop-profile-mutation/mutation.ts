@@ -167,6 +167,9 @@ export class DesktopProfileMutation {
 
   get hasCandidate(): boolean { return this.#candidateId !== undefined }
 
+  /** Remains true after candidate selection clears, until activation commits or rolls back. */
+  get awaitingReadiness(): boolean { return this.#transactions.awaitingReadiness }
+
   get hasRecoveryCandidate(): boolean {
     return this.#recoveryOwnsCandidate && this.#candidateId !== undefined
   }

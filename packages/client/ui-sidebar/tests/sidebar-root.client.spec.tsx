@@ -71,6 +71,9 @@ function mountShell({ collapsed = false, width = 300, shortcuts = [] }: {
           settingsOwner = { wide: owner.wide, dismissSidebar: () => {} }
           return <div data-testid="settings-seat" data-wide={owner.wide} />
         }
+        if (key === 'sidebar.settings.action') {
+          return <div data-testid="settings-action-seat" data-wide={owner.wide} />
+        }
         if (key === 'sidebar.footer.action') {
           footerActionOwner = owner
           return <div data-testid="footer-action-seat" data-wide={owner.wide} />
@@ -314,6 +317,8 @@ describe('SidebarRoot shell', () => {
     expect(b.regionOwner().wide).toBe(true)
     // The settings seat rides the same wide flag (ui-settings renders the row).
     expect(b.settingsOwner().wide).toBe(true)
+    expect(screen.getAllByTestId('settings-action-seat')).toHaveLength(1)
+    expect(screen.getByTestId('settings-action-seat').getAttribute('data-wide')).toBe('true')
     expect(b.footerActionOwner().wide).toBe(true)
     // Expanded: the request is a no-op (no accidental collapse).
     b.regionOwner().expandSidebar()
@@ -330,6 +335,8 @@ describe('SidebarRoot shell', () => {
     b.rerender({})
     expect(b.regionOwner().wide).toBe(false)
     expect(b.footerActionOwner().wide).toBe(false)
+    expect(screen.getAllByTestId('settings-action-seat')).toHaveLength(1)
+    expect(screen.getByTestId('settings-action-seat').getAttribute('data-wide')).toBe('false')
     expect(screen.getByTestId('region')).toBeTruthy()
     b.regionOwner().expandSidebar()
     expect(b.toggleSidebar).toHaveBeenCalledOnce()

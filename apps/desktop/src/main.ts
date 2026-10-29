@@ -1,3 +1,4 @@
+import { nativePromptMessages, nativePromptText } from './locales/native-prompts.ts'
 /** Electron application host for the existing DeepSeek Harness Web GUI. */
 
 import type { ProductEvent } from '@deepseek-ai/dsh-client-product-analytics/types'
@@ -17,6 +18,7 @@ import {
   type Session,
   type IpcMainInvokeEvent, type MenuItemConstructorOptions, type MessageBoxOptions, type WebContents, type WebPreferences,
 } from 'electron'
+import { installConversationNavigation } from './conversation-navigation.ts'
 import { appendBundledPluginFailure, bundledPluginSeedIsSettled, seedBundledPluginsBatch, verifyBundledPluginArchive } from './bundled-plugin-seed.ts'
 import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
 import { FirstStartPreparation } from './first-start-preparation.ts'
@@ -153,6 +155,7 @@ import { mapBundledPluginProgress, type DesktopStartupProgress } from './startup
 import {
   isRecoveryPluginPackageName,
   readRecoveryPluginInventory,
+  recoveryPluginRollbackTarget,
 } from './recovery-plugins.ts'
 import {
   DesktopCliManager,
@@ -1037,17 +1040,13 @@ async function resolveStartupBuildApproval(
 ): Promise<string> {
   const approval = parseStartupBuildApproval(diagnostic)
   if (approval === undefined) return diagnostic
-  const chinese = app.getLocale().toLowerCase().startsWith('zh')
+  const promptCopy = nativePromptMessages(app.getLocale())
   const result = await showDesktopMessageBox({
     type: 'warning',
     title: shellMessages(app.getLocale()).buildBlockedTitle,
     message: shellMessages(app.getLocale()).buildBlockedMessage,
-    detail: chinese
-      ? `pnpm 已阻止 ${approval.packageBuildKey} 的构建脚本。该插件已被安全隔离，因此即使不允许也可以继续进入应用。仅在你信任插件来源时允许。`
-      : `pnpm blocked the build script for ${approval.packageBuildKey}. The plugin is already safely isolated, so you can continue without allowing it. Only allow a source you trust.`,
-    buttons: chinese
-      ? ['允许构建并恢复插件', '不允许，保持隔离', '退出应用']
-      : ['Allow and restore plugin', 'Keep isolated', 'Quit'],
+    detail: nativePromptText(promptCopy.buildDetail, { package: approval.packageBuildKey }),
+    buttons: [promptCopy.allowRestore, promptCopy.keepIsolated, promptCopy.quit],
     defaultId: 1,
     cancelId: 2,
     noLink: true,
@@ -1071,10 +1070,8 @@ async function resolveStartupBuildApproval(
       type: 'warning',
       title: shellMessages(app.getLocale()).recoveryFailedTitle,
       message: shellMessages(app.getLocale()).recoveryFailedMessage,
-      detail: chinese
-        ? `构建许可未能安全完成或插件仍有其他问题。插件会继续保持隔离，可稍后在“诊断”中重试。\n\n${detail.slice(-2000)}`
-        : `The approval could not be completed safely or the plugin has another issue. It remains isolated and can be retried later in Diagnostics.\n\n${detail.slice(-2000)}`,
-      buttons: [chinese ? '继续' : 'Continue'],
+      detail: nativePromptText(promptCopy.recoveryDetail, { detail: detail.slice(-2000) }),
+      buttons: [promptCopy.continue],
     })
     return `${diagnostic}\n[desktop] Build approval recovery failed: ${detail}`
   }
@@ -1289,16 +1286,14 @@ function configureNavigation(renderer: WebContents): void {
     const existing = pendingPermissionPrompts.get(promptKey)
     if (existing !== undefined) return existing
 
-    const chinese = app.getLocale().toLowerCase().startsWith('zh')
-    const capability = harnessPermissionName(permission, details, chinese ? 'zh' : 'en')
+    const promptCopy = nativePromptMessages(app.getLocale())
+    const capability = harnessPermissionName(permission, details, app.getLocale())
     const options: MessageBoxOptions = {
       type: 'question',
       title: shellMessages(app.getLocale()).permissionTitle(APP_NAME),
       message: shellMessages(app.getLocale()).permissionMessage(capability),
-      detail: chinese
-        ? '仅在你确认后，当前本机 Harness 页面才能使用此能力。拒绝不会影响其他功能。'
-        : 'Only the current local Harness page can use this capability after you approve it. Denying it will not affect other features.',
-      buttons: chinese ? ['拒绝', '允许'] : ['Deny', 'Allow'],
+      detail: promptCopy.permissionDetail,
+      buttons: [promptCopy.deny, promptCopy.allow],
       defaultId: 0,
       cancelId: 0,
       noLink: true,
@@ -1448,6 +1443,10 @@ function createWindow(): BrowserWindow {
     },
   })
   const { window } = surface
+  installConversationNavigation(window, surface.renderer, () => {
+    if (!menuClientAvailable || harnessOrigin === undefined) return false
+    try { return new URL(surface.renderer.getURL()).origin === harnessOrigin } catch { return false }
+  })
   if (process.platform === 'win32') {
     // Windows session-end is definitive; query-session-end alone can be vetoed.
     window.on('session-end', () => { sessionEnding = true })
@@ -2352,10 +2351,43 @@ async function startApplication(): Promise<void> {
     })
     return { entered: true as const }
   })
-  ipcMain.handle('dsh:desktop:recovery-plugins:list', (event) => {
+  ipcMain.handle('dsh:desktop:recovery-plugins:list', async (event) => {
     assertMainRenderer(event.sender)
     if (activeMenuHome === undefined || profileMutation === undefined) throw new Error('desktop: active Profile is unavailable')
-    return profileMutation.readRecovery(activeMenuHome, readRecoveryPluginInventory)
+    const inventory = await profileMutation.readRecovery(activeMenuHome, readRecoveryPluginInventory)
+    const snapshots = await pluginSnapshotManager?.list() ?? []
+    return { ...inventory, plugins: inventory.plugins.map((plugin) => {
+      const target = recoveryPluginRollbackTarget(plugin, snapshots)
+      return { ...plugin, ...(target === undefined ? {} : { rollbackVersion: target.version }) }
+    }) }
+  })
+  ipcMain.handle('dsh:desktop:recovery-plugins:rollback', async (event, packageName: unknown, expectedVersion: unknown) => {
+    assertMainRenderer(event.sender)
+    if (!isRecoveryPluginPackageName(packageName) || typeof expectedVersion !== 'string') {
+      throw new TypeError('desktop: invalid recovery plugin rollback identity')
+    }
+    const mutation = profileMutation
+    const home = activeMenuHome
+    const snapshots = pluginSnapshotManager
+    if (home === undefined || mutation === undefined || snapshots === undefined) throw new Error('desktop: plugin rollback is unavailable')
+    await mutation.stageRecovery({
+      operation: `recovery-plugin-rollback:${packageName}`,
+      run: async (context) => {
+        const inventory = await mutation.readRecovery(home, readRecoveryPluginInventory)
+        const plugin = inventory.plugins.find(item => item.packageName === packageName)
+        const target = plugin === undefined ? undefined : recoveryPluginRollbackTarget(plugin, await snapshots.list())
+        if (target === undefined || target.version !== expectedVersion) throw new Error('desktop: previous plugin version changed or is unavailable; refresh the plugin list')
+        await stopAndRevokePersistentServicesForPlugin(packageName)
+        await context.write({ kind: 'add', packageSpecs: [target.packageSpec], exact: true,
+          operation: `recovery-plugin-rollback:${packageName}`, timeoutMs: BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS })
+        const installed = await readRecoveryPluginInventory(context.home)
+        if (installed.plugins.find(item => item.packageName === packageName)?.version !== target.version) {
+          throw new Error('desktop: plugin rollback did not install the expected version')
+        }
+        await appendDesktopStartupLog(`Recovery mode rolled back ${packageName} to ${target.version}; startup verification is pending.`)
+      },
+    })
+    return { changed: true as const }
   })
   ipcMain.handle('dsh:desktop:recovery-plugins:remove', async (event, packageName: unknown) => {
     assertMainRenderer(event.sender)
@@ -2663,7 +2695,7 @@ async function startApplication(): Promise<void> {
       throw new TypeError('desktop: invalid imported plugin local restore request')
     }
     const entry = importedPluginRestoreManager.localEntry(restoreId)
-    const chinese = app.getLocale().toLowerCase().startsWith('zh')
+    const promptCopy = nativePromptMessages(app.getLocale())
     const chooser = mainWindow
     const result = await (chooser === undefined
       ? dialog.showOpenDialog({
@@ -2690,10 +2722,10 @@ async function startApplication(): Promise<void> {
           type: 'warning',
           title: shellMessages(app.getLocale()).pluginVersionDiffers,
           message: shellMessages(app.getLocale()).confirmPlugin(entry.packageName),
-          detail: chinese
-            ? `原声明：${entry.declaredSpec}\n本地版本：${staged.manifest.version ?? '未知'}\n本地包将安装到桌面版独立环境。`
-            : `Imported declaration: ${entry.declaredSpec}\nLocal version: ${staged.manifest.version ?? 'unknown'}\nThe local package will install into the independent Desktop environment.`,
-          buttons: chinese ? ['取消', '继续安装'] : ['Cancel', 'Install anyway'],
+          detail: nativePromptText(promptCopy.localDetail, {
+            spec: entry.declaredSpec, version: staged.manifest.version ?? promptCopy.unknown,
+          }),
+          buttons: [promptCopy.cancel, promptCopy.install],
           defaultId: 0,
           cancelId: 0,
         })
@@ -3411,14 +3443,15 @@ async function startApplication(): Promise<void> {
         runtimePendingApplied = false
         await appendDesktopStartupLog('Workspace runtime Profile changes committed after normal readiness.')
       }
-      if (!firstStartPending) return
-      await presetVersionGate.markCompleted(app.getVersion())
-      await firstStartPreparation.complete()
-      firstStartPending = false
-      preparingFirstStart = false
-      await appendDesktopStartupLog('First-start bundled plugin preparation committed after normal readiness.')
+      if (firstStartPending) {
+        await presetVersionGate.markCompleted(app.getVersion())
+        await firstStartPreparation.complete()
+        firstStartPending = false
+        preparingFirstStart = false
+        await appendDesktopStartupLog('First-start bundled plugin preparation committed after normal readiness.')
+      }
       void candidateWelcomeGate.committed(url => openInitialWorkspace(url, dshHome)).catch((error: unknown) => {
-        console.error('desktop: could not open welcome after first-start verification', error)
+        console.error('desktop: could not open welcome after candidate verification', error)
       })
     },
     runSnapshot: (args, timeoutMs, allowDuringDisposal) => runSnapshotCommand(args, timeoutMs, allowDuringDisposal),
@@ -4122,10 +4155,11 @@ async function startApplication(): Promise<void> {
       const readyOrigin = harnessOrigin
       setTimeout(() => {
         if (harnessOrigin !== readyOrigin || mainSurface === undefined || mainSurface.window.isDestroyed()) return
-        // Activation clears the selected candidate before Harness reaches this
-        // callback; the durable first-start gate remains pending until commit.
-        void candidateWelcomeGate.serverReady(url, firstStartPending, {
+        // Candidate activation clears selection but still awaits client readiness.
+        // Both initial deployment and upgrades must verify before native welcome.
+        void candidateWelcomeGate.serverReady(url, desktopMutations.awaitingReadiness, {
           loadClient: async (candidateUrl) => {
+            await appendDesktopStartupLog('Loading candidate client before native welcome; waiting for client and event-dispatch readiness.')
             const surface = mainSurface
             if (surface !== undefined && !surface.window.isDestroyed()) {
               await loadAuthenticatedHarness(surface, candidateUrl)

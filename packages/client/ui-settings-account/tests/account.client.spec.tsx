@@ -151,6 +151,37 @@ it.each([en, zh].flatMap(copy => ([false, true, 'unknown'] as const).map(running
   expect(screen.queryByRole('menu')).toBeNull()
 })
 
+it.each([
+  [true, 'signed-out'], [false, 'signed-out'], [true, 'credential-stored'], [false, 'credential-stored'],
+] as const)('opens desktop settings directly with wide=%s and account=%s', async (wide, status) => {
+  const operations = mount({ status, attempt: null })
+  cleanup()
+  const { AccountMenu } = await import('../src/client/AccountMenu.tsx')
+  const openSettings = vi.fn()
+  const props: AccountMenuProps = {
+    ...({} as GlobalStandardProps), ...operations, wide, settingsOpen: false,
+    useAccount: selector => selector(operations.hooks.account.getSnapshot()),
+    useTheme: selector => selector(operations.hooks.theme.getSnapshot()),
+    openSettings, openOnboarding: vi.fn(), t: key => en[key as AccountKey],
+    settingsShortcut: { keys: ['Ctrl', ','], aria: 'Control+,' },
+  }
+  const view = render(<AccountMenu {...props} desktopLauncher />)
+  const settings = screen.getByRole('button', { name: en.settings })
+  expect(screen.getAllByRole('button', { name: en.settings })).toHaveLength(1)
+  expect(settings.getAttribute('aria-keyshortcuts')).toBe('Control+,')
+  expect(settings.getAttribute('aria-expanded')).toBe('false')
+  expect(screen.queryByRole('button', { name: en.menu })).toBeNull()
+  fireEvent.click(settings)
+  expect(openSettings).toHaveBeenCalledOnce()
+  view.rerender(<AccountMenu {...props} desktopLauncher settingsOpen />)
+  expect(settings.getAttribute('aria-expanded')).toBe('true')
+  view.rerender(<AccountMenu {...props} desktopLauncher={false} />)
+  expect(screen.queryByRole('button', { name: en.settings })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: en.menu }))
+  fireEvent.click(screen.getByRole('menuitem', { name: en.settings }))
+  expect(openSettings).toHaveBeenCalledTimes(2)
+})
+
 it.each([en, zh])('updates the Settings menu keycaps and accessible combination from its owner', async (copy) => {
   const operations = mount({ status: 'signed-out', attempt: null }, copy)
   cleanup()

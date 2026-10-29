@@ -34,7 +34,7 @@ import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { ArchivedFilter, GroupNode, SessionNode, SessionOrderBy, SessionRowState } from '../tree.ts'
 import {
   deriveFlat, deriveGroups, deriveSearchResults, orderByRecency, owningGroupKey, owningParentFolder,
-  pinCurrentBlank, reconcileManualOrder, sessionMemberIds, UNGROUPED_KEY,
+  pinCurrentBlank, reconcileManualOrder, sessionMemberIds, visibleSessionIds, UNGROUPED_KEY,
 } from '../tree.ts'
 import { ProjectRowItem, SearchResultItem, SessionNodeItem } from './Rows.tsx'
 import { FLAT_SESSION_ORDER_KEY, type SessionGroupBy } from '../stores.ts'
@@ -1287,7 +1287,11 @@ export function WorkspaceBrowser({
 
   // Delete dialog is separate from the row so a successful removal can
   // unmount that row without tearing down the in-flight confirmation state.
-  const [deleteTarget, setDeleteTarget] = useState<{ workspaceId: WorkspaceId; title: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    workspaceId: WorkspaceId
+    title: string
+    sessionIds: readonly SessionId[]
+  } | null>(null)
   const deleteWorkspaceAllowed = useWorkspaceAccess(deleteTarget?.workspaceId, 'workspace/delete')
   const [deleting, setDeleting] = useState(false)
   const [deleteCommittedId, setDeleteCommittedId] = useState<WorkspaceId | null>(null)
@@ -1295,10 +1299,19 @@ export function WorkspaceBrowser({
   useEffect(() => {
     if (deleteCommittedId === null
       || workspaces.some(workspace => workspace.workspaceId === deleteCommittedId)) return
+    // Removing the registration preserves its conversations. Reveal one in
+    // their new account so a folded Ungrouped section cannot look like data loss.
+    const removedMembers = new Set(deleteTarget?.sessionIds)
+    const retained = visibleSessionIds(list, archivedSessionIds, archivedFilter)
+      .find(id => removedMembers.has(id) && owningGroupKey(workspaces, id) === UNGROUPED_KEY)
+    if (retained !== undefined) {
+      actions.setGroupExpanded(UNGROUPED_KEY, true)
+      setRevealSessionId(retained)
+    }
     setDeleting(false)
     setDeleteCommittedId(null)
     setDeleteTarget(null)
-  }, [deleteCommittedId, workspaces])
+  }, [actions, archivedFilter, archivedSessionIds, deleteCommittedId, deleteTarget, list, workspaces])
   const closeDelete = () => {
     if (deleting) return
     setDeleteTarget(null)
@@ -1536,7 +1549,11 @@ export function WorkspaceBrowser({
                   setRenameError(null)
                 }}
                 onDeleteRequest={(workspaceId, title) => {
-                  setDeleteTarget({ workspaceId, title })
+                  setDeleteTarget({
+                    workspaceId,
+                    title,
+                    sessionIds: storedWorkspaces.find(workspace => workspace.workspaceId === workspaceId)?.sessionIds ?? [],
+                  })
                   setDeleteError(null)
                 }}
                 {...openWorkspaceInstructions === undefined

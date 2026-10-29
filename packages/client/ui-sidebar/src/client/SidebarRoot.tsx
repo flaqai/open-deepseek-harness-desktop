@@ -407,8 +407,13 @@ export function SidebarRoot({
         <div className={css.footerActions}>
           {renderSlot('sidebar.footer.action', { wide })}
         </div>
-        <div className={css.settingsArea}>
-          {renderSlot('sidebar.settings', { wide, dismissSidebar: () => {} })}
+        <div className={css.settingsLine}>
+          <div className={css.settingsArea}>
+            {renderSlot('sidebar.settings', { wide, dismissSidebar: () => {} })}
+          </div>
+          <div className={css.settingsActions}>
+            {renderSlot('sidebar.settings.action', { wide })}
+          </div>
         </div>
       </div>
     </div>

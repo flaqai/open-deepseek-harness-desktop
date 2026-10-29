@@ -173,6 +173,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly selection = createSnapshotStore<MainSelection>(
     {}, { persist: { name: 'dsh.sessions.current' } },
   )
+  private readonly visited: Array<{ sessionId: SessionId; target: SessionTarget }> = []
+  private visitedIndex = -1
+  private traversingHistory = false
   private mainReference: SessionReference | undefined
   private restorationNavigation: AbortSignal | undefined
 
@@ -195,8 +198,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     super(ctx, 'uiWorkspace')
     ctx.effect(() => {
       const stop = this.watchNavigation()
+      const stopMouse = this.watchMouseNavigation()
       return () => {
         stop()
+        stopMouse()
         this.lifetime.abort()
         const reference = this.mainReference
         this.mainReference = undefined
@@ -428,6 +433,54 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     return access.whenResourceAccess('workspace', workspaceId, action, callback)
   }
 
+  private watchMouseNavigation(): () => void {
+    if (typeof window === 'undefined') return () => {}
+    const view = window
+    const mouse = (event: MouseEvent): void => {
+      if (event.button !== 3 && event.button !== 4) return
+      // Windows/Linux Desktop owns these buttons through Electron app-command.
+      const platform = typeof document === 'undefined' ? undefined : document.documentElement.dataset.platform
+      if (platform === 'win32' || platform === 'linux') return
+      // Cancel Chromium's document-history action even at the conversation boundary.
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.type === 'mousedown') this.traverseHistory(event.button === 3 ? -1 : 1)
+    }
+    const native = (event: Event): void => {
+      if (!(event instanceof CustomEvent) || (event.detail !== 'back' && event.detail !== 'forward')) return
+      this.traverseHistory(event.detail === 'back' ? -1 : 1)
+    }
+    view.addEventListener('mousedown', mouse, { capture: true })
+    view.addEventListener('mouseup', mouse, { capture: true })
+    view.addEventListener('auxclick', mouse, { capture: true })
+    view.addEventListener('dsh:conversation-navigation', native)
+    return () => {
+      view.removeEventListener('mousedown', mouse, { capture: true })
+      view.removeEventListener('mouseup', mouse, { capture: true })
+      view.removeEventListener('auxclick', mouse, { capture: true })
+      view.removeEventListener('dsh:conversation-navigation', native)
+    }
+  }
+
+  private traverseHistory(direction: -1 | 1): void {
+    const sessions = this.sessions.list.getSnapshot()
+    const archived = this.workspaces.list.getSnapshot().archivedSessionIds
+    for (let index = this.visitedIndex + direction; index >= 0 && index < this.visited.length; index += direction) {
+      const entry = this.visited[index]
+      if (entry === undefined || sessions.byId[entry.sessionId] === undefined || archived.includes(entry.sessionId)) continue
+      this.traversingHistory = true
+      try {
+        this.openSession(entry.target)
+        this.visitedIndex = index
+      } catch (error: unknown) {
+        console.warn('conversation history navigation failed:', error)
+      } finally {
+        this.traversingHistory = false
+      }
+      return
+    }
+  }
+
   private watchNavigation(): () => void {
     let initial: 'waiting' | 'connecting' | 'done' = 'waiting'
     const reconcile = (): void => {
@@ -548,6 +601,11 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     }
     const previous = this.mainReference
     this.mainReference = reference
+    if (!this.traversingHistory && this.visited[this.visitedIndex]?.sessionId !== reference.sessionId) {
+      this.visited.splice(this.visitedIndex + 1)
+      this.visited.push({ sessionId: reference.sessionId, target })
+      this.visitedIndex = this.visited.length - 1
+    }
     previous?.release()
     if (panel === 'reveal') this.ctx.layout.selectPanel(null)
   }

@@ -297,6 +297,24 @@ describe('deriveGroups', () => {
     expect(groups[1]!.sessions.map(session => session.id)).toEqual([sid('loose')])
   })
 
+  it('keeps a removed project conversations visible under Ungrouped without hiding other projects', () => {
+    const sessions = list(summary('target', 3), summary('sibling', 2), summary('other', 1))
+    const kept = workspace('kept', ['other'])
+    const state = rowState({ archived: ['target'] })
+    const before = deriveGroups(sessions, [workspace('removed', ['target', 'sibling']), kept],
+      state, noAttention, view(['removed', 'kept', UNGROUPED_KEY]))
+    expect(before.map(group => [group.key, group.sessions.map(session => session.id)]))
+      .toEqual([['removed', ['sibling']], ['kept', ['other']]])
+
+    const after = deriveGroups(sessions, [kept], state, noAttention, view(['kept', UNGROUPED_KEY]))
+    expect(after.map(group => [group.key, group.sessions.map(session => session.id)]))
+      .toEqual([['kept', ['other']], [UNGROUPED_KEY, ['sibling']]])
+    const showAll = deriveGroups(sessions, [], rowState({ archived: ['target'], archivedFilter: 'show' }),
+      noAttention, view([UNGROUPED_KEY]))
+    expect(showAll[0]!.sessions.map(session => session.id)).toEqual(['target', 'sibling', 'other'])
+    expect(sessions.ids).toEqual(['target', 'sibling', 'other'])
+  })
+
   it('applies stored Ungrouped order and appends new loose Sessions by recency', () => {
     const sessions = list(summary('one', 3), summary('two', 2), summary('new', 4))
     const groups = deriveGroups(

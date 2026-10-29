@@ -28,4 +28,8 @@ The development version and external-tool compatibility record follow the fixed 
 
 Native startup exposed two integration defects: supplemental locale dictionaries could claim official namespaces before their owners, and General settings read `remoteAccess` without declaring it. Supplemental dictionaries now have a separate lifecycle-owned fallback layer; primary dictionaries win independently of activation order. General settings declares the service and Client module edge. The native readiness check rejects the recovery page, even if it emits later service-ready messages.
 
+Every startup candidate, including upgrades, loads the client before native welcome while its transaction awaits readiness. Native welcome is released only after commit and discarded after rollback; server readiness alone never commits plugins. Desktop launch uses the application directory so Electron reads the community package version. Native Desktop retains a direct Settings launcher and its update/return action seat; plain Web and mobile keep the official account menu.
+
+After Workspace removal is confirmed by its projection, retained Sessions become discoverable by revealing the ungrouped row without changing the archive filter or other groups.
+
 Development checks do not qualify installers. Phone keyboards, cross-platform installation and actual LiveShare authentication against a configured server require their own evidence before release. Integration does not create release tags or publish packages.

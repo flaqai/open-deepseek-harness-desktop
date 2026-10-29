@@ -8,7 +8,8 @@
     "src/client",
     "src/welcome-api.ts",
     "src/welcome-account-types.ts",
-    "src/locale.ts"
+    "src/locale.ts",
+    "src/locales/welcome-upstream.ts"
   ],
   "references": [
     {
