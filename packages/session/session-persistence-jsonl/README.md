@@ -80,6 +80,8 @@ The current-generation scanner applies the current codec owner’s structural ad
 
 Unloading the backend waits for the consumer unloads it triggers through `sessionPersistence` injection before removing live-event listeners and draining and closing remaining handles. Consumers must register cleanup in that injecting scope; unrelated scopes and explicit Session or handle closure have their own lifetimes. Programmatic mounting uses the plugin namespace (`import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'`) with `ctx.plugin`; access storage through `ctx.sessionPersistence`.
 
+Each list request reuses one selected-generation scan and one physical identity per selected file; historical fingerprints still include files whose headers cannot be read. Root encoding validation remains a separate one-time check. Debug-level `session-list.storage` diagnostics report encoding, discovery, header and identity durations, total time, and counts without recording paths or Session contents.
+
 ### Reading the logs
 
 Materialized `stat` and `list` snapshots include the format catalog's header classification as `formatStatus`, alongside the translated logical `header`. They also include `location: { kind: 'jsonl', path }` for the selected physical generation. A read-only preparation leaves the selected historical version unchanged; the status becomes `current` after publication of the successor. Unmaterialized pending Sessions omit `formatStatus` and `location`.

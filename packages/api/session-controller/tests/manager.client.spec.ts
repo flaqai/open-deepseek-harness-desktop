@@ -1642,3 +1642,21 @@ describe('Session summary projection replacement', () => {
     expect(entry?.title).toBe('fresh')
   })
 })
+
+
+it('reports request and list application separately without row contents', async ({ mock, remote }) => {
+  mock.load(sessionWorld)
+  const report = vi.fn<NonNullable<ConstructorParameters<typeof SessionManager>[1]>>()
+  const manager = new SessionManager(remote as unknown as SessionRemotes, report)
+  onTestFinished(() => manager.dispose())
+  remote.session.list.mockResolvedValueOnce(ok({ items: [summary(S1)] }))
+  await manager.refreshList()
+  expect(report).toHaveBeenCalledOnce()
+  const timings = report.mock.calls[0]?.[0]
+  expect(Object.keys(timings ?? {}).sort()).toEqual(['applyMs', 'items', 'requestMs', 'sinceManagerStartMs', 'totalMs'])
+  expect(timings?.items).toBe(1)
+  expect(timings?.requestMs).toBeGreaterThanOrEqual(0)
+  expect(timings?.applyMs).toBeGreaterThanOrEqual(0)
+  expect(timings?.totalMs).toBeGreaterThanOrEqual(0)
+  expect(timings?.sinceManagerStartMs).toBeGreaterThanOrEqual(timings?.totalMs ?? 0)
+})

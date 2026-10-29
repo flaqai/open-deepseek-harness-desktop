@@ -13,7 +13,7 @@ import {
   SessionFormatUnsupportedMigrationError,
   sessionFormatCatalog,
 } from '@deepseek-ai/dsh-session-format-catalog'
-import { readdirSync, type Dirent } from 'node:fs'
+import { readdirSync, type Dirent, type BigIntStats } from 'node:fs'
 import { open, mkdir, readdir, realpath, link, rm, stat, truncate } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -527,24 +527,25 @@ class JsonlSessionPersistence extends SessionPersistence {
     // append lands mid-scan is then still in this snapshot (its artifact may
     // predate the scan), so create-to-list visibility never has a hole.
     const pending = [...this.tracker.pendingEntries()]
-    const artifacts = await this.listArtifacts(signal)
-    const corpusRevision = artifacts.some(artifact => artifact.sourceVersion < SESSION_FORMAT_VERSION)
-      ? await this.historicalCorpusRevision(signal) : undefined
-    const statted = settledValues(await settleLimited(this.listLimit, artifacts, async (artifact) => {
-      signal?.throwIfAborted()
-      try {
-        const identity = await stat(artifact.path, { bigint: true })
-        signal?.throwIfAborted()
-        return { artifact, identity }
-      } catch (error: unknown) {
-        signal?.throwIfAborted()
-        if (!isENOENT(error)) throw error
-        return undefined
-      }
-    }))
+    signal?.throwIfAborted()
+    const started = performance.now()
+    await this.ensureRootEncoding()
+    signal?.throwIfAborted()
+    const encodingChecked = performance.now()
+    const generations = await this.listGenerations(signal)
+    const discovered = performance.now()
+    const artifacts = await this.listArtifacts(signal, generations)
+    const headersRead = performance.now()
+    const historical = artifacts.some(artifact => artifact.sourceVersion < SESSION_FORMAT_VERSION)
+    // Historical fingerprints include selected files even when their headers cannot be read.
+    const paths = historical ? generations.map(source => source.sourcePath).sort() : artifacts.map(artifact => artifact.path)
+    const identities = await this.statPaths(paths, signal)
+    const corpusRevision = historical ? await this.historicalCorpusRevision(signal, identities) : undefined
+    const identitiesRead = performance.now()
+    const statted = artifacts.map(artifact => ({ artifact, identity: identities.get(artifact.path) }))
     for (const entry of statted) {
-      if (entry === undefined) continue
       const { artifact, identity } = entry
+      if (identity === undefined) continue
       listed.add(artifact.header.id)
       snapshots.push({
         header: artifact.header,
@@ -560,6 +561,12 @@ class JsonlSessionPersistence extends SessionPersistence {
       if (!listed.has(id)) snapshots.push({ header: entry.header, revision: entry.revision })
     }
     signal?.throwIfAborted()
+    this.ctx.logger.debug('session-list.storage: %s', JSON.stringify({
+      generations: generations.length, listed: snapshots.length, historical,
+      encodingMs: encodingChecked - started, scanMs: discovered - encodingChecked,
+      headersMs: headersRead - discovered, identityMs: identitiesRead - headersRead,
+      totalMs: performance.now() - started,
+    }))
     return snapshots
   }
 
@@ -1117,31 +1124,45 @@ class JsonlSessionPersistence extends SessionPersistence {
     return results
   }
 
-  /** Historical logical events depend on the corpus, including members with unreadable headers. */
-  private async historicalCorpusRevision(signal?: AbortSignal): Promise<string> {
-    const paths = (await this.listGenerations(signal)).map(source => source.sourcePath).sort()
+  /** Read each selected file identity once through the shared listing limiter. */
+  private async statPaths(paths: readonly string[], signal?: AbortSignal): Promise<ReadonlyMap<string, BigIntStats | undefined>> {
     const entries = settledValues(await settleLimited(this.listLimit, paths, async (path) => {
       signal?.throwIfAborted()
       try {
-        return { path, revision: fileRevision(await stat(path, { bigint: true })) }
+        const identity = await stat(path, { bigint: true })
+        signal?.throwIfAborted()
+        return [path, identity] as const
       } catch (error: unknown) {
+        signal?.throwIfAborted()
         if (!isENOENT(error)) throw error
-        return { path, revision: 'missing' }
+        return [path, undefined] as const
       }
     }))
+    return new Map(entries)
+  }
+
+  /** Historical logical events depend on the corpus, including members with unreadable headers. */
+  private async historicalCorpusRevision(
+    signal?: AbortSignal,
+    identities?: ReadonlyMap<string, BigIntStats | undefined>,
+  ): Promise<string> {
+    const entries = identities ?? await this.statPaths(
+      (await this.listGenerations(signal)).map(source => source.sourcePath).sort(), signal,
+    )
     const hash = createHash('sha256')
-    for (const { path, revision } of entries) hash.update(JSON.stringify([path, revision]))
+    for (const [path, identity] of entries) hash.update(JSON.stringify([path, identity === undefined ? 'missing' : fileRevision(identity)]))
     signal?.throwIfAborted()
     return hash.digest('hex')
   }
 
   private async listArtifacts(
     signal?: AbortSignal,
+    selectedGenerations?: readonly ResolvedJsonlGeneration[],
   ): Promise<Array<GenerationHeader & { path: string; sourceVersion: number }>> {
     signal?.throwIfAborted()
     await this.ensureRootEncoding()
     signal?.throwIfAborted()
-    const generations = await this.listGenerations(signal)
+    const generations = selectedGenerations ?? await this.listGenerations(signal)
     const headers = await settleLimited(this.listLimit, generations, async (selected) => {
       signal?.throwIfAborted()
       try {

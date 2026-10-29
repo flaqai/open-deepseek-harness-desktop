@@ -80,6 +80,8 @@ kind: "package-reference"
 
 卸载后端时，会先等待经由 `sessionPersistence` 注入所触发的消费者卸载，再移除实时事件监听器、排空并关闭剩余句柄。消费者必须在该注入作用域中注册清理；无依赖关系的作用域，以及显式关闭的 Session 或句柄，各自遵循其生命周期。通过代码挂载时，使用插件命名空间（`import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'`）调用 `ctx.plugin`，并通过 `ctx.sessionPersistence` 访问存储。
 
+每次列表请求复用一次所选代际扫描及各所选文件的物理状态；历史指纹仍包含无法读取头部的文件。根目录编码验证仍是单独的一次性检查。调试级别的 `session-list.storage` 诊断记录编码检查、目录发现、头部读取、文件状态读取、总耗时及数量，不记录路径或会话内容。
+
 ### 读取日志
 
 已实体化的 `stat` 与 `list` 快照在转换后的逻辑 `header` 之外，通过 `formatStatus` 保留格式 catalog 的头部分类。它们还包含选中物理 generation 的 `location: { kind: 'jsonl', path }`。只读准备不会改变所选历史版本；发布后继之后，状态才变为 `current`。尚未实体化的待定 Session 省略 `formatStatus` 与 `location`。

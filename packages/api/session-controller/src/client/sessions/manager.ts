@@ -27,6 +27,15 @@ import { Session } from './session.ts'
 import type { SessionRemotes } from './remotes.ts'
 import type { SessionTarget } from '../contract/sessions.ts'
 
+/** Catalog request timings; application ends before subscriber notification, rendering or paint. */
+interface ListTimings {
+  readonly items: number
+  readonly requestMs: number
+  readonly applyMs: number
+  readonly totalMs: number
+  readonly sinceManagerStartMs: number
+}
+
 function sessionSeqCursor(value: number): SessionSeqCursor {
   return value === -1 ? -1 : SessionSeq(value)
 }
@@ -109,6 +118,7 @@ export class SessionManager {
   /** Arrival phase; the pending → ready edge fires on the first successful pull (see SessionListPhase). */
   private listPhase: SessionListPhase = 'pending'
   private listError: RemoteFailure | null = null
+  private readonly startedAt = performance.now()
   private listInflight: Promise<void> | null = null
   /** Active list request's mutation log; its identity also fences completion after reconnect. */
   private listMutations: SessionListMutation[] | null = null
@@ -127,8 +137,11 @@ export class SessionManager {
     this.listSnapshotCache = this.buildListSnapshot()
   })
 
-  /** @param remote - generated Remote namespaces used by catalog and history readers. */
-  constructor(private readonly remote: SessionRemotes) {
+  /**
+   * @param remote - generated Remote namespaces used by catalog and history readers.
+   * @param reportList - optional device-local diagnostic sink; receives counts and durations only.
+   */
+  constructor(private readonly remote: SessionRemotes, private readonly reportList?: (timings: ListTimings) => void) {
     this.listSnapshotCache = this.buildListSnapshot()
   }
 
@@ -425,7 +438,9 @@ export class SessionManager {
     this.notifier.markDirty()
     this.listInflight = (async () => {
       try {
+        const started = performance.now()
         const result = await this.remote.session.list({})
+        const received = performance.now()
         if (this.listMutations !== mutations) return
         if (result.ok) {
           const baseline: SessionSummary[] = this.listPhase === 'pending'
@@ -461,6 +476,9 @@ export class SessionManager {
           for (const s of result.value.items) {
             if (s.projections !== undefined) this.applyListBlock(s.sessionId, s.projections)
           }
+          const applied = performance.now()
+          this.reportList?.({ items: result.value.items.length, requestMs: received - started,
+            applyMs: applied - received, totalMs: applied - started, sinceManagerStartMs: applied - this.startedAt })
         } else {
           this.listState = 'error'
           this.listError = result.error

@@ -346,3 +346,15 @@ describe('Session-list work slices', () => {
     expect(h.ctx.sessions.get(SessionId('removed'))).toBeUndefined()
   })
 })
+
+
+it('reports list phase timings without session identities or content', async () => {
+  const h = await harness([{ id: 'private-session-id', phase: 'cold' }], 8)
+  const report = vi.spyOn(h.ctx.logger, 'debug').mockImplementation(() => {})
+  const records = await h.listSessions()
+  h.listSessions.mockImplementationOnce(async () => { h.clock.now += 20; return records })
+  await h.list.list()
+  expect(report).toHaveBeenCalledExactlyOnceWith('session-list.host: %s', JSON.stringify({
+    records: 1, listed: 1, queryMs: 20, summaryMs: 8, sortMs: 0, totalMs: 28,
+  }))
+})

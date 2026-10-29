@@ -99,6 +99,8 @@ A successful `selectModel` response acknowledges the recorded Session selection 
 <a id="configuration"></a>
 ## Configuration
 
+With debug logging enabled, `session-list.host` records query, summary, sorting and total durations; `session-list.client` records the RPC wait, application of the accepted list, and elapsed time since manager creation. Both include counts without Session identities, titles, paths or message content. Client application timing ends before subscriber notification, rendering or paint; it does not measure Desktop boot or connection setup.
+
 | Field | Default | Meaning |
 |---|---:|---|
 | `nativeOpen` | platform-detected | Whether Session workspace paths can be handed to a native desktop opener |

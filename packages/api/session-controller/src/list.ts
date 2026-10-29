@@ -136,7 +136,9 @@ export class ApiSessionList {
    */
   async list(signal?: AbortSignal): Promise<SessionSummary[]> {
     signal?.throwIfAborted()
+    const started = performance.now()
     const records = await this.ctx.sessionQuery.listSessions(signal)
+    const queried = performance.now()
     signal?.throwIfAborted()
     const items: SessionSummary[] = []
     const cold: SessionRecord[] = []
@@ -165,7 +167,14 @@ export class ApiSessionList {
       }
     }
     signal?.throwIfAborted()
+    const summarized = performance.now()
     items.sort((left, right) => right.updatedAt - left.updatedAt)
+    const finished = performance.now()
+    this.ctx.logger.debug('session-list.host: %s', JSON.stringify({
+      records: records.length, listed: items.length,
+      queryMs: queried - started, summaryMs: summarized - queried,
+      sortMs: finished - summarized, totalMs: finished - started,
+    }))
     return items
   }
 

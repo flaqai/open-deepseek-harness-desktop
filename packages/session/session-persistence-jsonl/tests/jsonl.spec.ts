@@ -34,6 +34,8 @@ const statFailure = vi.hoisted(() => ({
   error: undefined as Error | undefined,
 }))
 
+const statCompletion = vi.hoisted(() => ({ path: undefined as string | undefined, onRead: undefined as (() => void) | undefined }))
+
 const readdirFailure = vi.hoisted(() => ({
   path: undefined as string | undefined,
   error: undefined as Error | undefined,
@@ -48,6 +50,7 @@ const listingProbe = vi.hoisted(() => ({
   delayMs: 0,
   inFlight: 0,
   maxInFlight: 0,
+  calls: [] as Array<{ kind: 'stat' | 'readdir'; path: string }>,
   failures: new Map<string, Error>(),
 }))
 
@@ -89,9 +92,13 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   return {
     ...actual,
     stat: (async (...args: Parameters<typeof actual.stat>) => {
-      if (listingProbe.active) return probeListingRead(String(args[0]), () => actual.stat(...args))
+      if (listingProbe.active) {
+        listingProbe.calls.push({ kind: 'stat', path: String(args[0]) })
+        return probeListingRead(String(args[0]), () => actual.stat(...args))
+      }
       if (String(args[0]) === statFailure.path && statFailure.error !== undefined) throw statFailure.error
       const identity = await actual.stat(...args)
+      if (String(args[0]) === statCompletion.path) statCompletion.onRead?.()
       if (String(args[0]) !== statRace.path || !('mtimeNs' in identity)) return identity
       statRace.reads += 1
       if (statRace.mode === 'churn') return { ...identity, mtimeNs: identity.mtimeNs + BigInt(statRace.reads) }
@@ -120,7 +127,10 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       }
     }) as typeof actual.readFile,
     readdir: (async (...args: Parameters<typeof actual.readdir>) => {
-      if (listingProbe.active) return probeListingRead(String(args[0]), () => actual.readdir(...args))
+      if (listingProbe.active) {
+        listingProbe.calls.push({ kind: 'readdir', path: String(args[0]) })
+        return probeListingRead(String(args[0]), () => actual.readdir(...args))
+      }
       if (String(args[0]) === readdirFailure.path && readdirFailure.error !== undefined) {
         throw readdirFailure.error
       }
@@ -324,6 +334,8 @@ afterEach(async () => {
   pausedRead.release = undefined
   pausedRead.done = undefined
   pausedRead.finished = undefined
+  statCompletion.path = undefined
+  statCompletion.onRead = undefined
   statFailure.path = undefined
   statFailure.error = undefined
   readdirFailure.path = undefined
@@ -2125,20 +2137,13 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
   it('checks cancellation after an uncancellable list stat settles', async () => {
     const m = meta('snapshot-stat-cancellation')
     await writeLog(ctx.sessionPersistence, m, oneTurnLog())
-    const persistence = ctx.sessionPersistence as unknown as {
-      listArtifacts(signal?: AbortSignal): Promise<Array<{ header: SessionHeader; path: string }>>
-    }
-    const discovery = vi.spyOn(persistence, 'listArtifacts').mockResolvedValue([{
-      header: m,
-      path: rawLogPath(root, m.cwd, m.id),
-    }])
     const reason = new Error('JSONL list stat cancelled')
     const controller = new AbortController()
-    const pending = ctx.sessionPersistence.list({ signal: controller.signal })
-    queueMicrotask(() => { controller.abort(reason) })
-
-    await expect(pending).rejects.toBe(reason)
-    expect(discovery).toHaveBeenCalledWith(controller.signal)
+    const observed = vi.fn(() => { controller.abort(reason) })
+    statCompletion.path = rawLogPath(root, m.cwd, m.id)
+    statCompletion.onRead = observed
+    await expect(ctx.sessionPersistence.list({ signal: controller.signal })).rejects.toBe(reason)
+    expect(observed).toHaveBeenCalledOnce()
   })
 })
 
@@ -2864,6 +2869,7 @@ describe('JsonlSessionPersistence listing concurrency', () => {
     listingProbe.inFlight = 0
     listingProbe.maxInFlight = 0
     listingProbe.failures.clear()
+    listingProbe.calls.length = 0
     await listingCtx.fiber.dispose()
     await rm(listingRoot, { recursive: true, force: true })
   })
@@ -2901,6 +2907,42 @@ describe('JsonlSessionPersistence listing concurrency', () => {
 
     expect(listingProbe.maxInFlight).toBe(2)
     for (const listing of listings) expect(listing.map(s => s.header.id).sort()).toEqual(expected)
+  })
+
+  it('does not start directory reads for an already cancelled listing', async () => {
+    const controller = new AbortController()
+    const reason = new Error('cancel before discovery')
+    controller.abort(reason)
+    listingProbe.active = true
+    await expect(listingCtx.sessionPersistence.list({ signal: controller.signal })).rejects.toBe(reason)
+    expect(listingProbe.calls).toEqual([])
+  })
+
+  it('scans once and reuses physical identities while retaining unreadable members in historical revisions', async () => {
+    const header = meta('historical-list-scan', '/work')
+    const legacyPath = historicalLogPath(listingRoot, header.cwd, header.id)
+    await mkdir(dirname(legacyPath), { recursive: true })
+    const original = `${JSON.stringify(releasedV0Header(header))}\n`
+    await writeFile(legacyPath, original)
+    const unreadable = meta('unreadable-list-member', '/work')
+    const unreadablePath = rawLogPath(listingRoot, unreadable.cwd, unreadable.id)
+    await mkdir(dirname(unreadablePath), { recursive: true })
+    await writeFile(unreadablePath, '{invalid-header}\n')
+    // Root encoding is a separate one-time validation, outside each list scan.
+    await listingCtx.sessionPersistence.list()
+    listingProbe.active = true
+    const before = await listingCtx.sessionPersistence.list()
+    listingProbe.active = false
+    expect(before.map(item => item.header.id)).toEqual([header.id])
+    expect(listingProbe.calls.filter(call => call.kind === 'readdir' && call.path === listingRoot)).toHaveLength(1)
+    for (const path of [legacyPath, unreadablePath]) {
+      expect(listingProbe.calls.filter(call => call.kind === 'stat' && call.path === path)).toHaveLength(1)
+    }
+    await appendFile(unreadablePath, 'changed\n')
+    const after = await listingCtx.sessionPersistence.list()
+    expect(after[0]?.revision).not.toBe(before[0]?.revision)
+    expect((await listingCtx.sessionPersistence.stat(header.id))?.revision).toBe(after[0]?.revision)
+    expect(await readFile(legacyPath, 'utf8')).toBe(original)
   })
 
   it('reports the failure a sequential traversal would reach first', async () => {
