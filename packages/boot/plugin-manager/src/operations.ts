@@ -2,7 +2,8 @@
 import { once } from 'node:events'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, open, rm } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { parse } from 'yaml'
 import { execa } from 'execa'
 import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
@@ -53,6 +54,23 @@ export interface PackageOperationOptions {
   idleTimeoutMs?: number
   /** Bound on the pre-install registry lookup, in milliseconds; without one a fixed bound applies. */
   lookupTimeoutMs?: number
+}
+
+/** Preserve the store recorded by pnpm; fresh profiles use their configuration-local store. */
+function profileStoreDirectory(dir: string, home: string | undefined): string | undefined {
+  let source: string
+  try { source = readFileSync(join(dir, 'node_modules', '.modules.yaml'), 'utf8') }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    return home === undefined ? undefined : join(home, '.pnpm-store')
+  }
+  const metadata: unknown = parse(source)
+  if (metadata === null || typeof metadata !== 'object' || !('storeDir' in metadata)
+    || typeof metadata.storeDir !== 'string' || !isAbsolute(metadata.storeDir)
+    || !/^v\d+$/u.test(basename(metadata.storeDir))) {
+    throw new Error('plugin-manager: invalid pnpm store metadata; existing dependencies were preserved')
+  }
+  return dirname(metadata.storeDir)
 }
 
 /** Resolve relative package specs against the caller's directory.
@@ -324,7 +342,12 @@ export async function runProfilePnpm(
       output = output.subarray(output.length - options.outputBytes)
     }
   }
-  const environment = { ...(options.execution === 'cli' ? process.env : scrubbedParentEnv()), ...options.env }
+  const inherited = { ...(options.execution === 'cli' ? process.env : scrubbedParentEnv()), ...options.env }
+  const storeDir = profileStoreDirectory(dir, context.home)
+  const environment = storeDir === undefined ? inherited : {
+    ...Object.fromEntries(Object.entries(inherited).filter(([key]) => !/^(?:pnpm|npm)_config_store_dir$/iu.test(key))),
+    pnpm_config_store_dir: storeDir, npm_config_store_dir: storeDir,
+  }
   const restore = async (): Promise<void> => {
     for (const file of savedFiles) {
       if (file.text === undefined) await rm(file.path, { force: true })
