@@ -415,6 +415,10 @@ export const en = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'localImage.checking': '画像を確認中…',
+  'localImage.unavailable': '{count} 枚の画像をまだプレビューできません。再試行',
+  'localImage.open': '画像を開く',
+  'localImage.reveal': '保存先フォルダーを開く',
   'message.stepProcess.thinking': 'リクエストを分析中',
   'message.stepProcess.read': 'ファイルを読み取り中',
   'message.stepProcess.readImage': '画像を読み取り中',
@@ -615,6 +619,10 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'localImage.checking': 'Comprobando imagen…',
+  'localImage.unavailable': 'Aún no se pueden previsualizar {count} imágenes. Reintentar',
+  'localImage.open': 'Abrir imagen',
+  'localImage.reveal': 'Mostrar en la carpeta',
   'message.stepProcess.thinking': 'Analizando la solicitud',
   'message.stepProcess.read': 'Leyendo archivos',
   'message.stepProcess.readImage': 'Leyendo imágenes',
@@ -815,6 +823,10 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'localImage.checking': 'Vérification de l’image…',
+  'localImage.unavailable': 'Impossible de prévisualiser {count} image(s) pour le moment. Réessayer',
+  'localImage.open': 'Ouvrir l’image',
+  'localImage.reveal': 'Afficher dans le dossier',
   'message.stepProcess.thinking': 'Analyser la demande',
   'message.stepProcess.read': 'Lecture de fichiers',
   'message.stepProcess.readImage': 'Lire des images',
@@ -1015,6 +1027,10 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'localImage.checking': 'Bild wird geprüft…',
+  'localImage.unavailable': '{count} Bild(er) können noch nicht angezeigt werden. Erneut versuchen',
+  'localImage.open': 'Bild öffnen',
+  'localImage.reveal': 'Im Ordner anzeigen',
   'message.stepProcess.thinking': 'Analyse der Anfrage',
   'message.stepProcess.read': 'Dateien lesen',
   'message.stepProcess.readImage': 'Bilder lesen',
@@ -1215,6 +1231,10 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'localImage.checking': 'Проверка изображения…',
+  'localImage.unavailable': 'Пока не удаётся показать изображения: {count}. Повторить',
+  'localImage.open': 'Открыть изображение',
+  'localImage.reveal': 'Показать в папке',
   'message.stepProcess.thinking': 'Анализ запроса',
   'message.stepProcess.read': 'Чтение файлов',
   'message.stepProcess.readImage': 'Чтение изображений',
@@ -1415,6 +1435,10 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'localImage.checking': 'Verificando imagem…',
+  'localImage.unavailable': 'Ainda não é possível visualizar {count} imagem(ns). Tentar novamente',
+  'localImage.open': 'Abrir imagem',
+  'localImage.reveal': 'Mostrar na pasta',
   'message.stepProcess.thinking': 'Analisando a solicitação',
   'message.stepProcess.read': 'Lendo arquivos',
   'message.stepProcess.readImage': 'Lendo imagens',

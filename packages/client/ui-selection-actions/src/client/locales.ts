@@ -165,3 +165,6 @@ export const ru = {
   'toolbar.aria': 'Действия с выделенным текстом',
   'menu.aria': 'Меню выделенного текста',
 } satisfies Record<SelectionActionsKey, string>
+
+/** Portuguese registration copy; the Brazilian export remains available for existing consumers. */
+export const pt = { ...ptBR } satisfies Record<SelectionActionsKey, string>

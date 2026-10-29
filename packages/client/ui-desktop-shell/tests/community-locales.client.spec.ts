@@ -103,3 +103,73 @@ it('keeps fallback ownership separate and restores supplemental copy when the pr
   expect(revisions).toHaveLength(4)
   unsubscribe()
 })
+
+
+it('resolves every supplemental desktop key in each community language with matching placeholders', async () => {
+  const { DESKTOP_ADDITIONAL_TRANSLATIONS } = await import('../src/client/community-translations/desktop-additions.ts')
+  const { en, zh } = await import('../src/client/locales.ts')
+  const ctx = new Context()
+  const locale = new LocaleRuntime(ctx)
+  ctx.provide('locale', locale)
+  locale.register('desktop-shell', { en, zh })
+  const dispose = registerDesktopLanguages(ctx)
+  try {
+    for (const definition of DESKTOP_LANGUAGE_DEFINITIONS) {
+      locale.setLocale(definition.id)
+      const dictionary = DESKTOP_ADDITIONAL_TRANSLATIONS[definition.id]
+      for (const key of Object.keys(dictionary) as (keyof typeof dictionary)[]) {
+        const translated = dictionary[key]
+        const source = en[key]
+        expect(translated.match(/\{\w+\}/gu)?.sort() ?? [], `${definition.id}:${key}`)
+          .toEqual(source.match(/\{\w+\}/gu)?.sort() ?? [])
+        expect(locale.bind('desktop-shell')(key), `${definition.id}:${key}`).toBe(translated)
+      }
+      expect(locale.bind('desktop-shell')('about.description')).not.toBe(en['about.description'])
+    }
+  } finally { dispose() }
+})
+
+
+it('resolves Korean community runtime and recovery additions without replacing an official dictionary', async () => {
+  const { inventoryExtraKo } = await import('../src/client/community-translations/inventory-extra-ko.ts')
+  const { en } = await import('../../ui-settings-plugin-inventory/src/client/locales.ts')
+  const ctx = new Context()
+  const locale = new LocaleRuntime(ctx)
+  ctx.provide('locale', locale)
+  locale.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' })
+  locale.register('settings.pluginInventory', 'ko', { 'restore.nav': 'Official Korean' })
+  const dispose = registerDesktopLanguages(ctx)
+  try {
+    locale.setLocale('ko')
+    for (const key of Object.keys(inventoryExtraKo) as (keyof typeof inventoryExtraKo)[]) {
+      const translated = inventoryExtraKo[key]
+      const source = en[key]
+      expect(translated.match(/\{\w+\}/gu)?.sort() ?? [], key).toEqual(source.match(/\{\w+\}/gu)?.sort() ?? [])
+      expect(locale.bind('settings.pluginInventory')(key)).toBe(translated)
+    }
+    expect(locale.bind('settings.pluginInventory')('restore.nav')).toBe('Official Korean')
+  } finally { dispose() }
+})
+
+it('keeps the complete primary desktop dictionaries localized after supplemental registration', async () => {
+  const { zh, en, ja, es, fr, de, ru, pt, ko } = await import('../src/client/locales.ts')
+  const dictionaries = { zh, en, ja, es, fr, de, ru, pt, ko }
+  const ctx = new Context()
+  const locale = new LocaleRuntime(ctx)
+  ctx.provide('locale', locale)
+  const disposeFallback = registerDesktopLanguages(ctx)
+  const disposePrimary = locale.register('desktop-shell', dictionaries)
+  try {
+    for (const definition of DESKTOP_LANGUAGE_DEFINITIONS) {
+      locale.setLocale(definition.id)
+      const dictionary = definition.id === 'pt-BR' ? pt : dictionaries[definition.id]
+      expect(Object.keys(dictionary).sort()).toEqual(Object.keys(en).sort())
+      for (const key of Object.keys(en) as (keyof typeof en)[]) {
+        expect(dictionary[key].match(/\{\w+\}/gu)?.sort() ?? [], `${definition.id}:${key}`)
+          .toEqual(en[key].match(/\{\w+\}/gu)?.sort() ?? [])
+        expect(locale.bind('desktop-shell')(key), `${definition.id}:${key}`).toBe(dictionary[key])
+      }
+      expect(locale.bind('desktop-shell')('about.description')).not.toBe(en['about.description'])
+    }
+  } finally { disposePrimary(); disposeFallback() }
+})

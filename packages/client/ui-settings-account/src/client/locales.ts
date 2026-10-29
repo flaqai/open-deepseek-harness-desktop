@@ -75,6 +75,7 @@ export const zh: Record<AccountKey, string> = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'contactUsSignedOut': 'DeepSeek に問い合わせ（公式）',
   ...onboardingJa,
   'modelSignInRequired': 'モデルを利用できません。ログインしてから再試行してください。',
   'sessionExpired': 'アカウントからログアウトしました。もう一度ログインしてください。',
@@ -136,6 +137,7 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'contactUsSignedOut': 'Contactar con DeepSeek (oficial)',
   modelSignInRequired: 'Modelo no disponible. Por favor inicia sesión y vuelve a intentarlo.',
   sessionExpired: 'Has cerrado sesión en tu cuenta, inicia sesión nuevamente.',
   ...onboardingEs,
@@ -172,6 +174,7 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'contactUsSignedOut': 'Contacter DeepSeek (officiel)',
   modelSignInRequired: 'Modèle indisponible. Veuillez vous connecter et réessayer.',
   sessionExpired: 'Vous vous êtes déconnecté de votre compte, veuillez vous reconnecter.',
   ...onboardingFr,
@@ -208,6 +211,7 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'contactUsSignedOut': 'DeepSeek kontaktieren (offiziell)',
   modelSignInRequired: 'Modell nicht verfügbar. Bitte melden Sie sich an und versuchen Sie es erneut.',
   sessionExpired: 'Sie haben sich von Ihrem Konto abgemeldet. Bitte melden Sie sich erneut an.',
   ...onboardingDe,
@@ -244,6 +248,7 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'contactUsSignedOut': 'Связаться с DeepSeek (официально)',
   modelSignInRequired: 'Модель недоступна. Пожалуйста, войдите в систему и повторите попытку.',
   sessionExpired: 'Вы вышли из своей учетной записи, пожалуйста, войдите снова.',
   ...onboardingRu,
@@ -280,6 +285,7 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'contactUsSignedOut': 'Contatar o DeepSeek (oficial)',
   modelSignInRequired: 'Modelo indisponível. Faça login e tente novamente.',
   sessionExpired: 'Você saiu da sua conta, faça login novamente.',
   ...onboardingPt,

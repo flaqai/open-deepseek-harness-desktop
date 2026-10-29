@@ -9,6 +9,7 @@ import { CUSTOM_INSTRUCTION_MAX_CHARS, CUSTOM_INSTRUCTIONS_SETTINGS_NAMESPACE } 
 import { CustomInstructionsRow } from './CustomInstructionsRow.tsx'
 import { CustomInstructionsSection } from './CustomInstructionsSection.tsx'
 import { en, zh, type CustomInstructionsLocaleKey } from './locales.ts'
+import { customInstructionsAdditionalLocales } from './locales-extra.ts'
 import {
   createCustomInstructionsClient,
   CUSTOM_INSTRUCTIONS_SECTION_ID,
@@ -40,7 +41,7 @@ export function apply(ctx: ClientContext): void {
   const scope = ctx.configForms.get<CustomInstructionSettings>(CUSTOM_INSTRUCTIONS_SETTINGS_NAMESPACE)
   const client = createCustomInstructionsClient(scope, ctx.settingsNavigation)
   ctx.provide('customInstructions', client)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'custom-instructions: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...customInstructionsAdditionalLocales }), 'custom-instructions: dictionaries')
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: CUSTOM_INSTRUCTIONS_SECTION_ID,

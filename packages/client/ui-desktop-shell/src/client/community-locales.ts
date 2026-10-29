@@ -3,6 +3,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { LanguageRegistration } from '@deepseek-ai/dsh-client-locale/client'
 import { desktopLanguageTitles } from './locales.ts'
+import { inventoryExtraKo } from './community-translations/inventory-extra-ko.ts'
+import { DESKTOP_ADDITIONAL_TRANSLATIONS } from './community-translations/desktop-additions.ts'
 import { COMMUNITY_TRANSLATIONS } from './community-translations/index.ts'
 import { COMMUNITY_SURFACE_TRANSLATIONS } from './community-translations/surfaces.ts'
 import { DOWNLOAD_NETWORK_TRANSLATIONS } from './download-network-locales.ts'
@@ -46,10 +48,14 @@ export function registerDesktopLanguages(ctx: Context): () => void {
           dictionaries[namespace] = { ...dictionaries[namespace], ...dictionary }
         }
       }
+      if (definition.id === 'ko') {
+        dictionaries['settings.pluginInventory'] = { ...dictionaries['settings.pluginInventory'], ...inventoryExtraKo }
+      }
       dictionaries['desktop-shell'] = {
         ...dictionaries['desktop-shell'],
         ...(definition.id === 'ru' ? ru : DOWNLOAD_NETWORK_TRANSLATIONS[definition.id]),
         ...(definition.id === 'ru' ? {} : NAS_TRANSLATIONS[definition.id]),
+        ...DESKTOP_ADDITIONAL_TRANSLATIONS[definition.id],
       }
       for (const [namespace, dictionary] of Object.entries(dictionaries)) {
         disposers.push(ctx.locale.registerFallback(namespace, definition.id, dictionary))

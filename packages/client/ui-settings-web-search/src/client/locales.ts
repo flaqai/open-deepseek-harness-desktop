@@ -88,6 +88,9 @@ export function formLabels(t: (key: WebSearchSettingsLocaleKey) => string): Sett
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'searchApiPrivacy': 'Search と Fetch API は別途課金されます。Search は既定で、直近の質問の空白をまとめた先頭 128 Unicode 文字を送信する場合があります。送信を無効にするには、Profile の web-deepseek-api プラグイン設定で sendOriginalQuestion: false を指定してください。',
+  'searchApiProviderChange': 'スイッチの変更を保存すると、検索と取得の両方のプロバイダーが切り替わります。有効時は DeepSeek Search と Fetch API、無効時は Messages 検索とローカル HTTP 取得を使います。変更を保存するまではカスタムプロバイダーを変更しません。',
+
   'title': 'Web 検索',
   'description': 'DeepSeek 検索プロバイダーを設定します。',
   'useSearchApi': '新しい Web Search API を使用する',
@@ -120,6 +123,9 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'searchApiPrivacy': 'Las API de Search y Fetch se facturan por separado. Search puede enviar por defecto los primeros 128 caracteres Unicode de tu última pregunta tras normalizar los espacios. Para evitarlo, establece sendOriginalQuestion: false en la configuración del complemento web-deepseek-api de tu Profile.',
+  'searchApiProviderChange': 'Guardar un cambio del interruptor sustituye tanto el proveedor de búsqueda como el de obtención: activado usa las API de DeepSeek Search y Fetch; desactivado usa la búsqueda de Messages y la obtención HTTP local. Los proveedores personalizados no cambian hasta que guardes el cambio.',
+
   title: 'búsqueda web',
   description: 'Configure el proveedor de búsqueda DeepSeek.',
   useSearchApi: 'Utilice la nueva búsqueda web API',
@@ -152,6 +158,9 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'searchApiPrivacy': 'Les API Search et Fetch sont facturées séparément. Par défaut, Search peut envoyer les 128 premiers caractères Unicode de votre dernière question après normalisation des espaces. Pour désactiver cet envoi, définissez sendOriginalQuestion: false dans la configuration du plugin web-deepseek-api de votre Profile.',
+  'searchApiProviderChange': 'Enregistrer une modification de l’interrupteur remplace les fournisseurs de recherche et de récupération : activé utilise les API DeepSeek Search et Fetch ; désactivé utilise la recherche Messages et la récupération HTTP locale. Les fournisseurs personnalisés ne changent pas avant l’enregistrement.',
+
   title: 'Recherche sur le Web',
   description: 'Configurez le moteur de recherche DeepSeek.',
   useSearchApi: 'Utilisez la nouvelle recherche Web API',
@@ -184,6 +193,9 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'searchApiPrivacy': 'Search- und Fetch-APIs werden separat abgerechnet. Search kann standardmäßig die ersten 128 Unicode-Zeichen Ihrer letzten Frage nach dem Zusammenfassen von Leerraum senden. Deaktivieren Sie dies mit sendOriginalQuestion: false in der Profile-Konfiguration des Plugins web-deepseek-api.',
+  'searchApiProviderChange': 'Beim Speichern einer Schalteränderung werden Such- und Abrufanbieter ersetzt: Aktiviert verwendet die DeepSeek Search- und Fetch-APIs; deaktiviert verwendet die Messages-Suche und lokalen HTTP-Abruf. Benutzerdefinierte Anbieter bleiben bis zum Speichern unverändert.',
+
   title: 'Websuche',
   description: 'Richten Sie den Suchanbieter DeepSeek ein.',
   useSearchApi: 'Nutzen Sie die neue Websuche API',
@@ -216,6 +228,9 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'searchApiPrivacy': 'API Search и Fetch оплачиваются отдельно. По умолчанию Search может отправлять первые 128 символов Unicode последнего вопроса после нормализации пробелов. Чтобы отключить отправку вопроса, задайте sendOriginalQuestion: false в настройках плагина web-deepseek-api в Profile.',
+  'searchApiProviderChange': 'Сохранение изменения переключателя заменяет провайдеры поиска и загрузки: включение выбирает API DeepSeek Search и Fetch, отключение — поиск Messages и локальную загрузку по HTTP. Пользовательские провайдеры не изменяются до сохранения.',
+
   title: 'Веб-поиск',
   description: 'Настройте поисковую систему DeepSeek.',
   useSearchApi: 'Используйте новый веб-поиск API',
@@ -248,6 +263,9 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'searchApiPrivacy': 'As APIs Search e Fetch são cobradas separadamente. Por padrão, Search pode enviar os primeiros 128 caracteres Unicode da última pergunta após normalizar os espaços. Para desativar o envio, defina sendOriginalQuestion: false na configuração do plug-in web-deepseek-api do seu Profile.',
+  'searchApiProviderChange': 'Salvar uma alteração do interruptor substitui os provedores de pesquisa e obtenção: ativado usa as APIs DeepSeek Search e Fetch; desativado usa a pesquisa Messages e a obtenção HTTP local. Os provedores personalizados permanecem inalterados até salvar a mudança.',
+
   title: 'Pesquisa na web',
   description: 'Configure o provedor de pesquisa DeepSeek.',
   useSearchApi: 'Use a nova Pesquisa na Web API',

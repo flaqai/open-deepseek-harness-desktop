@@ -57,6 +57,13 @@ export type SessionLogDownloadKey = keyof typeof zh
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'dialog.privacyTitle': '会話の診断をエクスポート',
+  'dialog.privacyDescription': '診断アーカイブにカスタム指示の原文を含めるか選択してください。バージョン識別子は保持され、原文は既定では含まれません。',
+  'dialog.includeCustomInstructions': 'カスタム指示の原文を含める',
+  'dialog.rememberChoice': '今後確認せず、この選択を記憶する',
+  'dialog.includeRememberWarning': '今後の診断アーカイブには指示の原文が自動で含まれます。共有する前に機密情報がないことを確認してください。',
+  'dialog.export': 'エクスポート',
+  'dialog.cancel': 'キャンセル',
   'header.more': 'その他の操作',
   'menu.copyMarkdown': 'セッションを Markdown としてコピー',
   'menu.download': 'セッションログをダウンロード',
@@ -76,6 +83,13 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'dialog.privacyTitle': 'Exportar diagnóstico de la conversación',
+  'dialog.privacyDescription': 'Elige si el archivo de diagnóstico incluye el texto de las instrucciones personalizadas. Los identificadores de versión se conservan; el texto se excluye por defecto.',
+  'dialog.includeCustomInstructions': 'Incluir el texto de las instrucciones personalizadas',
+  'dialog.rememberChoice': 'No volver a preguntar; recordar esta elección',
+  'dialog.includeRememberWarning': 'Los futuros archivos de diagnóstico incluirán automáticamente el texto de las instrucciones. Comprueba que no contenga información sensible antes de compartirlos.',
+  'dialog.export': 'Exportar',
+  'dialog.cancel': 'Cancelar',
   'header.more': 'Más acciones',
   'menu.copyMarkdown': 'Copiar sesión como Markdown',
   'menu.download': 'Descargar registro de sesión',
@@ -95,6 +109,13 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'dialog.privacyTitle': 'Exporter le diagnostic de la conversation',
+  'dialog.privacyDescription': 'Choisissez si l’archive de diagnostic inclut le texte des instructions personnalisées. Les identifiants de version sont conservés ; le texte est exclu par défaut.',
+  'dialog.includeCustomInstructions': 'Inclure le texte des instructions personnalisées',
+  'dialog.rememberChoice': 'Ne plus demander ; mémoriser ce choix',
+  'dialog.includeRememberWarning': 'Les prochaines archives de diagnostic incluront automatiquement le texte des instructions. Vérifiez l’absence d’informations sensibles avant de les partager.',
+  'dialog.export': 'Exporter',
+  'dialog.cancel': 'Annuler',
   'header.more': 'Autres actions',
   'menu.copyMarkdown': 'Copier la session sous Markdown',
   'menu.download': 'Télécharger le journal de session',
@@ -114,6 +135,13 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'dialog.privacyTitle': 'Unterhaltungsdiagnose exportieren',
+  'dialog.privacyDescription': 'Wählen Sie, ob das Diagnosearchiv den Klartext benutzerdefinierter Anweisungen enthält. Versionskennungen bleiben erhalten; der Klartext wird standardmäßig ausgeschlossen.',
+  'dialog.includeCustomInstructions': 'Klartext benutzerdefinierter Anweisungen einschließen',
+  'dialog.rememberChoice': 'Nicht mehr fragen; Auswahl merken',
+  'dialog.includeRememberWarning': 'Künftige Diagnosearchive enthalten den Anweisungstext automatisch. Prüfen Sie vor dem Teilen, ob vertrauliche Informationen enthalten sind.',
+  'dialog.export': 'Exportieren',
+  'dialog.cancel': 'Abbrechen',
   'header.more': 'Weitere Aktionen',
   'menu.copyMarkdown': 'Kopieren Sie die Sitzung als Markdown',
   'menu.download': 'Sitzungsprotokoll herunterladen',
@@ -133,6 +161,13 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'dialog.privacyTitle': 'Экспорт диагностики диалога',
+  'dialog.privacyDescription': 'Выберите, включать ли исходный текст пользовательских инструкций в архив диагностики. Идентификаторы версий сохраняются; исходный текст по умолчанию исключён.',
+  'dialog.includeCustomInstructions': 'Включить исходный текст пользовательских инструкций',
+  'dialog.rememberChoice': 'Больше не спрашивать; запомнить выбор',
+  'dialog.includeRememberWarning': 'В последующие архивы диагностики автоматически будет включаться текст инструкций. Перед отправкой проверьте, нет ли в нём конфиденциальной информации.',
+  'dialog.export': 'Экспортировать',
+  'dialog.cancel': 'Отмена',
   'header.more': 'Другие действия',
   'menu.copyMarkdown': 'Скопировать сеанс как Markdown',
   'menu.download': 'Скачать журнал сеанса',
@@ -152,6 +187,13 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'dialog.privacyTitle': 'Exportar diagnóstico da conversa',
+  'dialog.privacyDescription': 'Escolha se o arquivo de diagnóstico inclui o texto das instruções personalizadas. Os identificadores de versão são mantidos; o texto é excluído por padrão.',
+  'dialog.includeCustomInstructions': 'Incluir o texto das instruções personalizadas',
+  'dialog.rememberChoice': 'Não perguntar novamente; lembrar esta escolha',
+  'dialog.includeRememberWarning': 'Os próximos arquivos de diagnóstico incluirão automaticamente o texto das instruções. Verifique se há informações sensíveis antes de compartilhar.',
+  'dialog.export': 'Exportar',
+  'dialog.cancel': 'Cancelar',
   'header.more': 'Mais ações',
   'menu.copyMarkdown': 'Copiar sessão como Markdown',
   'menu.download': 'Baixar registro da sessão',

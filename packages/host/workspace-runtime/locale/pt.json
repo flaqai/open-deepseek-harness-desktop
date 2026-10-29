@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Adaptador do ambiente de trabalho",
+    "description": "Disponibiliza ao Profile atual o ambiente Python gerenciado pelo aplicativo e as habilidades do Office."
+  }
+}

@@ -793,6 +793,16 @@ export const en = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'session.actions.speaker.assistant': 'アシスタント',
+
+  'session.actions.copy': '読み込まれた会話をコピー',
+  'session.actions.remove': 'セッションを削除',
+  'session.actions.cancel': 'キャンセル',
+  'session.actions.working': '処理中…',
+  'session.actions.speaker.user': 'ユーザー',
+  'session.actions.remove.title': 'このセッションを削除しますか？',
+  'session.actions.remove.description': 'このセッションはクライアントリストから削除されます。基になるログは物理的に削除されないため、実行履歴の監査は可能です。このインターフェースには現在復元操作はありません。',
+  'session.actions.remove.confirm': 'セッションを削除',
   'quote.remove': '引用を削除',
   'shortcut.newline': '改行',
   'shortcut.complementary': '補助のキュー / 実行中の指示変更を使用',
@@ -1174,6 +1184,16 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'session.actions.speaker.assistant': 'Asistente',
+
+  'session.actions.copy': 'Copiar conversación cargada',
+  'session.actions.remove': 'Eliminar sesión',
+  'session.actions.cancel': 'Cancelar',
+  'session.actions.working': 'Trabajando…',
+  'session.actions.speaker.user': 'Usuario',
+  'session.actions.remove.title': '¿Eliminar esta sesión?',
+  'session.actions.remove.description': 'La sesión se eliminará de la lista de clientes. Su registro subyacente no se elimina físicamente, por lo que la ejecución sigue siendo auditable; esta interfaz actualmente no tiene acción de restauración.',
+  'session.actions.remove.confirm': 'Eliminar sesión',
   'quote.remove': 'Eliminar cotización',
   'shortcut.newline': 'Nueva linea',
   'shortcut.complementary': 'Usar la acción alternativa de poner en cola o redirigir',
@@ -1557,6 +1577,16 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'session.actions.speaker.assistant': 'Assistant',
+
+  'session.actions.copy': 'Copier la conversation chargée',
+  'session.actions.remove': 'Supprimer la session',
+  'session.actions.cancel': 'Annuler',
+  'session.actions.working': 'Travail en cours…',
+  'session.actions.speaker.user': 'Utilisateur',
+  'session.actions.remove.title': 'Supprimer cette session ?',
+  'session.actions.remove.description': "La session sera retirée de la liste des clients. Son journal sous-jacent n'est pas supprimé physiquement, donc l'exécution reste auditable ; cette interface n'a actuellement aucune action de restauration.",
+  'session.actions.remove.confirm': 'Supprimer la session',
   'quote.remove': 'Supprimer le devis',
   'shortcut.newline': 'Nouvelle ligne',
   'shortcut.complementary': 'Utiliser l’action alternative de mise en attente ou de guidage',
@@ -1940,6 +1970,16 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'session.actions.speaker.assistant': 'Assistent',
+
+  'session.actions.copy': 'Geladene Unterhaltung kopieren',
+  'session.actions.remove': 'Sitzung löschen',
+  'session.actions.cancel': 'Abbrechen',
+  'session.actions.working': 'Arbeite…',
+  'session.actions.speaker.user': 'Benutzer',
+  'session.actions.remove.title': 'Diese Sitzung löschen?',
+  'session.actions.remove.description': 'Die Sitzung wird die Client-Liste verlassen. Das zugrunde liegende Protokoll wird nicht physisch gelöscht, sodass die Ausführung weiterhin überprüfbar bleibt; diese Schnittstelle hat derzeit keine Wiederherstellungsfunktion.',
+  'session.actions.remove.confirm': 'Sitzung löschen',
   'quote.remove': 'Zitat entfernen',
   'shortcut.newline': 'Neue Zeile',
   'shortcut.complementary': 'Die alternative Aktion zum Vormerken oder Lenken verwenden',
@@ -2323,6 +2363,16 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'session.actions.speaker.assistant': 'Ассистент',
+
+  'session.actions.copy': 'Копировать загруженный разговор',
+  'session.actions.remove': 'Удалить сеанс',
+  'session.actions.cancel': 'Отмена',
+  'session.actions.working': 'Выполняется…',
+  'session.actions.speaker.user': 'Пользователь',
+  'session.actions.remove.title': 'Удалить этот сеанс?',
+  'session.actions.remove.description': 'Сеанс покинет список клиентов. Его основной журнал физически не удаляется, поэтому выполнение остаётся доступным для аудита; в этом интерфейсе в настоящее время нет действия восстановления.',
+  'session.actions.remove.confirm': 'Удалить сеанс',
   'quote.remove': 'Удалить цитату',
   'shortcut.newline': 'Новая линия',
   'shortcut.complementary': 'Использовать альтернативное действие: поставить в очередь или направить',
@@ -2706,6 +2756,16 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'session.actions.speaker.assistant': 'Assistente',
+
+  'session.actions.copy': 'Copiar conversa carregada',
+  'session.actions.remove': 'Excluir sessão',
+  'session.actions.cancel': 'Cancelar',
+  'session.actions.working': 'Trabalhando…',
+  'session.actions.speaker.user': 'Usuário',
+  'session.actions.remove.title': 'Excluir esta sessão?',
+  'session.actions.remove.description': 'A sessão sairá da lista de clientes. Seu log subjacente não é fisicamente excluído, portanto a execução continua auditável; esta interface atualmente não possui ação de restauração.',
+  'session.actions.remove.confirm': 'Excluir sessão',
   'quote.remove': 'Remover cotação',
   'shortcut.newline': 'Nova linha',
   'shortcut.complementary': 'Usar a ação alternativa de enfileirar ou orientar',

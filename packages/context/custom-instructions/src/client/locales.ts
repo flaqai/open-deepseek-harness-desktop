@@ -1,3 +1,5 @@
+import { customInstructionsAdditionalLocales } from './locales-extra.ts'
+
 /** Simplified Chinese dictionary and key source of truth. */
 export const zh = {
   nav: '自定义提示词',
@@ -58,3 +60,18 @@ export const en = {
   diagnosticDescription: 'Restore the confirmation so the next export asks whether to include prompt plaintext.',
   diagnosticAsk: 'Ask before exporting again',
 } satisfies Record<CustomInstructionsLocaleKey, string>
+
+/** Japanese custom-instructions settings copy. */
+export const ja = customInstructionsAdditionalLocales.ja
+/** Spanish custom-instructions settings copy. */
+export const es = customInstructionsAdditionalLocales.es
+/** French custom-instructions settings copy. */
+export const fr = customInstructionsAdditionalLocales.fr
+/** German custom-instructions settings copy. */
+export const de = customInstructionsAdditionalLocales.de
+/** Russian custom-instructions settings copy. */
+export const ru = customInstructionsAdditionalLocales.ru
+/** Portuguese custom-instructions settings copy. */
+export const pt = customInstructionsAdditionalLocales.pt
+/** Korean custom-instructions settings copy. */
+export const ko = customInstructionsAdditionalLocales.ko

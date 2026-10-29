@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Actions sur le texte sélectionné",
+    "description": "Fournit des actions contextuelles pour le texte en lecture seule sélectionné dans les conversations."
+  }
+}

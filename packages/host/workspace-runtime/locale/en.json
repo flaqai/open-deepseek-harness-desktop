@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Workspace runtime adapter",
+    "description": "Expose the application-managed Python runtime and Office skills to the current Profile."
+  }
+}

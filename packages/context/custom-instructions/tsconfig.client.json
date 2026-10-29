@@ -10,6 +10,7 @@
     "src/client/CustomInstructionsSection.tsx",
     "src/client/index.ts",
     "src/client/locales.ts",
+    "src/client/locales-extra.ts",
     "src/client/service.ts",
     "src/css-modules.d.ts",
     "src/types.ts"

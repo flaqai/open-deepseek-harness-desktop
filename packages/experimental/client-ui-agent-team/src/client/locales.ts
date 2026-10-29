@@ -79,6 +79,12 @@ export const en = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'onboardingLocation': 'Agent Team はここにあります。開くとメンバーと共有タスクを確認できます。',
+  'onboardingDismiss': 'Agent Team の案内を閉じる',
+  'useNow': '今すぐ使う',
+  'useUnavailable': '開ける空でない会話がありません',
+  'composerHint': '入力例：Agent Team を使って次の作業を完了してください…',
+  'promptDraft': 'Agent Team を使って次の作業を完了してください…',
   'trigger': 'エージェントチーム',
   'loading': 'チームを読み込み中…',
   'unavailable': 'チームは利用できません',
@@ -109,6 +115,12 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'onboardingLocation': 'Agent Team está aquí. Ábrelo para ver los miembros y las tareas compartidas.',
+  'onboardingDismiss': 'Cerrar la guía de Agent Team',
+  'useNow': 'Usar ahora',
+  'useUnavailable': 'No hay conversaciones con contenido disponibles',
+  'composerHint': 'Prueba: Usa Agent Team para completar…',
+  'promptDraft': 'Usa Agent Team para completar…',
   trigger: 'equipo de agentes',
   loading: 'Cargando equipo…',
   unavailable: 'El equipo no está disponible',
@@ -139,6 +151,12 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'onboardingLocation': 'Agent Team se trouve ici. Ouvrez-le pour voir les membres et les tâches partagées.',
+  'onboardingDismiss': 'Fermer le guide Agent Team',
+  'useNow': 'Utiliser maintenant',
+  'useUnavailable': 'Aucune conversation non vide n’est disponible',
+  'composerHint': 'Essayez : Utilise Agent Team pour réaliser…',
+  'promptDraft': 'Utilise Agent Team pour réaliser…',
   trigger: "Équipe d'agents",
   loading: "Chargement de l'équipe…",
   unavailable: "L'équipe n'est pas disponible",
@@ -169,6 +187,12 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'onboardingLocation': 'Hier finden Sie Agent Team. Öffnen Sie es, um Mitglieder und gemeinsame Aufgaben anzuzeigen.',
+  'onboardingDismiss': 'Agent-Team-Anleitung schließen',
+  'useNow': 'Jetzt verwenden',
+  'useUnavailable': 'Keine Unterhaltung mit Inhalt verfügbar',
+  'composerHint': 'Beispiel: Verwende Agent Team, um Folgendes zu erledigen…',
+  'promptDraft': 'Verwende Agent Team, um Folgendes zu erledigen…',
   trigger: 'Agententeam',
   loading: 'Team wird geladen…',
   unavailable: 'Team ist nicht verfügbar',
@@ -199,6 +223,12 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'onboardingLocation': 'Agent Team находится здесь. Откройте панель, чтобы увидеть участников и общие задачи.',
+  'onboardingDismiss': 'Закрыть подсказку Agent Team',
+  'useNow': 'Использовать сейчас',
+  'useUnavailable': 'Нет доступных непустых диалогов',
+  'composerHint': 'Попробуйте: Используй Agent Team, чтобы выполнить…',
+  'promptDraft': 'Используй Agent Team, чтобы выполнить…',
   trigger: 'Команда агентов',
   loading: 'Загрузка команды…',
   unavailable: 'Команда недоступна',
@@ -229,6 +259,12 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'onboardingLocation': 'O Agent Team está aqui. Abra para ver os membros e as tarefas compartilhadas.',
+  'onboardingDismiss': 'Fechar o guia do Agent Team',
+  'useNow': 'Usar agora',
+  'useUnavailable': 'Nenhuma conversa com conteúdo disponível',
+  'composerHint': 'Experimente: Use o Agent Team para concluir…',
+  'promptDraft': 'Use o Agent Team para concluir…',
   trigger: 'Equipe de agentes',
   loading: 'Carregando equipe…',
   unavailable: 'A equipe não está disponível',

@@ -27,7 +27,10 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
+import { StaticLocaleObjects } from './locale-static-objects.ts'
 import { SHIPPED_LOCALE_IDS, localeTokens, hasInvisibleLocaleCharacters, type ShippedLocaleId } from './shipped-locales.ts'
+
+const staticObjects = new StaticLocaleObjects()
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 
@@ -108,29 +111,22 @@ function dictionariesIn(file: string): Dictionary[] {
   const found: Dictionary[] = []
   const rel = relative(file)
 
-  // Module-scope variable declarations, keyed by name. A 3-arg
-  // `register(NS, 'zh'|'en', dict)` whose third argument is an identifier —
-  // e.g. a local dictionary variable rather than an inline literal — resolves
-  // through here so the gate still verifies its symmetry.
-  const moduleConsts = new Map<string, ts.Expression>()
-  for (const statement of source.statements) {
-    if (!ts.isVariableStatement(statement)) continue
-    for (const decl of statement.declarationList.declarations) {
-      if (ts.isIdentifier(decl.name) && decl.initializer !== undefined) {
-        moduleConsts.set(decl.name.text, decl.initializer)
-      }
-    }
-  }
-
   for (const statement of source.statements) {
     if (!ts.isVariableStatement(statement)) continue
     if (statement.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword) !== true) continue
     for (const decl of statement.declarationList.declarations) {
       if (!ts.isIdentifier(decl.name)) continue
       const literal = unwrap(decl.initializer)
-      if (literal === undefined || !ts.isObjectLiteralExpression(literal)) continue
-      if (localeOf(decl.name.text) === undefined) continue
-      found.push({ file: rel, name: decl.name.text, keys: keysOf(literal), templates: templatesOf(literal) })
+      const locale = localeOf(decl.name.text)
+      if (locale === undefined) continue
+      const properties = staticObjects.properties(literal, file, locale.locale !== 'en')
+      if (properties === undefined) continue
+      const templates: Record<string, string> = {}
+      for (const [key, property] of properties) {
+        const text = staticObjects.text(property)
+        if (text !== undefined) templates[key] = text
+      }
+      found.push({ file: rel, name: decl.name.text, keys: [...properties.keys()].sort(), templates })
     }
   }
 
@@ -152,31 +148,37 @@ function dictionariesIn(file: string): Dictionary[] {
       const name = ts.isPropertyAccessExpression(callee)
         ? callee.name.text
         : ts.isIdentifier(callee) && callee.text === 'register' ? 'register' : undefined
+      if (name === 'register' && node.arguments.length === 2) {
+        const entries = staticObjects.properties(node.arguments[1], file)
+        if (entries?.has('zh') && entries.has('en')) {
+          const site = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+          for (const language of SHIPPED_LOCALE_IDS) {
+            const value = entries.get(language)
+            if (value === undefined) continue
+            const properties = staticObjects.properties(value.expression, value.file, language !== 'en')
+            if (properties === undefined) continue
+            const templates: Record<string, string> = {}
+            for (const [key, property] of properties) {
+              const text = staticObjects.text(property)
+              if (text !== undefined) templates[key] = text
+            }
+            found.push({ file: rel, name: `${language}@object:${site}`, keys: [...properties.keys()].sort(), templates })
+          }
+        }
+      }
       if (name === 'register' && node.arguments.length >= 3) {
         const [ns, tag, dict] = node.arguments
         if (ns === undefined || tag === undefined || !ts.isStringLiteral(tag)) return
         if (!SHIPPED_LOCALE_IDS.some(id => id === tag.text)) return
-        const raw = unwrap(dict)
-        const literal = raw !== undefined && ts.isIdentifier(raw)
-          ? (() => {
-            const resolved = moduleConsts.get(raw.text)
-            return resolved === undefined ? undefined : unwrap(resolved)
-          })()
-          : raw
-        const why = raw !== undefined && ts.isIdentifier(raw)
-          ? `third argument ${raw.text} does not resolve to an inline or module-scope object literal`
-          : 'third argument is neither an object literal nor a resolvable dictionary variable'
-        if (literal === undefined || !ts.isObjectLiteralExpression(literal)) {
-          // The dictionary argument must resolve to an object literal; the
-          // gate refuses rather than skips, so the symmetry it verifies never
-          // silently narrows.
-          refuse(ns.getText(source), tag.text, why)
+        const properties = staticObjects.properties(dict, file, tag.text !== 'en')
+        if (properties === undefined) refuse(ns.getText(source), tag.text, 'dictionary is not a statically resolvable object')
+        const templates: Record<string, string> = {}
+        for (const [key, property] of properties ?? []) {
+          const text = staticObjects.text(property)
+          if (text !== undefined) templates[key] = text
         }
-        const dictionary: ts.ObjectLiteralExpression = literal as ts.ObjectLiteralExpression
-        // The namespace expression's source text identifies the pair, so the
-        // zh and en calls for one namespace meet and calls for different
-        // namespaces stay apart.
-        found.push({ file: rel, name: `${tag.text}@register:${ns.getText(source)}`, keys: keysOf(dictionary), templates: templatesOf(dictionary) })
+        found.push({ file: rel, name: `${tag.text}@register:${ns.getText(source)}`,
+          keys: [...(properties?.keys() ?? [])].sort(), templates })
       }
     }
     if (ts.isArrayLiteralExpression(node) && node.elements.length >= 2) {
@@ -188,7 +190,7 @@ function dictionariesIn(file: string): Dictionary[] {
         if (tag === undefined || !ts.isStringLiteral(tag)) continue
         if (literal === undefined || !ts.isObjectLiteralExpression(literal)) continue
         if (!SHIPPED_LOCALE_IDS.some(id => id === tag.text)) continue
-        found.push({ file: rel, name: `${tag.text}@inline:${site}`, keys: keysOf(literal), templates: templatesOf(literal) })
+        found.push({ file: rel, name: `${tag.text}@inline:${site}`, keys: keysOf(literal, tag.text !== 'en'), templates: templatesOf(literal, tag.text !== 'en') })
       }
     }
     ts.forEachChild(node, visit)
@@ -197,26 +199,19 @@ function dictionariesIn(file: string): Dictionary[] {
   return found
 }
 
-/** Literal templates; shared spread dictionaries are checked at their own declaration. */
-function templatesOf(literal: ts.ObjectLiteralExpression): Readonly<Record<string, string>> {
+/** Literal templates resolved through translated object composition. */
+function templatesOf(literal: ts.ObjectLiteralExpression, translated = true): Readonly<Record<string, string>> {
   const templates: Record<string, string> = {}
-  for (const property of literal.properties) {
-    if (!ts.isPropertyAssignment(property) || !ts.isStringLiteralLike(property.initializer)) continue
-    if (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) {
-      templates[property.name.text] = property.initializer.text
-    }
+  for (const [key, property] of staticObjects.properties(literal, literal.getSourceFile().fileName, translated) ?? []) {
+    const text = staticObjects.text(property)
+    if (text !== undefined) templates[key] = text
   }
   return templates
 }
 
-/** Declared property names of an object literal, sorted. */
-function keysOf(literal: ts.ObjectLiteralExpression): string[] {
-  const keys: string[] = []
-  for (const prop of literal.properties) {
-    if (!ts.isPropertyAssignment(prop)) continue
-    if (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) keys.push(prop.name.text)
-  }
-  return keys.sort()
+/** Declared translated property names, excluding English fallback spreads. */
+function keysOf(literal: ts.ObjectLiteralExpression, translated = true): string[] {
+  return [...(staticObjects.properties(literal, literal.getSourceFile().fileName, translated)?.keys() ?? [])].sort()
 }
 
 /** Look through `satisfies`/`as`/parenthesized wrappers to the literal. */
@@ -242,6 +237,7 @@ function unwrap(node: ts.Expression | undefined): ts.Expression | undefined {
  * @returns locale plus pair key, or undefined when the name names no locale.
  */
 function localeOf(name: string): { locale: ShippedLocaleId; pair: string } | undefined {
+  if (name === 'ptBR') return undefined
   for (const locale of SHIPPED_LOCALE_IDS) {
     const other = locale[0]!.toUpperCase() + locale.slice(1)
     if (name === locale) return { locale, pair: '' }
@@ -265,38 +261,19 @@ function registrationProblems(file: string): string[] {
   const text = readFileSync(file, 'utf8')
   if (!text.includes('.register(')) return []
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true)
-  const locals = new Map<string, ts.Expression>()
-  const imported = new Set<string>()
-  const collect = (node: ts.Node): void => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined) {
-      locals.set(node.name.text, node.initializer)
-    }
-    if (ts.isImportSpecifier(node)) imported.add(node.name.text)
-    ts.forEachChild(node, collect)
-  }
-  collect(source)
   const problems: string[] = []
   const visit = (node: ts.Node): void => {
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
       && node.expression.name.text === 'register' && node.arguments.length === 2) {
-      const argument = unwrap(node.arguments[1])
-      const dicts = argument !== undefined && ts.isIdentifier(argument)
-        ? unwrap(locals.get(argument.text)) : argument
-      if (dicts !== undefined && ts.isObjectLiteralExpression(dicts)) {
-        const entries = new Map<string, ts.Expression>()
-        for (const prop of dicts.properties) {
-          if (ts.isShorthandPropertyAssignment(prop)) entries.set(prop.name.text, prop.name)
-          else if (ts.isPropertyAssignment(prop) && (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name))) {
-            entries.set(prop.name.text, prop.initializer)
-          }
-        }
+      const entries = staticObjects.properties(node.arguments[1], file)
+      if (entries !== undefined) {
         if (entries.has('zh') && entries.has('en')) {
           const site = `${relative(file)}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1}`
           for (const language of SHIPPED_LOCALE_IDS) {
             const dictionary = entries.get(language)
             if (dictionary === undefined) problems.push(`${site}: registration has no ${language} dictionary`)
-            else if (ts.isIdentifier(dictionary) && !imported.has(dictionary.text) && !locals.has(dictionary.text)) {
-              problems.push(`${site}: ${language} dictionary ${dictionary.text} is not imported or declared`)
+            else if (staticObjects.properties(dictionary.expression, dictionary.file) === undefined) {
+              problems.push(`${site}: ${language} dictionary cannot be resolved statically`)
             }
           }
         }
@@ -367,6 +344,8 @@ describe('shipped locale dictionaries', () => {
     for (const [key, slot] of [...groups].sort()) {
       const zh = slot.get('zh')
       const en = slot.get('en')
+      // Translation fragments have no source-language contract; consuming dictionaries are checked in full.
+      if (zh === undefined && en === undefined) continue
       if (zh === undefined || en === undefined) {
         const present = zh ?? en
         problems.push(`${present?.file} declares ${present?.name} with no counterpart for pair ${key}`)

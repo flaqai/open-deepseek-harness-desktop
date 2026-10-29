@@ -597,6 +597,7 @@ export const en = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'accessDenied': 'このデバイスにはプラグイン管理権限がありません。NAS 管理者にお問い合わせください。',
   'reasonUnsupportedPlatform': 'このプラグインはDSHを実行しているホストOSに対応していません。',
   'panel': 'プラグイン',
   'title': 'プラグイン',
@@ -890,6 +891,7 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'accessDenied': 'Este dispositivo no tiene permiso para gestionar complementos. Contacta con el administrador del NAS.',
   reasonUnsupportedPlatform: 'Este complemento no es compatible con el sistema operativo que ejecuta DSH.',
   panel: 'Complementos',
   title: 'Complementos',
@@ -1183,6 +1185,7 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'accessDenied': 'Cet appareil ne peut pas gérer les plugins. Contactez l’administrateur du NAS.',
   reasonUnsupportedPlatform: 'Ce plugin ne prend pas en charge le système d’exploitation sur lequel DSH s’exécute.',
   panel: 'Plugins',
   title: 'Plugins',
@@ -1476,6 +1479,7 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'accessDenied': 'Dieses Gerät darf keine Plugins verwalten. Wenden Sie sich an den NAS-Administrator.',
   reasonUnsupportedPlatform: 'Dieses Plugin unterstützt das Betriebssystem, auf dem DSH läuft, nicht.',
   panel: 'Plugins',
   title: 'Plugins',
@@ -1769,6 +1773,7 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'accessDenied': 'У этого устройства нет прав на управление плагинами. Обратитесь к администратору NAS.',
   reasonUnsupportedPlatform: 'Этот плагин не поддерживает операционную систему, в которой работает DSH.',
   panel: 'Плагины',
   title: 'Плагины',
@@ -2062,6 +2067,7 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'accessDenied': 'Este dispositivo não tem permissão para gerenciar plug-ins. Entre em contato com o administrador do NAS.',
   reasonUnsupportedPlatform: 'Este plugin não oferece suporte ao sistema operacional em que o DSH está sendo executado.',
   panel: 'Plug-ins',
   title: 'Plug-ins',

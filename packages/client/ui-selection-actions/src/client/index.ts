@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { SelectionActions, type SelectionActionsInjected } from './SelectionActions.tsx'
 import { appendSelectionToDraft } from './selection.ts'
-import { de, en, es, fr, ja, ko, NS, ptBR, ru, zh, type SelectionActionsKey } from './locales.ts'
+import { de, en, es, fr, ja, ko, NS, pt, ru, zh, type SelectionActionsKey } from './locales.ts'
 
 export type { SelectionActionsKey } from './locales.ts'
 
@@ -96,7 +96,7 @@ function createAppendAvailability(ctx: Context): HostObservable<boolean> {
 
 /** Register the localized root-overlay contribution. */
 export function apply(ctx: Context): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, ko, es, fr, de, 'pt-BR': ptBR, ru }), 'ui-selection-actions: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, ko, es, fr, de, pt, ru }), 'ui-selection-actions: dictionaries')
   const availability = createAppendAvailability(ctx)
   const restartDesktop = readDesktopRestart()
   const injected = (): SelectionActionsInjected => ({

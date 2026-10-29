@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Paramètres du bureau communautaire",
+    "description": "Fournit les paramètres de bureau et une action limitée pour revenir du navigateur à Electron."
+  }
+}

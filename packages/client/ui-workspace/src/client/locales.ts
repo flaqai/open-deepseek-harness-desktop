@@ -258,6 +258,7 @@ export const en = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'customInstructions.workspace': 'ワークスペースのカスタム指示',
   'defaultWorkspace.failed': 'デフォルトのワークスペースを作成できません。ワークスペースを選択してフォルダーを選んでください。',
   'draft.workspaceRequired': '先にワークスペースを選択してください。',
   'draft.initializationFailed': '下書きを埋め込めませんでした。しばらくしてからもう一度お試しください。',
@@ -382,6 +383,7 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'customInstructions.workspace': 'Instrucciones personalizadas del espacio de trabajo',
   'defaultWorkspace.failed': 'No se puede crear el espacio de trabajo predeterminado. Utilice Elegir espacio de trabajo para seleccionar una carpeta.',
   'draft.workspaceRequired': 'Elija un espacio de trabajo primero.',
   'draft.initializationFailed': 'No se pudo completar el borrador. Inténtelo de nuevo en breve.',
@@ -506,6 +508,7 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'customInstructions.workspace': 'Instructions personnalisées de l’espace de travail',
   'defaultWorkspace.failed': 'Impossible de créer un espace de travail par défaut. Utilisez Choisir un espace de travail pour sélectionner un dossier.',
   'draft.workspaceRequired': "Choisissez d'abord un espace de travail.",
   'draft.initializationFailed': 'Impossible de remplir le projet. Veuillez réessayer sous peu.',
@@ -630,6 +633,7 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'customInstructions.workspace': 'Benutzerdefinierte Arbeitsbereichsanweisungen',
   'defaultWorkspace.failed': 'Der Standardarbeitsbereich kann nicht erstellt werden. Verwenden Sie „Arbeitsbereich auswählen“, um einen Ordner auszuwählen.',
   'draft.workspaceRequired': 'Wählen Sie zunächst einen Arbeitsbereich.',
   'draft.initializationFailed': 'Der Entwurf konnte nicht ausgefüllt werden. Bitte versuchen Sie es in Kürze noch einmal.',
@@ -754,6 +758,7 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'customInstructions.workspace': 'Пользовательские инструкции рабочего пространства',
   'defaultWorkspace.failed': 'Невозможно создать рабочую область по умолчанию. Используйте «Выбрать рабочее пространство», чтобы выбрать папку.',
   'draft.workspaceRequired': 'Сначала выберите рабочее место.',
   'draft.initializationFailed': 'Не удалось заполнить черновик. Пожалуйста, повторите попытку в ближайшее время.',
@@ -878,6 +883,7 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'customInstructions.workspace': 'Instruções personalizadas do espaço de trabalho',
   'defaultWorkspace.failed': 'Não foi possível criar o espaço de trabalho padrão. Use Escolher espaço de trabalho para selecionar uma pasta.',
   'draft.workspaceRequired': 'Escolha um espaço de trabalho primeiro.',
   'draft.initializationFailed': 'Não foi possível preencher o rascunho. Por favor, tente novamente em breve.',

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "작업 공간 런타임 어댑터",
+    "description": "앱에서 관리하는 Python 런타임과 Office 스킬을 현재 Profile에 제공합니다."
+  }
+}

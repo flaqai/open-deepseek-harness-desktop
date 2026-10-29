@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Custom instructions",
+    "description": "Add user-authored instructions globally or for a workspace without rewriting existing messages."
+  }
+}

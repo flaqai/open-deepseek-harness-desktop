@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Community desktop settings",
+    "description": "Provide desktop settings and a scoped action to return from the browser to Electron."
+  }
+}

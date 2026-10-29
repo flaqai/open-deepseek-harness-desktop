@@ -1,4 +1,9 @@
 /** Desktop shell settings and update copy. */
+import { COMMUNITY_TRANSLATIONS } from './community-translations/index.ts'
+import { DESKTOP_ADDITIONAL_TRANSLATIONS } from './community-translations/desktop-additions.ts'
+import { DOWNLOAD_NETWORK_TRANSLATIONS } from './download-network-locales.ts'
+import { NAS_TRANSLATIONS } from './nas-locales.ts'
+
 
 /** Selector-heading copy for community languages registered by the desktop shell. */
 export const desktopLanguageTitles = {
@@ -615,6 +620,8 @@ export const en = {
 /** Russian dictionary checked against the English key source. */
 export const ru = {
   ...en,
+  ...COMMUNITY_TRANSLATIONS.ru['desktop-shell'],
+  ...DESKTOP_ADDITIONAL_TRANSLATIONS.ru,
   'nas.nav': 'Среда выполнения и NAS (Beta)',
   'nas.title': 'Среда выполнения и NAS',
   'nas.experimental': 'Экспериментальная · Beta',
@@ -868,3 +875,57 @@ export const ru = {
   'release.badge': 'Версия {version}',
   'release.sidebar': 'Есть обновление',
 } satisfies Record<DesktopShellKey, string>
+
+/** ja copy combines historical desktop translations with current community additions. */
+export const ja: Record<DesktopShellKey, string> = {
+  ...en,
+  ...COMMUNITY_TRANSLATIONS['ja']['desktop-shell'],
+  ...DOWNLOAD_NETWORK_TRANSLATIONS['ja'],
+  ...NAS_TRANSLATIONS['ja'],
+  ...DESKTOP_ADDITIONAL_TRANSLATIONS['ja'],
+}
+
+/** es copy combines historical desktop translations with current community additions. */
+export const es: Record<DesktopShellKey, string> = {
+  ...en,
+  ...COMMUNITY_TRANSLATIONS['es']['desktop-shell'],
+  ...DOWNLOAD_NETWORK_TRANSLATIONS['es'],
+  ...NAS_TRANSLATIONS['es'],
+  ...DESKTOP_ADDITIONAL_TRANSLATIONS['es'],
+}
+
+/** fr copy combines historical desktop translations with current community additions. */
+export const fr: Record<DesktopShellKey, string> = {
+  ...en,
+  ...COMMUNITY_TRANSLATIONS['fr']['desktop-shell'],
+  ...DOWNLOAD_NETWORK_TRANSLATIONS['fr'],
+  ...NAS_TRANSLATIONS['fr'],
+  ...DESKTOP_ADDITIONAL_TRANSLATIONS['fr'],
+}
+
+/** de copy combines historical desktop translations with current community additions. */
+export const de: Record<DesktopShellKey, string> = {
+  ...en,
+  ...COMMUNITY_TRANSLATIONS['de']['desktop-shell'],
+  ...DOWNLOAD_NETWORK_TRANSLATIONS['de'],
+  ...NAS_TRANSLATIONS['de'],
+  ...DESKTOP_ADDITIONAL_TRANSLATIONS['de'],
+}
+
+/** pt copy combines historical desktop translations with current community additions. */
+export const pt: Record<DesktopShellKey, string> = {
+  ...en,
+  ...COMMUNITY_TRANSLATIONS['pt-BR']['desktop-shell'],
+  ...DOWNLOAD_NETWORK_TRANSLATIONS['pt-BR'],
+  ...NAS_TRANSLATIONS['pt-BR'],
+  ...DESKTOP_ADDITIONAL_TRANSLATIONS['pt-BR'],
+}
+
+/** ko copy combines historical desktop translations with current community additions. */
+export const ko: Record<DesktopShellKey, string> = {
+  ...en,
+  ...COMMUNITY_TRANSLATIONS['ko']['desktop-shell'],
+  ...DOWNLOAD_NETWORK_TRANSLATIONS['ko'],
+  ...NAS_TRANSLATIONS['ko'],
+  ...DESKTOP_ADDITIONAL_TRANSLATIONS['ko'],
+}

@@ -2,6 +2,16 @@
 /** ko dictionaries for the complete community Client UI. */
 
 const dictionaries: Record<string, Record<string, string>> = {
+  'settings.webSearch': {
+    'searchApiPrivacy': 'Search 및 Fetch API는 별도로 요금이 부과됩니다. Search는 기본적으로 최신 질문의 공백을 정리한 후 처음 128개의 Unicode 문자를 전송할 수 있습니다. 전송하지 않으려면 Profile의 web-deepseek-api 플러그인 설정에서 sendOriginalQuestion: false를 지정하세요.',
+    'searchApiProviderChange': '스위치 변경을 저장하면 검색과 가져오기 제공자가 모두 바뀝니다. 활성화하면 DeepSeek Search 및 Fetch API를, 비활성화하면 Messages 검색과 로컬 HTTP 가져오기를 사용합니다. 변경을 저장하기 전까지 사용자 지정 제공자는 유지됩니다.',
+  },
+  'settings.account': {
+    'contactUsSignedOut': 'DeepSeek에 문의(공식)',
+  },
+  'pluginManager': {
+    'accessDenied': '이 기기에는 플러그인 관리 권한이 없습니다. NAS 관리자에게 문의하세요.',
+  },
   'common': {
     'ok': '확인',
     'cancel': '취소',
@@ -97,6 +107,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'deleting': '삭제 중…'
   },
   'approval': {
+    'explanation': '작업 목적과 위험',
+    'command.show': '명령 세부 정보 보기',
     'waiting': '승인 대기 중',
     'detail.aria': '승인 세부 정보',
     'escalation': '도구 {toolName} 가 관리자 권한 실행을 요청합니다',
@@ -120,6 +132,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'notice.attachmentsUnsupported': '/{command}는 첨부 파일을 허용하지 않습니다. 먼저 제거하세요'
   },
   'conversation': {
+    'session.actions.speaker.assistant': '어시스턴트',
     'session.moreViews': '다른 대화 보기',
     'session.moreViewsCurrent': '다른 대화 보기 · {name}',
     'hint.plan': '계획 생성을 위해 작업을 설명하세요',
@@ -200,7 +213,6 @@ const dictionaries: Record<string, Record<string, string>> = {
     'session.actions.cancel': '취소',
     'session.actions.working': '작업 중…',
     'session.actions.speaker.user': '사용자',
-    'session.actions.speaker.assistant': '딥시크',
     'session.actions.clear.title': '이 세션을 지우시겠습니까?',
     'session.actions.clear.description': '이 세션은 목록에서 사라지지만 실행 로그는 로컬 저장소에 남습니다. 그런 다음 동일한 워크스페이스에서 새 세션이 열립니다.',
     'session.actions.clear.description.noWorkspace': '이 세션은 목록에서 사라지지만 실행 로그는 로컬 저장소에 남습니다. 앱은 새 세션으로 돌아갑니다.',
@@ -485,6 +497,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'connection.restart': '자동으로 다시 연결 중, 지금 다시 연결'
   },
   'settings.models': {
+    'sessionLogUploadTitle': 'DeepSeek 공식 API에 세션 이벤트 전송',
+    'sessionLogUploadDescription': '기본적으로 활성화됩니다. DeepSeek 공식 API 요청에는 대화 메시지, 도구 이벤트와 결과, 작업 공간 경로가 포함될 수 있습니다. 비활성화하면 이후 요청에 세션 로그를 첨부하지 않습니다.',
     'nav': '모델',
     'title': '모델',
     'intro': '각 공급자에 대해 API 키, 엔드포인트 및 모델 카탈로그 구성',
@@ -1546,6 +1560,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'status.interrupted': '중단됨'
   },
   'workspace': {
+    'customInstructions.workspace': '작업 공간의 사용자 지정 지침',
     'group.ungrouped': '그룹 없음',
     'session.new': '새 세션',
     'section.workspaces': '작업 공간',
@@ -1628,6 +1643,10 @@ const dictionaries: Record<string, Record<string, string>> = {
     'time.ago': '{t} 전'
   },
   'chat': {
+    'localImage.checking': '이미지 확인 중…',
+    'localImage.unavailable': '이미지 {count}개를 아직 미리 볼 수 없습니다. 다시 시도',
+    'localImage.open': '이미지 열기',
+    'localImage.reveal': '폴더에서 보기',
     'view.chat': '채팅',
     'number.groupSeparator': ',',
     'duration.compactSeconds': '{seconds}개',
@@ -1733,6 +1752,12 @@ const dictionaries: Record<string, Record<string, string>> = {
     'clock.ymd': '{y}-{m}-{d}'
   },
   'agent-team': {
+    'onboardingLocation': 'Agent Team은 여기에 있습니다. 열어서 멤버와 공유 작업을 확인하세요.',
+    'onboardingDismiss': 'Agent Team 안내 닫기',
+    'useNow': '지금 사용',
+    'useUnavailable': '열 수 있는 비어 있지 않은 대화가 없습니다',
+    'composerHint': '입력해 보세요: Agent Team을 사용하여 … 완료해 주세요',
+    'promptDraft': 'Agent Team을 사용하여 … 완료해 주세요',
     'trigger': '에이전트 팀',
     'refresh': '새로고침 팀',
     'close': '닫기',
@@ -1822,6 +1847,13 @@ const dictionaries: Record<string, Record<string, string>> = {
     'body.copied': '복사됨'
   },
   'session-log-download': {
+    'dialog.privacyTitle': '대화 진단 내보내기',
+    'dialog.privacyDescription': '진단 파일에 사용자 지정 지침 원문을 포함할지 선택하세요. 버전 식별자는 유지되며 원문은 기본적으로 제외됩니다.',
+    'dialog.includeCustomInstructions': '사용자 지정 지침 원문 포함',
+    'dialog.rememberChoice': '다시 묻지 않고 이 선택 기억',
+    'dialog.includeRememberWarning': '이후 진단 내보내기에 지침 원문이 자동으로 포함됩니다. 공유하기 전에 민감한 정보가 있는지 확인하세요.',
+    'dialog.export': '내보내기',
+    'dialog.cancel': '취소',
     'header.action': '세션 로그',
     'dialog.preparingTitle': '세션 내보내기',
     'dialog.preparingDescription': '이 세션, 하위 세션 및 첨부 파일이 포함된 ZIP 준비 중.',

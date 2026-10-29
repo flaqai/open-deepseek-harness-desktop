@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "社区桌面设置",
+    "description": "提供桌面设置及从浏览器返回 Electron 的受限操作入口。"
+  }
+}

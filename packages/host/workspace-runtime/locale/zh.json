@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "工作运行时适配器",
+    "description": "向当前 Profile 提供应用管理的 Python 运行时及 Office 技能。"
+  }
+}

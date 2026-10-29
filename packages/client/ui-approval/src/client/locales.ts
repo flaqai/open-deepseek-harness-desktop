@@ -32,6 +32,8 @@ export const en = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'explanation': '操作とリスク',
+  'command.show': 'コマンドの詳細を表示',
   'waiting': '承認待ち',
   'detail.aria': '承認の詳細',
   'escalation': 'ツール {toolName} が特権実行を要求しています',
@@ -44,6 +46,8 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'explanation': 'Acción y riesgos',
+  'command.show': 'Ver detalles del comando',
   waiting: 'Esperando aprobación',
   'detail.aria': 'Detalles de aprobación',
   escalation: 'La herramienta {toolName} solicita ejecución privilegiada',
@@ -56,6 +60,8 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'explanation': 'Action et risques',
+  'command.show': 'Afficher les détails de la commande',
   waiting: "En attente d'approbation",
   'detail.aria': "Détails de l'approbation",
   escalation: "L'outil {toolName} demande une exécution privilégiée",
@@ -68,6 +74,8 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'explanation': 'Aktion und Risiken',
+  'command.show': 'Befehlsdetails anzeigen',
   waiting: 'Warten auf Genehmigung',
   'detail.aria': 'Einzelheiten zur Genehmigung',
   escalation: 'Tool {toolName} fordert privilegierte Ausführung an',
@@ -80,6 +88,8 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'explanation': 'Действие и риски',
+  'command.show': 'Показать сведения о команде',
   waiting: 'Ожидание одобрения',
   'detail.aria': 'Детали утверждения',
   escalation: 'Инструмент {toolName} запрашивает привилегированное выполнение',
@@ -92,6 +102,8 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'explanation': 'Ação e riscos',
+  'command.show': 'Mostrar detalhes do comando',
   waiting: 'Aguardando aprovação',
   'detail.aria': 'Detalhes de aprovação',
   escalation: 'A ferramenta {toolName} solicita execução privilegiada',

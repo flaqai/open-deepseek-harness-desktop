@@ -432,6 +432,14 @@ export const en: Record<TrajectoryKey, string> = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+
+  'summary.title': '重要ステップの記録',
+  'summary.source': 'エージェントが実際に実行した内容を検証するためにセッションログから派生',
+  'summary.turns': '{count} ターン',
+  'summary.tools': '{count} ツール呼び出し（複数）',
+  'summary.failures': '{count} 失敗ステップ',
+  'summary.running': '実行中',
+  'summary.recorded': '記録済み',
   'view.trajectory': '軌跡',
   'toolbar.aria': '軌跡ツールバー',
   'toolbar.duration': '所要時間',
@@ -632,6 +640,14 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+
+  'summary.title': 'Registro de pasos clave',
+  'summary.source': 'Derivado del registro de la sesión para verificar lo que el agente ejecutó realmente',
+  'summary.turns': '{count} turnos',
+  'summary.tools': 'Llamadas a la herramienta {count}',
+  'summary.failures': '{count} pasos fallidos',
+  'summary.running': 'Ejecutando',
+  'summary.recorded': 'Registrado',
   'view.trajectory': 'Trayectoria',
   'toolbar.aria': 'Barra de herramientas de trayectoria',
   'toolbar.duration': 'Duración',
@@ -832,6 +848,14 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+
+  'summary.title': 'Enregistrement des étapes clés',
+  'summary.source': "Dérivé du journal de session pour vérifier ce que l'agent a réellement exécuté",
+  'summary.turns': '{count} tours',
+  'summary.tools': "Appels d'outil {count}",
+  'summary.failures': '{count} étapes échouées',
+  'summary.running': "En cours d'exécution",
+  'summary.recorded': 'Enregistré',
   'view.trajectory': 'Trajectoire',
   'toolbar.aria': 'Barre d’outils du parcours',
   'toolbar.duration': 'Durée',
@@ -1032,6 +1056,14 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+
+  'summary.title': 'Schlüsselschritt-Aufzeichnung',
+  'summary.source': 'Abgeleitet aus dem Sitzungsprotokoll, um zu überprüfen, was der Agent tatsächlich ausgeführt hat',
+  'summary.turns': '{count} Züge',
+  'summary.tools': '{count} Werkzeugaufrufe',
+  'summary.failures': '{count} fehlgeschlagene Schritte',
+  'summary.running': 'Läuft',
+  'summary.recorded': 'Aufgezeichnet',
   'view.trajectory': 'Ausführungsverlauf',
   'toolbar.aria': 'Symbolleiste „Ausführungsverlauf“.',
   'toolbar.duration': 'Dauer',
@@ -1232,6 +1264,14 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+
+  'summary.title': 'Запись ключевого шага',
+  'summary.source': 'Выведено из журнала сеанса для проверки того, что агент фактически выполнил',
+  'summary.turns': '{count} ходы',
+  'summary.tools': '{count} вызовы инструментов',
+  'summary.failures': '{count} неудачные шаги',
+  'summary.running': 'Выполняется',
+  'summary.recorded': 'Записано',
   'view.trajectory': 'Траектория',
   'toolbar.aria': 'Панель инструментов траектории',
   'toolbar.duration': 'Продолжительность',
@@ -1432,6 +1472,14 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+
+  'summary.title': 'Registro de etapas-chave',
+  'summary.source': 'Derivado do registro da sessão para verificar o que o agente realmente executou',
+  'summary.turns': '{count} turnos',
+  'summary.tools': '{count} chamadas de ferramenta',
+  'summary.failures': '{count} etapas falhas',
+  'summary.running': 'Executando',
+  'summary.recorded': 'Registrado',
   'view.trajectory': 'Trajetória',
   'toolbar.aria': 'Barra de ferramentas Trajetória',
   'toolbar.duration': 'Duração',

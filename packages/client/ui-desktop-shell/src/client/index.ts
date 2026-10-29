@@ -19,7 +19,7 @@ import { captureDesktopReturnTarget, requestDesktopReturn } from './browser-retu
 import { DesktopShellController } from './controller.ts'
 import { registerDesktopLanguages } from './community-locales.ts'
 import { navigateDesktopMenu } from './menu-navigation.ts'
-import { en, zh, type DesktopShellKey } from './locales.ts'
+import { en, zh, ja, es, fr, de, ru, pt, ko, type DesktopShellKey } from './locales.ts'
 
 export type { DesktopShellKey } from './locales.ts'
 export { DesktopShellController } from './controller.ts'
@@ -44,7 +44,7 @@ export function apply(ctx: Context): void {
   if (bridge === null) {
     const target = captureDesktopReturnTarget()
     if (target === undefined) return
-    ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-desktop-shell: browser return dictionaries')
+    ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt, ko }), 'ui-desktop-shell: browser return dictionaries')
     ctx.slots.inject('sidebar.settings.action', () => ctx.slots.register({
       name: 'sidebar.settings.action', id: 'desktop-return', order: -30, locale: NS,
       inject: () => ({ returnToDesktop: () => requestDesktopReturn(target) }),
@@ -63,7 +63,7 @@ export function apply(ctx: Context): void {
     reportGeneration()
     return connection.generation.subscribe(reportGeneration)
   }, 'ui-desktop-shell: readiness reporting')
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-desktop-shell: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt, ko }), 'ui-desktop-shell: dictionaries')
   const controller = new DesktopShellController(bridge)
   const menu = bridge.menu
   if (menu !== undefined) ctx.inject(['settingsNavigation', 'uiWorkspace'], (inner) => {

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Adapter für die Arbeitsumgebung",
+    "description": "Stellt dem aktuellen Profile die von der Anwendung verwaltete Python-Laufzeit und Office-Fähigkeiten bereit."
+  }
+}

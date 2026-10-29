@@ -74,6 +74,10 @@ export const en = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+
+  'search.label': 'モデルを検索',
+  'empty.search': '一致するモデルがありません。',
+  'blocked.composer': '現在のモデルは利用できません。先にモデルを選択してください',
   'provider.account': 'DeepSeek アカウント',
   'command.label': 'モデル',
   'command.description': 'この会話で使用するモデルを選択',
@@ -102,6 +106,10 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+
+  'search.label': 'Buscar modelos',
+  'empty.search': 'No hay modelos coincidentes.',
+  'blocked.composer': 'Este modelo no está disponible — seleccione uno para continuar',
   'provider.account': 'Cuenta DeepSeek',
   'command.label': 'modelo',
   'command.description': 'Selecciona el modelo para esta conversación',
@@ -130,6 +138,10 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+
+  'search.label': 'Rechercher des modèles',
+  'empty.search': 'Aucun modèle correspondant.',
+  'blocked.composer': 'Ce modèle n’est pas disponible — sélectionnez-en un pour continuer',
   'provider.account': 'Compte DeepSeek',
   'command.label': 'Modèle',
   'command.description': 'Sélectionnez le modèle pour cette conversation',
@@ -158,6 +170,10 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+
+  'search.label': 'Modelle suchen',
+  'empty.search': 'Keine passenden Modelle.',
+  'blocked.composer': 'Dieses Modell ist nicht verfügbar — wählen Sie eines, um fortzufahren',
   'provider.account': 'DeepSeek-Konto',
   'command.label': 'Modell',
   'command.description': 'Wählen Sie das Modell für dieses Gespräch aus',
@@ -186,6 +202,10 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+
+  'search.label': 'Поиск моделей',
+  'empty.search': 'Подходящие модели не найдены.',
+  'blocked.composer': 'Эта модель недоступна — выберите другую, чтобы продолжить',
   'provider.account': 'DeepSeek Аккаунт',
   'command.label': 'Модель',
   'command.description': 'Выберите модель для этого разговора',
@@ -214,6 +234,10 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+
+  'search.label': 'Pesquisar modelos',
+  'empty.search': 'Nenhum modelo correspondente.',
+  'blocked.composer': 'Este modelo está indisponível — selecione um para continuar',
   'provider.account': 'DeepSeek Conta',
   'command.label': 'Modelo',
   'command.description': 'Selecione o modelo para esta conversa',
