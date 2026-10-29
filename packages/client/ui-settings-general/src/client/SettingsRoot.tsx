@@ -23,7 +23,11 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConnectionIndicatorState } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
-import { orderSettingsSections } from './section-order.ts'
+import { resolveSettingsLayout } from './section-layout.ts'
+import { useNavigationLayout } from './use-navigation-layout.ts'
+import { SettingsNavigation } from './SettingsNavigation.tsx'
+import type { SettingsNavigationLayout } from '../types.ts'
+import { SettingsNavigationEditor } from './SettingsNavigationEditor.tsx'
 import css from './SettingsRoot.module.css'
 import { DesktopUpdateIndicator } from './DesktopUpdateIndicator.tsx'
 
@@ -43,6 +47,9 @@ function navIcon(id: string) {
 }
 
 type PanelProps = {
+  layout: SettingsNavigationLayout
+  t: SettingsRootComponentProps['t']
+  saveLayout: (layout: SettingsNavigationLayout) => Promise<void>
   rows: readonly SettingsSectionRow[]
   renderSlot: SettingsRootComponentProps['renderSlot']
   activeId: string | undefined
@@ -56,7 +63,11 @@ type PanelProps = {
  * header button, a mask click, and document-level Escape (mounted only while
  * open, so the listener lifetime is the panel's).
  */
-function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferredSubsectionId }: PanelProps) {
+function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferredSubsectionId, layout, t, saveLayout }: PanelProps) {
+  const [managing, setManaging] = useState(false)
+  const [selectedGroupId, setSelectedGroupId] = useState<string>()
+  const [selectedGroupAction, setSelectedGroupAction] = useState<'rename' | 'delete'>()
+  const navigation = useNavigationLayout(layout, saveLayout)
   // Entries can unmount underneath the requested id, so the render-time
   // projection falls back to the first row when the id is gone.
   const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
@@ -76,25 +87,18 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
         {/* The four seats stay direct children of the panel and take their
             places from its grid: title and header share the first row, the
             navigation and the active section the second. */}
-        <div className={css.navTitle} id={titleId} tabIndex={-1}
-          data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</div>
+        <div className={css.navTitle}>
+          <span id={titleId} tabIndex={-1} data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</span>
+          <button type="button" className={css.organize} aria-label={t('nav.organize')}
+            title={t('nav.organize')} aria-pressed={managing}
+            onClick={() => { setManaging(current => !current); setSelectedGroupId(undefined); setSelectedGroupAction(undefined) }}>
+            <IconSettingsOutlineMedium size={14} /></button>
+        </div>
         <nav className={css.nav}>
-          <div className={css.navList}>
-            {rows.map(row => (
-              <button
-                key={row.id}
-                type="button"
-                className={clsx(css.navCell, row.id === active && css.active)}
-                aria-current={row.id === active ? 'true' : undefined}
-                data-modal-autofocus={row.id === active ? '' : undefined}
-                onFocus={(event) => { event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }}
-                onClick={() => { onSelect(row.id) }}
-              >
-                {navIcon(row.id)}
-                <span className={css.navLabel}>{row.label}</span>
-              </button>
-            ))}
-          </div>
+          <SettingsNavigation rows={rows} layout={navigation.layout} active={active} t={t} mutate={navigation.mutate}
+            onSelect={(id) => { setManaging(false); onSelect(id) }} icon={navIcon}
+            onManage={(id, action) => { setSelectedGroupId(id); setSelectedGroupAction(action); setManaging(true) }} />
+          {navigation.failed ? <p role="alert">{t('nav.saveFailed')}</p> : null}
         </nav>
         <div className={css.header}>
           <div className={css.actions}>{renderSlot('settings.action', {})}</div>
@@ -104,7 +108,10 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
           </button>
         </div>
         <div className={css.options}>
-          {active !== undefined && renderSlot('settings.section', { close: onClose, ...(preferredSubsectionId === undefined ? {} : { preferredSubsectionId }) }, { only: active })}
+          {managing ? <SettingsNavigationEditor rows={rows} layout={navigation.layout} t={t} onChange={navigation.mutate}
+            {...(selectedGroupId === undefined ? {} : { selectedGroupId })}
+            {...(selectedGroupAction === undefined ? {} : { selectedGroupAction })} onClose={() => { setManaging(false) }} />
+            : active !== undefined && renderSlot('settings.section', { close: onClose, ...(preferredSubsectionId === undefined ? {} : { preferredSubsectionId }) }, { only: active })}
         </div>
       </div>
     </div>
@@ -120,6 +127,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const {
     wide, reconnect, useConnectionState, useSections, useOnboardingSteps, useSessions, renderSlot, t,
     useDesktopUpdate, openDesktopUpdate, useStore, actions, useShortcuts, useNavigation, useSectionOrder,
+    useSectionLayout, setSectionLayout,
   } = props
   const { open, activeId } = useStore(state => state)
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'settings.open'))
@@ -135,7 +143,9 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   // seats re-render through their own outlets' subscriptions.
   const rawRows = useSections(s => s)
   const storedOrder = useSectionOrder(s => s)
-  const rows = orderSettingsSections(rawRows, storedOrder)
+  const rows = rawRows
+  const storedLayout = useSectionLayout(value => value)
+  const layout = resolveSettingsLayout(rawRows, storedLayout, storedOrder)
   const navigation = useNavigation(s => s)
   const [preferredSubsectionId, setPreferredSubsectionId] = useState<string | undefined>()
   useEffect(() => {
@@ -261,6 +271,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
       </div>
       {open && (
         <SettingsPanel
+          layout={layout} t={t} saveLayout={setSectionLayout}
           {...preferredSubsectionId === undefined ? {} : { preferredSubsectionId }}
           rows={rows}
           renderSlot={renderSlot}

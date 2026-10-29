@@ -571,6 +571,7 @@
     { "path": "./packages/experimental/hooks-codex" },
     { "path": "./packages/mcp/mcp-client" },
     { "path": "./packages/mcp/mcp-resources" },
+    { "path": "./packages/mcp/mcp-settings/tsconfig.host.json" },
     { "path": "./packages/host/directory-picker" },
     { "path": "./packages/host/directory-picker-auto" },
     { "path": "./packages/host/directory-picker-browse" },

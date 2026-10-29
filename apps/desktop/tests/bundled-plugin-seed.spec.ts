@@ -3,7 +3,6 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { list } from 'tar'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   appendBundledPluginFailure,
@@ -170,7 +169,6 @@ describe('bundled plugin seed', () => {
       ['dsh-mermaid', 'startup'],
       ['dsh-whale-widget', 'startup'],
       ['@weibaohui/skills-management', 'startup'],
-      ['@dsh-plugins/mcp-panel', 'startup'],
       ['dsh-font', 'diagnostic'],
       ['@dsh-diagnostic-lab/scoped-loader-mismatch', 'diagnostic'],
       ['@dsh-diagnostic-lab/loader-dependency-unavailable', 'diagnostic'],
@@ -199,35 +197,16 @@ describe('bundled plugin seed', () => {
     expect(manifest.plugins.find(entry => entry.packageName === '@dsh-diagnostic-lab/immutable-agent-input-mutation'))
       .toMatchObject({ version: '1.0.0', installPolicy: 'diagnostic' })
     expect(manifest.plugins.find(entry => entry.packageName === '@ychris12138/dsh-usage-stats'))
-      .toMatchObject({ version: '0.3.5', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.3.6', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-smooth-stream'))
       .toBeUndefined()
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-mermaid'))
-      .toMatchObject({ version: '0.4.1', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.4.4', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-whale-widget'))
-      .toMatchObject({ version: '0.3.18', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.4.2', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@weibaohui/skills-management'))
-      .toMatchObject({ version: '0.9.0', installPolicy: 'startup' })
-    expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel'))
-      .toMatchObject({ version: '0.1.0', installPolicy: 'startup' })
-    expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel')?.registrySpec)
-      .toBeUndefined()
-    const mcpArchive = manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel')?.archive
-    expect(mcpArchive).toBeDefined()
-    const archivePaths = new Set<string>()
-    let hostEntry = ''
-    await list({
-      file: fileURLToPath(new URL(`../bundled-plugins/${mcpArchive}`, import.meta.url)),
-      onReadEntry: (entry) => {
-        archivePaths.add(entry.path)
-        if (entry.path === 'package/lib/index.js') {
-          entry.on('data', (chunk: Buffer) => { hostEntry += chunk.toString('utf8') })
-        } else entry.resume()
-      },
-    })
-    const generatedHostChunk = /from "\.\/(types-[^"/]+\.js)"/u.exec(hostEntry)?.[1]
-    expect(generatedHostChunk).toBeDefined()
-    expect(archivePaths).toContain(`package/lib/${generatedHostChunk}`)
+      .toMatchObject({ version: '0.9.1', installPolicy: 'startup' })
+    expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel')).toBeUndefined()
     expect(new Set(manifest.plugins.map(entry => entry.seedId)).size).toBe(manifest.plugins.length)
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-better-sidebar'))
       .toMatchObject({ version: '0.24.1', refreshPolicy: 'pinned', approvedBuilds: ['node-pty'] })

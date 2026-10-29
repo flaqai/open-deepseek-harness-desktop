@@ -9,6 +9,8 @@
  * Export discipline: packages/client/AGENTS.md.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { SettingsNavigationLayout } from '../types.ts'
+import { normalizeSettingsLayout } from './section-layout.ts'
 // Type-only: pulls the remoteAccess service merge (ctx.remoteAccess).
 import type {} from '@deepseek-ai/dsh-api-remote-access/client'
 // Type-only: pulls the ctx.remote merge and its fixed Host facts.
@@ -124,7 +126,20 @@ export function apply(ctx: ClientContext): void {
       hooks: { snapshot: documentController.store },
     })
   ctx.effect(() => () => { documentController?.dispose() }, 'ui-settings-general: document action directory')
-  const navigationOrder = ctx.configForms.get<{ readonly sectionOrder: readonly string[] }>('ui-settings-general')
+  const navigationOrder = ctx.configForms.get<{ readonly sectionOrder: readonly string[]; readonly sectionLayout?: SettingsNavigationLayout }>('ui-settings-general')
+  let layoutInput: SettingsNavigationLayout | undefined
+  let layoutSnapshot: SettingsNavigationLayout | undefined
+  const sectionLayoutSource = {
+    getSnapshot: (): SettingsNavigationLayout | undefined => {
+      const source = navigationOrder.getSnapshot().value?.sectionLayout
+      if (source !== layoutInput) {
+        layoutInput = source
+        layoutSnapshot = normalizeSettingsLayout(source)
+      }
+      return layoutSnapshot
+    },
+    subscribe: (listener: () => void) => navigationOrder.subscribe(listener),
+  }
   const emptySectionOrder: readonly string[] = []
   let memorySectionOrder: readonly string[] = emptySectionOrder
   const memorySectionOrderListeners = new Set<() => void>()
@@ -210,6 +225,7 @@ export function apply(ctx: ClientContext): void {
         subscribe: ctx.settingsNavigation.subscribe,
       },
       sectionOrder: sectionOrderSource,
+      sectionLayout: sectionLayoutSource,
     },
     setSectionOrder: async (ids) => {
       if (!ctx.remote.$host.isLoopback || !navigationOrder.getSnapshot().writable) {
@@ -220,6 +236,15 @@ export function apply(ctx: ClientContext): void {
       if (!await navigationOrder.set('sectionOrder', [...ids])) {
         memorySectionOrder = [...ids]
         for (const listener of memorySectionOrderListeners) listener()
+      }
+    },
+    setSectionLayout: async (layout) => {
+      const normalized = normalizeSettingsLayout(layout)
+      if (normalized === undefined || !navigationOrder.getSnapshot().writable) {
+        throw new Error('settings navigation is unavailable or read-only')
+      }
+      if (!await navigationOrder.set('sectionLayout', normalized)) {
+        throw new Error('settings navigation could not be saved')
       }
     },
   })

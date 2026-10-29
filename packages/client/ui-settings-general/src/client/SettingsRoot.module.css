@@ -137,6 +137,9 @@
    Its 54px row aligns with the content header; the nav adds the remaining
    10px before the first cell. */
 .navTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   grid-area: title;
   padding: 22px 12px 8px 24px;
   font-size: 16px;
@@ -195,6 +198,18 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.organize { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm); color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer; }
+.organize[aria-pressed='true'] { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+.organize:disabled { opacity: 0.5; cursor: wait; }
+.organize:focus-visible { outline: 2px solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+.navGroup { display: flex; flex-direction: column; gap: 4px; flex: none; min-width: 0; }
+.groupLabel { padding: 10px 12px 2px; color: var(--dsw-alias-label-tertiary); font: var(--dsw-font-xs-13); overflow-wrap: anywhere; }
+.navEmpty { padding: 0 12px; color: var(--dsw-alias-label-secondary); font: var(--dsw-font-xs-13); }
+@media (max-width: 767px) {
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .navGroup { flex-direction: row; align-items: center; }
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .groupLabel { padding: 0 8px; max-width: 100px; }
 }
 
 /* Header (figma .Header 501:29981): h54, pad (10,20,14,8), close right. */

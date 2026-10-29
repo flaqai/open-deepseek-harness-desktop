@@ -65,7 +65,7 @@ pnpm 生成的本地来源定位随激活重新计算相对位置；manifest 原
 
 Web Profile 内置 Schedule 服务与任务页面，提醒工具属于 `standard`、`cordis` 与 `ptc` 预设。新建 Profile 不会自动创建定时任务。升级保留已有任务数据和用户在补丁 YAML 中明确关闭条目的选择；Desktop 不再安装已退役的可选“自动化任务” bundle。NAS 连接继续使用远端 Profile 的配置。
 
-启动预装集合还包含原始 `@weibaohui/skills-management` 归档。其技能市场可管理本机发现的 coding agent 技能，并浏览在线技能目录。插件默认在启动后于后台同步目录，此后每天再次同步；用户可在插件设置中关闭这些同步选项。`@dsh-plugins/mcp-panel` 归档提供 MCP 服务设置面板；这个私有 workspace 包尚未发布到 npm，因此归档由[固定的 dsh-pluginHive 源码](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel)构建。归档元数据补齐了上游 `files` 清单遗漏的生成 Host 文件，未改动插件运行源码。随包提供插件归档不等于把在线技能目录或普通传递依赖也一并预装。
+启动预装集合还包含原始 `@weibaohui/skills-management` 归档。其技能市场可管理本机发现的 coding agent 技能，并浏览在线技能目录。插件默认在启动后于后台同步目录，此后每天再次同步；用户可在插件设置中关闭这些同步选项。[MCP 服务](../../packages/mcp/mcp-settings/README.zh.md)由内置设置管理，使用共享深浅色样式。已有 MCP 服务配置保持不变，内置替代模块启用时会抑制旧第三方面板。随包提供插件归档不等于把在线技能目录或普通传递依赖也一并预装。
 
 预装的 `dsh-better-sidebar` 0.24.1 支持 DSH 0.2.0。[上游发布说明](https://github.com/omdsh-dev/DSH-better-sidebar/releases/tag/v0.24.1)指出，其文件路由不再把访问范围限制在所选工作区，而是受当前操作系统用户的权限约束。不要把所选工作区视为该插件的文件访问范围上限。
 

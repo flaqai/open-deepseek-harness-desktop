@@ -64,6 +64,7 @@ import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.
 import { INSTALL_ANCHOR } from './install-anchor.ts'
 import { runProfilePackageManager } from './profile-package-manager.ts'
 import { withDesktopCodexProxy } from './desktop-codex-proxy.ts'
+import { withBuiltinMcpSettings } from './builtin-mcp-settings.ts'
 
 const NAME = 'dsh'
 
@@ -348,12 +349,12 @@ interface ComposedProfile {
 
 /** The full patch stack of one composed profile, in application order. */
 function allPatches(composed: ComposedProfile): PatchOptions[] {
-  return withDesktopCodexProxy([
+  return withDesktopCodexProxy(withBuiltinMcpSettings([
     ...composed.bundlePatches,
     ...composed.profile.patches,
     ...composed.homePatches,
     ...composed.overlays,
-  ], process.env)
+  ]), process.env)
 }
 
 /**
@@ -716,7 +717,7 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
     home: resolveDshHome(),
     overlays: composed.overlays,
     telemetryDisabledEnv: process.env.DSH_TELEMETRY_DISABLED,
-    projectPatches: patches => withDesktopCodexProxy([...patches], process.env),
+    projectPatches: patches => withDesktopCodexProxy(withBuiltinMcpSettings([...patches]), process.env),
   }
   let ctx: Context
   try {

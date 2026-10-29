@@ -10,11 +10,11 @@ Settings sections are contributed dynamically by independent plugins. Their cano
 
 ## Decision
 
-The settings shell gives every section row a dedicated three-line reorder handle and an equivalent Up/Down keyboard interaction. Pointer capture arms only from the handle; after a four-pixel threshold, a fixed full-row ghost follows the pointer while measured sibling rows translate into the vacated slot. Edge scrolling keeps long rails reachable. Commit waits for the 180ms settle transition and writes the final order once; outside release, Escape, and pointer cancellation animate back without writing. Theme label tokens make the insertion line black in light mode and white in dark mode, while reduced-motion preferences remove the transition.
+The settings shell starts section and group dragging after a 350ms hold, with keyboard equivalents. A floating copy, reserved space, neighboring displacement, and a 180ms settlement show the destination; reduced-motion preferences remove transitions. Movement before activation preserves scrolling, and Escape cancels without saving. Menus appear on hover or keyboard focus and remain visible on touch devices; collapse arrows remain available. Section drops support reordering and cross-group movement; group drops move the entire group. Changes save immediately through an ordered writer. A rejected write reports failure and restores the last confirmed layout instead of retaining dependent optimistic edits. The organizer beside the title manages groups and hidden-entry recovery without duplicating sorting controls.
 
-It persists the resulting stable `settings.section` ids in the Host-owned `ui-settings-navigation.sectionOrder` setting. Selection remains a separate button, so ordinary page navigation cannot accidentally begin a drag.
+The Host-owned `ui-settings-general.sectionLayout` setting stores stable `settings.section` ids, user-authored group names, hidden entries, and group visibility and collapse preferences together. Older groups default to visible and expanded. The older `sectionOrder` remains the fallback until a grouped layout is saved. Hiding a navigation entry or group never disables its plugins or blocks explicit navigation to a page; the organizer remains accessible even when all entries are hidden.
 
-The persisted order overlays the live slot ledger rather than mutating it. Known ids appear in the user's order, newly registered ids append in canonical ledger order, and temporarily absent ids remain in the durable list for a possible reinstall. Empty and duplicate durable ids are ignored at projection time.
+The persisted layout overlays the live slot ledger rather than mutating it. New plugin sections append to the default group, while absent ids remain in their saved groups and hidden preferences for a possible reinstall. Normalization removes invalid and duplicate ids. Removing a group returns its sections to the default group; restoring defaults changes only navigation.
 
 ## Alternatives considered
 
@@ -26,4 +26,4 @@ The persisted order overlays the live slot ledger rather than mutating it. Known
 
 ## Consequences
 
-Users can arrange a long settings rail around their own workflow with pointer or keyboard input, see every crossed item make room before release, and retain the order through the selected settings provider. Dynamic plugin registration still works without migrations. The cost is one small durable namespace, temporary pointer geometry while sorting, and an overlay step whenever the settings ledger changes; the canonical registration order remains the fallback and source for new rows.
+Users can organize a long settings rail directly, collapse groups, and recover hidden navigation from one manager. Each ordered write has a persistence commit point, independent of plugin registration order and locale labels. The additional state is one versioned layout; canonical registration order remains the fallback and the source of newly registered sections.

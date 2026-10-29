@@ -28,6 +28,7 @@ The client owns each configured connection; the shared resource package supplies
 |---|---|
 | [`mcp-client/`](mcp-client/README.md) | Connect one MCP server, expose its tools and instructions, and provide its resource operations |
 | [`mcp-resources/`](mcp-resources/README.md) | Discover and read resources through shared tools with explicit server selection |
+| [`mcp-settings/`](mcp-settings/README.md) | Manage current Profile MCP servers from built-in settings |
 
 -----
 

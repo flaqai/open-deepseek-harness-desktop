@@ -16,3 +16,13 @@ it('validates and updates onboarding preferences without remounting', async () =
 })
 
 it('keeps its own instance off the generated Settings pages', () => omitsGeneratedPage(ctx => ctx.plugin(HostPlugin)))
+
+it('keeps grouped navigation absent for legacy preferences and writes it atomically', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  const configuration = await liveConfig(ctx, General)
+  expect(plainConfig(configuration.fiber.effectiveConfig)).toHaveProperty('sectionLayout', undefined)
+  const sectionLayout = { version: 1, groups: [{ id: 'ungrouped', label: '', sectionIds: ['models'] }], hiddenIds: ['models'] }
+  await configuration.update({ sectionOrder: ['models'], sectionLayout })
+  expect(plainConfig(configuration.fiber.effectiveConfig)).toMatchObject({ sectionOrder: ['models'], sectionLayout })
+})

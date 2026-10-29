@@ -1,5 +1,21 @@
 /** Type-only Electron update declarations shared by the settings UI and Desktop compatibility checks. */
 
+/** A user-named navigation group; section ids survive temporary plugin removal. */
+export interface SettingsNavigationGroup {
+  id: string
+  label: string
+  sectionIds: string[]
+  hidden?: boolean
+  collapsed?: boolean
+}
+
+/** Versioned Profile preference for settings navigation, independent of plugin activation. */
+export interface SettingsNavigationLayout {
+  version: 1
+  groups: SettingsNavigationGroup[]
+  hiddenIds: string[]
+}
+
 /** Classified failure copy selected by the Web locale without exposing raw updater diagnostics. */
 export type DesktopUpdateFailureKind =
   | 'check'

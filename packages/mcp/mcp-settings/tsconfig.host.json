@@ -1,0 +1,11 @@
+{
+  "extends":"../../../tsconfig.base.json",
+  "compilerOptions":{"rootDir":"src","outDir":"lib/types","tsBuildInfoFile":"lib/tsconfig.host.tsbuildinfo"},
+  "files":["src/index.ts","src/types.ts","src/patch-writer.ts"],
+  "references":[
+    {"path":"../../../vendor/cordis"},{"path":"../../../vendor/loader"},
+    {"path":"../../boot/app-boot"},{"path":"../../boot/hmr"},
+    {"path":"../../core/tools"},{"path":"../../util/atomic-write"},
+    {"path":"../../typert/protocol"}
+  ]
+}

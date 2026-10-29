@@ -1,0 +1,21 @@
+.section { display: grid; gap: 16px; min-width: 0; color: var(--dsw-alias-label-primary); font: var(--dsw-font-s-14); }
+.section h2, .section h3, .section p { margin: 0; }
+.section h2 { font: var(--dsw-font-base-strong-16); }
+.section h3 { font: var(--dsw-font-s-strong-14); }
+.section p, .form p { color: var(--dsw-alias-label-secondary); font: var(--dsw-font-xs-13); overflow-wrap: anywhere; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.header > div { display: grid; gap: 6px; min-width: 0; }
+.card { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 0.5px solid var(--dsw-alias-settings-card-stroke); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-settings-card-fill); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.warning { padding: 12px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-1); }
+.empty { padding: 24px 0; }
+.code { font-family: var(--ds-font-family-code); }
+.form { display: grid; gap: 12px; min-width: 0; color: var(--dsw-alias-label-primary); font: var(--dsw-font-s-14); }
+.form > label { display: grid; gap: 6px; }
+.form input:not([type='checkbox']):not([type='radio']), .form textarea { width: 100%; min-width: 0; box-sizing: border-box; min-height: 36px; padding: 8px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font: inherit; }
+.form textarea { min-height: 72px; resize: vertical; }
+.form fieldset { display: flex; flex-wrap: wrap; gap: 12px; padding: 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-sm); }
+.toggle, .form > .toggle { display: flex; align-items: center; gap: 6px; font: var(--dsw-font-xs-13); }
+.section input:focus-visible, .form input:focus-visible, .form textarea:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+@media (max-width: 520px) { .header { flex-wrap: wrap; } }
+@media (pointer: coarse) { .form input:not([type='checkbox']):not([type='radio']), .form textarea { min-height: 44px; font: var(--dsw-font-base-16); } }

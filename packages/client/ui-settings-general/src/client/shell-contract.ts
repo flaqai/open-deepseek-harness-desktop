@@ -20,6 +20,7 @@ import type { PropsStore } from '@deepseek-ai/dsh-client-store'
 import type { createSettingsShellStore } from './shell-store.ts'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
 import type { DesktopUpdateView } from '../types.ts'
+import type { SettingsNavigationLayout } from '../types.ts'
 
 /** One nav row projected from a settings.section registration's options. */
 export interface SettingsSectionRow {
@@ -59,9 +60,13 @@ export type SettingsRootInjected = {
     navigation: HostObservable<SettingsNavigationRequest | undefined>
     /** Durable user-selected vertical order of settings section ids. */
     sectionOrder: HostObservable<readonly string[]>
+    /** Accepted grouped navigation for the current Profile. */
+    sectionLayout: HostObservable<SettingsNavigationLayout | undefined>
   }
   /** Persist the complete visible order while retaining absent plugin ids. */
   setSectionOrder: (ids: readonly string[]) => Promise<void>
+  /** Save the whole navigation preference; rejected writes leave the accepted layout unchanged. */
+  setSectionLayout: (layout: SettingsNavigationLayout) => Promise<void>
 }
 
 /**

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "MCP 服务设置",
+    "description": "通过当前 Profile 管理受信任的本地和远程 MCP 服务。"
+  }
+}

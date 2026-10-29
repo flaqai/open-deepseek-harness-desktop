@@ -113,6 +113,8 @@ function mount({
     dismissSidebar: () => {}, useNavigation: select => select(undefined),
     useSectionOrder: select => select([]),
     setSectionOrder: async () => {},
+    useSectionLayout: select => select(undefined),
+    setSectionLayout: async () => {},
     useShortcuts: select => select(shortcuts),
     useSessions: select => select(sessions),
     useSessionStatus,
@@ -184,6 +186,14 @@ function openPanel() {
 }
 
 describe('SettingsRoot trigger', () => {
+  it('keeps navigation menus available without opening the organizer', () => {
+    mount()
+    openPanel()
+    expect(screen.getByRole('button', { name: 'Organize settings navigation: General' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Organize settings navigation' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to settings' }))
+    expect(screen.getByRole('button', { name: 'Organize settings navigation: General' })).toBeTruthy()
+  })
   it('shows installation instead of expected backend reconnection and restores connection feedback after failure', () => {
     const presentation = { phase: 'installing' as const, version: '1.0.1' }
     const f = mount({ dictionary: zh, connectionState: 'connecting',

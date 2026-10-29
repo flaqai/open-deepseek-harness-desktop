@@ -142,6 +142,11 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'pluginManager/inspect': 'owner-only', // owner plugin management
   'pluginManager/installBundle': 'owner-only', // owner plugin management
   'pluginManager/listBundles': 'owner-only', // owner plugin management
+  'mcpSettings/list': 'owner-only', // owner configuration may contain MCP credentials
+  'mcpSettings/getTools': 'owner-only', // owner MCP server inspection
+  'mcpSettings/upsert': 'owner-only', // owner MCP configuration and local commands
+  'mcpSettings/deleteServer': 'owner-only', // owner MCP configuration
+  'mcpSettings/setEnabled': 'owner-only', // owner MCP configuration and local commands
   'pluginManager/listPlugins': 'owner-only', // owner plugin management
   'pluginManager/listVersionExemptions': 'owner-only', // owner plugin management
   'pluginManager/listVersions': 'owner-only', // owner plugin management
