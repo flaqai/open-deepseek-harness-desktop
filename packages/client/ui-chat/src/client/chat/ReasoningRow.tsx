@@ -3,6 +3,7 @@ import { memo, useMemo } from 'react'
 import { DisclosureRow, IconThinkOutlineRegular, TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ChatViewSlotProps, UseDisclosure, UsePresentation } from '../contract/slots.ts'
+import { reasoningText } from '../reasoning-text.ts'
 import a11yCss from './accessibility.module.css'
 import css from './ReasoningRow.module.css'
 
@@ -46,7 +47,7 @@ function latestCompletedParagraphFirstLine(text: string): string {
  * @returns the reasoning disclosure.
  */
 export const ReasoningRow = memo(function ReasoningRow({
-  text, running, textInteractionSource = false, usePresentation, useDisclosure, renderSlot, t,
+  text: rawText, running, textInteractionSource = false, usePresentation, useDisclosure, renderSlot, t,
 }: {
   text: string
   running: boolean
@@ -56,6 +57,10 @@ export const ReasoningRow = memo(function ReasoningRow({
   t: ChatViewSlotProps['t']
 } & Pick<PropsRenderSlots<'conversation.chat.reasoning.body'>, 'renderSlot'>) {
   const { expanded, toggle } = useDisclosure()
+  const { text, hidden } = useMemo(() => {
+    const text = reasoningText(rawText)
+    return { text, hidden: text !== rawText && text.trim() === '' }
+  }, [rawText])
   const summaryText = running ? latestCompletedParagraphFirstLine(text) : firstLine(text)
   const summary = useMemo(() => summaryText.replaceAll('**', ''), [summaryText])
   const preview = usePresentation(policy => !expanded && summary !== ''
@@ -72,9 +77,11 @@ export const ReasoningRow = memo(function ReasoningRow({
   ), [running, summary])
   const content = useMemo(() => expanded ? (
     <div className={css.thinkBody} data-text-interaction-source={textInteractionSource && !running ? '' : undefined}>
-      {renderSlot('conversation.chat.reasoning.body', { text, running })}
+      {renderSlot('conversation.chat.reasoning.body', { rawText, text, running })}
     </div>
-  ) : undefined, [expanded, renderSlot, running, text, textInteractionSource])
+  ) : undefined, [expanded, renderSlot, running, rawText, text, textInteractionSource])
+
+  if (hidden) return null
 
   return (
     <div
