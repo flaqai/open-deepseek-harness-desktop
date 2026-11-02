@@ -124,7 +124,6 @@
     "@deepseek-ai/dsh-client-ui-workspace": "workspace:*",
     "@deepseek-ai/dsh-client-web": "workspace:*",
     "@deepseek-ai/dsh-cua": "workspace:*",
-    "@deepseek-ai/dsh-mcp-settings": "workspace:*",
     "@deepseek-ai/dsh-experimental-api-speech-to-text": "workspace:*",
     "@deepseek-ai/dsh-experimental-claude-code-mods": "workspace:*",
     "@deepseek-ai/dsh-experimental-client-ui-cot-translation": "workspace:*",

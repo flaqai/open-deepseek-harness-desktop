@@ -30,9 +30,6 @@ describe('viewer endpoint classification', () => {
 
 
 it('keeps community plugin repair and installation owner-only', () => {
-  for (const action of ['list', 'getTools', 'upsert', 'deleteServer', 'setEnabled'] as const) {
-    expect(VIEWER_ENDPOINT_CLASSES[`mcpSettings/${action}`]).toBe('owner-only')
-  }
   for (const [endpoint, classification] of Object.entries(VIEWER_ENDPOINT_CLASSES)) {
     if (endpoint.startsWith('pluginInventory/')) expect(classification).toBe('owner-only')
   }

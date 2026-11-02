@@ -43,6 +43,20 @@
       "integrity": "sha512-X5tdu07Ub0isxruG559o46891F7MjxM+CzR6QoGpHZtN5J8gz6FA8Dq632lLI77c4IjL2GP+N6PuWaDnoKPuPQ=="
     },
     {
+      "seedId": "dsh-pocket",
+      "packageName": "dsh-pocket",
+      "version": "2.12.0",
+      "profile": "web",
+      "installPolicy": "startup",
+      "registrySpec": "dsh-pocket@2.12.0",
+      "managedUpgradeFrom": [
+        "1.14.5",
+        "2.10.6"
+      ],
+      "archive": "dsh-pocket-2.12.0.tgz",
+      "integrity": "sha512-iaQUzm98yYs9fm6PsZDatbZC/2imQ5FNU6aMSoBp7wV+NCSQkVfU08+UIx4SZ5oyD9yXTj75IGVvtQULy7KbHQ=="
+    },
+    {
       "seedId": "agents-anywhere-dsh-bridge-next",
       "packageName": "@agents-anywhere/dsh-bridge-next",
       "version": "2.0.2",
@@ -95,6 +109,15 @@
       "registrySpec": "@weibaohui/skills-management@0.9.1",
       "archive": "weibaohui-skills-management-0.9.1.tgz",
       "integrity": "sha512-UmMNh4dCL9rSnltBr/JelOWMR4jBR3y3WPxv5C1KPk1csLYeAMZ2VZGYTafedT9RcR1jaefNLwNOAtVZyiYTig=="
+    },
+    {
+      "seedId": "dsh-plugins-mcp-panel",
+      "packageName": "@dsh-plugins/mcp-panel",
+      "version": "0.1.0",
+      "profile": "web",
+      "installPolicy": "startup",
+      "archive": "dsh-plugins-mcp-panel-0.1.0.tgz",
+      "integrity": "sha512-/h/J/KO21l8WIKwbarai7Q5A8UoQ/YovE0i3+ylg1JUcFvPKBLJBJ3pPuWugTFwpKDdlT3yZt7mAt+QdrzZKbQ=="
     },
     {
       "seedId": "diagnostic-dsh-font",

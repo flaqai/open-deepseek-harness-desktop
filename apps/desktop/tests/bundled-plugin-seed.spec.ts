@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { list } from 'tar'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   appendBundledPluginFailure,
@@ -164,11 +165,13 @@ describe('bundled plugin seed', () => {
       ['dshmarket', 'startup'],
       ['@xmanrui/dsh-im', 'startup'],
       ['dsh-better-sidebar', 'startup'],
+      ['dsh-pocket', 'startup'],
       ['@agents-anywhere/dsh-bridge-next', 'startup'],
       ['@ychris12138/dsh-usage-stats', 'startup'],
       ['dsh-mermaid', 'startup'],
       ['dsh-whale-widget', 'startup'],
       ['@weibaohui/skills-management', 'startup'],
+      ['@dsh-plugins/mcp-panel', 'startup'],
       ['dsh-font', 'diagnostic'],
       ['@dsh-diagnostic-lab/scoped-loader-mismatch', 'diagnostic'],
       ['@dsh-diagnostic-lab/loader-dependency-unavailable', 'diagnostic'],
@@ -206,7 +209,26 @@ describe('bundled plugin seed', () => {
       .toMatchObject({ version: '0.4.2', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@weibaohui/skills-management'))
       .toMatchObject({ version: '0.9.1', installPolicy: 'startup' })
-    expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel')).toBeUndefined()
+    expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel'))
+      .toMatchObject({ version: '0.1.0', installPolicy: 'startup' })
+    expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel')?.registrySpec)
+      .toBeUndefined()
+    const mcpArchive = manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel')?.archive
+    expect(mcpArchive).toBeDefined()
+    const archivePaths = new Set<string>()
+    let hostEntry = ''
+    await list({
+      file: fileURLToPath(new URL(`../bundled-plugins/${mcpArchive}`, import.meta.url)),
+      onReadEntry: (entry) => {
+        archivePaths.add(entry.path)
+        if (entry.path === 'package/lib/index.js') {
+          entry.on('data', (chunk: Buffer) => { hostEntry += chunk.toString('utf8') })
+        } else entry.resume()
+      },
+    })
+    const generatedHostChunk = /from "\.\/(types-[^"/]+\.js)"/u.exec(hostEntry)?.[1]
+    expect(generatedHostChunk).toBeDefined()
+    expect(archivePaths).toContain(`package/lib/${generatedHostChunk}`)
     expect(new Set(manifest.plugins.map(entry => entry.seedId)).size).toBe(manifest.plugins.length)
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-better-sidebar'))
       .toMatchObject({ version: '0.24.1', refreshPolicy: 'pinned', approvedBuilds: ['node-pty'] })
@@ -214,6 +236,7 @@ describe('bundled plugin seed', () => {
       entry.managedUpgradeFrom === undefined ? [] : [[entry.packageName, entry.managedUpgradeFrom]]
     )))).toEqual({
       '@xmanrui/dsh-im': ['3.0.6'],
+      'dsh-pocket': ['1.14.5', '2.10.6'],
       'dsh-better-sidebar': ['0.16.1', '0.21.1'],
     })
     expect(manifest.plugins.map(entry => entry.packageName)).not.toContain('@deepseek-ai/dsh-subagent-codex')
@@ -224,13 +247,51 @@ describe('bundled plugin seed', () => {
     }
   })
 
+  it('retains Pocket and Agents Anywhere as independent startup presets with complete Pocket entry points', async () => {
+    const manifest = JSON.parse(await readFile(new URL('../bundled-plugins/manifest.json', import.meta.url), 'utf8')) as {
+      plugins: BundledPluginManifestEntry[]
+    }
+    const pocket = manifest.plugins.find(entry => entry.packageName === 'dsh-pocket')
+    expect(pocket).toMatchObject({ version: '2.12.0', installPolicy: 'startup', managedUpgradeFrom: ['1.14.5', '2.10.6'] })
+    expect(manifest.plugins.find(entry => entry.packageName === '@agents-anywhere/dsh-bridge-next'))
+      .toMatchObject({ version: '2.0.2', installPolicy: 'startup' })
+    const paths = new Set<string>()
+    let metadata = ''
+    await list({
+      file: fileURLToPath(new URL(`../bundled-plugins/${pocket?.archive}`, import.meta.url)),
+      onReadEntry: (entry) => {
+        paths.add(entry.path)
+        if (entry.path === 'package/package.json') entry.on('data', (chunk: Buffer) => { metadata += chunk.toString('utf8') })
+        else entry.resume()
+      },
+    })
+    const plugin = JSON.parse(metadata) as {
+      name: string
+      version: string
+      main: string
+      dsh: {
+        bundle: { patch: string }
+        client: { platform: string; inject: string[] }
+      }
+      exports: Record<string, string | { default: string }>
+    }
+    expect(plugin).toMatchObject({ name: 'dsh-pocket', version: pocket?.version })
+    expect(plugin.dsh.client.platform).toBe('web')
+    expect(plugin.dsh.client.inject).toContain('@deepseek-ai/dsh-session-log-export')
+    for (const entry of [plugin.main, plugin.dsh.bundle.patch, plugin.exports['./client']]) {
+      expect(typeof entry).toBe('string')
+      if (typeof entry !== 'string') throw new Error('Pocket archive entry must be a file path')
+      expect(paths.has(`package/${entry.replace(/^\.\//u, '')}`)).toBe(true)
+    }
+  })
+
   it('upgrades every verified historical preset and settles on the second startup', async () => {
     const manifest = JSON.parse(await readFile(new URL('../bundled-plugins/manifest.json', import.meta.url), 'utf8')) as {
       plugins: BundledPluginManifestEntry[]
     }
     const resourcesDirectory = fileURLToPath(new URL('../bundled-plugins/', import.meta.url))
     const historical = manifest.plugins.filter(entry => entry.managedUpgradeFrom !== undefined)
-    expect(historical).toHaveLength(2)
+    expect(historical).toHaveLength(3)
 
     for (const entry of historical) {
       const root = await mkdtemp(join(tmpdir(), 'dsh-historical-preset-'))
