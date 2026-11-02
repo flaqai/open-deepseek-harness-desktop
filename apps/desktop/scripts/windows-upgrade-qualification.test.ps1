@@ -263,6 +263,11 @@ try {
     New-Item -ItemType Directory -Path $linkDirectory -ErrorAction Stop | Out-Null
     [void][IO.File]::CreateSymbolicLink((Join-Path $linkDirectory 'upgrade.jsonl'), (Join-Path $mainDirectory 'unrelated.log'))
     Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true -OldInstallationMetadata $changedMetadata -ShortLocker $diagnosticLocker -ShortLockBeforeMain $initialLock
+    Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true -ReportName 'persistent-lock-installer-diagnostics.json'
+    Save-DesktopMainInstallerDiagnostics -Root $diagnosticRoot -PreviousDirectories $mainSnapshot -SnapshotAvailable $true -ReportName 'same-directory-installer-diagnostics.json'
+    $phaseReport = Get-Content -LiteralPath (Join-Path $diagnosticRoot 'persistent-lock-installer-diagnostics.json') -Raw | ConvertFrom-Json
+    Assert-UpgradeTest ($phaseReport.newDirectoryCount -eq 3 -and $phaseReport.upgradeLogCount -eq 3) 'Phase diagnostics must expose the exact new-directory and upgrade-log counts, including rejected logs.'
+    Assert-UpgradeTest (Test-Path -LiteralPath (Join-Path $diagnosticRoot 'same-directory-installer-diagnostics.json')) 'Separate failed phases must not overwrite each other.'
     $reportPath = Join-Path $diagnosticRoot 'main-installer-diagnostics.json'
     $encodedReport = Get-Content -LiteralPath $reportPath -Raw
     $report = $encodedReport | ConvertFrom-Json

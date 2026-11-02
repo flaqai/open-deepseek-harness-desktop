@@ -278,11 +278,13 @@ $exportRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-export-' + [Guid]::NewG
 try {
   [void][IO.Directory]::CreateDirectory((Join-Path $exportRoot 's-aBc123'))
   [IO.File]::WriteAllText((Join-Path $exportRoot 's-aBc123/main-installer-diagnostics.json'), '{"schema":"open-dsh/main-installer-diagnostics/v1"}')
+  [IO.File]::WriteAllText((Join-Path $exportRoot 's-aBc123/persistent-lock-installer-diagnostics.json'), '{}')
+  [IO.File]::WriteAllText((Join-Path $exportRoot 's-aBc123/same-directory-installer-diagnostics.json'), '{}')
   [IO.File]::WriteAllText((Join-Path $exportRoot 's-aBc123/qualification-profile.json'), '{"schema":"open-dsh/standard-profile/v1","folders":[]}')
   [IO.File]::WriteAllText((Join-Path $exportRoot 's-aBc123/installer.log'), 'private raw content')
   & { param($repository, $Root) Export-NativeQualificationRecords -Root $Root } $exportRoot $exportRoot
   $exported = @(Get-ChildItem -LiteralPath (Join-Path $exportRoot '.artifacts/windows-smoke-evidence/native-qualification') -File)
-  if ($exported.Count -ne 2 -or @($exported | Where-Object { $_.Name -notin @('main-installer-diagnostics.json', 'qualification-profile.json') }).Count -ne 0) { throw 'Only the bounded structured main-installer and profile reports may be exported, not raw logs.' }
+  if ($exported.Count -ne 4 -or @($exported | Where-Object { $_.Name -notin @('main-installer-diagnostics.json', 'persistent-lock-installer-diagnostics.json', 'same-directory-installer-diagnostics.json', 'qualification-profile.json') }).Count -ne 0) { throw 'Only the bounded structured main-installer and profile reports may be exported, not raw logs.' }
 } finally { Remove-Item -LiteralPath $exportRoot -Recurse -Force }
 $shell = (Get-Process -Id $PID).Path
 $start = [Diagnostics.ProcessStartInfo]::new()

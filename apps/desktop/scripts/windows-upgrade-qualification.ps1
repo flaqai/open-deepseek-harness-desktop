@@ -228,7 +228,9 @@ function Get-DesktopShortLockMetadata {
 
 function Save-DesktopMainInstallerDiagnostics {
   param([string] $Root, [string[]] $PreviousDirectories, [bool] $SnapshotAvailable,
-    $OldInstallationMetadata = $null, [System.Diagnostics.Process] $ShortLocker = $null, $ShortLockBeforeMain = $null)
+    $OldInstallationMetadata = $null, [System.Diagnostics.Process] $ShortLocker = $null, $ShortLockBeforeMain = $null,
+    [ValidateSet('main-installer-diagnostics.json', 'persistent-lock-installer-diagnostics.json', 'same-directory-installer-diagnostics.json')]
+    [string] $ReportName = 'main-installer-diagnostics.json')
   $report = [ordered]@{ schema = 'open-dsh/main-installer-diagnostics/v1'; status = 'present'; directories = @() }
   $report.oldInstallation = $OldInstallationMetadata
   $report.shortLockBeforeMain = $ShortLockBeforeMain
@@ -251,6 +253,8 @@ function Save-DesktopMainInstallerDiagnostics {
     $report.evidenceRootLength = $evidenceDirectory.FullName.Length
     if (-not $SnapshotAvailable) { throw 'The pre-install directory snapshot was unavailable.' }
     $newDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $Root | Where-Object { $PreviousDirectories -notcontains $_ } | Sort-Object)
+    $report.newDirectoryCount = $newDirectories.Count
+    $report.upgradeLogCount = 0
     if ($newDirectories.Count -gt 8) { $report.status = 'degraded' }
     foreach ($directoryPath in @($newDirectories | Select-Object -First 8)) {
       $directory = Get-Item -LiteralPath $directoryPath -Force -ErrorAction Stop
@@ -260,6 +264,7 @@ function Save-DesktopMainInstallerDiagnostics {
         $log = Join-Path $directory.FullName $name
         if (-not (Test-Path -LiteralPath $log)) { continue }
         $file = Get-Item -LiteralPath $log -Force -ErrorAction Stop
+        if ($name -eq 'upgrade.jsonl') { $report.upgradeLogCount++ }
         if ($file.PSIsContainer -or $file.Length -gt 65536 -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
           $report.status = 'degraded'
           $captured.files += [ordered]@{ name = $name; status = 'rejected' }
@@ -279,14 +284,14 @@ function Save-DesktopMainInstallerDiagnostics {
             if ($result.Success) { $event.result = [int]$result.Groups[1].Value }
           } else {
             $raw = $line | ConvertFrom-Json
-            if ($raw.stage -notin @('uninstall-start', 'uninstaller-copy-failed', 'temporary-launch-failed', 'uninstall-launch-failed', 'uninstall-result', 'old-uninstaller-removed', 'uninstall-complete', 'uninstall-failed', 'uninstall-invalid-state')) { continue }
+            if ($raw.stage -notin @('uninstall-start', 'uninstaller-copy-failed', 'temporary-launch-failed', 'uninstall-launch-failed', 'uninstall-result', 'old-uninstaller-removed', 'uninstall-complete', 'uninstall-failed', 'uninstall-invalid-state', 'uninstall-files-stage-failed', 'uninstall-files-staged')) { continue }
             $event = [ordered]@{ stage = $raw.stage }
             foreach ($field in @('attempt', 'exitCode', 'errorCode')) {
               $number = 0
               if ($null -ne $raw.PSObject.Properties[$field] -and [int]::TryParse([string]$raw.$field, [ref]$number)) { $event[$field] = $number }
             }
             if ($raw.mode -in @('/currentuser', '/allusers')) { $event.mode = $raw.mode }
-            if ($raw.disposition -in @('installation-stopped', 'installation-stopped; old-version-restoration-not-independently-verified')) { $event.disposition = $raw.disposition }
+            if ($raw.disposition -in @('installation-stopped', 'installation-stopped; old-version-restoration-not-independently-verified', 'files-restored; legacy-not-started')) { $event.disposition = $raw.disposition }
             if ($raw.stage -eq 'uninstall-invalid-state') {
               $event.errorKind = switch -Regex ([string]$raw.error) {
                 'previous application remains' { 'previous-application-remains'; break }
@@ -309,7 +314,7 @@ function Save-DesktopMainInstallerDiagnostics {
   }
   try {
     $reportDestination = if ($longTemporary) { $env:RUNNER_TEMP } else { $Root }
-    $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $reportDestination 'main-installer-diagnostics.json') -Encoding utf8 -ErrorAction Stop
+    $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $reportDestination $ReportName) -Encoding utf8 -ErrorAction Stop
   } catch {
     Write-Warning 'Installer diagnostics could not be saved; the installation outcome is unchanged.' -WarningAction Continue
   }
@@ -474,6 +479,7 @@ function Initialize-DesktopPreviousReleaseQualification {
     $candidateExit = Invoke-DesktopQualificationInstaller -Start $CandidateStart
     if ($locker.HasExited) { throw 'Persistent-lock fixture ended before the failed installer settled.' }
   } finally {
+    Save-DesktopMainInstallerDiagnostics -Root $installerTemporary -PreviousDirectories $previousDiagnosticDirectories -SnapshotAvailable $true -ReportName 'persistent-lock-installer-diagnostics.json'
     Stop-DesktopUpgradeLock -Process $locker -Directory $lockDirectory
   }
   $evidencePath = Join-Path $EvidenceRoot 'previous-release.json'

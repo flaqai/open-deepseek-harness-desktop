@@ -322,8 +322,13 @@ try {
   }
   if (-not (Test-Path -LiteralPath $lockReady)) { throw 'Upgrade lock fixture did not acquire the installed executable' }
 
-  $upgradeExit = Invoke-DesktopQualificationInstaller -Start $installStart
-  if ($upgradeExit -ne 0) { throw "Same-directory Windows upgrade exited with $upgradeExit" }
+  $upgradeDiagnosticDirectories = @(Get-DesktopUpgradeDiagnosticDirectories -Root $installerTemporary)
+  try {
+    $upgradeExit = Invoke-DesktopQualificationInstaller -Start $installStart
+    if ($upgradeExit -ne 0) { throw "Same-directory Windows upgrade exited with $upgradeExit" }
+  } finally {
+    Save-DesktopMainInstallerDiagnostics -Root $installerTemporary -PreviousDirectories $upgradeDiagnosticDirectories -SnapshotAvailable $true -ReportName 'same-directory-installer-diagnostics.json'
+  }
   if (-not $fileLocker.WaitForExit(30000)) {
     $fileLocker.Kill($true)
     throw 'Upgrade lock fixture did not release the installed executable'
