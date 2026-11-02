@@ -2,10 +2,10 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { useNavigationLayout } from '../src/client/use-navigation-layout.ts'
-import { resolveSettingsLayout, setLayoutSectionHidden, setLayoutGroupState, visibleSettingsGroups, normalizeSettingsLayout } from '../src/client/section-layout.ts'
+import { addLayoutGroup, moveLayoutSection, resolveSettingsLayout, setLayoutSectionHidden, setLayoutGroupState, visibleSettingsGroups, normalizeSettingsLayout } from '../src/client/section-layout.ts'
 
 afterEach(cleanup)
-const initial = resolveSettingsLayout([{ id: 'models', label: 'Models', order: 0 }], undefined, [])
+const initial = moveLayoutSection(addLayoutGroup(resolveSettingsLayout([{ id: 'models', label: 'Models', order: 0 }], undefined, []), 'work', 'Work'), 'models', 'work', 0)
 
 it('persists ordered edits and ignores stale Profile echoes during a save', async () => {
   let release: (() => void) | undefined
@@ -13,17 +13,17 @@ it('persists ordered edits and ignores stale Profile echoes during a save', asyn
   const { result, rerender } = renderHook(({ source }) => useNavigationLayout(source, save), { initialProps: { source: initial } })
   act(() => {
     result.current.mutate(layout => setLayoutSectionHidden(layout, 'models', true))
-    result.current.mutate(layout => setLayoutGroupState(layout, 'ungrouped', { collapsed: true }))
+    result.current.mutate(layout => setLayoutGroupState(layout, 'work', { collapsed: true }))
   })
   expect(save).toHaveBeenCalledTimes(1)
   rerender({ source: { ...initial } })
   rerender({ source: setLayoutSectionHidden(initial, 'models', true) })
   expect(result.current.layout.hiddenIds).toEqual(['models'])
-  expect(result.current.layout.groups[0]?.collapsed).toBe(true)
+  expect(result.current.layout.nodes[0]?.kind === 'group' && result.current.layout.nodes[0].collapsed).toBe(true)
   act(() => { release?.() })
   await waitFor(() => { expect(result.current.saving).toBe(false) })
   expect(save).toHaveBeenCalledTimes(2)
-  expect(save.mock.calls[1]?.[0]).toMatchObject({ hiddenIds: ['models'], groups: [{ collapsed: true }] })
+  expect(save.mock.calls[1]?.[0]).toMatchObject({ hiddenIds: ['models'], nodes: [{ collapsed: true }] })
 })
 
 it('does not start queued writes after the settings panel unmounts', async () => {
@@ -32,7 +32,7 @@ it('does not start queued writes after the settings panel unmounts', async () =>
   const { result, unmount } = renderHook(() => useNavigationLayout(initial, save))
   act(() => {
     result.current.mutate(layout => setLayoutSectionHidden(layout, 'models', true))
-    result.current.mutate(layout => setLayoutGroupState(layout, 'ungrouped', { collapsed: true }))
+    result.current.mutate(layout => setLayoutGroupState(layout, 'work', { collapsed: true }))
   })
   unmount()
   await act(async () => { release?.(); await Promise.resolve() })
@@ -45,7 +45,7 @@ it('rolls back failed edits and discards dependent queued writes', async () => {
   const { result } = renderHook(() => useNavigationLayout(initial, save))
   act(() => {
     result.current.mutate(layout => setLayoutSectionHidden(layout, 'models', true))
-    result.current.mutate(layout => setLayoutGroupState(layout, 'ungrouped', { collapsed: true }))
+    result.current.mutate(layout => setLayoutGroupState(layout, 'work', { collapsed: true }))
     rejectSave?.(new Error('failed'))
   })
   await waitFor(() => { expect(result.current.failed).toBe(true) })
@@ -54,10 +54,10 @@ it('rolls back failed edits and discards dependent queued writes', async () => {
 })
 
 it('retains group membership and individual hidden state through group hiding and collapse', () => {
-  const hidden = setLayoutGroupState(setLayoutSectionHidden(initial, 'models', true), 'ungrouped', { hidden: true, collapsed: true })
+  const hidden = setLayoutGroupState(setLayoutSectionHidden(initial, 'models', true), 'work', { hidden: true, collapsed: true })
   expect(visibleSettingsGroups([], hidden)).toEqual([])
-  const restored = normalizeSettingsLayout(setLayoutGroupState(hidden, 'ungrouped', { hidden: false }))
-  expect(restored?.groups[0]).toMatchObject({ collapsed: true, sectionIds: ['models'] })
+  const restored = normalizeSettingsLayout(setLayoutGroupState(hidden, 'work', { hidden: false }))
+  expect(restored?.nodes[0]).toMatchObject({ collapsed: true, sectionIds: ['models'] })
   expect(restored?.hiddenIds).toEqual(['models'])
   expect(visibleSettingsGroups([], restored ?? initial)).toHaveLength(1)
 })

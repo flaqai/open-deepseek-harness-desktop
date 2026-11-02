@@ -9,10 +9,13 @@ export interface SettingsNavigationGroup {
   collapsed?: boolean
 }
 
+/** Top-level navigation order; groups cannot nest. */
+export type SettingsNavigationNode = { kind: 'section'; id: string } | (SettingsNavigationGroup & { kind: 'group' })
+
 /** Versioned Profile preference for settings navigation, independent of plugin activation. */
 export interface SettingsNavigationLayout {
-  version: 1
-  groups: SettingsNavigationGroup[]
+  version: 2
+  nodes: SettingsNavigationNode[]
   hiddenIds: string[]
 }
 

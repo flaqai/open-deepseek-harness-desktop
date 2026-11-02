@@ -4,12 +4,12 @@ import { createPortal } from 'react-dom'
 import { Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsNavigationLayout } from '../types.ts'
 import type { SettingsSectionRow, SettingsRootComponentProps } from './shell-contract.ts'
-import { moveLayoutGroup, moveLayoutSection, setLayoutGroupState, setLayoutSectionHidden, visibleSettingsGroups } from './section-layout.ts'
+import { moveLayoutGroup, moveLayoutSection, setLayoutGroupState, setLayoutSectionHidden, visibleSettingsNodes } from './section-layout.ts'
 import { settingsSectionAutoScroll } from './section-order.ts'
 import css from './SettingsNavigation.module.css'
 
 type Move = { kind: 'group' | 'section'; id: string }
-type Target = { group: string; section?: string; after: boolean }
+type Target = { kind: 'into' | 'inside'; group: string; index: number } | { kind: 'standalone' | 'group'; index: number }
 interface Props {
   rows: readonly SettingsSectionRow[]
   layout: SettingsNavigationLayout
@@ -25,6 +25,14 @@ interface Props {
 export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, onManage, icon }: Props): ReactElement {
   const hintId = useId()
   const rail = useRef<HTMLDivElement>(null)
+  const scrollbarTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [scrolling, setScrolling] = useState(false)
+  useEffect(() => () => { clearTimeout(scrollbarTimer.current) }, [])
+  const showScrollbar = () => {
+    setScrolling(true)
+    clearTimeout(scrollbarTimer.current)
+    scrollbarTimer.current = setTimeout(() => { setScrolling(false) }, 800)
+  }
   const move = useRef<Move | undefined>(undefined)
   const target = useRef<Target | undefined>(undefined)
   const velocity = useRef(0)
@@ -51,14 +59,16 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
   const pointerId = useRef<number | undefined>(undefined)
   const dragGeometry = useRef<{
     scrollTop: number
-    groups: { id: string; box: DOMRect; rows: { id: string; box: DOMRect }[] }[]
+    nodes: { id: string; kind: 'group' | 'section'; box: DOMRect; heading: DOMRect | undefined; rows: { id: string; box: DOMRect }[] }[]
   } | undefined>(undefined)
   const rects = useRef(new Map<string, DOMRect>())
+  const committed = useRef(false)
   const handlers = useRef({
     track: (_event: PointerEvent) => {}, finish: () => {}, cancel: () => {}, tick: () => {}, key: (_event: KeyboardEvent) => {},
   })
   const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const groups = visibleSettingsGroups(rows, preview ?? layout)
+  const nodes = visibleSettingsNodes(rows, ghost ? layout : preview ?? layout)
+  const groups = nodes.filter(node => node.kind === 'group')
   const project = (next: SettingsNavigationLayout) => { draft.current = next; setPreview(next) }
   useLayoutEffect(() => {
     const next = new Map<string, DOMRect>()
@@ -72,20 +82,24 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
       const beforeTop = previous === undefined ? undefined : previous.top + translateY
       next.set(key, rect)
       const isGroup = element.dataset.navigationContainer !== undefined
-      if (beforeTop !== undefined && move.current && isGroup === (move.current.kind === 'group')
+      if (beforeTop !== undefined && (move.current || committed.current) && (!move.current || isGroup === (move.current.kind === 'group'))
         && beforeTop !== rect.top && !reduced()) {
-        element.animate([{ transform: `translateY(${beforeTop - rect.top}px)` }, { transform: 'translateY(0)' }],
+        const parent = !isGroup ? element.closest<HTMLElement>('[data-navigation-container]') : null
+        const previousParent = parent ? rects.current.get(`group:${parent.dataset.navigationContainer}`) : undefined
+        const parentShift = committed.current && previousParent && parent ? previousParent.top - parent.getBoundingClientRect().top : 0
+        element.animate([{ transform: `translateY(${beforeTop - rect.top - parentShift}px)` }, { transform: 'translateY(0)' }],
           { duration: 180, easing: 'cubic-bezier(0.2,0,0,1)' })
       }
     })
     rects.current = next
+    committed.current = false
   }, [preview, layout])
   useLayoutEffect(() => {
     const pending = focusAfterMove.current
     if (!pending || move.current) return
     focusAfterMove.current = undefined
     const elements = [...(rail.current?.querySelectorAll<HTMLElement>('[data-navigation-section], [data-navigation-container]') ?? [])]
-    const entry = elements.find(element => pending.source.kind === 'group'
+    const entry = elements.filter(element => !element.closest('[inert]')).find(element => pending.source.kind === 'group'
       ? element.dataset.navigationContainer === pending.source.id : element.dataset.navigationSection === pending.source.id)
     const fallback = elements.find(element => element.dataset.navigationContainer === pending.group)
     ;(entry ?? fallback)?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true })
@@ -94,7 +108,7 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
     const source = move.current
     if (source && pointerId.current === undefined) {
       focusAfterMove.current = { source,
-        group: (draft.current ?? layout).groups.find(group => group.sectionIds.includes(source.id))?.id,
+        group: (draft.current ?? layout).nodes.find(node => node.kind === 'group' && node.sectionIds.includes(source.id))?.id,
       }
     }
     clearTimeout(armed.current); armed.current = undefined
@@ -112,88 +126,93 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
     const source = move.current
     const commit = () => {
       const next = draft.current
-      if (next && JSON.stringify(next) !== JSON.stringify(layout)) mutate(() => next)
+      if (next && JSON.stringify(next) !== JSON.stringify(layout)) { committed.current = true; mutate(() => next) }
       stop()
     }
     if (!ghost || reduced()) { commit(); return }
     if (frame.current !== undefined) cancelAnimationFrame(frame.current)
     frame.current = undefined
     const destination = [...(rail.current?.querySelectorAll<HTMLElement>('[data-navigation-section], [data-navigation-container]') ?? [])]
-      .find(element => source.kind === 'group'
+      .filter(element => !element.closest('[inert]')).find(element => source.kind === 'group'
         ? element.dataset.navigationContainer === source.id : element.dataset.navigationSection === source.id)
-    const groupId = draft.current?.groups.find(group => group.sectionIds.includes(source.id))?.id
+    const groupId = draft.current?.nodes.find(node => node.kind === 'group' && node.sectionIds.includes(source.id))?.id
     const collapsed = [...(rail.current?.querySelectorAll<HTMLElement>('[data-navigation-group]') ?? [])]
       .find(element => element.dataset.navigationGroup === groupId)
-    const bounds = (destination ?? collapsed)?.getBoundingClientRect()
+    const marker = rail.current?.querySelector<HTMLElement>('[data-navigation-drop-indicator]')
+    const into = target.current?.kind === 'into' ? [...(rail.current?.querySelectorAll<HTMLElement>('[data-navigation-heading]') ?? [])]
+      .find(element => element.dataset.navigationGroup === groupId) : undefined
+    const bounds = (marker ?? into ?? destination ?? collapsed)?.getBoundingClientRect()
     setGhost(current => current && { ...current, settling: true,
       ...(bounds ? { x: bounds.left, y: bounds.top, width: bounds.width } : {}),
     })
     settlement.current = setTimeout(commit, 180)
   }
-  const applyDrop = (source: Move, destination: Target) => {
-    const current = draft.current ?? layout
-    if (source.kind === 'group') {
-      if (source.id === destination.group) return
-      const rest = current.groups.filter(group => group.id !== source.id)
-      const index = rest.findIndex(group => group.id === destination.group)
-      project(moveLayoutGroup(current, source.id, index + (destination.after ? 1 : 0)))
-    } else {
-      if (source.id === destination.section) return
-      const group = current.groups.find(value => value.id === destination.group)
-      const ids = group?.sectionIds.filter(id => id !== source.id) ?? []
-      const index = destination.section === undefined ? ids.length : ids.indexOf(destination.section) + (destination.after ? 1 : 0)
-      project(moveLayoutSection(current, source.id, destination.group, index))
-    }
+  const applyDrop = (source: Move, destination: Target, current = layout) => {
+    target.current = destination
+    project(source.kind === 'group'
+      ? moveLayoutGroup(current, source.id, destination.index)
+      : moveLayoutSection(current, source.id,
+        destination.kind === 'into' || destination.kind === 'inside' ? destination.group : undefined, destination.index))
   }
   const locate = (point: { clientX: number; clientY: number }) => {
-    if (!move.current || settlement.current !== undefined) return
+    const source = move.current
+    if (!source || settlement.current !== undefined) return
     const viewport = rail.current?.getBoundingClientRect()
     if (!viewport) return
     velocity.current = settingsSectionAutoScroll(point.clientY, viewport.top, viewport.bottom)
+    if (viewport.width > 0 && (point.clientX < viewport.left || point.clientX > viewport.right)) {
+      target.current = undefined; project(layout); return
+    }
     const geometry = dragGeometry.current
-    if (geometry && geometry.groups.some(group => group.box.height > 0)) {
-      const y = point.clientY - offset.current.y + (ghost?.height ?? 0) / 2
-        + (rail.current?.scrollTop ?? 0) - geometry.scrollTop
-      let destination: Target | undefined
-      if (move.current.kind === 'group') {
-        const remaining = geometry.groups.filter(group => group.id !== move.current?.id)
-        const next = remaining.find(group => y < group.box.top + group.box.height / 2)
-        const last = remaining.at(-1)
-        if (next) destination = { group: next.id, after: false }
-        else if (last) destination = { group: last.id, after: true }
-      } else {
-        const group = geometry.groups.find(value => y <= value.box.bottom) ?? geometry.groups.at(-1)
-        if (group) {
-          const remaining = group.rows.filter(row => row.id !== move.current?.id)
-          const next = remaining.find(row => y < row.box.top + row.box.height / 2)
-          const last = remaining.at(-1)
-          destination = next ? { group: group.id, section: next.id, after: false }
-            : last ? { group: group.id, section: last.id, after: true } : { group: group.id, after: true }
+    const y = point.clientY + (rail.current?.scrollTop ?? 0) - (geometry?.scrollTop ?? 0)
+    let destination: Target | undefined
+    if (geometry?.nodes.some(node => node.box.height > 0)) {
+      const hit = geometry.nodes.find(node => y >= node.box.top && y <= node.box.bottom
+        && point.clientX >= node.box.left && point.clientX <= node.box.right)
+      if (source.kind === 'section' && hit?.kind === 'group') {
+        const group = layout.nodes.find(node => node.kind === 'group' && node.id === hit.id)
+        if (group?.kind === 'group') {
+          const heading = hit.heading
+          if (heading && y >= heading.top && y <= heading.bottom) destination = { kind: 'into', group: hit.id, index: 0 }
+          else if (!group.collapsed) {
+            const remaining = hit.rows.filter(row => row.id !== source.id)
+            const next = remaining.find(row => y < row.box.top + row.box.height / 2)
+            const ids = group.sectionIds.filter(id => id !== source.id)
+            destination = { kind: 'inside', group: hit.id, index: next ? ids.indexOf(next.id) : ids.length }
+          } else destination = { kind: 'into', group: hit.id, index: 0 }
         }
       }
-      if (destination && (target.current?.group !== destination.group || target.current.section !== destination.section
-        || target.current.after !== destination.after)) {
-        target.current = destination
-        applyDrop(move.current, destination)
+      if (!destination) {
+        const remaining = geometry.nodes.filter(node => node.id !== source.id || node.kind !== source.kind)
+        const next = remaining.find(node => y < node.box.top + node.box.height / 2)
+        const rest = layout.nodes.filter(node => node.kind !== source.kind || node.id !== source.id)
+        destination = { kind: source.kind === 'group' ? 'group' : 'standalone',
+          index: next ? rest.findIndex(node => node.id === next.id && node.kind === next.kind) : rest.length }
       }
-      return
+    } else {
+      // Non-layout renderers can identify a target element without measurable boxes.
+      const hit = document.elementFromPoint(point.clientX, point.clientY)?.closest<HTMLElement>('[data-navigation-group], [data-navigation-section]')
+      if (!hit || !rail.current?.contains(hit)) return
+      const groupId = hit.dataset.navigationGroup
+      const sectionId = hit.dataset.navigationSection
+      if (source.kind === 'section' && groupId) {
+        const group = layout.nodes.find(node => node.kind === 'group' && node.id === groupId)
+        if (group?.kind === 'group') {
+          const ids = group.sectionIds.filter(id => id !== source.id)
+          const bounds = hit.getBoundingClientRect()
+          destination = sectionId ? { kind: 'inside', group: groupId,
+            index: ids.indexOf(sectionId) + (point.clientY > bounds.top + bounds.height / 2 ? 1 : 0) }
+            : { kind: 'into', group: groupId, index: 0 }
+        }
+      } else {
+        const top = hit.closest<HTMLElement>('[data-navigation-top]')
+        const rest = layout.nodes.filter(node => node.id !== source.id || node.kind !== source.kind)
+        const index = rest.findIndex(node => node.id === top?.dataset.navigationTop && node.kind === top.dataset.navigationKind)
+        if (index >= 0) destination = { kind: source.kind === 'group' ? 'group' : 'standalone',
+          index: index + (point.clientY > hit.getBoundingClientRect().top + hit.getBoundingClientRect().height / 2 ? 1 : 0) }
+      }
     }
-    const element = document.elementFromPoint(point.clientX, point.clientY)?.closest<HTMLElement>('[data-navigation-group]')
-    if (!element || !rail.current?.contains(element)) return
-    const group = element.dataset.navigationGroup
-    if (!group) return
-    const section = move.current.kind === 'section' ? element.dataset.navigationSection : undefined
-    if (move.current.kind === 'group' ? move.current.id === group : move.current.id === section) return
-    const hit = move.current.kind === 'group' ? element.closest<HTMLElement>('[data-navigation-container]') ?? element : element
-    const bounds = hit.getBoundingClientRect()
-    const destination: Target = {
-      group, ...(section === undefined ? {} : { section }), after: point.clientY > bounds.top + bounds.height / 2,
-    }
-    if (target.current?.group !== destination.group || target.current.section !== destination.section
-      || target.current.after !== destination.after) {
-      target.current = destination
-      applyDrop(move.current, destination)
-    }
+    if (destination && JSON.stringify(target.current) !== JSON.stringify(destination)) applyDrop(source, destination)
   }
   handlers.current = {
     finish, cancel: stop,
@@ -262,16 +281,18 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
         const bounds = (container ?? element).getBoundingClientRect()
         offset.current = { x: origin.current.x - bounds.left, y: origin.current.y - bounds.top }
         dragGeometry.current = { scrollTop: rail.current?.scrollTop ?? 0,
-          groups: [...(rail.current?.querySelectorAll<HTMLElement>('[data-navigation-container]') ?? [])].map(group => ({
-            id: group.dataset.navigationContainer ?? '', box: group.getBoundingClientRect(),
-            rows: [...group.querySelectorAll<HTMLElement>('[data-navigation-section]')].map(row => ({
+          nodes: [...(rail.current?.querySelectorAll<HTMLElement>('[data-navigation-top]') ?? [])].map(node => ({
+            id: node.dataset.navigationTop ?? '', kind: node.dataset.navigationKind as 'group' | 'section', box: node.getBoundingClientRect(),
+            heading: node.querySelector<HTMLElement>('[data-navigation-heading]')?.getBoundingClientRect(),
+            rows: [...node.querySelectorAll<HTMLElement>('[data-navigation-section]')].filter(row => !row.closest('[inert]')).map(row => ({
               id: row.dataset.navigationSection ?? '', box: row.getBoundingClientRect(),
             })),
           })),
         }
+
         const group = groups.find(value => value.id === source.id)
         const content = source.kind === 'group' ? <>
-          <div className={css.heading}><div className={css.page}>{group?.label || t('nav.ungrouped')}</div></div>
+          <div className={css.heading}><div className={css.page}>{group?.label}</div><span className={css.ghostTools} /></div>
           {!group?.collapsed && group?.rows.map(row => <div className={css.page} key={row.id}>{icon(row.id)}
             <span className={css.label}>{row.label}</span></div>)}</>
           : <div className={css.page}>{icon(source.id)}
@@ -281,7 +302,7 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
         project(layout)
         setMenu(undefined)
         frame.current = requestAnimationFrame(() => { handlers.current.tick() })
-      }, 350)
+      }, 200)
     },
     onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => {
       if (event.key === ' ' && !move.current) {
@@ -294,52 +315,122 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
       if (!event.key.startsWith('Arrow')) return
       event.preventDefault(); event.stopPropagation()
       const current = draft.current ?? layout
-      const visible = current.groups.filter(group => !group.hidden)
-      const index = visible.findIndex(group => source.kind === 'group' ? group.id === source.id : group.sectionIds.includes(source.id))
-      const group = visible[index]
-      if (!group) return
+      const parent = source.kind === 'section' ? current.nodes.find(node => node.kind === 'group' && node.sectionIds.includes(source.id)) : undefined
+      const topIndex = parent ? current.nodes.indexOf(parent)
+        : current.nodes.findIndex(node => node.kind === source.kind && node.id === source.id)
+      const shown = new Set(visibleSettingsNodes(rows, current).map(node => `${node.kind}:${node.id}`))
+      const isVisible = (node: SettingsNavigationLayout['nodes'][number]) => shown.has(`${node.kind}:${node.id}`)
       const direction = ['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1
       if (source.kind === 'group') {
-        const next = visible[index + direction]
-        if (next) project(moveLayoutGroup(current, source.id, current.groups.findIndex(value => value.id === next.id)))
-      } else if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
-        const next = visible[index + direction]
-        if (next) project(moveLayoutSection(current, source.id, next.id, next.sectionIds.length))
-      } else project(moveLayoutSection(current, source.id, group.id, group.sectionIds.indexOf(source.id) + direction))
+        const remaining = current.nodes.filter(node => node.kind !== 'group' || node.id !== source.id)
+        const visible = remaining.filter(isVisible)
+        const next = direction < 0 ? visible.filter(node => current.nodes.indexOf(node) < topIndex).at(-1)
+          : visible.find(node => current.nodes.indexOf(node) > topIndex)
+        if (next) applyDrop(source, { kind: 'group', index: remaining.indexOf(next) + (direction > 0 ? 1 : 0) }, current)
+      } else if (event.key === 'ArrowLeft' && parent) {
+        applyDrop(source, { kind: 'standalone', index: topIndex }, current)
+      } else if (event.key === 'ArrowRight') {
+        const next = current.nodes.slice(topIndex + 1).find(node => node.kind === 'group' && isVisible(node))
+        if (next) applyDrop(source, { kind: 'into', group: next.id, index: 0 }, current)
+      } else if (parent?.kind === 'group') {
+        const visible = parent.sectionIds.filter(id => !current.hiddenIds.includes(id) && rows.some(row => row.id === id))
+        const next = visible[visible.indexOf(source.id) + direction]
+        if (next) {
+          const ids = parent.sectionIds.filter(id => id !== source.id)
+          applyDrop(source, { kind: 'inside', group: parent.id, index: ids.indexOf(next) + (direction > 0 ? 1 : 0) }, current)
+        } else applyDrop(source, { kind: 'standalone', index: topIndex + (direction > 0 ? 1 : 0) }, current)
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        const remaining = current.nodes.filter(node => node.kind !== 'section' || node.id !== source.id)
+        const next = direction < 0 ? remaining.filter(node => current.nodes.indexOf(node) < topIndex && isVisible(node)).at(-1)
+          : remaining.find(node => current.nodes.indexOf(node) > topIndex && isVisible(node))
+        if (next?.kind === 'group') applyDrop(source, { kind: direction > 0 || next.collapsed ? 'into' : 'inside', group: next.id,
+          index: direction > 0 || next.collapsed ? 0 : next.sectionIds.length }, current)
+        else if (next) applyDrop(source, { kind: 'standalone', index: remaining.indexOf(next) + (direction > 0 ? 1 : 0) }, current)
+      }
+
     },
   })
-  return <div ref={rail} className={css.rail} data-dragging={move.current !== undefined} tabIndex={-1}>
+  let pointerLine: { kind: 'group' | 'section' | 'members'; id: string; after: boolean } | undefined
+  const dropTarget = target.current
+  if (ghost && dropTarget && dropTarget.kind !== 'into') {
+    const source = move.current
+    if (dropTarget.kind === 'inside') {
+      const group = groups.find(group => group.id === dropTarget.group)
+      const stored = layout.nodes.find(node => node.kind === 'group' && node.id === dropTarget.group)
+      const ids = stored?.kind === 'group' ? stored.sectionIds.filter(id => id !== source?.id) : []
+      const visible = group?.rows.filter(row => row.id !== source?.id) ?? []
+      const next = visible.find(row => ids.indexOf(row.id) >= dropTarget.index)
+      const last = visible.at(-1)
+      pointerLine = next ? { kind: 'section', id: next.id, after: false }
+        : last ? { kind: 'section', id: last.id, after: true } : { kind: 'members', id: dropTarget.group, after: false }
+    } else {
+      const rest = layout.nodes.filter(node => node.kind !== source?.kind || node.id !== source.id)
+      const visible = nodes.filter(node => node.kind !== source?.kind || node.id !== source.id)
+      const next = visible.find(node => rest.findIndex(item => item.kind === node.kind && item.id === node.id) >= dropTarget.index)
+      const last = visible.at(-1)
+      pointerLine = next ? { kind: next.kind, id: next.id, after: false } : last ? { kind: last.kind, id: last.id, after: true } : undefined
+    }
+  }
+  const indicator = (kind: 'group' | 'section' | 'members', id: string) => {
+    const show = ghost ? pointerLine?.kind === kind && pointerLine.id === id
+      : move.current?.kind === kind && move.current.id === id
+    return show && dropTarget && dropTarget.kind !== 'into'
+      ? <span className={css.dropIndicator} data-navigation-drop-indicator data-scope={dropTarget.kind}
+        data-edge={ghost && pointerLine?.after ? 'after' : undefined} aria-hidden="true" /> : null
+  }
+  const renderRow = (row: SettingsSectionRow, groupId?: string) => <div key={`section:${row.id}`} className={css.row}
+    data-placeholder={Boolean(ghost && move.current?.kind === 'section' && move.current.id === row.id)}
+    data-navigation-group={groupId} data-navigation-section={row.id}
+    data-navigation-top={groupId === undefined ? row.id : undefined} data-navigation-kind={groupId === undefined ? 'section' : undefined}>
+    {indicator('section', row.id)}
+    <button type="button" className={css.page} {...interaction({ kind: 'section', id: row.id })}
+      aria-current={row.id === active ? 'true' : undefined} data-modal-autofocus={row.id === active && !groups.some(group => group.id === groupId && group.collapsed) ? '' : undefined}
+      onFocus={(event) => { event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }}
+      onClick={() => { if (!suppress.current && !move.current) onSelect(row.id); suppress.current = false }}>
+      {icon(row.id)}<span className={css.label}>{row.label}</span></button>
+    <Menu open={menu === `section:${row.id}`} onClose={() => { setMenu(undefined) }} portal
+      items={[{ id: 'hide', label: t('nav.hideItem') },
+        ...(groupId === undefined ? [] : [{ id: 'detach', label: t('nav.dropStandalone') }]),
+        ...groups.filter(group => group.id !== groupId).map(group => ({ id: `to:${group.id}`, label: `${t('nav.moveTo')}: ${group.label}` }))]}
+      onSelect={(id) => { setMenu(undefined); mutate((current) => {
+        if (id === 'hide') return setLayoutSectionHidden(current, row.id, true)
+        if (id === 'detach') return moveLayoutSection(current, row.id, undefined, current.nodes.findIndex(node => node.id === groupId) + 1)
+        return moveLayoutSection(current, row.id, id.slice(3), 0)
+      }) }} anchor={<button type="button" className={`${css.tool} ${css.more}`} data-open={menu === `section:${row.id}`}
+        aria-label={`${t('nav.organize')}: ${row.label}`} onClick={() => { setMenu(`section:${row.id}`) }}>···</button>} />
+  </div>
+  const destination = target.current
+  const announcement = !move.current || !destination ? '' : destination.kind === 'into' || destination.kind === 'inside'
+    ? t('nav.dropInGroup', { name: groups.find(group => group.id === destination.group)?.label ?? '' })
+    : t(destination.kind === 'group' ? 'nav.dropGroup' : 'nav.dropStandalone')
+  return <div ref={rail} className={css.rail} data-scrolling={scrolling} onScroll={showScrollbar} onWheel={showScrollbar}
+    data-dragging={move.current !== undefined} tabIndex={-1}>
     <span id={hintId} className={css.hidden}>{t('nav.dragHint')}</span>
-    {groups.length === 0 ? <p>{t('nav.empty')}</p> : null}
-    {groups.map(group => <div key={group.id} className={css.group} data-navigation-container={group.id} data-placeholder={Boolean(ghost && move.current?.kind === 'group' && move.current.id === group.id)}>
-      <div className={css.heading} data-navigation-group={group.id}>
-        <button type="button" className={css.page} {...interaction({ kind: 'group', id: group.id })}>{group.id === 'ungrouped' ? t('nav.ungrouped') : group.label}</button>
-        <Menu open={menu === group.id} onClose={() => { setMenu(undefined) }} portal
-          items={[...(group.id === 'ungrouped' ? [] : [{ id: 'rename', label: t('nav.renameGroup') }, { id: 'delete', label: t('nav.deleteGroup') }]), { id: 'hide', label: t('nav.hideGroup') }]}
+    <span className={css.hidden} role="status" aria-live="polite" aria-atomic="true">{announcement}</span>
+    {nodes.length === 0 ? <p>{t('nav.empty')}</p> : null}
+    {nodes.map(node => node.kind === 'section' ? renderRow(node.row) : <div key={`group:${node.id}`} className={css.group}
+      data-navigation-container={node.id} data-navigation-top={node.id} data-navigation-kind="group"
+      data-drop-into={destination?.kind === 'into' && destination.group === node.id}
+      data-placeholder={Boolean(ghost && move.current?.kind === 'group' && move.current.id === node.id)}>
+      {indicator('group', node.id)}
+      <div className={css.heading} data-navigation-heading data-navigation-group={node.id}>
+        <button type="button" className={css.page} {...interaction({ kind: 'group', id: node.id })}
+          data-modal-autofocus={node.collapsed && node.rows.some(row => row.id === active) ? '' : undefined}>{node.label}</button>
+        <Menu open={menu === node.id} onClose={() => { setMenu(undefined) }} portal
+          items={[{ id: 'rename', label: t('nav.renameGroup') }, { id: 'delete', label: t('nav.deleteGroup') }, { id: 'hide', label: t('nav.hideGroup') }]}
           onSelect={(id) => {
             setMenu(undefined)
-            if (id === 'hide') mutate(current => setLayoutGroupState(current, group.id, { hidden: true }))
-            else if (id === 'rename' || id === 'delete') onManage(group.id, id)
-          }}
-          anchor={<button type="button" className={`${css.tool} ${css.more}`} data-open={menu === group.id} aria-label={`${t('nav.organize')}: ${group.label || t('nav.ungrouped')}`} onClick={() => { setMenu(group.id) }}>···</button>} />
-        <button type="button" className={css.tool} aria-expanded={!group.collapsed} aria-label={group.label || t('nav.ungrouped')}
-          onClick={() => { mutate(current => setLayoutGroupState(current, group.id, { collapsed: !group.collapsed })) }}>
-          <span className={css.chevron} data-collapsed={group.collapsed}>⌃</span></button>
+            if (id === 'hide') mutate(current => setLayoutGroupState(current, node.id, { hidden: true }))
+            else if (id === 'rename' || id === 'delete') onManage(node.id, id)
+          }} anchor={<button type="button" className={`${css.tool} ${css.more}`} data-open={menu === node.id}
+            aria-label={`${t('nav.organize')}: ${node.label}`} onClick={() => { setMenu(node.id) }}>···</button>} />
+        <button type="button" className={css.tool} aria-expanded={!node.collapsed} aria-label={node.label}
+          onClick={() => { mutate(current => setLayoutGroupState(current, node.id, { collapsed: !node.collapsed })) }}>
+          <span className={css.chevron} data-collapsed={node.collapsed}>⌃</span></button>
       </div>
-      {!group.collapsed ? group.rows.map(row => <div key={row.id} className={css.row} data-placeholder={Boolean(ghost && move.current?.kind === 'section' && move.current.id === row.id)}
-        data-navigation-group={group.id} data-navigation-section={row.id}>
-        <button type="button" className={css.page} {...interaction({ kind: 'section', id: row.id })} aria-current={row.id === active ? 'true' : undefined} data-modal-autofocus={row.id === active ? '' : undefined}
-          onFocus={(event) => { event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }} onClick={() => { if (!suppress.current && !move.current) onSelect(row.id); suppress.current = false }}>{icon(row.id)}<span className={css.label}>{row.label}</span></button>
-        <Menu open={menu === `section:${row.id}`} onClose={() => { setMenu(undefined) }} portal
-          items={[{ id: 'hide', label: t('nav.hideItem') }, ...groups.filter(value => value.id !== group.id).map(value => ({ id: `to:${value.id}`, label: `${t('nav.moveTo')}: ${value.label || t('nav.ungrouped')}` }))]}
-          onSelect={(id) => { setMenu(undefined); mutate((current) => {
-            if (id === 'hide') return setLayoutSectionHidden(current, row.id, true)
-            const destination = id.startsWith('to:') ? id.slice(3) : group.id
-            const targetGroup = current.groups.find(value => value.id === destination)
-            const index = targetGroup?.sectionIds.length ?? 0
-            return moveLayoutSection(current, row.id, destination, index)
-          }) }} anchor={<button type="button" className={`${css.tool} ${css.more}`} data-open={menu === `section:${row.id}`} aria-label={`${t('nav.organize')}: ${row.label}`} onClick={() => { setMenu(`section:${row.id}`) }}>···</button>} />
-      </div>) : null}
+      <div className={css.members} data-collapsed={node.collapsed} aria-hidden={node.collapsed} ref={(element) => { element?.toggleAttribute('inert', node.collapsed) }}>
+        <div className={css.membersClip}><div className={css.membersList}>{indicator('members', node.id)}{node.rows.map(row => renderRow(row, node.id))}</div></div>
+      </div>
     </div>)}
     {ghost ? createPortal(<div className={css.dragViewport} aria-hidden="true"
       style={{ left: ghost.viewport.left, top: ghost.viewport.top, width: ghost.viewport.width, height: ghost.viewport.height }}>

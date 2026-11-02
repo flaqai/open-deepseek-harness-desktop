@@ -24,8 +24,15 @@ export const Config = z.object({
       id: z.string(), label: z.string(), sectionIds: z.array(z.string()),
       hidden: z.union([z.const(undefined), z.boolean()]),
       collapsed: z.union([z.const(undefined), z.boolean()]),
-    })),
-    hiddenIds: z.array(z.string()),
+    })), hiddenIds: z.array(z.string()),
+  }), z.object({
+    version: z.const(2),
+    nodes: z.array(z.union([
+      z.object({ kind: z.const('section'), id: z.string() }),
+      z.object({ kind: z.const('group'), id: z.string(), label: z.string(), sectionIds: z.array(z.string()),
+        hidden: z.union([z.const(undefined), z.boolean()]), collapsed: z.union([z.const(undefined), z.boolean()]),
+      }),
+    ])), hiddenIds: z.array(z.string()),
   })]).volatile(),
 })
 

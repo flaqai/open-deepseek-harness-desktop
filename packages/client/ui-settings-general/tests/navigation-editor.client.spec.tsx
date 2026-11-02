@@ -35,7 +35,7 @@ it('creates and renames groups only after confirming the name', () => {
   expect(screen.getByRole('group', { name: 'Personal' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: en['nav.up'] })).toBeNull()
 })
-it('requires deletion confirmation and cannot delete Ungrouped', () => {
+it('requires deletion confirmation', () => {
   render(<Fixture />)
   expect(screen.queryByRole('button', { name: en['nav.deleteGroup'] })).toBeNull()
   addGroup()
@@ -50,15 +50,16 @@ it('requires deletion confirmation and cannot delete Ungrouped', () => {
 it('changes group visibility independently of single entry recovery', () => {
   const change = vi.fn()
   render(<Fixture change={change} />)
+  addGroup()
   fireEvent.click(screen.getByRole('switch', { name: en['nav.showGroup'] }))
-  expect(change.mock.lastCall?.[0]).toMatchObject({ hiddenIds: ['models'], groups: [{ hidden: true }] })
+  expect(change.mock.lastCall?.[0]).toMatchObject({ hiddenIds: ['models'], nodes: [{ kind: 'section' }, { kind: 'section' }, { kind: 'group', hidden: true }] })
   fireEvent.click(screen.getByRole('button', { name: en['nav.restoreEntry'] }))
-  expect(change.mock.lastCall?.[0]).toMatchObject({ hiddenIds: [], groups: [{ hidden: true }] })
+  expect(change.mock.lastCall?.[0]).toMatchObject({ hiddenIds: [], nodes: [{ kind: 'section' }, { kind: 'section' }, { kind: 'group', hidden: true }] })
 })
 
 it('opens the requested rename or deletion action from the group menu', () => {
-  const layout = { ...resolveSettingsLayout(rows, undefined, []), groups: [
-    { id: 'ungrouped', label: '', sectionIds: [] }, { id: 'work', label: 'Work', sectionIds: ['models'] },
+  const layout = { ...resolveSettingsLayout(rows, undefined, []), nodes: [
+    { kind: 'group' as const, id: 'work', label: 'Work', sectionIds: ['models'] },
   ] }
   Element.prototype.scrollIntoView = vi.fn()
   const props = { rows, layout, onChange: vi.fn(), onClose: vi.fn(), t: makeTranslate(en), selectedGroupId: 'work' }
@@ -66,4 +67,14 @@ it('opens the requested rename or deletion action from the group menu', () => {
   expect(screen.getByLabelText<HTMLInputElement>(en['nav.groupName']).value).toBe('Work')
   view.rerender(<SettingsNavigationEditor {...props} selectedGroupAction="delete" />)
   expect(screen.getByRole('alert').textContent).toContain(en['nav.deleteGroupHint'])
+})
+
+it('restores panel dimensions without changing navigation preferences', () => {
+  const reset = vi.fn()
+  const change = vi.fn()
+  render(<SettingsNavigationEditor rows={rows} layout={resolveSettingsLayout(rows, undefined, [])}
+    onChange={change} onClose={() => {}} onResetSize={reset} t={makeTranslate(en)} />)
+  fireEvent.click(screen.getByRole('button', { name: en['nav.resetSize'] }))
+  expect(reset).toHaveBeenCalledOnce()
+  expect(change).not.toHaveBeenCalled()
 })

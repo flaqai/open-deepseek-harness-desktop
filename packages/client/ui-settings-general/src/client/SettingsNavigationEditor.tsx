@@ -13,12 +13,13 @@ export interface SettingsNavigationEditorProps {
   t: SettingsRootComponentProps['t']
   onChange: (operation: (layout: SettingsNavigationLayout) => SettingsNavigationLayout) => void
   onClose: () => void
+  onResetSize?: () => void
   selectedGroupId?: string
   selectedGroupAction?: 'rename' | 'delete'
 }
 /** Manage groups and recover hidden entries. */
 export function SettingsNavigationEditor({
-  rows, layout, t, onChange, onClose, selectedGroupId, selectedGroupAction,
+  rows, layout, t, onChange, onClose, onResetSize, selectedGroupId, selectedGroupAction,
 }: SettingsNavigationEditorProps) {
   const [editing, setEditing] = useState<string>()
   const [name, setName] = useState('')
@@ -26,8 +27,8 @@ export function SettingsNavigationEditor({
   const selected = useRef<HTMLFieldSetElement>(null)
   useEffect(() => { selected.current?.scrollIntoView({ block: 'nearest' }) }, [selectedGroupId])
   useEffect(() => {
-    const group = layout.groups.find(value => value.id === selectedGroupId)
-    if (group === undefined || group.id === 'ungrouped') return
+    const group = layout.nodes.filter(node => node.kind === 'group').find(value => value.id === selectedGroupId)
+    if (group === undefined) return
     if (selectedGroupAction === 'rename') { setEditing(group.id); setName(group.label) }
     if (selectedGroupAction === 'delete') setDeleting(group.id)
   }, [selectedGroupId, selectedGroupAction])
@@ -35,8 +36,8 @@ export function SettingsNavigationEditor({
     const label = name.trim()
     if (!label || editing === undefined) return
     if (editing === 'new') onChange((current) => {
-      let index = current.groups.length
-      while (current.groups.some(group => group.id === `custom-${index}`)) index += 1
+      let index = current.nodes.length
+      while (current.nodes.some(group => group.id === `custom-${index}`)) index += 1
       return addLayoutGroup(current, `custom-${index}`, label)
     })
     else {
@@ -47,13 +48,14 @@ export function SettingsNavigationEditor({
   }
   return <section className={css.editor}>
     <header><h2>{t('nav.organizerTitle')}</h2><p>{t('nav.organizerHint')}</p></header>
+    {onResetSize ? <Button variant="outline" onClick={onResetSize}>{t('nav.resetSize')}</Button> : null}
     <Button variant="outline" onClick={() => { setEditing('new'); setName('') }}>{t('nav.addGroup')}</Button>
     {editing !== undefined ? <form className={css.group} onSubmit={(event) => { event.preventDefault(); submitName() }}>
       <label>{t('nav.groupName')}<input autoFocus maxLength={40} value={name} onChange={(event) => { setName(event.target.value) }} /></label>
       <div className={css.actions}><Button type="submit" disabled={!name.trim()}>{t('nav.save')}</Button><Button type="button" variant="outline" onClick={() => { setEditing(undefined) }}>{t('nav.cancel')}</Button></div>
     </form> : null}
-    {layout.groups.map(group => <fieldset className={css.group} key={group.id} ref={group.id === selectedGroupId ? selected : undefined}>
-      <legend>{group.id === 'ungrouped' ? t('nav.ungrouped') : group.label}</legend>
+    {layout.nodes.filter(node => node.kind === 'group').map(group => <fieldset className={css.group} key={group.id} ref={group.id === selectedGroupId ? selected : undefined}>
+      <legend>{group.label}</legend>
       <div className={css.visibilityRow}>
         <div className={css.visibilityText}>
           <div>{t('nav.showGroup')}</div>
@@ -61,14 +63,14 @@ export function SettingsNavigationEditor({
         </div>
         <Switch checked={!group.hidden} label={t('nav.showGroup')} onChange={(visible) => {
           onChange(current => ({ ...current,
-            groups: current.groups.map(value => value.id === group.id ? { ...value, hidden: !visible } : value),
+            nodes: current.nodes.map(value => value.kind === 'group' && value.id === group.id ? { ...value, hidden: !visible } : value),
           }))
         }} />
       </div>
-      {group.id !== 'ungrouped' ? <div className={css.actions}>
+      <div className={css.actions}>
         <Button variant="outline" onClick={() => { setEditing(group.id); setName(group.label) }}>{t('nav.renameGroup')}</Button>
         <Button variant="outline" onClick={() => { setDeleting(group.id) }}>{t('nav.deleteGroup')}</Button>
-      </div> : null}
+      </div>
       {deleting === group.id ? <div role="alert" className={css.confirm}>
         <p>{t('nav.deleteGroupHint')}</p><div className={css.actions}>
           <Button onClick={() => { onChange(current => removeLayoutGroup(current, group.id)); setDeleting(undefined) }}>{t('nav.confirmDelete')}</Button>

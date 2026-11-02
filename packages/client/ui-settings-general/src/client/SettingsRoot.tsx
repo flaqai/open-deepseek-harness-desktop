@@ -24,6 +24,7 @@ import {
 import type { ConnectionIndicatorState } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import { resolveSettingsLayout } from './section-layout.ts'
+import { usePanelSize } from './use-panel-size.ts'
 import { useNavigationLayout } from './use-navigation-layout.ts'
 import { SettingsNavigation } from './SettingsNavigation.tsx'
 import type { SettingsNavigationLayout } from '../types.ts'
@@ -68,6 +69,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
   const [selectedGroupId, setSelectedGroupId] = useState<string>()
   const [selectedGroupAction, setSelectedGroupAction] = useState<'rename' | 'delete'>()
   const navigation = useNavigationLayout(layout, saveLayout)
+  const sizing = usePanelSize()
   // Entries can unmount underneath the requested id, so the render-time
   // projection falls back to the first row when the id is gone.
   const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
@@ -83,7 +85,9 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
   return createPortal((
     <div className={css.overlay} role="presentation">
       <div className={css.mask} aria-hidden="true" onClick={onClose} />
-      <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div ref={panel} tabIndex={-1} data-shortcut-modal="settings" style={sizing.style} className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        {['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(edge => <div key={edge} className={css.resizeHandle} data-edge={edge}
+          aria-hidden="true" onPointerDown={(event) => { sizing.start(edge, event) }} />)}
         {/* The four seats stay direct children of the panel and take their
             places from its grid: title and header share the first row, the
             navigation and the active section the second. */}
@@ -99,6 +103,12 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
             onSelect={(id) => { setManaging(false); onSelect(id) }} icon={navIcon}
             onManage={(id, action) => { setSelectedGroupId(id); setSelectedGroupAction(action); setManaging(true) }} />
           {navigation.failed ? <p role="alert">{t('nav.saveFailed')}</p> : null}
+          <div className={css.divider} aria-hidden="true" onPointerDown={(event) => { sizing.start('divider', event) }}
+            onWheel={(event) => {
+              const rail = event.currentTarget.parentElement?.querySelector<HTMLElement>('[data-scrolling]')
+              if (rail) rail.scrollTop += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rail.clientHeight : 1)
+              event.stopPropagation()
+            }} />
         </nav>
         <div className={css.header}>
           <div className={css.actions}>{renderSlot('settings.action', {})}</div>
@@ -108,7 +118,8 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
           </button>
         </div>
         <div className={css.options}>
-          {managing ? <SettingsNavigationEditor rows={rows} layout={navigation.layout} t={t} onChange={navigation.mutate}
+          {managing ? <SettingsNavigationEditor rows={rows} layout={navigation.layout} t={t}
+            onChange={navigation.mutate} onResetSize={sizing.reset}
             {...(selectedGroupId === undefined ? {} : { selectedGroupId })}
             {...(selectedGroupAction === undefined ? {} : { selectedGroupAction })} onClose={() => { setManaging(false) }} />
             : active !== undefined && renderSlot('settings.section', { close: onClose, ...(preferredSubsectionId === undefined ? {} : { preferredSubsectionId }) }, { only: active })}

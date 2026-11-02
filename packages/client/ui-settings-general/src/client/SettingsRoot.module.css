@@ -22,7 +22,7 @@
   width: auto;
   height: 42px;
   margin: 0;
-  padding: 0 calc(var(--dsh-sidebar-row-padding) - var(--dsh-sidebar-paint-inset));
+  padding: 0 calc(var(--dsh-sidebar-footer-row-padding, 6px) - var(--dsh-sidebar-paint-inset));
   box-sizing: border-box;
   border: none;
   border-radius: var(--dsw-radius-md);
@@ -81,7 +81,7 @@
   backdrop-filter: var(--dsw-mask-blur);
 }
 
-/* Settings uses a shared 800×800 panel; longer sections scroll
+/* Settings uses a shared 808×800 panel; longer sections scroll
    inside the options column; the navigation scrolls independently. One height for
    every section, taken from the viewport rather than the content, because a
    content-sized panel would resize under the pointer on every nav click.
@@ -96,13 +96,13 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 188px minmax(0, 1fr);
+  grid-template-columns: var(--settings-nav-width, 196px) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
     'title header'
     'nav options';
-  width: 800px;
-  height: min(800px, calc(100vh - 2 * max(24px, var(--dsh-frame-overlay-top, 24px))));
+  width: var(--settings-width, 808px);
+  height: min(var(--settings-height, 800px), calc(100vh - 2 * max(24px, var(--dsh-frame-overlay-top, 24px))));
   max-width: calc(100vw - 48px);
   border-radius: var(--dsw-radius-panel);
   overflow: hidden;
@@ -121,9 +121,10 @@
   outline: none;
 }
 
-/* Nav rail (figma .Setting-nav 501:29958): the 188px track's cells, pad
+/* Nav rail (figma .Setting-nav 501:29958): the 196px track's cells, pad
    (12,0), no own fill — the panel white shows through. */
 .nav {
+  position: relative;
   grid-area: nav;
   min-width: 0;
   min-height: 0;
@@ -354,3 +355,26 @@
    ui-web base.css's `body > :not(#root)` subtraction covers it wherever it
    overlaps a chrome row's drag — including above every column, which an in-root
    overlay could not promise once a chrome row declares drag itself. */
+
+.resizeHandle { position: absolute; z-index: 5; touch-action: none; user-select: none; }
+.resizeHandle[data-edge='n'], .resizeHandle[data-edge='s'] { left: 12px; right: 12px; height: 6px; cursor: ns-resize; }
+.resizeHandle[data-edge='n'] { top: 0; }
+.resizeHandle[data-edge='s'] { bottom: 0; }
+.resizeHandle[data-edge='e'], .resizeHandle[data-edge='w'] { top: 12px; bottom: 12px; width: 6px; cursor: ew-resize; }
+.resizeHandle[data-edge='e'] { right: 0; }
+.resizeHandle[data-edge='w'] { left: 0; }
+.resizeHandle[data-edge='ne'], .resizeHandle[data-edge='nw'], .resizeHandle[data-edge='se'], .resizeHandle[data-edge='sw'] { width: 12px; height: 12px; }
+.resizeHandle[data-edge='ne'] { top: 0; right: 0; cursor: nesw-resize; }
+.resizeHandle[data-edge='nw'] { top: 0; left: 0; cursor: nwse-resize; }
+.resizeHandle[data-edge='se'] { bottom: 0; right: 0; cursor: nwse-resize; }
+.resizeHandle[data-edge='sw'] { bottom: 0; left: 0; cursor: nesw-resize; }
+/* Share the native scrollbar track: horizontal gestures resize, vertical gestures scroll. */
+.divider { position: absolute; z-index: 4; top: 10px; bottom: 0; right: 12px; width: var(--dsh-scrollbar-width, 5px); border-radius: 3px; cursor: col-resize; touch-action: none; transition: background-color 150ms; }
+.divider:hover { background: var(--dsh-scrollbar-thumb-hover); }
+/* Scrolling keeps the native thumb visible instead of painting over the whole track. */
+.nav:has([data-scrolling='true']) .divider { background: transparent; }
+@media (prefers-reduced-motion: reduce) { .divider { transition: none; } }
+@media (max-width: 767px) {
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .resizeHandle,
+  :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .divider { display: none; }
+}

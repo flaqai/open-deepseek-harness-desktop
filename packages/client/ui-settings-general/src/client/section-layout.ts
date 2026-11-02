@@ -1,153 +1,163 @@
-/** Immutable settings navigation projection and edits; no plugin state is changed. */
-import type { SettingsNavigationLayout, SettingsNavigationGroup } from '../types.ts'
+/** Immutable navigation edits; feature activation and Profile writes belong to callers. */
+import type { SettingsNavigationLayout, SettingsNavigationNode } from '../types.ts'
 import type { SettingsSectionRow } from './shell-contract.ts'
 import { normalizeSectionOrder } from './section-order.ts'
 
-/** Validate the durable preference and retain absent plugin identities.
- * @param input Untrusted stored configuration.
- * @returns A normalized layout, or undefined for an unsupported envelope.
+/** Read either supported preference without modifying its source.
+ * @param input Untrusted versioned preference.
+ * @returns Normalized version-2 layout, or undefined for an unsupported envelope.
  */
 export function normalizeSettingsLayout(input: unknown): SettingsNavigationLayout | undefined {
-  if (input === null || typeof input !== 'object' || !('version' in input) || input.version !== 1
-    || !('groups' in input) || !Array.isArray(input.groups) || !('hiddenIds' in input) || !Array.isArray(input.hiddenIds)) return undefined
-  const groupIds = new Set<string>()
-  const sectionIds = new Set<string>()
-  const groups: SettingsNavigationGroup[] = []
-  const rawGroups: readonly unknown[] = input.groups
-  for (const row of rawGroups) {
-    if (row === null || typeof row !== 'object' || !('id' in row) || typeof row.id !== 'string' || row.id.trim() === ''
-      || groupIds.has(row.id) || !('label' in row) || typeof row.label !== 'string' || !('sectionIds' in row) || !Array.isArray(row.sectionIds)) continue
-    const label = row.id === 'ungrouped' ? '' : row.label.trim().slice(0, 40)
-    if (row.id !== 'ungrouped' && label === '') continue
-    groupIds.add(row.id)
-    const ids = row.sectionIds.filter((id: unknown): id is string => typeof id === 'string' && id.trim() !== '')
-      .filter((id: string) => { if (sectionIds.has(id)) return false; sectionIds.add(id); return true })
-    groups.push({ id: row.id, label, sectionIds: ids,
-      ...'hidden' in row && typeof row.hidden === 'boolean' ? { hidden: row.hidden } : {},
-      ...'collapsed' in row && typeof row.collapsed === 'boolean' ? { collapsed: row.collapsed } : {},
+  if (!input || typeof input !== 'object' || !('version' in input) || !('hiddenIds' in input) || !Array.isArray(input.hiddenIds)) return undefined
+  const legacy = input.version === 1
+  const raw = legacy && 'groups' in input ? input.groups : input.version === 2 && 'nodes' in input ? input.nodes : undefined
+  if (!Array.isArray(raw)) return undefined
+  const nodes: SettingsNavigationNode[] = []
+  const groups = new Set<string>(); const sections = new Set<string>()
+  const hiddenIds = normalizeSectionOrder(input.hiddenIds.filter((id): id is string => typeof id === 'string' && id.trim() !== '')).slice()
+  const accept = (id: unknown): id is string => {
+    if (typeof id !== 'string' || !id.trim() || sections.has(id)) return false
+    sections.add(id); return true
+  }
+  const rawNodes: readonly unknown[] = raw
+  for (const candidate of rawNodes) {
+    if (!candidate || typeof candidate !== 'object') continue
+    const row = candidate as Record<string, unknown>
+    if (typeof row.id !== 'string' || !row.id.trim()) continue
+    if (!legacy && row.kind === 'section') { if (accept(row.id)) nodes.push({ kind: 'section', id: row.id }); continue }
+    if ((!legacy && row.kind !== 'group') || typeof row.label !== 'string' || !Array.isArray(row.sectionIds) || groups.has(row.id)) continue
+    const label = row.label.trim().slice(0, 40)
+    if (row.id !== 'ungrouped' && !label) continue
+    groups.add(row.id)
+    const ids = (row.sectionIds as unknown[]).filter(accept)
+    if (legacy && row.id === 'ungrouped') {
+      nodes.push(...ids.map((id: string) => ({ kind: 'section' as const, id })))
+      if (row.hidden === true) hiddenIds.push(...ids)
+    } else nodes.push({ kind: 'group', id: row.id, label, sectionIds: ids,
+      ...(typeof row.hidden === 'boolean' ? { hidden: row.hidden } : {}),
+      ...(typeof row.collapsed === 'boolean' ? { collapsed: row.collapsed } : {}),
     })
   }
-  if (!groupIds.has('ungrouped')) groups.unshift({ id: 'ungrouped', label: '', sectionIds: [] })
-  return { version: 1, groups, hiddenIds: normalizeSectionOrder(input.hiddenIds.filter((id: unknown): id is string => typeof id === 'string' && id.trim() !== '')) .slice() }
+  return { version: 2, nodes, hiddenIds: [...new Set(hiddenIds)] }
 }
 
-/** Resolve registered pages without writing migration state.
- * @param rows Current ledger rows.
- * @param stored Accepted grouped preference.
- * @param legacyOrder Previous flat order.
- * @returns Layout with newly registered pages appended to the ungrouped group.
+/** Append newly registered pages, retaining missing plugin identities.
+ * @param rows Registered settings pages.
+ * @param stored Accepted persisted layout.
+ * @param legacyOrder Previous flat section order.
+ * @returns Layout with new pages appended as independent entries.
  */
 export function resolveSettingsLayout(
   rows: readonly SettingsSectionRow[], stored: SettingsNavigationLayout | undefined, legacyOrder: readonly string[],
 ): SettingsNavigationLayout {
-  const layout = normalizeSettingsLayout(stored) ?? { version: 1, groups: [{ id: 'ungrouped', label: '', sectionIds: [...normalizeSectionOrder(legacyOrder)] }], hiddenIds: [] }
-  const known = new Set(layout.groups.flatMap(group => group.sectionIds))
-  const fresh = rows.filter(row => !known.has(row.id)).map(row => row.id)
-  return { ...layout, groups: layout.groups.map(group => group.id === 'ungrouped' ? { ...group, sectionIds: [...group.sectionIds, ...fresh] } : group) }
+  const layout = normalizeSettingsLayout(stored) ?? { version: 2, nodes: normalizeSectionOrder(legacyOrder).map(id => ({ kind: 'section' as const, id })), hiddenIds: [] }
+  const known = new Set(layout.nodes.flatMap(node => node.kind === 'group' ? node.sectionIds : [node.id]))
+  return { ...layout, nodes: [...layout.nodes, ...rows.filter(row => !known.has(row.id)).map(row => ({ kind: 'section' as const, id: row.id }))] }
 }
 
-/** Project visible groups with current localized labels.
- * @param rows Registered sections.
- * @param layout Resolved preference.
- * @returns Visible groups, including empty drop targets.
+/** Visible navigation nodes, including empty and collapsed group targets.
+ * @param rows Registered pages and their current labels.
+ * @param layout Normalized navigation preference.
+ * @returns Visible ordered entries and group drop targets.
  */
-export function visibleSettingsGroups(
-  rows: readonly SettingsSectionRow[], layout: SettingsNavigationLayout,
-): { id: string; label: string; collapsed: boolean; rows: SettingsSectionRow[] }[] {
-  const byId = new Map(rows.map(row => [row.id, row]))
-  const hidden = new Set(layout.hiddenIds)
-  return layout.groups.filter(group => !group.hidden).map(group => ({
-    id: group.id, label: group.label,
-    collapsed: group.collapsed ?? false,
-    rows: group.sectionIds.flatMap(id => hidden.has(id) ? [] : byId.get(id) ?? []),
-  }))
+export function visibleSettingsNodes(rows: readonly SettingsSectionRow[], layout: SettingsNavigationLayout): ({ kind: 'section'; id: string; row: SettingsSectionRow } | { kind: 'group'; id: string; label: string; collapsed: boolean; rows: SettingsSectionRow[] })[] {
+  const byId = new Map(rows.map(row => [row.id, row])); const hidden = new Set(layout.hiddenIds)
+  return layout.nodes.flatMap((node): ReturnType<typeof visibleSettingsNodes> => {
+    if (node.kind === 'section') { const row = byId.get(node.id); return row && !hidden.has(node.id) ? [{ kind: 'section', id: node.id, row }] : [] }
+    return node.hidden ? [] : [{ kind: 'group', id: node.id, label: node.label, collapsed: node.collapsed ?? false,
+      rows: node.sectionIds.flatMap(id => hidden.has(id) ? [] : byId.get(id) ?? []) }]
+  })
 }
 
-/** Update group visibility or expansion without changing its members.
- * @param layout Current navigation.
+/** Visible custom groups for group-management consumers.
+ * @param rows Registered settings pages.
+ * @param layout Normalized navigation preference.
+ * @returns Visible custom groups, including empty groups.
+ */
+export function visibleSettingsGroups(rows: readonly SettingsSectionRow[], layout: SettingsNavigationLayout): Extract<ReturnType<typeof visibleSettingsNodes>[number], { kind: 'group' }>[] {
+  return visibleSettingsNodes(rows, layout).filter(node => node.kind === 'group')
+}
+
+/** Set group visibility or expansion without changing membership.
+ * @param layout Current preference.
  * @param id Group identity.
- * @param state Desired presentation fields.
- * @returns Updated preference.
+ * @param state Visibility and expansion changes.
+ * @returns Updated preference with membership retained.
  */
 export function setLayoutGroupState(
   layout: SettingsNavigationLayout, id: string, state: { hidden?: boolean; collapsed?: boolean },
 ): SettingsNavigationLayout {
-  return { ...layout, groups: layout.groups.map(group => group.id === id ? { ...group, ...state } : group) }
+  return { ...layout, nodes: layout.nodes.map(node => node.kind === 'group' && node.id === id ? { ...node, ...state } : node) }
 }
 
-/** Move one page, preserving hidden state and absent plugin ids.
+/** Move a page to a group, or to top-level order when targetGroupId is undefined; index is after source removal.
  * @param layout Current preference.
- * @param sectionId Page to move.
- * @param targetGroupId Destination group.
- * @param targetIndex Insertion index after removing the source.
- * @returns Detached updated preference.
+ * @param sectionId Page identity to move.
+ * @param targetGroupId Destination group, or undefined for independent placement.
+ * @param targetIndex Insertion index after source removal.
+ * @returns Updated preference, or the original for an invalid move.
  */
 export function moveLayoutSection(
-  layout: SettingsNavigationLayout, sectionId: string, targetGroupId: string, targetIndex: number,
+  layout: SettingsNavigationLayout, sectionId: string, targetGroupId: string | undefined, targetIndex: number,
 ): SettingsNavigationLayout {
-  if (!layout.groups.some(group => group.id === targetGroupId)
-    || !layout.groups.some(group => group.sectionIds.includes(sectionId))) return layout
-  return { ...layout, groups: layout.groups.map((group) => {
-    const sectionIds = group.sectionIds.filter(id => id !== sectionId)
-    if (group.id === targetGroupId) sectionIds.splice(Math.max(0, Math.min(sectionIds.length, targetIndex)), 0, sectionId)
-    return { ...group, sectionIds }
-  }) }
+  if (!layout.nodes.some(node => node.kind === 'section' ? node.id === sectionId : node.sectionIds.includes(sectionId))
+    || (targetGroupId !== undefined && !layout.nodes.some(node => node.kind === 'group' && node.id === targetGroupId))) return layout
+  const nodes = layout.nodes.filter(node => !(node.kind === 'section' && node.id === sectionId)).map(node => node.kind === 'group' ? { ...node, sectionIds: node.sectionIds.filter(id => id !== sectionId) } : node)
+  if (targetGroupId === undefined) nodes.splice(Math.max(0, Math.min(nodes.length, targetIndex)), 0, { kind: 'section', id: sectionId })
+  else for (const node of nodes) if (node.kind === 'group' && node.id === targetGroupId) node.sectionIds.splice(Math.max(0, Math.min(node.sectionIds.length, targetIndex)), 0, sectionId)
+  return { ...layout, nodes }
 }
 
-/** Reorder groups without changing their membership.
+/** Move an entire group within top-level order; index is after removal.
  * @param layout Current preference.
- * @param groupId Group to move.
- * @param targetIndex Destination index after removal.
- * @returns Updated preference.
+ * @param groupId Group identity to move.
+ * @param targetIndex Top-level insertion index after removal.
+ * @returns Updated order without membership changes.
  */
 export function moveLayoutGroup(layout: SettingsNavigationLayout, groupId: string, targetIndex: number): SettingsNavigationLayout {
-  const group = layout.groups.find(item => item.id === groupId)
-  if (group === undefined) return layout
-  const groups = layout.groups.filter(item => item.id !== groupId)
-  groups.splice(Math.max(0, Math.min(groups.length, targetIndex)), 0, group)
-  return { ...layout, groups }
+  const group = layout.nodes.find(node => node.kind === 'group' && node.id === groupId)
+  if (!group) return layout
+  const nodes = layout.nodes.filter(node => node !== group)
+  nodes.splice(Math.max(0, Math.min(nodes.length, targetIndex)), 0, group)
+  return { ...layout, nodes }
 }
 
-/** Rename a custom group.
+/** Rename a custom group without changing its identity.
  * @param layout Current preference.
  * @param id Group identity.
- * @param label User-authored group name.
- * @returns Updated preference; blank names and ungrouped are unchanged.
+ * @param label User-authored name, trimmed to forty characters.
+ * @returns Updated preference; blank names leave it unchanged.
  */
 export function renameLayoutGroup(layout: SettingsNavigationLayout, id: string, label: string): SettingsNavigationLayout {
   const name = label.trim().slice(0, 40)
-  if (id === 'ungrouped' || name === '') return layout
-  return { ...layout, groups: layout.groups.map(group => group.id === id ? { ...group, label: name } : group) }
+  return !name ? layout : { ...layout, nodes: layout.nodes.map(node => node.kind === 'group' && node.id === id ? { ...node, label: name } : node) }
 }
 
-/** Remove a group and retain every member in the ungrouped group.
+/** Unwrap members into independent entries at the removed group's position.
  * @param layout Current preference.
- * @param id Custom group to remove.
- * @returns Updated preference.
+ * @param id Group identity to remove.
+ * @returns Preference with members independently ordered at the original group position.
  */
 export function removeLayoutGroup(layout: SettingsNavigationLayout, id: string): SettingsNavigationLayout {
-  if (id === 'ungrouped') return layout
-  const removed = layout.groups.find(group => group.id === id)
-  if (removed === undefined) return layout
-  return { ...layout, groups: layout.groups.filter(group => group.id !== id).map(group => group.id === 'ungrouped' ? { ...group, sectionIds: [...group.sectionIds, ...removed.sectionIds] } : group) }
+  return { ...layout, nodes: layout.nodes.flatMap(node => node.kind === 'group' && node.id === id ? node.sectionIds.map(sectionId => ({ kind: 'section' as const, id: sectionId })) : [node]) }
 }
 
-/** Add a uniquely identified custom group.
+/** Append a uniquely named empty group.
  * @param layout Current preference.
- * @param id Caller-generated group id.
- * @param label User-authored name.
- * @returns Updated preference.
+ * @param id Unique group identity.
+ * @param label User-authored group name.
+ * @returns Preference with an empty group appended, or the original for invalid input.
  */
 export function addLayoutGroup(layout: SettingsNavigationLayout, id: string, label: string): SettingsNavigationLayout {
-  if (id.trim() === '' || label.trim() === '' || layout.groups.some(group => group.id === id)) return layout
-  return { ...layout, groups: [...layout.groups, { id, label: label.trim().slice(0, 40), sectionIds: [] }] }
+  if (!id.trim() || !label.trim() || layout.nodes.some(node => node.id === id)) return layout
+  return { ...layout, nodes: [...layout.nodes, { kind: 'group', id, label: label.trim().slice(0, 40), sectionIds: [] }] }
 }
 
-/** Change navigation visibility, never feature activation.
+/** Hide navigation only, retaining feature activation.
  * @param layout Current preference.
- * @param id Section identity.
- * @param hidden Desired hidden state.
- * @returns Updated preference.
+ * @param id Page identity.
+ * @param hidden Whether the navigation entry is hidden.
+ * @returns Updated visibility without changing membership or feature activation.
  */
 export function setLayoutSectionHidden(layout: SettingsNavigationLayout, id: string, hidden: boolean): SettingsNavigationLayout {
   return { ...layout, hiddenIds: [...layout.hiddenIds.filter(value => value !== id), ...hidden ? [id] : []] }

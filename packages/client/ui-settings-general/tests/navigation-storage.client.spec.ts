@@ -7,7 +7,7 @@ import type { SettingsNavigationLayout } from '../src/types.ts'
 
 const it = createClientTest({ roster: webApp })
 const layout: SettingsNavigationLayout = {
-  version: 1, groups: [{ id: 'ungrouped', label: '', sectionIds: ['models', 'models', 'missing'] }], hiddenIds: ['missing'],
+  version: 2, nodes: [{ kind: 'section', id: 'models' }, { kind: 'section', id: 'models' }, { kind: 'section', id: 'missing' }], hiddenIds: ['missing'],
 }
 
 function faceOf(client: TestClient): SettingsRootInjected {
@@ -31,7 +31,7 @@ it('reads legacy order without writing and keeps normalized snapshots stable', a
   expect(write).not.toHaveBeenCalled()
   state.sectionLayout = layout
   const accepted = face.hooks.sectionLayout.getSnapshot()
-  expect(accepted?.groups[0]?.sectionIds).toEqual(['models', 'missing'])
+  expect(accepted?.nodes.map(node => node.id)).toEqual(['models', 'missing'])
   expect(face.hooks.sectionLayout.getSnapshot()).toBe(accepted)
   await face.setSectionLayout(layout)
   expect(write).toHaveBeenCalledExactlyOnceWith('sectionLayout', accepted)

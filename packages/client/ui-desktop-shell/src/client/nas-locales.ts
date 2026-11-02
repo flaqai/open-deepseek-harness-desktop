@@ -5,7 +5,7 @@ import type { DesktopShellKey } from './locales.ts'
 type NasDictionary = Partial<Record<DesktopShellKey, string>>
 
 const es = {
-  'nas.nav': 'Ejecución y NAS (Beta)', 'nas.title': 'Ejecución y NAS', 'nas.experimental': 'Experimental · Beta',
+  'nas.nav': 'NAS (Beta)', 'nas.title': 'NAS (Beta)', 'nas.experimental': 'Experimental · Beta',
   'nas.experimentalNotice': 'Esta función sigue en pruebas; el protocolo, el despliegue y la compatibilidad pueden cambiar. Haz una copia de /config y /workspaces antes del primer uso y no conserves todavía la única copia de datos importantes en el NAS.',
   'nas.description': 'Ejecuta tareas en este equipo o conecta Harness a un NAS. El NAS comparte plugins, modelos, historial y espacios de trabajo; la ventana, el tema, las notificaciones y las descargas permanecen en este dispositivo.',
   'nas.secureStorageUnavailable': 'El almacenamiento seguro del sistema no está disponible. Desktop no guardará credenciales NAS sin cifrar. Activa primero el llavero o gestor de credenciales.',
@@ -25,7 +25,7 @@ const es = {
 } satisfies NasDictionary
 
 const fr = {
-  'nas.nav': 'Exécution et NAS (Beta)', 'nas.title': 'Exécution et NAS', 'nas.experimental': 'Expérimental · Beta',
+  'nas.nav': 'NAS (Beta)', 'nas.title': 'NAS (Beta)', 'nas.experimental': 'Expérimental · Beta',
   'nas.experimentalNotice': 'Cette fonction est encore en test ; le protocole, le déploiement et la compatibilité peuvent évoluer. Sauvegardez /config et /workspaces avant la première utilisation et ne conservez pas encore l’unique copie de données importantes sur le NAS.',
   'nas.description': 'Exécutez les tâches sur cet ordinateur ou connectez Harness à un NAS. Le NAS partage plugins, modèles, historique et espaces de travail ; la fenêtre, le thème, les notifications et les téléchargements restent sur cet appareil.',
   'nas.secureStorageUnavailable': 'Le stockage sécurisé du système est indisponible. Desktop n’enregistrera pas les identifiants NAS en clair. Activez d’abord le trousseau ou le gestionnaire d’identifiants.',
@@ -45,7 +45,7 @@ const fr = {
 } satisfies NasDictionary
 
 const ptBR = {
-  'nas.nav': 'Execução e NAS (Beta)', 'nas.title': 'Execução e NAS', 'nas.experimental': 'Experimental · Beta',
+  'nas.nav': 'NAS (Beta)', 'nas.title': 'NAS (Beta)', 'nas.experimental': 'Experimental · Beta',
   'nas.experimentalNotice': 'Este recurso ainda está em testes; o protocolo, a implantação e a compatibilidade podem mudar. Faça backup de /config e /workspaces antes do primeiro uso e não mantenha ainda a única cópia de dados importantes no NAS.',
   'nas.description': 'Execute tarefas neste computador ou conecte o Harness a um NAS. O NAS compartilha plugins, modelos, histórico e espaços de trabalho; janela, tema, notificações e downloads permanecem neste dispositivo.',
   'nas.secureStorageUnavailable': 'O armazenamento seguro do sistema não está disponível. O Desktop não salvará credenciais do NAS sem criptografia. Ative primeiro o chaveiro ou gerenciador de credenciais.',
@@ -65,7 +65,7 @@ const ptBR = {
 } satisfies NasDictionary
 
 const de = {
-  'nas.nav': 'Laufzeit und NAS (Beta)', 'nas.title': 'Laufzeit und NAS', 'nas.experimental': 'Experimentell · Beta',
+  'nas.nav': 'NAS (Beta)', 'nas.title': 'NAS (Beta)', 'nas.experimental': 'Experimentell · Beta',
   'nas.experimentalNotice': 'Diese Funktion wird noch getestet; Protokoll, Bereitstellung und Kompatibilität können sich ändern. Sichern Sie /config und /workspaces vor der ersten Nutzung und bewahren Sie wichtige Daten vorerst nicht ausschließlich auf dem NAS auf.',
   'nas.description': 'Aufgaben auf diesem Computer ausführen oder Harness auf einem NAS verbinden. Das NAS teilt Plugins, Modelle, Verlauf und Arbeitsbereiche; Fenster, Design, Benachrichtigungen und Downloads bleiben auf diesem Gerät.',
   'nas.secureStorageUnavailable': 'Der sichere Systemspeicher ist nicht verfügbar. Desktop speichert NAS-Zugangsdaten nicht unverschlüsselt. Aktivieren Sie zuerst Schlüsselbund oder Anmeldeinformationsverwaltung.',
@@ -85,7 +85,7 @@ const de = {
 } satisfies NasDictionary
 
 const ja = {
-  'nas.nav': '実行環境と NAS（Beta）', 'nas.title': '実行環境と NAS', 'nas.experimental': '実験的 · Beta',
+  'nas.nav': 'NAS (Beta)', 'nas.title': 'NAS (Beta)', 'nas.experimental': '実験的 · Beta',
   'nas.experimentalNotice': 'この機能はテスト中で、プロトコル、導入手順、互換範囲が変更される場合があります。初回利用前に /config と /workspaces をバックアップし、重要データを NAS にだけ保存しないでください。',
   'nas.description': 'このコンピューターでタスクを実行するか、NAS 上の Harness に接続します。NAS モードではプラグイン、モデル、履歴、ワークスペースを共有し、ウィンドウ、テーマ、通知、ダウンロード設定はこの端末に残ります。',
   'nas.secureStorageUnavailable': 'システムの安全なストレージを使用できません。Desktop は NAS 認証情報を平文で保存しません。先にキーチェーンまたは資格情報マネージャーを有効にしてください。',
@@ -105,7 +105,7 @@ const ja = {
 } satisfies NasDictionary
 
 const ko = {
-  'nas.nav': '런타임 및 NAS (Beta)', 'nas.title': '런타임 및 NAS', 'nas.experimental': '실험적 · Beta',
+  'nas.nav': 'NAS (Beta)', 'nas.title': 'NAS (Beta)', 'nas.experimental': '실험적 · Beta',
   'nas.experimentalNotice': '이 기능은 아직 테스트 중이며 프로토콜, 배포 방식 및 호환 범위가 변경될 수 있습니다. 처음 사용하기 전에 /config와 /workspaces를 백업하고 중요한 데이터의 유일한 사본을 NAS에만 보관하지 마세요.',
   'nas.description': '이 컴퓨터에서 작업을 실행하거나 NAS의 Harness에 연결합니다. NAS 모드는 플러그인, 모델, 기록 및 작업 공간을 공유하며 창, 테마, 알림 및 다운로드 설정은 이 기기에 유지됩니다.',
   'nas.secureStorageUnavailable': '시스템 보안 저장소를 사용할 수 없습니다. Desktop은 NAS 자격 증명을 평문으로 저장하지 않습니다. 먼저 키체인 또는 자격 증명 관리자를 활성화하세요.',
