@@ -106,6 +106,18 @@ Var DesktopRegistrationPowerShellPath
   FileClose $3
 !macroend
 
+# Resolve electron-builder's symbolic shell context before crossing the PowerShell boundary.
+# Explicit HKCU checks during an all-users upgrade must remain HKCU.
+!macro DesktopResolveRegistrationRoot ROOT_KEY
+  StrCpy $DesktopRegistrationRoot "${ROOT_KEY}"
+  ${If} $DesktopRegistrationRoot == "SHELL_CONTEXT"
+    StrCpy $DesktopRegistrationRoot "HKEY_CURRENT_USER"
+    ${If} $installMode == "all"
+      StrCpy $DesktopRegistrationRoot "HKEY_LOCAL_MACHINE"
+    ${EndIf}
+  ${EndIf}
+!macroend
+
 !macro DesktopRegistrationHelpers
   InitPluginsDir
   File /oname=$PLUGINSDIR\windows-registration.ps1 "${BUILD_RESOURCES_DIR}\windows-registration.ps1"
@@ -178,7 +190,7 @@ Var DesktopRegistrationPowerShellPath
     StrCpy $DesktopOldUninstaller "$uninstallerFileName"
     ${GetFileName} "$DesktopOldUninstaller" $DesktopOldUninstallerName
     StrCpy $DesktopUninstallArguments "$0"
-    StrCpy $DesktopRegistrationRoot "$rootKey"
+    !insertmacro DesktopResolveRegistrationRoot "$rootKey"
     !insertmacro DesktopLog "uninstall-start mode=$DesktopUninstallArguments old=$DesktopOldDirectory target=$INSTDIR uninstaller=$DesktopOldUninstaller"
     Call DesktopTryOrphanRegistrationRepair
     ${If} $DesktopRegistrationResult == 10
@@ -204,7 +216,7 @@ Var DesktopRegistrationPowerShellPath
 
   !macro customUninstallMissingRegistration
     !insertmacro readReg $DesktopOldDirectory "$rootKey" "${INSTALL_REGISTRY_KEY}" InstallLocation
-    StrCpy $DesktopRegistrationRoot "$rootKey"
+    !insertmacro DesktopResolveRegistrationRoot "$rootKey"
     ${If} $DesktopOldDirectory != ""
       !insertmacro DesktopLog "uninstall-invalid-registration mode=$rootKey old=$DesktopOldDirectory missing=UninstallString"
       Call DesktopTryOrphanRegistrationRepair

@@ -237,7 +237,7 @@ function Get-DesktopRegistrationErrorKind([string] $OutputLine) {
     'DisplayName and DisplayVersion disagree|owns the registered application version|different application version' { return 'registration-version-mismatch' }
     'fully qualified local Windows directory|filesystem root cannot|ambiguous directory|conflicting directories|name different directories|directory changed|drive is unavailable|drive root is not|reparse point|path is not a directory' { return 'installation-path-invalid' }
     'Access to .* denied|Access is denied|UnauthorizedAccessException|PermissionDenied|拒绝访问' { return 'access-denied' }
-    'Cannot bind parameter|parameter cannot be found|ParameterBinding|Missing an argument|无法绑定参数|找不到.*参数' { return 'powershell-parameter-error' }
+    'Cannot validate argument|Cannot bind parameter|parameter cannot be found|ParameterBinding|Missing an argument|无法绑定参数|找不到.*参数' { return 'powershell-parameter-error' }
     'not recognized as the name|does not exist|cannot find|Could not find|CommandNotFoundException|不是.*名称|不存在|找不到.*文件' { return 'helper-or-required-file-missing' }
     'not an orphaned registration|No matching installation registration|records changed concurrently' { return 'registration-state-invalid' }
     'Registry backup|Registry restoration|restoration requires attention|removed records were restored' { return 'registry-backup-or-restoration-failed' }
