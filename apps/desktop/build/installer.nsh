@@ -90,6 +90,13 @@ Var DesktopRegistrationPowerShellPath
     SetErrorLevel 43
     MessageBox MB_OK|MB_ICONSTOP "$(InstallerDiagnosticsFailed)" /SD IDOK
     Quit
+  # NSIS append mode preserves contents but starts at offset zero.
+  FileSeek $3 0 END
+  IfErrors 0 +5
+    FileClose $3
+    SetErrorLevel 43
+    MessageBox MB_OK|MB_ICONSTOP "$(InstallerDiagnosticsFailed)" /SD IDOK
+    Quit
   FileWriteUTF16LE $3 "${TEXT}$\r$\n"
   IfErrors 0 +5
     FileClose $3
