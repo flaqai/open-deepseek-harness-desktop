@@ -1,3 +1,4 @@
+import { summarizeFailure } from './failure-summary.ts'
 /** Interactive startup and recovery workspace installed by the Desktop preload. */
 
 import type { IpcRenderer } from 'electron'
@@ -367,6 +368,36 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
     failureMessage.textContent = query.get('message') ?? copy.recoveryDescription
     failureContext.hidden = true
   }
+  const fullFailure = [failureTitle.textContent, failureMessage.textContent, failureContext.textContent, query.get('logPath')].filter(Boolean).join('\n')
+  const summary = document.createElement('p')
+  summary.className = 'failure-summary'
+  summary.textContent = summarizeFailure(failureMessage.textContent)
+  toggleDetails.before(summary)
+  failureDetails.hidden = false
+  toggleDetails.textContent = copy.hideDetails
+  const copyDiagnostic = document.createElement('button')
+  copyDiagnostic.type = 'button'
+  copyDiagnostic.className = 'action'
+  copyDiagnostic.textContent = desktopDictionary(requestedLocale, {
+    zh: '复制诊断', en: 'Copy diagnostics', ja: '診断をコピー', es: 'Copiar diagnóstico',
+    fr: 'Copier le diagnostic', de: 'Diagnose kopieren', ru: 'Копировать диагностику',
+    'pt-BR': 'Copiar diagnóstico', ko: '진단 복사',
+  })
+  const originalCopyLabel = copyDiagnostic.textContent
+  copyDiagnostic.addEventListener('click', () => {
+    void Promise.resolve().then(() => navigator.clipboard.writeText(fullFailure)).then(() => {
+      copyDiagnostic.textContent = `✓ ${originalCopyLabel}`
+    }, () => { copyDiagnostic.textContent = copy.exportFailed }).finally(() => {
+      setTimeout(() => { copyDiagnostic.textContent = originalCopyLabel }, 2000)
+    })
+  })
+  const failureActions = document.createElement('div')
+  failureActions.className = 'actions'
+  const openFailureLogs = document.createElement('button')
+  openFailureLogs.type = 'button'; openFailureLogs.className = 'action'; openFailureLogs.textContent = copy.logs
+  openFailureLogs.addEventListener('click', openLog)
+  failureActions.append(copyDiagnostic, openFailureLogs)
+  failureDetails.after(failureActions)
   logPath.textContent = `${copy.logLabel}${query.get('logPath') ?? ''}`
   toggleDetails.addEventListener('click', () => {
     failureDetails.hidden = !failureDetails.hidden

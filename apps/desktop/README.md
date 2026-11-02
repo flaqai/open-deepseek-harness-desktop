@@ -288,3 +288,5 @@ The next desktop milestones are signed installers, native notifications for appr
 - The Windows x64 installer is unsigned, and the Linux x64 packages are not repository-signed; users must verify `SHA256SUMS` and the release source.
 - Developer ID signing, notarization, packaged automatic installation, Windows/Linux login launch, deep links, and IM control are not implemented. The source updater accepts only a clean fast-forward from official `master`; local divergence stays a manual Git operation.
 - The Windows package job verifies installation and Harness readiness on its build runner. macOS checks the final DMG and ZIP through the native entry; Linux checks packaged resources only. macOS and Linux still require full installation and Harness runtime qualification.
+
+Startup failure summaries prioritize the failed-plugin block over downstream dependency waits. Unstructured failures retain both their beginning and end within a fixed budget. The recovery page shows the summary and expanded technical details with copy-diagnostics and log-folder actions; copying diagnostics is an explicit user action and does not upload them.

@@ -1,5 +1,6 @@
 /** Bounded, cancellable one-shot invocations of the bundled Harness CLI. */
 
+import { summarizeFailure } from './failure-summary.ts'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
@@ -138,7 +139,7 @@ export async function runHarnessInvocation(
     let forceKill: ReturnType<typeof setTimeout> | undefined
     let hardStop: ReturnType<typeof setTimeout> | undefined
     const fullOutput = (): string => Buffer.concat(output).toString('utf8')
-    const diagnostic = (): string => fullOutput().slice(-DIAGNOSTIC_LIMIT)
+    const diagnostic = (): string => summarizeFailure(fullOutput(), DIAGNOSTIC_LIMIT)
     const finish = (operation: () => void): void => {
       if (settled) return
       settled = true
@@ -214,7 +215,7 @@ export async function runHarnessInvocation(
           kind: options.kind,
           reason: 'failed',
           durationMs: Date.now() - startedAt,
-          message: `desktop: Harness invocation ${options.kind} failed (${String(code)}, ${String(signal)}): ${value.slice(-DIAGNOSTIC_LIMIT)}`,
+          message: `desktop: Harness invocation ${options.kind} failed (${String(code)}, ${String(signal)}): ${summarizeFailure(value, DIAGNOSTIC_LIMIT)}`,
         }))
       })
     })
@@ -266,7 +267,7 @@ async function runManagedHarnessInvocation(
         throw new HarnessInvocationError({
           operationId, kind: options.kind, reason: interrupted ?? 'failed',
           durationMs: Date.now() - startedAt,
-          message: `desktop: Harness invocation ${options.kind} ${interrupted ?? 'failed'}: ${value.slice(-DIAGNOSTIC_LIMIT)}`,
+          message: `desktop: Harness invocation ${options.kind} ${interrupted ?? 'failed'}: ${summarizeFailure(value, DIAGNOSTIC_LIMIT)}`,
         })
       }
       return value

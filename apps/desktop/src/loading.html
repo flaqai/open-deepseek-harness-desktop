@@ -32,7 +32,8 @@
       .lock-recovery strong { display: block; font-size: 14px; margin-bottom: 7px; }
       .lock-recovery p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0 0 12px; }
       .failure-details[hidden], .slow[hidden], .recovery-workspace[hidden], .panel[hidden], .status[hidden], [hidden] { display: none; }
-      .failure-message { color: #a7272d; font-size: 13px; line-height: 1.55; margin: 0 0 8px; }
+      .failure-summary { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; padding: 14px 16px; border-left: 3px solid #a7272d; background: var(--surface-muted); border-radius: 8px; font-size: 13px; line-height: 1.6; }
+      .failure-message { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; color: #a7272d; font-size: 13px; line-height: 1.55; margin: 0 0 8px; }
       .log-path { color: var(--muted); font: 12px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
       .slow { margin-top: 22px; text-align: left; }
       .slow p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0 0 12px; }
