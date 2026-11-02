@@ -242,6 +242,9 @@ try {
   Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories @() -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'exactly one'
   Remove-Item -LiteralPath $log -ErrorAction Stop
   Assert-UpgradeRejects { Assert-DesktopAtomicCleanupBudget -Root $diagnosticRoot -PreviousDirectories $previousDirectories -InstallDirectory $testRoot -EvidenceRoot $testRoot } 'exactly one'
+  Assert-UpgradeTest ((Get-DesktopRegistrationErrorKind 'Access to PRIVATE_SECRET is denied') -eq 'access-denied') 'Access failures must be classified without retaining the target.'
+  Assert-UpgradeTest ((Get-DesktopRegistrationErrorKind 'Use 64-bit Windows PowerShell on the affected Windows account.') -eq 'powershell-architecture') 'Architecture mismatch must remain distinguishable.'
+  Assert-UpgradeTest ((Get-DesktopRegistrationErrorKind 'PRIVATE_SECRET') -eq 'unknown-registration-error') 'Unknown helper output must remain an opaque category.'
   $savedTemp = $env:TEMP
   $savedRunnerTemp = $env:RUNNER_TEMP
   $diagnosticLocker = [Diagnostics.Process]::GetCurrentProcess()
@@ -255,6 +258,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $mainDirectory 'installer.log'), "installer-init mode=1 target=PRIVATE_SECRET`nuninstall-result=3 old=PRIVATE_SECRET`nunknown PRIVATE_SECRET", [Text.Encoding]::Unicode)
     @{ stage = 'uninstall-invalid-state'; errorCode = -1; error = 'The uninstaller reported success but previous runtime files remain. PRIVATE_SECRET'; commandLine = 'PRIVATE_SECRET' } |
       ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $mainDirectory 'upgrade.jsonl') -Encoding utf8
+    [IO.File]::AppendAllText((Join-Path $mainDirectory 'installer.log'), "`nregistration-inspect result=3 PRIVATE_SECRET`nThe uninstall record does not identify this application. PRIVATE_SECRET`nregistration-repair result=1 Cannot bind parameter PRIVATE_SECRET`n", [Text.Encoding]::Unicode)
     [IO.File]::WriteAllText((Join-Path $mainDirectory 'unrelated.log'), 'PRIVATE_SECRET')
     $oversizedDirectory = Join-Path $diagnosticRoot 'oversized.dsh-install'
     New-Item -ItemType Directory -Path $oversizedDirectory -ErrorAction Stop | Out-Null
@@ -278,6 +282,8 @@ try {
     $mainRecord = @($report.directories | Where-Object { $_.directory -eq 'main.dsh-install' })[0]
     Assert-UpgradeTest ($mainRecord.files[0].events[1].stage -eq 'uninstall-result' -and $mainRecord.files[0].events[1].result -eq 3) 'Installer UTF-16 numeric result must survive projection.'
     Assert-UpgradeTest ($mainRecord.files[1].events[0].errorKind -eq 'previous-runtime-remains') 'Upgrade invalid-state failure must retain its classified cause.'
+    $registrationEvents = @($report.directories | ForEach-Object { $_.files } | ForEach-Object { $_.events } | Where-Object { $_.stage -in @('registration-inspect', 'registration-repair') })
+    Assert-UpgradeTest ($registrationEvents.Count -eq 2 -and $registrationEvents[0].result -eq 3 -and $registrationEvents[0].errorKind -eq 'application-identity-mismatch' -and $registrationEvents[1].errorKind -eq 'powershell-parameter-error') 'Registration diagnostics must preserve classified multiline helper failures without raw output.'
     Assert-UpgradeTest ($report.temporaryRootLength -eq $diagnosticRoot.Length -and $report.evidenceRootLength -eq $env:RUNNER_TEMP.Length) 'Diagnostics must record numeric original TEMP and nested evidence lengths.'
     $longTemporary = Get-DesktopQualificationLongTempPath $env:RUNNER_TEMP
     New-Item -ItemType Directory -Path $longTemporary -ErrorAction Stop | Out-Null

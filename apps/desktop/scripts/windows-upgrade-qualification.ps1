@@ -226,6 +226,25 @@ function Get-DesktopShortLockMetadata {
   return $metadata
 }
 
+# Return only a fixed diagnostic category; never retain helper output, registry values or paths.
+function Get-DesktopRegistrationErrorKind([string] $OutputLine) {
+  switch -Regex ($OutputLine) {
+    'Use 64-bit Windows PowerShell' { return 'powershell-architecture' }
+    'explicit installation registry root|Select CurrentUser or AllUsers|Unapproved installation registry path' { return 'registry-root-invalid' }
+    'Unexpected installation registry type|unexpected child keys' { return 'registry-shape-invalid' }
+    'does not identify this application' { return 'application-identity-mismatch' }
+    'inconsistent installation scope|uninstaller command or installation scope|quiet uninstaller command' { return 'uninstall-command-or-scope-mismatch' }
+    'DisplayName and DisplayVersion disagree|owns the registered application version|different application version' { return 'registration-version-mismatch' }
+    'fully qualified local Windows directory|filesystem root cannot|ambiguous directory|conflicting directories|name different directories|directory changed|drive is unavailable|drive root is not|reparse point|path is not a directory' { return 'installation-path-invalid' }
+    'Access to .* denied|Access is denied|UnauthorizedAccessException|PermissionDenied|拒绝访问' { return 'access-denied' }
+    'Cannot bind parameter|parameter cannot be found|ParameterBinding|Missing an argument|无法绑定参数|找不到.*参数' { return 'powershell-parameter-error' }
+    'not recognized as the name|does not exist|cannot find|Could not find|CommandNotFoundException|不是.*名称|不存在|找不到.*文件' { return 'helper-or-required-file-missing' }
+    'not an orphaned registration|No matching installation registration|records changed concurrently' { return 'registration-state-invalid' }
+    'Registry backup|Registry restoration|restoration requires attention|removed records were restored' { return 'registry-backup-or-restoration-failed' }
+    default { return 'unknown-registration-error' }
+  }
+}
+
 function Save-DesktopMainInstallerDiagnostics {
   param([string] $Root, [string[]] $PreviousDirectories, [bool] $SnapshotAvailable,
     $OldInstallationMetadata = $null, [System.Diagnostics.Process] $ShortLocker = $null, $ShortLockBeforeMain = $null,
@@ -273,15 +292,26 @@ function Save-DesktopMainInstallerDiagnostics {
         $encoding = if ($name -eq 'installer.log') { [Text.Encoding]::Unicode } else { [Text.Encoding]::UTF8 }
         $lines = @([IO.File]::ReadAllLines($file.FullName, $encoding))
         $events = @()
+        $registrationEvent = $null
         if ($lines.Count -gt 256) { $report.status = 'degraded' }
         foreach ($line in @($lines | Select-Object -First 256)) {
           if ([string]::IsNullOrWhiteSpace($line)) { continue }
           if ($name -eq 'installer.log') {
-            $phase = [regex]::Match($line, '^(process-check|process-inspection-stopped|uninstall-start|uninstall-result|uninstall-invalid-registration|extract-start|copy-refused|extract-complete|copy-failed|copy-verified|extract-failed|installer-init|uninstall-stopped)(?:[ =]|$)')
-            if (-not $phase.Success) { continue }
+            $phase = [regex]::Match($line, '^(process-check|process-inspection-stopped|uninstall-start|uninstall-result|uninstall-invalid-registration|extract-start|copy-refused|extract-complete|copy-failed|copy-verified|extract-failed|installer-init|uninstall-stopped|registration-inspect|registration-repair)(?:[ =]|$)')
+            if (-not $phase.Success) {
+              if ($null -ne $registrationEvent -and $registrationEvent.errorKind -eq 'unknown-registration-error') {
+                $registrationEvent.errorKind = Get-DesktopRegistrationErrorKind $line
+              }
+              continue
+            }
+            $registrationEvent = $null
             $event = [ordered]@{ stage = $phase.Groups[1].Value }
             $result = [regex]::Match($line, '(?:^uninstall-result=|(?:^| )result=)(-?\d+)(?: |$)')
             if ($result.Success) { $event.result = [int]$result.Groups[1].Value }
+            if ($event.stage -in @('registration-inspect', 'registration-repair') -and $result.Success -and $event.result -notin @(0, 10)) {
+              $event.errorKind = Get-DesktopRegistrationErrorKind $line
+              $registrationEvent = $event
+            }
           } else {
             $raw = $line | ConvertFrom-Json
             if ($raw.stage -notin @('uninstall-start', 'uninstaller-copy-failed', 'temporary-launch-failed', 'uninstall-launch-failed', 'uninstall-result', 'old-uninstaller-removed', 'uninstall-complete', 'uninstall-failed', 'uninstall-invalid-state', 'uninstall-files-stage-failed', 'uninstall-files-staged')) { continue }
