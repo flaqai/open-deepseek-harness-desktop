@@ -40,7 +40,7 @@ jobs:
 
       - uses: actions/setup-node@v7.0.0
         with:
-          node-version: 24
+          node-version: '24.22.1'
 
       - name: Test production blame scoring
         run: uv run --python 3.10 --with-requirements .github/review-ownership/requirements.txt python -m unittest discover -s .github/review-ownership -p 'test_*.py'
