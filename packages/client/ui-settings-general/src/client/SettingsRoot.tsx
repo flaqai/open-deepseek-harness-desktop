@@ -39,12 +39,12 @@ const CONNECTING_MIN_VISIBLE_MS = 800
 
 /** Nav glyph by section id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
-  if (id === 'account') return <IconUserOutlineMedium className={css.navIcon} size={16} />
-  if (id === 'models') return <IconDataOutlineMedium className={css.navIcon} size={16} />
-  if (id === 'agent-presets') return <IconAgentPresetOutlineMedium className={css.navIcon} size={16} />
-  if (id === 'plugins') return <IconPersonalizationOutlineMedium className={css.navIcon} size={16} />
-  if (id === 'archived-sessions') return <IconArchiveOutlineMedium className={css.navIcon} size={16} />
-  return <IconSettingsOutlineMedium className={css.navIcon} size={16} />
+  if (id === 'account') return <IconUserOutlineMedium size={16} />
+  if (id === 'models') return <IconDataOutlineMedium size={16} />
+  if (id === 'agent-presets') return <IconAgentPresetOutlineMedium size={16} />
+  if (id === 'plugins') return <IconPersonalizationOutlineMedium size={16} />
+  if (id === 'archived-sessions') return <IconArchiveOutlineMedium size={16} />
+  return <IconSettingsOutlineMedium size={16} />
 }
 
 type PanelProps = {
@@ -100,7 +100,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
         </div>
         <nav className={css.nav}>
           <SettingsNavigation rows={rows} layout={navigation.layout} active={active} t={t} mutate={navigation.mutate}
-            onSelect={(id) => { setManaging(false); onSelect(id) }} icon={navIcon}
+            onSelect={(id) => { setManaging(false); onSelect(id) }} icon={id => renderSlot('settings.section.icon', { size: 16, active: id === active }, { only: id, fallback: navIcon(id) })}
             onManage={(id, action) => { setSelectedGroupId(id); setSelectedGroupAction(action); setManaging(true) }} />
           {navigation.failed ? <p role="alert">{t('nav.saveFailed')}</p> : null}
           <div className={css.divider} aria-hidden="true" onPointerDown={(event) => { sizing.start('divider', event) }}

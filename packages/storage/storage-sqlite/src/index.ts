@@ -67,7 +67,7 @@ export class SqliteStorageBackend implements StorageBackend {
   /**
    * @param config - Validated plugin configuration.
    */
-  constructor(config: Config) {
+  constructor(private readonly config: Config) {
     this.ready = openDatabase(config.path, (config as Required<Config>).journalMode)
     // Mark the rejection handled: every primitive re-awaits `ready`, so an
     // open failure still surfaces to each caller; this guard only prevents an
@@ -129,6 +129,7 @@ export class SqliteStorageBackend implements StorageBackend {
       () => { this.units.delete(descriptor.name) },
       () => { this.ensureUsable() },
       (error) => { this.failure = error },
+      this.config.path,
     )
   }
 

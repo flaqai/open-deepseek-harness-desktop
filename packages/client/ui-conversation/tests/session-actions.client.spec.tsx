@@ -1,3 +1,4 @@
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 // @vitest-environment jsdom
 /** Conversation Header Session actions: transcript copy and persistence-backed confirmations. */
 
@@ -22,7 +23,7 @@ const t = makeTranslate(zh, commonZh)
 const unused = (): never => { throw new Error('unused session-actions fixture prop') }
 const standardProps = {
   useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true, useAccess: () => true,
-  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  usePanelInfo: unused, useContextMenu: contextMenuHook(), useSessions: unused, useSessionStatus: unused,
   useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
   useSession: unused, useProjection: unused, useInput: unused,
   useChat: unused, useTrajectory: unused,

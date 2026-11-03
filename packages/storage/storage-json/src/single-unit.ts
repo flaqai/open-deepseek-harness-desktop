@@ -10,11 +10,12 @@
  * @module @deepseek-ai/dsh-storage-json/src/single-unit
  */
 
-import { readFile } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
+import { link, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { StorageError } from '@deepseek-ai/dsh-storage'
 import type { KvUnit, KvUnitDescriptor } from '@deepseek-ai/dsh-storage'
-import { writeAtomic } from './atomic.ts'
+import { writeAtomic, fsyncDirectory } from './atomic.ts'
 import { parse, serialize } from './format.ts'
 import type { UnitState } from './format.ts'
 
@@ -48,8 +49,9 @@ export async function openSingleUnit(
       }
       : parse(text, descriptor)
   // Opening leaves the file untouched; the next atomic publish uses the current stamp.
+  const original = descriptor.backupBeforeUpgrade === true && state.version !== descriptor.version ? text : undefined
   state.version = descriptor.version
-  return new SingleJsonUnit(descriptor, path, state, onClose)
+  return new SingleJsonUnit(descriptor, path, state, onClose, original)
 }
 
 class SingleJsonUnit implements KvUnit {
@@ -62,6 +64,7 @@ class SingleJsonUnit implements KvUnit {
     private readonly path: string,
     private readonly state: UnitState,
     private readonly onClose: () => void,
+    private original: string | undefined,
   ) {}
 
   // oxlint-disable-next-line typescript/require-await -- async keeps the closed guard a rejection, not a synchronous throw
@@ -150,8 +153,27 @@ class SingleJsonUnit implements KvUnit {
     return records
   }
 
+  /** Preserve the exact accepted old document before replacing its format stamp. */
+  private async publishWithBackup(): Promise<void> {
+    if (this.original !== undefined) {
+      const digest = createHash('sha256').update(this.original).digest('hex')
+      const backup = `${this.path}.before-v${this.descriptor.version}-${digest}.bak`
+      const temporary = `${backup}.${randomUUID()}.tmp`
+      try {
+        await writeAtomic(temporary, this.original)
+        try { await link(temporary, backup) } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+          if (await readFile(backup, 'utf8') !== this.original) throw new Error(`Upgrade backup mismatch: ${backup}`)
+        }
+        await fsyncDirectory(join(this.path, '..'))
+      } finally { await rm(temporary, { force: true }) }
+      this.original = undefined
+    }
+    await writeAtomic(this.path, serialize(this.descriptor.name, this.state))
+  }
+
   private async publish(): Promise<void> {
-    const write = writeAtomic(this.path, serialize(this.descriptor.name, this.state))
+    const write = this.publishWithBackup()
     this.inFlight.add(write)
     // Swallow only on the tracking branch: the caller still awaits `write`
     // itself, so rejections stay observed exactly once.

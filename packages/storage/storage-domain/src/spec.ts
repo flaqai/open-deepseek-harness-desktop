@@ -54,6 +54,8 @@ export interface DomainSpec {
    * accept mixed generations even under the current unit stamp.
    */
   readonly compatibleVersions?: readonly number[]
+  /** Preserve a durable pre-upgrade medium before the first whole-unit format-changing mutation. */
+  readonly backupBeforeUpgrade?: boolean
   /**
    * What `open` does with a stored table record that fails its zod schema.
    * Absent (the default), the whole open rejects with `invalid-record` —
@@ -111,6 +113,12 @@ export function defineDomain<S extends DomainSpec>(spec: S): S {
   if (!Number.isInteger(spec.version) || spec.version < 0) {
     throw new Error(`domain '${spec.name}' version must be a non-negative integer, got ${spec.version}`)
   }
+  if (spec.backupBeforeUpgrade !== undefined && typeof spec.backupBeforeUpgrade !== 'boolean') {
+    throw new Error(`domain '${spec.name}' backupBeforeUpgrade must be boolean`)
+  }
+  if (spec.backupBeforeUpgrade === true && spec.layout === 'per-record') {
+    throw new Error(`domain '${spec.name}' upgrade backup requires the single layout`)
+  }
   for (const compat of spec.compatibleVersions ?? []) {
     if (!Number.isInteger(compat) || compat < 0 || compat >= spec.version) {
       throw new Error(
@@ -159,5 +167,6 @@ export function descriptorOf(spec: DomainSpec): KvUnitDescriptor {
     hasGlobal: spec.global !== undefined,
     ...spec.layout === undefined ? {} : { layout: spec.layout },
     ...spec.compatibleVersions === undefined ? {} : { compatibleVersions: spec.compatibleVersions },
+    ...spec.backupBeforeUpgrade === undefined ? {} : { backupBeforeUpgrade: spec.backupBeforeUpgrade },
   }
 }

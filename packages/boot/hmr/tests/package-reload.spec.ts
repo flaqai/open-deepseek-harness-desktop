@@ -147,7 +147,11 @@ async function fixture(bundles = ['addon', 'other'], before?: (home: string, dir
   })
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(home, { recursive: true, force: true }) })
   await ctx.loader.await()
-  if (ready) commit?.()
+  if (ready) {
+    commit?.()
+    // Readiness releases the startup reconciliation; settle it before editing the fixture's packages.
+    await ctx.hmr.runExclusive(async () => {})
+  }
   const reconcile = () => ctx.hmr.runExclusive(() => ctx.hmr.reconcileProfile())
   const select = (bundles: string[]) => {
     const manifest = readProfileManifest('test', dir)
@@ -156,11 +160,16 @@ async function fixture(bundles = ['addon', 'other'], before?: (home: string, dir
   }
   /** Deliver a change of the profile patch file to HMR's own watch and wait for its recomposition. */
   const editPatch = async () => {
-    // Each configuration watch ignores paths other than its own file.
-    for (const watcher of watchers.slice(firstWatcher)) watcher.emit('change', profile.patchPath)
-    await vi.waitFor(async () => { await ctx.hmr.runExclusive(async () => {}) })
-    await ctx.hmr.runExclusive(async () => {})
+    const observed = vi.spyOn(ctx.hmr, 'reconcileProfile')
+    try {
+      // The community watcher polls exact files; a mocked chokidar event alone cannot trigger it.
+      file(profile.patchPath, readFileSync(profile.patchPath, 'utf8') + '\n')
+      for (const watcher of watchers.slice(firstWatcher)) watcher.emit('change', profile.patchPath)
+      await vi.waitFor(() => { expect(observed).toHaveBeenCalled() }, { timeout: 3000 })
+      await ctx.hmr.runExclusive(async () => {})
+    } finally { observed.mockRestore() }
   }
+
   return { ready: () => commit?.(), ctx, home, dir, trace, reconcile, select, editPatch, profile }
 }
 

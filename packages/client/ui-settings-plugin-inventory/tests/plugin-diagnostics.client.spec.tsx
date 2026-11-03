@@ -1,3 +1,4 @@
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -18,7 +19,7 @@ const globals: GlobalStandardProps = {
   useRemoteAccess: () => true,
   useSessionAccess: () => true,
   useWorkspaceAccess: () => true,
-  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  usePanelInfo: unused, useContextMenu: contextMenuHook(), useSessions: unused, useSessionStatus: unused,
   useSessionRetainInfo: unused, useResource: unused, useWorkspaces: unused,
 }
 
@@ -45,6 +46,26 @@ function props(snapshot: PluginInventorySnapshot): PluginDiagnosticsSectionProps
 }
 
 describe('PluginDiagnosticsSection', () => {
+  it.each([
+    ['runtime.legacy-worktree-bundle', 'diagnostics.startup.solution.legacyWorktree'],
+    ['runtime.legacy-worktree-backup-failed', 'diagnostics.startup.solution.legacyWorktreeBackupFailed'],
+  ] as const)('explains legacy worktree migration without automatic changes (%s)', async (code, solution) => {
+    const retry = vi.fn(async () => ({ status: 'plugin-started' as const }))
+    render(<PluginDiagnosticsSection
+      {...props({ entries: [], dependencyHealth: { lastRepair: null, diagnosticMode: null, quarantined: [], issues: [] } })}
+      startupDiagnostics={{
+        list: async () => [{
+          incidentId: 'legacy-worktree', code, operation: 'manual-worktree-migration',
+          packageName: '@deepseek-ai/dsh-experimental-tool-worktree', createdAt: '2026-11-03T00:00:00.000Z',
+          actions: ['diagnostics', 'open-log'],
+        }],
+        retry, openLog: vi.fn(async () => ({ error: '' })),
+      }} />)
+    expect(await screen.findByText(en[solution])).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en['diagnostics.startup.retry'] })).toBeNull()
+    expect(retry).not.toHaveBeenCalled()
+  })
+
   it('shows recorded, installed, and preset versions for a seed marker mismatch', async () => {
     const startupDiagnostics = {
       list: async () => [{

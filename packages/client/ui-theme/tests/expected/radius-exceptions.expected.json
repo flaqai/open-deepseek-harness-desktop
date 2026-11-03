@@ -77,8 +77,7 @@
     ".ruleInput: border-radius: 18px",
     ".ruleIntervalStepper: border-radius: 18px",
     ".instruction: border-radius: 16px",
-    ".delivery: border-radius: 8px",
-    ".linkedSession: border-radius: 14px"
+    ".delivery: border-radius: 8px"
   ],
   "ui-selection-actions/src/client/SelectionActions.module.css": [
     ".toolbar: border-radius: 12px",

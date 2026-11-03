@@ -141,3 +141,25 @@ test('legacy deploy extraneous workspace links are unlinked without touching pro
     assert.ok((await lstat(join(modules, 'unknown-package'))).isSymbolicLink())
   } finally { await rm(root, { recursive: true, force: true }) }
 })
+
+test('desktop runtime retains an optional CUA application and its generation receipt', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'desktop-cua-policy-'))
+  const name = '@deepseek-ai/dsh-experimental-cua-macos'
+  const generation = 'a'.repeat(64)
+  const base = `${name}/native/bin/darwin-arm64`
+  const paths = [
+    `${name}/cua-helper.json`, `${base}/current.json`,
+    `${base}/${generation}/DSH Computer Use.app/Contents/Info.plist`,
+    `${base}/${generation}/DSH Computer Use.app/Contents/MacOS/dsh-cua-native`,
+    `${base}/${generation}/DSH Computer Use.app/Contents/Resources/DSHComputerUse.icns`,
+    `${base}/${generation}/DSH Computer Use.app/Contents/_CodeSignature/CodeResources`,
+  ]
+  try {
+    await fixturePackage(root, name, { os: ['darwin'] })
+    for (const path of paths) await fixtureFile(root, path)
+    await pruneDesktopRuntime(join(root, 'node_modules'), target, '@deepseek-ai/libreoffice-kit-darwin-arm64')
+    for (const path of paths) assert.equal(await readFile(join(root, 'node_modules', path), 'utf8'), path)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})

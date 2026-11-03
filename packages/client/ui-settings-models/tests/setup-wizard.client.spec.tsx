@@ -1,3 +1,4 @@
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 // @vitest-environment jsdom
 /** First-run checklist routing, completion, skip, and acknowledgement behavior. */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -67,7 +68,7 @@ function mount({ modelReady = false, acknowledge = true, canConfigure = true }: 
     stepId: 'setup-wizard',
     complete,
     openSection,
-    useSessions: unusedHook,
+    useContextMenu: contextMenuHook(), useSessions: unusedHook,
     useSessionStatus: unusedHook,
     useSessionRetainInfo: unusedHook,
     useResource: unusedHook,

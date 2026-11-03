@@ -43,6 +43,8 @@ it('explicitly grants workspace and session reads, denies readonly writes and da
   expect(decide('session/page', [{ kind: 'session', id: SessionId('unlisted-session') }])).toBe('deny')
   expect(decide('session/prompt', [{ kind: 'session', id: session.id }])).toBe('deny')
   expect(decide('session/create')).toBe('deny')
+  for (const action of ['schedule/catalog', 'schedule/create', 'schedule/edit', 'schedule/run', 'schedule/list',
+    'schedule/view', 'schedule/history', 'schedule/deleteInactive', 'event:schedule/changed'] as const) expect(decide(action)).toBe('deny')
   device.mockReturnValue({ id: 'device', role: 'user', name: 'Device',
     createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 1000).toISOString() })
   expect(decide('session/create')).toBe('allow')
@@ -50,6 +52,8 @@ it('explicitly grants workspace and session reads, denies readonly writes and da
   expect(decide('event:user-questions/request')).toBe('allow')
   for (const action of ['settings/set', 'pluginManager/install', 'credentials/read', 'thirdParty/unknown',
     'pluginMarket/listIndexes', 'pluginMarket/search', 'pluginMarket/setIndexes', 'event:plugin-market/changed',
+    'schedule/catalog', 'schedule/create', 'schedule/edit', 'schedule/run', 'schedule/list',
+    'schedule/view', 'schedule/history', 'schedule/deleteInactive', 'event:schedule/changed',
     'pluginManager/update', 'event:tools/approval', 'session/delete', 'session/cancel'] as const) expect(decide(action)).toBe('deny')
   device.mockReturnValue(undefined)
   expect(decide('session/prompt', [{ kind: 'session', id: session.id }])).toBe('deny')

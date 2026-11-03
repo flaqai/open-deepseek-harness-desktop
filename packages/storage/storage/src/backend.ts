@@ -73,6 +73,8 @@ export interface KvUnitDescriptor {
    * The legacy per-record bootstrap also accepts listed versions.
    */
   readonly compatibleVersions?: readonly number[]
+  /** Preserve a durable pre-upgrade medium before the first whole-unit format-changing mutation. */
+  readonly backupBeforeUpgrade?: boolean
 }
 
 /**

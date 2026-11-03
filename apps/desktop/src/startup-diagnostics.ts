@@ -10,6 +10,8 @@ export type StartupDiagnosticCode =
   | 'runtime.bundled-plugin-failed'
   | 'runtime.bundled-preset-version-marker-unavailable'
   | 'runtime.schedule-migration-failed'
+  | 'runtime.legacy-worktree-bundle'
+  | 'runtime.legacy-worktree-backup-failed'
   | 'runtime.bundled-plugin-marker-mismatch'
   | 'runtime.bundled-plugin-timeout'
   | 'runtime.profile-check-timeout'
@@ -22,6 +24,8 @@ const STARTUP_DIAGNOSTIC_CODES = new Set<StartupDiagnosticCode>([
   'runtime.bundled-plugin-failed',
   'runtime.bundled-preset-version-marker-unavailable',
   'runtime.schedule-migration-failed',
+  'runtime.legacy-worktree-bundle',
+  'runtime.legacy-worktree-backup-failed',
   'runtime.bundled-plugin-marker-mismatch',
   'runtime.bundled-plugin-timeout',
   'runtime.profile-check-timeout',

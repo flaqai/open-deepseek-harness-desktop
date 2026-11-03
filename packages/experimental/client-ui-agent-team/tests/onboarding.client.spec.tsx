@@ -1,3 +1,4 @@
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -28,7 +29,7 @@ const t = makeTranslate(zh, commonZh)
 const unused = (): never => { throw new Error('unused onboarding fixture prop') }
 const globalProps = {
   useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true, useAccess: () => true,
-  useSessions: unused,
+  useContextMenu: contextMenuHook(), useSessions: unused,
   usePanelInfo: unused,
   useSessionStatus: unused,
   useSessionRetainInfo: unused,
@@ -91,7 +92,7 @@ describe('Agent Teams onboarding', () => {
     const props = {
       ...globalProps,
       enabled: true,
-      useSessions: bindSnapshotSelector(createSnapshotStore(sessionState())),
+      useContextMenu: contextMenuHook(), useSessions: bindSnapshotSelector(createSnapshotStore(sessionState())),
       startUse,
       t,
     } satisfies ComponentProps<typeof AgentTeamUseAction>

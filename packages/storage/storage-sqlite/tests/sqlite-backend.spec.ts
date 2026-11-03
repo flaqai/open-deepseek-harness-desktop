@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, copyFile, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import Storage, { storageBackendServiceKey } from '@deepseek-ai/dsh-storage'
 import type { KvUnit, KvUnitDescriptor } from '@deepseek-ai/dsh-storage'
@@ -55,6 +55,57 @@ function mutateUnit(unit: KvUnit, operation: 'putRecord' | 'deleteRecords'): Pro
 }
 
 describe('sqlite backend specifics', () => {
+  it('keeps a consistent old database snapshot before an opted-in unit upgrade', async () => {
+    const path = await freshDbPath()
+    const old = backendAt(path)
+    const unit = await old.kv.open(DESCRIPTOR)
+    await unit.putRecord('records', 'keep', { n: 1 })
+    await old.close()
+    const upgraded = backendAt(path)
+    const current = await upgraded.kv.open({ ...DESCRIPTOR, version: 2, compatibleVersions: [1], backupBeforeUpgrade: true })
+    expect((await readdir(dirname(path))).filter(name => name.endsWith('.bak.sqlite'))).toEqual([])
+    await current.putRecord('records', 'new', { n: 2 })
+    const backups = (await readdir(dirname(path))).filter(name => name.endsWith('.bak.sqlite'))
+    expect(backups).toHaveLength(1)
+    const saved = new DatabaseSync(join(dirname(path), backups[0]!), { readOnly: true })
+    try {
+      expect(saved.prepare('SELECT version FROM units WHERE name = ?').get(DESCRIPTOR.name)).toEqual({ version: 1 })
+      expect(saved.prepare('SELECT key FROM u_specimen_records ORDER BY key').all()).toEqual([{ key: 'keep' }])
+      expect(saved.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
+    } finally { saved.close() }
+    await current.putRecord('records', 'next', { n: 3 })
+    expect((await readdir(dirname(path))).filter(name => name.endsWith('.bak.sqlite'))).toEqual(backups)
+    await upgraded.close()
+    // Restoring a v1 snapshot and retrying the upgrade reuses the verified backup.
+    await copyFile(join(dirname(path), backups[0]!), path)
+    const retry = backendAt(path)
+    const again = await retry.kv.open({ ...DESCRIPTOR, version: 2, compatibleVersions: [1], backupBeforeUpgrade: true })
+    await again.putRecord('records', 'retry', { n: 4 })
+    expect((await readdir(dirname(path))).filter(name => name.endsWith('.bak.sqlite'))).toEqual(backups)
+  })
+
+  it('stops an upgrade before mutation when its retained snapshot is corrupt', async () => {
+    const path = await freshDbPath()
+    const old = backendAt(path)
+    const unit = await old.kv.open(DESCRIPTOR)
+    await unit.putRecord('records', 'keep', { n: 1 })
+    await old.close()
+    const descriptor = { ...DESCRIPTOR, version: 2, compatibleVersions: [1], backupBeforeUpgrade: true }
+    const upgraded = backendAt(path)
+    await (await upgraded.kv.open(descriptor)).putRecord('records', 'new', { n: 2 })
+    await upgraded.close()
+    const backup = (await readdir(dirname(path))).find(name => name.endsWith('.bak.sqlite'))!
+    await copyFile(join(dirname(path), backup), path)
+    await writeFile(join(dirname(path), backup), 'corrupt backup')
+    const retry = backendAt(path)
+    await expect((await retry.kv.open(descriptor)).putRecord('records', 'retry', { n: 3 })).rejects.toThrow()
+    const unchanged = new DatabaseSync(path, { readOnly: true })
+    try {
+      expect(unchanged.prepare('SELECT version FROM units WHERE name = ?').get(DESCRIPTOR.name)).toEqual({ version: 1 })
+      expect(unchanged.prepare('SELECT key FROM u_specimen_records').all()).toEqual([{ key: 'keep' }])
+    } finally { unchanged.close() }
+  })
+
   it('opens an in-memory database', async () => {
     const backend = backendAt(':memory:')
     const unit = await backend.kv.open(DESCRIPTOR)

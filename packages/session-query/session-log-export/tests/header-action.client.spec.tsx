@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useSyncExternalStore } from 'react'
@@ -23,7 +24,7 @@ const standardProps = {
   useDownloadAllowed: <T,>(selector: (allowed: boolean) => T): T => selector(true),
   useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true, useAccess: () => true,
   SessionProvider,
-  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  usePanelInfo: unused, useContextMenu: contextMenuHook(), useSessions: unused, useSessionStatus: unused,
   useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
   useSession: unused, useProjection: unused, useConversation: unused, useInput: unused,
   useChat: unused, useTrajectory: unused,

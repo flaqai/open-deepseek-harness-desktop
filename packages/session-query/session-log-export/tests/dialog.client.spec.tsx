@@ -1,3 +1,4 @@
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -13,7 +14,7 @@ const SID = 'session-export-dialog' as SessionId
 const unused = (): never => { throw new Error('unused dialog fixture prop') }
 const standardProps = {
   useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true, useAccess: () => true,
-  usePanelInfo: unused, useSessions: unused, useSessionStatus: unused,
+  usePanelInfo: unused, useContextMenu: contextMenuHook(), useSessions: unused, useSessionStatus: unused,
   useSessionRetainInfo: unused, useWorkspaces: unused, useResource: unused,
   useSession: unused, useProjection: unused, useConversation: unused, useInput: unused,
   useChat: unused, useTrajectory: unused,

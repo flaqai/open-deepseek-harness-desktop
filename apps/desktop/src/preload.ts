@@ -1,3 +1,4 @@
+import type { FileSaveResult } from '@deepseek-ai/dsh-client-ui-file-actions/types'
 /** Narrow update bridge for the trusted Harness renderer. */
 
 import { contextBridge, ipcRenderer } from 'electron'
@@ -657,6 +658,11 @@ const browserBridge: DesktopBrowserBridge = {
 }
 const shortcutBridge = Object.freeze({
   protocolVersion: 1,
+  ...(nasMode ? {} : { fileActions: Object.freeze({
+    save: (request: unknown) => ipcRenderer.invoke(DESKTOP_IPC.fileSave, request) as Promise<FileSaveResult>,
+    readClipboardImage: (url: string) => ipcRenderer.invoke(DESKTOP_IPC.clipboardImageRead, url) as
+      Promise<{ bytes: Uint8Array; mediaType: string }>,
+  }) }),
   ...(nasMode ? {} : { browser: Object.freeze(browserBridge) }),
   keyboard: Object.freeze({
     closeWindow: (revision: ShortcutRevision) => ipcRenderer.invoke(DESKTOP_IPC.shortcutsCloseWindow, revision) as Promise<void>,

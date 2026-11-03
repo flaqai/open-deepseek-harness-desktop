@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,6 +30,45 @@ runKvBackendContract('json', async () => {
 
 describe('json backend specifics', () => {
   const descriptor = { name: 'shape', version: 1, tables: ['t'], hasGlobal: true }
+
+  it('preserves the exact old unit before an opted-in format-changing write', async () => {
+    const root = await freshRoot()
+    const old = new JsonStorageBackend(root)
+    const unit = await old.kv.open(descriptor)
+    await unit.putRecord('t', 'keep', { n: 1 })
+    await old.close()
+    const original = await readFile(join(root, 'shape.json'), 'utf8')
+    const upgraded = new JsonStorageBackend(root)
+    const current = await upgraded.kv.open({ ...descriptor, version: 2, compatibleVersions: [1], backupBeforeUpgrade: true })
+    expect((await readdir(root)).filter(name => name.endsWith('.bak'))).toEqual([])
+    await current.putRecord('t', 'new', { n: 2 })
+    const backups = (await readdir(root)).filter(name => name.endsWith('.bak'))
+    expect(backups).toHaveLength(1)
+    expect(await readFile(join(root, backups[0]!), 'utf8')).toBe(original)
+    await upgraded.close()
+    const reopened = new JsonStorageBackend(root)
+    const next = await reopened.kv.open({ ...descriptor, version: 2, compatibleVersions: [1], backupBeforeUpgrade: true })
+    await next.putRecord('t', 'next', { n: 3 })
+    expect((await readdir(root)).filter(name => name.endsWith('.bak'))).toEqual(backups)
+    await reopened.close()
+  })
+
+  it('refuses a version-changing write when its retained backup is not the old document', async () => {
+    const root = await freshRoot()
+    const old = new JsonStorageBackend(root)
+    const unit = await old.kv.open(descriptor)
+    await unit.putRecord('t', 'keep', { n: 1 })
+    await old.close()
+    const original = await readFile(join(root, 'shape.json'), 'utf8')
+    const digest = createHash('sha256').update(original).digest('hex')
+    await writeFile(join(root, `shape.json.before-v2-${digest}.bak`), 'wrong')
+    const upgraded = new JsonStorageBackend(root)
+    const current = await upgraded.kv.open({ ...descriptor, version: 2, compatibleVersions: [1], backupBeforeUpgrade: true })
+    await expect(current.putRecord('t', 'new', { n: 2 })).rejects.toThrow('Upgrade backup mismatch')
+    expect(await readFile(join(root, 'shape.json'), 'utf8')).toBe(original)
+    expect((await current.loadAll()).tables['t']).toEqual({ keep: { n: 1 } })
+    await upgraded.close()
+  })
 
   it('publishes a human-readable pretty-printed file', async () => {
     const root = await freshRoot()

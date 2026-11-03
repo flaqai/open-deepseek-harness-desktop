@@ -8,7 +8,10 @@
  * @module @deepseek-ai/dsh-storage-sqlite/unit
  */
 
-import type { DatabaseSync, StatementSync } from 'node:sqlite'
+import { createHash, randomUUID } from 'node:crypto'
+import { closeSync, existsSync, fsyncSync, linkSync, openSync, rmSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { DatabaseSync, type StatementSync } from 'node:sqlite'
 import { StorageError } from '@deepseek-ai/dsh-storage'
 import type { KvUnit, KvUnitDescriptor } from '@deepseek-ai/dsh-storage'
 import { recordTableName } from './schema.ts'
@@ -39,6 +42,7 @@ export class SqliteKvUnit implements KvUnit {
    * @param onClose - Backend callback releasing this unit's open-name slot.
    * @param ensureBackendUsable - Rejects use of a connection whose rollback failed.
    * @param onRollbackFailure - Retains the failure on the backend before this call rejects.
+   * @param databasePath - Persistent medium path for opt-in pre-upgrade snapshots; memory units need none.
    */
   constructor(
     private readonly db: DatabaseSync,
@@ -47,6 +51,7 @@ export class SqliteKvUnit implements KvUnit {
     private readonly onClose: () => void,
     private readonly ensureBackendUsable: () => void,
     private readonly onRollbackFailure: (error: StorageError) => void,
+    private readonly databasePath?: string,
   ) {
     this.needsVersionStamp = storedVersion !== descriptor.version
     for (const table of descriptor.tables) {
@@ -143,12 +148,50 @@ export class SqliteKvUnit implements KvUnit {
     })
   }
 
+  /** Publish a consistent full database snapshot before this unit's first format-changing write. */
+  private backupUpgrade(): void {
+    if (this.databasePath === undefined || this.databasePath === ':memory:') return
+    const image = (db: DatabaseSync): string => JSON.stringify({
+      version: db.prepare('SELECT version FROM units WHERE name = ?').get(this.descriptor.name),
+      global: db.prepare('SELECT value FROM unit_globals WHERE unit = ?').get(this.descriptor.name),
+      tables: this.descriptor.tables.map(table => [table,
+        db.prepare(`SELECT key, value FROM "${recordTableName(this.descriptor.name, table)}" ORDER BY key`).all()]),
+    })
+    const original = image(this.db)
+    const digest = createHash('sha256').update(original).digest('hex')
+    const backup = `${this.databasePath}.${this.descriptor.name}.before-v${this.descriptor.version}-${digest}.bak.sqlite`
+    const validate = (): void => {
+      const saved = new DatabaseSync(backup, { readOnly: true })
+      try {
+        if (image(saved) !== original) throw new Error(`Upgrade backup mismatch: ${backup}`)
+      } finally { saved.close() }
+    }
+    if (existsSync(backup)) { validate(); return }
+    const temporary = `${backup}.${randomUUID()}.tmp`
+    // SQLite accepts an empty reserved file; reserve it owner-only before it receives credentials or data.
+    closeSync(openSync(temporary, 'wx', 0o600))
+    try {
+      this.db.exec(`VACUUM INTO '${temporary.replaceAll("'", "''")}'`)
+      const file = openSync(temporary, 'r')
+      try { fsyncSync(file) } finally { closeSync(file) }
+      try { linkSync(temporary, backup) } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      }
+      validate()
+      if (process.platform !== 'win32') {
+        const directory = openSync(dirname(backup), 'r')
+        try { fsyncSync(directory) } finally { closeSync(directory) }
+      }
+    } finally { rmSync(temporary, { force: true }) }
+  }
+
   /** Commit batches and version updates atomically; missing-key deletes leave the stamp unchanged. */
   private write(operation: () => number | bigint, transactional = false): void {
     if (!this.needsVersionStamp && !transactional) {
       operation()
       return
     }
+    if (this.needsVersionStamp && this.descriptor.backupBeforeUpgrade === true) this.backupUpgrade()
     this.db.exec('BEGIN IMMEDIATE')
     try {
       const changed = operation() > 0

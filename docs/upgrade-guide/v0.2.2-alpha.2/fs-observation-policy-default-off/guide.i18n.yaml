@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.2-alpha.2/fs-observation-policy-default-off/guide.md
+/:
+  en: 3e310de259344224
+  zh: b012489d014e72b7
+/filesystem-mutations-no-longer-require-a-prior-read-by-default:
+  en: e6dd0c06f99737e4
+  zh: a706b0bbdea94aac
+/filesystem-mutations-no-longer-require-a-prior-read-by-default/change:
+  en: 555d87cc75dfad4b
+  zh: c2793c7f26625bc7
+/filesystem-mutations-no-longer-require-a-prior-read-by-default/migration:
+  en: 2e731544c2903952
+  zh: cdd600c2b1e8e361

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-desktop",
   "description": "Cross-platform Electron host for the DeepSeek Harness Web GUI",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.3",
   "private": true,
   "homepage": "https://github.com/flaqai/open-deepseek-harness-desktop",
   "author": {
@@ -21,7 +21,9 @@
     "sigstore": "4.1.1",
     "tar": "^7.5.22",
     "yaml": "^2.9.0",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "@deepseek-ai/dsh-client-ui-file-actions": "workspace:*",
+    "@deepseek-ai/dsh-util-file-drag": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && pnpm --config.verifyDepsBeforeRun=false exec tsdown --config tsdown.preload.config.ts && node scripts/copy-assets.mjs && node scripts/build-welcome.mjs",

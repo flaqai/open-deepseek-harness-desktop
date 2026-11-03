@@ -1,3 +1,5 @@
+import { inspectLegacyWorktreeWarning, LEGACY_WORKTREE_BUNDLE } from './legacy-worktree-warning.ts'
+import { installFileActions } from './file-actions.ts'
 import { nativePromptMessages, nativePromptText } from './locales/native-prompts.ts'
 /** Electron application host for the existing DeepSeek Harness Web GUI. */
 
@@ -1085,6 +1087,16 @@ function assertMainRenderer(sender: Electron.WebContents): void {
   }
 }
 
+/** Only the trusted local main frame may execute native file operations. */
+function assertFileActionOwner(event: IpcMainInvokeEvent): BrowserWindow {
+  assertMainRenderer(event.sender)
+  const window = mainSurface?.window
+  if (window === undefined || event.senderFrame !== event.sender.mainFrame || bootNasRuntime() !== undefined) {
+    throw new Error('desktop: file action requires the trusted local main frame')
+  }
+  return window
+}
+
 function publishStartupProgress(next: DesktopStartupProgress): void {
   startupProgress = {
     ...next,
@@ -1679,6 +1691,18 @@ async function startApplication(): Promise<void> {
       ...versions,
     })
   }
+  try {
+    const warning = await inspectLegacyWorktreeWarning(dshHome)
+    if (warning !== undefined) {
+      await retainStartupWarning(warning.code, 'manual-worktree-migration', ['diagnostics', 'open-log'],
+        LEGACY_WORKTREE_BUNDLE)
+      const outcome = warning.backup ?? 'FAILED; manually back up before editing'
+      await appendDesktopStartupLog(`Legacy worktree configuration backup: ${outcome}; remove ${LEGACY_WORKTREE_BUNDLE} `
+        + 'from the affected profiles/web or profiles/shared package.json dsh.profile.bundles manually, then opt in to forge if wanted.')
+    }
+  } catch (error) {
+    console.warn('desktop: legacy worktree inspection or backup failed; source configuration remains unchanged', error)
+  }
   applyDesktopThemeSource(await readDesktopThemeSource(
     dshHome,
     (error) => { console.warn('desktop: could not read theme preference; following the system appearance', error) },
@@ -1897,6 +1921,10 @@ async function startApplication(): Promise<void> {
     } : {}),
     requireBundledPython: app.isPackaged,
     ...(nativeWorkspaceTarget === undefined ? {} : { target: nativeWorkspaceTarget }),
+  })
+  installFileActions(assertFileActionOwner, () => mainSurface?.renderer.getURL(), () => {
+    if (mainSurface === undefined) throw new Error('desktop: renderer unavailable')
+    return mainSurface.renderer
   })
   ipcMain.handle(DESKTOP_IPC.capabilities, (event) => {
     assertMainRenderer(event.sender)

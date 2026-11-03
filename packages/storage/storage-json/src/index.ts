@@ -65,6 +65,9 @@ export class JsonStorageBackend implements StorageBackend {
     await mkdir(this.root, { recursive: true, mode: 0o700 })
     // The two layouts differ in medium shape only; each opener owns its own
     // path convention under the shared root.
+    if (descriptor.backupBeforeUpgrade === true && descriptor.layout === 'per-record') {
+      throw new Error(`unit '${descriptor.name}' upgrade backup requires the single layout`)
+    }
     const onClose = () => this.open.delete(descriptor.name)
     const unit = descriptor.layout === 'per-record'
       ? await openPerRecordUnit(descriptor, this.root, onClose)

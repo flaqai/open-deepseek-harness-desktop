@@ -74,6 +74,8 @@ interface DomainSpec {
    * accept mixed generations even under the current unit stamp.
    */
   readonly compatibleVersions?: readonly number[]
+  /** Preserve a durable pre-upgrade medium before the first whole-unit format-changing mutation. */
+  readonly backupBeforeUpgrade?: boolean
   /**
    * What `open` does with a stored table record that fails its zod schema.
    * Absent (the default), the whole open rejects with `invalid-record` —

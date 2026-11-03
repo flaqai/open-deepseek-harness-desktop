@@ -31,6 +31,8 @@ kind: "package-reference"
 
 派发前，模型已给出名称的调用显示为不可展开的一行，使用工具自己的图标与标题。通用行显示为 `工具调用 · <工具名>`。read/write/edit 在 `file_path` 闭合且解码无误后显示可打开的路径；write/edit 从内容到达起在该路径后显示 `NKB`，执行中和成功后仍保留，位于差异统计之前。N 按解码后输入的 UTF-16 长度除以 1024 向上取整，edit 合计新旧文本长度；它不是文件字节数。失败和停止的行省略大小与差异统计。命令行显示流入中的描述。`tool/call` 才启用既有调用展示；参数块结束本身不代表开始执行。
 
+文件和 URL 工具视图 Slot 直接获取 `useContextMenu`，向 `ToolRow` 提供已绑定的 `fileContextMenuProps` 或 `urlContextMenuProps`。文件注册注入在触发时读取原始 Session 工作目录的路径解析器，工作目录缺失时使用工作区根目录。`ToolCallTree` 向普通 `GenericToolCard` fallback 显式提供文件适配函数，包含嵌套调用。无需 Markdown Provider。鼠标和键盘手势保留捕获的路径、行号、URL 与 Session，不会展开工具行或打开文件。
+
 ### 注册业务工具视图
 
 拥有该视图的业务包将其 wire 工具名称注册进 `tool.call.toolview`：
@@ -51,11 +53,13 @@ owner 载荷为 `ToolCallOwnerProps`：`callId`、`toolName`、`phase` 判别字
 
 文件工具行优先使用完整的 `file_path`；其他通用行（包括搜索和未注册的工具）优先使用非空 `description`，再回退到各自类别的参数摘要。应在渲染或构造视图时读取 `args`：准备态读器原地增长，后续仅在已观察答案变化时重新发布块。
 
-本包拥有 generic fallback，以及 shell/pwsh、read、read_image、write/edit、运行中的 `str_replace_editor` `create`／`str_replace`、grep/glob、web、todo、question 与 PTC dispatch 的内置展示。结构化卡片直接从第一方原始 event 字段派生；Host `presentCall` 与 `presentResult` 值不会进入 Client。运行中的原子工具行以同一道高光从左到右扫过标题、分隔符、摘要与后缀；已完成行保持静态。运行中与已完成的前台标准 `bash`/`pwsh` 和 `terminal_send` 调用，无论位于根还是 PTC dispatch 子调用中，都在通过相同的参数、结果和错误检查后使用 terminal 卡片。持久 `bash`/`pwsh` 调用仅在运行中使用 terminal 卡片。以已识别的 spill 策略提示结尾的 shell 输出，在 shell 行中使用可展开的 generic 输出，在 Details 中使用 generic 输出；位置被改变或被省略的退出标记无法证明成功。已完成的持久 shell 结果保持 generic 展示，因为 reset 与部分输出诊断不一定描述单个进程的退出状态；根调用的持久 shell 结果可展开。合法的主动后台 `bash`／`pwsh` 调用使用 terminal Start 展示；成功启动回执后，静态仅命令卡片保留 command 和 cwd，不显示输出或执行状态。启动失败保留通用参数与错误展示，后台 `terminal_send` 仍为 generic。Inspect 保留原始参数及回执，后续 job 输出不接回此卡片（[决定](../../../.agents/notes/implemented/bug-fix/2026-10-10-background-shell-command-display.zh.md)）。展开的终端命令与后台输入按可用宽度自动折行，保留原有换行和可选文本；终端输出保持按列对齐的排版。仅横向溢出时添加具名的键盘聚焦目标。提供 Inspect 时也可使用。回执不表示后台任务的退出状态。带有 `AUTO_REVIEW_DENIED` 的原生或 PTC dispatch 失败会在折叠行显示 Auto review 裁决，展开时显示一行归一化后的“未执行”原因；原因缺失或只有空白时使用本地化 fallback 文案。`ui-skill` 展示了业务包自行拥有的 `skill` 注册项。
+本包拥有 generic fallback，以及 shell/pwsh、read、read_image、write/edit、`apply_patch`、运行中的 `str_replace_editor` `create`／`str_replace`、grep/glob、web、todo、question 与 PTC dispatch 的内置展示。`apply_patch` 行复用 write/edit 组件：显示工具标题而不给出单文件摘要，运行态不推导 diff，完成态展示 `meta.diffs` 中已应用的 hunk，元数据标记为停止的结果按错误呈现，并在已知 diff 旁保留失败文本。结构化卡片直接从第一方原始 event 字段派生；Host `presentCall` 与 `presentResult` 值不会进入 Client。运行中的原子工具行以同一道高光从左到右扫过标题、分隔符、摘要与后缀；已完成行保持静态。运行中与已完成的前台标准 `bash`/`pwsh` 和 `terminal_send` 调用，无论位于根还是 PTC dispatch 子调用中，都在通过相同的参数、结果和错误检查后使用 terminal 卡片。持久 `bash`/`pwsh` 调用仅在运行中使用 terminal 卡片。以已识别的 spill 策略提示结尾的 shell 输出，在 shell 行中使用可展开的 generic 输出，在 Details 中使用 generic 输出；位置被改变或被省略的退出标记无法证明成功。已完成的持久 shell 结果保持 generic 展示，因为 reset 与部分输出诊断不一定描述单个进程的退出状态；根调用的持久 shell 结果可展开。合法的主动后台 `bash`／`pwsh` 调用使用 terminal Start 展示；成功启动回执后，静态仅命令卡片保留 command 和 cwd，不显示输出或执行状态。启动失败保留通用参数与错误展示，后台 `terminal_send` 仍为 generic。Inspect 保留原始参数及回执，后续 job 输出不接回此卡片（[决定](../../../.agents/notes/implemented/bug-fix/2026-10-10-background-shell-command-display.zh.md)）。展开的终端命令与后台输入按可用宽度自动折行，保留原有换行和可选文本；终端输出保持按列对齐的排版。仅横向溢出时添加具名的键盘聚焦目标。提供 Inspect 时也可使用。回执不表示后台任务的退出状态。带有 `AUTO_REVIEW_DENIED` 的原生或 PTC dispatch 失败会在折叠行显示 Auto review 裁决，展开时显示一行归一化后的“未执行”原因；原因缺失或只有空白时使用本地化 fallback 文案。`ui-skill` 展示了业务包自行拥有的 `skill` 注册项。
 
 问题行按 id 配对问题与答案；答案来自工具结果，迟到回答则来自 `userQuestions` 投影。可回答的调用提供按钮以重新打开面板。迟到回复进入 agent Inbox 后，问题行显示已提交的答案；等待准入期间，「查看回答」展开只读的行内记录。带有答案的已结算调用则以只读方式打开面板。没有答案的已关闭调用和无效记录不提供按钮。已取消和已中断的行显示裁决，不虚构答案。若面板提供方不接受按钮操作，点击会展开该行。不受支持或含糊的输入回退为压平的工具文本。
 
 回答面板按钮归问题 renderer 所有。它使用 `DisclosureRow` 组合自己的操作与 transcript；通用 `ToolRow` 不选择或派发问题操作。
+
+文件与 URL 控件通过作用域内的 Markdown 委托声明右键菜单目标。鼠标和键盘手势的文件目标都携带记录的路径与行号。
 
 -----
 

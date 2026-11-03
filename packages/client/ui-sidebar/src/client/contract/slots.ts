@@ -127,7 +127,7 @@ export interface SidebarPanelActionsOwnerProps {
 export interface SidebarSectionOwnerProps {
   /** Shell fold-state output: wide renders the full browser, rail the icon column. */
   wide: boolean
-  /** Rail icons request expansion; the browser rides the wide flip for focus. */
+  /** Ensure the sidebar is visible; safe to call while already expanded. */
   expandSidebar: () => void
   /** Close the phone drawer after a workspace or Session navigation action. */
   dismissSidebar: () => void

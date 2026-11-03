@@ -141,6 +141,7 @@ export function TrajectoryView({
   const [collapsedTurns, setCollapsedTurns] = useState<ReadonlySet<number>>(EMPTY_TURN_IDS)
   const [collapsedAssistants, setCollapsedAssistants] =
     useState<ReadonlySet<string>>(EMPTY_RECORD_IDS)
+  const [collapsedTools, setCollapsedTools] = useState<ReadonlySet<string>>(EMPTY_RECORD_IDS)
   const [timelineSelection, setTimelineSelection] = useState<TrajectoryTimeRange | null>(null)
   const actualDuration = useDuration(value => value)
   const [actualTime, setActualTime] = useState(false)
@@ -472,6 +473,14 @@ export function TrajectoryView({
       || (node.kind === 'command' && node.outcome?.kind === 'error')).length,
     running: sessionRunning,
   }), [nodes, runningCalls, sessionRunning, timelineTurns])
+  const collapsibleToolIds = useMemo(() => timelineTurns.flatMap(turn =>
+    turn.groups.flatMap(group => group.cells.flatMap((cell, index) =>
+      cell.kind === 'tool' && group.cells[index + 1]?.kind === 'subtool'
+        ? [trajectoryRecordId(cell)]
+        : []))),
+  [timelineTurns])
+  const allSubCallsCollapsed = collapsibleToolIds.length > 0
+    && collapsibleToolIds.every(id => collapsedTools.has(id))
 
   const toggleTurn = (turn: number) => {
     setCollapsedTurns((current) => {
@@ -510,6 +519,27 @@ export function TrajectoryView({
         for (const index of collapsibleAssistantIds) collapsed.delete(index)
       } else {
         for (const index of collapsibleAssistantIds) collapsed.add(index)
+      }
+      return collapsed
+    })
+  }
+
+  const toggleTool = (id: string) => {
+    setCollapsedTools((current) => {
+      const collapsed = new Set(current)
+      if (collapsed.has(id)) collapsed.delete(id)
+      else collapsed.add(id)
+      return collapsed
+    })
+  }
+
+  const toggleAllSubCalls = () => {
+    setCollapsedTools((current) => {
+      const collapsed = new Set(current)
+      if (allSubCallsCollapsed) {
+        for (const id of collapsibleToolIds) collapsed.delete(id)
+      } else {
+        for (const id of collapsibleToolIds) collapsed.add(id)
       }
       return collapsed
     })
@@ -554,6 +584,8 @@ export function TrajectoryView({
         onToggleAllTurns={toggleAllTurns}
         allAssistantsCollapsed={allAssistantsCollapsed}
         onToggleAllAssistants={toggleAllAssistants}
+        allSubCallsCollapsed={allSubCallsCollapsed}
+        onToggleAllSubCalls={toggleAllSubCalls}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         t={t}
@@ -600,6 +632,8 @@ export function TrajectoryView({
           onToggleTurn={toggleTurn}
           collapsedAssistants={collapsedAssistants}
           onToggleAssistant={toggleAssistant}
+          collapsedTools={collapsedTools}
+          onToggleTool={toggleTool}
           inspectCallId={inspectCallId}
           onInspectApplied={completeViewRequest}
         />

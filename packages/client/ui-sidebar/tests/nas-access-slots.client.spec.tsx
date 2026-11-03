@@ -21,7 +21,7 @@ describe('NAS role permissions through the Slot renderer', () => {
     const createSession = vi.fn()
     const t: SidebarRootComponentProps['t'] = makeTranslate(en, commonEn)
     function Frame(props: PropsRuntime<'root'>) {
-      return <SidebarRoot {...props} collapsed={false} width={300}
+      return <SidebarRoot {...props} collapsed={false} width={300} drawer={false}
         useSessionStatus={selector => selector(new Map())} usePanels={selector => selector([])}
         useShortcuts={selector => selector([])} selectPanel={() => {}}
         useEntryPins={selector => selector([])} useEntryActions={selector => selector(false)}

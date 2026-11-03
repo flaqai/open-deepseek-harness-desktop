@@ -178,6 +178,8 @@ function diagnosticIssueCopy(code: DiagnosticIssue['code']): PluginInventoryLoca
 }
 
 function startupDiagnosticSolution(code: string): PluginInventoryLocaleKey {
+  if (code === 'runtime.legacy-worktree-backup-failed') return 'diagnostics.startup.solution.legacyWorktreeBackupFailed'
+  if (code === 'runtime.legacy-worktree-bundle') return 'diagnostics.startup.solution.legacyWorktree'
   if (code === 'runtime.profile-check-timeout') return 'diagnostics.startup.solution.profileCheck'
   if (code === 'runtime.profile-repair-timeout' || code === 'runtime.profile-repair-failed') {
     return 'diagnostics.startup.solution.profileRepair'
@@ -576,7 +578,8 @@ export function PluginDiagnosticsSection({
           {startupIncidents.map(incident => (
             <article className={css.finding} key={incident.incidentId} data-diagnostic-code={incident.code}>
               <div>
-                <strong>{t('diagnostics.startup.issue')}</strong>
+                <strong>{t(incident.code === 'runtime.legacy-worktree-bundle'
+                  ? 'diagnostics.startup.legacyWorktree' : 'diagnostics.startup.issue')}</strong>
                 <span>{incident.code}</span>
               </div>
               {incident.packageName === undefined ? null : <code>{incident.packageName}</code>}

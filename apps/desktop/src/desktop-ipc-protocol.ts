@@ -2,6 +2,8 @@
 
 /** Exact channels exposed through named Desktop capabilities. */
 export const DESKTOP_IPC = {
+  fileSave: 'dsh-desktop:file-save',
+  clipboardImageRead: 'dsh-desktop:clipboard-image-read',
   browserAcquire: 'dsh:desktop:browser:acquire',
   browserRelease: 'dsh:desktop:browser:release',
   browserOpenRequested: 'dsh:desktop:browser:open-requested',

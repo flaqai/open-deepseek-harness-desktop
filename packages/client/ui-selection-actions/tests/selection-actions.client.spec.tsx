@@ -1,3 +1,4 @@
+import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -41,7 +42,7 @@ function props(appendAvailable = true, restartDesktop?: () => Promise<void>): Se
     useRemoteAccess: () => true,
     useSessionAccess: () => true,
     useWorkspaceAccess: () => true,
-    useSessions: bindSnapshotSelector(sessions),
+    useContextMenu: contextMenuHook(), useSessions: bindSnapshotSelector(sessions),
     useWorkspaces: bindSnapshotSelector(workspaces),
     usePanelInfo: unused,
     useSessionStatus: unused,
