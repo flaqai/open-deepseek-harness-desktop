@@ -1,55 +1,66 @@
 # Current desktop release state
 
-This historical record describes the most recently completed release, not a new cycle's ledger. New cycles use the release Doctor's machine-readable plan under the Git common directory; its sibling Markdown is a readable snapshot.
+This historical record describes the completed release. New cycles use the release Doctor plan under the Git common directory.
 
 ## Version lock and source
 
-- Desktop version: `0.2.1-rc.3`; core baseline: `dsh-v0.2.1-rc.3`.
-- Tag: [`odsh-v0.2.1-rc.3`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3); title: `v0.2.1-rc.3`. The immutable source commit is recorded in the release Doctor plan.
-- Release branch: `release/0.2.1-rc.3`; packaging branch: `fix/windows-packaging-0.2.1-rc.3`. Both branches were pushed at the accepted source commit before packaging. Master already contains the integration locally but was not pushed during this cycle.
+- Desktop version: `0.2.2-alpha.2`; integrated core baseline: `dsh-v0.2.2-alpha.2`, plus the selected rc.5 reasoning-display backport.
+- Published tag: `odsh-v0.2.2-alpha.2`; title: `v0.2.2-alpha.2`; state: normal Release, Latest, eligible for CNB.
+- Qualified immutable source: the target of `odsh-v0.2.2-alpha.2`; the complete commit ID is retained in the release Doctor plan and local GitHub publication evidence.
+- Packaging branch: `fix/windows-packaging-0.2.2-alpha.2`. Source fixes were pushed and master contains the qualified source. The plan names `release/0.2.2-alpha.2`; do not infer that this named branch was created or pushed without checking.
 - Preserve this version until the user explicitly changes it. Retry, rebuild, synchronization, packaging and publication requests retain the version lock.
-- Previous public Release: `odsh-v0.2.1-rc.2.3`. The source delta integrates official rc.3 navigation menus, Creator draft preparation and official API model discovery, plus the community Bundle Loader false-quarantine repair and rc.3 external-tool compatibility manifest.
-- Bilingual notes: `.artifacts/release-notes/odsh-v0.2.1-rc.3.md`; validation passed against the previous public tag and fixed source commit. The published body matches the reviewed notes after trailing-newline normalization.
+- Previous actual public Release: `odsh-v0.2.1-rc.3`.
+- Bilingual notes: `.artifacts/release-notes/odsh-v0.2.2-alpha.2.md`; validation passed against the previous actual public tag and full source SHA. Published body matches the reviewed notes after trailing-newline normalization.
 
-The common bundled-plugin snapshot digest is `b8836b943a8c2657ed5beae989f2b21edacc1beaed70d9bece21b13bbda370dd`. It updates `dshmarket` from `1.69.0` to `1.70.1` and `@xmanrui/dsh-im` from `5.4.0` to `5.6.0`; the other thirteen bundled records are unchanged. Python and Office retain their embedded deployment policy; Node 24.22.1, Electron 44.9.3 and the Python security pins remain unchanged.
+The common accepted bundled-plugin snapshot digest is `f39597b47eb4a98bdce4b434e9ea1cbe9298eaaa0a52cdc24e2a331d6a2c6ee7`, verified by the final download helper across all accepted native runs. Accepted registry-backed records include dshmarket `1.73.8`, @xmanrui/dsh-im `5.9.1`, dsh-better-sidebar `0.24.1`, dsh-pocket `2.12.0`, @agents-anywhere/dsh-bridge-next `2.0.2`, @ychris12138/dsh-usage-stats `0.3.7`, dsh-mermaid `0.4.4`, dsh-whale-widget `0.4.2`, @weibaohui/skills-management `0.9.3`, @dsh-plugins/mcp-panel `0.1.0`, dsh-font `1.1.0`, and five diagnostic-lab archives `1.0.0`. This lists the accepted set, not a guessed version delta. Python and Office retain the embedded native-resource deployment policy.
 
 ## Network and platform qualification
 
-Observed `2026-10-24`: the macOS system proxy at `127.0.0.1:7890` served the release CLI route. GitHub API and official npm endpoint checks passed before dispatch. Actual-artifact download minima were Windows `7.90`, macOS arm64 `7.58`, macOS x64 `7.59`, and Linux `7.70 MiB/s`; each exceeded the `1.0 MiB/s` floor. No packaging-stage retries, replacement handoffs or upload recovery were needed.
+Observed November 2–3, 2026: CLI tools explicitly adopted the macOS system proxy at `127.0.0.1:7890`; GitHub API and official npm connectivity passed. Initial artifact speed samples were `0.87 MiB/s` minimum (`1.31` average) and `0.46 MiB/s` minimum (`0.99` average), below the default `1.0 MiB/s` floor. The user explicitly authorized proceeding at the current speed for this release; the active plan uses floor `0` for this cycle only. Actual Windows transfer subsequently reached approximately `2.5–3.2 MiB/s`. Do not describe disabled later sampling as a passed 1.0 MiB/s speed gate. Download logs retain actual progress and resumable-operation evidence.
 
 | Platform | Accepted run | Qualification |
 | --- | --- | --- |
-| Windows x64 | [40093663190](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/40093663190) | Native preflight, fresh installation and six real alpha.2 upgrade scenarios passed across user/global mode, target directory and interactive installation; first start, restart, CLI, plugin maintenance, uninstall and persistent-lock checks passed. |
-| macOS arm64/x64 | [40095925985](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/40095925985) | Both final DMG/ZIP sets passed resource inventory, Helper layout, deep-signature structure and native Electron initialization on their architecture's runner. |
-| Linux x64 | [40095967078](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/40095967078) | DEB/RPM builds and resources-only qualification passed; startup in a real Linux GUI session remains unverified. |
+| Windows x64 | [41436626720](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/41436626720) | Native preflight and all seven installed scenarios passed: fresh plus six real public alpha.2 upgrades covering current-user/all-users, same/changed directories and interactive installs. Installed first start, restart, CLI, plugin maintenance, persistent-lock and uninstall checks passed. Final ZIP Chinese/space-path extraction and native/main-import/managed-CLI probes passed. |
+| macOS arm64/x64 | [41443002523](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/41443002523) | Final DMG/ZIP resource inventory, Helper layout, deep signature structure and native Electron startup passed on each architecture's runner. Arm64 initially suffered hosted-runner capacity cancellations; successful x64 results were retained, and only arm64 was retried. |
+| Linux x64 | [41443080725](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/41443080725) | DEB/RPM builds and resource-only qualification passed. Real Linux GUI startup remains unverified. |
 
-The downloaded macOS arm64 ZIP additionally passed two complete local launches in an isolated Chinese/space path with an empty `DSH_HOME` and Electron's test-only mock Keychain. First readiness took `41135 ms` with Profile deployment; second took `4010 ms` without redeployment. Both recorded Harness/client/event-dispatch readiness, expected anonymous HTTP 401, fifteen seconds of liveness, exit 0, absent PID and closed port after stopping. Evidence: `.artifacts/0.2.1-rc.3-packaged-startup.json`. This does not substitute for manual GUI, Apple notarization or real Keychain authorization evidence. Windows and Linux physical-machine installation beyond the accepted native jobs remain unverified.
+Every accepted run identifies the same source SHA above and uses the common plugin snapshot. Windows fixes normalize NSIS SHELL_CONTEXT into a concrete HKCU/HKLM registry root and preserve complete appended installer diagnostics; earlier failed candidates are not release inputs.
 
-The known v0 Session `summary requires notice form` limitation remains outside this release. The reported startup candidate rollback and sign-out failures were not repaired by this patch; the notes identify these limits rather than claiming a fix.
+The final downloaded arm64 ZIP additionally passed full local isolated startup in a Chinese/space path. Evidence: `.artifacts/release-validation/0.2.2-alpha.2/中文 启动验证/smoke-jBScCi/report.json`. A fresh private DSH_HOME and test-only app-data root were used; no real NAS credential storage or real account credentials were needed. The native owner was stopped during candidate copying before activation, then killed; its exit was confirmed before recovery. One completed code file preserved inode, size and SHA-256 through recovery and activation. Recovery reached both client/event-dispatch readiness markers in `18088 ms`, returned authenticated HTTP 200, survived 10 seconds and exited 0. Second launch reached readiness in `5018 ms`, performed zero Profile deployments, returned authenticated HTTP 200, survived 10 seconds and exited 0. This is a sampled reuse test, not an exhaustive resource-reuse or live-owner-contention test. Offline plugin maintenance uses accepted native-workflow evidence.
+
+No manual GUI/mobile assessment, Apple notarization, real Keychain authorization or additional Windows/Linux physical-machine qualification is claimed. Known v0 Session `summary requires notice form` remains outside this release's repair scope.
 
 ## Verified installer sizes
 
-The exact flat local handoff contains seven installers plus `SHA256SUMS`. Local SHA-256, DMG structure and ZIP payload checks passed. All eight GitHub assets match the local sizes and digests; the CNB anonymous index matches all seven installer names, sizes and SHA-256 values, and seven anonymous download HEAD sizes match. This does not claim seven full CNB downloads.
+The exact read-only local handoff is `release/0.2.2-alpha.2/`: eight installers plus `SHA256SUMS`, with no extra files. All eight local SHA-256 values match accepted workflow checksums; ZIP integrity and final-directory contract checks passed. GitHub remote asset verification and CNB index/download verification are **pending**.
 
 | Installer | Bytes | MiB |
 | --- | ---: | ---: |
-| Windows x64 EXE | 457872495 | 436.7 |
-| macOS arm64 DMG | 589277823 | 562.0 |
-| macOS arm64 ZIP | 569920226 | 543.5 |
-| macOS x64 DMG | 607139535 | 579.0 |
-| macOS x64 ZIP | 587747263 | 560.5 |
-| Linux x64 DEB | 462147800 | 440.7 |
-| Linux x64 RPM | 410209905 | 391.2 |
+| `DeepSeek-Harness-linux-x64.deb` | 467942328 | 446.3 |
+| `DeepSeek-Harness-linux-x64.rpm` | 413181933 | 394.0 |
+| `DeepSeek-Harness-macos-arm64.dmg` | 597210991 | 569.5 |
+| `DeepSeek-Harness-macos-arm64.zip` | 577404541 | 550.7 |
+| `DeepSeek-Harness-macos-x64.dmg` | 615257211 | 586.8 |
+| `DeepSeek-Harness-macos-x64.zip` | 595240103 | 567.7 |
+| `DeepSeek-Harness-windows-x64.exe` | 462259357 | 440.8 |
+| `DeepSeek-Harness-windows-x64.zip` | 561800787 | 535.8 |
 
-Alternative-format total: `3684315047` bytes, versus the prior qualified set's `3678821204` bytes. Every like-for-like installer increased by `0.1–0.2%`; the total is not one user's download or the installed footprint. The local handoff is `release/0.2.1-rc.3/`, with seven installers and the checksum file.
+Alternative-format total: `4290297251` bytes (`4091.5 MiB`). This includes mutually alternative formats and architectures; it is not one user's download or the installed footprint. Windows ZIP is an additional format absent from the previous seven-installer release; do not interpret total-size differences as a like-for-like growth measurement.
 
-## Publication state
+## Verified publication
 
-- GitHub: [odsh-v0.2.1-rc.3](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3) is public, non-prerelease and Latest, published `2026-10-24T13:41:16Z`. The tag resolves to the accepted source commit, and eight project asset sizes/digests match the local set. GitHub's generated source archives are separate from these eight assets.
-- CNB: release-triggered [40099213938](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/40099213938) succeeded. The [matching Release](https://cnb.cool/hecoococ/open-deepseek-harness-desktop/-/releases/tag/odsh-v0.2.1-rc.3) is public with seven installers; no duplicate manual sync was dispatched.
-- Anonymous index: revision `228`, generated `2026-10-24T13:41:41.804Z`, expires `2026-10-24T19:41:41.804Z`. Exact tag/version, non-withdrawn state, indexed names/sizes/SHA-256 values and seven download HEAD sizes passed `verify-cnb-desktop-release.mjs`.
-- The user explicitly authorized the packaging flow and GitHub/CNB publication without another confirmation. Release and packaging branches were pushed; the published tag remains fixed even when later documentation commits record this evidence.
+- GitHub: https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-alpha.2 . Published `2026-11-03T03:55:02Z`, non-prerelease and Latest. Tag target is the qualified immutable source above. All nine project assets match local sizes and SHA-256; published body and title match the reviewed notes. Generated source ZIP/TAR are separate page entries.
+- CNB: https://cnb.cool/hecoococ/open-deepseek-harness-desktop/-/releases/tag/odsh-v0.2.2-alpha.2 . Release-triggered sync [41575017080](https://github.com/flaqai/open-deepseek-harness-desktop/actions/runs/41575017080) succeeded without duplicate dispatch.
+- Anonymous index revision `272`, generated `2026-11-03T03:55:22.958Z`, expires `2026-11-03T09:55:22.958Z`. The verifier confirmed exact version/tag, non-withdrawn state, eight filenames/sizes/SHA-256 values and anonymous download URL sizes. This is not eight full CNB downloads. Evidence: `.artifacts/release-validation/0.2.2-alpha.2/cnb-verification.json` (text report) and `github-published.json`.
+- Upload recovery: arm64 ZIP received HTTP 408; the matching Draft resumed with its first three verified assets preserved. All remaining uploads and final public identity checks passed. No assets were clobbered.
+- User authorization covers this normal GitHub Release and CNB synchronization. Subsequent documentation commits never move the qualified tag or replace accepted installers.
+
+## Validation artifact retention
+
+Inventory and completed cleanup evidence: `.artifacts/release-validation/0.2.2-alpha.2/cleanup-inventory.json` and `cleanup-report.json`. Before deleting the exact duplicate `final arm64` extraction, all eight retained installer checksums were rechecked; its app.asar matched the retained verified ZIP, and an approved native PID-only scan found no related live processes. The duplicate extraction was removed; observed free space increased from `97894400000` to `99532800000` bytes (delta `1638400000`). Filesystem deltas may reflect APFS sharing and concurrent activity.
+
+The successful `smoke-jBScCi` environment is the one retained latest reproduction environment. Failed helper environments `smoke-qANpBE` and `smoke-W1ykN6` retain their reports/logs and expire at `2026-11-10T02:41:30Z` unless an investigation pins them. Download staging was already absent after atomic handoff activation. Final installers/checksums, qualification reports, necessary failure logs, helper and release identity records remain retained. No tracked source was changed by cleanup.
 
 ## Recording a completed release
 
-After both destinations pass verification, replace this historical record with observed source/tag identity, accepted runs, platform qualification and limitations, shared plugin snapshot, download route/speeds, exact local set, installer sizes, GitHub state and CNB sync/index facts. Keep partial publication explicit until both pass. Later documentation commits never move the release tag or replace accepted installers.
+Replace this historical record only after both destinations pass identity verification. Preserve accepted source, shared snapshot, platform limitations and local evidence; later documentation commits never move a published tag.
