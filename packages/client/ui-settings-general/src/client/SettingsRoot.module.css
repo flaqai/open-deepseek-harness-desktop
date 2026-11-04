@@ -369,12 +369,32 @@
 .resizeHandle[data-edge='nw'] { top: 0; left: 0; cursor: nwse-resize; }
 .resizeHandle[data-edge='se'] { bottom: 0; right: 0; cursor: nwse-resize; }
 .resizeHandle[data-edge='sw'] { bottom: 0; left: 0; cursor: nesw-resize; }
-/* Share the native scrollbar track: horizontal gestures resize, vertical gestures scroll. */
-.divider { position: absolute; z-index: 4; top: 10px; bottom: 0; right: 12px; width: var(--dsh-scrollbar-width, 5px); border-radius: 3px; cursor: col-resize; touch-action: none; transition: background-color 150ms; }
-.divider:hover { background: var(--dsh-scrollbar-thumb-hover); }
-/* Scrolling keeps the native thumb visible instead of painting over the whole track. */
-.nav:has([data-scrolling='true']) .divider { background: transparent; }
-@media (prefers-reduced-motion: reduce) { .divider { transition: none; } }
+/* Keep the resize hit area in the rail padding, outside the native scrollbar. */
+.divider {
+  position: absolute;
+  z-index: 4;
+  top: 10px;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--dsh-scrollbar-thumb-hover);
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.divider:hover::after,
+.divider[data-dragging='true']::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .divider::after { transition: none; } }
 @media (max-width: 767px) {
   :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .resizeHandle,
   :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .divider { display: none; }

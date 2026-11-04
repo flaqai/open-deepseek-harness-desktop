@@ -103,12 +103,8 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
             onSelect={(id) => { setManaging(false); onSelect(id) }} icon={id => renderSlot('settings.section.icon', { size: 16, active: id === active }, { only: id, fallback: navIcon(id) })}
             onManage={(id, action) => { setSelectedGroupId(id); setSelectedGroupAction(action); setManaging(true) }} />
           {navigation.failed ? <p role="alert">{t('nav.saveFailed')}</p> : null}
-          <div className={css.divider} aria-hidden="true" onPointerDown={(event) => { sizing.start('divider', event) }}
-            onWheel={(event) => {
-              const rail = event.currentTarget.parentElement?.querySelector<HTMLElement>('[data-scrolling]')
-              if (rail) rail.scrollTop += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rail.clientHeight : 1)
-              event.stopPropagation()
-            }} />
+          <div className={css.divider} aria-hidden="true" data-dragging={sizing.dividerDragging || undefined}
+            onPointerDown={(event) => { sizing.start('divider', event) }} />
         </nav>
         <div className={css.header}>
           <div className={css.actions}>{renderSlot('settings.action', {})}</div>

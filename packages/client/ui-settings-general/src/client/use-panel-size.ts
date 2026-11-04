@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 
-type ScrollDrag = { rail: HTMLElement; top: number; ratio: number; axis?: 'x' | 'y' }
 type Size = { width: number; height: number; nav: number }
 const defaults: Size = { width: 808, height: 800, nav: 196 }
 let remembered = defaults
@@ -13,10 +12,11 @@ export function usePanelSize(): {
   style: CSSProperties
   start: (edge: string, event: ReactPointerEvent<HTMLElement>) => void
   reset: () => void
+  dividerDragging: boolean
 } {
   const [size, setSize] = useState(remembered)
   const [, refresh] = useState(0)
-  const [drag, setDrag] = useState<{ edge: string; x: number; y: number; size: Size; pointerId: number; scroll?: ScrollDrag }>()
+  const [drag, setDrag] = useState<{ edge: string; x: number; y: number; size: Size; pointerId: number }>()
   const constrain = (value: Size): Size => {
     const inset = Math.max(24, Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dsh-frame-overlay-top')) || 24)
     const width = Math.min(Math.max(defaults.width, value.width), 1200, Math.max(0, window.innerWidth - 48))
@@ -35,17 +35,6 @@ export function usePanelSize(): {
       if (event.pointerId !== drag.pointerId) return
       event.preventDefault()
       const dx = event.clientX - drag.x; const dy = event.clientY - drag.y
-      if (drag.scroll) {
-        const scroll = drag.scroll
-        if (!scroll.axis) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) < 4) return
-          scroll.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y'
-        }
-        if (scroll.axis === 'y') {
-          scroll.rail.scrollTop = scroll.top + dy * scroll.ratio
-          return
-        }
-      }
       const next = constrain({
         width: drag.size.width + (drag.edge.includes('e') ? dx * 2 : drag.edge.includes('w') ? -dx * 2 : 0),
         height: drag.size.height + (drag.edge.includes('s') ? dy * 2 : drag.edge.includes('n') ? -dy * 2 : 0),
@@ -76,10 +65,9 @@ export function usePanelSize(): {
     start: (edge, event) => {
       if (event.button !== 0) return
       event.preventDefault(); event.stopPropagation()
-      const rail = edge === 'divider' ? event.currentTarget.parentElement?.querySelector<HTMLElement>('[data-scrolling]') : undefined
-      const scroll = rail ? { rail, top: rail.scrollTop, ratio: rail.scrollHeight / Math.max(1, rail.clientHeight) } : undefined
-      setDrag({ edge, x: event.clientX, y: event.clientY, size: current, pointerId: event.pointerId, ...(scroll ? { scroll } : {}) })
+      setDrag({ edge, x: event.clientX, y: event.clientY, size: current, pointerId: event.pointerId })
     },
+    dividerDragging: drag?.edge === 'divider',
     reset: () => { remembered = defaults; setSize(defaults); setDrag(undefined) },
   }
 }

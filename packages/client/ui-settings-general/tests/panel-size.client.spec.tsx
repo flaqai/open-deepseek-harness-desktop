@@ -28,7 +28,7 @@ it('clamps to smaller viewports and only adjusts the split for divider drag', ()
   act(() => { window.dispatchEvent(new Event('pointercancel')); result.current.reset() })
 })
 
-it('shares the scrollbar track and locks vertical gestures to scrolling', () => {
+it('resizes only horizontally from the separate divider without scrolling the rail', () => {
   vi.stubGlobal('innerWidth', 1400); vi.stubGlobal('innerHeight', 1000)
   const nav = document.createElement('nav')
   const rail = document.createElement('div'); rail.dataset.scrolling = 'false'
@@ -41,10 +41,22 @@ it('shares the scrollbar track and locks vertical gestures to scrolling', () => 
     preventDefault() {}, stopPropagation() {},
   } as unknown as ReactPointerEvent<HTMLElement>) })
   act(() => {
-    const event = new MouseEvent('pointermove', { clientX: 198, clientY: 120 })
+    const event = new MouseEvent('pointermove', { clientX: 196, clientY: 120 })
     Object.defineProperty(event, 'pointerId', { value: 3 }); window.dispatchEvent(event)
   })
-  expect(rail.scrollTop).toBe(60)
+  expect(rail.scrollTop).toBe(0)
   expect(result.current.style).toMatchObject({ '--settings-nav-width': '196px', '--settings-width': '808px' })
+  expect(result.current.dividerDragging).toBe(true)
+  act(() => {
+    const event = new MouseEvent('pointermove', { clientX: 220, clientY: 150 })
+    Object.defineProperty(event, 'pointerId', { value: 3 }); window.dispatchEvent(event)
+  })
+  expect(rail.scrollTop).toBe(0)
+  expect(result.current.style).toMatchObject({ '--settings-nav-width': '220px' })
+  act(() => {
+    const event = new MouseEvent('pointerup')
+    Object.defineProperty(event, 'pointerId', { value: 3 }); window.dispatchEvent(event)
+  })
+  expect(result.current.dividerDragging).toBe(false)
   act(() => { result.current.reset() })
 })
