@@ -15,6 +15,9 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { getEnvironmentData } from 'node:worker_threads'
+import { Context } from '@deepseek-ai/cordis'
+import { PluginPackages } from '../src/profile-resolution/service.ts'
+import { prepareProfileEntries } from '../src/compatibility-preflight.ts'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   installRuntimeInterception,
@@ -24,6 +27,7 @@ import {
 } from '../src/profile-resolution/resolver.ts'
 import {
   createRuntimeResolution,
+  resolveProfileLoaderModule,
   loadProfile,
   type Profile,
   type RuntimeResolution,
@@ -529,6 +533,64 @@ describe('runtime resolution', { concurrent: false }, () => {
       requestPath: nativeError.requestPath,
     })
     expect(runtimeError.message).toBe(nativeError.message)
+  })
+
+  it.each(['@deepseek-ai/dsh-session-projection', '@deepseek-ai/dsh-session', '@deepseek-ai/dsh-agent', '@deepseek-ai/dsh-tool-subagent'])(
+    'keeps the installation core %s ahead of an old direct Profile dependency', async (name) => {
+      const f = fixture(name)
+      file(join(f.profile.dir, 'package.json'), JSON.stringify({ dependencies: { [name]: '2.0.0' } }))
+      pkg(join(f.profile.dir, 'node_modules', name), name, 2)
+      file(join(f.installed, 'package.json'), JSON.stringify({
+        name, version: '1.0.0', type: 'module',
+        exports: { '.': { import: './index.js', require: './index.cjs' }, './settings': './settings.cjs' },
+      }))
+      file(join(f.installed, 'settings.cjs'), 'module.exports = { marker: 3 }\n')
+      const resolution = await resolutionOf(f)
+      const registration = installRuntimeInterception(resolution)
+      registrations.push(registration)
+      const parent = pathToFileURL(join(f.profile.dir, 'entry.mjs')).href
+      expect(registration.packageDir(name, parent)).toBe(f.installed)
+      expect(resolveFrom(name, parent)).toBe(pathToFileURL(join(f.installed, 'index.js')).href)
+      expect(createRequire(join(f.profile.dir, 'entry.cjs'))(name)).toEqual({ marker: 1 })
+      expect(createRequire(join(f.profile.dir, 'entry.cjs'))(`${name}/settings`)).toEqual({ marker: 3 })
+      expect(registration.packageDir(`${name}/settings`, parent)).toBe(f.installed)
+      expect(resolveProfileLoaderModule(f.profile.dir, `${name}/settings`, new Map([[name, f.installed]])))
+        .toBe(pathToFileURL(join(f.installed, 'settings.cjs')).href)
+      expect(resolveProfileLoaderModule(f.profile.dir, name, new Map([[name, f.installed]])))
+        .toBe(pathToFileURL(join(f.installed, 'index.js')).href)
+    },
+  )
+
+  it('admits the installation session projection instead of denying an incompatible Profile copy', async () => {
+    const name = '@deepseek-ai/dsh-session-projection'
+    const f = fixture(name)
+    file(join(f.profile.dir, 'package.json'), JSON.stringify({ dependencies: { [name]: '*' } }))
+    const local = join(f.profile.dir, 'node_modules', name)
+    pkg(local, name, 2)
+    file(join(local, 'package.json'), JSON.stringify({ name, version: '2.0.0', engines: { dsh: '0.0.0' } }))
+    const ctx = new Context()
+    try {
+      ctx.provide('profileContext', {
+        name: 'web', dir: f.profile.dir, patchPath: f.profile.patchPath, installAnchor: f.installAnchor,
+        cwd: f.root, home: f.root, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+      })
+      await ctx.plugin(PluginPackages, { resolution: await resolutionOf(f) })
+      const parent = pathToFileURL(join(f.profile.dir, 'entry.mjs')).href
+      expect(ctx.pluginPackages.packageOf(name, parent)?.dir).toBe(f.installed)
+      expect(prepareProfileEntries(ctx, [{ id: 'session-projection', name }], parent)[0]?.disabled).toBeUndefined()
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('retains a Profile core package when the installation does not supply it', async () => {
+    const name = '@deepseek-ai/dsh-session-projection'
+    const f = fixture()
+    file(join(f.profile.dir, 'package.json'), JSON.stringify({ dependencies: { [name]: '*' } }))
+    const local = join(f.profile.dir, 'node_modules', name)
+    pkg(local, name, 2)
+    registrations.push(installRuntimeInterception(await resolutionOf(f)))
+    expect(createRequire(join(f.profile.dir, 'entry.cjs'))(name)).toEqual({ marker: 2 })
+    expect(resolveProfileLoaderModule(f.profile.dir, name, new Map()))
+      .toBe(pathToFileURL(join(local, 'index.js')).href)
   })
 
   it('keeps a profile-local package ahead of the resolution', async () => {

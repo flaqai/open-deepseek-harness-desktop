@@ -35,6 +35,7 @@ import { assertBundlePlatform } from './bundle-platform.ts'
 import { evaluatePluginCompatibility, pluginCompatibilityWarning } from './plugin-compatibility.ts'
 import { readProfileVersionExemptions } from './profile-compatibility.ts'
 import { loadOverlayPatches } from './index.ts'
+import { INSTALLATION_OWNED_CORE_PACKAGES } from './installation-owned-core.ts'
 import { realModuleDirectory } from './profile-resolution/legacy-links.ts'
 
 /** Directory under the Harness home holding every profile. */
@@ -809,7 +810,7 @@ export function loadDiagnosticProfile(
 
 /**
  * Resolve an installed Loader package without importing plugin code. The
- * Profile dependency tree takes precedence; an optional installation package
+ * Profile dependency tree takes precedence except installation-owned core service packages; an optional installation package
  * table supplies the same fallback packages available to runtime resolution.
  * @param profileDir - active Profile directory.
  * @param specifier - bare package or explicit exported subpath.
@@ -828,13 +829,15 @@ export function resolveProfileLoaderModule(
     return undefined
   }
   const profilePackageDir = packageDirFromAnchor(join(profileDir, 'package.json'), packageName)
-  const packageDir = profilePackageDir ?? installationPackages?.get(packageName)
+  const installationPackageDir = installationPackages?.get(packageName)
+  const packageDir = INSTALLATION_OWNED_CORE_PACKAGES.has(packageName) && installationPackageDir !== undefined
+    ? installationPackageDir : profilePackageDir ?? installationPackageDir
   if (packageDir === undefined) return undefined
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')) as {
     exports?: ResolvePackageManifest['exports']
   }
   if (manifest.exports === undefined) {
-    const anchor = profilePackageDir === undefined ? join(packageDir, 'package.json') : join(profileDir, 'package.json')
+    const anchor = packageDir !== profilePackageDir ? join(packageDir, 'package.json') : join(profileDir, 'package.json')
     try { return pathToFileURL(createRequire(anchor).resolve(specifier)).href }
     catch { return undefined }
   }

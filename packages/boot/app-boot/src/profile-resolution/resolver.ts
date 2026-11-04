@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { getEnvironmentData, setEnvironmentData } from 'node:worker_threads'
 import type { ModuleLoaderV1, ModuleLoaderV2, ResolveResult } from '@deepseek-ai/cordis-plugin-loader'
 import { imports as resolvePackageImports, type Package as ResolvePackageManifest } from 'resolve.exports'
+import { INSTALLATION_OWNED_CORE_PACKAGES } from '../installation-owned-core.ts'
 import type { RuntimeResolutionEntry, RuntimeResolution } from '../profile.ts'
 
 const WORKER_RESOLUTION_KEY = '@deepseek-ai/dsh-app-boot/profile-resolution'
@@ -586,6 +587,11 @@ class ResolutionRouter {
     if (layer.kind === 'linked') return this.routeLinked(request, name, parent, resolution, flavor, cjs)
 
     const target = resolution.entries.get(name)
+    if (target?.scope === 'installation' && INSTALLATION_OWNED_CORE_PACKAGES.has(name)) {
+      const state: ResolutionRouteState = { route: { kind: 'interception', entry: target, after: layer.after } }
+      if (memo) requests.set(request, state)
+      return state
+    }
     const candidates: string[] = []
     const localSearchPaths: string[] = []
     for (const searchPath of createRequire(parent).resolve.paths(name) as string[]) {
@@ -680,6 +686,7 @@ class ResolutionRouter {
     const name = barePackageName(request)
     const { layer } = parentRoutes
     if (name === undefined || layer.kind !== 'profile' || !layer.active || !resolution.localPackageNames.has(name)) return undefined
+    if (resolution.entries.get(name)?.scope === 'installation' && INSTALLATION_OWNED_CORE_PACKAGES.has(name)) return undefined
     const state = { route: { kind: 'native' as const } }
     parentRoutes.requests.set(request, state)
     return state
