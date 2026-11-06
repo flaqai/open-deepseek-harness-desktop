@@ -149,7 +149,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 ### 프리셋 플러그인
 
-설치 프로그램에는 무결성을 확인한 로컬 아카이브로 Plugin Marketplace, dsh-im, Better Sidebar, `@agents-anywhere/dsh-bridge-next`, `@ychris12138/dsh-usage-stats`, `dsh-mermaid`, `dsh-whale-widget`, `@weibaohui/skills-management`, `@dsh-plugins/mcp-panel`의 9개 시작 프리셋이 포함됩니다. Agents Anywhere는 사용자가 명시적으로 활성화하기 전까지 꺼져 있습니다. Smooth Stream은 시작 프리셋에 포함되지 않습니다. `dsh-font`는 진단 연습 샘플로만 제공됩니다. 사용자가 프리셋을 제거하면 클라이언트가 자동으로 다시 설치하지 않습니다.
+설치 프로그램에는 무결성을 확인한 로컬 아카이브로 Plugin Marketplace, dsh-im, Better Sidebar, `dsh-pocket`, `@agents-anywhere/dsh-bridge-next`, `@ychris12138/dsh-usage-stats`, `dsh-mermaid`, `dsh-whale-widget`, `@weibaohui/skills-management`, `@dsh-plugins/mcp-panel`, `dsh-context`의 11개 시작 프리셋이 포함됩니다. Agents Anywhere는 사용자가 명시적으로 활성화하기 전까지 꺼져 있습니다. Smooth Stream은 시작 프리셋에 포함되지 않습니다. `dsh-font`는 진단 연습 샘플로만 제공됩니다. 사용자가 프리셋을 제거하면 클라이언트가 자동으로 다시 설치하지 않습니다.
 
 #### 프리셋 플러그인 감사
 

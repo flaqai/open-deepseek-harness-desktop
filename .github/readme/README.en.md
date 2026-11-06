@@ -293,7 +293,7 @@ The Electron host grants sanitized clipboard-write permission to the supervised 
 
 ### Preset plugins
 
-The installer carries integrity-checked archives for eight startup presets and a complete platform-specific prebuilt Profile: Plugin Marketplace, IM connections, Better Sidebar, Pocket, `@ychris12138/dsh-usage-stats`, `dsh-smooth-stream`, `dsh-mermaid`, and `dsh-whale-widget`. First setup deploys the verified template transactionally, rewrites paths, and checks every preset before opening the main UI; it neither downloads nor installs each preset separately. The archives remain available for repair and bounded compatibility fallback. They remain ordinary Harness dependencies that users can uninstall.
+The installer carries integrity-checked archives for eleven startup presets and a complete platform-specific prebuilt Profile: Plugin Marketplace, IM connections, Better Sidebar, Pocket, `@agents-anywhere/dsh-bridge-next`, `@ychris12138/dsh-usage-stats`, `dsh-mermaid`, `dsh-whale-widget`, `@weibaohui/skills-management`, `@dsh-plugins/mcp-panel`, and `dsh-context`. Context Insights shows session context composition and token usage and provides the `/context` command. First setup deploys the verified template transactionally, rewrites paths, and checks every preset before opening the main UI; it neither downloads nor installs each preset separately. The archives remain available for repair and bounded compatibility fallback. They remain ordinary Harness dependencies that users can uninstall.
 
 #### Preset plugin acknowledgements
 

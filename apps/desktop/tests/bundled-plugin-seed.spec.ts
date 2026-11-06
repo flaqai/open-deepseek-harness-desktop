@@ -172,6 +172,7 @@ describe('bundled plugin seed', () => {
       ['dsh-whale-widget', 'startup'],
       ['@weibaohui/skills-management', 'startup'],
       ['@dsh-plugins/mcp-panel', 'startup'],
+      ['dsh-context', 'startup'],
       ['dsh-font', 'diagnostic'],
       ['@dsh-diagnostic-lab/scoped-loader-mismatch', 'diagnostic'],
       ['@dsh-diagnostic-lab/loader-dependency-unavailable', 'diagnostic'],
@@ -200,7 +201,7 @@ describe('bundled plugin seed', () => {
     expect(manifest.plugins.find(entry => entry.packageName === '@dsh-diagnostic-lab/immutable-agent-input-mutation'))
       .toMatchObject({ version: '1.0.0', installPolicy: 'diagnostic' })
     expect(manifest.plugins.find(entry => entry.packageName === '@ychris12138/dsh-usage-stats'))
-      .toMatchObject({ version: '0.3.6', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.3.7', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-smooth-stream'))
       .toBeUndefined()
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-mermaid'))
@@ -208,7 +209,7 @@ describe('bundled plugin seed', () => {
     expect(manifest.plugins.find(entry => entry.packageName === 'dsh-whale-widget'))
       .toMatchObject({ version: '0.4.2', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@weibaohui/skills-management'))
-      .toMatchObject({ version: '0.9.1', installPolicy: 'startup' })
+      .toMatchObject({ version: '0.9.3', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel'))
       .toMatchObject({ version: '0.1.0', installPolicy: 'startup' })
     expect(manifest.plugins.find(entry => entry.packageName === '@dsh-plugins/mcp-panel')?.registrySpec)
@@ -244,6 +245,35 @@ describe('bundled plugin seed', () => {
     for (const entry of manifest.plugins) {
       const bytes = await readFile(new URL(`../bundled-plugins/${entry.archive}`, import.meta.url))
       expect(`sha512-${createHash('sha512').update(bytes).digest('base64')}`).toBe(entry.integrity)
+    }
+  })
+
+  it('ships Context Insights with its bundle patch and both runtime entry points', async () => {
+    const manifest = JSON.parse(await readFile(new URL('../bundled-plugins/manifest.json', import.meta.url), 'utf8')) as {
+      plugins: BundledPluginManifestEntry[]
+    }
+    const context = manifest.plugins.find(entry => entry.packageName === 'dsh-context')
+    expect(context).toMatchObject({ version: '0.82.0', installPolicy: 'startup', registrySpec: 'dsh-context@0.82.0' })
+    if (context === undefined) throw new Error('Context Insights is missing from the bundled manifest')
+    const paths = new Set<string>()
+    let packageJson = ''
+    await list({
+      file: fileURLToPath(new URL(`../bundled-plugins/${context.archive}`, import.meta.url)),
+      onReadEntry: (entry) => {
+        paths.add(entry.path)
+        if (entry.path === 'package/package.json') {
+          entry.on('data', (chunk: Buffer) => { packageJson += chunk.toString('utf8') })
+        } else entry.resume()
+      },
+    })
+    expect(JSON.parse(packageJson)).toMatchObject({
+      name: 'dsh-context', version: context.version,
+      main: 'lib/index.js',
+      exports: { './client': './lib/client.js' },
+      dsh: { bundle: { patch: './cordis.patch.yml' } },
+    })
+    for (const path of ['package/lib/index.js', 'package/lib/client.js', 'package/cordis.patch.yml']) {
+      expect(paths).toContain(path)
     }
   })
 

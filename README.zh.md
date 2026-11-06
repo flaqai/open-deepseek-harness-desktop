@@ -328,7 +328,7 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 ### 预设插件
 
-安装包携带九个启动预设的完整性校验归档及按平台预构建的完整 Profile，其中包括插件市场、`dsh-im`、Better Sidebar 和 `@agents-anywhere/dsh-bridge-next`。Agents Anywhere 默认关闭；在“工具 → 远程控制”主动启用后，可选择 AA Cloud 或自建服务，登录并连接手机。它只连接本机 Profile；NAS 模式不启动本机 Connector。首次准备优先部署完整模板，不需要临时联网或逐个运行插件安装；包内归档仍用于维修和兼容回退。普通传递依赖继续由 Profile 的 pnpm 解析规则管理。
+安装包携带十一个启动预设的完整性校验归档及按平台预构建的完整 Profile，其中包括插件市场、`dsh-im`、Better Sidebar、`dsh-pocket`、`@agents-anywhere/dsh-bridge-next` 和用于上下文组成、Token 用量洞察及 `/context` 命令的 `dsh-context`。Agents Anywhere 默认关闭；在“工具 → 远程控制”主动启用后，可选择 AA Cloud 或自建服务，登录并连接手机。它只连接本机 Profile；NAS 模式不启动本机 Connector。首次准备优先部署完整模板，不需要临时联网或逐个运行插件安装；包内归档仍用于维修和兼容回退。普通传递依赖继续由 Profile 的 pnpm 解析规则管理。
 
 #### 预设插件致谢
 

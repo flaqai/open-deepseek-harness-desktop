@@ -120,6 +120,16 @@
       "integrity": "sha512-/h/J/KO21l8WIKwbarai7Q5A8UoQ/YovE0i3+ylg1JUcFvPKBLJBJ3pPuWugTFwpKDdlT3yZt7mAt+QdrzZKbQ=="
     },
     {
+      "seedId": "dsh-context",
+      "packageName": "dsh-context",
+      "version": "0.82.0",
+      "profile": "web",
+      "installPolicy": "startup",
+      "registrySpec": "dsh-context@0.82.0",
+      "archive": "dsh-context-0.82.0.tgz",
+      "integrity": "sha512-PpFxdMc8WwM1K8Lebhcr/Sqj6kpdfb0YbAFczOAnc7H0YS3JFXQ/7vCsSO7Z2IUsM4QsfocwyafRJG7O1QxmZA=="
+    },
+    {
       "seedId": "diagnostic-dsh-font",
       "packageName": "dsh-font",
       "version": "1.1.0",

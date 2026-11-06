@@ -156,7 +156,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 ### プリセットプラグイン
 
-インストーラーには、Plugin Marketplace、dsh-im、Better Sidebar、`@agents-anywhere/dsh-bridge-next`、`@ychris12138/dsh-usage-stats`、`dsh-mermaid`、`dsh-whale-widget`、`@weibaohui/skills-management`、`@dsh-plugins/mcp-panel` の 9 つの起動プリセットが、整合性を検証したローカルアーカイブとして含まれます。Agents Anywhere はユーザーが明示的に有効にするまで無効です。Smooth Stream は起動プリセットに含まれません。`dsh-font` は診断演習用のサンプルとしてのみ同梱します。ユーザーがプリセットをアンインストールした場合、クライアントは自動で再インストールしません。
+インストーラーには、Plugin Marketplace、dsh-im、Better Sidebar、`dsh-pocket`、`@agents-anywhere/dsh-bridge-next`、`@ychris12138/dsh-usage-stats`、`dsh-mermaid`、`dsh-whale-widget`、`@weibaohui/skills-management`、`@dsh-plugins/mcp-panel`、`dsh-context` の 11 個の起動プリセットが、整合性を検証したローカルアーカイブとして含まれます。Agents Anywhere はユーザーが明示的に有効にするまで無効です。Smooth Stream は起動プリセットに含まれません。`dsh-font` は診断演習用のサンプルとしてのみ同梱します。ユーザーがプリセットをアンインストールした場合、クライアントは自動で再インストールしません。
 
 #### プリセットプラグインへの謝辞
 

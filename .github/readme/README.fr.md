@@ -143,7 +143,7 @@ Quand la session attend un choix, une confirmation ou une réponse, ou que l’�
 
 ### Plugins prédéfinis
 
-L’installateur contient neuf presets de démarrage sous forme d’archives locales dont l’intégrité est vérifiée : Plugin Marketplace, dsh-im, Better Sidebar, `@agents-anywhere/dsh-bridge-next`, `@ychris12138/dsh-usage-stats`, `dsh-mermaid`, `dsh-whale-widget`, `@weibaohui/skills-management` et `@dsh-plugins/mcp-panel`. Agents Anywhere reste désactivé jusqu’à son activation explicite par l’utilisateur. Smooth Stream ne fait pas partie des presets de démarrage. `dsh-font` est fourni uniquement comme échantillon pour les exercices de diagnostic. Lorsqu’un utilisateur désinstalle un preset, le client ne le réinstalle pas automatiquement.
+L’installateur contient onze presets de démarrage sous forme d’archives locales dont l’intégrité est vérifiée : Plugin Marketplace, dsh-im, Better Sidebar, `dsh-pocket`, `@agents-anywhere/dsh-bridge-next`, `@ychris12138/dsh-usage-stats`, `dsh-mermaid`, `dsh-whale-widget`, `@weibaohui/skills-management`, `@dsh-plugins/mcp-panel` et `dsh-context`. Agents Anywhere reste désactivé jusqu’à son activation explicite par l’utilisateur. Smooth Stream ne fait pas partie des presets de démarrage. `dsh-font` est fourni uniquement comme échantillon pour les exercices de diagnostic. Lorsqu’un utilisateur désinstalle un preset, le client ne le réinstalle pas automatiquement.
 
 #### Remerciements aux plugins prédéfinis
 
