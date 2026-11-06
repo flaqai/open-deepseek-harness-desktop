@@ -8,6 +8,7 @@ import type { ConversationViewsProps } from '@deepseek-ai/dsh-client-ui-conversa
 import type { PropsRenderFactories, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import { insertConversationQuote, requireQuoteWorkspace } from './quote-actions.ts'
+import { NS } from './locales.ts'
 import css from './SideConversation.module.css'
 
 const KIND = 'selectionchat'
@@ -106,7 +107,7 @@ export function registerSideConversations(ctx: Context):
       } catch (error) {
         quote?.ready.reject(error)
         if (!signal.aborted) yield { ok: false, error: {
-          name: 'RemoteError', isDSHRemoteError: true, code: 'gateway/internal', message: error instanceof Error ? error.message : 'Could not open the conversation', details: {},
+          name: 'RemoteError', isDSHRemoteError: true, code: 'gateway/internal', message: error instanceof Error ? error.message : ctx.locale.bind(NS)('error.action'), details: {},
         } }
       } finally {
         if (sessionId !== undefined) pending.delete(sessionId)

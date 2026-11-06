@@ -66,7 +66,7 @@
 
 /* Native backings share corners, but must follow their anchor's exact dimensions. */
 .contextual {
-  border-radius: 14px;
+  border-radius: var(--dsw-radius-menu);
 }
 
 /* One geometry for visible context actions, including owner-positioned text menus. */

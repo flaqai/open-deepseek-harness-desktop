@@ -13,7 +13,7 @@
 .field { display: grid; gap: 6px; font-size: 13px; }
 .field input, .field select { min-height: 44px; box-sizing: border-box; padding: 9px 11px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font: var(--dsw-font-s-14); }
 .field input::placeholder { color: var(--dsw-alias-label-tertiary); opacity: 1; }
-.field input:focus-visible, .field select:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.field input:focus-visible, .field select:focus-visible { outline: 2px solid var(--dsw-focus-ring-color); outline-offset: 2px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .devices { margin-top: 2px; padding-top: 12px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
 .device { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }

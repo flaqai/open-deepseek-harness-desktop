@@ -104,6 +104,38 @@ it('keeps fallback ownership separate and restores supplemental copy when the pr
   unsubscribe()
 })
 
+it.each(['community-first', 'official-first'] as const)('composes official search and sidebar copy with Korean supplements in %s order', async (order) => {
+  const search = await import('../../ui-settings-web-search/src/client/locales.ts')
+  const sidebar = await import('../../ui-sidebar-right/src/client/locales.ts')
+  const ctx = new Context()
+  const locale = new LocaleRuntime(ctx)
+  ctx.provide('locale', locale)
+  const disposers: (() => void)[] = []
+  const mountOfficial = (): void => {
+    disposers.push(locale.register('settings.webSearch', { en: search.en, zh: search.zh, ja: search.ja }))
+    disposers.push(locale.register('sidebarRight', { en: sidebar.en, zh: sidebar.zh, ja: sidebar.ja }))
+  }
+  try {
+    if (order === 'official-first') mountOfficial()
+    disposers.push(registerDesktopLanguages(ctx))
+    if (order === 'community-first') mountOfficial()
+    locale.setLocale('ja')
+    expect(locale.bind('settings.webSearch')('searchApiPrivacy')).toBe(search.ja.searchApiPrivacy)
+    for (const key of ['menu.close', 'menu.closeOthers', 'menu.closeRight'] as const) {
+      expect(locale.bind('sidebarRight')(key)).toBe(sidebar.ja[key])
+    }
+    locale.setLocale('ko')
+    expect(locale.bind('settings.webSearch')('searchApiPrivacy')).toContain('sendOriginalQuestion: false')
+    expect(locale.bind('sidebarRight')('menu.close')).toBe('닫기')
+    expect(locale.bind('sidebarRight')('menu.closeOthers')).toBe('다른 탭 닫기')
+    expect(locale.bind('sidebarRight')('menu.closeRight')).toBe('오른쪽 탭 닫기')
+    expect(locale.bind('settings.account')('contactUsSignedOut')).toBe('DeepSeek에 문의(공식)')
+    expect(locale.bind('pluginManager')('accessDenied')).toContain('NAS 관리자')
+  } finally {
+    for (const dispose of disposers.reverse()) dispose()
+  }
+})
+
 
 it('resolves every supplemental desktop key in each community language with matching placeholders', async () => {
   const { DESKTOP_ADDITIONAL_TRANSLATIONS } = await import('../src/client/community-translations/desktop-additions.ts')

@@ -392,8 +392,8 @@
   opacity: 0;
   transition: opacity 150ms;
 }
-.divider:hover::after,
 .divider[data-dragging='true']::after { opacity: 1; }
+@media (hover: hover) { .divider:hover::after { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .divider::after { transition: none; } }
 @media (max-width: 767px) {
   :global(html:not([data-windows-titlebar]):not([data-platform='darwin'])) .resizeHandle,

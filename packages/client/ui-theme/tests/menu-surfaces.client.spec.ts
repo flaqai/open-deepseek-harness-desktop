@@ -62,11 +62,10 @@ describe('shared menu material', () => {
     expect(menuViolations('<MenuSurface><div role="listbox" /></MenuSurface>')).toEqual([])
   })
 
-  it('requires shared material outside the schedule-owned menu and clock picker', () => {
+  it('requires shared material outside the schedule-owned clock picker', () => {
     expect(sourceFiles().flatMap(file => menuViolations(readFileSync(file, 'utf8'))
       .map(role => `${relative(packages, file).replaceAll('\\', '/')}: ${role}`))).toEqual([
       'client/ui-schedule/src/client/ClockPicker.tsx: listbox',
-      'client/ui-schedule/src/client/TaskMenu.tsx: menu',
     ])
   })
 

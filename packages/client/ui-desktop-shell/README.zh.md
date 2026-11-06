@@ -38,7 +38,7 @@ kind: "package-reference"
 
 原生应用菜单导航使用现有工作区和设置服务。“新对话”保留这些服务原有的草稿行为；“关于”处理更新请求，通用设置处理包下载设置与数据目录选择请求。插件设置项缺失时报告错误，不安装任何内容。连接与语言订阅发布当前菜单就绪状态，并随插件释放。平台行为见[应用菜单](../../../apps/desktop/README.zh.md#application-menus)。
 
-社区构建会注册 `ja`、`ko`、`es`、`fr`、`de`、`pt-BR` 与 `ru` 作为可选语言，并为当前 Client 的完整 namespace 范围提供静态翻译。中文和英文仍由各功能包拥有；未来新增但尚未写入社区字典的 key 会回退到英文。俄语中与 [`@ragnoryok1/dsh-client-locale-ru`](https://github.com/Ragnoryok1/dsh-client-locale-ru) 重叠的文案以该语言包为准，Desktop 独有文案则留在本包。卸载本包会完整移除社区语言目录及其字典。当前 Profile 语言会报告给 Electron，用于原生菜单和恢复页文案；Electron 的启动缓存绝不写入 Profile 偏好。
+Desktop 提供 `ja`、`ko`、`es`、`fr`、`de`、`pt-BR` 与 `ru`。各功能包的字典始终逐 key 优先，不受激活顺序影响；社区回退字典补充缺失 key 与韩语文案。Namespace 补充与历史快照逐 key 合并，因此韩语独有新增项不要求其他语言快照重复收录。已有语言定义仍归原包拥有，保存的 `pt-BR` 偏好可以解析为官方葡萄牙语。未来新增且两层字典均缺失的 key 会回退到英文。俄语中与 [`@ragnoryok1/dsh-client-locale-ru`](https://github.com/Ragnoryok1/dsh-client-locale-ru) 重叠的文案以该语言包为准，Desktop 独有文案则留在本包。卸载时仅移除本包拥有的语言定义与回退字典。当前 Profile 语言会报告给 Electron，用于原生菜单和恢复页文案；Electron 的启动缓存绝不写入 Profile 偏好。
 
 Release 发现会把同一份状态投影到“关于”、设置面板标题栏，以及紧邻侧栏“设置”的蓝色操作按钮。只有存在更新时才显示两处更新操作；点击任意一处都会打开“关于”，并在面板完成布局后将更新行滚动到可见位置。标题栏更新入口与日志目录、配置文件入口使用相同的紧凑按钮尺寸和字体。源码构建中的开发更新模拟也使用同一投影。
 

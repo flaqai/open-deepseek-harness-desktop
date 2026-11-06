@@ -8,7 +8,8 @@
   ],
   "staticSourceFiles": [
     "apps/desktop/scripts/primary-runtime-lock.json",
-    "apps/desktop/bundled-plugins/manifest.json"
+    "apps/desktop/bundled-plugins/manifest.json",
+    "apps/desktop/assets/spellcheck-dictionaries/manifest.json"
   ],
   "commonResources": [
     {
@@ -20,6 +21,9 @@
   "platforms": {
     "windows": {
       "config": "apps/desktop/electron-builder.yml",
+      "prependResources": [
+        { "from": "assets/spellcheck-dictionaries", "to": "spellcheck-dictionaries", "filter": ["**/*"] }
+      ],
       "resources": [
         {
           "from": "../../tools/windows-install-repair",
@@ -67,6 +71,9 @@
     },
     "linux": {
       "config": "apps/desktop/electron-builder.linux.yml",
+      "prependResources": [
+        { "from": "assets/spellcheck-dictionaries", "to": "spellcheck-dictionaries", "filter": ["**/*"] }
+      ],
       "resources": [
         { "from": "../../.artifacts/desktop-runtime-linux-${arch}.tar", "to": "harness-runtime.tar" },
         { "from": "../../.artifacts/desktop-runtime-linux-${arch}.tar.sha256", "to": "harness-runtime.tar.sha256" },

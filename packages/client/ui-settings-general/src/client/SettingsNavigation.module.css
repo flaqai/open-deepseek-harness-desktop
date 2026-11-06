@@ -1,14 +1,14 @@
-.rail { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding-right: 0; scrollbar-gutter: auto; -webkit-user-select: none; user-select: none; }
+.rail { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding-right: 0; scrollbar-gutter: auto; -webkit-user-select: none; user-select: none; --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2); --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2); }
 /* Keep one narrow track; the thumb expands inside it without moving navigation rows. */
 .rail::-webkit-scrollbar { width: 8px; }
 .rail::-webkit-scrollbar-thumb {
   border: 2.5px solid transparent;
-  background-color: color-mix(in srgb, var(--dsw-alias-scrollbar-bg-l2) 65%, transparent);
+  background-color: color-mix(in srgb, var(--dsh-scrollbar-thumb) 65%, transparent);
   background-clip: content-box;
 }
 .rail[data-scrollbar-hovered='true']::-webkit-scrollbar-thumb {
   border-width: 1px;
-  background-color: color-mix(in srgb, var(--dsw-alias-scrollbar-hover-l2) 75%, transparent);
+  background-color: color-mix(in srgb, var(--dsh-scrollbar-thumb-hover) 75%, transparent);
 }
 .rail::-webkit-scrollbar-track { background: transparent; }
 .group { position: relative; min-width: 0; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-layer-2); transition: background-color 150ms; }
@@ -28,7 +28,7 @@
 .page { box-sizing: border-box; flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; text-align: left; height: 40px; padding: 8px 4px 8px 12px; border: 0; background: transparent; color: var(--dsw-alias-label-primary); font: var(--dsw-font-s-14); cursor: pointer; }
 .row:has([aria-current='true']) { background: var(--dsw-specific-sidebar-nav-item-active); }
 .tool { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 22px; height: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm); background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; }
-.more { width: 32px; height: 22px; margin-right: 8px; border-radius: 999px; line-height: 1; opacity: 0; pointer-events: none; }
+.more { width: 32px; height: 22px; margin-right: 8px; border-radius: 999px; corner-shape: round; line-height: 1; opacity: 0; pointer-events: none; }
 .heading:focus-within .more, .row:focus-within .more, .more[data-open='true'] { opacity: 1; pointer-events: auto; }
 @media (hover: hover) and (pointer: fine) {
   .heading:hover .more, .row:hover .more { opacity: 1; pointer-events: auto; }

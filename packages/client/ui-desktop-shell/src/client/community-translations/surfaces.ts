@@ -13,9 +13,11 @@ interface SurfaceCopy {
   sidebarImage: Dictionary
 }
 interface SurfaceExtra {
+  menu: readonly [string, string, string]
   right: readonly [string, string, string, string, string, string, string]
   commands: readonly [string, string, string, string, string, string, string, string, string, string, string, string, string]
   files: readonly [string, string, string, string]
+  fileNavigation: readonly [string, string, string, string]
   previewRefresh: readonly [string, string, string]
   zoom: readonly [string, string, string, string, string, string]
   preview: readonly [string, string, string, string, string, string, string, string]
@@ -40,6 +42,7 @@ function surface(locale: keyof typeof COMMUNITY_TRANSLATIONS, extra: SurfaceExtr
   }
   return {
     sidebarRight: {
+      'menu.close': extra.menu[0], 'menu.closeOthers': extra.menu[1], 'menu.closeRight': extra.menu[2],
       'chrome.expand': right['chrome.expand'] ?? '', 'chrome.expandAria': extra.right[0],
       'chrome.collapse': right['chrome.collapse'] ?? '', 'chrome.collapseAria': extra.right[1],
       'chrome.toFullscreen': right['chrome.toFullscreen'] ?? '', 'chrome.exitFullscreen': right['chrome.exitFullscreen'] ?? '',
@@ -61,6 +64,8 @@ function surface(locale: keyof typeof COMMUNITY_TRANSLATIONS, extra: SurfaceExtr
       ...files,
       'shortcut.noSession': extra.files[0], autoRefresh: extra.files[1],
       'autoRefresh.enable': extra.files[2], 'autoRefresh.disable': extra.files[3],
+      'entry.noViewer': extra.fileNavigation[0], 'navigator.show': extra.fileNavigation[1],
+      'navigator.hide': extra.fileNavigation[2], 'navigator.resize': extra.fileNavigation[3],
     },
     sidebarDocumentPreview: {
       loading: preview.loading ?? '', loadMore: preview.loadMore ?? '', changed: preview.changed ?? '',
@@ -90,6 +95,8 @@ function surface(locale: keyof typeof COMMUNITY_TRANSLATIONS, extra: SurfaceExtr
 }
 
 const ja = surface('ja', {
+  menu: ['閉じる', '他のタブを閉じる', '右側のタブを閉じる'],
+  fileNavigation: ['このファイルを開けるビューアーがありません。', 'ファイルツリーを表示', 'ファイルツリーを非表示', 'ファイルツリーの幅を調整'],
   right: ['右サイドバーを開く', '右サイドバーを閉じる', 'ここへ移動', '左に分割', '右に分割', '上に分割', '下に分割'],
   commands: ['現在のページまたはウィンドウを閉じる', '現在のページを更新', 'このページは更新できません', '右サイドバーの表示を切り替える', 'パネルの全画面表示を切り替える', '先にセッションを選択してください', '先に右サイドバーのパネルにフォーカスしてください', 'ページが切り替わりました。もう一度フォーカスしてください', '先に右サイドバーを開いてください', 'フローティングパネルではこの操作はできません', '先にページを開いてください', 'パネルは2つまでです', '分割するには幅が足りません。サイドバーを広げてください'],
   files: ['先にセッションを選択してください', '自動更新', '自動更新を有効にする', '自動更新を無効にする'],
@@ -103,6 +110,8 @@ const ja = surface('ja', {
   image: ['画像', '画像プレビュー：{name}', '画像を開いています…', '画像を表示できません。', '画像のプレビューにはファイル全体が必要です。'],
 })
 const ko = surface('ko', {
+  menu: ['닫기', '다른 탭 닫기', '오른쪽 탭 닫기'],
+  fileNavigation: ['이 파일을 열 수 있는 뷰어가 없습니다.', '파일 트리 표시', '파일 트리 숨기기', '파일 트리 너비 조정'],
   right: ['오른쪽 사이드바 열기', '오른쪽 사이드바 접기', '여기로 이동', '왼쪽에 분할', '오른쪽에 분할', '위에 분할', '아래에 분할'],
   commands: ['현재 페이지 또는 창 닫기', '현재 페이지 새로고침', '이 페이지는 새로고침할 수 없습니다', '오른쪽 사이드바 전환', '패널 전체 화면 전환', '먼저 세션을 선택하세요', '먼저 오른쪽 패널에 포커스를 맞추세요', '페이지가 바뀌었습니다. 다시 포커스를 맞추세요', '먼저 오른쪽 사이드바를 펼치세요', '플로팅 패널에서는 이 작업을 사용할 수 없습니다', '먼저 페이지를 여세요', '패널은 최대 두 개입니다', '분할할 너비가 부족합니다. 사이드바를 넓히세요'],
   files: ['먼저 세션을 선택하세요', '자동 새로고침', '자동 새로고침 켜기', '자동 새로고침 끄기'],
@@ -116,6 +125,8 @@ const ko = surface('ko', {
   image: ['이미지', '이미지 미리보기: {name}', '이미지 여는 중…', '이미지를 표시할 수 없습니다.', '이미지 미리보기에는 전체 파일 내용이 필요합니다.'],
 })
 const es = surface('es', {
+  menu: ['Cerrar', 'Cerrar otras pestañas', 'Cerrar pestañas a la derecha'],
+  fileNavigation: ['Ningún visor puede abrir este archivo.', 'Mostrar árbol de archivos', 'Ocultar árbol de archivos', 'Cambiar el ancho del árbol de archivos'],
   right: ['Abrir barra lateral derecha', 'Contraer barra lateral derecha', 'Mover aquí', 'Dividir a la izquierda', 'Dividir a la derecha', 'Dividir arriba', 'Dividir abajo'],
   commands: ['Cerrar la página o ventana actual', 'Actualizar la página actual', 'Esta página no se puede actualizar', 'Alternar la barra lateral derecha', 'Alternar pantalla completa del panel', 'Selecciona primero una sesión', 'Enfoca primero un panel de la barra lateral derecha', 'La página cambió; vuelve a enfocarla', 'Expande primero la barra lateral derecha', 'Esta acción no está disponible en un panel flotante', 'Abre primero una página', 'El límite es de dos paneles', 'No hay ancho suficiente para dividir; ensancha la barra lateral'],
   files: ['Selecciona primero una sesión', 'Actualización automática', 'Activar actualización automática', 'Desactivar actualización automática'],
@@ -129,6 +140,8 @@ const es = surface('es', {
   image: ['Imagen', 'Vista previa de imagen: {name}', 'Abriendo imagen…', 'No se puede mostrar la imagen.', 'La vista previa de la imagen necesita el archivo completo.'],
 })
 const fr = surface('fr', {
+  menu: ['Fermer', 'Fermer les autres onglets', 'Fermer les onglets à droite'],
+  fileNavigation: ['Aucune visionneuse ne peut ouvrir ce fichier.', "Afficher l'arborescence des fichiers", "Masquer l'arborescence des fichiers", "Redimensionner l'arborescence des fichiers"],
   right: ['Ouvrir la barre latérale droite', 'Réduire la barre latérale droite', 'Déplacer ici', 'Diviser à gauche', 'Diviser à droite', 'Diviser en haut', 'Diviser en bas'],
   commands: ['Fermer la page ou la fenêtre actuelle', 'Actualiser la page actuelle', 'Cette page ne peut pas être actualisée', 'Afficher ou masquer la barre latérale droite', 'Basculer le panneau en plein écran', 'Sélectionnez d’abord une session', 'Placez d’abord le focus sur un panneau de droite', 'La page a changé ; placez-y de nouveau le focus', 'Développez d’abord la barre latérale droite', 'Cette action est indisponible dans un panneau flottant', 'Ouvrez d’abord une page', 'Deux panneaux au maximum', 'Largeur insuffisante pour diviser ; élargissez la barre latérale'],
   files: ['Sélectionnez d’abord une session', 'Actualisation automatique', 'Activer l’actualisation automatique', 'Désactiver l’actualisation automatique'],
@@ -142,6 +155,8 @@ const fr = surface('fr', {
   image: ['Image', 'Aperçu de l’image : {name}', 'Ouverture de l’image…', 'Impossible d’afficher l’image.', 'L’aperçu de l’image nécessite le fichier complet.'],
 })
 const de = surface('de', {
+  menu: ['Schließen', 'Andere Tabs schließen', 'Tabs rechts schließen'],
+  fileNavigation: ['Kein Viewer kann diese Datei öffnen.', 'Dateibaum anzeigen', 'Dateibaum ausblenden', 'Breite des Dateibaums ändern'],
   right: ['Rechte Seitenleiste öffnen', 'Rechte Seitenleiste einklappen', 'Hierher verschieben', 'Links teilen', 'Rechts teilen', 'Oben teilen', 'Unten teilen'],
   commands: ['Aktuelle Seite oder aktuelles Fenster schließen', 'Aktuelle Seite aktualisieren', 'Diese Seite kann nicht aktualisiert werden', 'Rechte Seitenleiste ein- oder ausblenden', 'Vollbildmodus des Panels umschalten', 'Wählen Sie zuerst eine Sitzung aus', 'Fokussieren Sie zuerst ein Panel der rechten Seitenleiste', 'Die Seite hat sich geändert; fokussieren Sie sie erneut', 'Klappen Sie zuerst die rechte Seitenleiste aus', 'Diese Aktion ist in einem schwebenden Panel nicht verfügbar', 'Öffnen Sie zuerst eine Seite', 'Es sind höchstens zwei Panels möglich', 'Zum Teilen ist die Breite zu gering; verbreitern Sie die Seitenleiste'],
   files: ['Wählen Sie zuerst eine Sitzung aus', 'Automatisch aktualisieren', 'Automatische Aktualisierung einschalten', 'Automatische Aktualisierung ausschalten'],
@@ -155,6 +170,8 @@ const de = surface('de', {
   image: ['Bild', 'Bildvorschau: {name}', 'Bild wird geöffnet…', 'Bild kann nicht angezeigt werden.', 'Die Bildvorschau benötigt die vollständige Datei.'],
 })
 const ptBR = surface('pt-BR', {
+  menu: ['Fechar', 'Fechar outras abas', 'Fechar abas à direita'],
+  fileNavigation: ['Nenhum visualizador pode abrir este arquivo.', 'Mostrar árvore de arquivos', 'Ocultar árvore de arquivos', 'Redimensionar árvore de arquivos'],
   right: ['Abrir barra lateral direita', 'Recolher barra lateral direita', 'Mover para cá', 'Dividir à esquerda', 'Dividir à direita', 'Dividir acima', 'Dividir abaixo'],
   commands: ['Fechar a página ou janela atual', 'Atualizar a página atual', 'Esta página não pode ser atualizada', 'Alternar a barra lateral direita', 'Alternar tela cheia do painel', 'Selecione uma sessão primeiro', 'Foque primeiro um painel da barra lateral direita', 'A página mudou; foque nela novamente', 'Expanda primeiro a barra lateral direita', 'Esta ação não está disponível em um painel flutuante', 'Abra uma página primeiro', 'O limite é de dois painéis', 'Largura insuficiente para dividir; aumente a barra lateral'],
   files: ['Selecione uma sessão primeiro', 'Atualização automática', 'Ativar atualização automática', 'Desativar atualização automática'],
@@ -168,6 +185,8 @@ const ptBR = surface('pt-BR', {
   image: ['Imagem', 'Visualização da imagem: {name}', 'Abrindo imagem…', 'Não foi possível exibir a imagem.', 'A visualização da imagem precisa do arquivo completo.'],
 })
 const ru = surface('ru', {
+  menu: ['Закрыть', 'Закрыть другие вкладки', 'Закрыть вкладки справа'],
+  fileNavigation: ['Нет средства просмотра, которое может открыть этот файл.', 'Показать дерево файлов', 'Скрыть дерево файлов', 'Изменить ширину дерева файлов'],
   right: ['Открыть правую боковую панель', 'Свернуть правую боковую панель', 'Переместить сюда', 'Разделить слева', 'Разделить справа', 'Разделить сверху', 'Разделить снизу'],
   commands: ['Закрыть текущую страницу или окно', 'Обновить текущую страницу', 'Эту страницу нельзя обновить', 'Показать или скрыть правую боковую панель', 'Переключить полноэкранный режим панели', 'Сначала выберите сеанс', 'Сначала переведите фокус на правую панель', 'Страница изменилась; снова переведите на неё фокус', 'Сначала разверните правую боковую панель', 'Это действие недоступно в плавающей панели', 'Сначала откройте страницу', 'Допускается не более двух панелей', 'Недостаточно ширины для разделения; расширьте боковую панель'],
   files: ['Сначала выберите сеанс', 'Автообновление', 'Включить автообновление', 'Отключить автообновление'],
@@ -181,5 +200,5 @@ const ru = surface('ru', {
   image: ['Изображение', 'Предпросмотр изображения: {name}', 'Открытие изображения…', 'Не удалось показать изображение.', 'Для предпросмотра изображения нужен полный файл.'],
 })
 
-/** Replacement namespaces remove the obsolete text-preview surface and match rc.1 exactly. */
+/** Current surface supplements; runtime preserves unrelated historical snapshot entries. */
 export const COMMUNITY_SURFACE_TRANSLATIONS = { ja, ko, es, fr, de, 'pt-BR': ptBR, ru } as const

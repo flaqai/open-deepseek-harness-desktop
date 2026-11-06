@@ -18,6 +18,16 @@ function rule(css: string, selector: string): string {
   return match?.[1] ?? ''
 }
 
+/** Select ranks on the seat itself, excluding its background pseudo-elements and child controls. */
+function rankedSeats(css: string): string[] {
+  const uncommented = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  return [...uncommented.matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(([, selectors = '', body = '']) => {
+    const targetsSeat = selectors.split(',').some(selector =>
+      /\.composerSeat(?:\[[^\]]+\]|:(?!:)[\w-]+(?:\([^)]*\))?)*\s*$/.test(selector))
+    return targetsSeat && /(?:^|;)\s*z-index\s*:/.test(body) ? [body] : []
+  })
+}
+
 describe('docked composer seat styles', () => {
   const seat = rule(conversationCss, ".root[data-phase='active'] .composerSeat,")
 
@@ -25,9 +35,16 @@ describe('docked composer seat styles', () => {
     expect(seat).toMatch(/position:\s*sticky;/)
     expect(seat).toMatch(/z-index:\s*9;/)
     // No other rule ranks the seat, so opening a menu inside it changes nothing.
-    const ranked = [...conversationCss.matchAll(/([^{}]*\.composerSeat[^{}]*)\{([^}]*)\}/g)]
-      .filter(([, , body]) => body !== undefined && /z-index/.test(body))
-    expect(ranked).toHaveLength(1)
+    expect(rankedSeats(conversationCss)).toHaveLength(1)
+  })
+
+  it('distinguishes state-dependent seat ranks from background and child ranks', () => {
+    expect(rankedSeats(`
+      .composerSeat:hover { z-index: 10; }
+      .composerSeat[data-open='true'] { z-index: 11; }
+      .composerSeat::before { z-index: -1; }
+      .composerSeat .control { z-index: 1; }
+    `)).toHaveLength(2)
   })
 
   it('rests the seat at the floor without depending on a View to fill the column', () => {

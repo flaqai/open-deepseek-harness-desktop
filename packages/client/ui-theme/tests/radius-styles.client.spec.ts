@@ -34,6 +34,7 @@ describe('component radius scale', () => {
     expect(unscaledRadii('.card { --dsl-code-block-border-radius: 12px; }')).toHaveLength(1)
     expect(unscaledRadii('.card { border-radius: var(--dsw-radius-missing); }')).toHaveLength(1)
     expect(unscaledRadii('.card { border-radius: var(--dsw-radius-xl); }')).toEqual([])
+    expect(unscaledRadii('.menu { border-radius: var(--dsw-radius-menu); }')).toEqual([])
     expect(unscaledRadii('.dot { border-radius: 2px; } .circle { border-radius: 50%; } .pill { border-radius: 999px; }')).toEqual([])
   })
 

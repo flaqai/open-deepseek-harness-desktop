@@ -32,6 +32,7 @@ H means designed outer height in CSS pixels, including borders. R means CSS `bor
 | Small detail | Below H20; keycaps, inline code, tiny controls | R4 | `--dsw-radius-xs` |
 | Compact control | H20–28; small buttons, compact icon buttons, compact menu items | R8 | `--dsw-radius-sm` |
 | Standard control or single-line cell | H32–40; buttons, inputs, selects, navigation rows | R12 | `--dsw-radius-md` |
+| Context-menu surface | Shared right-click menu and native backing | R14 | `--dsw-radius-menu` |
 | Large control or grouped content | Large buttons, deliberately multiline cells, nested form groups | R16 | `--dsw-radius-lg` |
 | Independent content card | Settings cards, message bubbles, guide entry cards | R20 | `--dsw-radius-xl` |
 | Main enclosing surface | Composer, dialogs, main or floating panels | R28 | `--dsw-radius-panel` |
