@@ -2,6 +2,8 @@
 
 /** Exact channels exposed through named Desktop capabilities. */
 export const DESKTOP_IPC = {
+  editableMenuOpen: 'dsh:desktop:editable-menu:open',
+  editableMenuCommand: 'dsh:desktop:editable-menu:command',
   fileSave: 'dsh-desktop:file-save',
   clipboardImageRead: 'dsh-desktop:clipboard-image-read',
   browserAcquire: 'dsh:desktop:browser:acquire',

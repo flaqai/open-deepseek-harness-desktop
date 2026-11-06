@@ -11,6 +11,8 @@ export const MENU_TRANSITION_MS = Object.freeze({ enter: 40, dismiss: 80, replac
 export interface MenuSurfaceProps extends ComponentPropsWithoutRef<'div'> {
   /** Match the shared compact menu's smaller outer radius. */
   compact?: boolean
+  /** Shared right-click menu geometry and row tokens. */
+  contextual?: boolean
   /** Fade direct content, material, and native backing without isolating the material's backdrop. */
   phase?: 'enter' | 'dismiss' | 'replace' | undefined
 }
@@ -18,12 +20,12 @@ export interface MenuSurfaceProps extends ComponentPropsWithoutRef<'div'> {
 /**
  * Paint a menu and, on macOS, an opaque backing behind the page content within its bounds.
  * CSS anchors keep each backing aligned during placement, resizing, and nested-menu movement.
- * @param props - Div content and placement, and compact geometry.
+ * @param props - Div content and placement, compact geometry, and shared contextual appearance.
  * @param ref - The visible menu div, excluding the non-interactive backing.
  * @returns Menu content plus a backing portal removed with the menu.
  */
 export const MenuSurface = forwardRef<HTMLDivElement, MenuSurfaceProps>(function MenuSurface({
-  compact = false, phase, className, style, children, ...props
+  compact = false, contextual = false, phase, className, style, children, ...props
 }, ref) {
   const id = useId()
   const backingRef = useRef<HTMLDivElement>(null)
@@ -41,12 +43,13 @@ export const MenuSurface = forwardRef<HTMLDivElement, MenuSurfaceProps>(function
   }
   return <>
     <div {...props} ref={ref} data-menu-material="translucent" data-menu-phase={phase}
-      className={clsx(css.surface, compact && css.compact, className)} style={{ ...style, ...anchorStyle }}>
+      {...contextual ? { 'data-context-menu': '' } : {}}
+      className={clsx(css.surface, compact && css.compact, contextual && css.contextual, className)} style={{ ...style, ...anchorStyle }}>
       <div aria-hidden="true" className={css.material} />
       {children}
     </div>
     {createPortal(
-      <div ref={backingRef} aria-hidden="true" data-menu-backing="" data-menu-phase={phase} className={clsx(css.backing, compact && css.compact)}
+      <div ref={backingRef} aria-hidden="true" data-menu-backing="" data-menu-phase={phase} className={clsx(css.backing, compact && css.compact, contextual && css.contextual)}
         style={{ ...anchorStyle, visibility: style?.visibility }} />,
       document.body,
     )}

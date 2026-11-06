@@ -87,6 +87,7 @@ describe('TaskMenu', () => {
     expect(screen.getByRole('separator')).toBeDefined()
     expect(screen.getByTestId('icon')).toBeDefined()
     expect(screen.getByRole('menu').classList.contains('extra')).toBe(true)
+    expect(screen.getByRole('menu').getAttribute('data-menu-material')).toBe('translucent')
     expect(screen.getByText('trigger').parentElement?.classList.contains('wrapper')).toBe(true)
     // Only the selected row carries the trailing check.
     expect(screen.getByRole('menuitem', { name: 'Alpha' }).querySelectorAll('svg')).toHaveLength(1)

@@ -1,3 +1,5 @@
+import { createEditableMenuTarget } from './editable-menu-target.ts'
+import type { EditableMenuAction, EditableMenuRequest } from './editable-menu-protocol.ts'
 import type { FileSaveResult } from '@deepseek-ai/dsh-client-ui-file-actions/types'
 /** Narrow update bridge for the trusted Harness renderer. */
 
@@ -612,7 +614,33 @@ const remoteDesktopWebBridge: DesktopWebBridge = {
   onStatus: () => () => {},
 }
 
+let editableMenuTarget: ReturnType<typeof createEditableMenuTarget> | undefined
+window.addEventListener('DOMContentLoaded', () => { editableMenuTarget = createEditableMenuTarget(document) }, { once: true })
+const editableMenuListeners = new Set<(request: EditableMenuRequest) => void>()
+ipcRenderer.on(DESKTOP_IPC.editableMenuOpen, (_event, request: EditableMenuRequest) => {
+  if (editableMenuTarget === undefined || !editableMenuTarget.bind(request.token)) return
+  for (const listener of editableMenuListeners) listener(request)
+})
 const commonDesktopBridge = {
+  editableMenu: Object.freeze({
+    subscribe(listener: (request: EditableMenuRequest) => void): () => void {
+      editableMenuListeners.add(listener)
+      return () => { editableMenuListeners.delete(listener) }
+    },
+    execute(action: EditableMenuAction): Promise<void> {
+      if (editableMenuTarget === undefined || !editableMenuTarget.restore(action.token)) return Promise.reject(new Error('desktop: editable target changed'))
+      if (action.command === 'editorUndo' || action.command === 'editorRedo') {
+        const target = editableMenuTarget
+        return (ipcRenderer.invoke(DESKTOP_IPC.editableMenuCommand, action) as Promise<void>).then(() => {
+          if (!target.restore(action.token)) throw new Error('desktop: editable target changed')
+          target.dismiss(action.token)
+        })
+      }
+      editableMenuTarget.dismiss(action.token)
+      return ipcRenderer.invoke(DESKTOP_IPC.editableMenuCommand, action) as Promise<void>
+    },
+    dismiss(token: string): void { editableMenuTarget?.dismiss(token) },
+  }),
   communityFeedback: Object.freeze({
     status: () => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackStatus) as Promise<{ enabled: boolean }>,
     submit: (input: CommunityFeedbackInput) => ipcRenderer.invoke(DESKTOP_IPC.communityFeedbackSubmit, input) as ReturnType<CommunityFeedbackBridge['submit']>,

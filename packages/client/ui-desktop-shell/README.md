@@ -7,6 +7,8 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
+About and available NAS settings register their own navigation icons through `settings.section.icon`.
+
 ## Summary
 
 This package provides Desktop settings for browser handoff, window behavior, notifications, login launch, the managed `dsh` command, NAS pairing, and recovery. About shows community version, project links, application updates and community feedback. A browser page opened by Desktop receives only a Return to Desktop action; an independent `dsh web` browser receives no contribution.
@@ -25,6 +27,8 @@ This package provides Desktop settings for browser handoff, window behavior, not
 ## Use this package
 
 Mount the package in the desktop client bundle. It activates only when the narrow `window.deepSeekHarnessDesktop` preload bridge is present and reflects capabilities reported by the Electron main process.
+
+The editable-field overlay uses the shared contextual Menu. A Conversation-dependent registrant owns native-open subscriptions and resolves the current service-owned history instance; its private projection publishes through the renderer-made hook. The business component receives only presentation facts and close, select and focus-return callbacks, without a bridge, service object or manual subscription. Electron supplies short-lived redacted context metadata, not field contents or clipboard values; the preload binds each command to the same unchanged DOM target and restores its selection before native editing. Navigation, another focused input, input mutations or an expired native token reject the action. Composer Undo/Redo reads the actual model history instead of Chromium’s flags and claims the same one-use native token before dispatching model commands; ordinary inputs continue using native Undo/Redo. Non-password editable menus always show the local spelling toggle; missing local dictionaries disable it, and the saved choice never enables external dictionary downloads. Read-only conversation text and embedded plugin frames retain their own menus.
 
 Runtime & NAS keeps server metadata separate from encrypted per-device credentials. Pairing accepts only a dedicated HTTPS origin, requires explicit TLS fingerprint confirmation, and never exposes the bearer token to the renderer. Switching runtime restarts Desktop without moving data. In NAS mode the preload uses a positive allowlist for device preferences, lifecycle restart/readiness, Release checks, and the fixed NAS management surface. Local logs, plugin and process control, snapshots, diagnostic-lab, command-line registration, and filesystem-management operations are absent. The client detects the complete local shell projection before registering local-only controls, so a reduced NAS bridge remains valid and future local methods fail closed.
 

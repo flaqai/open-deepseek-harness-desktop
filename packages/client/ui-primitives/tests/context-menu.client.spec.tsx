@@ -104,3 +104,47 @@ it('keeps reference activation separate from selection and repeated clicks', () 
   fireEvent.click(chip, { detail: 1 })
   expect(activate).toHaveBeenCalledOnce()
 })
+
+it('retains the original selected text while activating a context action by pointer', () => {
+  const text = document.createElement('p')
+  text.textContent = 'Selected original words'
+  document.body.appendChild(text)
+  const selection = document.getSelection()!
+  const range = document.createRange()
+  range.selectNodeContents(text)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  const select = vi.fn()
+  const view = render(<Menu open contextual preserveSelection ariaLabel="Selected text actions" anchor={null}
+    onClose={() => {}} onSelect={select} items={[{ id: 'quote', label: 'Quote' }]} />)
+  const row = view.getByRole('menuitem', { name: 'Quote' })
+  expect(fireEvent.pointerDown(row)).toBe(false)
+  fireEvent.click(row)
+  expect(select).toHaveBeenCalledWith('quote')
+  expect(selection.toString()).toBe('Selected original words')
+  expect(view.getByRole('menu', { name: 'Selected text actions' }).hasAttribute('data-context-menu')).toBe(true)
+  selection.removeAllRanges()
+  text.remove()
+})
+
+it('exposes toggle semantics for data and component rows and walks checked rows with the keyboard', async () => {
+  const select = vi.fn()
+  const componentSelect = vi.fn()
+  const view = render(<Menu open contextual autoFocus anchor={<button>Open</button>} onClose={() => {}} onSelect={select}
+    items={[{ id: 'spelling', label: 'Spelling', checked: true }, { id: 'grammar', label: 'Grammar', checked: false }]}>
+    <MenuItemButton checked onSelect={componentSelect}>Plugin toggle</MenuItemButton>
+  </Menu>)
+  const spelling = view.getByRole('menuitemcheckbox', { name: 'Spelling', checked: true })
+  const grammar = view.getByRole('menuitemcheckbox', { name: 'Grammar', checked: false })
+  expect(spelling.querySelector('svg')).not.toBeNull()
+  expect(grammar.querySelector('svg')).toBeNull()
+  await waitFor(() => { expect(document.activeElement).toBe(spelling) })
+  fireEvent.keyDown(spelling, { key: 'ArrowDown' })
+  expect(document.activeElement).toBe(grammar)
+  fireEvent.keyDown(grammar, { key: 'Tab' })
+  expect(select).toHaveBeenCalledWith('grammar')
+  const component = view.getByRole('menuitemcheckbox', { name: 'Plugin toggle', checked: true })
+  component.focus()
+  fireEvent.keyDown(component, { key: 'Tab' })
+  expect(componentSelect).toHaveBeenCalledOnce()
+})

@@ -29,3 +29,12 @@ it('gives simultaneously open menus independent anchors and follows visibility c
   view.rerender(<MenuSurface role="menu" style={{ visibility: 'hidden' }} />)
   expect(document.querySelector<HTMLElement>('[data-menu-backing]')!.style.visibility).toBe('hidden')
 })
+
+it('shares contextual corners with native backings without assigning them visible menu layout', () => {
+  const view = render(<MenuSurface contextual role="menu"><button>Action</button></MenuSurface>)
+  const menu = view.getByRole('menu')
+  const backing = document.querySelector<HTMLElement>('[data-menu-backing]')!
+  expect(menu.hasAttribute('data-context-menu')).toBe(true)
+  expect(menu.className).toContain('contextual')
+  expect(backing.className).toContain('contextual')
+})

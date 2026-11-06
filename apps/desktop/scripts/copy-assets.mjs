@@ -1,6 +1,9 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { verifyBundledSpellcheckDictionaries } from './spellcheck-dictionaries.mjs'
+
+await verifyBundledSpellcheckDictionaries()
 
 const outputDirectory = fileURLToPath(new URL('../lib/', import.meta.url))
 mkdirSync(outputDirectory, { recursive: true })

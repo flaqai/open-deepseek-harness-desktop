@@ -1,3 +1,4 @@
+import type { EditableHistoryRegistry } from '@deepseek-ai/dsh-client-ui-primitives'
 /**
  * Session-bound input registry and default-send routing for Conversation.
  * Each retained Session binding owns one shell, its input listeners, and its
@@ -61,10 +62,12 @@ export class InputHub implements SessionInputResolver {
   /**
    * @param ctx - client root context (services resolved lazily per call — boot order stays free).
    * @param t - conversation-namespace translate thunk (reads the active locale at call time).
+   * @param editingHistory - optional owning UI service registry for mounted input menus.
    */
   constructor(
     private readonly rootCtx: Context,
     private readonly t: TranslateNS<'conversation'>,
+    private readonly editingHistory?: EditableHistoryRegistry,
   ) {}
 
   /**
@@ -101,6 +104,7 @@ export class InputHub implements SessionInputResolver {
     if (existing !== undefined) return existing
     const { session, ctx: actx } = binding
     const shell = new SessionInputShell({
+      ...(this.editingHistory === undefined ? {} : { editingHistory: this.editingHistory }),
       actx,
       submissionState: () => {
         const state = session.getSnapshot()

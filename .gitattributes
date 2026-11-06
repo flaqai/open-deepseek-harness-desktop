@@ -16,3 +16,7 @@ docs/persistence-changes/historical-formats/*.schema.json linguist-generated=tru
 
 # Unified patch blank context lines require their leading space.
 patches/*.patch whitespace=-blank-at-eol
+
+# Preserve upstream license notice bytes referenced by the spellcheck SHA-256 manifest.
+apps/desktop/assets/spellcheck-dictionaries/COPYING* -text whitespace=cr-at-eol,-blank-at-eof
+apps/desktop/assets/spellcheck-dictionaries/LICENSE -text whitespace=cr-at-eol,-blank-at-eof

@@ -1,3 +1,4 @@
+import type { EditableMenuBridge } from './editable-menu.ts'
 /** Renderer-visible values and capabilities from the narrow Electron preload protocol. */
 import type { NasDeviceSummary, NasRole } from '@deepseek-ai/dsh-nas-protocol'
 import type { DesktopIconsBridge } from './icon-protocol.ts'
@@ -305,6 +306,7 @@ export interface DesktopReleasesBridge {
 
 /** Complete Electron-only browser bridge consumed by this plugin. */
 export interface DesktopBridge {
+  editableMenu?: EditableMenuBridge
   communityFeedback?: CommunityFeedbackBridge
   externalBrowser?: { open(url: string): Promise<void> }
   menu?: {
@@ -335,6 +337,7 @@ export function readDesktopBridge(): DesktopBridge | null {
     icons?: DesktopIconsBridge
     processes?: DesktopProcessesBridge
     nas?: DesktopNasBridge
+    editableMenu?: EditableMenuBridge
     menu?: DesktopBridge['menu']
     communityFeedback?: CommunityFeedbackBridge
     externalBrowser?: DesktopBridge['externalBrowser']
@@ -342,6 +345,7 @@ export function readDesktopBridge(): DesktopBridge | null {
   return candidate?.shell === undefined || candidate.releases === undefined || candidate.desktopWeb === undefined
     ? null
     : { shell: candidate.shell, releases: candidate.releases, desktopWeb: candidate.desktopWeb,
+      ...(candidate.editableMenu === undefined ? {} : { editableMenu: candidate.editableMenu }),
       ...(candidate.communityFeedback === undefined ? {} : { communityFeedback: candidate.communityFeedback }),
       ...(candidate.externalBrowser === undefined ? {} : { externalBrowser: candidate.externalBrowser }),
       ...(candidate.downloadNetwork === undefined ? {} : { downloadNetwork: candidate.downloadNetwork }),

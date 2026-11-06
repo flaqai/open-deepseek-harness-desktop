@@ -1,3 +1,4 @@
+import { EditableHistoryRegistry } from '@deepseek-ai/dsh-client-ui-primitives'
 // @vitest-environment jsdom
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -89,8 +90,10 @@ async function bench() {
   slots.register({
     name: 'root',
     children: {
+      'shell.overlay': { kind: 'list', scope: 'root' },
       'settings.general.item': { kind: 'list', scope: 'root' },
       'settings.section': { kind: 'list', scope: 'root' },
+      'settings.section.icon': { kind: 'list', scope: 'root', inline: true },
       'settings.action': { kind: 'list', scope: 'root' },
       'sidebar.settings.action': { kind: 'list', scope: 'root' },
     },
@@ -195,6 +198,7 @@ describe('ui-desktop-shell apply', () => {
     expect(reportReadiness).toHaveBeenCalledWith('event-dispatch')
     expect(b.slots.entries('settings.general.item')[0]?.component).toBe(DesktopPreferencesRow)
     expect(b.slots.entries('settings.section').find(entry => entry.options.id === 'about')?.component).toBe(DesktopAboutSection)
+    expect(b.slots.entries('settings.section.icon').map(entry => entry.options.id)).toContain('about')
     expect(b.slots.entries('settings.action').map(entry => entry.component)).toEqual([
       DesktopUpdateBadge,
       DesktopLogDirectoryAction,
@@ -245,7 +249,27 @@ describe('ui-desktop-shell apply', () => {
     await fiber.await()
     const section = b.slots.entries('settings.section').find(entry => entry.options.id === 'nas-runtime')
     expect(section?.component).toBe(NasRuntimeSection)
+    expect(b.slots.entries('settings.section.icon').map(entry => entry.options.id)).toContain('nas-runtime')
     await fiber.dispose()
     expect(b.slots.entries('settings.section')).toEqual([])
   })
+})
+
+it('owns native editable subscriptions in the Conversation-dependent registrant fiber', async () => {
+  const b = await bench()
+  installBridge()
+  const stop = vi.fn()
+  const subscribe = vi.fn(() => stop)
+  desktopBridge.editableMenu = { subscribe, execute: vi.fn(), dismiss: vi.fn() }
+  const fiber = b.ctx.plugin({ inject: [...inject], apply })
+  await fiber.await()
+  expect(subscribe).not.toHaveBeenCalled()
+  const registry = new EditableHistoryRegistry()
+  b.ctx.provide('uiConversation', { editingHistory: registry })
+  await vi.waitFor(() => { expect(subscribe).toHaveBeenCalledOnce() })
+  expect(b.slots.entries('shell.overlay').map(entry => entry.options.id)).toContain('desktop-editable-menu')
+  await fiber.dispose()
+  expect(stop).toHaveBeenCalledOnce()
+  expect(b.slots.entries('shell.overlay')).toEqual([])
+  registry.dispose()
 })

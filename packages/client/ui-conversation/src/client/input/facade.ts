@@ -1,3 +1,4 @@
+import type { EditableHistoryRegistry } from '@deepseek-ai/dsh-client-ui-primitives'
 /**
  * SessionInput shell: owns the per-session Lexical editor (text + chip
  * truth) and the pure SubmitMachine (phase/claim/attempt), and choreographs
@@ -40,6 +41,8 @@ export interface PopupDismissFace {
  * owns the lexicon subscription through the Session scope's inject lifecycle.
  */
 export interface SessionInputDeps {
+  /** Owning UI service registry; absent when no model-history menu consumer is mounted. */
+  editingHistory?: EditableHistoryRegistry
   /** Session-scope ctx handed to claim.submit transactions. */
   actx: Context
   /** Snapshot the Session facts before asynchronous command arbitration. */
@@ -179,6 +182,7 @@ export class SessionInputShell implements SessionInput {
 
   constructor(private readonly deps: SessionInputDeps) {
     this.draftEditor = new DraftEditorRuntime({
+      editingHistory: deps.editingHistory,
       onUpdate: () => { this.onEditorUpdate() },
       quoteLabels: () => ({ remove: this.deps.quoteRemoveLabel?.() ?? '' }),
       openReference: (source, reference) =>

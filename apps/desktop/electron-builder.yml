@@ -11,6 +11,10 @@ files:
   - scripts/primary-runtime-lock.json
   - package.json
 extraResources:
+  - from: assets/spellcheck-dictionaries
+    to: spellcheck-dictionaries
+    filter:
+      - "**/*"
   - from: bundled-plugins
     to: bundled-plugins
     filter:

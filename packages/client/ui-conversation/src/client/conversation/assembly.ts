@@ -1,3 +1,4 @@
+import { EditableHistoryRegistry } from '@deepseek-ai/dsh-client-ui-primitives'
 /** Per-Session target-neutral Conversation assembly. */
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
@@ -186,6 +187,8 @@ interface BindingRecord {
 
 /** Root service owning Conversation registries and per-Session bindings. */
 export class UiConversation extends Service {
+  /** Model-history adapters owned by this Client Conversation service instance. */
+  readonly editingHistory = new EditableHistoryRegistry()
   /** Registry of event matchers and target snapshot builders. */
   readonly events: ConversationEventRegistry
   /** Registry of target View definitions. */
@@ -205,6 +208,7 @@ export class UiConversation extends Service {
    */
   constructor(ctx: Context, private readonly sessions: ISessions) {
     super(ctx, 'uiConversation')
+    ctx.effect(() => () => { this.editingHistory.dispose() }, 'ui-conversation: editing history owner')
     this.events = new ConversationEventRegistry(ctx)
     this.views = new ConversationViewRegistry(ctx)
     this.groups = new ConversationGroupRegistry(ctx, this.views)

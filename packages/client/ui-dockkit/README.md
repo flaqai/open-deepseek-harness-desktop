@@ -111,7 +111,7 @@ None; this package neither assembles nor sends a provider request.
 <a id="dev-note"></a>
 ### Dev Note
 
-Menus use the shared `MenuSurface` material, including the macOS backing for background blur; custom content follows the [menu rules](../../../docs/web-styling.md#component-rules).
+Tab context menus use `MenuSurface contextual` and `MenuItemButton`, sharing the conversation menus' spacing, typography, rounded surface, and macOS blur backing. The shared anchored-position hook keeps the menu within the visible viewport and follows scrolling, resizing, zooming, and tab movement; oversized menus scroll internally. Drag guards remain owned by the kit; custom content follows the [menu rules](../../../docs/web-styling.md#component-rules).
 
 <details>
 <summary>Working context for maintainers — click to expand</summary>

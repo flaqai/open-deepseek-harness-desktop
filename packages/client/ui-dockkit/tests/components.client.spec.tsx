@@ -684,6 +684,8 @@ describe('DockSurface', () => {
     fireEvent.pointerDown(document.body)
 
     fireEvent.contextMenu(fileChip)
+    expect(screen.getByRole('menu').getAttribute('data-menu-material')).toBe('translucent')
+    expect(screen.getByRole('menu').hasAttribute('data-context-menu')).toBe(true)
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([TEST_LABELS.closeTab, 'embedder item'])
   })
 
@@ -909,7 +911,7 @@ describe('DockSurface', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('hangs the menu below the chip\'s left edge, or from its right edge when it would run off the viewport', () => {
+  it('anchors below the chip and clamps the menu when the chip extends past the viewport', () => {
     const controller = seededController()
     let left = 10
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
@@ -924,7 +926,7 @@ describe('DockSurface', () => {
     left = window.innerWidth + 100
     renderSurface(controller, spyIntents())
     fireEvent.contextMenu(screen.getByRole('tab'))
-    expect(screen.getByRole('menu').style.left).toBe(`${left + 60}px`)
+    expect(screen.getByRole('menu').style.left).toBe(`${window.innerWidth - 4}px`)
   })
 
   it('offers no copy or float item: those gestures are the embedder\'s API and the drag', () => {

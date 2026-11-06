@@ -1,8 +1,9 @@
+import { EditableHistoryRegistry } from '@deepseek-ai/dsh-client-ui-primitives'
 // @vitest-environment jsdom
 /** Composer selection survives focus transfers and background editor reconciliation. */
 import * as uiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
 import { expect, it, onTestFinished, vi } from 'vitest'
-import { $getRoot, $getSelection, $isRangeSelection, SELECTION_CHANGE_COMMAND, UNDO_COMMAND } from 'lexical'
+import { $getRoot, $getSelection, $isRangeSelection, SELECTION_CHANGE_COMMAND, UNDO_COMMAND, CONTROLLED_TEXT_INSERTION_COMMAND } from 'lexical'
 import { DraftEditorRuntime } from '../src/client/input/editor/runtime.ts'
 import { focusDraftEditor, installDraftKeyboardDismissal } from '../src/client/input/editor/view-binding.ts'
 
@@ -38,8 +39,10 @@ function fixture(start = 1, end = 4) {
     })
     onTestFinished(() => { mocked.mockRestore() })
   }
+  const editingHistory = new EditableHistoryRegistry()
   const onUpdate = vi.fn()
   const runtime: DraftEditorRuntime = new DraftEditorRuntime({
+    editingHistory,
     onUpdate: () => { runtime.refreshProjection(); onUpdate() },
     quoteLabels: () => ({ remove: 'Remove quote' }),
     openReference: () => false,
@@ -70,7 +73,7 @@ function fixture(start = 1, end = 4) {
     editor.read(() => {})
     return reveal
   }
-  return { runtime, editor, root, card, outside, onUpdate, dispose, selection, domSelection, focusComposer }
+  return { runtime, editor, root, card, outside, onUpdate, dispose, selection, domSelection, focusComposer, editingHistory }
 }
 
 it.each([
@@ -196,4 +199,50 @@ it('removes focus preservation and update subscriptions when registration is dis
   f.editor.update(() => { $getRoot().getFirstDescendant()!.markDirty() }, { discrete: true })
   expect(document.activeElement).toBe(f.root)
   expect(f.onUpdate).not.toHaveBeenCalled()
+})
+
+it('synchronizes a controlled spelling replacement with the draft projection and undo', () => {
+  const f = fixture(0, 5)
+  f.editor.dispatchCommand(CONTROLLED_TEXT_INSERTION_COMMAND,
+    new InputEvent('beforeinput', { inputType: 'insertReplacementText', data: 'corrected', bubbles: true, cancelable: true }))
+  f.editor.read(() => {})
+  expect(f.root.textContent).toBe('corrected beta')
+  expect(f.runtime.projection.clipboardText).toBe('corrected beta')
+  f.editor.dispatchCommand(UNDO_COMMAND, undefined)
+  f.editor.read(() => {})
+  expect(f.runtime.projection.clipboardText).toBe('alpha beta')
+})
+
+it('projects real Composer undo and redo after a native spelling replacement', () => {
+  const f = fixture(0, 5)
+  const history = f.editingHistory.forTarget(f.root)
+  expect(history?.read()).toEqual({ canUndo: false, canRedo: false })
+  f.editor.dispatchCommand(CONTROLLED_TEXT_INSERTION_COMMAND,
+    new InputEvent('beforeinput', { inputType: 'insertReplacementText', data: 'corrected', bubbles: true, cancelable: true }))
+  f.editor.read(() => {})
+  expect(history?.read()).toEqual({ canUndo: true, canRedo: false })
+  expect(history?.execute('undo')).toBe(true)
+  f.editor.read(() => {})
+  expect(f.runtime.projection.clipboardText).toBe('alpha beta')
+  expect(history?.read()).toEqual({ canUndo: false, canRedo: true })
+  expect(history?.execute('redo')).toBe(true)
+  f.editor.read(() => {})
+  expect(f.runtime.projection.clipboardText).toBe('corrected beta')
+  expect(history?.read()).toEqual({ canUndo: true, canRedo: false })
+  f.editor.setEditable(false)
+  expect(history?.read()).toBeNull()
+  expect(history?.execute('undo')).toBe(false)
+  f.editor.setEditable(true)
+  f.dispose()
+  expect(history?.read()).toBeNull()
+  expect(f.editingHistory.forTarget(f.root)).toBeNull()
+})
+
+it('keeps an embedded native input on its own browser history', () => {
+  const f = fixture()
+  const field = document.createElement('textarea')
+  f.root.append(field)
+  expect(f.editingHistory.forTarget(field)).toBeNull()
+  field.remove()
+  expect(f.editingHistory.forTarget(f.root)).not.toBeNull()
 })

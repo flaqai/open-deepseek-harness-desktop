@@ -8,7 +8,7 @@
 .submenu {
   /* min-widths below are the design's outer card widths — include the pad. */
   box-sizing: border-box;
-  padding: 4px;
+  padding: var(--dsh-menu-card-padding, 4px);
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -30,12 +30,12 @@
   top: calc(100% + 4px);
   left: 0;
   z-index: 100;
-  min-width: min(144px, var(--dsh-anchored-max-width, 100vw));
+  min-width: min(var(--dsh-menu-min-width, 144px), var(--dsh-anchored-max-width, 100vw));
   max-width: min(360px, var(--dsh-anchored-max-width, 100vw));
 }
 
 /* Legacy slots can render no rows; keep empty context popups out of layout. */
-.list[data-context-menu]:not(:has([role='menuitem'])) {
+.list[data-context-menu]:not(:has([role='menuitem'], [role='menuitemcheckbox'])) {
   display: none;
 }
 
@@ -78,6 +78,7 @@
 .viewport {
   display: flex;
   flex-direction: column;
+  gap: var(--dsh-menu-row-gap, 0);
   min-height: 0;
 }
 
@@ -91,6 +92,7 @@
   flex: none;
   display: flex;
   flex-direction: column;
+  gap: var(--dsh-menu-row-gap, 0);
   margin-top: 3px;
   padding-top: 3px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
@@ -110,16 +112,16 @@
 .item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dsh-menu-item-gap, 6px);
   width: 100%;
-  min-height: 34px;
-  padding: 6px 8px;
+  min-height: var(--dsh-menu-item-height, 34px);
+  padding: var(--dsh-menu-item-padding, 6px 8px);
   border: none;
-  border-radius: var(--dsw-radius-md);
+  border-radius: var(--dsh-menu-item-radius, var(--dsw-radius-md));
   background: transparent;
   cursor: pointer;
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--dsh-menu-font-size, 13px);
+  line-height: var(--dsh-menu-line-height, 20px);
   color: var(--dsw-alias-label-primary);
   text-align: left;
 }
@@ -186,8 +188,8 @@
 .itemIcon {
   display: inline-flex;
   flex: none;
-  width: 14px;
-  height: 14px;
+  width: var(--dsh-menu-icon-size, 14px);
+  height: var(--dsh-menu-icon-size, 14px);
   align-items: center;
   justify-content: center;
   color: var(--dsw-alias-menu-icon);
@@ -195,8 +197,8 @@
 
 .itemIcon svg,
 .check {
-  width: 14px;
-  height: 14px;
+  width: var(--dsh-menu-icon-size, 14px);
+  height: var(--dsh-menu-icon-size, 14px);
 }
 
 .compactList .itemIcon svg,
@@ -278,7 +280,7 @@
  * on the menu surface. */
 .separator {
   height: 0.5px;
-  margin: 3px 8px;
+  margin: var(--dsh-menu-separator-margin, 3px 8px);
   background: var(--dsw-alias-border-l2);
 }
 

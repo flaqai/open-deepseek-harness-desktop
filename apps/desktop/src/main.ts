@@ -1,3 +1,6 @@
+import { SpellcheckPreference } from './spellcheck-preference.ts'
+import { installSpellingContextMenu } from './spellcheck-context-menu.ts'
+import { setupLocalSpellcheckDictionaries } from './local-spellcheck-dictionaries.ts'
 import { inspectLegacyWorktreeWarning, LEGACY_WORKTREE_BUNDLE } from './legacy-worktree-warning.ts'
 import { installFileActions } from './file-actions.ts'
 import { nativePromptMessages, nativePromptText } from './locales/native-prompts.ts'
@@ -523,6 +526,9 @@ let downloadNetworkStore: DownloadNetworkSettingsStore | undefined
 let downloadNetworkProxy: PluginDownloadProxy | undefined
 let applicationDownloadSession: Session | undefined
 let pluginDownloadSession: Session | undefined
+let spellingAvailable = false
+let spellingPreference: SpellcheckPreference | undefined
+let closeSpellcheckDictionaries: (() => Promise<void>) | undefined
 let downloadNetworkTestStatus: DownloadNetworkTestStatus = { phase: 'idle' }
 let externalToolCompatibility: ExternalToolCompatibilityManager | undefined
 let bundledPluginInstaller: BundledPluginInstaller | undefined
@@ -1457,6 +1463,18 @@ function createWindow(): BrowserWindow {
     },
   })
   const { window } = surface
+  const removeSpellingMenu = installSpellingContextMenu(surface.renderer, () => {
+    if (!menuClientAvailable || harnessOrigin === undefined) return false
+    try { return new URL(surface.renderer.getURL()).origin === harnessOrigin } catch { return false }
+  }, {
+    available: spellingAvailable, enabled: () => spellingPreference?.enabled ?? true,
+    setEnabled: (enabled) => {
+      if (!spellingAvailable || spellingPreference === undefined) throw new Error('desktop: local spelling is unavailable')
+      spellingPreference.set(enabled)
+      session.defaultSession.setSpellCheckerEnabled(enabled)
+    },
+  })
+  window.once('closed', removeSpellingMenu)
   installConversationNavigation(window, surface.renderer, () => {
     if (!menuClientAvailable || harnessOrigin === undefined) return false
     try { return new URL(surface.renderer.getURL()).origin === harnessOrigin } catch { return false }
@@ -1570,6 +1588,21 @@ async function startApplication(): Promise<void> {
   )
   desktopLocaleStore = createDesktopLocaleStore(join(app.getPath('userData'), 'desktop-locale.json'))
   menuLocale = desktopLocaleStore.read(app.getLocale())
+  spellingPreference = new SpellcheckPreference(join(app.getPath('userData'), 'spellcheck-preference.json'))
+  // Configure offline delivery before creating any editable renderer. Missing dictionaries
+  // disable spelling on Windows/Linux, without blocking the rest of the application.
+  try {
+    closeSpellcheckDictionaries = await setupLocalSpellcheckDictionaries(session.defaultSession, {
+      platform: process.platform,
+      directory: app.isPackaged ? join(process.resourcesPath, 'spellcheck-dictionaries')
+        : fileURLToPath(new URL('../assets/spellcheck-dictionaries/', import.meta.url)),
+      locale: menuLocale,
+    })
+    spellingAvailable = true
+    session.defaultSession.setSpellCheckerEnabled(spellingPreference.enabled)
+  } catch (error) {
+    console.error('desktop: local spellchecker unavailable', error)
+  }
   applicationMenu = new ApplicationMenuController({
     surface: () => mainSurface,
     state: () => ({ platform: process.platform, locale: menuLocale,
@@ -4523,6 +4556,7 @@ if (!app.requestSingleInstanceLock()) {
     void lifecycle?.requestQuit(sessionEnding ? { skipConfirmation: true } : undefined)
   })
   app.on('will-quit', () => {
+    void closeSpellcheckDictionaries?.().catch((error: unknown) => { console.error('desktop: spellchecker shutdown failed', error) })
     desktopShortcuts?.dispose()
     stopReleaseChecks?.()
     desktopLogSession.close('application-quit')

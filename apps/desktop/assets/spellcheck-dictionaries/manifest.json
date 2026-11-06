@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "electronVersion": "44.9.3",
+  "source": {
+    "url": "https://github.com/electron/electron/releases/download/v44.9.3/hunspell_dictionaries.zip",
+    "bytes": 34144908,
+    "sha256": "325dde66ba173a37fc83c8a587779756ac27a8e49ee6172cc3401de651078fe6",
+    "checksumsUrl": "https://github.com/electron/electron/releases/download/v44.9.3/SHASUMS256.txt"
+  },
+  "dictionaries": [
+    {
+      "language": "en-US",
+      "file": "en-US-10-1.bdic",
+      "bytes": 451968,
+      "sha256": "a075b01d9b015c616511a9e87da77da3d9881621db32f584e4606ddabf1c1100"
+    },
+    {
+      "language": "de-DE",
+      "file": "de-DE-3-0.bdic",
+      "bytes": 6811094,
+      "sha256": "076a470700dbd0aa62bb8b3d24c34e1340bdfe83cbbcfc035ce972f23c140400"
+    },
+    {
+      "language": "en-GB",
+      "file": "en-GB-10-1.bdic",
+      "bytes": 451994,
+      "sha256": "eaed4a709abdbd2f14aa143f25fe9c4c1b44591c7cb1942f75f968fb2fcd3cf8"
+    },
+    {
+      "language": "ru-RU",
+      "file": "ru-RU-3-0.bdic",
+      "bytes": 2309618,
+      "sha256": "92dcc64fb0b0c065b443abf9de6fb58116b2a64c49427d3715fa7536ad1c53b8"
+    },
+    {
+      "language": "fr-FR",
+      "file": "fr-FR-3-0.bdic",
+      "bytes": 1074744,
+      "sha256": "6cffc13b549c33d44180a3a7b13943fe0eadfbe80bcdbccc76f67c55c2012968"
+    },
+    {
+      "language": "es-ES",
+      "file": "es-ES-3-0.bdic",
+      "bytes": 785066,
+      "sha256": "e6334dcf080aaeca679db70565762a2c296ff5780c1af263530ac7345736bfa9"
+    },
+    {
+      "language": "pt-BR",
+      "file": "pt-BR-3-0.bdic",
+      "bytes": 3923495,
+      "sha256": "6b2850f5a54994a5204a9a88d4b586e9d4e028a0360b67352b04cffdb2a3e0ea"
+    }
+  ],
+  "notices": [
+    {
+      "file": "COPYING",
+      "bytes": 108204,
+      "sha256": "cde91164e09e33e94e1db4529aa77f89bc0c392b1ed138d689c66dfbd11d9701"
+    },
+    {
+      "file": "COPYING.Apache",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "file": "COPYING.GPL3",
+      "bytes": 35148,
+      "sha256": "0ae0485a5bd37a63e63603596417e4eb0e653334fa6c7f932ca3a0e85d4af227"
+    },
+    {
+      "file": "COPYING.MPL",
+      "bytes": 25755,
+      "sha256": "53692a2ed6c6a2c6ec9b32dd0b820dfae91e0a1fcdf625ca9ed0bdf8705fcc4f"
+    },
+    {
+      "file": "LICENSE",
+      "bytes": 108158,
+      "sha256": "d63c6240d6f6330a025aade63d317d7ff04f95fc3325fe6aea3848ca452f64ea"
+    },
+    {
+      "file": "COPYING.MIT",
+      "bytes": 1736,
+      "sha256": "379ddd904c597d64e11a88bba68663f59501c9fa59e8124c0f4f32a67a5dc77a"
+    },
+    {
+      "file": "COPYING.LGPL",
+      "bytes": 26532,
+      "sha256": "5bbcbb737e60fe9deba08ecbd00920cfcc3403ba2e534c64fdeea49d6bb87509"
+    },
+    {
+      "file": "COPYING.LESSER",
+      "bytes": 7795,
+      "sha256": "d7137682540000e5f57ff3cb0b4943b66aa3ac4ecca28614ce46991fc291bd15"
+    }
+  ]
+}

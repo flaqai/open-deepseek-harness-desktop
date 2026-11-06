@@ -1,5 +1,11 @@
+import { DesktopEditableMenuProjection } from './editable-menu-projection.ts'
+import { DesktopEditableMenu } from './DesktopEditableMenu.tsx'
+import * as editableMenuLocales from './editable-menu-locales.ts'
 /** Desktop shell settings and the scoped browser-to-Electron return action. */
 
+import { createElement } from 'react'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import { IconInfoOutlineMedium, IconGlobeOutlineMedium, type EditableHistoryRegistry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -26,6 +32,7 @@ export { DesktopShellController } from './controller.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
+    'desktop-editable-menu': editableMenuLocales.EditableMenuKey
     'desktop-shell': DesktopShellKey
   }
 }
@@ -50,6 +57,25 @@ export function apply(ctx: Context): void {
       inject: () => ({ returnToDesktop: () => requestDesktopReturn(target) }),
     }, DesktopBrowserReturnButton))
     return
+  }
+  if (bridge.editableMenu !== undefined) {
+    const editableMenu = bridge.editableMenu
+    ctx.effect(() => ctx.locale.register('desktop-editable-menu', {
+      en: editableMenuLocales.en, zh: editableMenuLocales.zh, ja: editableMenuLocales.ja,
+      ko: editableMenuLocales.ko, de: editableMenuLocales.de, fr: editableMenuLocales.fr,
+      es: editableMenuLocales.es, pt: editableMenuLocales.pt, ru: editableMenuLocales.ru,
+    }), 'ui-desktop-shell: editable menu dictionaries')
+    ctx.inject(['uiConversation'], (inner) => {
+      const owner = inner.get('uiConversation') as { editingHistory: EditableHistoryRegistry }
+      const projection = new DesktopEditableMenuProjection(editableMenu, target => owner.editingHistory.forTarget(target))
+      inner.effect(() => projection.start(), 'ui-desktop-shell: native editable menu events')
+      inner.slots.inject('shell.overlay', () => inner.slots.register({
+        name: 'shell.overlay', id: 'desktop-editable-menu', locale: 'desktop-editable-menu',
+        inject: () => ({
+          hooks: { editableMenu: projection }, close: projection.close, select: projection.select, returnFocus: projection.returnFocus,
+        }),
+      }, DesktopEditableMenu))
+    })
   }
   const localShell = readDesktopLocalShell(bridge.shell)
   const connection = ctx.get('connection') as ConnectionHandle
@@ -114,6 +140,9 @@ export function apply(ctx: Context): void {
       ...(localShell === undefined ? {} : { openLog: () => localShell.openLog() }),
     }),
   }, DesktopPreferencesRow))
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: 'about',
+  }, ({ size }: PropsRuntime<'settings.section.icon'>) => createElement(IconInfoOutlineMedium, { size })))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'about', order: 100, label: () => ctx.locale.bind(NS)('about.nav'), locale: NS,
     inject: () => ({
@@ -129,6 +158,9 @@ export function apply(ctx: Context): void {
     }),
   }, DesktopAboutSection))
   const nasBridge = bridge.nas
+  if (nasBridge !== undefined) ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: 'nas-runtime',
+  }, ({ size }: PropsRuntime<'settings.section.icon'>) => createElement(IconGlobeOutlineMedium, { size })))
   if (nasBridge !== undefined) ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'nas-runtime', order: 45, label: () => ctx.locale.bind(NS)('nas.nav'), locale: NS,
     inject: () => ({ bridge: nasBridge }),

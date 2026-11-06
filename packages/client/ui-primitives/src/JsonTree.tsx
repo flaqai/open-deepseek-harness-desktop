@@ -128,7 +128,8 @@ function JsonCopyAction({ store, target, persistent, labels, onCopy, onClose }: 
       {(persistent || snapshot !== undefined) && (
         <Menu
           open={snapshot?.menuOpen === true}
-          compact
+          contextual
+          autoFocus
           portal
           align="end"
           anchor={(

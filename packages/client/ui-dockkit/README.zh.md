@@ -111,7 +111,7 @@ Sidebar 使用的 `DockLayout` 在选中项变化、跨格移动与浮动期间�
 <a id="dev-note"></a>
 ### 开发备注
 
-菜单采用共享 `MenuSurface` 材质，包括用于背景模糊的 macOS 底层；自定义内容遵循[菜单规则](../../../docs/web-styling.zh.md#component-rules)。
+标签右键菜单采用 `MenuSurface contextual` 和 `MenuItemButton`，与对话菜单共享间距、字体、圆角材质和 macOS 模糊底层。共享锚点定位 hook 将菜单限制在可见视口内，并跟随滚动、尺寸变化、缩放和标签移动；超高菜单在内部滚动。拖拽保护继续由套件管理；自定义内容遵循[菜单规则](../../../docs/web-styling.zh.md#component-rules)。
 
 <details>
 <summary>维护者工作上下文——点击展开</summary>

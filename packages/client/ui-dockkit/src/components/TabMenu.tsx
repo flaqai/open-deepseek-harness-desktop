@@ -14,9 +14,9 @@
  * portal's synthetic events through the strip, which is why the press guards
  * below remain necessary.
  */
-import { MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives'
-import { Children, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { MenuItemButton, MenuSurface, useAnchoredPosition } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Children, useEffect, useMemo, useRef } from 'react'
+import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { focusWithoutRing, modalSelector, observeComposition } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { DockLabels } from '../contract/adapter.ts'
@@ -38,29 +38,15 @@ export interface TabMenuProps {
   readonly extras: ReactNode
 }
 
-/** Where the menu sits, or `undefined` before the first measurement. */
-function placeMenu(anchor: HTMLElement, menu: HTMLElement): CSSProperties {
-  const rect = anchor.getBoundingClientRect()
-  const width = menu.offsetWidth
-  // Below the control, aligned to its left edge; flipped to its right edge when
-  // that would run off the viewport, as it does for the last tab in a column
-  // against the window's right side.
-  const left = rect.left + width + MENU_GAP > window.innerWidth
-    ? Math.max(MENU_GAP, rect.right - width)
-    : rect.left
-  return { top: rect.bottom + MENU_GAP, left }
-}
-
 /** The actions menu body, anchored to the control that opened it. */
 export function TabMenu({ labels, anchor, onClose, onDismiss, extras }: TabMenuProps): ReactNode {
   const self = useRef<HTMLDivElement | null>(null)
-  const [position, setPosition] = useState<CSSProperties | undefined>(undefined)
   const hasItems = onClose !== undefined || Children.toArray(extras).some(item => item !== '')
 
-  useLayoutEffect(() => {
-    if (self.current === null) return
-    setPosition(placeMenu(anchor, self.current))
-  }, [anchor, hasItems])
+  const anchorRef = useMemo(() => ({ current: anchor }), [anchor])
+  const position = useAnchoredPosition({
+    open: hasItems, anchorRef, panelRef: self, gap: MENU_GAP, margin: MENU_GAP, frameClearance: false,
+  })
 
   useEffect(() => {
     const menu = self.current
@@ -99,6 +85,7 @@ export function TabMenu({ labels, anchor, onClose, onDismiss, extras }: TabMenuP
   if (!hasItems) return null
   return createPortal(
     <MenuSurface
+      contextual
       className={css.menu}
       ref={self}
       role="menu"
@@ -111,14 +98,16 @@ export function TabMenu({ labels, anchor, onClose, onDismiss, extras }: TabMenuP
       onClick={(event) => { event.stopPropagation() }}
       onAuxClick={(event) => { event.stopPropagation() }}
     >
-      {onClose !== undefined && (
-        <button type="button" role="menuitem" className={css.menuItem} data-dockkit-menu-close onClick={onClose}>
-          {labels.closeTab}
-        </button>
-      )}
-      {/* Embedder items last: the kit's own item is the same in every menu, so
-          a reader looks for it in the same place every time. */}
-      {extras}
+      <div className={css.menuViewport} role="presentation">
+        {onClose !== undefined && (
+          <MenuItemButton onSelect={onClose}>
+            {labels.closeTab}
+          </MenuItemButton>
+        )}
+        {/* Embedder items last: the kit's own item is the same in every menu, so
+            a reader looks for it in the same place every time. */}
+        {extras}
+      </div>
     </MenuSurface>,
     document.body,
   )

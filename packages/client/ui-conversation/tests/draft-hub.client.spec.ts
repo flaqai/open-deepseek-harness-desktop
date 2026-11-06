@@ -1,3 +1,4 @@
+import { EditableHistoryRegistry } from '@deepseek-ai/dsh-client-ui-primitives'
 // @vitest-environment jsdom
 /** InputHub restores drafts before views and follows Session-owned lexicon subscriptions. */
 import { randomUUID } from 'node:crypto'
@@ -47,8 +48,9 @@ async function storedSession(draft: unknown) {
   onTestFinished(() => { reference.release() })
   await reference.ready
   const binding = reference.binding
-  const hub = new InputHub(ctx, makeTranslate(zh, {}))
-  return { ctx, sessions, id, key, raw, reference, binding, hub }
+  const editingHistory = new EditableHistoryRegistry()
+  const hub = new InputHub(ctx, makeTranslate(zh, {}), editingHistory)
+  return { ctx, sessions, id, key, raw, reference, binding, hub, editingHistory }
 }
 
 async function fixture(draft: unknown) {
@@ -307,4 +309,16 @@ it('unsubscribes the lexicon and refuses the old binding after Session disposal'
   expect(b.shell.draftSnapshot).toBe(draft)
   expect(b.shell.requestDraftInitialization({ prompt: 'late edit', clearPreviousDraft: true })).toBe('blocked')
   expect(() => b.hub.requestDraftInitialization(b.binding, { prompt: 'late edit' })).toThrow('retained Session binding')
+})
+
+it('passes the root-owned editing registry through retained Session input shells', async () => {
+  const b = await fixture(saved)
+  const root = document.createElement('div'); root.setAttribute('contenteditable', 'true'); document.body.append(root)
+  onTestFinished(() => { root.remove() })
+  b.shell.editor.setRootElement(root)
+  expect(b.editingHistory.forTarget(root)?.read()).toEqual({ canUndo: false, canRedo: false })
+  const unrelated = new EditableHistoryRegistry()
+  expect(unrelated.forTarget(root)).toBeNull()
+  b.shell.editor.setRootElement(null)
+  expect(b.editingHistory.forTarget(root)).toBeNull()
 })

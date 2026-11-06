@@ -11,7 +11,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
-  IconCheckOutlineRegular, isMobileDevice, useAnchoredPosition, useDismissOnOutsidePointer,
+  IconCheckOutlineRegular, MenuSurface, isMobileDevice, useAnchoredPosition, useDismissOnOutsidePointer,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './TaskMenu.module.css'
 
@@ -317,7 +317,7 @@ export function TaskMenu({ open, anchor, items = [], selectedId, onSelect, onClo
   // pre-render in the same commit, so the first painted frame is already at
   // the final coordinates.
   const list = open && (
-    <div
+    <MenuSurface
       ref={listRef}
       className={clsx(css.list, listClassName, css.scrollable, portal && css.portal, align === 'end' && !portal && css.alignEnd)}
       style={portal ? position ?? MEASURE_STYLE : undefined}
@@ -338,7 +338,7 @@ export function TaskMenu({ open, anchor, items = [], selectedId, onSelect, onClo
       <div className={css.viewport} role="presentation">
         {items.map(renderEntry)}
       </div>
-    </div>
+    </MenuSurface>
   )
 
   return (

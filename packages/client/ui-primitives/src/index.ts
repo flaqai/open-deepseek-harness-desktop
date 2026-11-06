@@ -139,3 +139,6 @@ export type { QuotePreviewProps, QuotePreviewRemoval } from './QuotePreview.tsx'
 export { formatQuoteText } from './markdown/quote-text.ts'
 
 export type { MarkdownMenuTarget } from './markdown/MarkdownDelegate.tsx'
+
+export { EditableHistoryRegistry } from './editable-history.ts'
+export type { EditableHistory, EditableHistoryDirection, EditableHistoryProvider, EditableHistoryState } from './editable-history.ts'

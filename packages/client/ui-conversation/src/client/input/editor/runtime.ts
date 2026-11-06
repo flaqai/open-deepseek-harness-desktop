@@ -1,3 +1,5 @@
+import type { EditableHistoryRegistry } from '@deepseek-ai/dsh-client-ui-primitives'
+import { registerComposerEditingHistory } from './editing-history.ts'
 /** The Composer model's private Lexical editor, projections, and node operations. */
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { LexicalEditor, NodeKey } from 'lexical'
@@ -29,6 +31,7 @@ type Lexicon = ReadonlyMap<'/' | '@', readonly string[]>
 
 /** Model callbacks read at the same editor registration and update points. */
 interface DraftEditorRuntimeDeps {
+  readonly editingHistory?: EditableHistoryRegistry | undefined
   readonly onUpdate: () => void
   readonly quoteLabels: () => QuoteNodeLabels
   readonly openReference: (source: string | undefined, reference: Pick<ReferenceInsert, 'ref' | 'appearance'>) => boolean
@@ -101,6 +104,7 @@ export class DraftEditorRuntime {
       }
       return false
     }
+    const history = createEmptyHistoryState()
     const unregister = mergeRegister(
       registerPlainText(this.editor),
       this.editor.registerNodeTransform(QuoteNode, (node) => { node.setLabels(this.deps.quoteLabels()) }),
@@ -116,7 +120,9 @@ export class DraftEditorRuntime {
       this.editor.registerNodeTransform(RootNode, preserveExternalSelection),
       registerReferenceActivation(this.editor, (source, reference) =>
         this.deps.openReference(source, reference)),
-      registerHistory(this.editor, createEmptyHistoryState(), HISTORY_MERGE_DELAY_MS),
+      registerHistory(this.editor, history, HISTORY_MERGE_DELAY_MS),
+      ...(this.deps.editingHistory === undefined ? []
+        : [registerComposerEditingHistory(this.editor, history, this.deps.editingHistory)]),
       this.editor.registerUpdateListener(() => { this.deps.onUpdate() }),
       registerCommandChipSeat(this.editor),
       registerCommandChipSelection(this.editor),

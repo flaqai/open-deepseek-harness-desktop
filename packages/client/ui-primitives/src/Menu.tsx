@@ -18,6 +18,8 @@ export interface MenuItem {
   id: string
   label: ReactNode
   disabled?: boolean
+  /** Explicit toggle state; present values use menuitemcheckbox semantics. */
+  checked?: boolean
   /** Effective binding supplied by the command owner; omitted for unbound actions. */
   shortcut?: { keys: readonly string[]; aria?: string | undefined }
   /** Leading icon (figma .Menu_cell gap 8). */
@@ -54,6 +56,8 @@ export interface MenuItemButtonProps {
   icon?: ReactNode
   /** Whether this row identifies the currently displayed page or view. */
   current?: boolean
+  /** Explicit toggle state; present values use menuitemcheckbox semantics. */
+  checked?: boolean
   /** Whether the row cannot be activated. */
   disabled?: boolean
   /**
@@ -84,6 +88,7 @@ export interface MenuItemButtonProps {
  * @param props.children - visible row label.
  * @param props.shortcut - effective key labels and accessible combination.
  * @param props.icon - optional leading icon.
+ * @param props.checked - explicit toggle state, with a trailing check and checkbox semantics.
  * @param props.current - whether the row identifies the currently displayed page or view.
  * @param props.disabled - whether the row cannot be activated.
  * @param props.disabledReason - why a disabled row cannot be activated, shown in a tooltip and read as its description.
@@ -93,7 +98,7 @@ export interface MenuItemButtonProps {
  * @returns one menu-item row.
  */
 export function MenuItemButton({
-  children, shortcut, icon, current, disabled = false, disabledReason, danger = false, separatorBefore = false, onSelect,
+  children, shortcut, icon, current, checked, disabled = false, disabledReason, danger = false, separatorBefore = false, onSelect,
 }: MenuItemButtonProps) {
   const reasonId = useId()
   // Native disabled buttons do not deliver the hover/focus events Tooltip needs,
@@ -106,7 +111,8 @@ export function MenuItemButton({
       <Tooltip label={disabledReason ?? ''} disabled={!explained} side="bottom" delayMs={500} maxWidth={300} portal>
         <button
           type="button"
-          role="menuitem"
+          role={checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+          aria-checked={checked}
           className={clsx(css.item, danger && css.danger)}
           disabled={disabled && !explained}
           aria-disabled={explained || undefined}
@@ -118,6 +124,7 @@ export function MenuItemButton({
           {icon !== undefined && <span className={css.itemIcon}>{icon}</span>}
           <span className={css.itemLabel}>{children}</span>
           {shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={shortcut.keys} className={css.shortcutKeys} /></span>}
+          {checked === true && <IconCheckOutlineRegular aria-hidden="true" className={css.check} />}
         </button>
       </Tooltip>
       {explained && <span id={reasonId} hidden>{disabledReason}</span>}
@@ -162,7 +169,9 @@ const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
  * anchor's first button, and selecting a row does the same — the rows unmount
  * with the list. Only a keyboard on the trigger or inside the list is
  * intercepted; Tab presses elsewhere on the page stay the browser's.
+ * @param props.ariaLabel - accessible menu name when supplied by the owner.
  * @param props.contextual - cursor positioning, context dismissal, and per-divider icon alignment.
+ * @param props.preserveSelection - keep the original text selection by suppressing pointer focus changes inside the menu.
  * @param props.exiting - retain an inert popup during dismissal or replacement fade.
  * @param props.returnFocus - original control captured before asynchronous menu preparation.
  * @param props.autoFocus - focus the first item on open; the arrow keys walk the list either way.
@@ -210,10 +219,13 @@ const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
  * document.body outside the owner's DOM subtree.
  * @returns anchor wrapper with the conditional list.
  */
-export function Menu({ open, anchor, items = [], children, selectedId, selectedIds, onSelect, onClose, align = 'start', side = 'bottom', portal = false, closeOnPointerLeave = false, dense = false, compact = false, autoFocus = false, selection = 'check', getAnchorRect, minWidthFromAnchor = false, footer, className, listClassName, contextual = false, exiting, returnFocus }: {
+export function Menu({ open, anchor, items = [], children, selectedId, selectedIds, onSelect, onClose, align = 'start', side = 'bottom', portal = false, closeOnPointerLeave = false, dense = false, compact = false, autoFocus = false, selection = 'check', getAnchorRect, minWidthFromAnchor = false, footer, className, listClassName, contextual = false, preserveSelection = false, ariaLabel, exiting, returnFocus }: {
   open: boolean
+  ariaLabel?: string
   /** Pointer-positioned popup: cursor clearance, grouped icons, and context gestures. */
   contextual?: boolean
+  /** Preserve the originating selection while pointer actions activate menu rows. */
+  preserveSelection?: boolean
   /** Resolve the original control for focus restoration and inert/hidden dismissal. */
   returnFocus?: (() => HTMLElement | null) | undefined
   /** Retain a dismissed context popup during its short fade. */
@@ -394,7 +406,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
         // button inside an error strip) and a list with no enabled row keep the
         // browser's traversal instead of being swallowed.
         if (insideList) {
-          if (focused instanceof Element && focused.getAttribute('role') === 'menuitem') {
+          if (focused instanceof Element && ['menuitem', 'menuitemcheckbox'].includes(focused.getAttribute('role') ?? '')) {
             e.preventDefault()
             if (focused.getAttribute('aria-disabled') === 'true') {
               onClose()
@@ -497,7 +509,8 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
       >
         <button
           type="button"
-          role="menuitem"
+          role={entry.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+          aria-checked={entry.checked}
           className={clsx(css.item, selected && (selection === 'fill' ? css.selectedFill : css.selected), entry.danger === true && css.danger)}
           disabled={entry.disabled}
           aria-keyshortcuts={entry.shortcut?.aria}
@@ -516,24 +529,27 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
           <span className={css.itemLabel}>{entry.label}</span>
           {entry.shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={entry.shortcut.keys} className={css.shortcutKeys} /></span>}
           {/* Selection marker is a trailing check (figma .Menu_cell) unless the fill mode carries it. */}
-          {selected && selection === 'check' && <IconCheckOutlineRegular className={css.check} />}
+          {(entry.checked === true || (entry.checked === undefined && selected && selection === 'check'))
+            && <IconCheckOutlineRegular aria-hidden="true" className={css.check} />}
         </button>
         {subOpen && entry.submenu !== undefined && (
-          <MenuSurface compact={compact} className={clsx(css.submenu, compact && css.compactList)} role="menu">
+          <MenuSurface compact={compact} contextual={contextual} className={clsx(css.submenu, compact && css.compactList)} role="menu">
             {entry.submenu.map(sub => isSeparator(sub)
               ? <div key={sub.id} className={css.separator} role="separator" />
               : isLabel(sub) ? <div key={sub.id} className={css.label}>{sub.text}</div> : (
                 <button
                   key={sub.id}
                   type="button"
-                  role="menuitem"
-                  className={css.item}
+                  role={sub.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+                  aria-checked={sub.checked}
+                  className={clsx(css.item, sub.danger === true && css.danger)}
                   disabled={sub.disabled}
                   aria-keyshortcuts={sub.shortcut?.aria}
                   onClick={() => { onSelect?.(sub.id); refocusAfterSelection() }}
                 >
                   {(sub.icon !== undefined || subColumns.has(sub)) && <span aria-hidden="true" className={css.itemIcon}>{sub.icon}</span>}
                   <span className={css.itemLabel}>{sub.label}</span>
+                  {sub.checked === true && <IconCheckOutlineRegular aria-hidden="true" className={css.check} />}
                   {sub.shortcut !== undefined && <span aria-hidden="true" className={css.shortcut}><ShortcutKeys keys={sub.shortcut.keys} className={css.shortcutKeys} /></span>}
                 </button>
               ))}
@@ -548,7 +564,7 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
   // focus, data row or component row — closes the open card. A parent opens
   // its card in its own handlers; rows inside the card are not top-level rows.
   const collapseSubmenuFrom = (e: SyntheticEvent<HTMLDivElement>): void => {
-    const row = e.target instanceof Element ? e.target.closest('button[role="menuitem"]') : null
+    const row = e.target instanceof Element ? e.target.closest('button[role="menuitem"], button[role="menuitemcheckbox"]') : null
     if (row === null || row.getAttribute('aria-haspopup') === 'menu') return
     if (row.closest('[role="menu"]') !== e.currentTarget) return
     setOpenSubmenuId(null)
@@ -556,11 +572,12 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
 
   // Portal lists stay hidden until their first synchronous measurement.
   const list = open && (
-    <MenuSurface compact={compact} id={contextual ? menuId : undefined}
+    <MenuSurface compact={compact} contextual={contextual} id={contextual ? menuId : undefined}
       ref={listRef}
       className={clsx(css.list, listClassName, dense && css.denseList, compact && css.compactList, scrollable && css.scrollable, portal && css.portal, side === 'top' && !portal && css.sideTop, align === 'end' && !portal && css.alignEnd)}
       style={portal ? fixedPos ?? MEASURE_STYLE : undefined}
       role={exiting === undefined ? 'menu' : undefined}
+      aria-label={ariaLabel}
       aria-hidden={exiting === undefined ? undefined : true}
       data-context-menu={contextual ? '' : undefined}
       phase={contextual ? exiting ?? 'enter' : undefined}
@@ -572,9 +589,10 @@ export function Menu({ open, anchor, items = [], children, selectedId, selectedI
       // own handler ran; a submenu parent only opened its card.
       onClick={(e) => {
         e.stopPropagation()
-        const row = e.target instanceof Element ? e.target.closest('button[role="menuitem"]') : null
+        const row = e.target instanceof Element ? e.target.closest('button[role="menuitem"], button[role="menuitemcheckbox"]') : null
         if (row !== null && row.getAttribute('aria-haspopup') !== 'menu') refocusAfterSelection()
       }}
+      onPointerDown={preserveSelection ? (event) => { event.preventDefault() } : undefined}
       onContextMenu={contextual ? (event) => {
         event.preventDefault(); event.stopPropagation(); onClose()
       } : undefined}
