@@ -14,7 +14,8 @@ const initial: SettingsNavigationLayout = { version: 2, hiddenIds: [], nodes: [
 const rows = ['general', 'models', 'plugins', 'approval'].map((id, order) => ({ id, label: id, order }))
 const selected = vi.fn()
 const saved = vi.fn<(layout: SettingsNavigationLayout) => void>()
-const animate = vi.fn()
+const animate = vi.fn<(frames: Keyframe[], options: KeyframeAnimationOptions) => Animation>()
+const cancelAnimation = vi.fn()
 function Fixture({ value = initial, manage = () => {}, organize = () => {} }: { value?: SettingsNavigationLayout; manage?: (id: string, action: 'rename' | 'delete') => void; organize?: (action: 'create' | 'manage') => void }) {
   const [layout, update] = useState(value)
   return <SettingsNavigation rows={rows} layout={layout} active="general" t={makeTranslate(en)} icon={() => null} onSelect={selected} onManage={manage} onOrganize={organize}
@@ -32,7 +33,10 @@ function topOf(element: Element): number {
   return siblings.slice(0, siblings.indexOf(element)).reduce((total, node) => total + height(node) + 8, 0)
 }
 beforeEach(() => {
-  vi.useFakeTimers(); saved.mockClear(); selected.mockClear(); animate.mockClear()
+  vi.useFakeTimers(); saved.mockClear(); selected.mockClear(); animate.mockReset(); cancelAnimation.mockClear()
+  const animation = Object.create(null) as Animation
+  animation.cancel = cancelAnimation
+  animate.mockReturnValue(animation)
   vi.stubGlobal('matchMedia', () => ({ matches: false }))
   Element.prototype.getAnimations = () => []
   Element.prototype.animate = animate
@@ -43,7 +47,7 @@ beforeEach(() => {
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function(this: Element) {
     const top = this.closest('[data-navigation-top]')
     if (!top) return rect(0, 500)
-    const y = topOf(top)
+    const y = topOf(top) - (this.closest('[data-dragging]')?.scrollTop ?? 0)
     if (this.hasAttribute('data-navigation-heading')) return rect(y, 40)
     if (this === top) return rect(y, height(top))
     const row = this.closest('[data-navigation-section]')
@@ -58,6 +62,7 @@ function start(name = 'general', y = 20) {
 }
 function track(y: number, x = 30) { fireEvent.pointerMove(window, { clientX: x, clientY: y }) }
 function drop() { fireEvent.pointerUp(window); act(() => { vi.advanceTimersByTime(180) }) }
+function landing() { return animate.mock.calls[animate.mock.contexts.indexOf(document.querySelector('[data-navigation-ghost]'))]?.[0]?.[1] }
 function group(layout = saved.mock.lastCall?.[0]) {
   return layout?.nodes.find((node): node is Extract<SettingsNavigationNode, { kind: 'group' }> => node.kind === 'group' && node.id === 'work')
 }
@@ -108,6 +113,40 @@ it('activates at 200ms and reserves the original row until settlement', () => {
   expect(ids()).toEqual(['models', 'general', 'work'])
   expect(document.querySelector('[data-navigation-ghost]')).toBeNull()
 })
+it('makes room at the final row before settling instead of landing on the insertion line', () => {
+  const { container } = render(<Fixture />)
+  start(); track(75); fireEvent.pointerUp(window)
+  const top = [...container.querySelectorAll('[data-navigation-top]')].map(element => element.getAttribute('data-navigation-top'))
+  expect(top).toEqual(['models', 'general', 'work'])
+  const destination = container.querySelector('[data-navigation-section="general"]')!
+  expect(landing()?.transform).toBe(`translate3d(0px, ${destination.getBoundingClientRect().top}px, 0)`)
+  expect(container.querySelector('[data-navigation-drop-indicator]')).toBeNull()
+  expect(saved).not.toHaveBeenCalled()
+  act(() => { vi.advanceTimersByTime(180) })
+  expect(saved).toHaveBeenCalledOnce()
+  expect(animate.mock.calls.length).toBeGreaterThan(0)
+})
+it.each([false, true])('settles into the actual member or collapsed header with collapsed=%s', (isCollapsed) => {
+  const { container } = render(<Fixture value={isCollapsed ? collapsed() : initial} />)
+  start(); track(110); fireEvent.pointerUp(window)
+  const destination = container.querySelector(isCollapsed ? '[data-navigation-heading]' : '[data-navigation-section="general"]')!
+  const bounds = destination.getBoundingClientRect()
+  expect(landing()).toMatchObject({ transform: `translate3d(${bounds.left}px, ${bounds.top}px, 0)`,
+    width: `${bounds.width}px`, opacity: isCollapsed ? 0 : 1 })
+  expect(container.querySelector('[data-drop-into="true"]')).toBeNull()
+  drop()
+  expect(group()).toMatchObject({ sectionIds: ['general', 'plugins', 'approval'], collapsed: isCollapsed })
+})
+it('can cancel a settling drop without persisting the projected layout', () => {
+  const { container } = render(<Fixture />)
+  start(); track(75); fireEvent.pointerUp(window); key('Escape')
+  act(() => { vi.advanceTimersByTime(180) })
+  expect(saved).not.toHaveBeenCalled()
+  expect([...container.querySelectorAll('[data-navigation-top]')].map(element => element.getAttribute('data-navigation-top')))
+    .toEqual(['general', 'models', 'work'])
+  expect(document.querySelector('[data-navigation-ghost]')).toBeNull()
+  expect(cancelAnimation).toHaveBeenCalled()
+})
 it.each(['movement', 'cancel', 'release'])('cancels pending activation on %s', (reason) => {
   render(<Fixture />)
   fireEvent.pointerDown(screen.getByRole('button', { name: 'general' }), { button: 0, clientX: 10, clientY: 10 })
@@ -152,7 +191,7 @@ it('detaches a member into the gap above its group', () => {
   const line = container.querySelector('[data-navigation-drop-indicator]')!
   expect(line.getAttribute('data-scope')).toBe('standalone')
   expect(line.getAttribute('data-edge')).toBeNull()
-  expect(line.parentElement?.getAttribute('data-navigation-top')).toBe('work')
+  expect(line.parentElement?.getAttribute('data-navigation-top')).toBe('plugins')
   drop(); expect(ids()).toEqual(['general', 'models', 'plugins', 'work'])
   expect(group()).toMatchObject({ sectionIds: ['approval'] })
 })
@@ -266,13 +305,11 @@ it('skips hidden and temporarily absent top-level entries during keyboard moves'
   expect(ids()).toEqual(['models', 'missing', 'plugins', 'general'])
 })
 
-it('keeps the visible header and hit region aligned while entering, leaving and returning', () => {
+it('uses the current header after making room, leaving and returning', () => {
   const { container } = render(<Fixture />)
   start()
   const header = () => container.querySelector('[data-navigation-heading]')!.getBoundingClientRect()
-  const originalTop = header().top
   track(header().top + 20)
-  expect(header().top).toBe(originalTop)
   expect(container.querySelector('[data-drop-into="true"]')).not.toBeNull()
   track(header().top - 4)
   expect(container.querySelector('[data-drop-into="true"]')).toBeNull()
@@ -281,6 +318,63 @@ it('keeps the visible header and hit region aligned while entering, leaving and 
   expect(container.querySelector('[data-drop-into="true"]')).not.toBeNull()
   expect(container.querySelector('[data-navigation-drop-indicator]')).toBeNull()
   drop(); expect(group()).toMatchObject({ sectionIds: ['general', 'plugins', 'approval'] })
+})
+it('reserves the gap during dragging and animates only the floating entry on release', () => {
+  const { container } = render(<Fixture />)
+  start(); track(75)
+  expect([...container.querySelectorAll('[data-navigation-top]')].map(element => element.getAttribute('data-navigation-top')))
+    .toEqual(['models', 'general', 'work'])
+  expect(container.querySelector('[data-navigation-drop-indicator]')?.parentElement?.getAttribute('data-placeholder')).toBe('true')
+  expect(animate).toHaveBeenCalled()
+  animate.mockClear()
+  fireEvent.pointerUp(window)
+  expect(animate).toHaveBeenCalledOnce()
+  expect(animate.mock.contexts[0]).toBe(document.querySelector('[data-navigation-ghost]'))
+  act(() => { vi.advanceTimersByTime(180) })
+  expect(animate).toHaveBeenCalledOnce()
+})
+it('does not replay scrolling as a reorder animation when another drop target is reached', () => {
+  const { container } = render(<Fixture />)
+  start(); track(75)
+  const models = container.querySelector('[data-navigation-section="models"]')!
+  container.firstElementChild!.scrollTop = 10
+  animate.mockClear()
+  track(150)
+  expect(animate.mock.contexts).not.toContain(models)
+  key('Escape')
+})
+it('counteracts parent-group movement when a child keeps its natural position during cross-group insertion', () => {
+  const { container } = render(<Fixture value={{ ...initial, nodes: [
+    { kind: 'group', id: 'first', label: 'First', sectionIds: ['general', 'models'] },
+    { kind: 'group', id: 'work', label: 'Work', sectionIds: ['plugins', 'approval'] },
+  ] }} />)
+  start('general', 60)
+  const member = container.querySelector('[data-navigation-section="plugins"]')!
+  const before = member.getBoundingClientRect().top
+  animate.mockClear()
+  track(140)
+  expect(member.getBoundingClientRect().top).toBe(before)
+  const groupIndex = animate.mock.contexts.indexOf(container.querySelector('[data-navigation-container="work"]'))
+  const memberIndex = animate.mock.contexts.indexOf(member)
+  expect(animate.mock.calls[groupIndex]?.[0]?.[0]?.transform).toBe('translateY(40px)')
+  expect(animate.mock.calls[memberIndex]?.[0]?.[0]?.transform).toBe('translateY(-40px)')
+  drop()
+  expect(group()?.sectionIds).toEqual(['general', 'plugins', 'approval'])
+})
+it('cancels owned neighbor animations before restoring the original order', () => {
+  render(<Fixture />)
+  start(); track(75)
+  cancelAnimation.mockClear()
+  key('Escape')
+  expect(cancelAnimation).toHaveBeenCalled()
+  expect(saved).not.toHaveBeenCalled()
+})
+it('holds the receiving collapsed group while the pointer stays at the accepted landing position', () => {
+  const { container } = render(<Fixture value={collapsed()} />)
+  start(); track(110)
+  for (let index = 0; index < 12; index++) track(110 + index * 0.1)
+  expect(container.querySelector('[data-drop-into="true"]')?.getAttribute('data-navigation-container')).toBe('work')
+  drop(); expect(group()).toMatchObject({ sectionIds: ['general', 'plugins', 'approval'], collapsed: true })
 })
 
 
