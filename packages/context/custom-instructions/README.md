@@ -7,6 +7,8 @@ kind: "package-reference"
 
 English | [中文](README.zh.md)
 
+The custom instructions page registers its edit navigation icon through `settings.section.icon`.
+
 ## Summary
 
 `dsh-custom-instructions` lets a person save additional instructions for every conversation or for one registered Workspace. The active global revision is followed by the active Workspace revision on every matching model request. Empty text disables that scope. Edits take effect on the next request and do not rewrite earlier Session history.

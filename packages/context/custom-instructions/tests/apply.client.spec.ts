@@ -16,6 +16,7 @@ describe('custom instructions browser plugin', () => {
       children: {
         'settings.general.item': { kind: 'list', scope: 'root' },
         'settings.section': { kind: 'list', scope: 'root' },
+        'settings.section.icon': { kind: 'list', scope: 'root', inline: true },
       },
     } as never, () => null)
     ctx.provide('locale', new LocaleRuntime(ctx))
@@ -38,9 +39,11 @@ describe('custom instructions browser plugin', () => {
     await fiber.await()
     expect(slots.entries('settings.general.item')[0]?.component).toBe(CustomInstructionsRow)
     expect(slots.entries('settings.section')[0]?.component).toBe(CustomInstructionsSection)
+    expect(slots.entries('settings.section.icon').map(entry => entry.options.id)).toEqual(['custom-instructions'])
     ctx.customInstructions.openGlobal()
     expect(open).toHaveBeenCalledWith({ sectionId: 'custom-instructions', subsectionId: 'global' })
     await fiber.dispose()
     expect(slots.entries('settings.section')).toHaveLength(0)
+    expect(slots.entries('settings.section.icon')).toHaveLength(0)
   })
 })

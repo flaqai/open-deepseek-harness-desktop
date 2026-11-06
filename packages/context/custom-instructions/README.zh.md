@@ -7,6 +7,8 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
+自定义提示词页通过 `settings.section.icon` 注册编辑导航图标。
+
 ## 概述
 
 `dsh-custom-instructions` 允许用户为所有对话或单个已注册 Workspace 保存附加说明。每次匹配的模型请求都会依次加入当前全局版本和当前 Workspace 版本。空文本会停用对应范围。修改从下一次请求开始生效，不会重写先前的 Session 历史。

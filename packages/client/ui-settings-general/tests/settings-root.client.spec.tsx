@@ -196,6 +196,33 @@ describe('SettingsRoot trigger', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to settings' }))
     expect(screen.getByRole('button', { name: 'Organize settings navigation: General' })).toBeTruthy()
   })
+  it('creates groups directly from a navigation context menu and can repeat the action', () => {
+    mount()
+    openPanel()
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'General' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add group' }))
+    const input = screen.getByLabelText<HTMLInputElement>('Group name')
+    expect(document.activeElement).toBe(input)
+    fireEvent.change(input, { target: { value: 'Work' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.contextMenu(screen.getByText('Work', { selector: 'button' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add group' }))
+    expect(screen.getByLabelText<HTMLInputElement>('Group name').value).toBe('')
+    expect(document.activeElement).toBe(screen.getByLabelText('Group name'))
+    expect(screen.getByText('Work', { selector: 'legend' })).toBeTruthy()
+  })
+
+  it('dismisses a navigation context menu without closing Settings', () => {
+    mount()
+    openPanel()
+    const page = screen.getByRole('button', { name: 'General' })
+    fireEvent.keyDown(page, { key: 'F10', shiftKey: true })
+    expect(screen.getByRole('menu')).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Settings Title' })).toBeTruthy()
+  })
+
   it('shows installation instead of expected backend reconnection and restores connection feedback after failure', () => {
     const presentation = { phase: 'installing' as const, version: '1.0.1' }
     const f = mount({ dictionary: zh, connectionState: 'connecting',

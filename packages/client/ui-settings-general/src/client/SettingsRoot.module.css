@@ -130,7 +130,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 10px 12px 0;
+  padding: 10px 0.5px 0 12px;
   box-sizing: border-box;
 }
 
@@ -369,13 +369,13 @@
 .resizeHandle[data-edge='nw'] { top: 0; left: 0; cursor: nwse-resize; }
 .resizeHandle[data-edge='se'] { bottom: 0; right: 0; cursor: nwse-resize; }
 .resizeHandle[data-edge='sw'] { bottom: 0; left: 0; cursor: nesw-resize; }
-/* Keep the resize hit area in the rail padding, outside the native scrollbar. */
+/* The visible line sits 0.5px beyond the scrollbar; its hit area extends toward the options. */
 .divider {
   position: absolute;
   z-index: 4;
   top: 10px;
   bottom: 0;
-  right: 0;
+  right: -8px;
   width: 8px;
   cursor: col-resize;
   touch-action: none;
@@ -386,7 +386,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 50%;
+  left: 0;
   width: 1px;
   background: var(--dsh-scrollbar-thumb-hover);
   opacity: 0;

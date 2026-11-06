@@ -79,5 +79,6 @@ it('renders a contributed section icon and restores the default after its plugin
   expect(general.querySelector('svg')?.getAttribute('data-icon')).toBe(fallback)
   await act(async () => { await plugin.dispose() })
   expect(screen.queryByRole('button', { name: 'Custom' })).toBeNull()
-  expect(c.ctx.slots.entries('settings.section.icon')).toHaveLength(0)
+  expect(c.ctx.slots.entries('settings.section.icon').map(entry => entry.options.id)).not.toContain('custom')
+  expect(c.ctx.slots.entries('settings.section.icon').map(entry => entry.options.id)).not.toContain('unmatched')
 }, 60_000)

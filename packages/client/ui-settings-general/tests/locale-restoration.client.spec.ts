@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { en, ja, es, fr, de, ru, pt } from '../src/client/locales.ts'
+import { en, ja, ko, es, fr, de, ru, pt, zh } from '../src/client/locales.ts'
 
 for (const [language, dictionary] of Object.entries({ ja, es, fr, de, ru, pt })) {
   describe(`community settings navigation in ${language}`, () => {
@@ -16,3 +16,17 @@ for (const [language, dictionary] of Object.entries({ ja, es, fr, de, ru, pt }))
     })
   })
 }
+
+
+it('provides all contextual navigation labels in nine interface languages', () => {
+  const labels = ['nav.hideItem', 'nav.hideGroup', 'nav.renameGroup', 'nav.deleteGroup', 'nav.addGroup', 'nav.organize',
+    'nav.dropStandalone', 'nav.moveTo', 'nav.restoreEntry'] as const
+  const dictionaries = { zh, en, ja, ko, es, fr, de, ru, pt }
+  expect(Object.keys(dictionaries)).toHaveLength(9)
+  for (const [language, dictionary] of Object.entries(dictionaries)) {
+    for (const label of labels) {
+      expect(dictionary[label].trim(), `${language}: ${label}`).not.toBe('')
+      if (language !== 'en') expect(dictionary[label], `${language}: ${label}`).not.toBe(en[label])
+    }
+  }
+})

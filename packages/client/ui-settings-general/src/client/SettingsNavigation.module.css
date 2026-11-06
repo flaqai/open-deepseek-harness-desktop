@@ -1,5 +1,16 @@
-.rail { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding-right: 8px; scrollbar-gutter: stable; -webkit-user-select: none; user-select: none; }
-.rail:not([data-scrolling='true']) { --dsh-scrollbar-thumb: transparent; --dsh-scrollbar-thumb-hover: transparent; }
+.rail { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding-right: 0; scrollbar-gutter: auto; -webkit-user-select: none; user-select: none; }
+/* Keep one narrow track; the thumb expands inside it without moving navigation rows. */
+.rail::-webkit-scrollbar { width: 8px; }
+.rail::-webkit-scrollbar-thumb {
+  border: 2.5px solid transparent;
+  background-color: color-mix(in srgb, var(--dsw-alias-scrollbar-bg-l2) 65%, transparent);
+  background-clip: content-box;
+}
+.rail[data-scrollbar-hovered='true']::-webkit-scrollbar-thumb {
+  border-width: 1px;
+  background-color: color-mix(in srgb, var(--dsw-alias-scrollbar-hover-l2) 75%, transparent);
+}
+.rail::-webkit-scrollbar-track { background: transparent; }
 .group { position: relative; min-width: 0; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-layer-2); transition: background-color 150ms; }
 .group[data-drop-into='true'] { background: var(--dsw-alias-interactive-bg-hover); box-shadow: inset 0 0 0 1px var(--dsw-alias-label-tertiary); }
 .heading > .page { height: auto; min-height: 40px; align-self: stretch; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
@@ -75,3 +86,13 @@
 @media (prefers-reduced-motion: reduce) { .dropIndicator { transition: none; } }
 
 .membersList > .dropIndicator { top: 4px; left: 12px; }
+
+/* Older navigation integrations prepend a sibling SVG instead of registering an icon slot. */
+.sectionIcon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 16px; height: 16px; }
+.row > svg { flex: none; width: 16px; height: 16px; margin-left: 12px; }
+.row:has(> svg) .sectionIcon { display: none; }
+.row:has(> svg) > .page { padding-left: 8px; }
+
+/* These legacy plugins draw their navigation icon with a marked button's ::before. */
+.page:global([data-dsh-market-nav-icon]) > .sectionIcon,
+.page:global([data-dsh-better-sidebar-settings-nav]) > .sectionIcon { display: none; }

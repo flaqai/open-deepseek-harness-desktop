@@ -1,12 +1,14 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, ReactElement, PointerEvent as ReactPointerEvent } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, ReactElement, PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Menu, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsNavigationLayout } from '../types.ts'
 import type { SettingsSectionRow, SettingsRootComponentProps } from './shell-contract.ts'
 import { moveLayoutGroup, moveLayoutSection, setLayoutGroupState, setLayoutSectionHidden, visibleSettingsNodes } from './section-layout.ts'
 import { settingsSectionAutoScroll } from './section-order.ts'
 import css from './SettingsNavigation.module.css'
+
+type ContextTarget = { kind: 'blank' } | { kind: 'group'; id: string } | { kind: 'section'; id: string; group?: string }
 
 type Move = { kind: 'group' | 'section'; id: string }
 type Target = { kind: 'into' | 'inside'; group: string; index: number } | { kind: 'standalone' | 'group'; index: number }
@@ -18,20 +20,21 @@ interface Props {
   mutate: (operation: (layout: SettingsNavigationLayout) => SettingsNavigationLayout) => void
   onSelect: (id: string) => void
   onManage: (id: string, action: 'rename' | 'delete') => void
+  onOrganize: (action: 'create' | 'manage') => void
   icon: (id: string) => ReactNode
 }
 
 /** Direct manipulation of navigation groups and entries, with keyboard equivalents. */
-export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, onManage, icon }: Props): ReactElement {
+export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, onManage, onOrganize, icon }: Props): ReactElement {
   const hintId = useId()
   const rail = useRef<HTMLDivElement>(null)
-  const scrollbarTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const [scrolling, setScrolling] = useState(false)
-  useEffect(() => () => { clearTimeout(scrollbarTimer.current) }, [])
-  const showScrollbar = () => {
-    setScrolling(true)
-    clearTimeout(scrollbarTimer.current)
-    scrollbarTimer.current = setTimeout(() => { setScrolling(false) }, 800)
+  const [scrollbarHovered, setScrollbarHovered] = useState(false)
+  const hoverScrollbar = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const element = event.currentTarget
+    const bounds = element.getBoundingClientRect()
+    // The CSS track stays 8px wide even when its thumb is thin.
+    setScrollbarHovered(event.pointerType !== 'touch' && element.scrollHeight > element.clientHeight
+      && event.clientX >= bounds.right - 8 && event.clientX <= bounds.right)
   }
   const move = useRef<Move | undefined>(undefined)
   const target = useRef<Target | undefined>(undefined)
@@ -39,6 +42,7 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
   const frame = useRef<number | undefined>(undefined)
   const pointer = useRef<{ clientX: number; clientY: number } | undefined>(undefined)
   const [menu, setMenu] = useState<string>()
+  const [contextMenu, setContextMenu] = useState<{ target: ContextTarget; x: number; y: number; trigger: HTMLElement }>()
   const [preview, setPreview] = useState<SettingsNavigationLayout>()
   const draft = useRef<SettingsNavigationLayout | undefined>(undefined)
   const [ghost, setGhost] = useState<{
@@ -119,7 +123,10 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
     frame.current = undefined
   }
   const sourceKey = JSON.stringify(layout)
-  useEffect(() => { if (move.current || armed.current !== undefined) stop() }, [sourceKey])
+  useEffect(() => {
+    if (move.current || armed.current !== undefined) stop()
+    setContextMenu(undefined)
+  }, [sourceKey])
   const finish = () => {
     clearTimeout(armed.current); armed.current = undefined
     if (!move.current || settlement.current !== undefined) return
@@ -265,8 +272,59 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
       if (frame.current !== undefined) cancelAnimationFrame(frame.current)
     }
   }, [])
+  const openContext = (event: ReactMouseEvent<HTMLElement> | ReactKeyboardEvent<HTMLElement>, contextTarget: ContextTarget) => {
+    if (event.defaultPrevented) return
+    event.preventDefault(); event.stopPropagation()
+    if (move.current || settlement.current !== undefined) return
+    clearTimeout(armed.current); armed.current = undefined; pointerId.current = undefined
+    const trigger = event.currentTarget instanceof HTMLButtonElement ? event.currentTarget
+      : event.currentTarget.querySelector<HTMLButtonElement>('button') ?? event.currentTarget
+    const bounds = trigger.getBoundingClientRect()
+    const mouse = 'clientX' in event && (event.clientX !== 0 || event.clientY !== 0)
+    setMenu(undefined)
+    setContextMenu({ target: contextTarget, trigger,
+      x: mouse ? event.clientX : bounds.left, y: mouse ? event.clientY : bounds.bottom })
+  }
+  const keyboardContext = (event: ReactKeyboardEvent<HTMLElement>, contextTarget: ContextTarget): boolean => {
+    if (move.current || !(event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey)) return false
+    if (event.repeat || event.nativeEvent.isComposing || event.ctrlKey || event.altKey || event.metaKey) return false
+    openContext(event, contextTarget)
+    return true
+  }
+  const organizeEntries: readonly MenuEntry[] = [
+    { id: 'new-group', label: t('nav.addGroup') }, { id: 'organize', label: t('nav.organize') },
+  ]
+  const menuEntries = (contextTarget: ContextTarget): readonly MenuEntry[] => contextTarget.kind === 'blank' ? organizeEntries
+    : contextTarget.kind === 'group' ? [
+      { id: 'rename', label: t('nav.renameGroup') }, { id: 'delete', label: t('nav.deleteGroup'), danger: true },
+      { id: 'hide', label: t('nav.hideGroup') }, { type: 'separator', id: 'organization' }, ...organizeEntries,
+    ] : [
+      { id: 'hide', label: t('nav.hideItem') },
+      ...(contextTarget.group === undefined ? [] : [{ id: 'detach', label: t('nav.dropStandalone') }]),
+      ...groups.filter(group => group.id !== contextTarget.group)
+        .map(group => ({ id: `to:${group.id}`, label: `${t('nav.moveTo')}: ${group.label}` })),
+      { type: 'separator', id: 'organization' }, ...organizeEntries,
+    ]
+  const selectMenuAction = (contextTarget: ContextTarget, id: string) => {
+    setMenu(undefined); setContextMenu(undefined)
+    if (id === 'new-group' || id === 'organize') { onOrganize(id === 'new-group' ? 'create' : 'manage'); return }
+    if (contextTarget.kind === 'group') {
+      if (id === 'hide') mutate(current => setLayoutGroupState(current, contextTarget.id, { hidden: true }))
+      else if (id === 'rename' || id === 'delete') onManage(contextTarget.id, id)
+    } else if (contextTarget.kind === 'section') mutate((current) => {
+      if (id === 'hide') return setLayoutSectionHidden(current, contextTarget.id, true)
+      if (id === 'detach') return moveLayoutSection(current, contextTarget.id, undefined,
+        current.nodes.findIndex(node => node.id === contextTarget.group) + 1)
+      return id.startsWith('to:') ? moveLayoutSection(current, contextTarget.id, id.slice(3), 0) : current
+    })
+  }
+  const targetForMove = (source: Move): ContextTarget => {
+    const group = source.kind === 'section' ? layout.nodes.find(node => node.kind === 'group' && node.sectionIds.includes(source.id))?.id : undefined
+    return source.kind === 'group' ? source : { kind: 'section', id: source.id, ...(group === undefined ? {} : { group }) }
+  }
   const interaction = (source: Move) => ({
     'aria-describedby': hintId,
+    onContextMenu: (event: ReactMouseEvent<HTMLButtonElement>) => { openContext(event, targetForMove(source)) },
     onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => {
       if (event.button !== 0 || move.current) return
       suppress.current = false
@@ -300,11 +358,12 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
         setGhost({ content, x: bounds.left, y: bounds.top, width: bounds.width, height: bounds.height,
           viewport: rail.current?.getBoundingClientRect() ?? bounds, settling: false })
         project(layout)
-        setMenu(undefined)
+        setMenu(undefined); setContextMenu(undefined)
         frame.current = requestAnimationFrame(() => { handlers.current.tick() })
       }, 200)
     },
     onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+      if (keyboardContext(event, targetForMove(source))) return
       if (event.key === ' ' && !move.current) {
         event.preventDefault(); move.current = source; pointerId.current = undefined
         suppress.current = true; project(layout); rail.current?.focus(); return
@@ -387,24 +446,25 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
       aria-current={row.id === active ? 'true' : undefined} data-modal-autofocus={row.id === active && !groups.some(group => group.id === groupId && group.collapsed) ? '' : undefined}
       onFocus={(event) => { event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }}
       onClick={() => { if (!suppress.current && !move.current) onSelect(row.id); suppress.current = false }}>
-      {icon(row.id)}<span className={css.label}>{row.label}</span></button>
-    <Menu open={menu === `section:${row.id}`} onClose={() => { setMenu(undefined) }} portal
-      items={[{ id: 'hide', label: t('nav.hideItem') },
-        ...(groupId === undefined ? [] : [{ id: 'detach', label: t('nav.dropStandalone') }]),
-        ...groups.filter(group => group.id !== groupId).map(group => ({ id: `to:${group.id}`, label: `${t('nav.moveTo')}: ${group.label}` }))]}
-      onSelect={(id) => { setMenu(undefined); mutate((current) => {
-        if (id === 'hide') return setLayoutSectionHidden(current, row.id, true)
-        if (id === 'detach') return moveLayoutSection(current, row.id, undefined, current.nodes.findIndex(node => node.id === groupId) + 1)
-        return moveLayoutSection(current, row.id, id.slice(3), 0)
-      }) }} anchor={<button type="button" className={`${css.tool} ${css.more}`} data-open={menu === `section:${row.id}`}
-        aria-label={`${t('nav.organize')}: ${row.label}`} onClick={() => { setMenu(`section:${row.id}`) }}>···</button>} />
+      <span className={css.sectionIcon} aria-hidden="true">{icon(row.id)}</span><span className={css.label}>{row.label}</span></button>
+    <Menu open={menu === `section:${row.id}`} onClose={() => { setMenu(undefined) }} portal contextual autoFocus
+      items={menuEntries({ kind: 'section', id: row.id, ...(groupId === undefined ? {} : { group: groupId }) })}
+      onSelect={(id) => { selectMenuAction({ kind: 'section', id: row.id, ...(groupId === undefined ? {} : { group: groupId }) }, id) }}
+      anchor={<button type="button" className={`${css.tool} ${css.more}`} data-open={menu === `section:${row.id}`}
+        aria-label={`${t('nav.organize')}: ${row.label}`} onClick={() => { setContextMenu(undefined); setMenu(`section:${row.id}`) }}>···</button>} />
   </div>
   const destination = target.current
   const announcement = !move.current || !destination ? '' : destination.kind === 'into' || destination.kind === 'inside'
     ? t('nav.dropInGroup', { name: groups.find(group => group.id === destination.group)?.label ?? '' })
     : t(destination.kind === 'group' ? 'nav.dropGroup' : 'nav.dropStandalone')
-  return <div ref={rail} className={css.rail} data-scrolling={scrolling} onScroll={showScrollbar} onWheel={showScrollbar}
-    data-dragging={move.current !== undefined} tabIndex={-1}>
+  return <div ref={rail} className={css.rail} data-scrollbar-hovered={scrollbarHovered}
+    onPointerEnter={hoverScrollbar} onPointerMove={hoverScrollbar} onPointerLeave={() => { setScrollbarHovered(false) }}
+    data-dragging={move.current !== undefined} tabIndex={-1}
+    onContextMenu={(event) => {
+      if (event.target instanceof Element && event.target.closest('[data-navigation-section], [data-navigation-heading], [role="menu"]')) return
+      openContext(event, { kind: 'blank' })
+    }}
+    onKeyDown={(event) => { if (event.target === event.currentTarget) keyboardContext(event, { kind: 'blank' }) }}>
     <span id={hintId} className={css.hidden}>{t('nav.dragHint')}</span>
     <span className={css.hidden} role="status" aria-live="polite" aria-atomic="true">{announcement}</span>
     {nodes.length === 0 ? <p>{t('nav.empty')}</p> : null}
@@ -413,17 +473,16 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
       data-drop-into={destination?.kind === 'into' && destination.group === node.id}
       data-placeholder={Boolean(ghost && move.current?.kind === 'group' && move.current.id === node.id)}>
       {indicator('group', node.id)}
-      <div className={css.heading} data-navigation-heading data-navigation-group={node.id}>
+      <div className={css.heading} data-navigation-heading data-navigation-group={node.id}
+        onContextMenu={(event) => { openContext(event, { kind: 'group', id: node.id }) }}
+        onKeyDown={(event) => { keyboardContext(event, { kind: 'group', id: node.id }) }}>
         <button type="button" className={css.page} {...interaction({ kind: 'group', id: node.id })}
           data-modal-autofocus={node.collapsed && node.rows.some(row => row.id === active) ? '' : undefined}>{node.label}</button>
-        <Menu open={menu === node.id} onClose={() => { setMenu(undefined) }} portal
-          items={[{ id: 'rename', label: t('nav.renameGroup') }, { id: 'delete', label: t('nav.deleteGroup') }, { id: 'hide', label: t('nav.hideGroup') }]}
-          onSelect={(id) => {
-            setMenu(undefined)
-            if (id === 'hide') mutate(current => setLayoutGroupState(current, node.id, { hidden: true }))
-            else if (id === 'rename' || id === 'delete') onManage(node.id, id)
-          }} anchor={<button type="button" className={`${css.tool} ${css.more}`} data-open={menu === node.id}
-            aria-label={`${t('nav.organize')}: ${node.label}`} onClick={() => { setMenu(node.id) }}>···</button>} />
+        <Menu open={menu === node.id} onClose={() => { setMenu(undefined) }} portal contextual autoFocus
+          items={menuEntries({ kind: 'group', id: node.id })}
+          onSelect={(id) => { selectMenuAction({ kind: 'group', id: node.id }, id) }}
+          anchor={<button type="button" className={`${css.tool} ${css.more}`} data-open={menu === node.id}
+            aria-label={`${t('nav.organize')}: ${node.label}`} onClick={() => { setContextMenu(undefined); setMenu(node.id) }}>···</button>} />
         <button type="button" className={css.tool} aria-expanded={!node.collapsed} aria-label={node.label}
           onClick={() => { mutate(current => setLayoutGroupState(current, node.id, { collapsed: !node.collapsed })) }}>
           <span className={css.chevron} data-collapsed={node.collapsed}>⌃</span></button>
@@ -432,6 +491,10 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
         <div className={css.membersClip}><div className={css.membersList}>{indicator('members', node.id)}{node.rows.map(row => renderRow(row, node.id))}</div></div>
       </div>
     </div>)}
+    {contextMenu ? <Menu open contextual portal autoFocus anchor={null}
+      items={menuEntries(contextMenu.target)} returnFocus={() => contextMenu.trigger}
+      getAnchorRect={() => new DOMRect(contextMenu.x, contextMenu.y, 0, 0)}
+      onClose={() => { setContextMenu(undefined) }} onSelect={(id) => { selectMenuAction(contextMenu.target, id) }} /> : null}
     {ghost ? createPortal(<div className={css.dragViewport} aria-hidden="true"
       style={{ left: ghost.viewport.left, top: ghost.viewport.top, width: ghost.viewport.width, height: ghost.viewport.height }}>
       <div className={css.ghost} data-navigation-ghost data-phase={ghost.settling ? 'settling' : 'dragging'} aria-hidden="true"

@@ -78,3 +78,17 @@ it('restores panel dimensions without changing navigation preferences', () => {
   expect(reset).toHaveBeenCalledOnce()
   expect(change).not.toHaveBeenCalled()
 })
+
+
+it('opens a requested new-group name form directly and focuses the name field', () => {
+  const change = vi.fn()
+  render(<SettingsNavigationEditor rows={rows} layout={resolveSettingsLayout(rows, undefined, [])}
+    selectedGroupAction="create" onChange={change} onClose={() => {}} t={makeTranslate(en)} />)
+  const field = screen.getByLabelText<HTMLInputElement>(en['nav.groupName'])
+  expect(document.activeElement).toBe(field)
+  expect(field.value).toBe('')
+  expect(change).not.toHaveBeenCalled()
+  fireEvent.change(field, { target: { value: 'New context group' } })
+  fireEvent.click(screen.getByRole('button', { name: en['nav.save'] }))
+  expect(change).toHaveBeenCalledOnce()
+})

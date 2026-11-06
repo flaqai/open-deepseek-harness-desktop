@@ -67,7 +67,8 @@ type PanelProps = {
 function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferredSubsectionId, layout, t, saveLayout }: PanelProps) {
   const [managing, setManaging] = useState(false)
   const [selectedGroupId, setSelectedGroupId] = useState<string>()
-  const [selectedGroupAction, setSelectedGroupAction] = useState<'rename' | 'delete'>()
+  const [groupRequest, setGroupRequest] = useState(0)
+  const [selectedGroupAction, setSelectedGroupAction] = useState<'rename' | 'delete' | 'create'>()
   const navigation = useNavigationLayout(layout, saveLayout)
   const sizing = usePanelSize()
   // Entries can unmount underneath the requested id, so the render-time
@@ -101,7 +102,13 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
         <nav className={css.nav}>
           <SettingsNavigation rows={rows} layout={navigation.layout} active={active} t={t} mutate={navigation.mutate}
             onSelect={(id) => { setManaging(false); onSelect(id) }} icon={id => renderSlot('settings.section.icon', { size: 16, active: id === active }, { only: id, fallback: navIcon(id) })}
-            onManage={(id, action) => { setSelectedGroupId(id); setSelectedGroupAction(action); setManaging(true) }} />
+            onOrganize={(action) => {
+              setGroupRequest(current => current + 1); setSelectedGroupId(undefined)
+              setSelectedGroupAction(action === 'create' ? 'create' : undefined); setManaging(true)
+            }}
+            onManage={(id, action) => {
+              setGroupRequest(current => current + 1); setSelectedGroupId(id); setSelectedGroupAction(action); setManaging(true)
+            }} />
           {navigation.failed ? <p role="alert">{t('nav.saveFailed')}</p> : null}
           <div className={css.divider} aria-hidden="true" data-dragging={sizing.dividerDragging || undefined}
             onPointerDown={(event) => { sizing.start('divider', event) }} />
@@ -114,7 +121,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose, preferre
           </button>
         </div>
         <div className={css.options}>
-          {managing ? <SettingsNavigationEditor rows={rows} layout={navigation.layout} t={t}
+          {managing ? <SettingsNavigationEditor key={groupRequest} rows={rows} layout={navigation.layout} t={t}
             onChange={navigation.mutate} onResetSize={sizing.reset}
             {...(selectedGroupId === undefined ? {} : { selectedGroupId })}
             {...(selectedGroupAction === undefined ? {} : { selectedGroupAction })} onClose={() => { setManaging(false) }} />

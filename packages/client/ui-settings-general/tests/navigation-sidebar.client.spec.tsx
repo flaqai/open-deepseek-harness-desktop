@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { SettingsNavigation } from '../src/client/SettingsNavigation.tsx'
-import type { SettingsNavigationLayout } from '../src/types.ts'
+import type { SettingsNavigationLayout, SettingsNavigationNode } from '../src/types.ts'
 import { en } from '../src/client/locales.ts'
 
 const initial: SettingsNavigationLayout = { version: 2, hiddenIds: [], nodes: [
@@ -15,9 +15,9 @@ const rows = ['general', 'models', 'plugins', 'approval'].map((id, order) => ({ 
 const selected = vi.fn()
 const saved = vi.fn<(layout: SettingsNavigationLayout) => void>()
 const animate = vi.fn()
-function Fixture({ value = initial, manage = () => {} }: { value?: SettingsNavigationLayout; manage?: (id: string, action: 'rename' | 'delete') => void }) {
+function Fixture({ value = initial, manage = () => {}, organize = () => {} }: { value?: SettingsNavigationLayout; manage?: (id: string, action: 'rename' | 'delete') => void; organize?: (action: 'create' | 'manage') => void }) {
   const [layout, update] = useState(value)
-  return <SettingsNavigation rows={rows} layout={layout} active="general" t={makeTranslate(en)} icon={() => null} onSelect={selected} onManage={manage}
+  return <SettingsNavigation rows={rows} layout={layout} active="general" t={makeTranslate(en)} icon={() => null} onSelect={selected} onManage={manage} onOrganize={organize}
     mutate={(operation) => { update((current) => { const next = operation(current); saved(next); return next }) }} />
 }
 function rect(top: number, height: number, left = 0, width = 180): DOMRect {
@@ -58,26 +58,32 @@ function start(name = 'general', y = 20) {
 }
 function track(y: number, x = 30) { fireEvent.pointerMove(window, { clientX: x, clientY: y }) }
 function drop() { fireEvent.pointerUp(window); act(() => { vi.advanceTimersByTime(180) }) }
-function group(layout = saved.mock.lastCall?.[0]) { return layout?.nodes.find(node => node.kind === 'group' && node.id === 'work') }
+function group(layout = saved.mock.lastCall?.[0]) {
+  return layout?.nodes.find((node): node is Extract<SettingsNavigationNode, { kind: 'group' }> => node.kind === 'group' && node.id === 'work')
+}
 function ids(layout = saved.mock.lastCall?.[0]) { return layout?.nodes.map(node => node.id) }
 function key(name: string) { fireEvent.keyDown(window, { key: name }) }
 function collapsed(): SettingsNavigationLayout { return { ...initial, nodes: initial.nodes.map(node => node.kind === 'group' ? { ...node, collapsed: true } : node) } }
 
-it('shows the scrollbar while scrolling and hides it after the last scroll', () => {
-  const { container, unmount } = render(<Fixture />)
-  const rail = container.firstElementChild!
-  expect(rail.getAttribute('data-scrolling')).toBe('false')
+it('thickens the scrollbar only while the pointer is in its column, independently of scrolling', () => {
+  const { container } = render(<Fixture />)
+  const rail = container.firstElementChild as HTMLElement
+  vi.spyOn(rail, 'getBoundingClientRect').mockReturnValue(rect(0, 200, 0, 180))
+  Object.defineProperties(rail, { scrollHeight: { value: 500 }, clientHeight: { value: 200 } })
+  fireEvent.pointerMove(rail, { clientX: 40, pointerType: 'mouse' })
+  fireEvent.wheel(rail)
   fireEvent.scroll(rail)
-  expect(rail.getAttribute('data-scrolling')).toBe('true')
-  act(() => { vi.advanceTimersByTime(700) })
+  expect(rail.getAttribute('data-scrollbar-hovered')).toBe('false')
+  fireEvent.pointerMove(rail, { clientX: 175, pointerType: 'mouse' })
+  expect(rail.getAttribute('data-scrollbar-hovered')).toBe('true')
+  fireEvent.wheel(rail)
   fireEvent.scroll(rail)
-  act(() => { vi.advanceTimersByTime(700) })
-  expect(rail.getAttribute('data-scrolling')).toBe('true')
-  act(() => { vi.advanceTimersByTime(100) })
-  expect(rail.getAttribute('data-scrolling')).toBe('false')
-  fireEvent.scroll(rail)
-  unmount()
-  expect(vi.getTimerCount()).toBe(0)
+  expect(rail.getAttribute('data-scrollbar-hovered')).toBe('true')
+  fireEvent.pointerMove(rail, { clientX: 40, pointerType: 'mouse' })
+  expect(rail.getAttribute('data-scrollbar-hovered')).toBe('false')
+  fireEvent.pointerEnter(rail, { clientX: 175, pointerType: 'mouse' })
+  fireEvent.pointerLeave(rail)
+  expect(rail.getAttribute('data-scrollbar-hovered')).toBe('false')
 })
 
 it('opens pages on short clicks but suppresses clicks following a long press', () => {
@@ -275,4 +281,74 @@ it('keeps the visible header and hit region aligned while entering, leaving and 
   expect(container.querySelector('[data-drop-into="true"]')).not.toBeNull()
   expect(container.querySelector('[data-navigation-drop-indicator]')).toBeNull()
   drop(); expect(group()).toMatchObject({ sectionIds: ['general', 'plugins', 'approval'] })
+})
+
+
+it('right-clicks a nested settings item without selecting it and uses the shared contextual menu', () => {
+  render(<Fixture />)
+  const page = screen.getByRole('button', { name: 'plugins' })
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 80, clientY: 140 })
+  fireEvent(page.querySelector('span:last-child')!, event)
+  expect(event.defaultPrevented).toBe(true)
+  expect(selected).not.toHaveBeenCalled()
+  expect(screen.getAllByRole('menu')).toHaveLength(1)
+  expect(screen.getByRole('menu').hasAttribute('data-context-menu')).toBe(true)
+  fireEvent.click(screen.getByRole('menuitem', { name: en['nav.hideItem'] }))
+  expect(saved.mock.lastCall?.[0].hiddenIds).toEqual(['plugins'])
+  expect(group()?.sectionIds).toEqual(['plugins', 'approval'])
+})
+
+it('reuses group actions and exposes a recovery organizer on the empty navigation rail', () => {
+  const organize = vi.fn(), manage = vi.fn()
+  const { container } = render(<Fixture organize={organize} manage={manage} />)
+  fireEvent.contextMenu(screen.getByText('Work', { selector: 'button' }), { clientX: 50, clientY: 110 })
+  fireEvent.click(screen.getByRole('menuitem', { name: en['nav.renameGroup'] }))
+  expect(manage).toHaveBeenCalledWith('work', 'rename')
+  fireEvent.contextMenu(screen.getByText('Work', { selector: 'button' }), { clientX: 50, clientY: 110 })
+  fireEvent.click(screen.getByRole('menuitem', { name: en['nav.hideGroup'] }))
+  expect(group()?.hidden).toBe(true)
+  fireEvent.contextMenu(container.firstElementChild!, { clientX: 170, clientY: 300 })
+  expect(screen.queryByRole('menuitem', { name: en['nav.hideItem'] })).toBeNull()
+  fireEvent.click(screen.getByRole('menuitem', { name: en['nav.organize'] }))
+  expect(organize).toHaveBeenCalledWith('manage')
+  expect(group()?.sectionIds).toEqual(['plugins', 'approval'])
+})
+
+it.each([{ key: 'F10', shiftKey: true }, { key: 'ContextMenu' }])('opens keyboard context menus and restores focus on Escape: $key', (gesture) => {
+  render(<Fixture />)
+  const page = screen.getByRole('button', { name: 'general' })
+  page.focus()
+  fireEvent.keyDown(page, gesture)
+  expect(screen.getByRole('menuitem', { name: en['nav.hideItem'] })).toBeTruthy()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(document.activeElement).toBe(page)
+  expect(saved).not.toHaveBeenCalled()
+})
+
+it('cancels an armed hold before opening a context menu and refuses menus during an active drag', () => {
+  render(<Fixture />)
+  const page = screen.getByRole('button', { name: 'general' })
+  fireEvent.pointerDown(page, { button: 0, clientX: 20, clientY: 20 })
+  fireEvent.contextMenu(page, { clientX: 20, clientY: 20 })
+  act(() => { vi.advanceTimersByTime(200) })
+  expect(document.querySelector('[data-navigation-ghost]')).toBeNull()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  start()
+  fireEvent.contextMenu(page, { clientX: 20, clientY: 20 })
+  expect(screen.queryByRole('menu')).toBeNull()
+  expect(document.querySelector('[data-navigation-ghost]')).not.toBeNull()
+  key('Escape')
+  expect(saved).not.toHaveBeenCalled()
+})
+
+it('offers creation from both the item menu and navigation whitespace', () => {
+  const organize = vi.fn()
+  const { container } = render(<Fixture organize={organize} />)
+  fireEvent.contextMenu(screen.getByRole('button', { name: 'general' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: en['nav.addGroup'] }))
+  fireEvent.contextMenu(container.firstElementChild!, { clientX: 170, clientY: 300 })
+  fireEvent.click(screen.getByRole('menuitem', { name: en['nav.addGroup'] }))
+  expect(organize.mock.calls).toEqual([['create'], ['create']])
+  expect(saved).not.toHaveBeenCalled()
 })

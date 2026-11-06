@@ -1,5 +1,8 @@
 /** Browser editor and navigation for trusted user-authored custom prompts. */
 
+import { createElement } from 'react'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import { IconEditOutlineMedium } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -49,6 +52,9 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: () => ({ open: () => { client.openGlobal() } }),
   }, CustomInstructionsRow))
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: CUSTOM_INSTRUCTIONS_SECTION_ID,
+  }, ({ size }: PropsRuntime<'settings.section.icon'>) => createElement(IconEditOutlineMedium, { size })))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: CUSTOM_INSTRUCTIONS_SECTION_ID,

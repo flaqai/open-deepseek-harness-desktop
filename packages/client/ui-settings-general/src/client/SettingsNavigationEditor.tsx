@@ -15,7 +15,7 @@ export interface SettingsNavigationEditorProps {
   onClose: () => void
   onResetSize?: () => void
   selectedGroupId?: string
-  selectedGroupAction?: 'rename' | 'delete'
+  selectedGroupAction?: 'rename' | 'delete' | 'create'
 }
 /** Manage groups and recover hidden entries. */
 export function SettingsNavigationEditor({
@@ -27,6 +27,7 @@ export function SettingsNavigationEditor({
   const selected = useRef<HTMLFieldSetElement>(null)
   useEffect(() => { selected.current?.scrollIntoView({ block: 'nearest' }) }, [selectedGroupId])
   useEffect(() => {
+    if (selectedGroupAction === 'create') { setEditing('new'); setName(''); return }
     const group = layout.nodes.filter(node => node.kind === 'group').find(value => value.id === selectedGroupId)
     if (group === undefined) return
     if (selectedGroupAction === 'rename') { setEditing(group.id); setName(group.label) }
