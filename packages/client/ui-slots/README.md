@@ -47,6 +47,8 @@ A register call may declare a store seat with `store: defineStore(...)`: `init` 
 
 Declaring a slot is claiming it: the registering entry becomes the only entry allowed to render that key, and registering into an undeclared slot, declaring an already-declared child, mounting one shared handle under two scopes, or registering a chain without `select` throws at load. An entry's disposer collapses its declared child slots recursively — ledger rows, contributions, and store mounts die on one lifecycle axis.
 
+An ordinary `renderSlot` call can supply `errorFallback: ({ retry }) => ...` for a registrant's render or injection failure; `fallback` remains the natural-empty face. Shadowing still elects surviving registrations first. When a cell has no survivor, explicit `retry()` admits one still-registered failed entry from that cell for another render attempt, without reloading the page or plugin. Other cells stay unchanged, and a retained callback cannot revive a disposed registration or replace a new winner. Assembly errors still propagate.
+
 -----
 
 <a id="understand-the-implementation"></a>

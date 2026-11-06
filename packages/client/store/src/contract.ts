@@ -56,8 +56,13 @@ export type BakedActions<T, A extends ActionsDecl<T>> = {
 export interface StoreSpec<T, A extends ActionsDecl<T>> {
   init: () => T
   persist?: string
+  /** Optional owner validation of browser JSON; receives undefined for invalid JSON, and runs only on stored entries. */
+  hydrate?: StoreHydrator<T>
   actions: A
 }
+
+/** Convert untrusted browser JSON to the owner's state; does not write the recovered value to storage. */
+export type StoreHydrator<T> = (persisted: unknown, initial: T) => T
 
 /**
  * Live engine instance: the create() product consumed by the render machinery

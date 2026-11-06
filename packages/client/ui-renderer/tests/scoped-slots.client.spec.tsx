@@ -160,6 +160,12 @@ function makeHost() {
       abdicated.add(entry)
       bump(key)
     },
+    retryEntry: (key, entry) => {
+      if (!live.has(entry) || !abdicated.has(entry)) return false
+      abdicated.delete(entry)
+      bump(key)
+      return true
+    },
     reportFactoryError: () => {},
     specOf: key => specs.get(key),
     isLive: entry => live.has(entry),
@@ -394,6 +400,19 @@ describe('child outlets and the renderSlot binding', () => {
     spy.mockRestore()
     expect(view.container.textContent).toBe('alive')
     expect(view.container.querySelector('[data-slot-error]')).not.toBeNull()
+  })
+
+  it.each([new Error('workspace render failure'), { privateBody: 'not diagnostic content' }])('logs the critical workspace failure as safe text for the desktop console bridge', (failure) => {
+    const h = makeHost()
+    h.declare('sidebar.workspaces', SINGLE_ROOT)
+    h.add('sidebar.workspaces', { component: () => { throw failure } })
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      mountRoot(h, { 'sidebar.workspaces': SINGLE_ROOT }, renderSlot => renderSlot('sidebar.workspaces', {}))
+      const diagnostic = spy.mock.calls.find(([message]) => message === "slot entry crashed in 'sidebar.workspaces':")
+      expect(diagnostic?.[1]).toBe(failure instanceof Error ? failure.stack : 'non-Error render failure')
+      if (failure instanceof Error) expect(diagnostic?.[1]).toContain('scoped-slots.client.spec.tsx:')
+    } finally { spy.mockRestore() }
   })
 })
 

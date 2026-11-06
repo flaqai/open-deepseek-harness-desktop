@@ -47,6 +47,8 @@ register 调用可以用 `store: defineStore(...)` 声明 store 席位：`init` 
 
 声明即认领：注册条目成为唯一被允许渲染该键的条目；注册未声明 slot、声明已声明过的子项、在两个 scope 下挂载同一个共享句柄、或注册缺少 `select` 的 chain，都会在加载时抛出。条目的 disposer 会递归移除其声明的子 slot——账本行、贡献与 store 挂载都随同一生命周期结束而移除。
 
+普通 `renderSlot` 调用可以传入 `errorFallback: ({ retry }) => ...`，呈现注册者的渲染或注入失败；`fallback` 仍表示自然空缺。Shadowing 仍优先选择存活的注册者。当一个 cell 没有存活候选时，显式调用 `retry()` 只允许该 cell 内一个仍在注册的失败条目再次尝试渲染，不重载页面或插件。其他 cell 保持原状，保留的旧回调不能复活已注销的注册者，也不能替换新的获胜者。组装错误仍向上传播。
+
 -----
 
 <a id="understand-the-implementation"></a>

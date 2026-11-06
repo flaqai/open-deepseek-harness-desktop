@@ -7,13 +7,16 @@
  * references (the cache axis), and ledger-fed stale bindings are the
  * real-core semantics the fake-host suite cannot vouch for.
  */
-import { describe, expect, it, vi } from 'vitest'
-import { act, render } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { useEffect, type ReactNode } from 'react'
 import {
   SlotCore, StaleAuthorizationError, type PropsRenderSlots, type SlotRendererHost,
   type SlotScopeAdapter, type StandardSourceBinding,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import { createSlotRenderer } from '../src/client/scoped-slots.tsx'
+
+afterEach(cleanup)
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
@@ -22,10 +25,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     // only this suite's own test keys merge here.
     'spec.single': { kind: 'single'; scope: 'root'; owner: { label?: string } }
     'spec.list': { kind: 'list'; scope: 'root' }
+    'spec.keyed': { kind: 'keyed'; scope: 'root' }
   }
 }
 
-type FrameSlots = PropsRenderSlots<'spec.single' | 'spec.list'>
+type FrameSlots = PropsRenderSlots<'spec.single' | 'spec.list' | 'spec.keyed'>
 
 /** Passthrough host over the real core (store/session seats unused here). */
 function hostOver(core: SlotCore): SlotRendererHost {
@@ -49,6 +53,7 @@ function hostOver(core: SlotCore): SlotRendererHost {
     entriesOf: key => core.entries(key),
     entriesOfSlot: key => core.entriesOfSlot(key),
     reportEntryError: (key, entry, error, info) => { core.reportEntryError(key, entry, error, info) },
+    retryEntry: (key, entry) => core.retryEntry(key, entry),
     reportFactoryError: (name, definition, error) => { core.reportFactoryError(name, definition, error) },
     specOf: key => core.specDynamic(key),
     isLive: entry => core.isLive(entry),
@@ -72,6 +77,7 @@ function mountFrame(core: SlotCore, body: (renderSlot: FrameSlots['renderSlot'])
     children: {
       'spec.single': { kind: 'single', scope: 'root' },
       'spec.list': { kind: 'list', scope: 'root' },
+      'spec.keyed': { kind: 'keyed', scope: 'root' },
     },
   }, (props: FrameSlots) => <>{body(props.renderSlot)}</>)
   const view = render(<>{createSlotRenderer().renderRoot(hostOver(core), {})}</>)
@@ -79,6 +85,85 @@ function mountFrame(core: SlotCore, body: (renderSlot: FrameSlots['renderSlot'])
 }
 
 describe('createSlotRenderer over the real SlotCore', () => {
+  it.each(['spec.list', 'spec.keyed'] as const)('recovers only the requested %s cell and preserves the priority of failed candidates', async (key) => {
+    const core = new SlotCore()
+    let recovered = false
+    const otherAttempts = vi.fn()
+    const register = (cell: string, body: () => ReactNode, priority = 0) => key === 'spec.list'
+      ? core.register({ name: key, id: cell, priority }, body)
+      : core.register({ name: key, key: cell, priority }, body)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { view } = mountFrame(core, renderSlot => <>
+        {renderSlot(key, {}, { only: 'first', entryKey: 'first', errorFallback: ({ retry }) => <button onClick={retry}>Retry first</button> })}
+        {renderSlot(key, {}, { only: 'second', entryKey: 'second', errorFallback: ({ retry }) => <button onClick={retry}>Retry second</button> })}
+      </>)
+      await act(async () => {
+        register('first', () => {
+          if (!recovered) throw new Error('primary failed')
+          return <b>primary recovered</b>
+        })
+        register('first', () => { throw new Error('shadow failed') }, 10)
+        register('second', () => {
+          otherAttempts()
+          throw new Error('other cell failed')
+        })
+      })
+      expect(view.getByRole('button', { name: 'Retry first' })).toBeTruthy()
+      const otherCount = otherAttempts.mock.calls.length
+      recovered = true
+      await act(async () => { fireEvent.click(view.getByRole('button', { name: 'Retry first' })) })
+      expect(view.getByText('primary recovered')).toBeTruthy()
+      expect(view.getByRole('button', { name: 'Retry second' })).toBeTruthy()
+      expect(otherAttempts).toHaveBeenCalledTimes(otherCount)
+      expect(view.queryByRole('button', { name: 'Retry first' })).toBeNull()
+    } finally { error.mockRestore() }
+  })
+
+  it.each(['render', 'inject'])('offers explicit recovery after %s fails without remounting siblings or retrying automatically', async (phase) => {
+    const core = new SlotCore()
+    let broken = true
+    const mounted = vi.fn()
+    const rendered = vi.fn()
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { view } = mountFrame(core, renderSlot => <>
+        {renderSlot('spec.single', {}, {
+          fallback: <i>not loaded</i>,
+          errorFallback: ({ retry }) => <button onClick={retry}>Retry workspace</button>,
+        })}
+        {renderSlot('spec.list', {})}
+      </>)
+      expect(view.container.textContent).toBe('not loaded')
+      await act(async () => {
+        core.register({ name: 'spec.single', inject: () => {
+          if (phase === 'inject' && broken) throw new Error('transient workspace injection failure')
+          return {}
+        } }, () => {
+          rendered()
+          if (phase === 'render' && broken) throw new Error('transient workspace failure')
+          return <b>workspace recovered</b>
+        })
+        core.register({ name: 'spec.list', id: 'navigation' }, () => {
+          useEffect(() => { mounted() }, [])
+          return <span>navigation</span>
+        })
+      })
+      expect(view.getByRole('button', { name: 'Retry workspace' })).toBeTruthy()
+      expect(view.container.querySelector('[data-slot-error="spec.single"]')).not.toBeNull()
+      const attempts = rendered.mock.calls.length
+      await act(async () => {})
+      expect(rendered).toHaveBeenCalledTimes(attempts)
+      await act(async () => { fireEvent.click(view.getByRole('button', { name: 'Retry workspace' })) })
+      expect(view.getByRole('button', { name: 'Retry workspace' })).toBeTruthy()
+      broken = false
+      await act(async () => { fireEvent.click(view.getByRole('button', { name: 'Retry workspace' })) })
+      expect(view.container.textContent).toBe('workspace recoverednavigation')
+      expect(view.container.querySelector('[data-slot-error]')).toBeNull()
+      expect(mounted).toHaveBeenCalledOnce()
+    } finally { error.mockRestore() }
+  })
+
   it('renders registrations live through real microtask batching: register, dispose back to fallback', async () => {
     const core = new SlotCore()
     const { view } = mountFrame(core, renderSlot =>
@@ -112,6 +197,7 @@ describe('createSlotRenderer over the real SlotCore', () => {
     core.register({ name: 'root', children: {
       'spec.single': { kind: 'single', scope: 'root' },
       'spec.list': { kind: 'list', scope: 'root' },
+      'spec.keyed': { kind: 'keyed', scope: 'root' },
     } }, (props: FrameSlots) => <>
       {props.renderSlot('spec.single', { label: 'owner' })}
       {props.renderSlot('spec.list', {})}

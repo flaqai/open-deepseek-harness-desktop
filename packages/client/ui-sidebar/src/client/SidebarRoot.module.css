@@ -641,6 +641,63 @@
   padding-left: 0;
 }
 
+.regionNotice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-right: var(--dsh-sidebar-inline-padding);
+  padding: 12px var(--dsh-sidebar-row-padding);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.regionNoticeText {
+  margin: 0;
+  font: var(--dsw-font-xs-13);
+  overflow-wrap: anywhere;
+}
+
+.regionRetry {
+  max-width: 100%;
+  height: auto;
+  min-height: 36px;
+  padding-block: 6px;
+  text-align: start;
+}
+
+.regionNoticeRail {
+  margin: 0;
+  padding: 0;
+}
+
+.regionNoticeHiddenText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.regionNoticeIcon,
+.regionRetryRail {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--dsw-radius-md);
+}
+
+@media (pointer: coarse) {
+  .regionRetry,
+  .regionNoticeIcon {
+    min-height: 44px;
+  }
+}
+
 /* Footer seats: additive actions stack above Settings. Each occupant owns its
    button geometry and hover chrome. */
 .footArea {

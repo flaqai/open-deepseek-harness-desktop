@@ -1190,6 +1190,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': '하위 에이전트는 구성된 기본값을 사용하거나 상위 에이전트의 모델을 상속합니다. 저장된 모델 선택은 유지됩니다.'
   },
   'sidebar': {
+    'workspace.unavailable': '작업 공간을 사용할 수 없습니다',
+    'workspace.failed': '작업 공간을 표시하지 못했습니다.',
+    'workspace.retry': '작업 공간 다시 시도',
     'panels.more': '더 보기',
     'session.new': '새 세션',
     'session.new.label': '새 세션',

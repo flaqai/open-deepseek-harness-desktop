@@ -79,6 +79,7 @@ import { blockEmbeddedNavigation, blockEmbeddedRequest, parseExternalBrowserUrl,
 import { terminateWindowsProcessTree } from './windows-process-tree.ts'
 import { revealHarnessLog, type OpenLogResult } from './log-reveal.ts'
 import { startDesktopLogSession } from './persistent-log.ts'
+import { installWorkspaceRendererDiagnostics } from './workspace-renderer-diagnostics.ts'
 import { createNotificationThrottle, desktopNotificationDictionary } from './notifications.ts'
 import {
   createDesktopPreferencesStore, DEFAULT_DESKTOP_PREFERENCES, parseDesktopPreferencesPatch,
@@ -1463,6 +1464,11 @@ function createWindow(): BrowserWindow {
     },
   })
   const { window } = surface
+  const removeWorkspaceDiagnostics = installWorkspaceRendererDiagnostics(surface.renderer, () => {
+    if (harnessOrigin === undefined) return false
+    try { return new URL(surface.renderer.getURL()).origin === harnessOrigin } catch { return false }
+  }, (message) => { desktopLogSession.append('renderer-workspace', 'error', message) })
+  window.once('closed', removeWorkspaceDiagnostics)
   const removeSpellingMenu = installSpellingContextMenu(surface.renderer, () => {
     if (!menuClientAvailable || harnessOrigin === undefined) return false
     try { return new URL(surface.renderer.getURL()).origin === harnessOrigin } catch { return false }

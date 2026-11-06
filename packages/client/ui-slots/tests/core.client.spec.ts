@@ -44,6 +44,52 @@ function mountFrame(core: SlotCore) {
 
 const flushMicrotasks = () => new Promise<void>((resolve) => { queueMicrotask(resolve) })
 
+describe('explicit failed-cell recovery', () => {
+  it.each(['test.single', 'test.keyed', 'test.list'] as const)('retries one live failed registration in %s and leaves other cells retired', (key) => {
+    const core = new SlotCore()
+    mountFrame(core)
+    const register = (cell: string, priority = 0) => {
+      if (key === 'test.keyed') return core.register({ name: key, key: cell, priority }, Comp)
+      if (key === 'test.list') return core.register({ name: key, id: cell, priority }, Comp)
+      return core.register({ name: key, priority }, Comp)
+    }
+    register('primary')
+    register('primary', 10)
+    core.register({ name: 'test.session' }, Comp)
+    if (key !== 'test.single') register('other')
+    const failed = core.entries(key)
+    const unrelated = core.entries('test.session')[0]!
+    for (const entry of failed) core.reportEntryError(key, entry, new Error('failed'), { abdicate: true })
+    core.reportEntryError('test.session', unrelated, new Error('unrelated'), { abdicate: true })
+    expect(core.entriesOfSlot(key)).toHaveLength(0)
+    expect(core.retryEntry(key, failed[0]!)).toBe(true)
+    expect(core.entriesOfSlot(key)).toEqual([failed[0]])
+    expect(core.entriesOfSlot('test.session')).toHaveLength(0)
+    expect(core.retryEntry(key, failed[0]!)).toBe(false)
+    expect(core.retryEntry(key, failed.find(entry => entry.options.priority === 10)!)).toBe(false)
+    expect(core.entries(key)).toBe(failed)
+  })
+
+  it('rejects retained callbacks after disposal, replacement, or a surviving shadow registration', () => {
+    const core = new SlotCore()
+    mountFrame(core)
+    const dispose = core.register({ name: 'test.single' }, Comp)
+    const failed = core.entries('test.single')[0]!
+    core.reportEntryError('test.single', failed, new Error('failed'), { abdicate: true })
+    const disposeSurvivor = core.register({ name: 'test.single', priority: 10 }, Comp)
+    const version = core.getVersion('test.single')
+    expect(core.retryEntry('test.single', failed)).toBe(false)
+    expect(core.getVersion('test.single')).toBe(version)
+    disposeSurvivor()
+    dispose()
+    core.register({ name: 'test.single' }, Comp)
+    expect(core.retryEntry('test.single', failed)).toBe(false)
+    expect(core.entriesOfSlot('test.single')).toHaveLength(1)
+    const frame = core.entries('root')[0]!
+    expect(core.retryEntry('missing', frame)).toBe(false)
+  })
+})
+
 describe('a-priori root and declaration gate', () => {
   it('seeds root as single/root at construction', () => {
     const core = new SlotCore()

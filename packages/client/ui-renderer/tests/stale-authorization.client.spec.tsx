@@ -54,6 +54,7 @@ function makeHost() {
     // the raw view and crash reports never fire.
     entriesOfSlot: key => entries.get(key) ?? [],
     reportEntryError: () => {},
+    retryEntry: () => false,
     reportFactoryError: () => {},
     specOf: () => ({ kind: 'single', scope: 'root' }),
     isLive: entry => live.has(entry),

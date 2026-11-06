@@ -403,7 +403,14 @@ function sessionGenerationKeyOf(binding: ScopedStandardSourceBinding): number {
  * the outlet then owns the crash face).
  */
 class SlotErrorBoundary extends Component<
-  { slotKey: string; anchor?: SlotAnchorTag; onEntryError: (error: unknown) => void; children: ReactNode }, { failed: boolean }
+  {
+    slotKey: string
+    anchor?: SlotAnchorTag
+    onEntryError: (error: unknown) => void
+    errorFallback?: RenderOpts['errorFallback']
+    retry?: (() => boolean) | undefined
+    children: ReactNode
+  }, { failed: boolean }
 > {
   override state = { failed: false }
   static getDerivedStateFromError(error: unknown): { failed: boolean } {
@@ -411,14 +418,27 @@ class SlotErrorBoundary extends Component<
     return { failed: true }
   }
   override componentDidCatch(error: unknown): void {
-    console.error(`slot entry crashed in '${this.props.slotKey}':`, error)
+    const detail = this.props.slotKey === 'sidebar.workspaces'
+      ? error instanceof Error ? error.stack ?? error.message : 'non-Error render failure'
+      : error
+    console.error(`slot entry crashed in '${this.props.slotKey}':`, detail)
     this.props.onEntryError(error)
+  }
+  private readonly retry = (): void => {
+    if (this.props.retry?.() === true) this.setState({ failed: false })
   }
   override render(): ReactNode {
     const Anchor = this.props.anchor ?? 'div'
-    if (this.state.failed) return <Anchor data-slot-error={this.props.slotKey} />
+    if (this.state.failed) return renderErrorFace(this.props.slotKey, Anchor, this.props.errorFallback, this.retry)
     return this.props.children
   }
+}
+
+/** Preserve the addressable error marker while letting an owner supply local recovery UI. */
+function renderErrorFace(slotKey: string, Anchor: SlotAnchorTag, fallback: RenderOpts['errorFallback'], retry: () => void, key?: string): ReactNode {
+  return <Anchor key={key} data-slot-error={slotKey} style={fallback === undefined ? undefined : ANCHOR_STYLE}>
+    {fallback?.({ retry })}
+  </Anchor>
 }
 
 /** Contain one Factory occurrence without retiring the shared definition. */
@@ -1026,7 +1046,9 @@ function FactoryOutlet({ name, inputProps, slots: selected = EMPTY_FACTORY_SELEC
   )
 }
 
-function StrictSessionEntry({ slotKey, anchor, entry, ownerProps, slotInjected, hookContext, hasHookContext, onEntryError }: {
+function StrictSessionEntry({
+  slotKey, anchor, entry, ownerProps, slotInjected, hookContext, hasHookContext, onEntryError, errorFallback, retry,
+}: {
   slotKey: string
   anchor: SlotAnchorTag
   entry: StoredEntry
@@ -1035,6 +1057,8 @@ function StrictSessionEntry({ slotKey, anchor, entry, ownerProps, slotInjected, 
   hookContext: unknown
   hasHookContext: boolean
   onEntryError: (error: unknown) => void
+  errorFallback: RenderOpts['errorFallback']
+  retry: (() => boolean) | undefined
 }) {
   const binding = useScopeBinding()
   if (binding.key === undefined) {
@@ -1044,7 +1068,8 @@ function StrictSessionEntry({ slotKey, anchor, entry, ownerProps, slotInjected, 
   // Per-session remount rides this key; per-entry remount rides the outer
   // element's entry-identity key (the outlet's guarded() call).
   return (
-    <SlotErrorBoundary slotKey={slotKey} anchor={anchor} key={sessionGenerationKeyOf(scopedBinding)} onEntryError={onEntryError}>
+    <SlotErrorBoundary slotKey={slotKey} anchor={anchor} key={sessionGenerationKeyOf(scopedBinding)} onEntryError={onEntryError}
+      errorFallback={errorFallback} retry={retry}>
       <SessionEntry
         entry={entry}
         ownerProps={ownerProps}
@@ -1131,6 +1156,8 @@ function renderOutletContent(
     const onEntryError = (error: unknown) => {
       host.reportEntryError(slotKey, entry, error, { abdicate: spec.kind !== 'chain' })
     }
+    const errorFallback = spec.kind === 'chain' ? undefined : opts?.errorFallback
+    const retry = spec.kind === 'chain' ? undefined : () => host.retryEntry(slotKey, entry)
     return spec.scope === 'session'
       ? (
         <StrictSessionEntry
@@ -1142,11 +1169,14 @@ function renderOutletContent(
           hookContext={hookContext}
           hasHookContext={hasHookContext}
           onEntryError={onEntryError}
+          errorFallback={errorFallback}
+          retry={retry}
           key={key}
         />
       )
       : (
-        <SlotErrorBoundary slotKey={slotKey} anchor={Anchor} key={key} onEntryError={onEntryError}>
+        <SlotErrorBoundary slotKey={slotKey} anchor={Anchor} key={key} onEntryError={onEntryError}
+          errorFallback={errorFallback} retry={retry}>
           {spec.scope === 'session-maybe'
             ? (
               <SessionMaybeEntry
@@ -1174,18 +1204,19 @@ function renderOutletContent(
   // A cell whose every registration abdicated keeps the crash face: the
   // shadowing collapse ran out of survivors, which is a failure state, not
   // the owner's natural-empty fallback.
-  const deadCell = () => <Anchor data-slot-error={slotKey} />
+  const deadCell = (entry: StoredEntry, key?: string): ReactNode => renderErrorFace(slotKey, Anchor, opts?.errorFallback,
+    () => { host.retryEntry(slotKey, entry) }, key)
 
   if (spec.kind === 'single') {
     const entry = host.entriesOfSlot(slotKey)[0]
-    if (!entry) return entries.length > 0 ? deadCell() : <>{opts?.fallback ?? null}</>
+    if (!entry) return entries[0] === undefined ? <>{opts?.fallback ?? null}</> : deadCell(entries[0])
     return guarded(entry, entryKeyOf(entry))
   }
   if (spec.kind === 'keyed') {
     const entry = host.entriesOfSlot(slotKey).find(e => e.options.key === opts?.entryKey)
     if (!entry) {
-      const occupied = entries.some(e => e.options.key === opts?.entryKey)
-      return occupied ? deadCell() : <>{opts?.fallback ?? null}</>
+      const failed = entries.find(e => e.options.key === opts?.entryKey)
+      return failed === undefined ? <>{opts?.fallback ?? null}</> : deadCell(failed)
     }
     return guarded(entry, entryKeyOf(entry))
   }
@@ -1224,8 +1255,9 @@ function renderOutletContent(
   // silently drop its row). Row sequence: registration order refined by
   // explicit order, optional id filter, as before shadowing existed.
   const winners = host.entriesOfSlot(slotKey)
-  const rows: { entry: StoredEntry | undefined; id: string | undefined; order: number }[] = winners.map(entry => ({
+  const rows: { entry: StoredEntry; failed: boolean; id: string | undefined; order: number }[] = winners.map(entry => ({
     entry,
+    failed: false,
     id: entry.options.id,
     order: entry.options.order ?? 0,
   }))
@@ -1234,7 +1266,7 @@ function renderOutletContent(
     if (rowIds.has(entry.options.id)) continue
     rowIds.add(entry.options.id)
     // Dry cells anchor their row at the cell head's declared order.
-    rows.push({ entry: undefined, id: entry.options.id, order: entry.options.order ?? 0 })
+    rows.push({ entry, failed: true, id: entry.options.id, order: entry.options.order ?? 0 })
   }
   let list = [...rows].sort((a, b) => a.order - b.order)
   if (opts?.only !== undefined) list = list.filter(item => item.id === opts.only)
@@ -1243,9 +1275,9 @@ function renderOutletContent(
   // id — the disjoint prefixes keep the two namespaces from colliding.
   return (
     <>
-      {list.map((item, i) => item.entry !== undefined
+      {list.map((item, i) => !item.failed
         ? guarded(item.entry, `e${entryKeyOf(item.entry)}`)
-        : <Anchor data-slot-error={slotKey} key={`x${item.id ?? i}`} />)}
+        : deadCell(item.entry, `x${item.id ?? i}`))}
     </>
   )
 }

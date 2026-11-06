@@ -167,6 +167,29 @@ function rerender(b: ReturnType<typeof mount>, overrides: Partial<WorkspaceBrows
 }
 
 describe('WorkspaceBrowser', () => {
+  it.each([
+    null,
+    { groupBy: 'workspace', orderBy: 'manual', groupExpansion: { alpha: true } },
+    { groupBy: 'workspace', orderBy: 'manual', sessionOrderByAccount: {} },
+    { groupBy: 'workspace', orderBy: 'manual', groupExpansion: [], sessionOrderByAccount: { alpha: [null, 1] } },
+  ])('renders workspace controls after recovering malformed persisted view %j', (persisted) => {
+    localStorage.clear()
+    localStorage.setItem('dsh.workspace.view.v5', JSON.stringify(persisted))
+    const report = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      mount({
+        useSessions: hook(sessionState([summary('retained-history', 1)])),
+        useWorkspaces: hook(workspaceState([workspace('alpha', ['retained-history'])])),
+      })
+      expect(screen.getByRole('button', { name: '视图选项' })).toBeTruthy()
+      expect(screen.getByText('alpha')).toBeTruthy()
+      expect(report).toHaveBeenCalledTimes(1)
+    } finally {
+      cleanup()
+      localStorage.clear()
+      report.mockRestore()
+    }
+  })
   it.each(['workspace', 'flat', 'ungrouped'] as const)('keeps %s recency independent of arrival order and saved manual positions', (mode) => {
     localStorage.clear()
     const preferences = createWorkspaceViewStore().create()
@@ -456,7 +479,7 @@ describe('WorkspaceBrowser', () => {
         useSessions: hook(sessionState([summary('alive', 2), summary('gone', 1)])),
         useWorkspaces: hook(workspaceState([workspace('alpha', ['alive', 'gone'])], [sid('gone')])),
       })
-      expect(b.store.getSnapshot().archivedFilter).toBeUndefined()
+      expect(b.store.getSnapshot().archivedFilter).toBe('default')
       expect(screen.getByText('alive')).toBeTruthy()
       expect(screen.queryByText('gone')).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: '视图选项' }))

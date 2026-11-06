@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-06-workspace-region-recovery.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-06-workspace-region-recovery.md
+/agent-note-recover-the-workspace-browser-without-restarting-harness:
+  en: fb9fe5a83e02b6eb
+  zh: a9336b9f6b15c1e3
+/agent-note-recover-the-workspace-browser-without-restarting-harness/problem:
+  en: 4368e11624c363ba
+  zh: fc3f155c1ed81a39
+/agent-note-recover-the-workspace-browser-without-restarting-harness/decision:
+  en: ee2f00ba6b9e3727
+  zh: 4861b7b93d24eb59
+/agent-note-recover-the-workspace-browser-without-restarting-harness/alternatives-considered:
+  en: cbadb86eee0569d3
+  zh: ca9dbdd6d538ea94
+/agent-note-recover-the-workspace-browser-without-restarting-harness/consequences:
+  en: 405be5edd113b24e
+  zh: f5907684adaf274c
+/agent-note-recover-the-workspace-browser-without-restarting-harness/testing:
+  en: 9d62226c38398b7a
+  zh: b68b583c3d30f9bb

@@ -74,6 +74,7 @@ function makeHost(body: SessionBody, options: { installRenderArea?: boolean; opt
     entriesOf: key => key === 'root' ? [rootEntry] : sessionEntries,
     entriesOfSlot: key => key === 'root' ? [rootEntry] : sessionEntries,
     reportEntryError: () => {},
+    retryEntry: () => false,
     reportFactoryError: () => {},
     specOf: key => key === 'k.session' ? { kind: 'single', scope } : undefined,
     isLive: () => true, storeOf: () => undefined,

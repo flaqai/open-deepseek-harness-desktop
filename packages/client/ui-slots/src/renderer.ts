@@ -127,6 +127,8 @@ export interface RenderOpts {
   entryKey?: string
   only?: string
   fallback?: ReactNode
+  /** Owner-provided crashed-cell face; retry does not reload the page or plugin. */
+  errorFallback?: (controls: { retry: () => void }) => ReactNode
   /** Opaque occurrence context consumed only by function-valued injected Hooks. */
   hookContext?: unknown
 }
@@ -173,6 +175,13 @@ export interface SlotRendererHost {
    * @param info - `abdicate`: whether the crash retires the entry from its cell.
    */
   reportEntryError(key: string, entry: StoredEntry, error: unknown, info: { abdicate: boolean }): void
+  /**
+   * Restore a still-live failed registration only while its cell has no winner.
+   * @param key - slot owning the failed registration.
+   * @param entry - exact failed registration captured by its recovery face.
+   * @returns true when a new render attempt was admitted.
+   */
+  retryEntry(key: string, entry: StoredEntry): boolean
   /**
    * Report a contained Factory occurrence crash without retiring its shared definition.
    * @param name - Factory name whose occurrence crashed.

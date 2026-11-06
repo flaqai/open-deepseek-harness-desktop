@@ -19,8 +19,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  FishLogo, IconAppsAddOutlineRegular, IconNewChatOutlineMedium, IconNewChatOutlineRegular,
-  IconPanelLeftOutlineRegular, focusWithoutRing, isBehindModal, isDarwinDesktop, Menu, ShortcutKeys, Toast, Tooltip, useModalLayer,
+  Button, FishLogo, IconAppsAddOutlineRegular, IconNewChatOutlineMedium, IconNewChatOutlineRegular,
+  IconPanelLeftOutlineRegular, IconRefreshOutlineRegular, IconWarningOutlineRegular,
+  focusWithoutRing, isBehindModal, isDarwinDesktop, Menu, ShortcutKeys, Toast, Tooltip, useModalLayer,
   writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -40,6 +41,34 @@ const COLLAPSE_SETTLE_MS = 150
  * edge — on the way to the conversation, or around a portalled menu.
  */
 const SCROLLBAR_LINGER_MS = 2000
+
+/** Keep an unavailable workspace region visible; only a failed registration supplies a local retry. */
+function WorkspaceRegionNotice({ wide, t, retry }: Pick<SidebarRootComponentProps, 't'>
+  & Pick<SidebarSectionOwnerProps, 'wide'> & { retry?: () => void }) {
+  const message = t(retry === undefined ? 'workspace.unavailable' : 'workspace.failed')
+  return (
+    <div className={clsx(css.regionNotice, !wide && css.regionNoticeRail)} role={retry === undefined ? 'status' : 'alert'}>
+      <p className={clsx(css.regionNoticeText, !wide && css.regionNoticeHiddenText)}>{message}</p>
+      {retry === undefined
+        ? !wide && (
+          <Tooltip label={message} portal openOnClick>
+            <span className={css.regionNoticeIcon} tabIndex={0} role="img" aria-label={message}>
+              <IconWarningOutlineRegular size={18} />
+            </span>
+          </Tooltip>
+        )
+        : (
+          <Tooltip label={message} disabled={wide} portal>
+            <Button variant="outline" className={clsx(css.regionRetry, !wide && css.regionRetryRail)}
+              aria-label={t('workspace.retry')} onClick={retry}
+              icon={<IconRefreshOutlineRegular size={wide ? 16 : 18} />}>
+              {wide && t('workspace.retry')}
+            </Button>
+          </Tooltip>
+        )}
+    </div>
+  )
+}
 
 /** Format complete-build metadata for the local brand badge. */
 function localBuildVersion(): string | undefined {
@@ -417,6 +446,9 @@ export function SidebarRoot({
           wide,
           expandSidebar: () => { if (collapsed) toggleSidebar() },
           dismissSidebar: () => {},
+        }, {
+          fallback: <WorkspaceRegionNotice wide={wide} t={t} />,
+          errorFallback: ({ retry }) => <WorkspaceRegionNotice wide={wide} t={t} retry={retry} />,
         })}
       </div>
 

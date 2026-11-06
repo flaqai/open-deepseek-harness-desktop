@@ -32,6 +32,7 @@ None; the stores neither assemble nor send model requests.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Persistence is browser-local** — persisted stores use JSON in `localStorage`; non-browser runtimes disable persistence, and the package provides no cross-device synchronization.
+- **Persisted validation is opt-in** — `StoreSpec.hydrate` and `createSnapshotStore`'s persistence `hydrate` callback receive unknown parsed JSON and the initial state; invalid JSON arrives as `undefined`. The owner returns usable state before consumers read it. Recovery changes memory only until a normal store write persists it; stores without the callback retain whole-value replacement, including primitive and array roots.
 - **Web-shell build input** — the static ESM retains third-party imports for Vite; independent consumers supply its development dependencies ([dependency rules](../AGENTS.md#dependency-declaration)). The build defaults to production; `NODE_ENV=development` enables development checks. Wholesale `set()` freezes snapshots only outside production; `update()` retains Immer's automatic freezing.
 
 

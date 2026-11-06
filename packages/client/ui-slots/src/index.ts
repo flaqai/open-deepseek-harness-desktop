@@ -266,6 +266,8 @@ export interface RenderOpts<EntryKey extends string = string> {
   entryKey?: EntryKey
   only?: string
   fallback?: ReactNode
+  /** Failure face for a crashed cell; retry only remounts its still-live failed registrant. */
+  errorFallback?: (controls: { retry: () => void }) => ReactNode
   /** Type-erased runtime seat; PropsRenderSlots narrows or removes it per slot declaration. */
   hookContext?: unknown
 }
@@ -1002,7 +1004,7 @@ export class SlotCore {
    * Entries retired by an abdicating crash report
    * ({@link SlotCore.reportEntryError}): excluded from
    * {@link SlotCore.entriesOfSlot} projections for the rest of their
-   * registration's life, while the registration itself stays on the ledger
+   * registration's life unless explicitly retried, while the registration itself stays on the ledger
    * (disposal authority remains with the registrant).
    */
   private abdicated = new WeakSet<StoredEntry>()
@@ -1550,6 +1552,26 @@ export class SlotCore {
       if (rec !== undefined) this.markDirty(key, rec)
     }
     for (const fn of [...this.entryErrorListeners]) fn(key, entry, error, { abdicated: info.abdicate })
+  }
+
+  /**
+   * Restore one still-registered failed entry only while its cell has no survivor.
+   * Retained recovery callbacks cannot revive disposed entries or replace a new winner.
+   * @param key - the slot whose failed cell owns the entry.
+   * @param entry - exact registration captured by the failure face.
+   * @returns whether the entry was restored for another render attempt.
+   */
+  retryEntry(key: string, entry: StoredEntry): boolean {
+    const rec = this.records.get(key)
+    if (rec?.spec === undefined || rec.spec.kind === 'chain'
+      || !rec.entries.includes(entry) || !this.abdicated.has(entry)) return false
+    const kind = rec.spec.kind
+    const sameCell = (candidate: StoredEntry): boolean => kind === 'single'
+      || (kind === 'keyed' ? candidate.options.key === entry.options.key : candidate.options.id === entry.options.id)
+    if (rec.entries.some(candidate => sameCell(candidate) && !this.abdicated.has(candidate))) return false
+    this.abdicated.delete(entry)
+    this.markDirty(key, rec)
+    return true
   }
 
   /**

@@ -1179,6 +1179,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': 'Субагенты используют настроенные значения по умолчанию или наследуют модель родительского агента. Сохранённые выборки моделей остаются.'
   },
   'sidebar': {
+    'workspace.unavailable': 'Рабочие пространства недоступны',
+    'workspace.failed': 'Не удалось отобразить рабочие пространства.',
+    'workspace.retry': 'Повторить загрузку рабочих пространств',
     'panels.more': 'Ещё',
     'session.new': 'Новая сессия',
     'session.new.label': 'Новая сессия',

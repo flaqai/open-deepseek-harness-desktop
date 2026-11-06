@@ -60,7 +60,32 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"
-      />
+      >
+        <div
+          class="regionNotice regionNoticeRail"
+          role="status"
+        >
+          <p
+            class="regionNoticeText regionNoticeHiddenText"
+          >
+            Workspaces unavailable
+          </p>
+          <span
+            aria-label="Workspaces unavailable"
+            class="regionNoticeIcon"
+            role="img"
+            tabindex="0"
+          >
+            <svg
+              aria-hidden="true"
+              data-content="78c7e9f0"
+              data-icon="dsw-icon-warning-outline-regular"
+              height="18"
+              width="18"
+            />
+          </span>
+        </div>
+      </div>
     </div>
     <div
       class="footArea"
@@ -74,12 +99,24 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
         />
       </div>
       <div
-        class="settingsArea"
+        class="settingsLine"
       >
         <div
-          data-slot="sidebar.settings"
-          style="display: contents;"
-        />
+          class="settingsArea"
+        >
+          <div
+            data-slot="sidebar.settings"
+            style="display: contents;"
+          />
+        </div>
+        <div
+          class="settingsActions"
+        >
+          <div
+            data-slot="sidebar.settings.action"
+            style="display: contents;"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -204,7 +241,18 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"
-      />
+      >
+        <div
+          class="regionNotice"
+          role="status"
+        >
+          <p
+            class="regionNoticeText"
+          >
+            Workspaces unavailable
+          </p>
+        </div>
+      </div>
     </div>
     <div
       class="footArea"
@@ -218,12 +266,24 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
         />
       </div>
       <div
-        class="settingsArea"
+        class="settingsLine"
       >
         <div
-          data-slot="sidebar.settings"
-          style="display: contents;"
-        />
+          class="settingsArea"
+        >
+          <div
+            data-slot="sidebar.settings"
+            style="display: contents;"
+          />
+        </div>
+        <div
+          class="settingsActions"
+        >
+          <div
+            data-slot="sidebar.settings.action"
+            style="display: contents;"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -308,7 +368,32 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"
-      />
+      >
+        <div
+          class="regionNotice regionNoticeRail"
+          role="status"
+        >
+          <p
+            class="regionNoticeText regionNoticeHiddenText"
+          >
+            Workspaces unavailable
+          </p>
+          <span
+            aria-label="Workspaces unavailable"
+            class="regionNoticeIcon"
+            role="img"
+            tabindex="0"
+          >
+            <svg
+              aria-hidden="true"
+              data-content="78c7e9f0"
+              data-icon="dsw-icon-warning-outline-regular"
+              height="18"
+              width="18"
+            />
+          </span>
+        </div>
+      </div>
     </div>
     <div
       class="footArea"
@@ -322,12 +407,24 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         />
       </div>
       <div
-        class="settingsArea"
+        class="settingsLine"
       >
         <div
-          data-slot="sidebar.settings"
-          style="display: contents;"
-        />
+          class="settingsArea"
+        >
+          <div
+            data-slot="sidebar.settings"
+            style="display: contents;"
+          />
+        </div>
+        <div
+          class="settingsActions"
+        >
+          <div
+            data-slot="sidebar.settings.action"
+            style="display: contents;"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -452,7 +549,18 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"
-      />
+      >
+        <div
+          class="regionNotice"
+          role="status"
+        >
+          <p
+            class="regionNoticeText"
+          >
+            Workspaces unavailable
+          </p>
+        </div>
+      </div>
     </div>
     <div
       class="footArea"
@@ -466,12 +574,24 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         />
       </div>
       <div
-        class="settingsArea"
+        class="settingsLine"
       >
         <div
-          data-slot="sidebar.settings"
-          style="display: contents;"
-        />
+          class="settingsArea"
+        >
+          <div
+            data-slot="sidebar.settings"
+            style="display: contents;"
+          />
+        </div>
+        <div
+          class="settingsActions"
+        >
+          <div
+            data-slot="sidebar.settings.action"
+            style="display: contents;"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -596,7 +716,18 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"
-      />
+      >
+        <div
+          class="regionNotice"
+          role="status"
+        >
+          <p
+            class="regionNoticeText"
+          >
+            工作区暂不可用
+          </p>
+        </div>
+      </div>
     </div>
     <div
       class="footArea"
@@ -610,12 +741,24 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         />
       </div>
       <div
-        class="settingsArea"
+        class="settingsLine"
       >
         <div
-          data-slot="sidebar.settings"
-          style="display: contents;"
-        />
+          class="settingsArea"
+        >
+          <div
+            data-slot="sidebar.settings"
+            style="display: contents;"
+          />
+        </div>
+        <div
+          class="settingsActions"
+        >
+          <div
+            data-slot="sidebar.settings.action"
+            style="display: contents;"
+          />
+        </div>
       </div>
     </div>
   </div>

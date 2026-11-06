@@ -40,7 +40,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * The workspace/session browsing region: section header, search, the
      * grouped/flat session list, and every workspace dialog. Declared by this
      * package's 'sidebar' entry (declaring is claiming); ui-workspace
-     * registers the browser.
+     * registers the browser. The shell displays an unavailable notice for an
+     * empty slot and a user-triggered local retry for a failed registration.
      */
     'sidebar.workspaces': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
     /**

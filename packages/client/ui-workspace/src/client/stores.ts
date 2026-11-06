@@ -30,6 +30,63 @@ type WorkspaceViewState = {
   archivedFilter?: ArchivedFilter
 }
 
+type RecoveredField = keyof WorkspaceViewState | 'root'
+
+function recordValue(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined
+}
+
+/** Validate only the browser-owned viewing preferences, retaining usable fields and record entries. */
+function hydrateWorkspaceView(value: unknown, initial: WorkspaceViewState): WorkspaceViewState {
+  const recovered = new Set<RecoveredField>()
+  const record = recordValue(value)
+  if (record === undefined) recovered.add('root')
+  const field = (key: keyof WorkspaceViewState): unknown => record?.[key]
+  const pick = <T extends string>(key: keyof WorkspaceViewState, choices: readonly T[], fallback: T): T => {
+    const selected = field(key)
+    if (typeof selected === 'string' && choices.includes(selected as T)) return selected as T
+    if (record !== undefined && !(key === 'archivedFilter' && selected === undefined)) recovered.add(key)
+    return fallback
+  }
+  const groupBy = pick('groupBy', ['workspace', 'workspace-tree', 'flat'], initial.groupBy)
+  const orderBy = pick('orderBy', ['manual', 'updated'], initial.orderBy)
+  const archivedFilter = pick('archivedFilter', ['default', 'show', 'only'], initial.archivedFilter ?? 'default')
+  const expansion = recordValue(field('groupExpansion'))
+  const orders = recordValue(field('sessionOrderByAccount'))
+  if (record !== undefined && expansion === undefined) recovered.add('groupExpansion')
+  if (record !== undefined && orders === undefined) recovered.add('sessionOrderByAccount')
+  const groupExpansion = Object.fromEntries(Object.entries(expansion ?? {}).filter(([, expanded]) => {
+    if (typeof expanded === 'boolean') return true
+    recovered.add('groupExpansion')
+    return false
+  })) as Record<string, boolean>
+  const sessionOrderByAccount: Record<string, string[]> = Object.fromEntries(
+    Object.entries(orders ?? {}).flatMap(([key, order]) => {
+      if (!Array.isArray(order)) {
+        recovered.add('sessionOrderByAccount')
+        return []
+      }
+      const valid = order.filter((id): id is string => typeof id === 'string' && id !== '')
+      if (valid.length !== order.length) recovered.add('sessionOrderByAccount')
+      return [[key, valid]]
+    }),
+  )
+  if (recovered.size > 0) {
+    // Fixed field names only: never retain keys, paths, Session ids, values, or parser/storage errors.
+    const diagnostic = { reason: 'invalid-workspace-view', fields: [...recovered] }
+    console.warn('[ui-workspace] recovered viewing preferences:', diagnostic)
+    try {
+      localStorage.setItem('dsh.workspace.view.v5.recovery', JSON.stringify(diagnostic))
+    } catch (error) {
+      // A denied/quota-full diagnostic store cannot prevent in-memory recovery; the warning above remains available.
+      void error
+    }
+  }
+  return { groupBy, orderBy, groupExpansion, sessionOrderByAccount, archivedFilter }
+}
+
 type SessionOrderSource = {
   members: Readonly<Record<string, readonly SessionId[]>>
   summaries: SessionListState['byId']
@@ -89,6 +146,7 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
       archivedFilter: 'default',
     }),
     persist: 'dsh.workspace.view.v5',
+    hydrate: hydrateWorkspaceView,
     actions: {
       setGroupBy: (d, mode: SessionGroupBy) => { d.groupBy = mode },
       setOrderBy: (d, mode: SessionOrderBy, initialOrders) => {

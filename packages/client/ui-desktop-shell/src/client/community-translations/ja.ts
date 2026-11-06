@@ -1176,6 +1176,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': 'サブエージェントは設定済みの既定値を使用するか、親エージェントのモデルを継承します。保存されたモデルの選択は保持されます。'
   },
   'sidebar': {
+    'workspace.unavailable': 'ワークスペースを利用できません',
+    'workspace.failed': 'ワークスペースを表示できませんでした。',
+    'workspace.retry': 'ワークスペースを再試行',
     'panels.more': 'その他',
     'session.new': '新規セッション',
     'session.new.label': '新規セッションを作成',

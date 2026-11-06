@@ -12,7 +12,7 @@ import { subscribeWithSelector } from 'zustand/middleware'
 import { shallow } from 'zustand/shallow'
 import { freeze, produce } from 'immer'
 import type {
-  ActionsDecl, BakedActions, ObservableSnapshot, StoreHandle, StoreInstance, StoreSpec,
+  ActionsDecl, BakedActions, ObservableSnapshot, StoreHandle, StoreHydrator, StoreInstance, StoreSpec,
 } from './contract.ts'
 
 // Store contract types are ui-slots authority; re-exported beside the engine
@@ -20,7 +20,7 @@ import type {
 export type {
   ActionsDecl, BakedActions, BoundActions, DefineStore, HandleOf, MaybeSnapshotSelectorHook,
   ObservableSnapshot, PropsStore, SnapshotSelectorHook, StoreDecl, StoreFactory,
-  StoreHandle, StoreInstance, StoreSpec,
+  StoreHandle, StoreHydrator, StoreInstance, StoreSpec,
 } from './contract.ts'
 
 /** Writable snapshot store (bare data face; React selector hooks are synthesized in ui-renderer). */
@@ -101,12 +101,12 @@ function rafBatch(notify: () => void): () => void {
  * @returns the store.
  */
 export function createSnapshotStore<T>(
-  init: T, opts?: { flush?: 'raf' | 'sync'; persist?: { name: string } }): SnapshotStore<T> {
+  init: T, opts?: { flush?: 'raf' | 'sync'; persist?: { name: string; hydrate?: StoreHydrator<T> } }): SnapshotStore<T> {
   // Immer enters through produce() in update() below (identical semantics to
   // the immer middleware without its setState-signature mutator generics).
   const withSelector = subscribeWithSelector(() => init)
   const api: StoreApi<T> = createStore<T>()(withSelector)
-  if (opts?.persist) attachPersistence(api, opts.persist.name)
+  if (opts?.persist) attachPersistence(api, opts.persist.name, opts.persist.hydrate)
 
   let subscribe = (fn: () => void) => api.subscribe(() => {
     notifySubscribers([fn], '[client-store]')
@@ -143,7 +143,7 @@ export function createSnapshotStore<T>(
  * because the corruption happens before serialization. Storage failures
  * (quota, private mode) only disable persistence, never break the store.
  */
-function attachPersistence<T>(api: StoreApi<T>, name: string): void {
+function attachPersistence<T>(api: StoreApi<T>, name: string, hydrate?: StoreHydrator<T>): void {
   // Non-browser runs (node e2e booting the client tree) have no localStorage:
   // persistence silently disables — same contract as a storage failure, minus
   // the per-store console noise a ReferenceError would produce.
@@ -151,7 +151,14 @@ function attachPersistence<T>(api: StoreApi<T>, name: string): void {
   try {
     const raw = localStorage.getItem(name)
     if (raw !== null) {
-      api.setState(devFreeze(JSON.parse(raw) as T), true)
+      let persisted: unknown
+      try {
+        persisted = JSON.parse(raw)
+      } catch (error) {
+        // An opted-in owner receives an absent value for invalid JSON; the parser error can contain the raw text.
+        if (hydrate === undefined) throw error
+      }
+      api.setState(devFreeze(hydrate === undefined ? persisted as T : hydrate(persisted, api.getState())), true)
     }
   } catch (error) {
     console.error(`snapshot store '${name}' rehydration failed:`, error)
@@ -224,7 +231,9 @@ export function defineStore<T, A extends ActionsDecl<T>>(
         : scopeKey === undefined ? decl.persist : `${decl.persist}.${scopeKey}`
       const store = createSnapshotStore<T>(
         decl.init(),
-        persistKey !== undefined ? { persist: { name: persistKey } } : undefined)
+        persistKey !== undefined
+          ? { persist: { name: persistKey, ...(decl.hydrate === undefined ? {} : { hydrate: decl.hydrate }) } }
+          : undefined)
       const actions = {} as Record<string, (...params: unknown[]) => void>
       for (const key of Object.keys(decl.actions)) {
         const mutate = decl.actions[key] as (draft: T, ...params: unknown[]) => void

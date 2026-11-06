@@ -545,6 +545,7 @@ export class SlotRegistry extends Service {
       entriesOf: key => this._core.entries(key),
       entriesOfSlot: key => this._core.entriesOfSlot(key),
       reportEntryError: (key, entry, error, info) => { this._core.reportEntryError(key, entry, error, info) },
+      retryEntry: (key, entry) => this._core.retryEntry(key, entry),
       reportFactoryError: (name, registration, error) => { this._core.reportFactoryError(name, registration, error) },
       specOf: key => this._core.specDynamic(key),
       isLive: entry => this._core.isLive(entry),

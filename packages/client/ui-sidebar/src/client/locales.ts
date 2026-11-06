@@ -10,6 +10,9 @@ export const zh = {
   'navigation.label': '导航',
   'panels.more': '更多',
   'version.copied': '版本号复制成功',
+  'workspace.unavailable': '工作区暂不可用',
+  'workspace.failed': '工作区暂时无法显示。',
+  'workspace.retry': '重试显示工作区',
 } satisfies Record<string, string>
 
 /** The sidebar namespace key union. */
@@ -25,6 +28,9 @@ export const en = {
   'navigation.label': 'Navigation',
   'panels.more': 'More',
   'version.copied': 'Version copied',
+  'workspace.unavailable': 'Workspaces unavailable',
+  'workspace.failed': 'Workspaces could not be displayed.',
+  'workspace.retry': 'Retry workspaces',
 } satisfies Record<SidebarKey, string>
 
 /** Japanese copy, checked against the English keys. */
@@ -38,6 +44,9 @@ export const ja = {
   'navigation.label': 'ナビゲーション',
   'panels.more': 'その他',
   'version.copied': 'バージョンをコピーしました',
+  'workspace.unavailable': 'ワークスペースを利用できません',
+  'workspace.failed': 'ワークスペースを表示できませんでした。',
+  'workspace.retry': 'ワークスペースを再試行',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -51,6 +60,9 @@ export const es = {
   'navigation.label': 'Navegación',
   'panels.more': 'Más',
   'version.copied': 'Versión copiada',
+  'workspace.unavailable': 'Espacios de trabajo no disponibles',
+  'workspace.failed': 'No se pudieron mostrar los espacios de trabajo.',
+  'workspace.retry': 'Reintentar espacios de trabajo',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -64,6 +76,9 @@ export const fr = {
   'navigation.label': 'Navigation',
   'panels.more': 'Plus',
   'version.copied': 'Version copiée',
+  'workspace.unavailable': 'Espaces de travail indisponibles',
+  'workspace.failed': 'Les espaces de travail n’ont pas pu être affichés.',
+  'workspace.retry': 'Réessayer les espaces de travail',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -77,6 +92,9 @@ export const de = {
   'navigation.label': 'Navigation',
   'panels.more': 'Mehr',
   'version.copied': 'Version kopiert',
+  'workspace.unavailable': 'Arbeitsbereiche nicht verfügbar',
+  'workspace.failed': 'Die Arbeitsbereiche konnten nicht angezeigt werden.',
+  'workspace.retry': 'Arbeitsbereiche erneut laden',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -90,6 +108,9 @@ export const ru = {
   'navigation.label': 'Навигация',
   'panels.more': 'Ещё',
   'version.copied': 'Версия скопирована',
+  'workspace.unavailable': 'Рабочие пространства недоступны',
+  'workspace.failed': 'Не удалось отобразить рабочие пространства.',
+  'workspace.retry': 'Повторить загрузку рабочих пространств',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -103,4 +124,7 @@ export const pt = {
   'navigation.label': 'Navegação',
   'panels.more': 'Mais',
   'version.copied': 'Versão copiada',
+  'workspace.unavailable': 'Espaços de trabalho indisponíveis',
+  'workspace.failed': 'Não foi possível apresentar os espaços de trabalho.',
+  'workspace.retry': 'Tentar novamente os espaços de trabalho',
 } satisfies Record<keyof typeof en, string>

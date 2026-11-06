@@ -51,6 +51,8 @@ kind: "package-reference"
 
 ### Slot 绑定
 
+owner 可以通过普通 outlet 的 [`errorFallback` 约定](../ui-slots/README.zh.md) 选择可见的失败界面与局部重试。首次边界失败和耗尽候选的 shadowing cell 都保留 `data-slot-error` 标记；显式重试重新挂载失败的组件主体，兄弟 outlet 保留各自状态。
+
 `createSlotRenderer` 把 slot 注册表连接到 React：普通 entry list 与 Factory definition 成为响应式 source，每个 outlet 或 occurrence 经已安装的渲染器渲染。业务插件通过带类型的 `hooks` 传递裸 observable source；渲染器经 uSES 适配器在渲染位置完成绑定。Factory Store factory 保持 lazy，直到 occurrence 首次物化时才创建 handle；其 exclusive handle 拒绝持久化，渲染期记录保持弱引用，幂等 effect 仅强引用 mounted occurrences，同时在 effect replay 期间保留 identity。Factory 错误使用普通监督通道且不会 abdicate 共享 definition：definition 及其 fallback 局部 Component 的失败归属 definition，调用方所选局部 Component 的失败归属调用方 registration，每个边界随自身 scope incarnation 重置。
 
 ### 身份

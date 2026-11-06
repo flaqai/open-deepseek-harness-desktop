@@ -1176,6 +1176,9 @@ const dictionaries: Record<string, Record<string, string>> = {
     'subagentModelSelectionOff': 'Subagenten verwenden konfigurierte Standardwerte oder übernehmen das Modell des übergeordneten Agenten. Gespeicherte Modelloptionen bleiben erhalten.'
   },
   'sidebar': {
+    'workspace.unavailable': 'Arbeitsbereiche nicht verfügbar',
+    'workspace.failed': 'Die Arbeitsbereiche konnten nicht angezeigt werden.',
+    'workspace.retry': 'Arbeitsbereiche erneut laden',
     'panels.more': 'Mehr',
     'session.new': 'Neue Sitzung',
     'session.new.label': 'Neue Sitzung',

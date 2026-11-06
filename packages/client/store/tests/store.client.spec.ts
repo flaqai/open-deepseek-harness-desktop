@@ -15,6 +15,38 @@ afterEach(() => {
 })
 
 describe('createSnapshotStore', () => {
+  it('runs opt-in owner hydration on unknown JSON without persisting the recovered value', () => {
+    const data = new Map([['spec-hydrate', 'null']])
+    const setItem = vi.fn((name: string, value: string) => { data.set(name, value) })
+    vi.stubGlobal('localStorage', { getItem: (name: string) => data.get(name) ?? null, setItem })
+    const hydrate = vi.fn((persisted: unknown, initial: string[]) =>
+      Array.isArray(persisted) ? persisted.filter((value): value is string => typeof value === 'string') : initial)
+    const store = createSnapshotStore(['default'], { persist: { name: 'spec-hydrate', hydrate } })
+    expect(hydrate).toHaveBeenCalledWith(null, ['default'])
+    expect(store.getSnapshot()).toEqual(['default'])
+    expect(setItem).not.toHaveBeenCalled()
+    store.update((draft) => { draft.push('next') })
+    expect(data.get('spec-hydrate')).toBe('["default","next"]')
+  })
+
+  it('lets an opted-in owner handle invalid JSON and leaves an absent entry alone', () => {
+    const getItem = vi.fn().mockReturnValueOnce('{private-invalid-text').mockReturnValueOnce(null)
+    vi.stubGlobal('localStorage', { getItem })
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const hydrate = vi.fn((_persisted: unknown, initial: number) => initial)
+    expect(createSnapshotStore(3, { persist: { name: 'spec-invalid', hydrate } }).getSnapshot()).toBe(3)
+    expect(hydrate).toHaveBeenCalledWith(undefined, 3)
+    createSnapshotStore(3, { persist: { name: 'spec-absent', hydrate } })
+    expect(hydrate).toHaveBeenCalledTimes(1)
+    expect(report).not.toHaveBeenCalled()
+  })
+
+  it('keeps whole-value replacement for stores without an owner hydrator', () => {
+    const getItem = vi.fn().mockReturnValueOnce('["stored"]').mockReturnValueOnce('{"a":{"n":7}}')
+    vi.stubGlobal('localStorage', { getItem })
+    expect(createSnapshotStore(['initial'], { persist: { name: 'spec-array' } }).getSnapshot()).toEqual(['stored'])
+    expect(createSnapshotStore(init(), { persist: { name: 'spec-object' } }).getSnapshot()).toEqual({ a: { n: 7 } })
+  })
   it('applies update through a draft and preserves untouched branch references', () => {
     const store = createSnapshotStore(init())
     const before = store.getSnapshot()
@@ -188,6 +220,16 @@ describe('createSnapshotStore', () => {
 })
 
 describe('defineStore', () => {
+  it('forwards the owner hydrator to a scoped persisted instance', () => {
+    vi.stubGlobal('localStorage', { getItem: (key: string) => key === 'spec.owner.session' ? 'null' : null })
+    const hydrate = vi.fn((_value: unknown, initial: { count: number }) => initial)
+    const instance = defineStore({
+      init: () => ({ count: 0 }), persist: 'spec.owner', hydrate,
+      actions: { increment: (draft) => { draft.count++ } },
+    }).create('session')
+    expect(instance.getSnapshot()).toEqual({ count: 0 })
+    expect(hydrate).toHaveBeenCalledWith(null, { count: 0 })
+  })
   const declare = () => defineStore({
     init: () => ({ selection: null as string | null, draft: '' }),
     actions: {
