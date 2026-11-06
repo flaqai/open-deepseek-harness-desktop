@@ -5,7 +5,7 @@
   },
   "historyAlignment": {
     "ref": "upstream/master",
-    "mergeSubject": "chore(git): align upstream master ancestry for rc.3 on 2026-10-27",
+    "mergeSubject": "chore(git): align upstream master ancestry for rc.1 on 2026-11-06",
     "upstreamParent": 2,
     "strategy": "ours",
     "contentMerged": false
