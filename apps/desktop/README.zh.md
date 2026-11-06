@@ -199,6 +199,8 @@ Windows 升级会分别校验注册的旧安装目录与新目标目录。仍存
 
 历史升级验收通过 [Windows 烟雾测试](scripts/smoke-windows-package.ps1) 显式启用：用 `-PreviousInstaller` 指定真实公开的 alpha.2 EXE，分别添加 `-InteractiveUpgrade`、`-ChangeUpgradeDirectory` 或 `-InstallationMode allusers` 覆盖对应场景。请使用可丢弃的 Windows 虚拟机，并设置全新、绝对路径的 `RUNNER_TEMP`、`TEMP` 与 `TMP`；脚本会拒绝已有应用注册或默认用户数据。它先检查持续文件锁失败时的保留状态，再验证短暂锁恢复、启动、CLI 与卸载。PowerShell 行为测试与仅编译夹具不代表原生验收；交互式、静默、目录、权限及文件锁场景在 Windows 实测前仍是发布阻断项。既有已发布安装包不会自动获得这些修复。
 
+Windows 最终卸载验收让启动进程及临时卸载器共用五分钟总预算。只有启动器以 `0` 退出、临时进程树结束，且 PATH、CLI 注册信息与安装目录均恢复后才会通过；没有日志不代表完成。已观察到的辅助进程在父进程退出后仍按 PID 与创建时间跟踪；PID 复用不会保留归属。所属进程的 CPU/I/O 活动和状态向前推进会重置一分钟无进展限制。采样只保留耗时、PID、退出状态和状态布尔值，不读取日志正文，也不输出路径或命令行。超时或进程/状态元数据不可读时验收失败，并保留正在进行的移除，不强制终止原子事务。
+
 在 Linux 上使用下列命令构建 Linux x64 软件包：
 
 ```sh

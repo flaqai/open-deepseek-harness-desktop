@@ -199,6 +199,8 @@ Each invocation retains its diagnostic directory under `%TEMP%`, ending in `.dsh
 
 Historical upgrade qualification is opt-in through [the Windows smoke](scripts/smoke-windows-package.ps1): provide `-PreviousInstaller` with the real public alpha.2 EXE; add `-InteractiveUpgrade`, `-ChangeUpgradeDirectory`, or `-InstallationMode allusers` for separate scenarios. Use a disposable Windows VM with fresh absolute `RUNNER_TEMP`, `TEMP`, and `TMP` paths; the script refuses an existing application registration or default user data. It checks persistent-lock failure preservation before short-lock recovery, startup, CLI, and uninstall. PowerShell behavior tests and compile-only fixtures are not native acceptance: actual interactive/silent, directory, privilege and lock scenarios remain release blockers until verified on Windows. Existing published installers do not acquire these fixes.
 
+Final Windows uninstall qualification shares one five-minute budget between the launcher and its temporary uninstaller. It requires launcher exit `0`, the temporary process tree to exit, and PATH, CLI registration, and installation-directory restoration; a missing journal is not completion evidence. Observed helpers remain tracked by PID and creation time after their parents exit; a recycled PID does not retain ownership. Owned process CPU/I/O activity and forward state changes reset a one-minute no-progress limit. Samples retain only elapsed time, PIDs, exit status, and state booleans, without journal contents, paths, or command lines. Timeout or missing process/state metadata fails qualification and preserves active removal instead of force-terminating an atomic transaction.
+
 Build the Linux x64 packages on Linux with:
 
 ```sh

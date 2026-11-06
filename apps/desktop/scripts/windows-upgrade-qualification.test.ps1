@@ -344,3 +344,4 @@ try {
   Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction Stop
 }
 Write-Host 'Windows previous-release failure preservation and installer argument behavior passed.'
+. (Join-Path $PSScriptRoot 'windows-uninstall-observation.test.ps1')

@@ -8,6 +8,104 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Select-DesktopUninstallProcesses($Rows, [int] $LauncherId, [bool] $LauncherExited, [string] $InstallerTemporary, [hashtable] $TrackedProcesses = @{}) {
+  $owned = [Collections.Generic.HashSet[int]]::new()
+  $byId = @{}
+  foreach ($row in $Rows) { $byId[[int]$row.ProcessId] = $row }
+  # A helper can outlive its parent. Carry only matching process identities
+  # into the next sample; a recycled PID establishes no ownership.
+  foreach ($processId in @($TrackedProcesses.Keys)) {
+    $row = $byId[[int]$processId]
+    if ($null -eq $row) { $TrackedProcesses.Remove($processId); continue }
+    if ($null -eq $row.CreationDate) { throw 'Tracked uninstall process identity metadata unavailable.' }
+    if ($TrackedProcesses[$processId] -ne ([datetime]$row.CreationDate).ToUniversalTime().Ticks) {
+      $TrackedProcesses.Remove($processId)
+      continue
+    }
+    $null = $owned.Add([int]$processId)
+  }
+  if (-not $LauncherExited) { $null = $owned.Add($LauncherId) }
+  $prefix = $InstallerTemporary.TrimEnd('\') + '\'
+  foreach ($row in $Rows) {
+    if ($row.Name -notlike 'Un_*.exe') { continue }
+    if ([string]::IsNullOrEmpty($row.ExecutablePath)) { throw 'Temporary uninstaller process metadata unavailable.' }
+    if ($row.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+      $null = $owned.Add([int]$row.ProcessId)
+    }
+  }
+  do {
+    $added = $false
+    foreach ($row in $Rows) {
+      if ($owned.Contains([int]$row.ProcessId) -or -not $owned.Contains([int]$row.ParentProcessId)) { continue }
+      $parent = $byId[[int]$row.ParentProcessId]
+      if ($null -eq $parent.CreationDate -or $null -eq $row.CreationDate) { throw 'Uninstall process ancestry metadata unavailable.' }
+      if (([datetime]$parent.CreationDate).ToUniversalTime().Ticks -gt ([datetime]$row.CreationDate).ToUniversalTime().Ticks) { continue }
+      if ($owned.Add([int]$row.ProcessId)) { $added = $true }
+    }
+  } while ($added)
+  $result = @($Rows | Where-Object { $owned.Contains([int]$_.ProcessId) })
+  foreach ($row in $result) {
+    if ($null -eq $row.CreationDate) { throw 'Uninstall process identity metadata unavailable.' }
+    $TrackedProcesses[[int]$row.ProcessId] = ([datetime]$row.CreationDate).ToUniversalTime().Ticks
+  }
+  return $result
+}
+
+function Wait-DesktopUninstallCompletion {
+  param(
+    [scriptblock] $ReadSnapshot, [scriptblock] $ElapsedMilliseconds,
+    [scriptblock] $Pause, [scriptblock] $Report,
+    [int] $BudgetMilliseconds = 300000, [int] $StallMilliseconds = 60000
+  )
+  $previousActivity = @{}
+  $previousState = @{}
+  $lastProgress = 0L
+  $lastReport = -10000L
+  while ($true) {
+    try { $snapshot = & $ReadSnapshot } catch { throw 'Windows uninstall observation metadata unavailable.' }
+    $elapsed = [long](& $ElapsedMilliseconds)
+    $progress = $false
+    $activity = @{}
+    foreach ($process in $snapshot.Processes) {
+      $activity[$process.Identity] = [decimal]$process.Activity
+      if (-not $previousActivity.ContainsKey($process.Identity) -or $activity[$process.Identity] -gt $previousActivity[$process.Identity]) { $progress = $true }
+    }
+    foreach ($identity in $previousActivity.Keys) {
+      if (-not $activity.ContainsKey($identity)) { $progress = $true }
+    }
+    foreach ($field in @('LauncherExited', 'PathRestored', 'RegistrationRemoved', 'InstallationRemoved')) {
+      if ($snapshot.$field -and -not $previousState[$field]) { $progress = $true }
+      $previousState[$field] = $snapshot.$field
+    }
+    if ($progress) { $lastProgress = $elapsed }
+    $previousActivity = $activity
+    $outcome = 'observing'
+    if ($snapshot.LauncherExited -and $snapshot.LauncherExitCode -ne 0) { $outcome = 'launcher-failed' }
+    elseif ($elapsed -ge $BudgetMilliseconds) { $outcome = 'timeout' }
+    elseif ($snapshot.LauncherExited -and @($snapshot.Processes).Count -eq 0 -and
+      $snapshot.PathRestored -and $snapshot.RegistrationRemoved -and $snapshot.InstallationRemoved) { $outcome = 'passed' }
+    elseif ($elapsed - $lastProgress -ge $StallMilliseconds) { $outcome = 'stalled' }
+    if ($outcome -ne 'observing' -or $elapsed - $lastReport -ge 10000) {
+      & $Report ([ordered]@{
+        elapsedMs = $elapsed; outcome = $outcome; launcherExited = [bool]$snapshot.LauncherExited
+        launcherExitCode = $snapshot.LauncherExitCode
+        ownedProcessIds = @($snapshot.Processes.ProcessId | Sort-Object -Unique | Select-Object -First 32)
+        pathRestored = [bool]$snapshot.PathRestored; registrationRemoved = [bool]$snapshot.RegistrationRemoved
+        installationRemoved = [bool]$snapshot.InstallationRemoved; noProgressMs = $elapsed - $lastProgress
+      })
+      $lastReport = $elapsed
+    }
+    switch ($outcome) {
+      'passed' { return }
+      'launcher-failed' { throw "Windows uninstall launcher exited with $($snapshot.LauncherExitCode)." }
+      'timeout' { throw 'Windows uninstall exceeded its five-minute total budget; preserve the active removal and evidence.' }
+      'stalled' { throw 'Windows uninstall made no progress for one minute; preserve the active removal and evidence.' }
+    }
+    & $Pause 1000
+  }
+}
+
 if ([string]::IsNullOrWhiteSpace($PreviousInstaller) -and ($ChangeUpgradeDirectory -or $InteractiveUpgrade -or $InstallationMode -ne 'currentuser')) {
   throw 'PreviousInstaller is required for historical, changed-directory, interactive, or all-users qualification.'
 }
@@ -475,35 +573,37 @@ $uninstallStart.UseShellExecute = $false
 $uninstallStart.Environment['TEMP'] = $installerTemporary
 $uninstallStart.Environment['TMP'] = $installerTemporary
 $uninstallStart.ArgumentList.Add('/S')
+$uninstallClock = [Diagnostics.Stopwatch]::StartNew()
 $uninstall = [System.Diagnostics.Process]::Start($uninstallStart)
-if (-not $uninstall.WaitForExit(180000)) {
-  $uninstall.Kill($true)
-  throw 'Windows uninstaller did not exit within 3 minutes'
-}
-if ($uninstall.ExitCode -ne 0) { throw "Windows uninstaller exited with $($uninstall.ExitCode)" }
-
 # Electron Builder's installed uninstaller copies itself to a temporary Un_A
-# process. The launcher can exit before that child finishes removing files and
-# running customUnInit, so validate observable uninstall state instead of the
-# launcher PID alone.
-$uninstallDeadline = (Get-Date).AddMinutes(2)
-do {
+# process. Observe its helpers as well as owned state under one total budget;
+# no diagnostic sample reads journals or exposes paths/command lines.
+$uninstallTrackedProcesses = @{}
+$readUninstall = {
+  $uninstall.Refresh()
+  $exited = $uninstall.HasExited
+  $rows = @(Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId, Name, ExecutablePath, CreationDate, KernelModeTime, UserModeTime, ReadTransferCount, WriteTransferCount -OperationTimeoutSec 5 -ErrorAction Stop)
+  $processes = @(Select-DesktopUninstallProcesses -Rows $rows `
+    -LauncherId $uninstall.Id -LauncherExited $exited -InstallerTemporary $installerTemporary -TrackedProcesses $uninstallTrackedProcesses)
   $restoredUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-  $remainingRegistration = Get-ItemProperty -Path 'HKCU:\Software\FLAQ.AI\DeepSeek Harness' -ErrorAction SilentlyContinue
-  $pathRestored = $restoredUserPath -eq $originalUserPath
-  $registrationRemoved = $null -eq $remainingRegistration.CliPathRegistered -and $null -eq $remainingRegistration.CliPathDirectory
-  $installationRemoved = -not (Test-Path -LiteralPath $installRoot)
-  if ($pathRestored -and $registrationRemoved -and $installationRemoved) { break }
-  Start-Sleep -Milliseconds 250
-} while ((Get-Date) -lt $uninstallDeadline)
-
-if (-not $pathRestored -or -not $registrationRemoved -or -not $installationRemoved) {
-  $uninstallProcesses = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-    $_.Name -like 'Un_*.exe' -or
-    (-not [string]::IsNullOrEmpty($_.ExecutablePath) -and $_.ExecutablePath.StartsWith($installRoot, [StringComparison]::OrdinalIgnoreCase))
-  } | ForEach-Object { "PID $($_.ProcessId) $($_.Name) $($_.ExecutablePath)" })
-  throw "Windows uninstaller did not finish restoring owned state within 2 minutes.`nBefore PATH: $originalUserPath`nAfter PATH: $restoredUserPath`nRegistration removed: $registrationRemoved`nInstallation removed: $installationRemoved`nRemaining processes:`n$($uninstallProcesses -join "`n")"
+  try { $remainingRegistration = Get-ItemProperty -Path 'HKCU:\Software\FLAQ.AI\DeepSeek Harness' -ErrorAction Stop }
+  catch [Management.Automation.ItemNotFoundException] { $remainingRegistration = $null }
+  [pscustomobject]@{
+    LauncherExited = $exited; LauncherExitCode = $(if ($exited) { $uninstall.ExitCode } else { $null })
+    PathRestored = $restoredUserPath -eq $originalUserPath
+    RegistrationRemoved = $null -eq $remainingRegistration.CliPathRegistered -and $null -eq $remainingRegistration.CliPathDirectory
+    InstallationRemoved = -not (Test-Path -LiteralPath $installRoot -ErrorAction Stop)
+    Processes = @($processes | ForEach-Object {
+      [pscustomobject]@{
+        ProcessId = [int]$_.ProcessId; Identity = "$($_.ProcessId):$(([datetime]$_.CreationDate).ToUniversalTime().Ticks)"
+        Activity = [decimal]$_.KernelModeTime + [decimal]$_.UserModeTime + [decimal]$_.ReadTransferCount + [decimal]$_.WriteTransferCount
+      }
+    })
+  }
 }
+Wait-DesktopUninstallCompletion -ReadSnapshot $readUninstall -ElapsedMilliseconds { $uninstallClock.ElapsedMilliseconds } `
+  -Pause { param($milliseconds) Start-Sleep -Milliseconds $milliseconds } `
+  -Report { param($sample) Write-Host ('Windows uninstall observation: ' + ($sample | ConvertTo-Json -Compress -Depth 4)) }
 if ([DshRemovalNative]::Exists($uninstallBoundary.Payload) -or [DshRemovalNative]::Exists($uninstallBoundary.EmptyDirectory)) { throw 'Uninstall retained the long-path payload or deep empty directory.' }
 $pathEvidenceFile = Join-Path $env:RUNNER_TEMP 'qualification-paths.json'
 $pathEvidence = Get-Content -LiteralPath $pathEvidenceFile -Raw | ConvertFrom-Json
