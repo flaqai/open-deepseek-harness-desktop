@@ -1,6 +1,6 @@
 import { contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -9,6 +9,7 @@ import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controlle
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import { SelectionActions, type SelectionActionsProps } from '../src/client/SelectionActions.tsx'
+import { SelectionActionsFeedback } from '../src/client/SelectionActionsFeedback.tsx'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -39,136 +40,108 @@ const unused = (): never => { throw new Error('unused selection-actions fixture 
 
 function props(appendAvailable = true, restartDesktop?: () => Promise<void>): SelectionActionsProps {
   return {
-    useRemoteAccess: () => true,
-    useSessionAccess: () => true,
-    useWorkspaceAccess: () => true,
+    sessionId, trigger: 'selection', readText: () => 'selected words', dismiss: vi.fn(), clearSelection: vi.fn(),
+    useSession: unused, useProjection: unused, useConversation: unused, useInput: unused, useChat: unused, useTrajectory: unused,
+    inputActions: {
+      insertQuote: unused, captureInsertion: unused, insertText: unused, setDraft: unused, persistDraft: unused,
+      addAttachments: unused, removeAttachment: unused, pruneAttachments: unused, submit: unused,
+    },
+    useAccess: () => true, useRemoteAccess: () => true, useSessionAccess: () => true, useWorkspaceAccess: () => true,
     useContextMenu: contextMenuHook(), useSessions: bindSnapshotSelector(sessions),
-    useWorkspaces: bindSnapshotSelector(workspaces),
-    usePanelInfo: unused,
-    useSessionStatus: unused,
-    useSessionRetainInfo: unused,
-    useResource: unused,
+    useWorkspaces: bindSnapshotSelector(workspaces), usePanelInfo: unused, useSessionStatus: unused,
+    useSessionRetainInfo: unused, useResource: unused,
     useAppendAvailable: bindSnapshotSelector(createSnapshotStore(appendAvailable)),
-    copy: vi.fn(async () => true),
-    askInNewConversation: vi.fn(async () => {}),
-    appendToCurrent: vi.fn(),
-    ...(restartDesktop === undefined ? {} : { restartDesktop }),
-    t: makeTranslate(en),
+    notify: vi.fn(), copy: vi.fn(async () => true), askInNewConversation: vi.fn(async () => {}),
+    askInSideConversation: vi.fn(async () => {}), appendToCurrent: vi.fn(),
+    ...(restartDesktop === undefined ? {} : { restartDesktop }), t: makeTranslate(en),
   }
 }
 
-function selectText(target: HTMLElement): void {
-  const text = target.firstChild!
-  const range = document.createRange()
-  range.setStart(text, 0)
-  range.setEnd(text, text.textContent!.length)
-  range.getBoundingClientRect = vi.fn(() => ({
-    x: 20, y: 30, left: 20, top: 30, right: 100, bottom: 50,
-    width: 80, height: 20, toJSON: () => ({}),
-  }))
-  const selection = window.getSelection()!
-  selection.removeAllRanges()
-  selection.addRange(range)
-}
-
 describe('SelectionActions', () => {
-  let text: HTMLElement
-
-  beforeEach(() => {
-    document.body.replaceChildren()
-    const scope = document.createElement('div')
-    scope.dataset.selectionActionsScope = ''
-    text = document.createElement('p')
-    text.textContent = 'selected words'
-    scope.appendChild(text)
-    document.body.appendChild(scope)
-  })
-
-  it('opens a horizontal toolbar after selection and runs all three actions', async () => {
+  it('renders selected text actions without document gesture listeners', () => {
     const injected = props()
     render(<SelectionActions {...injected} />)
-    selectText(text)
-    fireEvent.pointerUp(text, { button: 0 })
-
     expect(screen.getByRole('toolbar')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Ask in new conversation' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Add to current conversation' })).toBeTruthy()
-
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     expect(injected.copy).toHaveBeenCalledWith('selected words')
-
-    selectText(text)
-    fireEvent.pointerUp(text, { button: 0 })
+    expect(injected.dismiss).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'Ask in new conversation' }))
-    expect(injected.askInNewConversation).toHaveBeenCalledWith(
-      'workspace-1',
-      'Please answer the following selected text:\n\n> selected words',
-    )
-
-    selectText(text)
-    fireEvent.pointerUp(text, { button: 0 })
-    fireEvent.click(screen.getByRole('button', { name: 'Add to current conversation' }))
+    expect(injected.askInNewConversation).toHaveBeenCalledWith('workspace-1', 'selected words')
+    fireEvent.click(screen.getByRole('button', { name: 'Add to conversation' }))
     expect(injected.appendToCurrent).toHaveBeenCalledWith('session-1', 'selected words')
   })
 
-  it('uses a vertical menu for context click and hides append while input is unavailable', () => {
-    render(<SelectionActions {...props(false)} />)
-    selectText(text)
-    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 90, clientY: 70 })
-    fireEvent(text, event)
+  it('uses the area session rather than another main-view retention', () => {
+    const injected = props()
+    render(<SelectionActions {...injected} sessionId={SessionId('other')} />)
+    expect(screen.queryByRole('button', { name: 'Ask in new conversation' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add to conversation' })).toBeNull()
+  })
 
-    expect(event.defaultPrevented).toBe(true)
-    expect(screen.getByRole('menu')).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Copy' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Ask in new conversation' })).toBeTruthy()
-    expect(screen.queryByRole('menuitem', { name: 'Add to current conversation' })).toBeNull()
-    expect(screen.queryByRole('menuitem', { name: 'Quick restart' })).toBeNull()
+  it('retains copy while readonly permission removes draft actions', () => {
+    render(<SelectionActions {...props()} useAccess={() => false} useRemoteAccess={() => false} />)
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy()
   })
 
   it('puts the desktop quick restart at the bottom of the context menu', () => {
-    const restartDesktop = vi.fn(async () => {})
-    render(<SelectionActions {...props(true, restartDesktop)} />)
-    selectText(text)
-    fireEvent.contextMenu(text, { clientX: 90, clientY: 70 })
-
+    const injected = props(false, vi.fn(async () => {}))
+    render(<SelectionActions {...injected} trigger="contextmenu" />)
     const items = screen.getAllByRole('menuitem')
     expect(items.at(-1)?.textContent).toBe('Quick restart')
-    expect(screen.getByRole('separator')).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Add to conversation' })).toBeNull()
     fireEvent.click(items.at(-1)!)
-    expect(restartDesktop).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('menu')).toBeNull()
+    expect(injected.restartDesktop).toHaveBeenCalledOnce()
+    expect(injected.dismiss).toHaveBeenCalledOnce()
   })
 
-  it('keeps the native context menu without an eligible selection and dismisses on Escape', () => {
-    render(<SelectionActions {...props()} />)
-    const native = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    fireEvent(text, native)
-    expect(native.defaultPrevented).toBe(false)
-
-    selectText(text)
-    fireEvent.pointerUp(text, { button: 0 })
-    expect(screen.getByRole('toolbar')).toBeTruthy()
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('toolbar')).toBeNull()
-
-    selectText(text)
-    const sibling = document.createElement('p')
-    sibling.textContent = 'not selected'
-    text.parentElement!.appendChild(sibling)
-    const elsewhere = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    fireEvent(sibling, elsewhere)
-    expect(elsewhere.defaultPrevented).toBe(false)
+  it('captures immutable text and reports copy failures after dismissal', async () => {
+    const injected = props()
+    const copy = vi.fn(async () => false)
+    let selection: string | null = 'selected words'
+    render(<SelectionActions {...injected} readText={() => selection} dismiss={() => { selection = null }} copy={copy} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    expect(copy).toHaveBeenCalledWith('selected words')
+    await vi.waitFor(() => { expect(injected.notify).toHaveBeenCalledWith('Copy failed') })
   })
 
-  it('does not activate inside interactive descendants', () => {
-    const scope = text.parentElement!
-    const button = document.createElement('button')
-    button.textContent = 'interactive text'
-    scope.appendChild(button)
-    render(<SelectionActions {...props()} />)
-    selectText(button)
-    fireEvent.pointerUp(button, { button: 0 })
+  it('keeps asynchronous feedback visible after the conversation popup unmounts', async () => {
+    const feedback = createSnapshotStore<{ seq: number; text: string } | null>(null)
+    const feedbackProps = { useFeedback: bindSnapshotSelector(feedback), clear: () => { feedback.set(null) } }
+    const injected = props()
+    const view = render(<><SelectionActionsFeedback {...feedbackProps} /><SelectionActions {...injected}
+      notify={(text) => { feedback.set({ seq: 1, text }) }} copy={async () => false} /></>)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    view.rerender(<SelectionActionsFeedback {...feedbackProps} />)
+    expect(await screen.findByText('Copy failed')).toBeTruthy()
     expect(screen.queryByRole('toolbar')).toBeNull()
   })
+
+  it('renders no action when the area selection becomes unavailable before mounting', () => {
+    render(<SelectionActions {...props()} readText={() => null} />)
+    expect(screen.queryByRole('toolbar')).toBeNull()
+  })
+
+  it('opens a side conversation with the selected text without sending', () => {
+    const injected = props()
+    render(<SelectionActions {...injected} trigger="contextmenu" />)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ask in side conversation' }))
+    expect(injected.askInSideConversation).toHaveBeenCalledWith(workspaceId, 'selected words')
+    expect(injected.dismiss).toHaveBeenCalledOnce()
+  })
+
+})
+
+it('uses the shared contextual menu while preserving the official selected-text snapshot', () => {
+  const injected = props()
+  const view = render(<SelectionActions {...injected} trigger="contextmenu" />)
+  const menu = view.getByRole('menu', { name: 'Selected text menu' })
+  expect(menu.hasAttribute('data-context-menu')).toBe(true)
+  expect(menu.getAttribute('data-menu-material')).toBe('translucent')
+  const side = view.getByRole('menuitem', { name: 'Ask in side conversation' })
+  expect(fireEvent.pointerDown(side)).toBe(false)
+  expect(injected.clearSelection).not.toHaveBeenCalled()
+  fireEvent.click(side)
+  expect(injected.askInSideConversation).toHaveBeenCalledWith(workspaceId, 'selected words')
+  expect(injected.dismiss).toHaveBeenCalledOnce()
 })

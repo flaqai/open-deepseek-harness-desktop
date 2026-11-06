@@ -1,160 +1,54 @@
 /** Contextual actions rendered for eligible browser text selections. */
 
 import {
-  useCallback, useEffect, useLayoutEffect, useRef, useState,
   type PointerEvent as ReactPointerEvent, type ReactNode,
 } from 'react'
 import {
-  IconCopyOutline16, IconNewChatOutline16, IconPlusOutline16, IconRefreshOutline16, Toast, Tooltip,
+  IconCopyOutline16, IconNewChatOutline16, IconPlusOutline16, IconRefreshOutline16,
+  IconCompareSplitOutlineRegular, Tooltip, Menu, MenuSurface,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
-import {
-  captureSelection, placeContextMenu, placeSelectionToolbar, quoteSelection,
-  type PanelPosition, type SelectionSnapshot, type ViewportPoint,
-} from './selection.ts'
+import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import css from './SelectionActions.module.css'
-
-type SurfaceMode = 'toolbar' | 'menu'
-
-interface OpenSurface {
-  readonly mode: SurfaceMode
-  readonly selection: SelectionSnapshot
-  readonly point?: ViewportPoint
-}
-
-interface ToastState {
-  readonly seq: number
-  readonly text: string
-}
 
 /** Business face assembled by the client plugin. */
 export interface SelectionActionsInjected {
   hooks: { appendAvailable: HostObservable<boolean> }
+  notify: (text: string) => void
   copy: (text: string) => Promise<boolean>
   askInNewConversation: (workspaceId: WorkspaceId, draft: string) => Promise<void>
+  askInSideConversation: (workspaceId: WorkspaceId, text: string) => Promise<void>
   appendToCurrent: (sessionId: SessionId, text: string) => void
   restartDesktop?: () => Promise<void>
 }
 
-/** Props assembled by the shell overlay registration. */
+/** Props assembled by the conversation text-interaction registration. */
 export type SelectionActionsProps =
-  PropsRuntime<'shell.overlay'>
+  PropsRuntime<'conversation.chat.text-interaction'>
   & PropsLocale<typeof NS>
   & InjectFace<SelectionActionsInjected>
 
-function viewportSize(): { width: number; height: number } {
-  return { width: window.innerWidth, height: window.innerHeight }
-}
-
-/** Selected-text toolbar and context menu. */
+/** Actions for one conversation-owned text interaction surface. */
 export function SelectionActions({
-  useSessions,
-  useWorkspaces,
-  useAppendAvailable,
-  copy,
-  askInNewConversation,
-  appendToCurrent,
-  restartDesktop,
-  t,
+  sessionId, trigger, readText, dismiss, useWorkspaces, useAppendAvailable, useAccess,
+  useRemoteAccess, copy, askInNewConversation, askInSideConversation, appendToCurrent, restartDesktop, notify, t,
 }: SelectionActionsProps) {
-  const currentSessionId = useSessions(state => Object.values(state.byId)
-    .find(session => (session.retainedBy.mainView ?? 0) > 0)?.id)
-  const currentWorkspaceId = useWorkspaces((state) => {
-    if (currentSessionId === undefined) return undefined
-    return state.items.find(workspace => workspace.sessionIds.includes(currentSessionId))?.workspaceId
-  })
-  const appendAvailable = useAppendAvailable(value => value) && currentWorkspaceId !== undefined
-  const [open, setOpen] = useState<OpenSurface | null>(null)
-  const [position, setPosition] = useState<PanelPosition | null>(null)
-  const [toast, setToast] = useState<ToastState | null>(null)
-  const surfaceRef = useRef<HTMLDivElement>(null)
-  const toastSeq = useRef(0)
-
-  const close = useCallback(() => {
-    setOpen(null)
-    setPosition(null)
-  }, [])
-
-  const showToast = useCallback((text: string) => {
-    toastSeq.current += 1
-    setToast({ seq: toastSeq.current, text })
-  }, [])
-
-  useLayoutEffect(() => {
-    if (open === null || surfaceRef.current === null) return
-    const panel = {
-      width: surfaceRef.current.offsetWidth,
-      height: surfaceRef.current.offsetHeight,
-    }
-    setPosition(open.mode === 'toolbar'
-      ? placeSelectionToolbar(open.selection.rect, panel, viewportSize())
-      : placeContextMenu(open.point ?? { x: open.selection.rect.right, y: open.selection.rect.bottom }, panel, viewportSize()))
-  }, [open])
-
-  useEffect(() => {
-    const onPointerUp = (event: PointerEvent): void => {
-      if (event.button !== 0 || surfaceRef.current?.contains(event.target as Node)) return
-      const selection = captureSelection(window.getSelection(), event.target)
-      if (selection === null) {
-        close()
-        return
-      }
-      setPosition(null)
-      setOpen({ mode: 'toolbar', selection })
-    }
-    const onContextMenu = (event: MouseEvent): void => {
-      if (surfaceRef.current?.contains(event.target as Node)) return
-      const selection = captureSelection(window.getSelection(), event.target)
-      if (selection === null) {
-        close()
-        return
-      }
-      event.preventDefault()
-      setPosition(null)
-      setOpen({ mode: 'menu', selection, point: { x: event.clientX, y: event.clientY } })
-    }
-    const onPointerDown = (event: PointerEvent): void => {
-      if (surfaceRef.current?.contains(event.target as Node)) return
-      close()
-    }
-    const onSelectionChange = (): void => {
-      if (window.getSelection()?.isCollapsed !== false) close()
-    }
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') close()
-    }
-    const onViewportMove = (): void => { close() }
-
-    document.addEventListener('pointerup', onPointerUp)
-    document.addEventListener('contextmenu', onContextMenu)
-    document.addEventListener('pointerdown', onPointerDown, true)
-    document.addEventListener('selectionchange', onSelectionChange)
-    document.addEventListener('keydown', onKeyDown)
-    document.addEventListener('scroll', onViewportMove, { capture: true, passive: true })
-    window.addEventListener('resize', onViewportMove)
-    return () => {
-      document.removeEventListener('pointerup', onPointerUp)
-      document.removeEventListener('contextmenu', onContextMenu)
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      document.removeEventListener('selectionchange', onSelectionChange)
-      document.removeEventListener('keydown', onKeyDown)
-      document.removeEventListener('scroll', onViewportMove, true)
-      window.removeEventListener('resize', onViewportMove)
-    }
-  }, [close])
-
-  useEffect(() => { close() }, [close, currentSessionId])
-
-  const preserveSelection = (event: ReactPointerEvent<HTMLButtonElement>): void => {
-    event.preventDefault()
-  }
+  const currentWorkspaceId = useWorkspaces(state =>
+    state.items.find(workspace => workspace.sessionIds.includes(sessionId))?.workspaceId)
+  const writable = useAccess('session/prompt')
+  const canAsk = useRemoteAccess('session/create')
+  const appendAvailable = useAppendAvailable(value => value) && writable && currentWorkspaceId !== undefined
+  const text = readText()
+  const mode = trigger === 'selection' ? 'toolbar' : 'menu'
+  const close = dismiss
+  const showToast = notify
+  const preserveSelection = (event: ReactPointerEvent<HTMLButtonElement>): void => { event.preventDefault() }
 
   const onCopy = (): void => {
-    if (open === null) return
-    const text = open.selection.text
+    if (text === null) return
     close()
     void copy(text).then(
       (accepted) => { showToast(t(accepted ? 'status.copied' : 'error.copy')) },
@@ -163,21 +57,28 @@ export function SelectionActions({
   }
 
   const onAsk = (): void => {
-    if (open === null || currentWorkspaceId === undefined) return
-    const draft = `${t('prompt.ask')}\n\n${quoteSelection(open.selection.text)}`
+    if (text === null || currentWorkspaceId === undefined || !canAsk) return
     close()
-    void askInNewConversation(currentWorkspaceId, draft).then(
+    void askInNewConversation(currentWorkspaceId, text).then(
       () => { showToast(t('status.newConversation')) },
       () => { showToast(t('error.action')) },
     )
   }
 
+  const onAskAside = (): void => {
+    if (text === null || currentWorkspaceId === undefined || !canAsk) return
+    close()
+    void askInSideConversation(currentWorkspaceId, text).then(
+      () => { showToast(t('status.sideConversation')) },
+      () => { showToast(t('error.action')) },
+    )
+  }
+
   const onAppend = (): void => {
-    if (open === null || currentSessionId === undefined || !appendAvailable) return
-    const text = open.selection.text
+    if (text === null || !appendAvailable) return
     close()
     try {
-      appendToCurrent(currentSessionId, text)
+      appendToCurrent(sessionId, text)
       showToast(t('status.added'))
     } catch {
       showToast(t('error.action'))
@@ -198,55 +99,41 @@ export function SelectionActions({
     </Tooltip>
   )
 
-  const menuAction = (label: string, icon: ReactNode, onClick: () => void) => (
-    <button type="button" role="menuitem" className={css.action} onPointerDown={preserveSelection} onClick={onClick}>
-      {icon}<span>{label}</span>
-    </button>
+  const menuItems = [
+    { id: 'copy', label: t('action.copy'), icon: <IconCopyOutline16 />, run: onCopy },
+    ...(currentWorkspaceId !== undefined && canAsk ? [
+      { id: 'ask', label: t('action.ask'), icon: <IconNewChatOutline16 />, run: onAsk },
+      { id: 'sideAsk', label: t('action.sideAsk'), icon: <IconCompareSplitOutlineRegular size={16} />, run: onAskAside },
+    ] : []),
+    ...(appendAvailable ? [{ id: 'append', label: t('action.append'), icon: <IconPlusOutline16 />, run: onAppend }] : []),
+  ]
+  const restartItems = restartDesktop === undefined ? [] : [
+    { id: 'restart-separator', type: 'separator' as const },
+    { id: 'restart', label: t('action.restart'), icon: <IconRefreshOutline16 /> },
+  ]
+
+  if (text === null) return null
+  if (mode === 'menu') return (
+    <div data-selection-actions="menu" aria-label={t('menu.aria')}>
+      <Menu open anchor={null} contextual preserveSelection ariaLabel={t('menu.aria')} listClassName={css.menu}
+        items={menuItems} footer={restartItems} onClose={close}
+        onSelect={(id) => {
+          if (id === 'restart') onRestart()
+          else menuItems.find(item => item.id === id)?.run()
+        }} />
+    </div>
   )
 
   return (
-    <>
-      {open !== null ? (
-        <div
-          ref={surfaceRef}
-          className={`${css.surface} ${open.mode === 'toolbar' ? css.toolbar : css.menu} ${position === null ? css.measuring : ''}`}
-          style={position === null ? undefined : position}
-          role={open.mode === 'toolbar' ? 'toolbar' : 'menu'}
-          aria-label={t(open.mode === 'toolbar' ? 'toolbar.aria' : 'menu.aria')}
-          data-selection-actions={open.mode}
-        >
-          {open.mode === 'toolbar' ? (
-            <>
-              {toolbarAction(t('action.copy'), <IconCopyOutline16 />, onCopy)}
-              {currentWorkspaceId !== undefined
-                ? toolbarAction(t('action.ask'), <IconNewChatOutline16 />, onAsk)
-                : null}
-              {appendAvailable
-                ? toolbarAction(t('action.append'), <IconPlusOutline16 />, onAppend)
-                : null}
-            </>
-          ) : (
-            <>
-              {menuAction(t('action.copy'), <IconCopyOutline16 />, onCopy)}
-              {currentWorkspaceId !== undefined
-                ? menuAction(t('action.ask'), <IconNewChatOutline16 />, onAsk)
-                : null}
-              {appendAvailable
-                ? menuAction(t('action.append'), <IconPlusOutline16 />, onAppend)
-                : null}
-              {restartDesktop !== undefined ? (
-                <>
-                  <div className={css.separator} role="separator" />
-                  {menuAction(t('action.restart'), <IconRefreshOutline16 />, onRestart)}
-                </>
-              ) : null}
-            </>
-          )}
-        </div>
-      ) : null}
-      {toast !== null ? (
-        <Toast key={toast.seq} text={toast.text} onDone={() => { setToast(null) }} />
-      ) : null}
-    </>
+    <MenuSurface className={`${css.surface} ${css.toolbar}`} role="toolbar"
+      aria-label={t('toolbar.aria')} data-selection-actions="toolbar">
+      {toolbarAction(t('action.copy'), <IconCopyOutline16 />, onCopy)}
+      {currentWorkspaceId !== undefined && canAsk
+        ? toolbarAction(t('action.ask'), <IconNewChatOutline16 />, onAsk)
+        : null}
+      {appendAvailable
+        ? toolbarAction(t('action.append'), <IconPlusOutline16 />, onAppend)
+        : null}
+    </MenuSurface>
   )
 }

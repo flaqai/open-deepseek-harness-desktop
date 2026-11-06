@@ -221,11 +221,13 @@ export function useTextInteraction(
       updateSelection(event)
     }
     const contextMenu = (event: MouseEvent): void => {
-      if (insideSurface(event)) return
+      if (event.defaultPrevented || insideSurface(event)) return
       const element = event.target instanceof Element ? event.target : null
       const source = element?.closest<HTMLElement>('[data-text-interaction-source]')
-      if (source === undefined || source === null || !root.contains(source)
-        || element?.closest('[data-text-interaction-exclude], button, input, textarea, [contenteditable="true"]')) return
+      const object = element?.closest([
+        '[data-text-interaction-exclude]', 'a', 'img', 'button', '[role="button"]', 'input', 'textarea', '[contenteditable="true"]',
+      ].join(','))
+      if (source === undefined || source === null || !root.contains(source) || object) return
       pointerSelecting = false
       dismiss()
       const selected = readTextSelection(root, document.getSelection())

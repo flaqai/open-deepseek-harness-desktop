@@ -85,6 +85,23 @@ async function layout() {
 }
 
 describe('area text interactions', () => {
+  it('leaves Markdown object context menus outside selected-text dispatch', () => {
+    const admit = vi.fn((request: TextInteractionRequest) => {
+      if (request.trigger === 'contextmenu') { request.preventDefault(); request.open() }
+    })
+    const view = render(<Area admit={admit} />)
+    const source = view.container.querySelector('[data-text-interaction-source]')!
+    source.innerHTML = 'Selected prose <a href="https://example.com">Link</a><span role="button">File</span><img alt="Image">'
+    select(source)
+    admit.mockClear()
+    for (const object of source.querySelectorAll('a, [role="button"], img')) {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 110, clientY: 130 })
+      fireEvent(object, event)
+      expect(event.defaultPrevented).toBe(false)
+    }
+    expect(admit).not.toHaveBeenCalled()
+  })
+
   it('waits for pointer and keyboard selection to finish', () => {
     const view = render(<Area />)
     const source = view.container.querySelector('[data-text-interaction-source]')!

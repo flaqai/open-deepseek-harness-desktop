@@ -2,6 +2,8 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { SelectionActionsFeedback } from './SelectionActionsFeedback.tsx'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -11,7 +13,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { SelectionActions, type SelectionActionsInjected } from './SelectionActions.tsx'
-import { appendSelectionToDraft } from './selection.ts'
+import { insertConversationQuote, requireQuoteWorkspace } from './quote-actions.ts'
+import { registerSideConversations } from './side-conversation.tsx'
 import { de, en, es, fr, ja, ko, NS, pt, ru, zh, type SelectionActionsKey } from './locales.ts'
 
 export type { SelectionActionsKey } from './locales.ts'
@@ -24,7 +27,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required client services. */
-export const inject = ['slots', 'sessions', 'uiSession', 'uiWorkspace', 'conversation', 'locale']
+export const inject = ['slots', 'sessions', 'uiSession', 'uiWorkspace', 'conversation', 'uiConversation', 'locale', 'remoteAccess', 'workspaces', 'resources', 'sidebarRight', 'sidebarRightTabs']
 
 function readDesktopRestart(): (() => Promise<void>) | undefined {
   const desktop = (globalThis as typeof globalThis & { deepSeekHarnessDesktop?: unknown }).deepSeekHarnessDesktop
@@ -49,17 +52,12 @@ function appendAvailable(ctx: Context, sessionId: SessionId | undefined): boolea
   if (session.subagent?.address.mode === 'continuable' && !session.subagent.parentAvailable) return false
   if (ctx.conversation.blocks.storeFor(sessionId).getSnapshot() !== undefined) return false
   const phase = ctx.conversation.input.for(actx).state.getSnapshot().phase
-  return phase !== 'adjudicating' && phase !== 'submitting'
+  return phase === 'plain'
 }
 
-function currentSessionId(ctx: Context): SessionId | undefined {
-  return Object.values(ctx.sessions.list.getSnapshot().byId)
-    .find(session => (session.retainedBy.mainView ?? 0) > 0)?.id
-}
-
-function createAppendAvailability(ctx: Context): HostObservable<boolean> {
+function createAppendAvailability(ctx: Context, sessionId: SessionId): HostObservable<boolean> {
   return {
-    getSnapshot: () => appendAvailable(ctx, currentSessionId(ctx)),
+    getSnapshot: () => appendAvailable(ctx, sessionId),
     subscribe: (listener) => {
       let nestedStops: (() => void)[] = []
       const stopNested = (): void => {
@@ -68,8 +66,6 @@ function createAppendAvailability(ctx: Context): HostObservable<boolean> {
       }
       const bindCurrent = (): void => {
         stopNested()
-        const sessionId = currentSessionId(ctx)
-        if (sessionId === undefined) return
         const actx = ctx.sessions.scope(sessionId)
         if (actx === undefined) return
         const session = ctx.sessions.sessionOf(actx)
@@ -94,39 +90,51 @@ function createAppendAvailability(ctx: Context): HostObservable<boolean> {
   }
 }
 
-/** Register the localized root-overlay contribution. */
+/** Register scoped right-click actions and independent shell feedback. */
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, ko, es, fr, de, pt, ru }), 'ui-selection-actions: dictionaries')
-  const availability = createAppendAvailability(ctx)
+  const feedback = createSnapshotStore<{ seq: number; text: string } | null>(null)
+  let feedbackSeq = 0
   const restartDesktop = readDesktopRestart()
-  const injected = (): SelectionActionsInjected => ({
-    hooks: { appendAvailable: availability },
+  const askAside = registerSideConversations(ctx)
+  const injected = (sessionId: SessionId): SelectionActionsInjected => ({
+    hooks: { appendAvailable: createAppendAvailability(ctx, sessionId) },
+    notify: (text) => { feedback.set({ seq: ++feedbackSeq, text }) },
     copy: writeClipboard,
-    askInNewConversation: async (workspaceId, draft) => {
-      await ctx.uiWorkspace.openWorkspace(workspaceId, (sessionId) => {
-        const actx = ctx.sessions.scope(sessionId)
-        if (actx === undefined) throw new Error(`selection actions: session "${sessionId}" has no scope`)
-        ctx.conversation.input.for(actx).setDraft(draft)
+    askInNewConversation: async (workspaceId, text) => {
+      requireQuoteWorkspace(ctx, sessionId, workspaceId)
+      const initialization = { inserted: false }
+      await ctx.uiWorkspace.openWorkspace(workspaceId, (targetId) => {
+        insertConversationQuote(ctx, targetId, text)
+        initialization.inserted = true
       })
+      if (!initialization.inserted) throw new Error('selection actions: opening the conversation was cancelled')
     },
-    appendToCurrent: (sessionId, text) => {
-      const current = currentSessionId(ctx)
-      if (current !== sessionId || !appendAvailable(ctx, sessionId)) {
+    askInSideConversation: (workspaceId, text) => askAside(sessionId, workspaceId, text),
+    appendToCurrent: (targetSessionId, text) => {
+      if (targetSessionId !== sessionId || !appendAvailable(ctx, sessionId)) {
         throw new Error('selection actions: current composer is not editable')
       }
-      const actx = ctx.sessions.scope(sessionId)
-      if (actx === undefined) throw new Error(`selection actions: session "${sessionId}" has no scope`)
-      const input = ctx.conversation.input.for(actx)
-      input.setDraft(appendSelectionToDraft(input.state.getSnapshot().draft, text))
+      insertConversationQuote(ctx, sessionId, text)
     },
     ...(restartDesktop === undefined ? {} : { restartDesktop }),
   })
 
-  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
-    name: 'shell.overlay',
+  ctx.effect(() => ctx.uiConversation.interactions.register({
     id: 'selection-actions',
-    order: 10,
-    locale: NS,
-    inject: injected,
+    onInteraction(request) {
+      if (request.trigger !== 'contextmenu' || !request.hasSelection) return
+      const text = request.readText()
+      if (text === null || text.trim() === '') return
+      request.preventDefault()
+      request.open()
+    },
+  }), 'ui-selection-actions: text interactions')
+  ctx.slots.inject('conversation.chat.text-interaction', () => ctx.slots.register({
+    name: 'conversation.chat.text-interaction', key: 'selection-actions', locale: NS, inject: injected,
   }, SelectionActions))
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'selection-actions-feedback', locale: NS,
+    inject: () => ({ hooks: { feedback }, clear: () => { feedback.set(null) } }),
+  }, SelectionActionsFeedback))
 }

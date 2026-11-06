@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, createEvent, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { createPortal } from 'react-dom'
 import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
@@ -97,4 +97,21 @@ it('injects the hook through the root Slot and withdraws both its prop and retai
   expect(fireEvent.contextMenu(detached.getByRole('button'))).toBe(true)
   expect(fireEvent.keyDown(detached.getByRole('button'), { key: 'ContextMenu' })).toBe(true)
   expect(source.getSnapshot()).toBeNull()
+})
+
+it('leaves nested editable surfaces to the native editing menu', () => {
+  const open = vi.fn()
+  const { getTriggerProps } = createContextMenuBindings(open, () => true)
+  render(<div {...getTriggerProps(target('parent'))}>
+    <textarea aria-label="Draft" />
+    <div contentEditable suppressContentEditableWarning>Editable text<span contentEditable={false}>Reference chip</span></div>
+  </div>)
+  for (const element of [screen.getByRole('textbox'), screen.getByText('Editable text')]) {
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    fireEvent(element, event)
+    expect(event.defaultPrevented).toBe(false)
+  }
+  expect(open).not.toHaveBeenCalled()
+  fireEvent.contextMenu(screen.getByText('Reference chip'))
+  expect(open).toHaveBeenCalledWith(target('parent'), { x: 0, y: 0 })
 })

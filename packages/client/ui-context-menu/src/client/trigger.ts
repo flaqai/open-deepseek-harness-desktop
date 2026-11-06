@@ -16,6 +16,9 @@ export function createContextMenuBindings<Target extends object = ContextMenuTar
       if (target === undefined) return handlers
       const show = (event: SyntheticEvent<HTMLElement>, x: number, y: number): void => {
         if (event.defaultPrevented || !active()) return
+        const editable = event.target instanceof Element
+          ? event.target.closest('input, textarea, [contenteditable]') : null
+        if (editable !== null && editable.getAttribute('contenteditable') !== 'false') return
         const captured = typeof target === 'function' ? target() : target
         event.preventDefault()
         event.stopPropagation()

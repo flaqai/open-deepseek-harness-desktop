@@ -188,7 +188,7 @@ Chat view 在标记了 `data-text-interaction-source` 的业务节点上检测�
 
 `ctx.uiConversation.interactions` 将有效手势分发给插件注册项，并把对应组件交给 Chat view。操作展示位置在已有 Chat 列内绝对定位，限制在 composer seat 及其 dock 上方。外层容器保留组件的外描边与阴影，内部滚动由组件负责。选区滚出该可见范围时暂时隐藏操作，滚回后恢复。Chat 负责视口可见性、定位、外部指针按下、Escape、新选区、来源失效与卸载清理；主动关闭保留浏览器选区，布局变化不会重新打开操作。[Message quotes](../../session/message-quotes/README.zh.md) 负责引用的接管条件和插入。
 
-Markdown 文件、链接、图片、引用 chip 和工具文件控件将明确的右键目标转发给 [ui-context-menu](../ui-context-menu/README.zh.md)。文件目标保留工作目录和行号；普通链接点击仍遵循配置的打开偏好。
+Markdown 文件、链接、图片、引用 chip 和工具文件控件将明确的右键目标转发给 [ui-context-menu](../ui-context-menu/README.zh.md)。即使正文已被选中，文字交互处理器也不接管这些对象手势或已经处理过的右键事件。文件目标保留工作目录和行号；普通链接点击仍遵循配置的打开偏好。
 
 <a id="model-experience"></a>
 ## 模型体验

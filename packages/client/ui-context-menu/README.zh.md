@@ -25,6 +25,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+可编辑后代保留平台的编辑与拼写菜单；不可编辑引用卡片继续使用其注册的上下文操作。
+
 Web 应用 bundle 挂载此客户端插件。外部客户端插件在 `dsh.client.inject` 声明本包，导入 `/client` 类型，并注入 `contextMenus` 服务。`resolutionTimeoutMs` 限制每个提供方的准备时长（默认 1000ms）；超时后取消并忽略该提供方，显示失败提示。
 
 插件通过 `ctx.slots.provideRoot` 向每个 Slot 作用域注入 `useContextMenu`。组件调用一次 `const { getTriggerProps } = useContextMenu()`，再将 `getTriggerProps(target, handlers?)` 展开到各个触发元素上。该工厂是普通函数，可以在循环中调用；它统一处理右键、Shift+F10、ContextMenu 键、视口坐标及无滚动聚焦。已有处理器先运行，`preventDefault()` 保留其处理权，并防止组合或嵌套绑定重复处理。重复、输入法组合及无关按键保持原状。传入 `undefined` 保留原生行为，也可传入目标解析函数，在手势开始时读取业务状态。解析后的对象会在焦点变化前捕获。普通子组件通过 props 或现有 delegate 接收事件 props 或工厂，无需额外 React Context。特殊编辑器和 Canvas 可直接调用 `ctx.contextMenus.open()`。
@@ -57,7 +59,7 @@ Web 应用 bundle 挂载此客户端插件。外部客户端插件在 `dsh.clien
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-注册表将查询和回调生命周期与展示分离。共享覆盖层复用现有 Menu 原语，处理键盘移动、焦点返回、关闭、子菜单和视口定位。[注册表](src/client/registry.ts) 管理取消与排序；[目标和操作类型](src/client/types.ts) 定义公开字段。
+注册表将查询和回调生命周期与展示分离。共享覆盖层使用 `Menu contextual`，与选中文字和可编辑输入框菜单统一外观，并共享键盘移动、焦点返回、关闭、子菜单和视口定位。[注册表](src/client/registry.ts) 管理取消与排序；[目标和操作类型](src/client/types.ts) 定义公开字段。
 
 </details>
 

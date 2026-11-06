@@ -188,7 +188,7 @@ The Chat view detects selection and context-menu gestures on business nodes mark
 
 `ctx.uiConversation.interactions` dispatches eligible gestures to plugin registrations and supplies their component to the Chat view. The action surface is absolutely positioned inside the existing Chat column, above the composer seat and its dock. Its wrapper preserves the component's outer stroke and shadow; components own internal scrolling. Scrolling the selection outside that visible region temporarily hides the surface; returning restores it. Chat owns viewport visibility, placement, outside pointer presses, Escape, new selections, source invalidation, and disposal; explicit dismissal preserves browser selection and layout changes do not reopen the surface. [Message quotes](../../session/message-quotes/README.md) owns quotation eligibility and insertion.
 
-Markdown files, links, images, reference chips, and tool-file controls forward explicit right-click targets to [ui-context-menu](../ui-context-menu/README.md). File targets retain their working directory and line; ordinary link clicks retain the configured opening preference.
+Markdown files, links, images, reference chips, and tool-file controls forward explicit right-click targets to [ui-context-menu](../ui-context-menu/README.md). Text-interaction handlers leave these object gestures and already-handled context-menu events alone, even when prose is selected. File targets retain their working directory and line; ordinary link clicks retain the configured opening preference.
 
 <a id="model-experience"></a>
 ## Model Experience

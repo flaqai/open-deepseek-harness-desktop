@@ -25,6 +25,8 @@ Add actions to right-click menus without importing a React component. Targets re
 <a id="use-this-package"></a>
 ## Use this package
 
+Editable descendants retain the platform editing and spelling menu. Non-editable reference chips retain their registered context actions.
+
 The Web application bundle mounts this Client plugin. External Client plugins declare the package in `dsh.client.inject`, import its `/client` types, and inject the `contextMenus` service. `resolutionTimeoutMs` bounds each provider’s preparation (1000ms by default); timed-out providers are aborted and omitted with visible failure feedback.
 
 The plugin injects `useContextMenu` into every Slot scope through `ctx.slots.provideRoot`. Call `const { getTriggerProps } = useContextMenu()` once in the component and spread `getTriggerProps(target, handlers?)` onto each trigger. The factory is an ordinary function and can run in loops. It handles right-click, Shift+F10, the ContextMenu key, viewport coordinates, and focus without scrolling. Existing handlers run first; `preventDefault()` keeps their ownership and prevents duplicate handling by composed or nested bindings. Repeated, composing, and unrelated key events remain untouched. Pass `undefined` to retain native behavior, or a target resolver to read business state when the gesture begins. The resolved object is captured before focus changes. Plain children receive event props or a factory through props or an existing delegate; no additional React Context is needed. Special editors and canvases can call `ctx.contextMenus.open()` directly.
@@ -57,7 +59,7 @@ The optional keyed `contextMenu.content` Slot hosts component contributions. Exi
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The registry separates resolution and callback lifetimes from presentation. The shared overlay uses the existing Menu primitive for keyboard movement, focus return, dismissal, submenus, and viewport positioning. [Registry](src/client/registry.ts) owns cancellation and ordering; [target and action types](src/client/types.ts) own the public fields.
+The registry separates resolution and callback lifetimes from presentation. The shared overlay uses `Menu contextual` for the same appearance as selected-text and editable-field menus, with shared keyboard movement, focus return, dismissal, submenus, and viewport positioning. [Registry](src/client/registry.ts) owns cancellation and ordering; [target and action types](src/client/types.ts) own the public fields.
 
 </details>
 

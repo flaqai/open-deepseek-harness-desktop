@@ -8,14 +8,50 @@
     "src"
   ],
   "references": [
-    { "path": "../locale/tsconfig.client.json" },
-    { "path": "../../../vendor/cordis" },
-    { "path": "../ui-slots" },
-    { "path": "../ui-primitives" },
-    { "path": "../ui-renderer" },
-    { "path": "../ui-layout" },
-    { "path": "../ui-conversation/tsconfig.client.json" },
-    { "path": "../ui-session" },
-    { "path": "../ui-workspace" }
+    {
+      "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-layout"
+    },
+    {
+      "path": "../ui-conversation/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-session"
+    },
+    {
+      "path": "../ui-workspace"
+    },
+    {
+      "path": "../ui-chat/tsconfig.client.json"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../ui-sidebar-right"
+    },
+    {
+      "path": "../resources"
+    },
+    {
+      "path": "../../api/remote-access/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/workspace-controller/tsconfig.client.json"
+    }
   ]
 }
