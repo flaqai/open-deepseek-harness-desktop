@@ -188,7 +188,7 @@ interface BindingRecord {
 /** Root service owning Conversation registries and per-Session bindings. */
 export class UiConversation extends Service {
   /** Model-history adapters owned by this Client Conversation service instance. */
-  readonly editingHistory = new EditableHistoryRegistry()
+  readonly editingHistory: EditableHistoryRegistry = new EditableHistoryRegistry()
   /** Registry of event matchers and target snapshot builders. */
   readonly events: ConversationEventRegistry
   /** Registry of target View definitions. */

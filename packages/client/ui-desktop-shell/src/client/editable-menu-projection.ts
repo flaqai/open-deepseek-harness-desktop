@@ -33,7 +33,10 @@ export class DesktopEditableMenuProjection {
     this.state.snapshot = snapshot
     for (const listener of this.state.listeners) listener()
   }
-  /** Start the sole native event subscription. @returns Lifecycle cleanup invalidating pending actions. */
+  /**
+   * Start the sole native event subscription.
+   * @returns Lifecycle cleanup invalidating pending actions.
+   */
   start(): () => void {
     const stop = this.bridge.subscribe((next) => {
       this.state.revision++
