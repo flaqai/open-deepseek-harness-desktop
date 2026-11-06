@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Native Computer Use",
+    "description": "Carries the native CUA provider; selecting this bundle enables its tools and may require system permissions."
+  }
+}

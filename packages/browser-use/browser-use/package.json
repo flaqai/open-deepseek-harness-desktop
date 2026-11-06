@@ -24,6 +24,10 @@
     "./brand": {
       "types": "./lib/types/brand.d.ts",
       "default": "./lib/types/brand.js"
+    },
+    "./local-chromium": {
+      "types": "./lib/types/local-chromium.d.ts",
+      "default": "./lib/types/local-chromium.js"
     }
   },
   "files": [

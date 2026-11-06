@@ -1,0 +1,8 @@
+- insert:
+    - id: browser-use
+      name: '@deepseek-ai/dsh-browser-use'
+    - id: browser-use-provider
+      name: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp'
+      config:
+        mode: launch
+        headless: false

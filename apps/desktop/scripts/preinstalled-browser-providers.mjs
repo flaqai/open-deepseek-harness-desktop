@@ -31,6 +31,8 @@ function manifest(anchor, name, root) {
 export function verifyPreinstalledBrowserProviders(root) {
   const anchor = join(root, 'package.json')
   const version = JSON.parse(readFileSync(anchor, 'utf8')).version
+  const bundle = manifest(anchor, '@deepseek-ai/dsh-browser-use-bundle', root)
+  if (bundle.value.version !== version) throw new Error('browser preinstall: optional bundle does not match Harness')
   manifest(anchor, '@deepseek-ai/dsh-browser-use', root)
   const providers = [
     [PREINSTALLED_BROWSER_PROVIDERS[0], '@playwright/mcp'],
@@ -75,6 +77,8 @@ export function verifyPreinstalledComputerUse(root, target) {
   if (selected === undefined) throw new Error(`computer preinstall: unsupported target ${target}`)
   const anchor = join(root, 'package.json')
   const version = JSON.parse(readFileSync(anchor, 'utf8')).version
+  const bundle = manifest(anchor, '@deepseek-ai/dsh-computer-use-native-bundle', root)
+  if (bundle.value.version !== version) throw new Error('computer preinstall: optional bundle does not match Harness')
   const provider = manifest(anchor, '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native', root)
   const service = manifest(anchor, '@deepseek-ai/dsh-computer-use', root)
   if (provider.value.version !== version || service.value.version !== version) {

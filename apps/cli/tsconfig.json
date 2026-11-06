@@ -90,7 +90,7 @@
       "path": "../../packages/util/atomic-write"
     },
     {
-      "path": "../../packages/experimental/browser-use-runtime"
+      "path": "../../packages/browser-use/browser-use"
     }
   ]
 }

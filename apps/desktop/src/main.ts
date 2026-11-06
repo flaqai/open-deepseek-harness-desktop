@@ -28,7 +28,7 @@ import { appendBundledPluginFailure, bundledPluginSeedIsSettled, seedBundledPlug
 import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
 import { FirstStartPreparation } from './first-start-preparation.ts'
 import { BundledPresetVersionGate } from './bundled-preset-version-gate.ts'
-import { resolveLocalChromiumExecutable } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
+import { resolveLocalChromiumExecutable } from '@deepseek-ai/dsh-browser-use/local-chromium'
 import { browserDefaultNeeded, configureBrowserDefaultCandidate } from './browser-defaults.ts'
 import { applyFreshProfileDefaults } from './fresh-profile-defaults.ts'
 import { legacyScheduleMigrationNeeded, migrateLegacyScheduleCandidate } from './legacy-schedule-migration.ts'

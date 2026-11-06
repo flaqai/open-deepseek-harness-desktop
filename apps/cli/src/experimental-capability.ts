@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { resolveLocalChromiumExecutable } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
+import { resolveLocalChromiumExecutable } from '@deepseek-ai/dsh-browser-use/local-chromium'
 import { loadOptionalPatches, resolveProfileDir } from '@deepseek-ai/dsh-app-boot'
 
 export type ExperimentalCapabilityRecipe =

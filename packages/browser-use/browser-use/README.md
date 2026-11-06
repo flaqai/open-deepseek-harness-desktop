@@ -11,6 +11,9 @@ English | [中文](README.zh.md)
 
 A deployment can enable one browser-use provider at a time. Loading another provider fails with the registered provider name. Each provider supplies its own tools and owns browser sessions. This package adds no model-visible tools or browser operations.
 
+
+Local executable discovery is exported from `@deepseek-ai/dsh-browser-use/local-chromium`. CLI and Desktop use this pure filesystem helper without loading an experimental backend. It never installs a browser.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

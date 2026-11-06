@@ -68,11 +68,13 @@ export const OPTIONAL_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-experimental-plugin-market-bundle',
   '@deepseek-ai/dsh-experimental-tool-worktree',
   '@deepseek-ai/dsh-experimental-forge-bundle',
+  '@deepseek-ai/dsh-cua-bundle',
+  '@deepseek-ai/dsh-browser-use-bundle',
+  '@deepseek-ai/dsh-computer-use-native-bundle',
 ]
 
 /** Public DSH release members available through the ordinary on-demand bundle installer. */
 export const ON_DEMAND_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-subagent-claude-code',
   '@deepseek-ai/dsh-subagent-codex',
-  '@deepseek-ai/dsh-cua-bundle',
 ]

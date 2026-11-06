@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Browser Use connectors",
+    "description": "Carries Playwright and DevTools connectors; selecting this bundle enables Playwright with a local browser."
+  }
+}

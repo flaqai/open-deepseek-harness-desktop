@@ -32,6 +32,8 @@ Edit this package when the installation's bundle selection or the plugin manager
 
 ### Optional and retired bundles
 
+Desktop carries browser connectors and native Computer Use through hidden optional bundles. The existing macOS CUA bundle is also carried as optional, rather than listed as on-demand. None is selected by a default CLI template.
+
 `OPTIONAL_BUNDLES` names the bundles the installation ships for a person to switch on. Each must be a runtime dependency of the `dsh` app that declares `dsh.bundle.patch`, an icon, and `./locale/*.json` display metadata, and no template may select it; [`verify-default-product-isolation`](../../../scripts/verify-default-product-isolation.ts) checks these rules. The [plugin manager](../../boot/plugin-manager/README.md#use-this-package) reports these bundles as `optional`. `RETIRED_BUNDLES` names bundles the installation no longer carries; app-boot removes them from a profile's bundle list when it loads the profile.
 
 <a id="plugin-manager-lists"></a>

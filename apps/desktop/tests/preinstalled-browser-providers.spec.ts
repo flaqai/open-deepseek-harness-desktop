@@ -9,6 +9,7 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'browser offline ')); roots.push(root)
   writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '0.2.2-alpha.3' }))
   for (const [name, dependencies] of [
+    ['@deepseek-ai/dsh-browser-use-bundle', {}],
     ['@deepseek-ai/dsh-browser-use', {}],
     [PREINSTALLED_BROWSER_PROVIDERS[0], { '@playwright/mcp': '0.0.80' }],
     [PREINSTALLED_BROWSER_PROVIDERS[1], { 'chrome-devtools-mcp': '1.9.0' }],
@@ -38,4 +39,9 @@ it('refuses mismatched provider versions', () => {
     name: PREINSTALLED_BROWSER_PROVIDERS[0], version: '0.2.0-rc.2',
   }))
   expect(() => { verifyPreinstalledBrowserProviders(root) }).toThrow('does not match Harness')
+})
+
+it('rejects a missing optional delivery bundle', () => {
+  const root = fixture(); rmSync(join(root, 'node_modules/@deepseek-ai/dsh-browser-use-bundle'), { recursive: true })
+  expect(() => { verifyPreinstalledBrowserProviders(root) }).toThrow('missing offline dependency')
 })

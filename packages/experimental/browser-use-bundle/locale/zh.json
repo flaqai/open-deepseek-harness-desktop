@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "浏览器接入",
+    "description": "携带 Playwright 与 DevTools 接入；选择组合包后使用本机浏览器启用 Playwright。"
+  }
+}

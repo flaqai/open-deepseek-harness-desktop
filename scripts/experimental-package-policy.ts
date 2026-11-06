@@ -6,6 +6,8 @@
  * experimental status keeps their names.
  */
 export const EXPERIMENTAL_PACKAGE_NAME_EXCEPTIONS: Readonly<Record<string, string>> = {
+  'packages/experimental/browser-use-bundle': '@deepseek-ai/dsh-browser-use-bundle',
+  'packages/experimental/computer-use-native-bundle': '@deepseek-ai/dsh-computer-use-native-bundle',
   'packages/experimental/cua': '@deepseek-ai/dsh-cua',
   'packages/experimental/cua-bundle': '@deepseek-ai/dsh-cua-bundle',
   'packages/experimental/tool-session-query': '@deepseek-ai/dsh-tool-session-query',

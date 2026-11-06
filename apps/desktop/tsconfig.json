@@ -37,7 +37,7 @@
       "path": "../../packages/client/ui-file-actions"
     },
     {
-      "path": "../../packages/experimental/browser-use-runtime"
+      "path": "../../packages/browser-use/browser-use"
     }
   ]
 }

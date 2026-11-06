@@ -287,6 +287,8 @@
     { "path": "./packages/experimental/ralph-bundle" },
     { "path": "./packages/experimental/terminal-bundle" },
     { "path": "./packages/experimental/badge-skill-bundle" },
+    { "path": "./packages/experimental/browser-use-bundle" },
+    { "path": "./packages/experimental/computer-use-native-bundle" },
     { "path": "./packages/experimental/session-titles-bundle" },
     { "path": "./packages/experimental/translator" },
     { "path": "./packages/client/product-analytics/tsconfig.host.json" },

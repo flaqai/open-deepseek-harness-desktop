@@ -17,6 +17,7 @@ function fixture(target: keyof typeof targets) {
   const nativeName = `@trycua/cua-driver-${suffix}`
   writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '0.2.2-alpha.3' }))
   const packages = [
+    ['@deepseek-ai/dsh-computer-use-native-bundle', '0.2.2-alpha.3', {}],
     ['@deepseek-ai/dsh-computer-use', '0.2.2-alpha.3', {}],
     ['@deepseek-ai/dsh-experimental-computer-use-cua-driver-native', '0.2.2-alpha.3',
       { dependencies: { '@trycua/cua-driver': '0.28.0' } }],
