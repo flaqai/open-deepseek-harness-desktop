@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-computer-use-native-bundle",
   "description": "Carries the native CUA provider; selecting this bundle enables its tools and may require system permissions.",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"

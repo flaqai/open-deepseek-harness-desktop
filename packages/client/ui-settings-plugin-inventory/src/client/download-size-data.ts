@@ -14,34 +14,34 @@ export const downloadSizeData: {
   }>
 } = {
   'schema': 1,
-  'generatedAt': '2026-11-05T09:14:45.784Z',
+  'generatedAt': '2026-11-06T02:50:56.358Z',
   'scope': 'npm-tarballs-no-cache',
   'choices': {
     'browser-use-playwright-attach': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3',
+        '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.1',
       ],
       'targets': {
         'darwin-arm64': {
-          'downloadBytes': 4113479,
+          'downloadBytes': 4113259,
           'additionalUnknown': false,
           'packageCount': 8,
           'warnings': [],
         },
         'darwin-x64': {
-          'downloadBytes': 4113479,
+          'downloadBytes': 4113259,
           'additionalUnknown': false,
           'packageCount': 8,
           'warnings': [],
         },
         'win32-x64': {
-          'downloadBytes': 4113479,
+          'downloadBytes': 4113259,
           'additionalUnknown': false,
           'packageCount': 8,
           'warnings': [],
         },
         'linux-x64': {
-          'downloadBytes': 4113479,
+          'downloadBytes': 4113259,
           'additionalUnknown': false,
           'packageCount': 8,
           'warnings': [],
@@ -50,29 +50,29 @@ export const downloadSizeData: {
     },
     'browser-use-devtools-attach': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-alpha.3',
+        '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.1',
       ],
       'targets': {
         'darwin-arm64': {
-          'downloadBytes': 2531487,
+          'downloadBytes': 2531268,
           'additionalUnknown': false,
           'packageCount': 6,
           'warnings': [],
         },
         'darwin-x64': {
-          'downloadBytes': 2531487,
+          'downloadBytes': 2531268,
           'additionalUnknown': false,
           'packageCount': 6,
           'warnings': [],
         },
         'win32-x64': {
-          'downloadBytes': 2531487,
+          'downloadBytes': 2531268,
           'additionalUnknown': false,
           'packageCount': 6,
           'warnings': [],
         },
         'linux-x64': {
-          'downloadBytes': 2531487,
+          'downloadBytes': 2531268,
           'additionalUnknown': false,
           'packageCount': 6,
           'warnings': [],
@@ -174,30 +174,30 @@ export const downloadSizeData: {
     },
     'browser-use-playwright-visible': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3',
-        '@deepseek-ai/dsh-browser-use@0.2.2-alpha.3',
+        '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.1',
+        '@deepseek-ai/dsh-browser-use@0.2.2-rc.1',
       ],
       'targets': {
         'darwin-arm64': {
-          'downloadBytes': 4119899,
+          'downloadBytes': 4119674,
           'additionalUnknown': false,
           'packageCount': 9,
           'warnings': [],
         },
         'darwin-x64': {
-          'downloadBytes': 4119899,
+          'downloadBytes': 4119674,
           'additionalUnknown': false,
           'packageCount': 9,
           'warnings': [],
         },
         'win32-x64': {
-          'downloadBytes': 4119899,
+          'downloadBytes': 4119674,
           'additionalUnknown': false,
           'packageCount': 9,
           'warnings': [],
         },
         'linux-x64': {
-          'downloadBytes': 4119899,
+          'downloadBytes': 4119674,
           'additionalUnknown': false,
           'packageCount': 9,
           'warnings': [],
@@ -206,30 +206,30 @@ export const downloadSizeData: {
     },
     'browser-use-devtools-visible': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-alpha.3',
-        '@deepseek-ai/dsh-browser-use@0.2.2-alpha.3',
+        '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.1',
+        '@deepseek-ai/dsh-browser-use@0.2.2-rc.1',
       ],
       'targets': {
         'darwin-arm64': {
-          'downloadBytes': 2537907,
+          'downloadBytes': 2537683,
           'additionalUnknown': false,
           'packageCount': 7,
           'warnings': [],
         },
         'darwin-x64': {
-          'downloadBytes': 2537907,
+          'downloadBytes': 2537683,
           'additionalUnknown': false,
           'packageCount': 7,
           'warnings': [],
         },
         'win32-x64': {
-          'downloadBytes': 2537907,
+          'downloadBytes': 2537683,
           'additionalUnknown': false,
           'packageCount': 7,
           'warnings': [],
         },
         'linux-x64': {
-          'downloadBytes': 2537907,
+          'downloadBytes': 2537683,
           'additionalUnknown': false,
           'packageCount': 7,
           'warnings': [],
@@ -238,30 +238,30 @@ export const downloadSizeData: {
     },
     'computer-use-native': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-alpha.3',
-        '@deepseek-ai/dsh-computer-use@0.2.2-alpha.3',
+        '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.1',
+        '@deepseek-ai/dsh-computer-use@0.2.2-rc.1',
       ],
       'targets': {
         'darwin-arm64': {
-          'downloadBytes': 22590903,
+          'downloadBytes': 22590778,
           'additionalUnknown': false,
           'packageCount': 26,
           'warnings': [],
         },
         'darwin-x64': {
-          'downloadBytes': 22606765,
+          'downloadBytes': 22606640,
           'additionalUnknown': false,
           'packageCount': 26,
           'warnings': [],
         },
         'win32-x64': {
-          'downloadBytes': 13494988,
+          'downloadBytes': 13494863,
           'additionalUnknown': false,
           'packageCount': 26,
           'warnings': [],
         },
         'linux-x64': {
-          'downloadBytes': 17863514,
+          'downloadBytes': 17863389,
           'additionalUnknown': false,
           'packageCount': 26,
           'warnings': [],
@@ -310,30 +310,30 @@ export const downloadSizeData: {
     },
     'codex': {
       'specs': [
-        '@deepseek-ai/dsh-subagent-codex@0.2.2-alpha.3',
+        '@deepseek-ai/dsh-subagent-codex@0.2.2-rc.1',
         '@openai/codex@0.153.4',
       ],
       'targets': {
         'darwin-arm64': {
-          'downloadBytes': 116569235,
+          'downloadBytes': 116569184,
           'additionalUnknown': false,
           'packageCount': 10,
           'warnings': [],
         },
         'darwin-x64': {
-          'downloadBytes': 124440956,
+          'downloadBytes': 124440905,
           'additionalUnknown': false,
           'packageCount': 10,
           'warnings': [],
         },
         'win32-x64': {
-          'downloadBytes': 142392309,
+          'downloadBytes': 142392258,
           'additionalUnknown': false,
           'packageCount': 10,
           'warnings': [],
         },
         'linux-x64': {
-          'downloadBytes': 130169060,
+          'downloadBytes': 130169009,
           'additionalUnknown': false,
           'packageCount': 10,
           'warnings': [],
@@ -342,30 +342,30 @@ export const downloadSizeData: {
     },
     'claude-code': {
       'specs': [
-        '@deepseek-ai/dsh-subagent-claude-code@0.2.2-alpha.3',
+        '@deepseek-ai/dsh-subagent-claude-code@0.2.2-rc.1',
         '@anthropic-ai/claude-agent-sdk@0.3.263',
       ],
       'targets': {
         'darwin-arm64': {
-          'downloadBytes': 93751918,
+          'downloadBytes': 93751884,
           'additionalUnknown': false,
           'packageCount': 108,
           'warnings': [],
         },
         'darwin-x64': {
-          'downloadBytes': 97752632,
+          'downloadBytes': 97752598,
           'additionalUnknown': false,
           'packageCount': 108,
           'warnings': [],
         },
         'win32-x64': {
-          'downloadBytes': 106272902,
+          'downloadBytes': 106272868,
           'additionalUnknown': false,
           'packageCount': 108,
           'warnings': [],
         },
         'linux-x64': {
-          'downloadBytes': 103425917,
+          'downloadBytes': 103425883,
           'additionalUnknown': false,
           'packageCount': 108,
           'warnings': [],

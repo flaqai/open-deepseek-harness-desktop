@@ -25,7 +25,7 @@ describe('external tool compatibility bridge', () => {
   it('uses the exact embedded browser fallback without a desktop bridge', async () => {
     await expect(resolveExternalToolInstallRequest('claude-code')).resolves.toEqual({
       profile: 'web',
-      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.2-alpha.3',
+      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.2-rc.1',
     })
   })
 
@@ -50,12 +50,12 @@ describe('external tool compatibility bridge', () => {
   })
 
   it.each([
-    ['browser-use-playwright', '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3'],
-    ['browser-use-devtools', '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-alpha.3'],
+    ['browser-use-playwright', '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.1'],
+    ['browser-use-devtools', '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.1'],
     ['browser-use-stagehand', '@deepseek-ai/dsh-experimental-browser-use-stagehand-native@0.2.1-alpha.1'],
-    ['computer-use-native', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-alpha.3'],
+    ['computer-use-native', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.1'],
     ['computer-use-mcp', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.1-alpha.1'],
-  ] as const)('resolves %s to its reviewed alpha.1 provider', async (toolId, packageSpec) => {
+  ] as const)('resolves %s to its reviewed provider version', async (toolId, packageSpec) => {
     await expect(resolveExternalToolInstallRequest(toolId)).resolves.toEqual({
       profile: 'web',
       packageSpec,
@@ -68,7 +68,7 @@ describe('external tool compatibility bridge', () => {
       'browser-use-playwright-visible',
     )).resolves.toEqual({
       profile: 'web',
-      packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3',
+      packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.1',
       experimentalCapability: 'browser-use-playwright-visible',
     })
   })

@@ -698,13 +698,13 @@ describe('PluginInventoryGateway', () => {
     for (const name of ['@deepseek-ai/dsh-browser-use', '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp']) {
       const dir = join(root, 'node_modules', name)
       mkdirSync(dir, { recursive: true })
-      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, version: '0.2.2-alpha.3', main: 'index.js' }))
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, version: '0.2.2-rc.1', main: 'index.js' }))
       writeFileSync(join(dir, 'index.js'), '')
     }
     const { ctx, inventory, subprocess } = await harness(baseUrl)
     await ctx.plugin(PluginPackages)
     expect((await inventory.externalTools()).preinstalledBrowserBackends).toContain('playwright')
-    inventory.startInstall({ profile: 'web', packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3',
+    inventory.startInstall({ profile: 'web', packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.1',
       experimentalCapability: 'browser-use-playwright-visible' })
     await expect.poll(() => subprocess.spawns.length).toBe(1)
     expect(subprocess.spawns[0]?.argv).not.toContain('add')
@@ -717,14 +717,14 @@ describe('PluginInventoryGateway', () => {
     for (const name of ['@deepseek-ai/dsh-computer-use', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native']) {
       const dir = join(root, 'node_modules', name)
       mkdirSync(dir, { recursive: true })
-      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, version: '0.2.2-alpha.3', main: 'index.js' }))
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, version: '0.2.2-rc.1', main: 'index.js' }))
       writeFileSync(join(dir, 'index.js'), 'throw new Error("metadata must not activate Computer Use")')
     }
     const { ctx, inventory, subprocess } = await harness(baseUrl)
     await ctx.plugin(PluginPackages)
     expect((await inventory.externalTools()).preinstalledComputerNative).toBe(true)
     expect(subprocess.spawns).toEqual([])
-    inventory.startInstall({ profile: 'web', packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-alpha.3',
+    inventory.startInstall({ profile: 'web', packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.1',
       experimentalCapability: 'computer-use-native' })
     await expect.poll(() => subprocess.spawns.length).toBe(1)
     expect(subprocess.spawns[0]?.argv).not.toContain('add')
@@ -733,7 +733,7 @@ describe('PluginInventoryGateway', () => {
 
   it('installs and composes a reviewed Browser Use provider as one guarded recipe', async () => {
     const { inventory, subprocess } = await harness()
-    const packageSpec = '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3'
+    const packageSpec = '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.1'
     const started = inventory.startInstall({
       profile: 'web',
       packageSpec,
@@ -741,7 +741,7 @@ describe('PluginInventoryGateway', () => {
     })
     await expect.poll(() => inventory.getInstall(started.installId).phase).toBe('succeeded')
     expect(subprocess.spawns.map(spawn => spawn.argv.slice(-2))).toEqual([
-      ['add', '@deepseek-ai/dsh-browser-use@0.2.2-alpha.3'],
+      ['add', '@deepseek-ai/dsh-browser-use@0.2.2-rc.1'],
       ['add', packageSpec],
       ['configure-experimental-capability', 'browser-use-playwright-visible'],
     ])

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-browser-use-bundle",
   "description": "Carries Playwright and DevTools connectors; selecting this bundle enables Playwright with a local browser.",
-  "version": "0.2.2-alpha.3",
+  "version": "0.2.2-rc.1",
   "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"
