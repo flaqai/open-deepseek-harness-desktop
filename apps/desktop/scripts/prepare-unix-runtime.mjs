@@ -1,5 +1,6 @@
 /** Prepare expanded macOS or Linux runtime resources and a portable preset Profile. */
 
+import { verifyPreinstalledBrowserProviders, verifyPreinstalledComputerUse } from './preinstalled-browser-providers.mjs'
 import { chmod, cp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -14,6 +15,9 @@ import { createPackagedArchive } from './create-packaged-archive.mjs'
 import { pruneDesktopRuntime, removeExtraneousWorkspaceLinks } from './runtime-file-policy.mjs'
 import { preservePnpmWorkspaceState } from '../../../scripts/preserve-pnpm-workspace-state.mjs'
 import { officePackageDirectories, selectOfficeEngine, verifyBundledOfficeIdentity } from '../../../scripts/libreoffice-packages.mjs'
+
+process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'
+process.env.PUPPETEER_SKIP_DOWNLOAD = 'true'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
@@ -302,6 +306,8 @@ const pruned = await pruneDesktopRuntime(join(staging, 'node_modules'), {
 }, officeEngine)
 console.log(`prepare-unix-runtime: pruned ${pruned.packages} foreign packages, ${pruned.directories} directories, and ${pruned.files} files`)
 await stagePackageRuntime()
+verifyPreinstalledBrowserProviders(staging)
+verifyPreinstalledComputerUse(staging, target)
 await verifyRuntime(officeEngine)
 await preparePrebuiltProfile({
   destination: prebuilt,

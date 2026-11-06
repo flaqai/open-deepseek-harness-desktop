@@ -25,7 +25,9 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-在创建或恢复 Session 前，将以下条目挂载到已提供 Agent、工具、系统提示词和工作目录服务的 profile 组合中。加载或重新加载此提供方不会接管已经活动的 Session。浏览器安装遵循上游运行时；使用 `executablePath` 选择已有 Chromium 安装。
+启动模式使用本机已有的 Chrome 或 Chromium 可执行文件，依次查找系统、用户安装位置及 PATH；可通过 `CHROME_PATH`、`CHROMIUM_PATH` 或显式 `executablePath` 指定安装。缺少浏览器时返回安装提示，不下载浏览器。连接模式不查找或启动本机浏览器。
+
+在创建或恢复 Session 前，将以下条目挂载到已提供 Agent、工具、系统提示词和工作目录服务的 profile 组合中。加载或重新加载此提供方不会接管已经活动的 Session。启动浏览器需要本机已有的 Chrome 或 Chromium。
 
 ```yaml
 - name: '@deepseek-ai/dsh-browser-use'
@@ -41,7 +43,7 @@ kind: "package-reference"
 |---|---|---|
 | `mode` | 必填 | `launch` 或 `attach`，在本次提供方激活期间固定 |
 | `headless` | `true` | 启动时不显示窗口 |
-| `executablePath` | 上游发现 | 启动使用的 Chromium 可执行文件 |
+| `executablePath` | 本机安装发现 | 启动使用的 Chrome 或 Chromium 可执行文件 |
 | `endpoint` | attach 时必填 | 已有浏览器调试端点 |
 | `toolCallTimeoutMs` | MCP 客户端默认值 | 单次调用超时，单位为毫秒 |
 

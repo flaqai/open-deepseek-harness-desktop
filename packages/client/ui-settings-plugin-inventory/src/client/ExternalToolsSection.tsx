@@ -23,6 +23,8 @@ import { ExternalToolIcon, type ExternalToolIconId } from './ExternalToolIcon.ts
 import { WorkspaceRuntimesSection } from './WorkspaceRuntimesSection.tsx'
 import type { WorkspaceRuntimeInjected } from './workspace-runtime-bridge.ts'
 
+import { downloadSizeEstimate, formatDownloadSize } from './download-size.ts'
+
 interface ToolDefinition {
   readonly id: ExternalToolIconId
   readonly name: string
@@ -126,6 +128,7 @@ export interface ExternalToolsSectionInjected extends WorkspaceRuntimeInjected {
   installExternalTool: (
     toolId: InstallableExternalToolId,
     experimentalCapability?: ExperimentalCapabilityRecipe,
+    browserEndpoint?: string,
   ) => Promise<PluginInstallSnapshot>
   getInstall: (installId: PluginInstallId) => Promise<PluginInstallSnapshot>
   getInstallOutput: (installId: PluginInstallId, offset: number) => Promise<PluginInstallOutputRead>
@@ -178,6 +181,22 @@ function progressCopy(progress: PluginInstallProgress | undefined, t: ExternalTo
 /** Render the dedicated connection center in Settings navigation. */
 export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNode {
   const { list, externalTools, setExternalTool, installExternalTool, getInstall, getInstallOutput, restart, t } = props
+  const downloadLabel = (choices: readonly string[], average = false, id?: string): ReactNode => {
+    const locallyAvailable = (choice: string): boolean => {
+      if (state.phase !== 'ready') return false
+      if (choice === 'computer-use-native') return state.managed.preinstalledComputerNative === true
+      const backend = choice.startsWith('browser-use-playwright-') ? 'playwright'
+        : choice.startsWith('browser-use-devtools-') ? 'devtools' : undefined
+      return backend !== undefined && state.managed.preinstalledBrowserBackends?.includes(backend) === true
+    }
+    const bundled = choices.every(locallyAvailable)
+    if (bundled) return <span id={id} className={css.downloadSize}>{t('external.capability.browser.preinstalled')}</span>
+    const estimate = downloadSizeEstimate(choices, choices.filter(locallyAvailable))
+    return <span id={id} className={css.downloadSize} title={`${t('external.download.notice')}${estimate?.additionalUnknown ? ` ${t('external.download.additional')}` : ''}`}>
+      {t(average ? 'external.download.average' : 'external.download.label')}: {estimate ? formatDownloadSize(estimate) : t('external.download.unknown')}
+      {estimate?.additionalUnknown ? <small className={css.downloadCaveat}>{t('external.download.additional')}</small> : null}
+    </span>
+  }
   const [request, setRequest] = useState(0)
   const [state, setState] = useState<PageState>({ phase: 'loading' })
   const [installs, setInstalls] = useState<Readonly<Record<string, PluginInstallSnapshot>>>({})
@@ -192,6 +211,7 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
   const [progressTool, setProgressTool] = useState<ToolDefinition['id'] | null>(null)
   const [capabilityDialog, setCapabilityDialog] = useState<ExperimentalCapabilityId | null>(null)
   const [browserBackend, setBrowserBackend] = useState<'playwright' | 'devtools' | 'stagehand'>('playwright')
+  const [browserEndpoint, setBrowserEndpoint] = useState('')
   const [browserMode, setBrowserMode] = useState<'launch' | 'attach'>('launch')
   const [computerBackend, setComputerBackend] = useState<'native' | 'mcp'>('native')
   const [autoReviewAcknowledged, setAutoReviewAcknowledged] = useState(false)
@@ -310,7 +330,9 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
     try {
       const snapshot = experimentalCapability === undefined
         ? await installExternalTool(installId)
-        : await installExternalTool(installId, experimentalCapability)
+        : capabilityId === 'browser-use' && browserMode === 'attach'
+          ? await installExternalTool(installId, experimentalCapability, browserEndpoint.trim())
+          : await installExternalTool(installId, experimentalCapability)
       setTranscripts(previous => ({
         ...previous,
         [capabilityId]: { text: '', offset: 0, lossy: false, settled: false },
@@ -411,7 +433,8 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
         {EXPERIMENTAL_CAPABILITIES.map((capability) => {
           const entries = state.inventory.entries.filter(entry => capability.moduleNames.includes(entry.moduleName))
           const active = entries.some(entry => entry.enabled && entry.fiberPhase === 'active')
-          const installed = entries.length > 0
+          const installed = entries.length > 0 || (capability.id === 'browser-use' && (state.managed.preinstalledBrowserBackends?.length ?? 0) > 0)
+            || (capability.id === 'computer-use' && state.managed.preinstalledComputerNative === true)
           const installState = installs[capability.id]
           const installSucceeded = installState?.phase === 'succeeded' || installState?.phase === 'repaired'
           const restartRequired = installSucceeded && composedInstalls[capability.id] === true
@@ -424,9 +447,9 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
               ? COMPUTER_PROVIDER_INSTALL_IDS[computerBackend]
               : 'auto-review'
           const selectedRecipe: ExperimentalCapabilityRecipe | undefined = capability.id === 'browser-use'
-            ? browserMode === 'launch' && browserBackend === 'playwright'
+            ? browserBackend === 'playwright'
               ? 'browser-use-playwright-visible'
-              : browserMode === 'launch' && browserBackend === 'devtools'
+              : browserBackend === 'devtools'
                 ? 'browser-use-devtools-visible'
                 : undefined
             : capability.id === 'computer-use'
@@ -456,8 +479,14 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
               <div className={css.cardBody}>
                 <div className={css.toolTitle}><h3>{capability.name}</h3></div>
                 <p>{t(capability.descriptionKey)}</p>
+                {capability.id === 'browser-use' && installState?.phase === 'failed'
+                  && /(?:Chrome or Chromium|system Chrome)/u.test(installState.diagnostic ?? '')
+                  ? <p role="alert">{t('external.capability.browser.missingBrowser')}</p> : null}
               </div>
               <div className={css.cardAction}>
+                {downloadLabel(capability.id === 'browser-use'
+                  ? [`browser-use-playwright-${browserMode === 'launch' ? 'visible' : 'attach'}`, `browser-use-devtools-${browserMode === 'launch' ? 'visible' : 'attach'}`, 'browser-use-stagehand']
+                  : capability.id === 'computer-use' ? ['computer-use-native', 'computer-use-mcp'] : ['auto-review'], capability.id !== 'auto-review')}
                 {active ? (
                   <Button variant="outline" disabled>{t('external.capability.action.ready')}</Button>
                 ) : (
@@ -540,7 +569,8 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
                           ? t('external.action.resume')
                           : cancelled || installState?.phase === 'failed' || installState?.phase === 'quarantined'
                             ? t('external.action.retryDownload')
-                            : t('external.capability.action.configure')}
+                            : capability.id === 'computer-use' && computerBackend === 'native' && state.managed.preinstalledComputerNative
+                              ? t('external.capability.computer.enable') : t('external.capability.action.configure')}
                       </Button>
                     )}
                   </>
@@ -628,6 +658,7 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
                 <p>{t(tool.descriptionKey)}</p>
               </div>
               <div className={css.cardAction}>
+                {tool.installable ? downloadLabel([tool.id]) : null}
                 {!supported ? (
                   <Button variant="outline" disabled>{t('external.action.planned')}</Button>
                 ) : !active ? (
@@ -755,8 +786,8 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
               <legend>{t('external.capability.browser.backend')}</legend>
               {(['playwright', 'devtools', 'stagehand'] as const).map(value => (
                 <label key={value}>
-                  <input type="radio" name="browser-backend" value={value} checked={browserBackend === value} onChange={() => { setBrowserBackend(value) }} />
-                  <span>{t(`external.capability.browser.backend.${value}`)}</span>
+                  <input type="radio" name="browser-backend" aria-label={t(`external.capability.browser.backend.${value}`)} aria-describedby={`browser-size-${value}`} value={value} checked={browserBackend === value} onChange={() => { setBrowserBackend(value) }} />
+                  <span>{t(`external.capability.browser.backend.${value}`)}{downloadLabel([value === 'stagehand' ? 'browser-use-stagehand' : `browser-use-${value}-${browserMode === 'launch' ? 'visible' : 'attach'}`], false, `browser-size-${value}`)}</span>
                 </label>
               ))}
               <p className={css.capabilityOptionHint} aria-live="polite">
@@ -767,29 +798,32 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
               <legend>{t('external.capability.browser.mode')}</legend>
               {(['launch', 'attach'] as const).map(value => (
                 <label key={value}>
-                  <input type="radio" name="browser-mode" value={value} checked={browserMode === value} onChange={() => { setBrowserMode(value) }} />
-                  <span>{t(`external.capability.browser.mode.${value}`)}</span>
+                  <input type="radio" name="browser-mode" aria-label={t(`external.capability.browser.mode.${value}`)} aria-describedby={`browser-mode-size-${value}`} value={value} checked={browserMode === value} onChange={() => { setBrowserMode(value) }} />
+                  <span>{t(`external.capability.browser.mode.${value}`)}{downloadLabel([browserBackend === 'stagehand' ? 'browser-use-stagehand' : `browser-use-${browserBackend}-${value === 'launch' ? 'visible' : 'attach'}`], false, `browser-mode-size-${value}`)}</span>
                 </label>
               ))}
               <p className={css.capabilityOptionHint} aria-live="polite">
                 {t(`external.capability.browser.mode.${browserMode}Notice`)}
               </p>
             </fieldset>
+            {browserMode === 'attach' ? <label>{t('external.capability.browser.endpoint')}<input value={browserEndpoint}
+              onChange={(event) => { setBrowserEndpoint(event.target.value) }} /></label> : null}
             <div className={css.dialogActions}>
               <Button
                 variant="primary"
-                disabled={running !== undefined}
+                disabled={running !== undefined || (browserMode === 'attach' && browserEndpoint.trim() === '')}
                 onClick={() => { void installCapability(
                   'browser-use',
                   BROWSER_PROVIDER_INSTALL_IDS[browserBackend],
-                  browserMode === 'launch' && browserBackend === 'playwright'
+                  browserBackend === 'playwright'
                     ? 'browser-use-playwright-visible'
-                    : browserMode === 'launch' && browserBackend === 'devtools'
+                    : browserBackend === 'devtools'
                       ? 'browser-use-devtools-visible'
                       : undefined,
                 ) }}
               >
-                {t('external.capability.action.installSelected')}
+                {state.managed.preinstalledBrowserBackends?.includes(browserBackend === 'playwright' ? 'playwright' : 'devtools') && browserBackend !== 'stagehand'
+                  ? t('external.capability.browser.enable') : t('external.capability.action.installSelected')}
               </Button>
             </div>
           </div>
@@ -799,8 +833,8 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
               <legend>{t('external.capability.computer.backend')}</legend>
               {(['native', 'mcp'] as const).map(value => (
                 <label key={value}>
-                  <input type="radio" name="computer-backend" value={value} checked={computerBackend === value} onChange={() => { setComputerBackend(value) }} />
-                  <span>{t(`external.capability.computer.backend.${value}`)}</span>
+                  <input type="radio" name="computer-backend" aria-label={t(`external.capability.computer.backend.${value}`)} aria-describedby={`computer-size-${value}`} value={value} checked={computerBackend === value} onChange={() => { setComputerBackend(value) }} />
+                  <span>{t(`external.capability.computer.backend.${value}`)}{downloadLabel([`computer-use-${value}`], false, `computer-size-${value}`)}</span>
                 </label>
               ))}
               <p className={css.capabilityOptionHint} aria-live="polite">
@@ -817,7 +851,8 @@ export function ExternalToolsSection(props: ExternalToolsSectionProps): ReactNod
                   computerBackend === 'native' ? 'computer-use-native' : 'computer-use-mcp',
                 ) }}
               >
-                {t('external.capability.action.installSelected')}
+                {computerBackend === 'native' && state.managed.preinstalledComputerNative
+                  ? t('external.capability.computer.enable') : t('external.capability.action.installSelected')}
               </Button>
             </div>
           </div>

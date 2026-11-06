@@ -39,7 +39,7 @@ export const inventoryExtraEs = {
   'health.retry.paused': 'Reintento en pausa.',
   'health.retry.cancelled': 'Reintento detenido.',
   'external.capability.title': 'Funciones experimentales',
-  'external.capability.description': 'Estas funciones están desactivadas por defecto. Confirma el backend, los permisos y el alcance de la sesión actual antes de activarlas.',
+  'external.capability.description': 'El escritorio local activa Playwright por defecto si hay un navegador instalado; las demás funciones son opcionales. Comprueba el backend, los permisos y el alcance de la sesión.',
   'external.capability.status.ready': 'Listo',
   'external.capability.status.configuration': 'Requiere configuración',
   'external.capability.status.permission': 'Requiere permiso',

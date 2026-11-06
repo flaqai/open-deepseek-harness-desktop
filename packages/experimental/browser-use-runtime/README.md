@@ -25,6 +25,8 @@ Browser providers use this library to reuse a browser across one Session's turns
 <a id="use-this-package"></a>
 ## Use this package
 
+Launch mode uses an existing local Chrome or Chromium executable. Standard system and user installation locations and PATH are searched; `CHROME_PATH`, `CHROMIUM_PATH`, or an explicit `executablePath` can select an installation. A missing browser fails with an installation hint; no browser is downloaded. Attachment mode does not discover or launch a local browser.
+
 This public experimental library is a dependency of the browser providers. It has no plugin entry or mount configuration. The [browser-use service](../../browser-use/browser-use/README.md) remains independent of the library.
 
 Native providers construct `SessionResources` from the package root, supplying resource acquisition and cleanup callbacks. Calls pass the exact live Agent to `run()`; stale owners and a second owner of an exclusive attachment fail before acquisition. Canceling an acquisition wait leaves initialization available to other callers in the same Session; Session disposal aborts and awaits that initialization. Providers keep their registration until `dispose()` finishes.

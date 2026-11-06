@@ -37,6 +37,9 @@
     },
     {
       "path": "../../packages/client/ui-file-actions"
+    },
+    {
+      "path": "../../packages/experimental/browser-use-runtime"
     }
   ],
   "exclude": [

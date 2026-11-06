@@ -41,7 +41,7 @@ export const inventoryExtraDe = {
   'health.retry.paused': 'Wiederholung pausiert.',
   'health.retry.cancelled': 'Wiederholung beendet.',
   'external.capability.title': 'Experimentelle Funktionen',
-  'external.capability.description': 'Diese Funktionen sind standardmäßig deaktiviert. Vor dem Aktivieren Backend, Berechtigungen und Geltungsbereich der aktuellen Sitzung prüfen.',
+  'external.capability.description': 'Der lokale Desktop aktiviert Playwright standardmäßig, wenn ein Browser installiert ist; andere Funktionen sind optional. Prüfen Sie Backend, Berechtigungen und Sitzungsumfang.',
   'external.capability.status.ready': 'Bereit',
   'external.capability.status.configuration': 'Konfiguration erforderlich',
   'external.capability.status.permission': 'Berechtigung erforderlich',

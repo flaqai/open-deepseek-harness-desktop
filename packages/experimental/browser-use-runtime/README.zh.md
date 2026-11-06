@@ -25,6 +25,8 @@ kind: "package-library"
 <a id="use-this-package"></a>
 ## 使用本包
 
+启动模式使用本机已有的 Chrome 或 Chromium 可执行文件，依次查找系统、用户安装位置及 PATH；可通过 `CHROME_PATH`、`CHROMIUM_PATH` 或显式 `executablePath` 指定安装。缺少浏览器时返回安装提示，不下载浏览器。连接模式不查找或启动本机浏览器。
+
 此公共实验性库是浏览器提供方的依赖。它没有插件入口或挂载配置。[浏览器操作服务](../../browser-use/browser-use/README.zh.md)保持独立于此库。
 
 原生提供方从包根入口构造 `SessionResources`，提供资源获取与清理回调。调用向 `run()` 传递确切的实时 Agent；失效的所有者与独占附加的第二个所有者在获取资源前失败。取消资源获取等待不会终止初始化，同一 Session 的其他调用方仍可继续等待；释放 Session 会中止并等待该初始化结束。提供方将注册保留到 `dispose()` 完成。

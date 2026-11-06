@@ -25,6 +25,8 @@ import { appendBundledPluginFailure, bundledPluginSeedIsSettled, seedBundledPlug
 import { BundledPluginStartupCooldown } from './bundled-plugin-cooldown.ts'
 import { FirstStartPreparation } from './first-start-preparation.ts'
 import { BundledPresetVersionGate } from './bundled-preset-version-gate.ts'
+import { resolveLocalChromiumExecutable } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
+import { browserDefaultNeeded, configureBrowserDefaultCandidate } from './browser-defaults.ts'
 import { applyFreshProfileDefaults } from './fresh-profile-defaults.ts'
 import { legacyScheduleMigrationNeeded, migrateLegacyScheduleCandidate } from './legacy-schedule-migration.ts'
 import { inspectLegacyConfig, legacyConfigExternalWriterActive, migrateLegacyConfigCandidate } from './legacy-config-migration.ts'
@@ -3869,6 +3871,23 @@ async function startApplication(): Promise<void> {
     ptcNeedsInstall = !await isWorkspacePtcPluginInstalled(dshHome, ptcVersion)
   }
   const applyRuntimePending = (hasRuntimePending || ptcNeedsInstall) && startupProfileMutationAllowed && !preserveCopiedPlugins
+  let browserDefaultPending = false
+  if (startupProfileMutationAllowed && !preserveCopiedPlugins) {
+    try {
+      if (await browserDefaultNeeded(dshHome)) {
+        try {
+          resolveLocalChromiumExecutable()
+          browserDefaultPending = true
+        } catch (error) {
+          await appendDesktopStartupLog(`Browser Use default deferred; install Chrome or Chromium and restart Desktop: ${error instanceof Error ? error.message : String(error)}`)
+          await retainStartupWarning('runtime.browser-default-missing', 'browser-default', ['diagnostics', 'open-log'])
+        }
+      }
+    } catch (error) {
+      await appendDesktopStartupLog(`Browser Use default inspection failed; preserving configuration: ${error instanceof Error ? error.message : String(error)}`)
+      await retainStartupWarning('runtime.browser-default-failed', 'browser-default-inspection', ['diagnostics', 'open-log'])
+    }
+  }
   let legacySchedulePending = firstStartPending
   if (!firstStartPending && startupProfileMutationAllowed && !preserveCopiedPlugins) {
     try {
@@ -3912,7 +3931,7 @@ async function startApplication(): Promise<void> {
     }
     if (startupProfileMutationAllowed && !preserveCopiedPlugins) {
       // Even a retry with settled markers needs a readiness-verified commit before clearing the gate.
-      if (firstStartPending || applyRuntimePending || legacySchedulePending || presetUpgradeNeeded) {
+      if (firstStartPending || applyRuntimePending || legacySchedulePending || browserDefaultPending || presetUpgradeNeeded) {
         await desktopMutations.prepareStartup()
       }
       if (prebuilt !== undefined && prebuiltDirectory !== undefined) {
@@ -3978,6 +3997,21 @@ async function startApplication(): Promise<void> {
       }
       if (firstStartPending) {
         await configureNewAgentsAnywhere(dshHome, desktopMutations.mutationHome)
+      }
+      if (browserDefaultPending) {
+        try {
+          await desktopMutations.applyAtStartup({
+            operation: 'browser-default',
+            run: context => configureBrowserDefaultCandidate(context.home, harnessEnvironment, async (environment, args) => {
+              await runDesktopInvocation(resolveHarnessInvocation(environment, args, launchOptions),
+                'browser-default', BUILD_APPROVAL_TIMEOUT_MS)
+            }),
+          })
+          await appendDesktopStartupLog('Configured the one-time Playwright Browser Use default; MCP processes remain scoped to Sessions.')
+        } catch (error) {
+          await appendDesktopStartupLog(`Browser Use default could not be prepared; inspect Profile transaction recovery: ${error instanceof Error ? error.message : String(error)}`)
+          await retainStartupWarning('runtime.browser-default-failed', 'browser-default', ['diagnostics', 'open-log'])
+        }
       }
       if (legacySchedulePending) {
         try {

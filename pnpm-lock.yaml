@@ -304,6 +304,9 @@ importers:
       '@deepseek-ai/dsh-base':
         specifier: workspace:*
         version: link:../../packages/bundle/base
+      '@deepseek-ai/dsh-browser-use':
+        specifier: workspace:*
+        version: link:../../packages/browser-use/browser-use
       '@deepseek-ai/dsh-client-connection':
         specifier: workspace:*
         version: link:../../packages/client/connection
@@ -328,6 +331,9 @@ importers:
       '@deepseek-ai/dsh-compaction-tool-result-pruner':
         specifier: workspace:*
         version: link:../../packages/compaction/compaction-tool-result-pruner
+      '@deepseek-ai/dsh-computer-use':
+        specifier: workspace:*
+        version: link:../../packages/computer-use/computer-use
       '@deepseek-ai/dsh-cordis-client-runner':
         specifier: workspace:*
         version: link:../../packages/extensions/cordis-client-runner
@@ -346,6 +352,18 @@ importers:
       '@deepseek-ai/dsh-experimental-badge-skill-bundle':
         specifier: workspace:*
         version: link:../../packages/experimental/badge-skill-bundle
+      '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp':
+        specifier: workspace:*
+        version: link:../../packages/experimental/browser-use-chrome-devtools-mcp
+      '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp':
+        specifier: workspace:*
+        version: link:../../packages/experimental/browser-use-playwright-mcp
+      '@deepseek-ai/dsh-experimental-browser-use-runtime':
+        specifier: workspace:*
+        version: link:../../packages/experimental/browser-use-runtime
+      '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native':
+        specifier: workspace:*
+        version: link:../../packages/experimental/computer-use-cua-driver-native
       '@deepseek-ai/dsh-experimental-cot-translation-bundle':
         specifier: workspace:*
         version: link:../../packages/experimental/cot-translation-bundle
@@ -737,6 +755,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-file-actions':
         specifier: workspace:*
         version: link:../../packages/client/ui-file-actions
+      '@deepseek-ai/dsh-experimental-browser-use-runtime':
+        specifier: workspace:*
+        version: link:../../packages/experimental/browser-use-runtime
       '@deepseek-ai/dsh-http-proxy':
         specifier: workspace:*
         version: link:../../packages/util/http-proxy

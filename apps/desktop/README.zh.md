@@ -144,6 +144,10 @@ Windows 与 macOS 安装版可以注册由桌面客户端管理的 `dsh` 命令�
 <a id="desktop-packages"></a>
 ## 桌面发行包
 
+Computer Use Native 同时预装当前官方接入及 `@trycua/cua-driver` 原生 SDK。打包仅保留目标系统的原生库、Node 扩展、加载器依赖和声明文件，并在不导入 SDK 代码的情况下检查资源完整性。预装不会启用 Computer Use、启动服务或请求系统权限；MCP 方案仍为单独的可选配置。
+
+桌面运行时预装 Playwright MCP 与 Chrome DevTools MCP 浏览器接入及其生产依赖。本机存在 Chrome 或 Chromium 且没有既有浏览器偏好时，一次性启动候选会启用 Playwright，DevTools 保持未选择。既有后端选择和明确停用配置保持不变。缺少浏览器时应用继续启动并显示可操作的诊断，下次启动可重试默认配置。浏览器 MCP 进程只随会话启动。构建禁止浏览器下载，并检查运行时不含浏览器可执行文件或 Playwright 浏览器缓存；接入复用另外安装的 Chrome 或 Chromium。
+
 在仓库根目录运行 `node apps/desktop/scripts/desktop-smoke.mjs <contracts|unpacked|package> <windows-x64|macos-arm64|macos-x64|linux-x64> --plan`，可预览固定验收命令而不执行。`contracts` 检查验收规则；`unpacked` 仅检查 Windows 未压缩应用；`package` 在匹配的原生宿主上检查已有目标产物。Windows 保留安装后启动、升级、卸载、CLI 和插件验收。macOS 通过原生入口检查最终 DMG 与 ZIP；Linux 只校验打包资源，不代表完成安装验收。
 
 在架构匹配的 Mac 上使用下列命令构建 ad-hoc 签名、未公证的 macOS 软件包：

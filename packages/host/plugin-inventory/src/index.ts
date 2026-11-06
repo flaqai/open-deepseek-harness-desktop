@@ -13,6 +13,7 @@ import z from '@deepseek-ai/schemastery'
 import type { Context, FiberState } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import {
+  getDshRuntimeVersion,
   approveQuarantinedProfilePluginHostVersion,
   clearLastProfileRepairReport,
   clearQuarantinedProfilePlugin,
@@ -266,16 +267,16 @@ const REPAIR_REPORT_PREFIX = 'dsh: profile dependency health '
 
 const EXPERIMENTAL_CAPABILITY_RECIPES = {
   'browser-use-playwright-visible': {
-    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.0-rc.2',
-    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.0-rc.2'],
+    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3',
+    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-alpha.3'],
   },
   'browser-use-devtools-visible': {
-    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.0-rc.2',
-    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.0-rc.2'],
+    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-alpha.3',
+    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-alpha.3'],
   },
   'computer-use-native': {
-    packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.0-rc.2',
-    dependencies: ['@deepseek-ai/dsh-computer-use@0.2.0-rc.2'],
+    packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-alpha.3',
+    dependencies: ['@deepseek-ai/dsh-computer-use@0.2.2-alpha.3'],
   },
   'computer-use-mcp': {
     packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.0-rc.2',
@@ -310,6 +311,11 @@ const EXTERNAL_TOOL_CONFIGS = {
 
 /** Reject paths, URLs, flags, and shell text at the Host wire boundary. */
 function validateInstallRequest(request: PluginInstallRequest): void {
+  if (request.browserEndpoint !== undefined) {
+    const endpoint = new URL(request.browserEndpoint)
+    if (!request.experimentalCapability?.startsWith('browser-use-') || !['http:', 'https:', 'ws:', 'wss:'].includes(endpoint.protocol)
+      || endpoint.username || endpoint.password || /\s/u.test(request.browserEndpoint)) throw new TypeError('pluginInventory: invalid browser endpoint')
+  }
   validateProfile(request.profile)
   if (!REGISTRY_PACKAGE_SPEC.test(request.packageSpec)) {
     throw new TypeError(`pluginInventory: invalid registry package spec ${JSON.stringify(request.packageSpec)}`)
@@ -646,8 +652,14 @@ export class PluginInventoryGateway extends TypertRemoteService {
   @Remote('externalTools')
   async externalTools(): Promise<ExternalToolsSnapshot> {
     const presets = this.ctx.get('agentPresets')
-    if (presets === undefined) return { scope: 'complete-presets', codex: false, claudeCode: false }
-    return await presets.externalToolsState()
+    const preinstalledBrowserBackends = (['playwright', 'devtools'] as const).filter(backend => this.browserProviderAvailable(backend))
+    const state = presets === undefined ? { scope: 'complete-presets' as const, codex: false, claudeCode: false }
+      : await presets.externalToolsState()
+    const preinstalledComputerNative = this.computerNativeAvailable()
+    return { ...state,
+      ...(preinstalledBrowserBackends.length === 0 ? {} : { preinstalledBrowserBackends }),
+      ...(preinstalledComputerNative ? { preinstalledComputerNative: true } : {}),
+    }
   }
 
   /**
@@ -905,7 +917,7 @@ export class PluginInventoryGateway extends TypertRemoteService {
   @Remote('startInstall')
   startInstall(request: PluginInstallRequest): PluginInstallSnapshot {
     validateInstallRequest(request)
-    const target = `add\0${request.profile}\0${request.packageSpec}\0${request.experimentalCapability ?? ''}`
+    const target = `add\0${request.profile}\0${request.packageSpec}\0${request.experimentalCapability ?? ''}\0${request.browserEndpoint ?? ''}`
     const activeId = this.activeTargets.get(target)
     if (activeId !== undefined) return this.expectJob(activeId).snapshot
 
@@ -919,14 +931,20 @@ export class PluginInventoryGateway extends TypertRemoteService {
       installProgress: { stage: 'preparing' },
     }
     const experimentalCapability = request.experimentalCapability
-    const steps: InstallJob['steps'] = experimentalCapability === undefined
-      ? [{ args: ['add', request.packageSpec] }]
-      : [
-        ...EXPERIMENTAL_CAPABILITY_RECIPES[experimentalCapability].dependencies
-          .map(packageSpec => ({ args: ['add', packageSpec] as const })),
-        { args: ['add', request.packageSpec] },
-        { args: ['configure-experimental-capability', experimentalCapability] },
-      ]
+    const configurationArgs = ['configure-experimental-capability', experimentalCapability ?? '',
+      ...(request.browserEndpoint === undefined ? [] : ['--browser-url', request.browserEndpoint])]
+    const preinstalledBrowser = experimentalCapability === 'browser-use-playwright-visible' ? this.browserProviderAvailable('playwright')
+      : experimentalCapability === 'browser-use-devtools-visible' && this.browserProviderAvailable('devtools')
+    const steps: InstallJob['steps'] = preinstalledBrowser || (experimentalCapability === 'computer-use-native' && this.computerNativeAvailable())
+      ? [{ args: configurationArgs }]
+      : experimentalCapability === undefined
+        ? [{ args: ['add', request.packageSpec] }]
+        : [
+          ...EXPERIMENTAL_CAPABILITY_RECIPES[experimentalCapability].dependencies
+            .map(packageSpec => ({ args: ['add', packageSpec] as const })),
+          { args: ['add', request.packageSpec] },
+          { args: configurationArgs },
+        ]
     const job: InstallJob = {
       snapshot,
       target,
@@ -937,6 +955,26 @@ export class PluginInventoryGateway extends TypertRemoteService {
     this.activeTargets.set(target, installId)
     this.launchInstall(job)
     return snapshot
+  }
+
+  private computerNativeAvailable(): boolean {
+    const packages = this.ctx.get('pluginPackages')
+    const base = this.ctx.baseUrl
+    if (packages === undefined || base === undefined) return false
+    const version = getDshRuntimeVersion()
+    return packages.packageOf('@deepseek-ai/dsh-experimental-computer-use-cua-driver-native', base)?.version === version
+      && packages.packageOf('@deepseek-ai/dsh-computer-use', base)?.version === version
+  }
+
+  private browserProviderAvailable(backend: 'playwright' | 'devtools'): boolean {
+    const packages = this.ctx.get('pluginPackages')
+    const base = this.ctx.baseUrl
+    if (packages === undefined || base === undefined) return false
+    const provider = backend === 'playwright' ? '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp'
+      : '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp'
+    const version = getDshRuntimeVersion()
+    return packages.packageOf(provider, base)?.version === version
+      && packages.packageOf('@deepseek-ai/dsh-browser-use', base)?.version === version
   }
 
   /**

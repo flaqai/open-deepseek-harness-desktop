@@ -178,6 +178,8 @@ function diagnosticIssueCopy(code: DiagnosticIssue['code']): PluginInventoryLoca
 }
 
 function startupDiagnosticSolution(code: string): PluginInventoryLocaleKey {
+  if (code === 'runtime.browser-default-missing') return 'diagnostics.startup.solution.browserDefaultMissing'
+  if (code === 'runtime.browser-default-failed') return 'diagnostics.startup.solution.browserDefaultFailed'
   if (code === 'runtime.legacy-worktree-backup-failed') return 'diagnostics.startup.solution.legacyWorktreeBackupFailed'
   if (code === 'runtime.legacy-worktree-bundle') return 'diagnostics.startup.solution.legacyWorktree'
   if (code === 'runtime.profile-check-timeout') return 'diagnostics.startup.solution.profileCheck'
@@ -578,7 +580,7 @@ export function PluginDiagnosticsSection({
           {startupIncidents.map(incident => (
             <article className={css.finding} key={incident.incidentId} data-diagnostic-code={incident.code}>
               <div>
-                <strong>{t(incident.code === 'runtime.legacy-worktree-bundle'
+                <strong>{t(incident.code.startsWith('runtime.browser-default-') ? 'diagnostics.startup.browserDefault' : incident.code === 'runtime.legacy-worktree-bundle'
                   ? 'diagnostics.startup.legacyWorktree' : 'diagnostics.startup.issue')}</strong>
                 <span>{incident.code}</span>
               </div>

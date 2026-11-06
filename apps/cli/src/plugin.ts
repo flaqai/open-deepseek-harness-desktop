@@ -284,13 +284,14 @@ function runPluginWithoutSnapshot(profile: string, args: readonly string[], quie
   const dir = resolveProfileDir(profile)
   if (args[0] === 'configure-experimental-capability') {
     const recipe = args[1] as ExperimentalCapabilityRecipe | undefined
-    if (args.length !== 2 || recipe === undefined || ![
+    if ((args.length !== 2 && !(args.length === 4 && args[2] === '--browser-url')) || recipe === undefined || ![
       'browser-use-playwright-visible',
       'browser-use-devtools-visible',
       'computer-use-native',
       'computer-use-mcp',
     ].includes(recipe)) throw new Error('dsh: invalid experimental capability recipe')
-    configureExperimentalCapability(profile, recipe)
+    if (args.length === 4 && !recipe.startsWith('browser-use-')) throw new Error('dsh: browser endpoint requires a browser recipe')
+    configureExperimentalCapability(profile, recipe, {}, args[3])
     return 0
   }
   if (args[0] === 'snapshot') {

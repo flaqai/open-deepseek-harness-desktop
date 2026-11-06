@@ -144,6 +144,10 @@ The launcher always uses the app's embedded Node, Harness, and pnpm paths. It re
 <a id="desktop-packages"></a>
 ## Desktop packages
 
+Computer Use Native is also carried with the current official provider and `@trycua/cua-driver` native SDK. Packaging retains only the target system’s native library, Node addon, loader dependencies and notice, and verifies their presence without importing SDK code. This preinstallation neither enables Computer Use nor starts its service or requests operating-system permissions; the MCP alternative remains a separate optional setup.
+
+Desktop runtimes carry the Playwright MCP and Chrome DevTools MCP browser connectors with their production dependencies. When a local Chrome or Chromium is available and no prior browser preference exists, a one-time startup candidate enables Playwright; DevTools stays unselected. Existing backend selections and explicit disabled configuration remain unchanged. Without a browser, startup continues with an actionable diagnostic and retries the default on a later launch. Browser MCP processes start only for Sessions. Builds suppress browser downloads and verify that no browser executable or Playwright browser cache enters the runtime; these connectors reuse a separately installed Chrome or Chromium.
+
 From the repository root, use `node apps/desktop/scripts/desktop-smoke.mjs <contracts|unpacked|package> <windows-x64|macos-arm64|macos-x64|linux-x64> --plan` to preview the fixed qualification commands without executing them. `contracts` checks qualification rules; `unpacked` checks only the Windows unpacked application; `package` checks the existing target artifacts on a matching native host. Windows retains installed startup, upgrade, uninstall, CLI and plugin acceptance. macOS checks the final DMG and ZIP through the native entry; Linux checks packaged resources only, without installation acceptance.
 
 Build the ad-hoc-signed, unnotarized macOS packages on a matching Mac with:

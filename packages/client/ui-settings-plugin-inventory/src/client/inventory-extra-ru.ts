@@ -40,7 +40,7 @@ export const inventoryExtraRu = {
   'health.retry.paused': 'Повторная попытка приостановлена.',
   'health.retry.cancelled': 'Повторная попытка остановлена.',
   'external.capability.title': 'Экспериментальные возможности',
-  'external.capability.description': 'По умолчанию эти возможности выключены. Перед включением проверьте движок, разрешения и область действия в текущей сессии.',
+  'external.capability.description': 'Локальный клиент включает Playwright по умолчанию при наличии браузера; остальные возможности включаются вручную. Проверьте бэкенд, разрешения и область сеанса.',
   'external.capability.status.ready': 'Готово',
   'external.capability.status.configuration': 'Требуется настройка',
   'external.capability.status.permission': 'Требуется разрешение',

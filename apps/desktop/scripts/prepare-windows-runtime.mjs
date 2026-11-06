@@ -1,5 +1,6 @@
 /** Prepare a self-contained Windows x64 Harness production runtime. */
 
+import { verifyPreinstalledBrowserProviders, verifyPreinstalledComputerUse } from './preinstalled-browser-providers.mjs'
 import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { cp, lstat, mkdir, readFile, readdir, realpath, rename, rm, unlink, writeFile } from 'node:fs/promises'
@@ -14,6 +15,9 @@ import { prepareWindowsInstallerTools } from './prepare-windows-installer-tools.
 import { pruneDesktopRuntime, removeExtraneousWorkspaceLinks } from './runtime-file-policy.mjs'
 import { preservePnpmWorkspaceState } from '../../../scripts/preserve-pnpm-workspace-state.mjs'
 import { officePackageDirectories, selectOfficeEngine, verifyBundledOfficeIdentity } from '../../../scripts/libreoffice-packages.mjs'
+
+process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'
+process.env.PUPPETEER_SKIP_DOWNLOAD = 'true'
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url))
 const repositoryRoot = resolve(desktopRoot, '../..')
@@ -464,4 +468,6 @@ const pruned = await pruneDesktopRuntime(join(harnessRoot, 'node_modules'), {
 console.log(`prepare-windows-runtime: pruned ${pruned.packages} additional foreign packages, ${pruned.directories} directories, and ${pruned.files} files`)
 await stageNodeRuntime()
 await stagePackageManager()
+verifyPreinstalledBrowserProviders(harnessRoot)
+verifyPreinstalledComputerUse(harnessRoot, 'win32-x64')
 await verifyRuntime(officeEngine)

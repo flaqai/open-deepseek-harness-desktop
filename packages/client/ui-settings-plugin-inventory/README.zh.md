@@ -7,6 +7,8 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
+工具与能力、插件恢复及诊断通过 `settings.section.icon` 注册各自的导航图标。
+
 ## 概述
 
 **插件列表**标签页让 Web 用户查看插件，而不改变其配置。它先列 agent（智能体）预设分组，再列全局清单；预设分组默认展开，全局分组默认收起，搜索期间两组都展开。卡片显示可用的本地化标题与描述，以稳定的条目 id 标识实例，并展示启停状态、出处、运行状态、禁用条件与发现失败；由预设提供的全局条目会列出对应预设。搜索覆盖两个分组，并指出其他预设中的匹配。标签页处理加载、空结果、无匹配、失败与重试状态，且不暴露传输细节；没有预设 roster 时仍会展示全局清单。
@@ -25,11 +27,19 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+本地提供的 Native Computer Use 标为已预装，卡片及 Native 确认按钮显示「立即启用」，只有用户显式启用时才执行配置，不安装依赖。仅预装不会启动服务或请求操作系统权限。MCP 后端仍需单独下载；平均下载量把已预装选项按零新增字节计算。
+
+Browser Use 将本地提供的 Playwright 与 Chrome DevTools 标为已预装。选择后仅配置并启用，不运行 npm 安装。连接现有浏览器必须填写调试地址；本机缺少 Chrome／Chromium 时显示明确提示，不下载浏览器。
+
 打开设置中的「插件」分区并选择**插件列表**标签页，即可查看宿主的插件清单。插件激活期间不会读取 Remote——首次选择该标签页时才挂载组件，并通过 `api-remotes` 懒调用 `ctx.remote.pluginInventory.list()`。
 
-独立的「**工具与能力**」分区会先在「**0.1.6 新增功能**」标记下展示 Browser Use、Computer Use 与 Auto review，再展示外部产品连接。上下两组共用同一套双栏网格，窄设置面板中统一收成单栏。Browser Use 提供 Playwright MCP、Chrome DevTools MCP、Stagehand，以及隔离启动或连接现有浏览器的说明；Computer Use 提供 Cua Driver Native、MCP 选择，并明确操作系统权限边界。配置弹窗会把当前选择解析为经过审核的固定版本 Provider，通过受控安装器一键下载，并在卡片中提供终端输出、进度、暂停与停止。可见的隔离 Playwright/DevTools 会识别并复用本机已安装的 Chrome 或 Chromium 可执行程序，通过隔离配置运行，不会另外下载 Chrome for Testing；该配方和两种 Computer Use 都会连同共享能力层一起安装，并写进由事务保护、重启后生效的 Profile 组合。连接现有浏览器和 Stagehand 在补齐端点或模型凭据前只下载，不会错误提示“仅重启即可启用”。Auto review 沿用同一受控安装流程，激活后仍只作用于当前会话。
+独立的「**工具与能力**」分区会先展示 Browser Use、Computer Use 与 Auto review，再展示外部产品连接。上下两组共用同一套双栏网格，窄设置面板中统一收成单栏。Browser Use 提供 Playwright MCP、Chrome DevTools MCP、Stagehand，以及隔离启动或连接现有浏览器的说明；Computer Use 提供 Cua Driver Native、MCP 选择，并明确操作系统权限边界。配置弹窗会把当前选择解析为经过审核的固定版本 Provider，预装项直接配置，其余项通过受控安装器下载，并在卡片中提供终端输出、进度、暂停与停止。可见的隔离 Playwright/DevTools 会识别并复用本机已安装的 Chrome 或 Chromium 可执行程序，通过隔离配置运行，不会另外下载 Chrome for Testing；该配方和两种 Computer Use 都会连同共享能力层一起安装，并写进由事务保护、重启后生效的 Profile 组合。连接现有浏览器和 Stagehand 在补齐端点或模型凭据前只下载，不会错误提示“仅重启即可启用”。Auto review 沿用同一受控安装流程，激活后仍只作用于当前会话。
 
 安装失败且存在待审批的 pnpm 构建权限时，页面提供“允许这些脚本并重试”。该操作展示准确包名和持久授权范围，再使用原来的包规格及启用选项重试。一次点击批准整个列表，其中可能包括此前安装留下的待审批包。关闭页面不会授予权限。
+
+本机桌面在已有浏览器且尚未记录浏览器偏好时自动启用预装的 Playwright。明确选择的后端和关闭配置保持不变，其余能力仍按需启用。MCP 服务继续遵循 Session 所有的生命周期。
+
+能力卡片在操作区左侧显示经过核实的无缓存 npm 压缩包下载估算；多后端卡片取后端平均值，各后端选项显示自身估算。范围覆盖支持的系统；缺失数据保持未知，额外下载未测量时显示下限标记和可见提示。已有依赖及缓存可减少实际下载量。Linux 按 glibc 统计。运行 `pnpm exec tsx scripts/generate-capability-download-sizes.ts` 刷新测量，添加 `--check` 可断网校验安装目标。
 
 ### 阅读卡片
 

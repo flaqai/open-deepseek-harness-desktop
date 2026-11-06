@@ -7,6 +7,7 @@ import * as Provider from '../src/index.ts'
 vi.mock('@deepseek-ai/dsh-experimental-browser-use-runtime/mcp', async importOriginal => ({
   ...await importOriginal<typeof import('@deepseek-ai/dsh-experimental-browser-use-runtime/mcp')>(),
   mountSessionMcp: vi.fn(),
+  resolveLocalChromiumExecutable: vi.fn((path?: string) => path ?? '/installed/chromium'),
 }))
 afterEach(() => {
   vi.clearAllMocks()
@@ -26,7 +27,7 @@ it('uses the pinned Playwright executable with isolated Chromium launch settings
 
 it('supports headed launch and attaches without launching a browser or creating a profile', () => {
   Provider.apply(new Context(), Provider.Config({ mode: 'launch', headless: false }))
-  expect(vi.mocked(mountSessionMcp).mock.calls[0]![1].args.slice(1)).toEqual(['--browser', 'chromium', '--isolated'])
+  expect(vi.mocked(mountSessionMcp).mock.calls[0]![1].args.slice(1)).toEqual(['--browser', 'chromium', '--isolated', '--executable-path', '/installed/chromium'])
   Provider.apply(new Context(), Provider.Config({ mode: 'attach', endpoint: 'http://127.0.0.1:9222' }))
   const options = vi.mocked(mountSessionMcp).mock.calls[1]![1]
   expect(options.exclusive).toBe(true)

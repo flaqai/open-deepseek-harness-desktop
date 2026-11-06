@@ -39,7 +39,7 @@ export const inventoryExtraJa = {
   'health.retry.paused': '再試行を一時停止しました。',
   'health.retry.cancelled': '再試行を停止しました。',
   'external.capability.title': '実験的な機能',
-  'external.capability.description': 'これらの機能は既定で無効です。有効にする前にバックエンド、権限、現在のセッションへの適用範囲を確認してください。',
+  'external.capability.description': 'ローカルデスクトップではブラウザーがある場合に Playwright を既定で有効にします。他の機能は必要時に有効にしてください。バックエンド、権限、セッション範囲を確認してください。',
   'external.capability.status.ready': '準備完了',
   'external.capability.status.configuration': '設定が必要',
   'external.capability.status.permission': '権限が必要',

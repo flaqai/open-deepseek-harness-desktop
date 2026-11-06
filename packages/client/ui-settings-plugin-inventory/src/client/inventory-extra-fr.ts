@@ -42,7 +42,7 @@ export const inventoryExtraFr = {
   'health.retry.paused': 'Nouvelle tentative en pause.',
   'health.retry.cancelled': 'Nouvelle tentative arrêtée.',
   'external.capability.title': 'Fonctionnalités expérimentales',
-  'external.capability.description': 'Ces fonctionnalités sont désactivées par défaut. Vérifiez le moteur, les autorisations et la portée de la session actuelle avant de les activer.',
+  'external.capability.description': 'Le bureau local active Playwright par défaut si un navigateur est installé ; les autres fonctions sont facultatives. Vérifiez le moteur, les autorisations et la portée de la session.',
   'external.capability.status.ready': 'Prêt',
   'external.capability.status.configuration': 'Configuration nécessaire',
   'external.capability.status.permission': 'Autorisation nécessaire',

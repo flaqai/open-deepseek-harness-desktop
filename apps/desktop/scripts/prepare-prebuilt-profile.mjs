@@ -133,7 +133,7 @@ export async function preparePrebuiltProfile({ destination: published, harnessRo
   const runtime = JSON.parse(await readFile(join(harnessRoot, 'package.json'), 'utf8'))
   const cleanEnvironment = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/KEY|SECRET|TOKEN|PASSWORD|^DSH_/iu.test(name)))
   const environment = home => ({ ...cleanEnvironment, DSH_HOME: home, DSH_PNPM_BIN: pnpm,
-    DSH_PLUGIN_SNAPSHOT_BATCH: '1', DSH_DESKTOP_BUNDLED_PLUGINS_DIR: resources,
+    DSH_PLUGIN_SNAPSHOT_BATCH: '1', PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1', PUPPETEER_SKIP_DOWNLOAD: 'true', DSH_DESKTOP_BUNDLED_PLUGINS_DIR: resources,
     PATH: `${join(node, '..')}${delimiter}${process.env.PATH ?? ''}` })
   const command = (home, args) => runHarnessInvocation({ command: node,
     args: [join(harnessRoot, 'lib/bin.js'), 'plugin', '--profile', 'web', ...args], environment: environment(home), cwd: harnessRoot,

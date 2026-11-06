@@ -3,7 +3,7 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
-import { BrowserMcpConfig, mountSessionMcp, validateBrowserMcpConfig } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
+import { BrowserMcpConfig, mountSessionMcp, resolveLocalChromiumExecutable, validateBrowserMcpConfig } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
 import type {} from '@deepseek-ai/dsh-working-directory'
 
 /** Cordis identity for the Playwright MCP browser provider. */
@@ -38,7 +38,7 @@ export function apply(ctx: Context, config: Config): void {
   } else {
     args.push('--isolated')
     if (config.headless) args.push('--headless')
-    if (config.executablePath !== undefined) args.push('--executable-path', config.executablePath)
+    args.push('--executable-path', resolveLocalChromiumExecutable(config.executablePath))
   }
   mountSessionMcp(ctx, {
     name: 'playwright-mcp',

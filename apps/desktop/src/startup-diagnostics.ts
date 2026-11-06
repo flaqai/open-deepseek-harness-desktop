@@ -9,6 +9,8 @@ export const STARTUP_DIAGNOSTIC_SCHEMA = 'dsh/desktop-startup-diagnostic/v1' as 
 export type StartupDiagnosticCode =
   | 'runtime.bundled-plugin-failed'
   | 'runtime.bundled-preset-version-marker-unavailable'
+  | 'runtime.browser-default-missing'
+  | 'runtime.browser-default-failed'
   | 'runtime.schedule-migration-failed'
   | 'runtime.legacy-worktree-bundle'
   | 'runtime.legacy-worktree-backup-failed'
@@ -23,6 +25,8 @@ export type StartupDiagnosticCode =
 const STARTUP_DIAGNOSTIC_CODES = new Set<StartupDiagnosticCode>([
   'runtime.bundled-plugin-failed',
   'runtime.bundled-preset-version-marker-unavailable',
+  'runtime.browser-default-missing',
+  'runtime.browser-default-failed',
   'runtime.schedule-migration-failed',
   'runtime.legacy-worktree-bundle',
   'runtime.legacy-worktree-backup-failed',

@@ -50,10 +50,10 @@ describe('external tool compatibility bridge', () => {
   })
 
   it.each([
-    ['browser-use-playwright', '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.1-alpha.1'],
-    ['browser-use-devtools', '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.1-alpha.1'],
+    ['browser-use-playwright', '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3'],
+    ['browser-use-devtools', '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-alpha.3'],
     ['browser-use-stagehand', '@deepseek-ai/dsh-experimental-browser-use-stagehand-native@0.2.1-alpha.1'],
-    ['computer-use-native', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.1-alpha.1'],
+    ['computer-use-native', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-alpha.3'],
     ['computer-use-mcp', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.1-alpha.1'],
   ] as const)('resolves %s to its reviewed alpha.1 provider', async (toolId, packageSpec) => {
     await expect(resolveExternalToolInstallRequest(toolId)).resolves.toEqual({
@@ -68,7 +68,7 @@ describe('external tool compatibility bridge', () => {
       'browser-use-playwright-visible',
     )).resolves.toEqual({
       profile: 'web',
-      packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.1-alpha.1',
+      packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-alpha.3',
       experimentalCapability: 'browser-use-playwright-visible',
     })
   })

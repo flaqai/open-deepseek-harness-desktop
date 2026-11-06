@@ -23,7 +23,8 @@
     "yaml": "^2.9.0",
     "ws": "^8.21.0",
     "@deepseek-ai/dsh-client-ui-file-actions": "workspace:*",
-    "@deepseek-ai/dsh-util-file-drag": "workspace:*"
+    "@deepseek-ai/dsh-util-file-drag": "workspace:*",
+    "@deepseek-ai/dsh-experimental-browser-use-runtime": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && pnpm --config.verifyDepsBeforeRun=false exec tsdown --config tsdown.preload.config.ts && node scripts/copy-assets.mjs && node scripts/build-welcome.mjs",

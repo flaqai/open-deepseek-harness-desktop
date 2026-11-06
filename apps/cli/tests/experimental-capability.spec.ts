@@ -45,7 +45,7 @@ describe('experimental capability composition', () => {
       platform: 'darwin',
       env: {},
       exists: () => false,
-    })).toThrow('system Chrome or Chromium')
+    })).toThrow('Chrome or Chromium was not found')
   })
 
   it('turns an empty user layer into a parseable visible Playwright composition', () => {
@@ -73,4 +73,12 @@ describe('experimental capability composition', () => {
     expect(text.match(/BEGIN community-desktop:browser-use/gu)).toHaveLength(1)
   })
 
+})
+
+it('attaches only to an explicitly supplied endpoint without discovering or downloading a browser', () => {
+  const f = fixture()
+  configureExperimentalCapability('web', 'browser-use-playwright-visible', { exists: () => false }, 'http://127.0.0.1:9222')
+  expect(readFileSync(f.patch, 'utf8')).toContain('mode: attach')
+  expect(readFileSync(f.patch, 'utf8')).toContain('http://127.0.0.1:9222')
+  expect(() => configureExperimentalCapability('web', 'browser-use-playwright-visible', {}, 'file:///tmp/test')).toThrow('invalid browser')
 })

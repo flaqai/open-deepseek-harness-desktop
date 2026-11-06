@@ -488,3 +488,18 @@ describe('ExternalToolsSection download progress', () => {
     expect(screen.getByText('fetch failed')).toBeTruthy()
   })
 })
+
+it('offers preinstalled Native Computer Use without downloading or starting it', async () => {
+  const install = vi.fn()
+  render(<ExternalToolsSection {...props({
+    externalTools: async () => ({ scope: 'complete-presets', codex: false, claudeCode: false, preinstalledComputerNative: true }),
+    installExternalTool: install,
+  })} />)
+  await screen.findByRole('heading', { name: 'Computer Use' })
+  expect(install).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: en['external.capability.computer.enable'] }))
+  const dialog = await screen.findByRole('dialog', { name: 'Computer Use' })
+  expect(within(dialog).getByText(en['external.capability.browser.preinstalled'])).toBeTruthy()
+  expect(within(dialog).getByRole('button', { name: en['external.capability.computer.enable'] })).toBeTruthy()
+  expect(install).not.toHaveBeenCalled()
+})

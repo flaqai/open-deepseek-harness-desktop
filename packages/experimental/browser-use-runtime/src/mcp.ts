@@ -7,6 +7,7 @@ import { BrowserUseProviderName } from '@deepseek-ai/dsh-browser-use/brand'
 import * as McpClient from '@deepseek-ai/dsh-mcp-client'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import type { Scope } from '@deepseek-ai/dsh-scope'
+export { resolveLocalChromiumExecutable } from './local-chromium.ts'
 import { SessionResources } from './index.ts'
 import type {} from '@deepseek-ai/dsh-browser-use'
 import type {} from '@deepseek-ai/dsh-tools'
@@ -19,7 +20,7 @@ export interface BrowserMcpLaunchConfig {
   mode: 'launch'
   /** Whether Chromium runs without a visible window; defaults to true. */
   headless: boolean
-  /** Chromium executable; omission uses the upstream server's installation discovery. */
+  /** Existing Chrome or Chromium executable; omission searches local installations without downloading a browser. */
   executablePath?: string
   /** Per-call timeout override in milliseconds; omission uses the MCP client default. */
   toolCallTimeoutMs?: number

@@ -2,7 +2,7 @@
 
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
-import { BrowserMcpConfig, mountSessionMcp, validateBrowserMcpConfig } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
+import { BrowserMcpConfig, mountSessionMcp, resolveLocalChromiumExecutable, validateBrowserMcpConfig } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
 import type {} from '@deepseek-ai/dsh-working-directory'
 
 /** Cordis identity for the Chrome DevTools MCP browser provider. */
@@ -31,7 +31,7 @@ export function apply(ctx: Context, config: Config): void {
     args.push(/^wss?:/u.test(config.endpoint) ? '--ws-endpoint' : '--browser-url', config.endpoint)
   } else {
     args.push('--isolated', `--headless=${String(config.headless)}`)
-    if (config.executablePath !== undefined) args.push('--executable-path', config.executablePath)
+    args.push('--executable-path', resolveLocalChromiumExecutable(config.executablePath))
   }
   mountSessionMcp(ctx, {
     name: 'chrome-devtools-mcp',

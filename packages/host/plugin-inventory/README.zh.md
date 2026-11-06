@@ -25,6 +25,10 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+本地提供的 Native Computer Use 标为已预装，只有用户显式启用时才执行配置，不安装依赖。仅预装不会启动服务或请求操作系统权限。MCP 后端仍需单独下载；平均下载量把已预装选项按零新增字节计算。
+
+浏览器配方在本地提供后端时仅执行配置，不安装依赖。显式连接地址允许不含凭据的 HTTP(S) 或 WS(S)；不会自动下载浏览器或猜测调试端口。
+
 当客户端或设置页需要展示宿主当前组合了什么——哪些插件已加载、已启用、是否存活，以及每个 agent preset 会给会话什么——时调用 `pluginInventory/list`。Remote 是唯一入口：该服务仅供 Remote 使用，刻意不声明同进程 Cordis `Context` 合并。
 
 ### 快照包含什么

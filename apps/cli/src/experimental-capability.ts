@@ -1,7 +1,8 @@
 /** Guarded Profile composition for Desktop-owned experimental capability recipes. */
 import { randomUUID } from 'node:crypto'
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { delimiter, dirname, join, win32 } from 'node:path'
+import { dirname, join } from 'node:path'
+import { resolveLocalChromiumExecutable } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
 import { loadOptionalPatches, resolveProfileDir } from '@deepseek-ai/dsh-app-boot'
 
 export type ExperimentalCapabilityRecipe =
@@ -28,44 +29,25 @@ export interface ChromiumDiscoveryOptions {
  * @throws When no supported executable exists in an explicit or standard location.
  */
 export function resolveSystemChromiumExecutable(options: ChromiumDiscoveryOptions = {}): string {
-  const platform = options.platform ?? process.platform
-  const env = options.env ?? process.env
-  const exists = options.exists ?? existsSync
-  const explicit = env.CHROME_PATH?.trim()
-  const candidates: string[] = explicit === undefined || explicit === '' ? [] : [explicit]
-
-  if (platform === 'darwin') {
-    candidates.push(
-      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    )
-    if (env.HOME !== undefined) {
-      candidates.push(
-        join(env.HOME, 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
-        join(env.HOME, 'Applications/Chromium.app/Contents/MacOS/Chromium'),
-      )
-    }
-  } else if (platform === 'win32') {
-    for (const root of [env.LOCALAPPDATA, env.PROGRAMFILES, env['PROGRAMFILES(X86)']]) {
-      if (root !== undefined) candidates.push(win32.join(root, 'Google', 'Chrome', 'Application', 'chrome.exe'))
-    }
-  } else if (platform === 'linux') {
-    const pathDelimiter = platform === process.platform ? delimiter : ':'
-    const directories = (env.PATH ?? '').split(pathDelimiter).filter(Boolean)
-    for (const directory of directories) {
-      for (const executable of ['google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser']) {
-        candidates.push(join(directory, executable))
-      }
-    }
-    candidates.push('/snap/bin/chromium')
-  }
-
-  const executable = candidates.find(candidate => exists(candidate))
-  if (executable !== undefined) return executable
-  throw new Error('dsh: no system Chrome or Chromium installation was found; install one or set CHROME_PATH')
+  return resolveLocalChromiumExecutable(undefined, {
+    ...(options.platform === undefined ? {} : { platform: options.platform }),
+    ...(options.env === undefined ? {} : { env: options.env }),
+    ...(options.exists === undefined ? {} : { isExecutable: options.exists }),
+  })
 }
 
-function browserRecipe(provider: string, discovery: ChromiumDiscoveryOptions): Recipe {
+function browserRecipe(provider: string, discovery: ChromiumDiscoveryOptions, endpoint?: string): Recipe {
+  if (endpoint !== undefined) {
+    const parsed = new URL(endpoint)
+    if (!['http:', 'https:', 'ws:', 'wss:'].includes(parsed.protocol) || parsed.username || parsed.password || /\s/u.test(endpoint)) {
+      throw new Error('dsh: invalid browser debugging endpoint')
+    }
+    return { owner: 'browser-use', yaml: [
+      '- insert:', '    - id: community-desktop.experimental.browser-use', "      name: '@deepseek-ai/dsh-browser-use'",
+      '    - id: community-desktop.experimental.browser-use-provider', `      name: '${provider}'`,
+      '      config:', '        mode: attach', `        endpoint: ${JSON.stringify(endpoint)}`,
+    ].join('\n') }
+  }
   const executablePath = resolveSystemChromiumExecutable(discovery)
   return {
     owner: 'browser-use',
@@ -109,12 +91,12 @@ const RECIPES = {
   },
 } as const satisfies Record<Exclude<ExperimentalCapabilityRecipe, 'browser-use-playwright-visible' | 'browser-use-devtools-visible'>, Recipe>
 
-function resolveRecipe(recipeId: ExperimentalCapabilityRecipe, discovery: ChromiumDiscoveryOptions): Recipe {
+function resolveRecipe(recipeId: ExperimentalCapabilityRecipe, discovery: ChromiumDiscoveryOptions, endpoint?: string): Recipe {
   if (recipeId === 'browser-use-playwright-visible') {
-    return browserRecipe('@deepseek-ai/dsh-experimental-browser-use-playwright-mcp', discovery)
+    return browserRecipe('@deepseek-ai/dsh-experimental-browser-use-playwright-mcp', discovery, endpoint)
   }
   if (recipeId === 'browser-use-devtools-visible') {
-    return browserRecipe('@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp', discovery)
+    return browserRecipe('@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp', discovery, endpoint)
   }
   const recipe = (RECIPES as Partial<Record<string, Recipe>>)[recipeId]
   if (recipe === undefined) throw new Error('dsh: unsupported experimental capability recipe')
@@ -179,14 +161,16 @@ function writeAtomic(filename: string, content: string): void {
  * @param profile - Profile whose patch receives the capability block.
  * @param recipeId - Closed Desktop recipe to compose.
  * @param browserDiscovery - Optional browser observations used by launch recipes.
+ * @param browserEndpoint - Explicit debugging endpoint for attachment instead of launch.
  * @returns Whether the profile patch changed.
  */
 export function configureExperimentalCapability(
   profile: string,
   recipeId: ExperimentalCapabilityRecipe,
   browserDiscovery: ChromiumDiscoveryOptions = {},
+  browserEndpoint?: string,
 ): boolean {
-  const recipe = resolveRecipe(recipeId, browserDiscovery)
+  const recipe = resolveRecipe(recipeId, browserDiscovery, browserEndpoint)
   const filename = join(resolveProfileDir(profile), 'cordis.patch.yml')
   const text = existsSync(filename) ? readFileSync(filename, 'utf8') : '[]\n'
   if (existsSync(filename)) loadOptionalPatches('dsh', filename)

@@ -25,7 +25,9 @@ Use Chrome DevTools MCP to inspect pages and operate Chromium through its upstre
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount both entries before creating or resuming a Session, in a profile composition that supplies Agents, tools, system prompts, and the working-directory service. Loading or reloading this provider does not adopt Sessions that are already active. Browser installation follows the upstream runtime; select an existing Chromium installation with `executablePath`.
+Launch mode uses an existing local Chrome or Chromium executable. Standard system and user installation locations and PATH are searched; `CHROME_PATH`, `CHROMIUM_PATH`, or an explicit `executablePath` can select an installation. A missing browser fails with an installation hint; no browser is downloaded. Attachment mode does not discover or launch a local browser.
+
+Mount both entries before creating or resuming a Session, in a profile composition that supplies Agents, tools, system prompts, and the working-directory service. Loading or reloading this provider does not adopt Sessions that are already active. Browser launch requires an existing Chrome or Chromium installation.
 
 ```yaml
 - name: '@deepseek-ai/dsh-browser-use'
@@ -41,7 +43,7 @@ Use `mode: attach` and set `endpoint` to an HTTP(S) debugging URL or WS(S) brows
 |---|---|---|
 | `mode` | required | `launch` or `attach`, fixed for this provider activation |
 | `headless` | `true` | Launch without a visible window |
-| `executablePath` | upstream discovery | Chromium executable for launch |
+| `executablePath` | local installation discovery | Chrome or Chromium executable for launch |
 | `endpoint` | required for attach | Existing browser debugging endpoint |
 | `toolCallTimeoutMs` | MCP client default | Per-call timeout in milliseconds |
 

@@ -1915,7 +1915,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-host-plugin-inventory`
 
 - `inject`: `loader` · `subprocess`
-- `source`: [`packages/host/plugin-inventory/src/index.ts:161`](../packages/host/plugin-inventory/src/index.ts)
+- `source`: [`packages/host/plugin-inventory/src/index.ts:162`](../packages/host/plugin-inventory/src/index.ts)
 
 ```ts config-catalog
 /** Profile plugin-installer resource policy. */

@@ -1,5 +1,8 @@
 /** Host plugin inventory and controlled installation registered into Web UI. */
 
+import { createElement } from 'react'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import { IconSlidersTwoOutlineMedium, IconRefreshOutlineMedium, IconInspectOutlineMedium } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -224,8 +227,8 @@ export function apply(ctx: ClientContext): void {
       }
       return result.value
     },
-    installExternalTool: async (toolId, experimentalCapability) => startControlledInstall(
-      await resolveExternalToolInstallRequest(toolId, experimentalCapability),
+    installExternalTool: async (toolId, experimentalCapability, browserEndpoint) => startControlledInstall(
+      await resolveExternalToolInstallRequest(toolId, experimentalCapability, browserEndpoint),
     ),
     externalTools: async () => {
       const result = await ctx.remote.pluginInventory.externalTools()
@@ -261,6 +264,9 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: injected,
   }, PluginInventorySettingsTab))
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: 'external-tools',
+  }, ({ size }: PropsRuntime<'settings.section.icon'>) => createElement(IconSlidersTwoOutlineMedium, { size })))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'external-tools',
@@ -270,6 +276,9 @@ export function apply(ctx: ClientContext): void {
     inject: externalToolsInjected,
   }, ExternalToolsSection))
   if (importedPluginRestoreAvailable) {
+    ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+      name: 'settings.section.icon', id: 'plugin-restore',
+    }, ({ size }: PropsRuntime<'settings.section.icon'>) => createElement(IconRefreshOutlineMedium, { size })))
     ctx.slots.inject('settings.section', () => ctx.slots.register({
       name: 'settings.section',
       id: 'plugin-restore',
@@ -279,6 +288,9 @@ export function apply(ctx: ClientContext): void {
       inject: importedPluginRestoreInjected,
     }, ImportedPluginRestoreSection))
   }
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: 'diagnostics',
+  }, ({ size }: PropsRuntime<'settings.section.icon'>) => createElement(IconInspectOutlineMedium, { size })))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'diagnostics',

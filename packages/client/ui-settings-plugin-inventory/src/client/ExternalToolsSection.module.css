@@ -487,3 +487,8 @@
     grid-template-columns: 1fr;
   }
 }
+
+.downloadSize { margin-right: auto; align-self: center; color: var(--dsw-alias-label-tertiary); font: var(--dsw-font-xs-13); }
+.capabilityForm label .downloadSize { display: block; margin-top: 4px; }
+
+.downloadCaveat { display: block; font: inherit; }

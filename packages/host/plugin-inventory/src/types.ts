@@ -249,6 +249,8 @@ export interface PluginInstallRequest {
   readonly packageSpec: string
   /** Optional fixed composition recipe; arbitrary module names and config never cross the wire. */
   readonly experimentalCapability?: ExperimentalCapabilityRecipe
+  /** Explicit browser debugging endpoint; omission launches the local browser. */
+  readonly browserEndpoint?: string
 }
 
 /** Exact registry package removal accepted by the profile plugin manager. */
@@ -320,6 +322,10 @@ export type ExternalToolId = 'codex' | 'claude-code'
 
 /** Host connection state projected beside Profile Bundle installation state. */
 export interface ExternalToolsSnapshot {
+  /** Browser providers already supplied locally, requiring configuration only. */
+  readonly preinstalledBrowserBackends?: readonly ('playwright' | 'devtools')[]
+  /** Native Computer Use supplied locally; it remains disabled until explicitly configured. */
+  readonly preinstalledComputerNative?: boolean
   readonly scope: 'complete-presets'
   readonly codex: boolean
   readonly claudeCode: boolean

@@ -40,7 +40,7 @@ export const inventoryExtraPt = {
   'health.retry.paused': 'Nova tentativa pausada.',
   'health.retry.cancelled': 'Nova tentativa interrompida.',
   'external.capability.title': 'Recursos experimentais',
-  'external.capability.description': 'Estes recursos vêm desativados. Confirme o backend, as permissões e o escopo da sessão atual antes de ativá-los.',
+  'external.capability.description': 'O desktop local ativa o Playwright por padrão se houver um navegador instalado; os outros recursos são opcionais. Confira o backend, as permissões e o escopo da sessão.',
   'external.capability.status.ready': 'Pronto',
   'external.capability.status.configuration': 'Requer configuração',
   'external.capability.status.permission': 'Requer permissão',

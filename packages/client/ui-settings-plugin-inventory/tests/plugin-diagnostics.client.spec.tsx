@@ -47,9 +47,11 @@ function props(snapshot: PluginInventorySnapshot): PluginDiagnosticsSectionProps
 
 describe('PluginDiagnosticsSection', () => {
   it.each([
+    ['runtime.browser-default-missing', 'diagnostics.startup.solution.browserDefaultMissing'],
+    ['runtime.browser-default-failed', 'diagnostics.startup.solution.browserDefaultFailed'],
     ['runtime.legacy-worktree-bundle', 'diagnostics.startup.solution.legacyWorktree'],
     ['runtime.legacy-worktree-backup-failed', 'diagnostics.startup.solution.legacyWorktreeBackupFailed'],
-  ] as const)('explains legacy worktree migration without automatic changes (%s)', async (code, solution) => {
+  ] as const)('shows startup-specific guidance without automatic plugin changes (%s)', async (code, solution) => {
     const retry = vi.fn(async () => ({ status: 'plugin-started' as const }))
     render(<PluginDiagnosticsSection
       {...props({ entries: [], dependencyHealth: { lastRepair: null, diagnosticMode: null, quarantined: [], issues: [] } })}

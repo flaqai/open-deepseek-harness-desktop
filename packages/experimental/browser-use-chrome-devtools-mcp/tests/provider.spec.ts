@@ -7,6 +7,7 @@ import * as Provider from '../src/index.ts'
 vi.mock('@deepseek-ai/dsh-experimental-browser-use-runtime/mcp', async importOriginal => ({
   ...await importOriginal<typeof import('@deepseek-ai/dsh-experimental-browser-use-runtime/mcp')>(),
   mountSessionMcp: vi.fn(),
+  resolveLocalChromiumExecutable: vi.fn((path?: string) => path ?? '/installed/chromium'),
 }))
 afterEach(() => vi.clearAllMocks())
 
@@ -17,7 +18,7 @@ it('resolves the installed DevTools CLI and explicitly selects isolated headed o
   expect(options).toMatchObject({ name: 'chrome-devtools-mcp', exclusive: false, command: process.execPath, toolCallTimeoutMs: 456 })
   expect(options.args.slice(1)).toEqual(['--no-usage-statistics', '--isolated', '--headless=true', '--executable-path', '/custom/chrome'])
   Provider.apply(new Context(), Provider.Config({ mode: 'launch', headless: false }))
-  expect(vi.mocked(mountSessionMcp).mock.calls[1]![1].args.slice(1)).toEqual(['--no-usage-statistics', '--isolated', '--headless=false'])
+  expect(vi.mocked(mountSessionMcp).mock.calls[1]![1].args.slice(1)).toEqual(['--no-usage-statistics', '--isolated', '--headless=false', '--executable-path', '/installed/chromium'])
   expect('default' in Provider).toBe(false)
 })
 
