@@ -14,7 +14,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.3 を公開しました](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3)。** 公式 DeepSeek Harness `dsh-v0.2.1-rc.3` を統合し、プラグインへの入口とセッションの下書きを改善しました。公式 API のモデル一覧の動的取得に対応し、一部プラグインの誤った隔離を修正しています。**DeepSeek 4.1-1017（DeepSeek-V4.1-Flash、1017 更新）に対応しています。**
+> **[v0.2.2-rc.1 を公開しました](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1)。** 公式 DeepSeek Harness `dsh-v0.2.2-rc.1` を統合し、セッション要約と終了時保存の修正を取り込みました。コミュニティ版ではワークスペース一覧の復旧、公式引用機能との連携、右クリックメニューとブラウザー・デスクトップ操作の同梱を提供します。 **DeepSeek 4.1-1017（DeepSeek-V4.1-Flash、1017 更新）に対応しています。**
 >
 > バージョン名には `rc` が含まれていますが、GitHub では通常の Release として公開しています。アップグレード前に重要な設定と会話をバックアップし、問題を報告する際はログまたは診断レポートを添付してください。
 
@@ -26,6 +26,10 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 
 ## 現在の主な機能
 
+- **コミュニティ版の設定カスタマイズ**：長押しで並べ替え、グループ間移動、カスタムグループと折りたたみに対応。中央に配置される設定画面とサイドバーを個別にリサイズし、既定のサイズへ戻せます。
+- **ローカルのスペルチェックと右クリック操作**：編集可能な入力欄では元に戻す、やり直す、切り取り、コピー、貼り付け、すべて選択と修正候補を利用できます。本文の選択箇所はコピー、現在の会話への引用、新規会話またはサイド会話での質問に使え、自動送信されません。
+- **回答の下に生成画像をプレビュー**：回答内の解決可能なローカル画像パスを、回答下のサムネイルとして表示。実行トレースを探さず、プレビューやファイルマネージャーでの表示を直接開けます。
+- **ブラウザー・デスクトップ操作機能を同梱**：Playwright MCP と Chrome DevTools MCP の接続プラグイン・依存関係、および Computer Use Native の依存関係を含みます。本機の Chrome／Chromium を再利用し、別のブラウザーは同梱しません。デスクトップ操作には明示的な有効化とシステム権限が必要です。
 - **9 言語のインターフェースを標準搭載**：簡体字中国語、英語、日本語、韓国語、ドイツ語、フランス語、スペイン語、ポルトガル語（ブラジル）、ロシア語。追加の言語プラグインなしで、設定から切り替えられます。
 - 調整可能な本文、ターン移動、正確な Token 使用量、送信キューを備えた AI 会話ワークスペース。
 - 公式設定の独立環境へのコピー、既存ディレクトリの共有、または新規作成。
@@ -129,11 +133,12 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 会話、ツール出力、詳細、ファイルプレビューなどの読み取り専用テキストを選択すると横型ツールバーが表示され、選択部分を右クリックすると縦型の角丸メニューが表示されます。
 
-- **コピー**：選択テキストをクリップボードへコピー。
-- **新しい会話で質問**：現在のワークスペースに新しい会話を作り、質問文を入力しますが自動送信しません。
-- **現在の会話へ追加**：既存の下書きを上書きせず Markdown 引用として追記。
+- **コピー**：選択テキストをシステムのクリップボードへコピーします。
+- **新しい会話で質問**：新しい会話を作成し、公式の引用欄へ選択内容を追加します。自動送信しません。
+- **会話に追加**：現在の会話の引用欄に追加し、既存の下書きは保持します。
+- **サイド会話で質問**：メインの会話を保持したまま、右サイドバーに別の会話を開き、選択内容を引用します。
 
-現在の会話が確認や選択を待っていて入力欄が無効な場合、「現在の会話へ追加」は非表示になります。
+編集可能な入力欄には独立したメニューがあり、元に戻す、やり直す、切り取り、コピー、貼り付け、すべて選択、ローカルのスペルチェック設定と候補を利用できます。Windows／Linux は辞書を同梱し、macOS はシステムのスペルチェックを使います。入力内容を AI や外部校正サービスへ送信せず、読み取り専用の回答を書き換える修正操作は提供しません。
 
 <p align="center">
   <strong>選択ツールバー</strong><br>
@@ -160,7 +165,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 #### プリセットプラグインへの謝辞
 
-[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid)、[`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) の作者とメンテナーに感謝します。本プロジェクトはデスクトップ統合と整合性を検証したアーカイブ配布を担当し、各プラグインの著作権、ライセンス、継続的な保守はそれぞれのプロジェクトに帰属します。
+現在の 11 個の起動プリセットの作者とメンテナーに感謝します：[`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget), [`@weibaohui/skills-management`](https://github.com/weibaohui/skills-management), [`@dsh-plugins/mcp-panel`](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel), [`dsh-context`](https://github.com/bowenliang123/dsh-context)。MCP パネルは dsh-pluginHive の MCP サブパッケージです。本プロジェクトはデスクトップ統合と整合性を検証した配布を担当し、コード、素材、ライセンスと保守は各プロジェクトに帰属します。同梱する操作機能の依存関係を提供する Playwright MCP、Chrome DevTools MCP、Cua Driver のメンテナーにも感謝します。DSH Smooth Stream は現在の起動プリセットではありませんが、これまでの貢献に感謝します。
 
 既存の Pocket のインストールと設定はアップグレード後も保持され、プラグイン管理から手動でアンインストールできます。
 
@@ -172,9 +177,13 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 ### 設定ナビゲーションのカスタマイズ
 
-設定の左側ナビゲーションは独立してスクロールでき、項目が増えても後半が隠れません。項目はドラッグで並べ替えでき、順序はローカルに保存されます。プラグインの追加・削除後もユーザーの並びへ安定して統合されます。Windows／Linux ではタイトルバーと Harness 内容を別のネイティブビューに分けるため、全画面プラグインがウィンドウ操作ボタンを覆いません。
+設定項目を 200ms 長押しすると、並べ替え、グループ間移動、独立した位置への配置ができます。カスタムグループは開閉でき、長い名前は折り返し、挿入マーカーで移動先を示します。ドラッグ中に周囲の行が場所を空け、最終レイアウトを保存します。設定画面は端をドラッグして制限内でリサイズでき、常に中央に配置されます。スクロールバーの隣の独立した区切り線でサイドバー幅を調整し、設定メニューで既定のサイズに戻せます。スクロールバーはその列にマウスを置いたときだけ太くなり、幅調整のハンドルとは分離されています。ヘッダーからログと設定ファイルを開けます。
 
-<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="三本線のハンドルで設定ナビゲーションを並べ替え"><br><sub>設定項目を自由にドラッグし、周囲の行が滑らかに場所を空け、最終順序を保存</sub></p>
+<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="旧版の並べ替え例。現在は長押しドラッグ、グループ化、サイズ変更に対応しています"><br><sub>旧版の並べ替え例。現在は長押しドラッグ、グループ化、サイズ変更に対応しています</sub></p>
+
+### 実験的な操作機能
+
+**設定 → ツールと機能** から Browser Use、Computer Use、Auto review を管理できます。Playwright MCP、Chrome DevTools MCP、Computer Use Native の接続プラグインと依存関係はインストーラーに含まれ、オフラインで構成できます。Stagehand や Cua Driver MCP などは必要に応じてインストールします。本機のブラウザーを利用でき、既存の選択がない場合のみ、初回設定で Playwright を選択します。既存の選択と明示的な無効化は保持され、サービスは関連するセッションでのみ起動します。Computer Use Native は明示的な有効化とシステム権限が必要です。Chrome／Chromium がない場合はインストールを案内します。これらは引き続き実験的な機能です。
 
 ## テーマと背景
 
@@ -190,7 +199,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 ## ダウンロードとインストール
 
-[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3) から対象パッケージを入手してください。
+[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1) から対象パッケージを入手してください。
 
 | OS | アーキテクチャ | パッケージ |
 | --- | --- | --- |
@@ -202,7 +211,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 SHA256SUMS で完全性を確認してください。macOS 版は ad-hoc 署名で未公証です。Gatekeeper が阻止した場合は「システム設定 → プライバシーとセキュリティ → このまま開く」を使用してください。Windows では未署名・新規公開アプリの評価警告が出る場合があります。
 
-選択した Release に `DeepSeek-Harness-windows-x64.zip` がある場合は、全体を独立したフォルダーに展開して `Open DeepSeek Harness Desktop.exe` を実行できます。ZIP 版はインストール不要で、インストール用のレジストリ登録や PATH の自動登録を行いません。設定と履歴は通常のユーザーデータディレクトリに保存され、ZIP フォルダーを移動しても一緒には移動しません。既存のインストール先に上書き展開しないでください。公開済み rc.3 には Windows ZIP はまだ含まれていません。
+選択した Release に `DeepSeek-Harness-windows-x64.zip` がある場合は、全体を独立したフォルダーに展開して `Open DeepSeek Harness Desktop.exe` を実行できます。ZIP 版はインストール不要で、インストール用のレジストリ登録や PATH の自動登録を行いません。設定と履歴は通常のユーザーデータディレクトリに保存され、ZIP フォルダーを移動しても一緒には移動しません。既存のインストール先に上書き展開しないでください。公開済み 0.2.2-rc.1 には Windows ZIP も含まれています。
 
 旧プログラムフォルダーを手動で削除すると、残ったインストール記録によって再インストールできない場合があります。汎用修復ツールは [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md) にあります。このツールを含む Windows ビルドでは、プログラムフォルダー内の `resources/support/windows-install-repair/` にも配置されます。本アプリの登録情報を検証し、ユーザーの確認後にバックアップしてから修復します。設定、履歴、プログラムファイルは削除しません。
 

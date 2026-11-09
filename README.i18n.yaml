@@ -6,11 +6,11 @@
   en: d17fd1f47747f308
   zh: d17fd1f47747f308
 /open-deepseek-harness-desktop:
-  en: 813ce314c0d791af
-  zh: 813ce314c0d791af
+  en: 884aed13c7ee60b8
+  zh: 884aed13c7ee60b8
 /open-deepseek-harness-desktop/section:
-  en: 5fb9cd457584b7ed
-  zh: 5fb9cd457584b7ed
+  en: 939d9755c49437d4
+  zh: 939d9755c49437d4
 /open-deepseek-harness-desktop/ai:
   en: bbad66b898adc1cf
   zh: bbad66b898adc1cf
@@ -69,44 +69,44 @@
   en: e087b0e626d8d537
   zh: e087b0e626d8d537
 /open-deepseek-harness-desktop/section~6:
-  en: 239b19e159c3e901
-  zh: 239b19e159c3e901
+  en: ef02852d56b9013d
+  zh: ef02852d56b9013d
 /open-deepseek-harness-desktop/section~7:
   en: f31a87eff1041787
   zh: e72ea2ff2ba4b651
 /open-deepseek-harness-desktop/section/section~11:
-  en: 8a9cbe7b86913f73
-  zh: 8a9cbe7b86913f73
-/open-deepseek-harness-desktop/0-1-6:
-  en: bbde0610de5b3d14
-  zh: bbde0610de5b3d14
-/open-deepseek-harness-desktop/0-1-6/section:
+  en: 9c1dd1143079a24d
+  zh: 9c1dd1143079a24d
+/open-deepseek-harness-desktop/section~8:
+  en: c1cdbc5d953b955e
+  zh: c1cdbc5d953b955e
+/open-deepseek-harness-desktop/section/section~12:
   en: f74b65615f1eef29
   zh: f74b65615f1eef29
-/open-deepseek-harness-desktop/0-1-6/section~2:
+/open-deepseek-harness-desktop/section/section~13:
   en: 2260976dfe7705e3
   zh: 2260976dfe7705e3
-/open-deepseek-harness-desktop/0-1-6/0-1-6:
-  en: 1979d6a7372047eb
-  zh: 1979d6a7372047eb
-/open-deepseek-harness-desktop/0-1-6/section~3:
+/open-deepseek-harness-desktop/section/section~14:
+  en: 5379fce92c90a2d5
+  zh: 5379fce92c90a2d5
+/open-deepseek-harness-desktop/section/section~15:
   en: 69e608aa7e2fdb03
   zh: 69e608aa7e2fdb03
-/open-deepseek-harness-desktop/0-1-6/section~4:
+/open-deepseek-harness-desktop/section/section~16:
   en: 5833969996b56f4d
   zh: 5833969996b56f4d
-/open-deepseek-harness-desktop/0-1-6/section/section:
-  en: b1839dd1b741793c
-  zh: b1839dd1b741793c
-/open-deepseek-harness-desktop/section~8:
+/open-deepseek-harness-desktop/section/section/section:
+  en: 7030dfe1f9fe17d0
+  zh: 7030dfe1f9fe17d0
+/open-deepseek-harness-desktop/section~9:
   en: b868f2ec0e481870
   zh: b868f2ec0e481870
-/open-deepseek-harness-desktop/deepseek-harness-0-2-1-rc-3:
-  en: 2c4160d64abcab20
-  zh: 2c4160d64abcab20
-/open-deepseek-harness-desktop/section~9:
-  en: b05ed564f6b525f0
-  zh: 056d0c02ac95b122
+/open-deepseek-harness-desktop/deepseek-harness-0-2-2-rc-1:
+  en: 6a8902e99fa2f20c
+  zh: 6a8902e99fa2f20c
+/open-deepseek-harness-desktop/section~10:
+  en: d6efebb38e3f526c
+  zh: 7d683383df5c3471
 /open-deepseek-harness-desktop/section/macos:
   en: ef34cb69961c7407
   zh: ef34cb69961c7407
@@ -116,40 +116,40 @@
 /open-deepseek-harness-desktop/section/linux:
   en: 4a4324b5da3f302c
   zh: 4a4324b5da3f302c
-/open-deepseek-harness-desktop/section~10:
+/open-deepseek-harness-desktop/section~11:
   en: 48a17af05186ea3c
   zh: 48a17af05186ea3c
-/open-deepseek-harness-desktop/section~11:
+/open-deepseek-harness-desktop/section~12:
   en: 6ac424d9a47e4cc4
   zh: 6ac424d9a47e4cc4
 /open-deepseek-harness-desktop/skill:
   en: 0027d33d64b326fb
   zh: 0027d33d64b326fb
-/open-deepseek-harness-desktop/section~12:
+/open-deepseek-harness-desktop/section~13:
   en: c059c0b0304fe2b2
   zh: 32198fdd3bce9150
 /open-deepseek-harness-desktop/api-token:
   en: 3cc491ecb5022e34
   zh: 3cc491ecb5022e34
-/open-deepseek-harness-desktop/section~13:
+/open-deepseek-harness-desktop/section~14:
   en: e888cbe239f9b4b2
   zh: e888cbe239f9b4b2
-/open-deepseek-harness-desktop/section~14:
+/open-deepseek-harness-desktop/section~15:
   en: 8deac126bb7d720b
   zh: 8deac126bb7d720b
-/open-deepseek-harness-desktop/section/section~12:
+/open-deepseek-harness-desktop/section/section~17:
   en: 732827293d3e1265
   zh: 732827293d3e1265
-/open-deepseek-harness-desktop/section~15:
-  en: 6b7d7c3efe2ccd5e
-  zh: 6b7d7c3efe2ccd5e
+/open-deepseek-harness-desktop/section~16:
+  en: 492aa4fab52da0aa
+  zh: 492aa4fab52da0aa
 /open-deepseek-harness-desktop/flaq-ai:
   en: 31437910f5b3b33d
   zh: 31437910f5b3b33d
-/open-deepseek-harness-desktop/section~16:
+/open-deepseek-harness-desktop/section~17:
   en: 85c9cdd8d56f8e9d
   zh: 85c9cdd8d56f8e9d
-/open-deepseek-harness-desktop/section~17:
+/open-deepseek-harness-desktop/section~18:
   en: c79db8b1e3a86610
   zh: c79db8b1e3a86610
 /open-deepseek-harness-desktop/friends:

@@ -10,7 +10,7 @@ Sprachen: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.3 ist verfügbar](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).** Diese Version integriert das offizielle DeepSeek Harness `dsh-v0.2.1-rc.3`, verbessert Plugin-Einstiege und Sitzungsentwürfe, ergänzt die dynamische Modellliste der offiziellen API und behebt die fälschliche Quarantäne einiger Plugins. **DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, Update 1017) wird unterstützt.**
+> **[v0.2.2-rc.1 ist verfügbar](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).** Diese Version integriert das offizielle DeepSeek Harness `dsh-v0.2.2-rc.1`, verbessert die Wiederherstellung der Arbeitsbereichsliste, Zitate, Kontextmenüs und Einstellungen und enthält vorinstallierte Browser- und Computersteuerung. **DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, Update 1017) wird unterstützt.**
 >
 > Obwohl der Versionsname `rc` enthält, ist sie auf GitHub als reguläres Release veröffentlicht. Sichern Sie wichtige Unterhaltungen und Konfigurationen vor dem Upgrade und fügen Sie Problemmeldungen relevante Protokolle oder Diagnoseberichte bei.
 
@@ -22,6 +22,10 @@ Open DeepSeek Harness Desktop ist eine unabhängige, von der Community gepflegte
 
 ## Aktuelle Hauptfunktionen
 
+- **Community-Einstellungen nach Maß**: per langem Drücken sortieren, zwischen Gruppen verschieben, eigene Gruppen ein- und ausklappen; den zentrierten Dialog und die Seitenleiste getrennt vergrößern oder auf Standardmaße zurücksetzen.
+- **Lokale Rechtschreibprüfung und Kontextaktionen**: bearbeitbare Eingabefelder bieten Rückgängig, Wiederholen, Ausschneiden, Kopieren, Einfügen, Alles auswählen und Korrekturvorschläge. Nachrichtentext lässt sich kopieren, als offizielles Zitat hinzufügen oder in einer neuen bzw. seitlichen Unterhaltung verwenden, ohne automatisch zu senden.
+- **Bildvorschauen unter Antworten**: auflösbare lokale Bildpfade in einer Antwort erscheinen darunter als Vorschaubilder; Vorschau und Anzeige im Dateimanager sind direkt erreichbar, ohne den Ausführungsverlauf zu durchsuchen.
+- **Vorinstallierte Browser- und Computersteuerung**: Playwright MCP, Chrome DevTools MCP und die jeweiligen Abhängigkeiten sowie Computer Use Native sind enthalten. Die Browsersteuerung nutzt lokales Chrome/Chromium ohne zusätzlichen Browser; Computersteuerung erfordert ausdrückliche Aktivierung und Systemberechtigungen.
 - **9 integrierte Oberflächensprachen**: vereinfachtes Chinesisch, Englisch, Japanisch, Koreanisch, Deutsch, Französisch, Spanisch, Portugiesisch (Brasilien) und Russisch. In den Einstellungen umschaltbar, ohne zusätzliches Sprachplugin.
 - KI-Unterhaltungsbereich mit einstellbarer Breite, Rundennavigation, exaktem Token-Verbrauch und Sendewarteschlange.
 - Import in eine unabhängige Umgebung, direkte Freigabe eines Verzeichnisses oder sauberer Neustart.
@@ -117,10 +121,11 @@ Entwicklungs- und Installationsversionen enthalten Offline-Beispiele für Host-S
 Markierter Nur-Lese-Text in Unterhaltung, Tool-Ausgabe, Details oder Dateivorschau zeigt eine horizontale Aktionsleiste. Ein Rechtsklick auf die Auswahl öffnet ein vertikales, abgerundetes Menü.
 
 - **Kopieren** in die Systemzwischenablage.
-- **In neuer Unterhaltung fragen**, ohne automatisch zu senden.
-- **Zur aktuellen Unterhaltung hinzufügen** als Markdown-Zitat, ohne den Entwurf zu überschreiben.
+- **In neuer Unterhaltung fragen**: neue Unterhaltung mit der Auswahl im offiziellen Zitatbereich erstellen, ohne automatisch zu senden.
+- **Zur Unterhaltung hinzufügen**: die Auswahl im Zitatbereich der aktuellen Unterhaltung ergänzen und den Entwurf erhalten.
+- **In seitlicher Unterhaltung fragen**: eine separate Unterhaltung in der rechten Seitenleiste mit dem ausgewählten Zitat öffnen; die Hauptunterhaltung bleibt erhalten.
 
-Wartet die Sitzung auf Auswahl, Bestätigung oder Antwort oder ist der Editor gesperrt, wird „Zur aktuellen Unterhaltung hinzufügen“ automatisch ausgeblendet.
+Bearbeitbare Eingabefelder haben ein eigenes Menü mit Rückgängig, Wiederholen, Ausschneiden, Kopieren, Einfügen, Alles auswählen sowie lokaler Rechtschreibprüfung und verfügbaren Vorschlägen. Windows/Linux enthalten Wörterbücher; macOS nutzt die Systemprüfung. Eingaben werden weder an KI noch an einen externen Korrekturdienst gesendet. Schreibgeschützte Antworten bieten keine Korrektur, die den Originaltext verändert.
 
 <p align="center">
   <strong>Auswahlleiste</strong><br>
@@ -131,6 +136,10 @@ Wartet die Sitzung auf Auswahl, Bestätigung oder Antwort oder ist der Editor ge
   <strong>Kontextmenü</strong><br>
   <img src="../../assets/readme/selection-context-menu-zh.png" width="900" alt="Vertikales Kontextmenü bei Rechtsklick">
 </p>
+
+## Experimentelle Fähigkeiten
+
+**Einstellungen → Werkzeuge und Fähigkeiten** bietet Browser Use, Computer Use und Auto review. Playwright MCP, Chrome DevTools MCP und Computer Use Native sind mit ihren Schnittstellen und Abhängigkeiten für eine Offline-Konfiguration enthalten; Stagehand und Cua Driver MCP werden bei Bedarf installiert. Bei vorhandenem lokalem Browser und ohne bestehende Auswahl wählt die Ersteinrichtung einmalig Playwright. Vorhandene Auswahl und ausdrücklich deaktivierte Zustände bleiben erhalten; Dienste starten nur für relevante Sitzungen. Computer Use Native erfordert bewusste Aktivierung und Systemberechtigungen. Fehlt lokales Chrome/Chromium, erscheint ein Installationshinweis. Diese Funktionen bleiben experimentell.
 
 ## Desktop-Erlebnis
 
@@ -147,7 +156,7 @@ Der Installer enthält elf Start-Presets als integritätsgeprüfte lokale Archiv
 
 #### Dank an die Preset-Plugins
 
-Vielen Dank an die Autoren und Maintainer von [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) und [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget). Dieses Projekt übernimmt die Desktop-Integration und die Verteilung integritätsgeprüfter Archive; Urheberrecht, Lizenzen und laufende Pflege verbleiben bei den jeweiligen Plugin-Projekten.
+Vielen Dank an die Autoren und Maintainer der elf aktuellen Start-Presets: [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget), [`@weibaohui/skills-management`](https://github.com/weibaohui/skills-management), [`@dsh-plugins/mcp-panel`](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel), [`dsh-context`](https://github.com/bowenliang123/dsh-context). Das MCP-Panel stammt aus dem MCP-Unterpaket von dsh-pluginHive; Bridge verweist auf das entsprechende Unterverzeichnis von Agents Anywhere. Dieses Projekt übernimmt Desktop-Integration und integritätsgeprüfte Verteilung; Code, Assets, Lizenzen und Pflege verbleiben bei den Originalprojekten. Wir danken auch den Maintainern von Playwright MCP, Chrome DevTools MCP und Cua Driver für die mitgelieferten Abhängigkeiten.
 
 Vorhandene Pocket-Installationen und Einstellungen bleiben beim Upgrade erhalten; Pocket kann über die Plugin-Verwaltung manuell deinstalliert werden.
 
@@ -159,9 +168,9 @@ Bei einem direkten Upgrade gleicht der Client Eintrag, Abhängigkeit, Bundle-Reg
 
 ### Anpassbare Einstellungsnavigation
 
-Die linke Einstellungsnavigation besitzt einen eigenen Scrollbereich, sodass von Plugins hinzugefügte Abschnitte erreichbar bleiben. Abschnitte können gezogen werden; ihre Reihenfolge wird lokal gespeichert und beim Installieren oder Entfernen von Plugins stabil zusammengeführt. Unter Windows und Linux verwenden Titelleiste und Harness-Inhalt getrennte native Ansichten, sodass ein Vollbild-Plugin die Fenstersteuerung nicht überdecken kann.
+Ein Einstellungsbereich lässt sich nach 200ms langem Drücken sortieren, zwischen Gruppen verschieben oder einzeln ablegen. Eigene Gruppen klappen ein und aus, lange Namen umbrechen, und unterschiedliche Einfügemarkierungen zeigen das Ziel. Die Zeilen machen während des Ziehens Platz; das endgültige Layout wird gespeichert. Der Dialog lässt sich an seinen Rändern innerhalb fester Grenzen vergrößern und bleibt zentriert. Eine getrennte Trennlinie neben dem Scrollbalken regelt die Seitenleistenbreite; das Einstellungsmenü stellt Standardmaße wieder her. Nur beim Zeigen auf seine Spalte wird der Scrollbalken breiter; er dient nicht als Größenregler. Die Kopfzeile öffnet Logs und Konfigurationsdateien. Windows/Linux verwenden getrennte native Ansichten für Titelleiste und Harness-Inhalt.
 
-<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Einstellungen über die Drei-Linien-Griffe neu anordnen"><br><sub>Abschnitte frei ziehen; die übrigen Zeilen geben weich Platz frei und die endgültige Reihenfolge wird gespeichert</sub></p>
+<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Sortierbeispiel einer älteren Einstellungsoberfläche"><br><sub>Ältere Darstellung; die aktuelle Oberfläche unterstützt langes Drücken, Gruppen und Größenänderung</sub></p>
 
 ## Themes und Hintergründe
 
@@ -171,7 +180,7 @@ Unterstützt System, Hell, Dunkel und acht Produkt-Themes, acht integrierte Illu
 
 ## Download und Installation
 
-Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3) herunter.
+Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1) herunter.
 
 | System | Architektur | Paket |
 | --- | --- | --- |
@@ -183,7 +192,7 @@ Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/ope
 
 Prüfen Sie Dateien mit SHA256SUMS. macOS-Builds sind ad-hoc signiert und nicht notarisiert; bei einer Gatekeeper-Sperre wählen Sie **Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen**. Windows kann für neue oder unsignierte Builds eine Reputationswarnung anzeigen.
 
-Falls das gewählte Release `DeepSeek-Harness-windows-x64.zip` anbietet, entpacken Sie das gesamte Archiv in einen eigenen Ordner und starten Sie `Open DeepSeek Harness Desktop.exe`. Die ZIP-Ausgabe benötigt keine Installation und registriert weder Installationseinträge noch automatisch PATH. Einstellungen und Verlauf bleiben im normalen Benutzerdatenverzeichnis und ziehen nicht mit dem ZIP-Ordner um. Entpacken Sie nicht über eine bestehende Installation. Das veröffentlichte rc.3 enthält noch keine Windows-ZIP-Datei.
+Falls das gewählte Release `DeepSeek-Harness-windows-x64.zip` anbietet, entpacken Sie das gesamte Archiv in einen eigenen Ordner und starten Sie `Open DeepSeek Harness Desktop.exe`. Die ZIP-Ausgabe benötigt keine Installation und registriert weder Installationseinträge noch automatisch PATH. Einstellungen und Verlauf bleiben im normalen Benutzerdatenverzeichnis und ziehen nicht mit dem ZIP-Ordner um. Entpacken Sie nicht über eine bestehende Installation. Das veröffentlichte `0.2.2-rc.1` enthält auch die Windows-ZIP-Ausgabe.
 
 Nach dem manuellen Löschen des alten Programmordners können verwaiste Installationseinträge eine Neuinstallation blockieren. Das allgemeine Reparaturwerkzeug liegt unter [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md); Windows-Builds mit diesem Werkzeug enthalten es auch unter `resources/support/windows-install-repair/` im Programmordner. Es prüft die Einträge dieser Anwendung und sichert sie nach Ihrer Bestätigung vor der Reparatur; Einstellungen, Verlauf und Programmdateien werden nicht gelöscht.
 
@@ -208,6 +217,10 @@ Der Renderer deaktiviert Node-Integration und aktiviert context isolation und Ch
 - Upstream: [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
 Open DeepSeek Harness Desktop steht unter der [MIT-Lizenz](../../LICENSE). Drittanbieter-Lizenzen finden Sie in [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+
+## Danksagung
+
+Die elf aktuellen Start-Presets und ihre Projektlinks stehen unter „Dank an die Preset-Plugins“. DSH Smooth Stream ist kein aktuelles Start-Preset mehr; wir danken seinem Autor auch für den früheren Beitrag. Ebenso danken wir den [DeepSeek-Harness-Maintainern](https://github.com/deepseek-ai/deepseek-harness) und den Projekten [OpenAI Codex](https://github.com/openai/codex) und [Claude Code](https://github.com/anthropics/claude-code).
 
 ## Friends
 

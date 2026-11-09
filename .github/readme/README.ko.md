@@ -10,7 +10,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.3이 출시되었습니다](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).** 공식 DeepSeek Harness `dsh-v0.2.1-rc.3`을 통합해 플러그인 진입점과 세션 초안을 개선하고, 공식 API의 동적 모델 목록을 지원하며 일부 플러그인의 잘못된 격리를 수정했습니다. **DeepSeek 4.1-1017(DeepSeek-V4.1-Flash, 1017 업데이트)을 지원합니다.**
+> **[v0.2.2-rc.1이 출시되었습니다](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).** 공식 DeepSeek Harness `dsh-v0.2.2-rc.1`을 통합하고 세션 요약 및 종료 시 저장 수정을 포함합니다. 커뮤니티 버전은 작업 공간 목록 복구, 공식 인용 기능 연결, 오른쪽 클릭 메뉴와 브라우저·컴퓨터 조작 기능 사전 설치를 제공합니다. **DeepSeek 4.1-1017(DeepSeek-V4.1-Flash, 1017 업데이트)을 지원합니다.**
 >
 > 버전 이름에는 `rc`가 포함되어 있지만 GitHub에서는 일반 Release로 게시되었습니다. 업그레이드 전에 중요한 설정과 대화를 백업하고, 문제를 보고할 때 관련 로그나 진단 보고서를 첨부해 주세요.
 
@@ -22,6 +22,10 @@ Open DeepSeek Harness Desktop는 [DeepSeek Harness](https://github.com/deepseek-
 
 ## 현재 주요 기능
 
+- **커뮤니티 설정 사용자 지정**: 길게 눌러 순서를 바꾸거나 그룹 사이로 이동하고 사용자 지정 그룹을 접고 펼칠 수 있습니다. 중앙에 배치되는 설정 창과 사이드바 크기를 각각 조절하고 기본 크기로 복원할 수 있습니다.
+- **로컬 맞춤법 검사와 오른쪽 클릭 작업**: 편집 가능한 입력창에서 실행 취소, 다시 실행, 잘라내기, 복사, 붙여넣기, 전체 선택과 철자 제안을 제공합니다. 선택한 본문을 복사하거나 현재 대화에 인용하고 새 대화 또는 사이드 대화에서 질문할 수 있으며 자동으로 전송하지 않습니다.
+- **답변 아래 생성 이미지 미리보기**: 답변의 해석 가능한 로컬 이미지 경로를 아래쪽 썸네일로 표시합니다. 실행 기록에서 찾지 않고 바로 미리 보거나 파일 관리자에서 위치를 열 수 있습니다.
+- **브라우저·컴퓨터 조작 기능 사전 설치**: Playwright MCP와 Chrome DevTools MCP 연결 플러그인 및 의존성, Computer Use Native 의존성을 포함합니다. 로컬 Chrome/Chromium을 재사용하고 별도 브라우저는 번들하지 않습니다. 컴퓨터 조작은 직접 활성화하고 시스템 권한을 부여해야 합니다.
 - **9개 인터페이스 언어 기본 지원**: 중국어 간체, 영어, 일본어, 한국어, 독일어, 프랑스어, 스페인어, 포르투갈어(브라질), 러시아어. 별도의 언어 플러그인 없이 설정에서 전환할 수 있습니다.
 - 조절 가능한 본문, 턴 탐색, 정확한 Token 사용량과 전송 대기열을 갖춘 AI 대화 작업 공간.
 - 공식 설정을 독립 환경으로 가져오기, 기존 디렉터리 공유 또는 완전히 새로 시작하기.
@@ -122,11 +126,12 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 대화, 도구 출력, 세부 정보, 파일 미리보기의 읽기 전용 텍스트를 선택하면 가로 작업 표시줄이 나타나며, 선택 영역을 오른쪽 클릭하면 세로형 둥근 메뉴가 나타납니다.
 
-- **복사**: 선택 내용을 시스템 클립보드에 저장합니다.
-- **새 대화에서 질문**: 현재 작업 공간에 새 대화를 만들고 내용을 채우지만 자동 전송하지 않습니다.
-- **현재 대화에 추가**: 기존 초안을 덮어쓰지 않고 Markdown 인용문으로 추가합니다.
+- **복사**: 선택 내용을 시스템 클립보드에 복사합니다.
+- **새 대화에서 질문**: 새 대화를 만들고 공식 인용 영역에 선택 내용을 추가합니다. 자동으로 전송하지 않습니다.
+- **대화에 추가**: 현재 대화의 인용 영역에 추가하고 기존 초안을 유지합니다.
+- **사이드 대화에서 질문**: 기본 대화를 유지하면서 오른쪽 사이드바에 별도 대화를 열고 선택 내용을 인용합니다.
 
-현재 세션이 선택·확인·답변을 기다리거나 입력창이 비활성화되면 “현재 대화에 추가”는 자동으로 숨겨집니다.
+편집 가능한 입력창에는 실행 취소, 다시 실행, 잘라내기, 복사, 붙여넣기, 전체 선택, 로컬 맞춤법 검사 설정 및 제안을 제공하는 별도 메뉴가 있습니다. Windows/Linux는 사전을 포함하고 macOS는 시스템 맞춤법 검사를 사용합니다. 입력 내용을 AI나 외부 교정 서비스에 전송하지 않으며, 읽기 전용 답변의 원문을 바꾸는 맞춤법 작업은 제공하지 않습니다.
 
 <p align="center">
   <strong>선택 작업 표시줄</strong><br>
@@ -153,7 +158,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 #### 프리셋 플러그인 감사
 
-[`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)의 제작자와 유지관리자에게 감사드립니다. 이 프로젝트는 데스크톱 통합과 무결성이 확인된 아카이브 배포를 담당하며, 각 플러그인의 저작권, 라이선스 및 지속적인 유지관리는 해당 프로젝트에 귀속됩니다.
+현재 11개 시작 프리셋의 제작자와 유지관리자에게 감사드립니다: [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget), [`@weibaohui/skills-management`](https://github.com/weibaohui/skills-management), [`@dsh-plugins/mcp-panel`](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel), [`dsh-context`](https://github.com/bowenliang123/dsh-context). MCP 패널은 dsh-pluginHive의 MCP 하위 패키지입니다. 이 프로젝트는 데스크톱 통합과 무결성이 검증된 배포를 담당하며 코드, 자산, 라이선스 및 유지관리는 각 프로젝트에 귀속됩니다. 조작 기능의 번들 의존성을 제공하는 Playwright MCP, Chrome DevTools MCP 및 Cua Driver 유지관리자에게도 감사드립니다. DSH Smooth Stream은 현재 시작 프리셋에는 포함되지 않지만 이전 기여에 감사드립니다.
 
 기존 Pocket 설치와 설정은 업그레이드 후에도 유지되며 플러그인 관리에서 직접 제거할 수 있습니다.
 
@@ -165,9 +170,13 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 ### 설정 탐색 사용자 지정
 
-설정 왼쪽 탐색은 독립적으로 스크롤되어 플러그인이 항목을 추가해도 뒤쪽 항목이 잘리지 않습니다. 사용자는 항목을 드래그해 순서를 바꾸고 로컬에 저장할 수 있으며, 플러그인 설치와 제거 후에도 기존 순서에 안정적으로 병합됩니다. Windows와 Linux에서는 제목 표시줄과 Harness 콘텐츠가 별도 네이티브 뷰를 사용하므로 전체 화면 플러그인이 창 제어 버튼을 덮을 수 없습니다.
+설정 항목을 200ms 길게 누르면 순서를 바꾸거나 그룹 사이로 이동하거나 독립된 위치에 놓을 수 있습니다. 사용자 지정 그룹을 접고 펼칠 수 있으며 긴 이름은 줄바꿈하고 삽입 표시가 도착 위치를 보여 줍니다. 드래그 중에 다른 행이 미리 자리를 비우고 최종 레이아웃을 저장합니다. 창 가장자리를 끌면 제한 범위 내에서 크기를 조절하면서 중앙 배치를 유지합니다. 스크롤바 옆의 별도 구분선으로 사이드바 폭을 조절하고 설정 메뉴에서 기본 크기를 복원할 수 있습니다. 스크롤바는 마우스가 해당 열에 있을 때만 굵어지며 크기 조절 핸들과 겹치지 않습니다. 머리글에서 로그와 설정 파일을 열 수 있습니다.
 
-<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="세 줄 핸들로 설정 탐색 순서 변경"><br><sub>설정 항목을 자유롭게 끌면 다른 행이 부드럽게 자리를 비우고 최종 순서가 저장됩니다</sub></p>
+<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="이전 버전의 정렬 예시입니다. 현재는 길게 눌러 드래그, 그룹화, 크기 조절을 지원합니다"><br><sub>이전 버전의 정렬 예시입니다. 현재는 길게 눌러 드래그, 그룹화, 크기 조절을 지원합니다</sub></p>
+
+### 실험적 조작 기능
+
+**설정 → 도구 및 기능**에서 Browser Use, Computer Use, Auto review를 관리합니다. Playwright MCP, Chrome DevTools MCP, Computer Use Native 연결 플러그인과 의존성을 설치 프로그램에 포함하므로 오프라인으로 구성할 수 있습니다. Stagehand, Cua Driver MCP 등은 필요할 때 설치합니다. 로컬 브라우저를 사용할 수 있고 기존 선택이 없을 때만 초기 설정에서 Playwright를 선택합니다. 기존 선택과 명시적인 비활성화 상태는 유지하며 관련 세션에서만 서비스를 시작합니다. Computer Use Native는 직접 활성화하고 시스템 권한을 부여해야 합니다. 로컬 Chrome/Chromium이 없으면 설치 안내를 표시합니다. 이러한 기능은 계속 실험적입니다.
 
 ## 테마와 배경
 
@@ -177,7 +186,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 ## 다운로드 및 설치
 
-[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3)에서 운영체제에 맞는 파일을 다운로드하세요.
+[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1)에서 운영체제에 맞는 파일을 다운로드하세요.
 
 | 운영체제 | 아키텍처 | 패키지 |
 | --- | --- | --- |
@@ -189,7 +198,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 SHA256SUMS로 다운로드를 검증하세요. macOS 빌드는 ad-hoc 서명이고 공증되지 않았습니다. 차단되면 “시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기”를 사용하세요. Windows에서는 서명되지 않았거나 새로 게시된 앱에 평판 경고가 나타날 수 있습니다.
 
-선택한 Release에 `DeepSeek-Harness-windows-x64.zip`이 있다면 전체를 별도 폴더에 압축 해제한 뒤 `Open DeepSeek Harness Desktop.exe`를 실행하세요. ZIP 버전은 설치가 필요 없으며 설치 레지스트리 항목이나 PATH를 자동 등록하지 않습니다. 설정과 기록은 표준 사용자 데이터 디렉터리에 저장되므로 ZIP 폴더를 옮겨도 함께 이동하지 않습니다. 기존 설치 폴더에 덮어 압축 해제하지 마세요. 공개된 rc.3에는 아직 Windows ZIP이 포함되지 않습니다.
+선택한 Release에 `DeepSeek-Harness-windows-x64.zip`이 있다면 전체를 별도 폴더에 압축 해제한 뒤 `Open DeepSeek Harness Desktop.exe`를 실행하세요. ZIP 버전은 설치가 필요 없으며 설치 레지스트리 항목이나 PATH를 자동 등록하지 않습니다. 설정과 기록은 표준 사용자 데이터 디렉터리에 저장되므로 ZIP 폴더를 옮겨도 함께 이동하지 않습니다. 기존 설치 폴더에 덮어 압축 해제하지 마세요. 공개된 0.2.2-rc.1에는 Windows ZIP도 포함됩니다.
 
 이전 프로그램 폴더를 수동으로 삭제하면 남은 설치 기록이 재설치를 막을 수 있습니다. 범용 복구 도구는 [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md)에 있으며, 도구가 포함된 Windows 빌드는 프로그램 폴더의 `resources/support/windows-install-repair/`에도 제공합니다. 이 앱의 등록 정보를 확인하고 사용자 동의를 받은 후 백업하여 복구하며, 설정·기록·프로그램 파일은 삭제하지 않습니다.
 

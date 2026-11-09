@@ -12,7 +12,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.3 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.1-rc.3`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.3) 为核心，**支持 DeepSeek 4.1-1017（DeepSeek-V4.1-Flash，1017 更新）**，模型选择器会为匹配的官方 Flash 模型显示 `1017` 标记。
+> **[v0.2.2-rc.1 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.2-rc.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.1) 为核心，**支持 DeepSeek 4.1-1017（DeepSeek-V4.1-Flash，1017 更新）**，模型选择器会为匹配的官方 Flash 模型显示 `1017` 标记。
 >
 > 虽然版本名包含 `rc`，社区构建已在 GitHub 上按正式 Release 发布。升级前仍建议备份重要配置，并将遇到的问题连同日志或诊断报告反馈给我们。
 
@@ -32,12 +32,16 @@ Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](htt
 
 ## 当前功能亮点
 
+- **社区定制设置栏**：长按拖动排序、跨组移动、自定义分组与折叠；设置面板保持居中，可拖动边缘调整大小，侧栏宽度独立调整，并可恢复默认大小。
+- **本地拼写检查与右键操作**：可编辑输入区支持撤销、重做、剪切、复制、粘贴、全选及拼写建议；正文选区可复制、在新对话询问、添加到对话或在侧边对话中询问，复用官方引用机制且不会自动发送。
+- **生成图片直接预览**：回答中的可解析本地图片路径会在回答底部显示缩略图，可直接打开预览或在系统文件管理器中定位，无需去执行轨迹中寻找。
+- **预装浏览器与桌面操作能力**：内置 Playwright MCP、Chrome DevTools MCP 接入及依赖，并包含 Computer Use Native 依赖；浏览器复用本机 Chrome／Chromium，不额外打包浏览器。桌面操作仍需主动启用并授予系统权限。
 - **原生支持 9 种界面语言**：简体中文、英语、日语、韩语、德语、法语、西班牙语、葡萄牙语（巴西）、俄语，可在设置中切换，无需额外语言插件。
 - [AI 会话工作台](#ai-会话工作台)：可调正文、回合导航、精确 Token、发送队列，以及更完整的图片与文件体验。
 - [首次启动与独立配置环境](#首次启动与独立配置环境)：导入官方配置、复用社区桌面版配置或全新开始。
 - [NAS 运行端（预览）](#nas-运行端预览)：社区提供的 Linux NAS 运行端，让多台桌面客户端连接同一套 Profile、会话和 Workspace。
 - [插件发现、安装与更新](#插件发现安装与更新)：真实市场目录、分类推荐、本机状态、立即安装和联网更新。
-- [0.1.6 实验能力](#官方-016-实验能力)：从设置页按需安装 Browser Use、Computer Use 与 Auto review。
+- [实验能力](#实验能力)：预装 Browser Use 与 Computer Use Native，按需配置 Auto review 与其他后端。
 - [内置工作运行时](#内置工作运行时)：使用安装包内置或本机 Python，分别启用 Office 工具包与实验性 Python PTC。
 - [超级强化的诊断检查](#超级强化的诊断检查)：启动前检查 pnpm、Cordis 和 Loader，并提供演练、隔离与恢复。
 - [设置界面自定义](#设置界面自定义)：设置类型可以滚动、拖动排序并保存用户自己的排列。
@@ -242,10 +246,11 @@ Cordis 的 Context、Service 注册和部分工具运行时依赖对象与 `Symb
 快捷操作包括：
 
 - **复制**：将选中文字写入系统剪贴板，并显示成功或失败反馈。
-- **在新对话询问**：在当前工作区创建新会话，把本地化询问模板和选中文字填入输入框，但不会自动发送。
-- **添加到当前对话**：将选中文字转换为 Markdown 引用块，追加到现有草稿之后，不会覆盖已经输入的内容。
+- **在新对话询问**：新建会话并将选中文字加入官方引用区，不自动发送。
+- **添加到对话**：将选中文字加入当前会话的官方引用区，保留已有草稿。
+- **在侧边对话中询问**：在右侧栏打开独立对话并加入所选引用，保留主对话。
 
-当当前会话正在等待用户选择、确认或回答问题，或者输入框暂时不可编辑时，“添加到当前对话”会自动隐藏；复制和在新对话询问仍可使用。输入框、代码编辑器、设置页、侧栏、按钮和已有菜单中的文字不会触发这套快捷操作。
+可编辑输入区使用独立右键菜单，提供撤销、重做、剪切、复制、粘贴、全选，以及本地拼写检查开关与可用建议。Windows／Linux 随应用提供词典，macOS 使用系统拼写能力；输入内容不会发送到 AI 或外部纠错服务。只读回答不提供修改原文的拼写操作。
 
 <p align="center">
   <strong>划选快捷工具条</strong><br>
@@ -275,15 +280,15 @@ Electron 不只是包住 Web 页面的外壳。桌面宿主负责运行时准备
 
 ### 设置界面自定义
 
-设置左侧导航拥有独立滚动区域，插件增加更多设置类型时也不会把后面的入口裁掉。设置类型可以通过拖动重新排列，拖动过程提供占位和自动滚动反馈；顺序保存在本地，安装或卸载插件后会在用户排列中稳定合并。设置右上角分别提供“打开日志文件目录”和“打开配置文件”，其他受支持路径也统一通过桌面宿主调用系统文件管理器打开。
+设置左侧导航支持长按 200ms 拖动、组内排序、跨组移动、自定义分组与折叠；拖动时提前让出目标空位，落位后保存布局。组名允许换行，组内与独立项目使用不同的插入提示。设置面板可拖动边缘调整大小，保持居中并限制最小和最大尺寸；滚动条旁的独立分隔线调整侧栏比例，设置菜单可恢复默认大小。滚动条仅在鼠标移到其所在列时加粗，不与宽度拖动共用区域。右上角可打开日志目录和配置文件。
 
 <p align="center">
-  <img src="./assets/readme/settings-navigation-reorder-zh.png" width="900" alt="拖动设置侧栏中的三横线把手自由调整顺序">
+  <img src="./assets/readme/settings-navigation-reorder-zh.png" width="900" alt="设置导航排序示意（旧版界面）">
   <br>
-  <sub>按住三横线自由拖动设置类型，其他项目平滑让位并自动保存最终顺序</sub>
+  <sub>排序示意图来自旧版界面；当前版本长按设置项即可拖动，也支持分组与调整大小</sub>
 </p>
 
-## 初始化、0.1.6 实验能力与外部工具
+## 初始化、实验能力与外部工具
 
 ### 初始化配置引导
 
@@ -304,9 +309,9 @@ Electron 不只是包住 Web 页面的外壳。桌面宿主负责运行时准备
 
 应用首次启用能力时会把安装包内的 Python 归档校验并解压到应用缓存，Office 与 PTC 则按每个 `DSH_HOME` 独立启用。Office 使用安装包中经过校验的引擎，无需为引擎联网下载；准备完成后等待用户点击“快速重启以启用”。实验性 PTC 仍可能需要联网安装与本版匹配的适配包。连接 NAS 时两张卡片都会禁用，因为当前版本没有扩展 NAS 远程安装协议。停用能力只移除对应 Profile 配置，不会删除安装包内的 Python。
 
-### 官方 0.1.6 实验能力
+### 实验能力
 
-官方 DeepSeek Harness 在 [`dsh-v0.1.6-alpha.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.6-alpha.1) 中加入实验性 Browser Use、Computer Use 与 Auto review。社区桌面版在“设置 → 工具与能力”的“0.1.6 新增功能”分组中为三项能力提供独立安装与配置入口；下载过程可查看终端输出、暂停或停止，完成后可以使用快速重启应用配置。这些功能仍是实验性质，接口、依赖和权限要求可能变化。
+“设置 → 工具与能力”提供 Browser Use、Computer Use 与 Auto review。Playwright MCP、Chrome DevTools MCP 和 Computer Use Native 的接入及依赖随安装包提供，可离线配置；Stagehand、Cua Driver MCP 等其他后端仍按需安装。本机浏览器可用且没有既有选择时，首次部署默认选用 Playwright，已有选择和明确关闭状态保持；服务仅随相关会话启动。Computer Use Native 需主动启用并授权。缺少本机 Chrome／Chromium 时会提示安装浏览器。这些能力仍属实验性质。
 
 - **[Browser Use](packages/browser-use/README.md)**：可选择 Playwright MCP、Chrome DevTools MCP 或 Stagehand。Playwright 与 Chrome DevTools 适合常规网页操作和调试，Stagehand 适合需要模型辅助观察、操作或提取网页数据的任务；隔离模式会复用本机已安装的 Chrome 或 Chromium，并使用独立配置目录，不会再下载一个浏览器应用。
 - **[Computer Use](packages/computer-use/README.md)**：可选择 Cua Driver MCP 或原生驱动。MCP 适合让独立的 Cua Driver 应用持有系统权限和执行环境，原生驱动适合减少外部进程、直接由 Harness 操作本机；两者都可能读取截图并操作窗口，启用前应确认操作系统的屏幕录制与辅助功能权限。
@@ -332,7 +337,7 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
 
 #### 预设插件致谢
 
-感谢现有及历史启动预设的作者与维护者：[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) 和 [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)。本项目负责桌面集成和经过校验的原样归档分发；各插件的代码、素材、许可证与后续维护归各自项目。
+感谢当前 11 个启动预装插件的作者与维护者：[`dshmarket`](https://github.com/dsh-market/dsh-market)、[`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im)、[`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)、[`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket)、[`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next)、[`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats)、[`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid)、[`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)、[`@weibaohui/skills-management`](https://github.com/weibaohui/skills-management)、[`@dsh-plugins/mcp-panel`](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel)、[`dsh-context`](https://github.com/bowenliang123/dsh-context)。MCP 面板来自 dsh-pluginHive 的 MCP 子包。项目提供桌面集成和完整性校验分发，插件代码、素材、许可与维护归各原项目所有。另感谢 Playwright MCP、Chrome DevTools MCP 与 Cua Driver 的维护者提供预装能力依赖。
 
 旧版 Pocket 的安装与配置在升级后继续保留，可在插件管理中手动卸载。
 
@@ -369,23 +374,23 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
   </tr>
 </table>
 
-## 同步 DeepSeek Harness 0.2.1-rc.3
+## 同步 DeepSeek Harness 0.2.2-rc.1
 
-当前社区 Release 以官方 [`dsh-v0.2.1-rc.3`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.3) 为核心基线，支持 DeepSeek 4.1-1017，新增插件入口与 Creator 会话草稿、官方 API 模型动态发现，并修复运行时选中的安装范围已提供 Loader 模块却被错误隔离的问题。Search/Fetch API 默认关闭，按需启用；社区桌面继续提供独立数据目录、NAS 三级权限、工作运行时、候选插件事务、诊断恢复、预置插件和 GitHub/CNB 更新渠道。升级前请备份重要会话、工作区和配置；旧版客户端不保证能读取新版写入的会话数据。
+当前社区 Release 以官方 [`dsh-v0.2.2-rc.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.1) 为核心基线，支持 DeepSeek 4.1-1017，并同步会话摘要与关闭保存修复；社区补充工作区列表故障恢复、官方引用对接、右键菜单和预装浏览器／桌面操作能力。Search/Fetch API 默认关闭，按需启用；社区桌面继续提供独立数据目录、NAS 三级权限、工作运行时、候选插件事务、诊断恢复、预置插件和 GitHub/CNB 更新渠道。升级前请备份重要会话、工作区和配置；旧版客户端不保证能读取新版写入的会话数据。
 
 ## 下载安装
 
-请只从本项目的 [`v0.2.1-rc.3` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3) 页面下载安装包：
+请只从本项目的 [`v0.2.2-rc.1` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1) 页面下载安装包：
 
 | 平台      | 架构                     | 发行包                                | 状态  |
 | ------- | ---------------------- | ---------------------------------- | --- |
-| macOS   | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
-| macOS   | Intel（`x64`）           | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-x64.zip) | 已提供 |
-| Windows | `x64`                  | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-windows-x64.exe) | 已提供 |
-| Linux   | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-linux-x64.deb) | 已提供 |
-| Linux   | Fedora / RHEL（`x64`）   | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
+| macOS   | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
+| macOS   | Intel（`x64`）           | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-macos-x64.zip) | 已提供 |
+| Windows | `x64`                  | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-windows-x64.exe) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-windows-x64.zip) | 已提供 |
+| Linux   | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-linux-x64.deb) | 已提供 |
+| Linux   | Fedora / RHEL（`x64`）   | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
 
-Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
+Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
 
 ### macOS
 
@@ -516,16 +521,7 @@ API Key 由 Harness 凭据服务管理，请勿提交凭据。选择任何兼容
 
 感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 上游维护核心运行时与官方 Provider，并感谢 [OpenAI Codex](https://github.com/openai/codex) 和 [Anthropic Claude Code](https://github.com/anthropics/claude-code) 提供产品运行时。
 
-感谢预设社区插件的作者与维护者：
-
-- [`dsh-im`](https://github.com/xmanrui/dsh-im)，由 [xmanrui](https://github.com/xmanrui) 维护：连接微信、飞书等十二种 IM 机器人。
-- [`dsh-market`](https://github.com/dsh-market/dsh-market)，由 [dsh-market](https://github.com/dsh-market) 社区维护：在 Harness 内浏览、搜索、安装和管理插件。
-- [`Agents Anywhere DSH Bridge`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next)：提供登录、设备绑定与本机 Connector 远控。旧版 Pocket 用户的安装与配置继续保留。
-- [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar)：提供增强侧边栏。
-- [`DSH Usage Stats`](https://github.com/Ychris12138/dsh-usage-stats)：提供 Token 用量、账户、费用估算、预算和导出能力。
-- [`DSH Smooth Stream`](https://github.com/Laplace-bit/dsh-smooth-stream)：提供更平滑的流式渲染与滚动。
-- [`DSH Mermaid`](https://github.com/MrmoLabs/dsh-mermaid)，由 [MrmoLabs](https://github.com/MrmoLabs) 维护：将 Mermaid 代码块渲染为支持源码切换、全屏查看、缩放和 SVG 导出的图表。
-- [`DeepSeek Balance Whale Widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)，由 [MeteorNOX](https://github.com/MeteorNOX) 维护：在 Web 界面显示余额、今日用量、每轮消耗与可自定义的小鲸鱼挂件。
+当前预装名单与项目链接见上方“预设插件致谢”，包括插件市场、IM、增强侧栏、Pocket、Bridge、用量统计、Mermaid、余额鲸鱼、技能管理、MCP 面板和上下文洞察。历史预装的 DSH Smooth Stream 已不在当前启动集合中，仍感谢其作者的贡献。
 
 ## 关于 FLAQ AI 团队
 

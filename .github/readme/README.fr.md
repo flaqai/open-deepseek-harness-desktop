@@ -10,7 +10,7 @@ Langues : [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.3 est disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).** Cette version intègre DeepSeek Harness officiel `dsh-v0.2.1-rc.3`, améliore les accès aux plugins et les brouillons de session, ajoute la découverte dynamique des modèles de l’API officielle et corrige la mise en quarantaine erronée de certains plugins. **DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, mise à jour 1017) est pris en charge.**
+> **[v0.2.2-rc.1 est disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).** Cette version intègre DeepSeek Harness officiel `dsh-v0.2.2-rc.1`, améliore la restauration de la liste des espaces de travail, les citations, les menus et les Réglages, et inclut des capacités de navigation et de contrôle de l’ordinateur préinstallées. **DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, mise à jour 1017) est pris en charge.**
 >
 > Bien que le nom contienne `rc`, cette version est publiée comme une Release GitHub normale. Sauvegardez les conversations et configurations importantes avant la mise à niveau et joignez les journaux ou rapports de diagnostic utiles à vos signalements.
 
@@ -22,6 +22,10 @@ Open DeepSeek Harness Desktop est une distribution indépendante et maintenue pa
 
 ## Principales fonctions actuelles
 
+- **Réglages communautaires personnalisables** : réorganisez par appui long, déplacez entre les groupes et repliez vos propres groupes ; redimensionnez séparément la fenêtre centrée et sa barre latérale, ou rétablissez leurs dimensions par défaut.
+- **Orthographe locale et actions contextuelles** : les champs modifiables proposent annuler, rétablir, couper, copier, coller, tout sélectionner et des corrections. Le texte sélectionné peut être copié, ajouté comme citation officielle ou repris dans une nouvelle conversation ou une conversation latérale, sans envoi automatique.
+- **Aperçu des images sous les réponses** : les chemins locaux d’images résolus dans une réponse apparaissent en miniatures sous celle-ci, avec aperçu et accès au gestionnaire de fichiers, sans rechercher dans la trace d’exécution.
+- **Navigation et contrôle de l’ordinateur préinstallés** : les connecteurs Playwright MCP et Chrome DevTools MCP, leurs dépendances et celles de Computer Use Native sont inclus. Le navigateur Chrome/Chromium local est réutilisé ; aucun navigateur supplémentaire n’est fourni. Le contrôle de l’ordinateur exige une activation explicite et les autorisations système.
 - **9 langues d’interface intégrées** : chinois simplifié, anglais, japonais, coréen, allemand, français, espagnol, portugais (Brésil) et russe. La langue se change dans les réglages, sans plugin linguistique supplémentaire.
 - Espace de conversation avec largeur réglable, navigation par tours, consommation exacte de Token et file d’envoi.
 - Import dans un environnement indépendant, partage direct d’un dossier ou nouveau départ.
@@ -117,10 +121,11 @@ Les versions de développement et installée fournissent des échantillons hors 
 Sélectionner du texte en lecture seule dans une conversation, une sortie d’outil, un détail ou un aperçu de fichier affiche une barre horizontale. Un clic droit sur la sélection ouvre un menu vertical arrondi.
 
 - **Copier** vers le presse-papiers.
-- **Demander dans une nouvelle conversation** sans envoyer automatiquement.
-- **Ajouter à la conversation actuelle** sous forme de citation Markdown sans écraser le brouillon.
+- **Demander dans une nouvelle conversation** : crée une conversation avec la sélection dans la zone de citation officielle, sans envoi automatique.
+- **Ajouter à la conversation** : ajoute la sélection à la zone de citation de la conversation actuelle en conservant le brouillon.
+- **Demander dans une conversation latérale** : ouvre une conversation distincte dans la barre latérale droite avec la citation, sans remplacer la conversation principale.
 
-Quand la session attend un choix, une confirmation ou une réponse, ou que l’éditeur est désactivé, l’ajout à la conversation actuelle disparaît automatiquement.
+Les champs modifiables ont leur propre menu : annuler, rétablir, couper, copier, coller, tout sélectionner, activation de l’orthographe locale et suggestions disponibles. Windows/Linux incluent les dictionnaires ; macOS utilise la correction système. Le texte n’est envoyé ni à une IA ni à un service de correction externe. Les réponses en lecture seule ne proposent pas de correction modifiant le texte d’origine.
 
 <p align="center">
   <strong>Barre de sélection</strong><br>
@@ -131,6 +136,10 @@ Quand la session attend un choix, une confirmation ou une réponse, ou que l’�
   <strong>Menu contextuel</strong><br>
   <img src="../../assets/readme/selection-context-menu-zh.png" width="900" alt="Menu vertical après clic droit">
 </p>
+
+## Fonctions expérimentales
+
+**Réglages → Outils et capacités** propose Browser Use, Computer Use et Auto review. Les connecteurs et dépendances de Playwright MCP, Chrome DevTools MCP et Computer Use Native sont inclus pour une configuration hors ligne ; les autres moteurs, dont Stagehand et Cua Driver MCP, s’installent à la demande. Si un navigateur local est disponible et qu’aucun choix n’existe, la première configuration sélectionne Playwright. Les choix existants et les désactivations explicites sont conservés ; les services ne démarrent que pour les sessions concernées. Computer Use Native exige une activation explicite et les autorisations système. L’absence de Chrome/Chromium local produit une invitation à l’installer. Ces capacités restent expérimentales.
 
 ## Expérience de bureau
 
@@ -147,7 +156,7 @@ L’installateur contient onze presets de démarrage sous forme d’archives loc
 
 #### Remerciements aux plugins prédéfinis
 
-Merci aux auteurs et mainteneurs de [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) et [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget). Ce projet assure l’intégration au bureau et la distribution d’archives dont l’intégrité est vérifiée ; les droits d’auteur, licences et maintenance restent propres à chaque projet de plugin.
+Merci aux auteurs et mainteneurs des onze presets de démarrage actuels : [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget), [`@weibaohui/skills-management`](https://github.com/weibaohui/skills-management), [`@dsh-plugins/mcp-panel`](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel), [`dsh-context`](https://github.com/bowenliang123/dsh-context). Le panneau MCP provient du sous-paquet MCP de dsh-pluginHive ; Bridge renvoie au sous-répertoire correspondant d’Agents Anywhere. Ce projet assure l’intégration au bureau et la distribution avec vérification d’intégrité ; code, ressources, licences et maintenance restent aux projets d’origine. Merci également aux mainteneurs de Playwright MCP, Chrome DevTools MCP et Cua Driver pour les dépendances incluses.
 
 Les installations et configurations Pocket existantes sont conservées lors de la mise à niveau ; Pocket peut être désinstallé manuellement depuis la gestion des plugins.
 
@@ -159,9 +168,9 @@ Lors d’une mise à niveau sur place, le client compare l’enregistrement, la 
 
 ### Navigation des Réglages personnalisable
 
-La navigation gauche des Réglages possède son propre défilement afin que les sections ajoutées par des plugins restent accessibles. Les sections peuvent être déplacées et leur ordre est enregistré localement, puis fusionné de façon stable lors de l’installation ou de la suppression d’un plugin. Sous Windows et Linux, la barre de titre et le contenu Harness utilisent des vues natives séparées ; un plugin plein écran ne peut donc pas recouvrir les commandes de fenêtre.
+Maintenez une entrée des Réglages pendant 200ms pour la réordonner, la déplacer entre les groupes ou la placer seule. Les groupes personnalisés se replient, les noms longs passent à la ligne et les indicateurs d’insertion distinguent les destinations. Les lignes libèrent la place pendant le déplacement et l’agencement final est enregistré. Faites glisser les bords de la fenêtre pour la redimensionner dans les limites prévues tout en la gardant centrée ; une séparation indépendante à côté de la barre de défilement règle la largeur latérale. Le menu des Réglages restaure les dimensions par défaut. La barre ne s’épaissit qu’au survol de sa colonne et ne sert pas de poignée de redimensionnement. L’en-tête ouvre journaux et configuration. Sous Windows/Linux, titre et contenu Harness utilisent des vues natives séparées.
 
-<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Réordonner les Réglages avec les poignées à trois lignes"><br><sub>Déplacez librement les sections ; les autres lignes libèrent la place en douceur et l’ordre final est enregistré</sub></p>
+<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Illustration du tri dans une ancienne interface des Réglages"><br><sub>Ancienne illustration ; l’interface actuelle prend en charge appui long, groupes et redimensionnement</sub></p>
 
 ## Thèmes et arrière-plans
 
@@ -171,7 +180,7 @@ Modes système, clair, sombre, huit thèmes produit, huit illustrations intégr�
 
 ## Télécharger et installer
 
-Téléchargez le paquet adapté depuis [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).
+Téléchargez le paquet adapté depuis [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).
 
 | Système | Architecture | Paquet |
 | --- | --- | --- |
@@ -183,7 +192,7 @@ Téléchargez le paquet adapté depuis [GitHub Releases](https://github.com/flaq
 
 Vérifiez les fichiers avec SHA256SUMS. Les builds macOS sont signés ad-hoc et non notariés ; si Gatekeeper bloque l’application, utilisez **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**. Windows peut afficher un avertissement de réputation pour une build récente ou non signée.
 
-Si la Release choisie propose `DeepSeek-Harness-windows-x64.zip`, extrayez toute l’archive dans un dossier distinct et lancez `Open DeepSeek Harness Desktop.exe`. Cette version ne nécessite pas d’installation, ne crée pas d’entrées de registre d’installation et n’enregistre pas automatiquement PATH. La configuration et l’historique restent dans le dossier habituel de données utilisateur et ne suivent pas le dossier ZIP. N’extrayez pas le ZIP sur une installation existante. La version rc.3 publiée ne contient pas encore de ZIP Windows.
+Si la Release choisie propose `DeepSeek-Harness-windows-x64.zip`, extrayez toute l’archive dans un dossier distinct et lancez `Open DeepSeek Harness Desktop.exe`. Cette version ne nécessite pas d’installation, ne crée pas d’entrées de registre d’installation et n’enregistre pas automatiquement PATH. La configuration et l’historique restent dans le dossier habituel de données utilisateur et ne suivent pas le dossier ZIP. N’extrayez pas le ZIP sur une installation existante. La version publiée `0.2.2-rc.1` fournit également le ZIP Windows.
 
 La suppression manuelle de l’ancien dossier du programme peut laisser des entrées qui bloquent la réinstallation. L’outil général de réparation se trouve dans [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md) ; les builds Windows qui l’incluent le fournissent aussi dans `resources/support/windows-install-repair/` à l’intérieur du dossier du programme. Il vérifie les entrées de cette application puis, après votre confirmation, les sauvegarde avant réparation ; il ne supprime ni configuration, ni historique, ni fichiers du programme.
 
@@ -208,6 +217,10 @@ Le renderer désactive l’intégration Node et active context isolation et le s
 - Projet amont : [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
 Open DeepSeek Harness Desktop est publié sous [licence MIT](../../LICENSE). Les licences tierces figurent dans [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+
+## Remerciements
+
+Les onze presets de démarrage actuels et leurs liens figurent dans « Remerciements aux plugins prédéfinis ». DSH Smooth Stream n’est plus un preset de démarrage actuel ; nous remercions également son auteur pour sa contribution antérieure. Merci aussi aux [mainteneurs de DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) et aux projets [OpenAI Codex](https://github.com/openai/codex) et [Claude Code](https://github.com/anthropics/claude-code).
 
 ## Friends
 

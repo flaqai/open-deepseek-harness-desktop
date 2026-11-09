@@ -12,7 +12,7 @@ Languages: [简体中文](../../README.md) · English · [日本語](README.ja.m
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.3 is now available](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).** Built on official [DeepSeek Harness `dsh-v0.2.1-rc.3`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.3), this release **supports DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, 1017 update)**. Matching official Flash models display a `1017` badge in the model selector.
+> **[v0.2.2-rc.1 is now available](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).** Built on official [DeepSeek Harness `dsh-v0.2.2-rc.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.1), this release **supports DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, 1017 update)**. Matching official Flash models display a `1017` badge in the model selector.
 >
 > Although the version contains `rc`, the community build is published as a regular GitHub Release. Back up important configuration before upgrading, and include relevant logs or diagnostic reports when reporting problems.
 
@@ -32,12 +32,16 @@ Installers include Node.js, pnpm, and the Harness runtime, so users do not need 
 
 ## Current feature highlights
 
+- **Community Settings customization**: long-press reordering, cross-group moves, custom groups and collapse controls; resize the centered dialog and its sidebar independently, or restore default dimensions.
+- **Local spellchecking and context actions**: editable inputs offer undo, redo, cut, copy, paste, select-all and spelling suggestions. Selected message text can be copied, quoted into the current conversation, or used to ask in a new or side conversation without sending automatically.
+- **Generated-image previews below answers**: resolvable local image paths in an answer appear as thumbnails beneath it, with preview and reveal-in-file-manager actions, without searching the execution trace.
+- **Preinstalled browser and computer-use capabilities**: Playwright MCP and Chrome DevTools MCP connectors and dependencies, plus Computer Use Native dependencies. Browser control reuses local Chrome/Chromium without bundling another browser; desktop control still requires explicit enablement and system permissions.
 - **Built-in support for 9 interface languages**: Simplified Chinese, English, Japanese, Korean, German, French, Spanish, Portuguese (Brazil), and Russian. Switch languages in Settings without installing a language plugin.
 - [AI conversation workspace](#ai-conversation-workspace): adjustable content, turn navigation, exact token usage, queued messages, and richer image and file handling.
 - [First launch and independent data environments](#first-launch-and-independent-data-environments): import an official configuration, share a directory directly, or start fresh.
 - [NAS runtime (preview)](#nas-runtime-preview): a community-provided Linux runtime that lets multiple desktop clients use one Profile, conversation store, and Workspace set.
 - [Plugin discovery, installation, and updates](#plugin-discovery-installation-and-updates): live market data, categories, local status, direct installation, and online updates.
-- [Official 0.1.6 experiments](#official-016-experiments): install Browser Use, Computer Use, and Auto review on demand from Settings.
+- [Experimental capabilities](#experimental-capabilities): preinstalled Browser Use and Computer Use Native, with Auto review and other backends available on demand.
 - [Bundled work runtimes](#bundled-work-runtimes): use bundled or local Python, then enable the Office toolkit or experimental Python PTC separately.
 - [Supercharged diagnostics](#supercharged-diagnostics): inspect pnpm, Cordis, and Loader state before startup, then exercise, quarantine, or recover plugins.
 - [Customizable Settings navigation](#customizable-settings-navigation): scroll, reorder, and preserve the user's Settings layout.
@@ -232,10 +236,11 @@ Users can select one or more scenarios, which run sequentially while the UI repo
 Selecting text in read-only conversation messages, tool output, details, or file previews opens a horizontal action bar near the selection. Right-clicking selected text opens a vertical rounded menu with icons and labels.
 
 - **Copy:** write the selected text to the system clipboard with success or failure feedback.
-- **Ask in a new conversation:** create a conversation in the current workspace and fill a localized question plus the selected text without sending it.
-- **Add to the current conversation:** append the selection as a Markdown quote after the existing draft without overwriting it.
+- **Ask in new conversation**: create a conversation with the selection in the official quote area, without sending automatically.
+- **Add to conversation**: append the selection to the current conversation’s quote area while preserving the draft.
+- **Ask in side conversation**: open a separate conversation in the right sidebar with the selection quoted, preserving the main conversation.
 
-When the current session is waiting for a choice, confirmation, or answer, or when the composer cannot be edited, **Add to the current conversation** disappears. Copy and Ask in a new conversation remain available. Selections inside inputs, code editors, Settings, the sidebar, buttons, and existing menus do not trigger these actions.
+Editable inputs have a separate menu with undo, redo, cut, copy, paste, select-all, and local spelling controls and suggestions. Windows/Linux bundle dictionaries; macOS uses system spellchecking. Input is not sent to AI or an external correction service, and read-only answers never expose spelling actions that rewrite the original.
 
 <p align="center">
   <strong>Selection action bar</strong><br>
@@ -247,7 +252,7 @@ When the current session is waiting for a choice, confirmation, or answer, or wh
   <img src="../../assets/readme/selection-context-menu-zh.png" width="900" alt="Vertical rounded menu shown after right-clicking selected text">
 </p>
 
-## On-demand work runtimes and official 0.1.6 experiments
+## Work runtimes and experimental capabilities
 
 ### Bundled work runtimes
 
@@ -255,9 +260,9 @@ Each desktop installer contains managed CPython 3.12 for its platform together w
 
 On first activation, the app verifies and extracts the bundled Python archive into its application cache. Office and PTC remain independently enabled per `DSH_HOME`. Office uses the verified engine in the installer rather than downloading it; the experimental PTC adapter may still require a network install for this release. The user then chooses **Quick restart to enable**. Both cards are disabled in NAS mode because this release does not extend the NAS remote-install protocol. Disabling a capability removes only its managed Profile configuration and never removes Python from the installed application.
 
-### Official 0.1.6 experiments
+### Experimental capabilities
 
-Official DeepSeek Harness introduced experimental Browser Use, Computer Use, and Auto review in [`dsh-v0.1.6-alpha.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.6-alpha.1). The community desktop exposes independent installation and configuration cards under **Settings → Tools & capabilities → New in 0.1.6**. Downloads show terminal output and support pause or stop; **Quick Restart** applies completed Profile configuration. These capabilities remain experimental, and their interfaces, dependencies, and permission requirements can change.
+**Settings → Tools & capabilities** provides Browser Use, Computer Use and Auto review. The installer includes the Playwright MCP, Chrome DevTools MCP and Computer Use Native connectors and dependencies for offline configuration; other backends such as Stagehand and Cua Driver MCP remain on-demand installations. First setup selects Playwright only when a local browser is available and no choice exists; existing selections and explicit disabled states remain unchanged. Services start only for relevant sessions. Native computer control requires explicit enablement and system permissions; a missing local Chrome/Chromium produces an installation prompt. These capabilities remain experimental.
 
 - **[Browser Use](../../packages/browser-use/README.md):** choose Playwright MCP, Chrome DevTools MCP, or Stagehand. Playwright and Chrome DevTools suit ordinary browser automation and debugging, while Stagehand suits model-assisted observation, actions, and extraction. Isolated mode reuses an installed Chrome or Chromium executable with a separate profile and does not download another browser application.
 - **[Computer Use](../../packages/computer-use/README.md):** choose Cua Driver MCP or the native driver. MCP is appropriate when a separate Cua Driver application should own system permissions and execution; native mode avoids that external process and lets Harness operate the host directly. Both modes can capture screenshots and control windows, so screen-recording and accessibility permissions must be reviewed before use.
@@ -279,12 +284,12 @@ On Windows and Linux, the native titlebar and Harness content use separate views
 
 ### Customizable Settings navigation
 
-The Settings sidebar has its own scroll region, so plugin-provided sections remain reachable when the list exceeds the dialog height. Users can drag Settings sections into a preferred order with placeholder and automatic-scroll feedback. The order is stored locally and merges predictably when plugins are installed or removed. Separate **Open log directory** and **Open configuration file** actions appear in the Settings header; other supported paths also use the desktop host to open the platform file manager.
+Long-press a Settings entry for 200ms to reorder it, move it between groups, or place it independently. Custom groups collapse and expand, long names wrap, and distinct insertion markers show the destination. Rows reserve space during dragging and save the final layout. Drag dialog edges to resize it within bounds while it stays centered; a separate divider beside the scrollbar adjusts sidebar width, and the Settings menu restores default dimensions. The scrollbar thickens only while its column is hovered and does not double as a resize handle. The header opens logs and configuration files.
 
 <p align="center">
-  <img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Drag the three-line handles to reorder the Settings sidebar">
+  <img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Settings sorting illustration from an older interface">
   <br>
-  <sub>Drag Settings sections freely; surrounding rows make room smoothly and the final order is saved</sub>
+  <sub>Older sorting illustration; the current interface supports long-press dragging, grouping and resizing</sub>
 </p>
 
 ### Copy from the desktop client
@@ -297,7 +302,7 @@ The installer carries integrity-checked archives for eleven startup presets and 
 
 #### Preset plugin acknowledgements
 
-Thank you to the authors and maintainers of [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), and [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget). This project provides desktop integration and integrity-checked unmodified archive distribution; code, assets, licensing, and ongoing maintenance remain with each plugin project.
+Thank you to the authors and maintainers of the current eleven startup presets: [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget), [`@weibaohui/skills-management`](https://github.com/weibaohui/skills-management), [`@dsh-plugins/mcp-panel`](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel), [`dsh-context`](https://github.com/bowenliang123/dsh-context). The MCP panel comes from the MCP subpackage of dsh-pluginHive. This project provides desktop integration and integrity-checked distribution; plugin code, assets, licensing and maintenance belong to the original projects. We also thank the Playwright MCP, Chrome DevTools MCP and Cua Driver maintainers for the bundled capability dependencies.
 
 Existing Pocket installations and configuration are preserved on upgrade; Pocket can be uninstalled manually through plugin management.
 
@@ -384,9 +389,9 @@ Switch between system, light, dark, and eight product themes; pair them with eig
   </tr>
 </table>
 
-### Synchronized with DeepSeek Harness 0.2.1-rc.3
+### Synchronized with DeepSeek Harness 0.2.2-rc.1
 
-The community Release uses official [`dsh-v0.2.1-rc.3`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.3) as its core baseline, supports DeepSeek 4.1-1017, adds plugin entry points and Creator conversation drafts, follows official API model discovery, and fixes false quarantine of Loader modules already provided by the selected installation scope. Search/Fetch API is off by default and can be enabled explicitly. The community desktop continues to provide independent data directories, three NAS permission roles, work runtimes, candidate plugin transactions, diagnostic recovery, bundled plugins, and GitHub/CNB update channels. Back up important conversations, workspaces, and configuration before upgrading; older clients are not guaranteed to read conversations written by the new version.
+The community Release uses official [`dsh-v0.2.2-rc.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.1) as its core baseline, supports DeepSeek 4.1-1017, and includes session-summary and shutdown-state fixes. Community integrations add workspace-list recovery, official quotation actions, context menus and preinstalled browser/computer-use capabilities. Search/Fetch API is off by default and can be enabled explicitly. The community desktop continues to provide independent data directories, three NAS permission roles, work runtimes, candidate plugin transactions, diagnostic recovery, bundled plugins, and GitHub/CNB update channels. Back up important conversations, workspaces, and configuration before upgrading; older clients are not guaranteed to read conversations written by the new version.
 
 ## What you can do
 
@@ -399,17 +404,17 @@ The community Release uses official [`dsh-v0.2.1-rc.3`](https://github.com/deeps
 
 ## Installation
 
-Download builds only from this project's [`v0.2.1-rc.3` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3):
+Download builds only from this project's [`v0.2.2-rc.1` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1):
 
 | Platform | Architecture | Release package | Status |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon (`arm64`) | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-arm64.zip) | Available |
-| macOS | Intel (`x64`) | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-macos-x64.zip) | Available |
-| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-windows-x64.exe) | Available |
-| Linux | Debian / Ubuntu (`x64`) | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-linux-x64.deb) | Available |
-| Linux | Fedora / RHEL (`x64`) | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/DeepSeek-Harness-linux-x64.rpm) | Available |
+| macOS | Apple Silicon (`arm64`) | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-macos-arm64.zip) | Available |
+| macOS | Intel (`x64`) | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-macos-x64.zip) | Available |
+| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-windows-x64.exe) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-windows-x64.zip) | Available |
+| Linux | Debian / Ubuntu (`x64`) | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-linux-x64.deb) | Available |
+| Linux | Fedora / RHEL (`x64`) | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/DeepSeek-Harness-linux-x64.rpm) | Available |
 
-The Release also includes [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.1-rc.3/SHA256SUMS). Verify downloads before installation; only files actually present on this project's Releases page are public release artifacts.
+The Release also includes [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.1/SHA256SUMS). Verify downloads before installation; only files actually present on this project's Releases page are public release artifacts.
 
 ### macOS
 
@@ -538,16 +543,7 @@ Scan the QR code to join the Open DeepSeek Harness Desktop WeChat group for usag
 
 Thank you to the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) maintainers for the official Codex and Claude Code Providers, and to [OpenAI Codex](https://github.com/openai/codex) and [Anthropic Claude Code](https://github.com/anthropics/claude-code) for their product runtimes. This project integrates user-triggered npm installation of those official connectors with the desktop connection center.
 
-Thank you to the authors and maintainers of the eight removable community plugin presets:
-
-- [`dsh-im`](https://github.com/xmanrui/dsh-im), maintained by [xmanrui](https://github.com/xmanrui): connects twelve IM bot channels, including WeChat and Feishu.
-- [`dsh-market`](https://github.com/dsh-market/dsh-market), maintained by the [dsh-market](https://github.com/dsh-market) community: browses, searches, installs, and manages plugins inside Harness.
-- [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket): provides the Pocket extension included in the startup set.
-- [`DSH Better Sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar): provides the enhanced sidebar.
-- [`DSH Usage Stats`](https://github.com/Ychris12138/dsh-usage-stats): provides token usage, account, cost-estimate, budget, and export views.
-- [`DSH Smooth Stream`](https://github.com/Laplace-bit/dsh-smooth-stream): provides smoother streaming rendering and scrolling.
-- [`DSH Mermaid`](https://github.com/MrmoLabs/dsh-mermaid), maintained by [MrmoLabs](https://github.com/MrmoLabs): renders Mermaid blocks as source-switchable, zoomable, exportable SVG diagrams.
-- [`DeepSeek Balance Whale Widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget), maintained by [MeteorNOX](https://github.com/MeteorNOX): adds a customizable whale widget for balances, daily usage, and per-turn costs.
+The current eleven startup presets and their project links are listed under “Preset plugin acknowledgements” above: Marketplace, IM, Better Sidebar, Pocket, Bridge, Usage Stats, Mermaid, Whale Widget, Skills Management, MCP Panel and Context Insights. DSH Smooth Stream is no longer a current startup preset; we also thank its author for the earlier contribution.
 
 ## About the FLAQ AI team
 

@@ -10,7 +10,7 @@ Idiomas: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.2.1-rc.3 ya está disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).** Esta versión integra DeepSeek Harness oficial `dsh-v0.2.1-rc.3`, mejora los accesos a plugins y los borradores de sesiones, añade el descubrimiento dinámico de modelos de la API oficial y corrige la cuarentena errónea de algunos plugins. **Compatible con DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, actualización 1017).**
+> **[v0.2.2-rc.1 ya está disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).** Esta versión integra DeepSeek Harness oficial `dsh-v0.2.2-rc.1` y las correcciones de resúmenes de sesión y guardado al cerrar. La edición comunitaria añade recuperación de la lista de espacios de trabajo, integración con las citas oficiales, menús contextuales y capacidades preinstaladas de navegador y control del ordenador. **Compatible con DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, actualización 1017).**
 >
 > Aunque el nombre contiene `rc`, se publica como una versión normal en GitHub. Haz una copia de seguridad de las conversaciones y la configuración importante antes de actualizar y adjunta registros o informes de diagnóstico al comunicar problemas.
 
@@ -22,6 +22,10 @@ Open DeepSeek Harness Desktop es una distribución independiente y mantenida por
 
 ## Funciones principales actuales
 
+- **Ajustes personalizados de la comunidad**: pulsación prolongada para reordenar, mover entre grupos y crear o plegar grupos propios; cambia por separado el tamaño del diálogo centrado y de la barra lateral, o restaura sus dimensiones predeterminadas.
+- **Ortografía local y acciones contextuales**: los campos editables ofrecen deshacer, rehacer, cortar, copiar, pegar, seleccionar todo y sugerencias ortográficas. El texto seleccionado se puede copiar, citar en la conversación actual o usar para preguntar en una conversación nueva o lateral, sin enviarlo automáticamente.
+- **Imágenes generadas debajo de las respuestas**: las rutas locales de imágenes que se puedan resolver aparecen como miniaturas bajo la respuesta, con acciones para previsualizar o mostrar en el gestor de archivos, sin buscar en la traza de ejecución.
+- **Navegador y control del ordenador preinstalados**: conectores y dependencias de Playwright MCP y Chrome DevTools MCP, más dependencias de Computer Use Native. Se reutiliza Chrome/Chromium local sin incluir otro navegador; controlar el escritorio sigue exigiendo activación explícita y permisos del sistema.
 - **9 idiomas de interfaz integrados**: chino simplificado, inglés, japonés, coreano, alemán, francés, español, portugués (Brasil) y ruso. Se pueden cambiar desde Ajustes sin instalar un plugin de idioma.
 - Espacio de conversación con ancho ajustable, navegación por turnos, uso exacto de Token y cola de envío.
 - Importación a un entorno independiente, uso compartido de un directorio existente o inicio desde cero.
@@ -122,11 +126,12 @@ Las versiones de desarrollo e instalada incluyen muestras sin conexión que repr
 
 Al seleccionar texto de solo lectura en mensajes, resultados de herramientas, detalles o vistas previas aparece una barra horizontal. Al hacer clic derecho sobre la selección aparece un menú vertical redondeado.
 
-- **Copiar**: escribe la selección en el portapapeles.
-- **Preguntar en una conversación nueva**: crea una conversación y rellena la pregunta sin enviarla automáticamente.
-- **Añadir a la conversación actual**: agrega una cita Markdown después del borrador existente sin reemplazarlo.
+- **Copiar**: guarda el texto seleccionado en el portapapeles del sistema.
+- **Preguntar en una conversación nueva**: crea una conversación con la selección en el área oficial de citas, sin enviarla automáticamente.
+- **Añadir a la conversación**: incorpora la selección al área de citas de la conversación actual y conserva el borrador.
+- **Preguntar en una conversación lateral**: abre otra conversación en la barra lateral derecha con la selección citada, sin abandonar la conversación principal.
 
-Si la sesión espera una elección, confirmación o respuesta, o el editor está desactivado, la opción de añadir a la conversación actual se oculta automáticamente.
+Los campos editables tienen un menú independiente con deshacer, rehacer, cortar, copiar, pegar, seleccionar todo y controles y sugerencias de ortografía local. Windows/Linux incluyen diccionarios; macOS usa el corrector del sistema. El texto no se envía a IA ni a servicios externos de corrección, y las respuestas de solo lectura no ofrecen acciones ortográficas que reescriban el original.
 
 <p align="center">
   <strong>Barra de selección</strong><br>
@@ -153,7 +158,7 @@ El instalador incluye once presets de inicio como archivos locales con integrida
 
 #### Agradecimientos a los plugins predefinidos
 
-Gracias a los autores y mantenedores de [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-smooth-stream`](https://github.com/Laplace-bit/dsh-smooth-stream), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid) y [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget). Este proyecto se encarga de la integración de escritorio y de distribuir archivos con integridad verificada; los derechos de autor, las licencias y el mantenimiento continuo corresponden a cada proyecto de plugin.
+Gracias a los autores y mantenedores de los once presets de inicio actuales: [`dshmarket`](https://github.com/dsh-market/dsh-market), [`@xmanrui/dsh-im`](https://github.com/xmanrui/dsh-im), [`dsh-better-sidebar`](https://github.com/omdsh-dev/DSH-better-sidebar), [`dsh-pocket`](https://github.com/shaobeichen/dsh-pocket), [`@agents-anywhere/dsh-bridge-next`](https://github.com/anywhere-labs/Agents-Anywhere/tree/main/dsh-bridge-next), [`@ychris12138/dsh-usage-stats`](https://github.com/Ychris12138/dsh-usage-stats), [`dsh-mermaid`](https://github.com/MrmoLabs/dsh-mermaid), [`dsh-whale-widget`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget), [`@weibaohui/skills-management`](https://github.com/weibaohui/skills-management), [`@dsh-plugins/mcp-panel`](https://github.com/seanchen88/dsh-pluginHive/tree/0998f5ac4e730d6c709e0638441892dab172c57e/packages/mcp-panel), [`dsh-context`](https://github.com/bowenliang123/dsh-context). El panel MCP procede del subpaquete MCP de dsh-pluginHive. Este proyecto aporta la integración de escritorio y la distribución con integridad verificada; el código, los recursos, las licencias y el mantenimiento pertenecen a sus proyectos originales. También agradecemos a los mantenedores de Playwright MCP, Chrome DevTools MCP y Cua Driver las dependencias incluidas para estas capacidades. DSH Smooth Stream ya no es un preset de inicio actual; agradecemos igualmente su contribución anterior.
 
 Las instalaciones y configuraciones existentes de Pocket se conservan al actualizar; Pocket se puede desinstalar manualmente desde la gestión de plugins.
 
@@ -165,9 +170,13 @@ Durante una actualización sobre la instalación existente, el cliente compara e
 
 ### Navegación de Ajustes personalizable
 
-La navegación izquierda de Ajustes tiene desplazamiento propio para que las secciones añadidas por plugins no queden recortadas. Las secciones se pueden arrastrar y su orden se guarda localmente, conservándose de forma estable al instalar o quitar plugins. En Windows y Linux, la barra de título y el contenido de Harness usan vistas nativas separadas, por lo que un plugin a pantalla completa no puede cubrir los controles de la ventana.
+Mantén pulsada una entrada de Ajustes durante 200ms para reordenarla, moverla entre grupos o situarla de forma independiente. Los grupos personalizados se pliegan, los nombres largos se ajustan en varias líneas y los marcadores de inserción muestran el destino. Durante el arrastre las filas reservan espacio y después se guarda la distribución final. Arrastra los bordes del diálogo para cambiar su tamaño dentro de los límites, siempre centrado; un separador junto a la barra de desplazamiento ajusta el ancho lateral y el menú de Ajustes restaura las dimensiones predeterminadas. La barra solo se ensancha al situar el puntero en su columna y no sirve como tirador de tamaño. La cabecera permite abrir los registros y la configuración.
 
-<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Reordenar Ajustes con los tiradores de tres líneas"><br><sub>Arrastra libremente las secciones; las demás filas dejan espacio con suavidad y se guarda el orden final</sub></p>
+<p align="center"><img src="../../assets/readme/settings-navigation-reorder-zh.png" width="900" alt="Ejemplo de una interfaz anterior; la actual permite arrastrar con pulsación prolongada, agrupar y cambiar el tamaño"><br><sub>Ejemplo de una interfaz anterior; la actual permite arrastrar con pulsación prolongada, agrupar y cambiar el tamaño</sub></p>
+
+### Capacidades experimentales
+
+**Ajustes → Herramientas y capacidades** ofrece Browser Use, Computer Use y Auto review. El instalador incluye los conectores y dependencias de Playwright MCP, Chrome DevTools MCP y Computer Use Native para configurarlos sin conexión; otros backends como Stagehand y Cua Driver MCP se instalan bajo demanda. La configuración inicial solo selecciona Playwright si hay un navegador local disponible y no existe una elección previa. Se conservan las elecciones y desactivaciones explícitas, y los servicios solo se inician para las sesiones correspondientes. El control nativo requiere activación explícita y permisos del sistema; si falta Chrome/Chromium local, se muestra una indicación para instalarlo. Estas capacidades siguen siendo experimentales.
 
 ## Temas y fondos
 
@@ -177,7 +186,7 @@ Admite sistema, claro, oscuro y ocho temas de producto, ocho ilustraciones inclu
 
 ## Descargar e instalar
 
-Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.1-rc.3).
+Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).
 
 | Sistema | Arquitectura | Paquete |
 | --- | --- | --- |
@@ -189,7 +198,7 @@ Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/
 
 Verifica los archivos con SHA256SUMS. Las compilaciones de macOS usan firma ad-hoc y no están notarizadas; si Gatekeeper las bloquea, usa **Ajustes del sistema → Privacidad y seguridad → Abrir igualmente**. Windows puede mostrar una advertencia de reputación para una compilación nueva o sin firma.
 
-Si la Release elegida ofrece `DeepSeek-Harness-windows-x64.zip`, extrae el archivo completo en una carpeta independiente y ejecuta `Open DeepSeek Harness Desktop.exe`. La versión ZIP no requiere instalación ni crea registros de instalación ni registra PATH automáticamente. La configuración y el historial permanecen en el directorio de datos de usuario habitual y no se trasladan con la carpeta ZIP. No extraigas el ZIP sobre una instalación existente. La versión rc.3 publicada aún no incluye un ZIP de Windows.
+Si la Release elegida ofrece `DeepSeek-Harness-windows-x64.zip`, extrae el archivo completo en una carpeta independiente y ejecuta `Open DeepSeek Harness Desktop.exe`. La versión ZIP no requiere instalación ni crea registros de instalación ni registra PATH automáticamente. La configuración y el historial permanecen en el directorio de datos de usuario habitual y no se trasladan con la carpeta ZIP. No extraigas el ZIP sobre una instalación existente. La versión publicada 0.2.2-rc.1 también incluye un ZIP de Windows.
 
 Borrar manualmente la carpeta del programa anterior puede dejar registros que bloquean la reinstalación. La herramienta general de reparación está en [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md); las compilaciones de Windows que la incluyen también la proporcionan en `resources/support/windows-install-repair/` dentro de la carpeta del programa. Verifica los registros de esta aplicación y, tras tu confirmación, los respalda antes de repararlos; no elimina configuración, historial ni archivos del programa.
 
