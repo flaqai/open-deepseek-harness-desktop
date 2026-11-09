@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -42,6 +42,10 @@ function fixture(
       if (args[1] === 'rollback' && remainingRollbackFailures > 0) {
         remainingRollbackFailures--
         throw new Error('rollback interrupted')
+      }
+      if (args[0] === 'snapshot' && args[1] === 'end-restore-lease') {
+        rmSync(join(directory, 'pending.json'), { force: true })
+        rmSync(lock, { force: true })
       }
     },
     stopHarness: async () => { calls.push('stop') },
@@ -319,6 +323,27 @@ describe('desktop plugin activation ownership', () => {
 
     await expect(f.manager.settleForRecoveryMutation()).rejects.toThrow('owned by another process')
     expect(f.calls).toEqual([])
+  })
+
+  it('refuses a live producer even when its lease file is absent', async () => {
+    const f = fixture('prepared', process.pid)
+    rmSync(f.lock)
+    // A separate live process is observable without relying on a short-lived child PID.
+    writeFileSync(join(f.home, 'plugin-transactions/web/pending.json'), JSON.stringify({ id: f.id, phase: 'prepared', producerPid: process.ppid }))
+    await expect(f.manager.settleForRecoveryMutation()).rejects.toThrow('producer is still running')
+    expect(f.calls).toEqual([])
+  })
+
+  it('does not clear recovery after a rollback command reports success but retains the journal', async () => {
+    const f = fixture('prepared')
+    rmSync(f.lock)
+    const manager = new ProfileTransactionManager({
+      home: f.home, command: async () => {}, stopHarness: async () => {}, resumeHarness: () => {},
+      onError: () => {}, onRollback: () => {}, onActivation: () => {},
+    })
+    managers.push(manager)
+    await expect(manager.settleForRecoveryMutation()).rejects.toThrow('did not settle its journal')
+    expect(readFileSync(join(f.home, 'plugin-transactions/web/pending.json'), 'utf8')).toContain(f.id)
   })
 
   it('ignores a dead recorded worker when the current Desktop still owns the lease', async () => {

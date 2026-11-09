@@ -192,6 +192,77 @@ describe('Desktop Profile mutation interface', () => {
     expect(fixture.calls.some(call => call.startsWith('profile-transaction:transaction commit '))).toBe(true)
   })
 
+  it('discards an isolated candidate when its safety restore fails without blocking the untouched Profile', async () => {
+    const fixture = createFixture({
+      runSnapshot: async (args) => {
+        if (args[0] === 'restore-files') throw new Error('old bundled archive is missing')
+        return { snapshotId: '11111111-1111-4111-8111-111111111111' }
+      },
+    })
+    await expect(fixture.mutations.applyAtStartup({
+      operation: 'bundled-plugin:bridge', run: async () => { throw new Error('plugin install failed') },
+    })).rejects.toBeInstanceOf(DesktopProfileMutationRolledBackError)
+    expect(fixture.mutations.recoveryRequired).toBe(false)
+    expect(fixture.mutations.hasCandidate).toBe(false)
+    expect(fixture.environment.DSH_HOME).toBe(fixture.home)
+    expect(fixture.calls.some(call => call.startsWith('recovery-required:'))).toBe(false)
+    expect(fixture.calls.some(call => call.startsWith('rollback:'))).toBe(true)
+    await fixture.mutations.prepareStartup()
+    expect(fixture.mutations.hasCandidate).toBe(true)
+  })
+
+  it('retains all causes and blocks when candidate discard also fails', async () => {
+    const fixture = createFixture({
+      commands: { run: async (env, args) => {
+        if (args[0] === 'transaction' && args[1] === 'prepare') {
+          const home = env.DSH_HOME
+          if (home === undefined) throw new Error('test candidate home missing')
+          writeFileSync(join(home, 'plugin-transactions/web/pending.json'), JSON.stringify({ id: args[2], phase: 'preparing', producerPid: process.pid }))
+          return `dsh:plugin-snapshot-json ${JSON.stringify({ id: args[2] })}\n`
+        }
+        if (args[0] === 'transaction' && args[1] === 'rollback') throw new Error('candidate is locked')
+        return 'dsh:plugin-snapshot-json {}\n'
+      } },
+      runSnapshot: async (args) => {
+        if (args[0] === 'restore-files') throw new Error('old archive is missing')
+        return { snapshotId: '11111111-1111-4111-8111-111111111111' }
+      },
+    })
+    const failure = await fixture.mutations.applyAtStartup({
+      operation: 'bundled-plugin:bridge', run: async () => { throw new Error('installation failed') },
+    }).catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).cause).toBeInstanceOf(AggregateError)
+    expect(((failure as Error).cause as AggregateError).errors.map((error: Error) => error.message))
+      .toEqual(['installation failed', 'old archive is missing', 'candidate is locked'])
+    expect(fixture.mutations.recoveryRequired).toBe(true)
+    expect(fixture.mutations.hasCandidate).toBe(true)
+    expect(fixture.calls.some(call => call.startsWith('recovery-required:'))).toBe(true)
+  })
+
+  it('settles a retained transaction before snapshot recovery without creating a new candidate', async () => {
+    const fixture = createFixture()
+    const pending = join(fixture.home, 'plugin-transactions/web/pending.json')
+    writeFileSync(pending, 'invalid journal')
+    await expect(fixture.mutations.recoverBeforeStartup()).rejects.toThrow()
+    expect(fixture.mutations.recoveryRequired).toBe(true)
+    writeFileSync(pending, JSON.stringify({ id: '11111111-1111-4111-8111-111111111111', phase: 'prepared', producerPid: 99999999 }))
+    await fixture.mutations.prepareSnapshotRestore()
+    expect(fixture.mutations.recoveryRequired).toBe(false)
+    expect(fixture.mutations.hasCandidate).toBe(false)
+    expect(fixture.calls).toContain('harness:suspend-recovery')
+    expect(fixture.calls.some(call => call.includes('transaction rollback'))).toBe(true)
+  })
+
+  it('keeps malformed retained state blocked when retry cannot establish recovery', async () => {
+    const fixture = createFixture()
+    writeFileSync(join(fixture.home, 'plugin-transactions/web/pending.json'), 'invalid journal')
+    await expect(fixture.mutations.recoverBeforeStartup()).rejects.toThrow()
+    await expect(fixture.mutations.prepareRetry()).rejects.toThrow()
+    expect(fixture.mutations.recoveryRequired).toBe(true)
+    expect(fixture.calls.some(call => call.includes('transaction rollback'))).toBe(false)
+  })
+
   it('keeps one startup candidate while an isolated step restores its safety point', async () => {
     const fixture = createFixture()
     const failure = new Error('plugin write failed')

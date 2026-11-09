@@ -159,11 +159,20 @@ export class ProfileTransactionManager {
     if (this.#operation !== undefined) throw new Error('desktop: plugin transaction settlement is still running')
     const record = await this.#pending()
     const id = this.#checking ?? record?.id
-    if (id === undefined) return false
+    const lock = inspectProfileMutationLock(this.#options.home)
+    if (lock.state === 'malformed' || lock.state === 'unreadable') {
+      throw new Error(`desktop: Profile writer lock is ${lock.state}; inspect Diagnostics before retrying`)
+    }
+    if (id === undefined) {
+      if (lock.active) throw new Error('desktop: Profile is owned by another mutation')
+      return false
+    }
     if (record !== undefined && record.id !== id) {
       throw new Error('desktop: retained plugin transaction changed before recovery')
     }
-    const lock = inspectProfileMutationLock(this.#options.home)
+    if (record !== undefined && record.producerPid !== process.pid && alive(record.producerPid)) {
+      throw new Error('desktop: retained plugin transaction producer is still running')
+    }
     let token: string | undefined
     if (lock.active) {
       if (lock.state !== 'live' || lock.pid !== process.pid || lock.workerActive === true) {
@@ -174,11 +183,19 @@ export class ProfileTransactionManager {
     await this.#options.stopHarness()
     if (record !== undefined) await this.#options.command(['transaction', 'rollback', id], token)
     if (token !== undefined) await this.#release(id)
+    await this.assertSettled()
     this.#checking = undefined
     this.#readinessPhase = undefined
     this.#clearDeadline()
     if (this.#settlement?.id === id) this.#settlement.resolve(false)
     return true
+  }
+
+  /** Confirm that successful cleanup actually removed the transaction and mutation lease. */
+  async assertSettled(): Promise<void> {
+    if (await this.#pending() !== undefined || inspectProfileMutationLock(this.#options.home).state !== 'missing') {
+      throw new Error('desktop: transaction recovery did not settle its journal and lease')
+    }
   }
 
   /** Observe new handoffs without spawning a CLI for unchanged state. */

@@ -863,10 +863,11 @@ export function runPlugin(profile: string, args: readonly string[], packageManag
       throw new Error('dsh: invalid plugin transaction command')
     }
     return withSnapshotMutation(profile, () => {
+      let cleanupDeferred = false
       if (args[1] === 'ready') readyProfilePluginTransaction(home, profile, id)
       else if (args[1] === 'activate') activateProfilePluginTransaction(home, profile, id)
-      else settleProfilePluginTransaction(home, profile, id, args[1] === 'commit')
-      writeSnapshotJson({ settled: true })
+      else cleanupDeferred = settleProfilePluginTransaction(home, profile, id, args[1] === 'commit').cleanupDeferred
+      writeSnapshotJson({ settled: true, cleanupDeferred })
       return 0
     })
   }

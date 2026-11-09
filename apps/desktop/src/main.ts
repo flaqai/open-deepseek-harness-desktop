@@ -64,6 +64,9 @@ import {
 import { ensurePackagedPrebuiltProfile, ensurePackagedRuntime, packagedOfficeNodeModules, packagedPrebuiltProfileArchiveRoot, packagedRuntimeArchiveRoot } from './packaged-runtime.ts'
 import { HarnessSupervisor, type HarnessFailure, type HarnessState } from './supervisor.ts'
 import { readRecoveryFailureSummary, type RecoveryFailureSummary } from './recovery-failure.ts'
+import { summarizeProfileRecoveryFailure } from './profile-recovery-diagnostic.ts'
+import { inspectLegacyBundledPluginSources, MissingLocalPluginArchiveError } from './legacy-bundled-plugin-sources.ts'
+import { collectManagedPluginArchives, auditManagedPluginArchiveReferences } from './managed-plugin-archive-cleanup.ts'
 import { parseClientBootFailure } from './client-boot-failure.ts'
 import { clearDeadModuleFallbackLock, inspectModuleFallbackLock } from './module-fallback-lock.ts'
 import { DesktopProfileMutation } from './desktop-profile-mutation/index.ts'
@@ -1115,6 +1118,17 @@ function publishStartupProgress(next: DesktopStartupProgress): void {
   mainSurface?.send('dsh:startup-progress', startupProgress)
 }
 
+async function readDesktopRecoveryInventory(home: string) {
+  return readRecoveryPluginInventory(home, {
+    profilePaused: profileMutation?.recoveryRequired === true || supervisor?.isDiagnosticMode === true
+      || startupProgress.state === 'degraded' || recoveryHarnessSuspended,
+    ...(latestRecoveryDiagnostic?.transactionFailure === undefined
+      ? {} : { failure: latestRecoveryDiagnostic.transactionFailure }),
+    repairVersions: Object.fromEntries((bundledPluginInstaller?.repairEntries() ?? [])
+      .map(entry => [entry.packageName, entry.version])),
+  })
+}
+
 function showLoading(
   state: HarnessState,
   failure?: HarnessFailure & { logPath: string } & Partial<RecoveryFailureSummary>,
@@ -1130,6 +1144,7 @@ function showLoading(
       ...(failure.entryId === undefined ? {} : { entryId: failure.entryId }),
       ...(failure.moduleName === undefined ? {} : { moduleName: failure.moduleName }),
       ...(failure.evidence === undefined ? {} : { evidence: failure.evidence }),
+      ...(failure.transactionFailure === undefined ? {} : { transactionFailure: failure.transactionFailure }),
     }
   }
   void mainSurface.loadFile(LOADING_PAGE, {
@@ -2311,7 +2326,13 @@ async function startApplication(): Promise<void> {
       return
     }
     const readinessComplete = reportedDesktopReadiness.size === 2
-    if (readinessComplete) profileMutation?.observeHarness({ type: 'normal-ready' })
+    if (readinessComplete) {
+      profileMutation?.observeHarness({ type: 'normal-ready' })
+      if (profileMutation?.recoveryRequired !== true) {
+        latestRecoveryFailure = undefined
+        latestRecoveryDiagnostic = undefined
+      }
+    }
     const manager = pluginSnapshotManager
     if (manager !== undefined) void (async () => {
       await manager.reportReadiness(phase)
@@ -2423,12 +2444,66 @@ async function startApplication(): Promise<void> {
   ipcMain.handle('dsh:desktop:recovery-plugins:list', async (event) => {
     assertMainRenderer(event.sender)
     if (activeMenuHome === undefined || profileMutation === undefined) throw new Error('desktop: active Profile is unavailable')
-    const inventory = await profileMutation.readRecovery(activeMenuHome, readRecoveryPluginInventory)
+    const inventory = await profileMutation.readRecovery(activeMenuHome, readDesktopRecoveryInventory)
     const snapshots = await pluginSnapshotManager?.list() ?? []
     return { ...inventory, plugins: inventory.plugins.map((plugin) => {
       const target = recoveryPluginRollbackTarget(plugin, snapshots)
       return { ...plugin, ...(target === undefined ? {} : { rollbackVersion: target.version }) }
     }) }
+  })
+  ipcMain.handle('dsh:desktop:recovery-plugins:source-repair-plan', async (event) => {
+    assertMainRenderer(event.sender)
+    const mutation = profileMutation
+    const installer = bundledPluginInstaller
+    if (activeMenuHome === undefined || mutation === undefined || installer === undefined) {
+      throw new Error('desktop: plugin source repair is unavailable')
+    }
+    return mutation.readRecovery(activeMenuHome, home => installer.getSourceRepairPlan(home))
+  })
+  ipcMain.handle('dsh:desktop:recovery-plugins:repair-source', async (
+    event, packageName: unknown, expectedVersion: unknown, approved: unknown,
+  ) => {
+    assertMainRenderer(event.sender)
+    if (!isRecoveryPluginPackageName(packageName) || typeof expectedVersion !== 'string' || !Array.isArray(approved)) {
+      throw new TypeError('desktop: review every source replacement before repair')
+    }
+    const targets: Array<{ packageName: string; version: string }> = []
+    for (const value of approved) {
+      if (typeof value !== 'object' || value === null) throw new TypeError('desktop: invalid reviewed source replacement')
+      const item = value as { packageName?: unknown; version?: unknown }
+      if (!isRecoveryPluginPackageName(item.packageName) || typeof item.version !== 'string') {
+        throw new TypeError('desktop: invalid reviewed source replacement')
+      }
+      targets.push({ packageName: item.packageName, version: item.version })
+    }
+    const mutation = profileMutation
+    const home = activeMenuHome
+    const installer = bundledPluginInstaller
+    if (home === undefined || mutation === undefined || installer === undefined) {
+      throw new Error('desktop: plugin source repair is unavailable')
+    }
+    const inventory = await mutation.readRecovery(home, readDesktopRecoveryInventory)
+    if (inventory.plugins.find(plugin => plugin.packageName === packageName)?.repairVersion !== expectedVersion) {
+      throw new Error('desktop: source repair target changed or is unavailable; refresh the plugin list')
+    }
+    await mutation.stageRecovery({
+      operation: `recovery-plugin-source:${packageName}`,
+      run: async (context) => {
+        const repaired = await installer.repairSourcesInCandidate(context.home, targets)
+        for (const replacement of repaired) await stopAndRevokePersistentServicesForPlugin(replacement.entry.packageName)
+        await context.write({ kind: 'add', packageSpecs: repaired.map(item => item.archivePath), exact: true,
+          operation: `recovery-plugin-source:${packageName}`, timeoutMs: BUNDLED_PLUGIN_INSTALL_TIMEOUT_MS })
+        const installed = await readRecoveryPluginInventory(context.home)
+        for (const replacement of repaired) {
+          const actual = installed.plugins.find(plugin => plugin.packageName === replacement.entry.packageName)?.version
+          if (actual !== replacement.entry.version) {
+            throw new Error('desktop: source repair did not install every reviewed bundled version')
+          }
+        }
+        await appendDesktopStartupLog(`Recovery source repair staged ${repaired.length} reviewed replacements; startup verification is pending.`)
+      },
+    })
+    return { changed: true as const }
   })
   ipcMain.handle('dsh:desktop:recovery-plugins:rollback', async (event, packageName: unknown, expectedVersion: unknown) => {
     assertMainRenderer(event.sender)
@@ -2442,7 +2517,7 @@ async function startApplication(): Promise<void> {
     await mutation.stageRecovery({
       operation: `recovery-plugin-rollback:${packageName}`,
       run: async (context) => {
-        const inventory = await mutation.readRecovery(home, readRecoveryPluginInventory)
+        const inventory = await mutation.readRecovery(home, readDesktopRecoveryInventory)
         const plugin = inventory.plugins.find(item => item.packageName === packageName)
         const target = plugin === undefined ? undefined : recoveryPluginRollbackTarget(plugin, await snapshots.list())
         if (target === undefined || target.version !== expectedVersion) throw new Error('desktop: previous plugin version changed or is unavailable; refresh the plugin list')
@@ -2464,7 +2539,7 @@ async function startApplication(): Promise<void> {
     if (activeMenuHome === undefined || profileMutation === undefined) {
       throw new Error('desktop: recovery plugin removal is not ready')
     }
-    const inventory = await profileMutation.readRecovery(activeMenuHome, readRecoveryPluginInventory)
+    const inventory = await profileMutation.readRecovery(activeMenuHome, readDesktopRecoveryInventory)
     if (!inventory.plugins.some(plugin => plugin.packageName === packageName)) {
       throw new Error('desktop: recovery plugin is not a direct removable dependency')
     }
@@ -2480,14 +2555,14 @@ async function startApplication(): Promise<void> {
         await appendDesktopStartupLog(`Recovery mode removed external plugin ${packageName}.`)
       },
     })
-    return profileMutation.readRecovery(activeMenuHome, readRecoveryPluginInventory)
+    return profileMutation.readRecovery(activeMenuHome, readDesktopRecoveryInventory)
   })
   ipcMain.handle('dsh:desktop:recovery:export', async (event) => {
     assertMainRenderer(event.sender)
     if (activeMenuHome === undefined) throw new Error('desktop: active Profile is unavailable')
     const surface = mainSurface
     if (surface === undefined) throw new Error('desktop: main window is unavailable')
-    const inventory = await readRecoveryPluginInventory(activeMenuHome)
+    const inventory = await readDesktopRecoveryInventory(activeMenuHome)
     const moduleFallbackLock = await inspectModuleFallbackLock(activeMenuHome).catch(() => ({ state: 'unavailable' as const }))
     const day = new Date().toISOString().slice(0, 10)
     const result = await dialog.showSaveDialog(surface.window, {
@@ -2501,7 +2576,7 @@ async function startApplication(): Promise<void> {
       .replace(/\b(api[ _-]?key|token|password|secret|authorization|cookie)(\s*[:=]\s*)([^\s,;]+)/giu, '$1$2<redacted>')
       .slice(0, 8_192)
     await writeFile(result.filePath, `${JSON.stringify({
-      schema: 'dsh/desktop-recovery-diagnostic/v1',
+      schema: 'dsh/desktop-recovery-diagnostic/v2',
       generatedAt: new Date().toISOString(),
       desktopVersion: app.getVersion(),
       platform: process.platform,
@@ -2570,7 +2645,13 @@ async function startApplication(): Promise<void> {
         return { started: false }
       }
     }
-    await profileMutation?.settleRecovery('activate')
+    if (profileMutation !== undefined && bundledPluginInstaller !== undefined && activeMenuHome !== undefined) {
+      const missing = await profileMutation.readRecovery(activeMenuHome, async home => (
+        inspectLegacyBundledPluginSources({ home, entries: bundledPluginInstaller?.repairEntries() ?? [] })
+      ))
+      if (missing[0] !== undefined) throw new MissingLocalPluginArchiveError(missing[0])
+    }
+    await profileMutation?.prepareRetry()
     if (recoveryRestartRequired) {
       setTimeout(() => { requestDesktopRestart() }, 150)
       return { started: true }
@@ -3519,6 +3600,35 @@ async function startApplication(): Promise<void> {
         preparingFirstStart = false
         await appendDesktopStartupLog('First-start bundled plugin preparation committed after normal readiness.')
       }
+      const cleanup = await collectManagedPluginArchives({
+        home: dshHome,
+        readinessCommitted: true,
+        archives: manifest.plugins,
+        auditReferences: () => auditManagedPluginArchiveReferences(dshHome, manifest.plugins.map(entry => entry.archive)),
+        withMutationLease: async (run) => {
+          if (harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN !== undefined) {
+            throw new Error('desktop: plugin archive cleanup deferred while a mutation owns the lease')
+          }
+          const token = randomUUID()
+          harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN = token
+          harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID = String(process.pid)
+          let acquired = false
+          try {
+            await runSnapshotCommand(['begin-restore-lease'], SNAPSHOT_COMMAND_TIMEOUT_MS)
+            acquired = true
+            return await run()
+          } finally {
+            try {
+              if (acquired) await runSnapshotCommand(['end-restore-lease'], SNAPSHOT_COMMAND_TIMEOUT_MS)
+            } finally {
+              delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN
+              delete harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_OWNER_PID
+            }
+          }
+        },
+      })
+      await appendDesktopStartupLog(`Post-commit plugin archive cleanup: removed=${cleanup.removed.length}; deferred=${cleanup.deferred}.`)
+        .catch((error: unknown) => { console.warn('desktop: archive cleanup evidence could not be retained', error) })
       void candidateWelcomeGate.committed(url => openInitialWorkspace(url, dshHome)).catch((error: unknown) => {
         console.error('desktop: could not open welcome after candidate verification', error)
       })
@@ -3541,6 +3651,11 @@ async function startApplication(): Promise<void> {
     },
     onRecoveryRequired: (error, operation) => {
       cancelBootableSnapshot()
+      latestRecoveryDiagnostic = {
+        diagnosticCode: 'desktop.profile-transaction-rollback-failed',
+        transactionFailure: summarizeProfileRecoveryFailure(error, { home: dshHome,
+          ...(operation === undefined ? {} : { operation }) }),
+      }
       console.error('desktop: plugin transaction requires recovery', error)
       void appendDesktopStartupLog('Plugin transaction could not be settled; its recovery journal was retained.')
       if (operation !== undefined) void retainStartupWarning(
@@ -3550,7 +3665,7 @@ async function startApplication(): Promise<void> {
       if (supervisor !== undefined) void supervisor.stop().then(() => {
         showLoading('failed', {
           message: shellMessages(app.getLocale()).transactionRecoveryFailed,
-          diagnosticCode: 'desktop.profile-transaction-rollback-failed',
+          ...latestRecoveryDiagnostic,
           logPath: harnessLogPath,
         })
       })
@@ -3615,7 +3730,24 @@ async function startApplication(): Promise<void> {
   }
   const profileMutationBlocked = profileMutationLock.active
     && !(desktopMutations.hasCandidate && profileMutationLock.pid === process.pid && profileMutationLock.workerPid === undefined)
+  let sourcePreflightFailure: unknown
+  let missingPluginSources: Awaited<ReturnType<typeof inspectLegacyBundledPluginSources>> = []
+  if (!profileMutationBlocked) {
+    try {
+      missingPluginSources = await inspectLegacyBundledPluginSources({ home: dshHome, entries: manifest.plugins })
+      if (missingPluginSources[0] !== undefined) sourcePreflightFailure = new MissingLocalPluginArchiveError(missingPluginSources[0])
+    } catch (error) { sourcePreflightFailure = error }
+  }
+  if (sourcePreflightFailure !== undefined) {
+    latestRecoveryDiagnostic = {
+      diagnosticCode: sourcePreflightFailure instanceof MissingLocalPluginArchiveError
+        ? sourcePreflightFailure.code : 'desktop.plugin-source-preflight-failed',
+      transactionFailure: summarizeProfileRecoveryFailure(sourcePreflightFailure, { home: dshHome, operation: 'source-preflight' }),
+    }
+    await appendDesktopStartupLog('Startup dependency changes paused because local plugin installation sources could not be verified.')
+  }
   let startupProfileMutationAllowed = !profileMutationBlocked && !desktopMutations.recoveryRequired
+    && sourcePreflightFailure === undefined
   if (startupProfileMutationAllowed) {
     if (await legacyConfigExternalWriterActive(dshHome)) {
       recoveryRestartRequired = true
@@ -3675,7 +3807,7 @@ async function startApplication(): Promise<void> {
       detail: 'profile-lock-diagnostics',
       state: 'degraded',
     })
-  } else if (prebuilt === undefined && profileInitialized && !desktopMutations.recoveryRequired) {
+  } else if (prebuilt === undefined && profileInitialized && startupProfileMutationAllowed) {
     try {
       await appendDesktopStartupLog('Checking Web Profile compatibility without modifying it.')
       const inspection = await runDesktopInvocation(resolveHarnessInvocation(harnessEnvironment, [
@@ -3710,7 +3842,7 @@ async function startApplication(): Promise<void> {
       }
     }
   }
-  if (profileNeedsRepair) {
+  if (profileNeedsRepair && startupProfileMutationAllowed) {
     try {
       const repairStartedAt = Date.now()
       publishStartupProgress({
@@ -4231,12 +4363,14 @@ async function startApplication(): Promise<void> {
     onOptionalStartupFailures: (failures) => {
       profileMutation?.observeHarness({ type: 'optional-startup-failures', failures })
     },
-    ...(profileMutationBlocked || desktopMutations.recoveryRequired
+    ...(profileMutationBlocked || desktopMutations.recoveryRequired || sourcePreflightFailure !== undefined
       ? {
         initialDiagnosticMode: true,
         initialDiagnosticReason: profileMutationBlocked
           ? 'The active Profile is owned by another plugin mutation operation.'
-          : 'A startup plugin mutation could not be rolled back safely.',
+          : sourcePreflightFailure !== undefined
+            ? 'Local plugin installation sources could not be verified; review diagnostics before retrying.'
+            : 'A startup plugin mutation could not be rolled back safely.',
       }
       : {}),
     ...(process.platform === 'win32' ? { terminateProcessTree: terminateWindowsProcessTree } : {}),
@@ -4244,8 +4378,6 @@ async function startApplication(): Promise<void> {
       profileMutation?.observeHarness({ type: 'server-ready' })
       recoveryHarnessSuspended = false
       recoveryRestartRequired = false
-      latestRecoveryFailure = undefined
-      latestRecoveryDiagnostic = undefined
       harnessOrigin = new URL(url).origin
       harnessAuthenticationUrl = url
       desktopReturnControl?.setHarnessOrigin(`${harnessOrigin}/`)
@@ -4304,9 +4436,11 @@ async function startApplication(): Promise<void> {
       )
       const diagnosticSummary = profileMutationBlocked
         ? { diagnosticCode: 'desktop.profile-lock-busy' }
-        : desktopMutations.recoveryRequired
-          ? { diagnosticCode: 'desktop.profile-transaction-rollback-failed' }
-          : readRecoveryFailureSummary(dshHome) ?? { diagnosticCode: 'desktop.harness-startup-failed' }
+        : sourcePreflightFailure !== undefined && latestRecoveryDiagnostic !== undefined
+          ? latestRecoveryDiagnostic
+          : desktopMutations.recoveryRequired
+            ? latestRecoveryDiagnostic ?? { diagnosticCode: 'desktop.profile-transaction-rollback-failed' }
+            : readRecoveryFailureSummary(dshHome) ?? { diagnosticCode: 'desktop.harness-startup-failed' }
       showLoading('failed', {
         ...failure,
         ...diagnosticSummary,
@@ -4340,9 +4474,11 @@ async function startApplication(): Promise<void> {
       profileMutation?.observeHarness({ type: 'failed', error: failure })
       const diagnosticSummary = profileMutationBlocked
         ? { diagnosticCode: 'desktop.profile-lock-busy' }
-        : desktopMutations.recoveryRequired
-          ? { diagnosticCode: 'desktop.profile-transaction-rollback-failed' }
-          : readRecoveryFailureSummary(dshHome) ?? { diagnosticCode: 'desktop.harness-startup-failed' }
+        : sourcePreflightFailure !== undefined && latestRecoveryDiagnostic !== undefined
+          ? latestRecoveryDiagnostic
+          : desktopMutations.recoveryRequired
+            ? latestRecoveryDiagnostic ?? { diagnosticCode: 'desktop.profile-transaction-rollback-failed' }
+            : readRecoveryFailureSummary(dshHome) ?? { diagnosticCode: 'desktop.harness-startup-failed' }
       const detailedFailure = {
         ...failure,
         ...diagnosticSummary,
@@ -4378,6 +4514,7 @@ async function startApplication(): Promise<void> {
     settleSafety: async (snapshotId) => { await runSnapshotCommand(['settle-safety', snapshotId], SNAPSHOT_COMMAND_TIMEOUT_MS) },
     beginMutationLease: async () => {
       if (restoreLeaseToken !== undefined) throw new Error('desktop: plugin snapshot restore lease is already active')
+      await desktopMutations.prepareSnapshotRestore()
       const token = randomUUID()
       restoreLeaseToken = token
       harnessEnvironment.DSH_PLUGIN_SNAPSHOT_LEASE_TOKEN = token

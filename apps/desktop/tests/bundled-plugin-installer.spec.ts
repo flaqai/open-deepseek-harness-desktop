@@ -432,4 +432,15 @@ describe('BundledPluginInstaller', () => {
     expect(settled.diagnostic?.length).toBeLessThanOrEqual(4000)
     expect(settled.diagnostic).toContain('-tail')
   })
+  it('rejects repair requests outside the reviewed package and version allowlist', async () => {
+    const f = await fixture()
+    const installer = new BundledPluginInstaller({
+      manifest: f.manifest, resourcesDirectory: f.resourcesDirectory, dshHome: join(f.root, 'home'),
+      install: async () => {},
+    })
+    expect(installer.repairEntries().map(entry => entry.packageName)).toEqual(['startup'])
+    await expect(installer.repairSourceInCandidate('unused', 'fake-package', '1.0.0')).rejects.toThrow('not bundled')
+    await expect(installer.repairSourceInCandidate('unused', 'startup', '999.0.0')).rejects.toThrow('not bundled')
+  })
+
 })

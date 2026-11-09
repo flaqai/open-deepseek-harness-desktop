@@ -2,6 +2,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
+import { inspectLegacyBundledPluginSources, repairLegacyBundledPluginSources } from './legacy-bundled-plugin-sources.ts'
 import { CandidatePreparationError } from './candidate-preparation.ts'
 import {
   assertBundledPluginManifestEntry,
@@ -161,6 +162,74 @@ export class BundledPluginInstaller {
   constructor(options: BundledPluginInstallerOptions) {
     assertManifest(options.manifest)
     this.options = options
+  }
+
+  /** Trusted web presets available for an explicitly reviewed installation-source repair. */
+  repairEntries(): readonly BundledPluginManifestEntry[] {
+    return this.options.manifest.plugins.filter(entry => entry.profile === 'web' && entry.installPolicy === 'startup')
+  }
+
+  /**
+   * Describe every missing archive and whether a trusted bundled replacement exists.
+   * @param home - Profile home inspected without modifications.
+   * @returns Exact replacement versions and user sources requiring a different repair.
+   */
+  async getSourceRepairPlan(home: string): Promise<{
+    targets: readonly { packageName: string; version: string }[]
+    blocked: readonly { packageName: string }[]
+  }> {
+    const entries = this.repairEntries()
+    const issues = await inspectLegacyBundledPluginSources({ home, entries })
+    const targets: Array<{ packageName: string; version: string }> = []
+    const blocked: Array<{ packageName: string }> = []
+    for (const issue of issues) {
+      const entry = entries.find(item => item.packageName === issue.packageName)
+      if (entry === undefined) blocked.push({ packageName: issue.packageName })
+      else targets.push({ packageName: entry.packageName, version: entry.version })
+    }
+    return { targets, blocked }
+  }
+
+  /**
+   * Adopt all explicitly approved missing preset sources before any dependency install.
+   * @param home - Owned transaction candidate home under the caller's mutation lease.
+   * @param targets - Complete exact package/version list reviewed by the user.
+   * @returns Verified candidate archives and their trusted manifest entries.
+   */
+  async repairSourcesInCandidate(
+    home: string, targets: readonly { packageName: string; version: string }[],
+  ): Promise<readonly { archivePath: string; entry: BundledPluginManifestEntry }[]> {
+    const plan = await this.getSourceRepairPlan(home)
+    if (plan.blocked.length !== 0) throw new Error('desktop: custom plugin sources require repair before bundled source replacement')
+    const identity = (items: readonly { packageName: string; version: string }[]): string =>
+      JSON.stringify(items.map(item => `${item.packageName}@${item.version}`).sort())
+    if (targets.length === 0 || new Set(targets.map(item => item.packageName)).size !== targets.length
+      || identity(targets) !== identity(plan.targets)) throw new Error('desktop: reviewed source repair plan is stale or untrusted')
+    const entries = this.repairEntries().filter(entry => targets.some(item => item.packageName === entry.packageName))
+    const result = await repairLegacyBundledPluginSources({ home, entries,
+      sourceDshHome: this.options.sourceDshHome ?? this.options.dshHome,
+      resourcesDirectory: this.options.resourcesDirectory, approvedPackages: targets.map(item => item.packageName) })
+    if (result.repaired.length !== targets.length || result.unresolved.length !== 0) throw new Error('desktop: source repair did not complete')
+    return entries.map(entry => ({ archivePath: join(home, 'bundled-plugins', entry.archive), entry }))
+  }
+
+  /**
+   * Adopt one preset when it is the only missing archive source.
+   * @param home - Owned transaction candidate home.
+   * @param packageName - Exact package selected in the repair confirmation.
+   * @param expectedVersion - Current bundled version the user reviewed.
+   * @returns Verified candidate archive and trusted manifest entry.
+   */
+  async repairSourceInCandidate(
+    home: string, packageName: string, expectedVersion: string,
+  ): Promise<{ archivePath: string; entry: BundledPluginManifestEntry }> {
+    if (!this.repairEntries().some(entry => entry.packageName === packageName && entry.version === expectedVersion)) {
+      throw new Error('desktop: source repair package or version is not bundled')
+    }
+    const result = await this.repairSourcesInCandidate(home, [{ packageName, version: expectedVersion }])
+    const replacement = result[0]
+    if (replacement === undefined) throw new Error('desktop: source repair did not complete')
+    return replacement
   }
 
   /**

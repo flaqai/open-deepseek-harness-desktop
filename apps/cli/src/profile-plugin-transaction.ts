@@ -495,13 +495,62 @@ export function activateProfilePluginTransaction(home: string, profile: string, 
 }
 
 /**
+ * Retry only receipted inert directories after a later normal readiness commit.
+ * @param home - Active Harness home under its mutation lease.
+ * @param profile - Profile whose successful activation has committed.
+ * @returns Number of removed deferred candidate directories.
+ */
+export function retrySettledProfilePluginCleanup(home: string, profile: string): number {
+  if (readProfilePluginTransaction(home, profile) !== undefined) return 0
+  const root = locations(home, profile).root
+  const receipts = join(root, 'cleanup-pending')
+  inside(home, receipts)
+  if (!existsSync(receipts) || !lstatSync(receipts).isDirectory()) return 0
+  let removed = 0
+  for (const file of readdirSync(receipts, { withFileTypes: true })) {
+    if (!file.isFile() || !file.name.endsWith('.json')) continue
+    const id = file.name.slice(0, -5)
+    if (!ID.test(id)) continue
+    try {
+      const receipt = join(receipts, file.name)
+      inside(home, receipt)
+      const record: unknown = JSON.parse(readFileSync(receipt, 'utf8'))
+      if (record === null || typeof record !== 'object' || !('schema' in record)
+        || record.schema !== 'dsh/profile-plugin-cleanup/v1' || !('id' in record) || record.id !== id
+        || !('profile' in record) || record.profile !== profile || !('stateSettled' in record) || record.stateSettled !== true
+        || !('producerPid' in record) || !Number.isSafeInteger(record.producerPid) || Number(record.producerPid) <= 0) continue
+      try { process.kill(Number(record.producerPid), 0); continue } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ESRCH') continue
+      }
+      const owned = join(root, id)
+      inside(home, owned)
+      if (existsSync(owned)) {
+        if (!lstatSync(owned).isDirectory()) continue
+        rmSync(owned, { recursive: true })
+      }
+      rmSync(receipt)
+      removed++
+    } catch { /* The receipt remains for another post-commit cleanup attempt. */ }
+  }
+  return removed
+}
+
+/** Post-settlement cleanup is independent of a proven active Profile restoration. */
+export interface ProfilePluginTransactionSettlement {
+  readonly cleanupDeferred: boolean
+}
+
+/**
  * Commit only after normal readiness, or restore the complete pre-activation state.
  * @param home - Active data directory.
  * @param profile - Profile identity.
  * @param id - Opaque transaction ID.
  * @param commit - True only for a proven healthy ordinary Profile.
+ * @returns Whether inert candidate cleanup was deferred after state settlement.
  */
-export function settleProfilePluginTransaction(home: string, profile: string, id: string, commit: boolean): void {
+export function settleProfilePluginTransaction(
+  home: string, profile: string, id: string, commit: boolean,
+): ProfilePluginTransactionSettlement {
   const record = requireTransaction(home, profile, id)
   const paths = locations(home, profile)
   const owned = join(paths.root, id)
@@ -532,11 +581,32 @@ export function settleProfilePluginTransaction(home: string, profile: string, id
   if (existsSync(join(home, 'plugin-snapshots', 'v1', record.snapshotId))) {
     settleProfilePluginSafetySnapshot({ home, profile, snapshotId: record.snapshotId })
   }
+  let cleanupDeferred = false
   if (existsSync(owned)) {
     if (!lstatSync(owned).isDirectory()) throw new Error('dsh: unsafe transaction cleanup directory')
-    rmSync(owned, { recursive: true })
+    try { rmSync(owned, { recursive: true }) } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'EACCES' && code !== 'ENOTEMPTY') throw error
+      // Snapshot restoration and dependency swaps have completed; this tree is now inert.
+      const receipt = join(paths.root, 'cleanup-pending', `${id}.json`)
+      inside(home, receipt)
+      if (existsSync(receipt)) {
+        const previous: unknown = JSON.parse(readFileSync(receipt, 'utf8'))
+        if (previous === null || typeof previous !== 'object' || !('schema' in previous)
+          || previous.schema !== 'dsh/profile-plugin-cleanup/v1' || !('id' in previous) || previous.id !== id) {
+          throw new Error('dsh: unrecognized candidate cleanup receipt was preserved')
+        }
+      }
+      writeAtomic(receipt, `${JSON.stringify({ schema: 'dsh/profile-plugin-cleanup/v1', id, profile,
+        producerPid: record.producerPid, stateSettled: true, cleanupErrorCode: code })}\n`)
+      cleanupDeferred = true
+    }
   }
   rmSync(paths.journal)
+  if (commit) {
+    try { retrySettledProfilePluginCleanup(home, profile) } catch { cleanupDeferred = true }
+  }
+  return { cleanupDeferred }
 }
 
 /**

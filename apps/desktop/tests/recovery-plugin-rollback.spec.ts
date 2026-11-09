@@ -9,7 +9,7 @@ function snapshot(version: string, date: string, kind: PluginSnapshotSummary['ki
 }
 
 describe('recovery plugin rollback target', () => {
-  const plugin = { packageName: 'example', version: '2.0.0', source: 'registry', status: 'normal' } as const
+  const plugin = { packageName: 'example', version: '2.0.0', source: 'registry', status: 'unverified', installation: 'installed', activation: 'unverified' } as const
   it('chooses the most recent retained lower version, not the largest registry version', () => {
     const snapshots = [snapshot('1.9.0', '2026-10-01'), snapshot('1.5.0', '2026-10-02'),
       snapshot('2.0.0', '2026-10-03'), snapshot('3.0.0', '2026-10-04'), snapshot('1.8.0', '2026-10-05', 'safety')]
@@ -19,7 +19,7 @@ describe('recovery plugin rollback target', () => {
     expect(recoveryPluginRollbackTarget(plugin, [])).toBeUndefined()
     expect(recoveryPluginRollbackTarget(plugin, [snapshot('1.0.0', '2026-10-01', 'manual', 'local')])).toBeUndefined()
     expect(recoveryPluginRollbackTarget(plugin, [snapshot('1.0.0', '2026-10-01', 'manual', 'git')])).toBeUndefined()
-    expect(recoveryPluginRollbackTarget({ packageName: 'example', source: 'registry', status: 'normal' }, [snapshot('1.0.0', '2026-10-01')])).toBeUndefined()
+    expect(recoveryPluginRollbackTarget({ packageName: 'example', source: 'registry', status: 'unverified', installation: 'installed', activation: 'unverified' }, [snapshot('1.0.0', '2026-10-01')])).toBeUndefined()
   })
   it('supports prerelease versions with an exact specifier', () => {
     const history = snapshot('2.0.0-alpha.1', '2026-10-01')

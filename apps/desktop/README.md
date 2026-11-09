@@ -16,6 +16,8 @@ Session history follows the complete V0 → V1 → V2 → V3 → V4 migration ch
 
 Only ordinary Profile readiness can verify a successful-startup plugin snapshot. A diagnostic process becoming available does not mark the failed active Profile or the application healthy; during snapshot recovery it triggers the existing failed-start rollback. A dead process permits stale-lock cleanup only after the complete recorded owner passes validation; damaged owner metadata remains blocked for manual inspection.
 
+
+Before startup dependency changes, Desktop audits missing local archive sources. Recovery can replace missing sources with exact, verified bundled versions only after showing and confirming every replacement; unrelated custom sources remain unchanged. The repair edits a candidate, preserves the original metadata, and still requires ordinary startup verification. Complete candidate rollback permits the intact active Profile to restart under the current core checks. Cleanup of an inert candidate may remain pending after restoration; that cleanup state does not itself mark the active Profile broken. Archive collection runs after readiness and transaction commit, under the mutation lease, and only considers explicitly verified managed archives. Retained snapshots, unresolved transactions or incomplete reference information keep archives protected; unknown historical archives are retained.
 ## Run from this checkout
 
 Use patched Node 24.22.1 for development, then build the repository before starting the desktop app. The package's wider engine range describes compatibility, not security-patch coverage:
@@ -76,6 +78,8 @@ The bundled startup set also includes the original `@weibaohui/skills-management
 The bundled `dsh-better-sidebar` 0.24.1 supports DSH 0.2.0. [Upstream release notes](https://github.com/omdsh-dev/DSH-better-sidebar/releases/tag/v0.24.1) state that its file routes no longer restrict access to the selected workspace; they remain subject to the current operating-system user's permissions. Do not treat the selected workspace as this plugin's file-access limit.
 
 <a id="application-menus"></a>
+The recovery plugin list separates installation-file presence from startup verification. A paused Profile marks plugins as not started; saved diagnostic records remain historical evidence rather than proof of a current failure. Missing archive evidence identifies the dependency whose source is unavailable separately from the installation operation it blocked. For a matching bundled plugin, “Repair installation source” requires confirmation of the replacement version and prepares a candidate for startup validation. The exported recovery diagnostic includes bounded, redacted error causes and operation identity; no individual plugin is declared activated merely because the Host is ready.
+
 ## Application menus
 
 Recovery preview, quick restart and complete exit refuse an active or unreadable Profile mutation lock, including plugin-market operations launched outside Desktop's own task queue. Retry after the operation finishes; the guard never deletes a lock. A live orphaned installer requires process diagnosis before recovery, not forced lock removal.

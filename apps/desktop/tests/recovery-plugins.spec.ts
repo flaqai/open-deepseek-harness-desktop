@@ -29,15 +29,36 @@ describe('Desktop recovery plugin inventory', () => {
 
     await expect(readRecoveryPluginInventory(home)).resolves.toEqual({
       plugins: [
+        { packageName: 'first-bundle-plugin', source: 'registry', status: 'unverified', installation: 'missing', activation: 'unverified' },
         {
           packageName: 'example-plugin', version: '1.2.3', source: 'bundled',
-          status: 'attention', diagnosticCode: 'profile.module-resolution',
+          status: 'unverified', installation: 'installed', activation: 'unverified', recordedDiagnosticCode: 'profile.module-resolution',
         },
-        { packageName: 'first-bundle-plugin', source: 'registry', status: 'normal' },
-        { packageName: '@scope/registry-plugin', source: 'registry', status: 'normal' },
+        { packageName: '@scope/registry-plugin', source: 'registry', status: 'unverified', installation: 'missing', activation: 'unverified' },
       ],
       protectedCount: 2,
     })
+  })
+
+  it('attributes a live missing archive separately from the blocked installer and paused plugins', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-paused-plugins-'))
+    await mkdir(join(home, 'profiles', 'web'), { recursive: true })
+    await writeFile(join(home, 'profiles', 'web', 'package.json'), JSON.stringify({ dependencies: {
+      dshmarket: 'file:D:\\App\\resources\\bundled-plugins\\dshmarket-1.55.0%2Etgz',
+      bridge: '2.0.2', other: '1.0.0',
+    } }))
+    const inventory = await readRecoveryPluginInventory(home, {
+      profilePaused: true, repairVersions: { dshmarket: '1.73.12', other: '2.0.0' },
+      failure: { category: 'missing-local-archive', missingArchive: 'dshmarket-1.55.0.tgz', blockedPackage: 'bridge', causes: [] },
+    })
+    expect(inventory.plugins.find(x => x.packageName === 'dshmarket')).toMatchObject({
+      status: 'attention', activation: 'paused', diagnosticCode: 'desktop.plugin-archive-missing', repairVersion: '1.73.12',
+    })
+    expect(inventory.plugins.find(x => x.packageName === 'bridge')).toMatchObject({ status: 'attention', diagnosticCode: 'desktop.plugin-operation-blocked' })
+    expect(inventory.plugins.find(x => x.packageName === 'other')).toMatchObject({ status: 'paused', activation: 'paused' })
+    expect(inventory.plugins.find(x => x.packageName === 'other')).not.toHaveProperty('repairVersion')
+    const refreshed = await readRecoveryPluginInventory(home)
+    expect(refreshed.plugins.every(x => x.status === 'unverified' && x.diagnosticCode === undefined)).toBe(true)
   })
 
   it('accepts package identities but rejects command and path input', () => {

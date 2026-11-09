@@ -2,6 +2,7 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import type { ProfileRecoveryDiagnostic } from './profile-recovery-diagnostic.ts'
 
 const MAX_REPORT_BYTES = 1024 * 1024
 const MAX_EVIDENCE_LENGTH = 1_200
@@ -14,6 +15,8 @@ export interface RecoveryFailureSummary {
   readonly entryId?: string
   readonly moduleName?: string
   readonly evidence?: string
+  /** Original transaction causes, retained separately from the startup summary. */
+  readonly transactionFailure?: ProfileRecoveryDiagnostic
 }
 
 interface CandidateIssue {

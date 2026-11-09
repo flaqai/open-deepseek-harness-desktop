@@ -266,6 +266,43 @@ export class DesktopProfileMutation {
     }
   }
 
+  /** Settle retained transactions before a snapshot manager acquires its restoration lease. */
+  async prepareSnapshotRestore(): Promise<void> {
+    this.#assertAvailable()
+    if (this.#recoveryBusy || this.#managedActive
+      || (this.#transactions.awaitingReadiness && !this.#rollbackFailed)
+      || (this.#candidateId !== undefined && !this.#rollbackFailed)) throw new DesktopProfileMutationBusyError()
+    this.#recoveryBusy = true
+    try {
+      await this.#options.harness.suspendForRecovery()
+      await this.#settleRetainedRecovery()
+    } finally { this.#recoveryBusy = false }
+  }
+
+  /** Prepare explicit retry without bypassing retained errors or discarding a staged user repair. */
+  async prepareRetry(): Promise<void> {
+    this.#assertAvailable()
+    if (this.#recoveryOwnsCandidate) {
+      await this.settleRecovery('activate')
+      return
+    }
+    if (this.#transactions.awaitingReadiness && !this.#rollbackFailed) return
+    await this.prepareSnapshotRestore()
+  }
+
+  async #settleRetainedRecovery(): Promise<void> {
+    const settled = await this.#transactions.settleForRecoveryMutation()
+    if (settled) {
+      this.#clearCandidateEnvironment()
+      this.#recoveryOwnsCandidate = false
+      this.#rollbackFailed = false
+      await this.#options.log('Recovery settled the retained plugin transaction before another operation.')
+    }
+    if (this.#rollbackFailed) {
+      throw new DesktopProfileMutationRecoveryRequiredError('desktop: no verified transaction recovery is available')
+    }
+  }
+
   async stageRecovery<T>(work: DesktopProfileMutationWork<T>): Promise<T> {
     this.#assertAvailable()
     if (this.#recoveryBusy || this.#managedActive || (this.#candidateId !== undefined && !this.#recoveryOwnsCandidate)) {
@@ -274,13 +311,7 @@ export class DesktopProfileMutation {
     this.#recoveryBusy = true
     try {
       await this.#options.harness.suspendForRecovery()
-      const settled = await this.#transactions.settleForRecoveryMutation()
-      if (settled) {
-        this.#clearCandidateEnvironment()
-        this.#recoveryOwnsCandidate = false
-        this.#rollbackFailed = false
-        await this.#options.log('Recovery mode settled the retained plugin transaction before removal.')
-      }
+      await this.#settleRetainedRecovery()
       if (!this.#options.harness.available()) return await work.run(this.#context())
       this.#recoveryOwnsCandidate = true
       return await this.#withSafety(work.operation, () => work.run(this.#context()))
@@ -463,6 +494,7 @@ export class DesktopProfileMutation {
       [0],
       true,
     )
+    await this.#transactions.assertSettled()
     this.#clearCandidateEnvironment()
   }
 
@@ -519,24 +551,29 @@ export class DesktopProfileMutation {
           )
           await this.#options.log(`Rolled back candidate mutation ${operation}.`)
         } catch (rollbackError) {
-          this.#rollbackFailed = true
           safetySnapshotId = undefined
-          const failure = new DesktopProfileMutationRecoveryRequiredError(
-            `desktop: could not roll back startup mutation ${operation}: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
-            operationError,
-          )
-          this.#options.onRecoveryRequired(failure, operation)
-          throw failure
+          const reasons = new AggregateError([operationError, rollbackError], `Candidate mutation ${operation} and its safety restore failed`)
+          try {
+            // No candidate activation occurred: discarding its complete tree restores the active Profile without pnpm.
+            await this.#discardCandidate()
+          } catch (discardError) {
+            this.#rollbackFailed = true
+            const failure = new DesktopProfileMutationRecoveryRequiredError(
+              `desktop: could not discard failed startup mutation ${operation}`,
+              new AggregateError([operationError, rollbackError, discardError], reasons.message),
+            )
+            this.#options.onRecoveryRequired(failure, operation)
+            throw failure
+          }
+          await this.#options.log(`Discarded isolated candidate after safety restore failed for ${operation}: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`)
+          this.#options.onRollback(reasons)
+          throw new DesktopProfileMutationRolledBackError(reasons)
         }
         throw operationError
       }
     } finally {
-      try {
-        if (safetySnapshotId !== undefined) {
-          await this.#options.runSnapshot(['settle-safety', safetySnapshotId], this.#options.timeouts.snapshotMs, true)
-        }
-      } finally {
-        if (this.#rollbackFailed) await this.#discardCandidate()
+      if (safetySnapshotId !== undefined) {
+        await this.#options.runSnapshot(['settle-safety', safetySnapshotId], this.#options.timeouts.snapshotMs, true)
       }
     }
   }

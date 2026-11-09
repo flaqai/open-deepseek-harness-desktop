@@ -3,6 +3,7 @@
 import { lstat, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import semver from 'semver'
+import type { ProfileRecoveryDiagnostic } from './profile-recovery-diagnostic.ts'
 import type { PluginSnapshotSummary } from './plugin-snapshot-manager.ts'
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/iu
@@ -16,7 +17,11 @@ export interface RecoveryPluginSummary {
   readonly packageName: string
   readonly version?: string
   readonly source: RecoveryPluginSource
-  readonly status: 'attention' | 'normal'
+  readonly status: 'attention' | 'unverified' | 'paused'
+  readonly installation: 'installed' | 'missing' | 'unverified'
+  readonly activation: 'unverified' | 'paused'
+  readonly recordedDiagnosticCode?: string
+  readonly repairVersion?: string
   readonly diagnosticCode?: string
   readonly rollbackVersion?: string
 }
@@ -80,15 +85,17 @@ function classifySource(spec: string, dshHome: string): RecoveryPluginSource {
   return 'other'
 }
 
-async function installedVersion(profileDir: string, packageName: string): Promise<string | undefined> {
+async function installedPackage(
+  profileDir: string, packageName: string,
+): Promise<{ readonly version?: string; readonly installation: RecoveryPluginSummary['installation'] }> {
   try {
     const value = await readJson(join(profileDir, 'node_modules', ...packageName.split('/'), 'package.json'))
-    if (value === null || typeof value !== 'object') return undefined
+    if (value === null || typeof value !== 'object') return { installation: 'unverified' }
     const manifest = value as { name?: unknown; version?: unknown }
-    if (manifest.name !== packageName || typeof manifest.version !== 'string') return undefined
-    return manifest.version
-  } catch {
-    return undefined
+    if (manifest.name !== packageName || typeof manifest.version !== 'string') return { installation: 'unverified' }
+    return { version: manifest.version, installation: 'installed' }
+  } catch (error) {
+    return { installation: (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'missing' : 'unverified' }
   }
 }
 
@@ -103,7 +110,8 @@ async function diagnosticPackages(dshHome: string): Promise<Map<string, string>>
     const result = new Map<string, string>()
     for (const issue of report.issues) {
       const packageName = issue.attribution?.rootPackage
-      if (typeof packageName !== 'string' || !PACKAGE_NAME.test(packageName) || typeof issue.code !== 'string') continue
+      if (typeof packageName !== 'string' || !PACKAGE_NAME.test(packageName)
+        || typeof issue.code !== 'string' || !/^[a-z0-9._-]{1,120}$/iu.test(issue.code)) continue
       result.set(packageName, issue.code)
     }
     return result
@@ -115,9 +123,17 @@ async function diagnosticPackages(dshHome: string): Promise<Map<string, string>>
 /**
  * Read only direct Profile dependencies and installation-owned bundle count.
  * @param dshHome - Active Harness home selected by Desktop.
+ * @param context - Current paused state and live failure evidence, separate from saved reports.
  * @returns Redacted plugin inventory suitable for the recovery renderer.
  */
-export async function readRecoveryPluginInventory(dshHome: string): Promise<RecoveryPluginInventory> {
+export async function readRecoveryPluginInventory(
+  dshHome: string,
+  context: {
+    readonly profilePaused?: boolean
+    readonly failure?: ProfileRecoveryDiagnostic
+    readonly repairVersions?: Readonly<Record<string, string>>
+  } = {},
+): Promise<RecoveryPluginInventory> {
   const profileDir = join(dshHome, 'profiles', 'web')
   const value = await readJson(join(profileDir, 'package.json'))
   if (value === null || typeof value !== 'object') throw new Error('desktop: invalid Web Profile manifest')
@@ -130,18 +146,34 @@ export async function readRecoveryPluginInventory(dshHome: string): Promise<Reco
   const order = new Map(bundleOrder.map((packageName, index) => [packageName, index]))
   const diagnostics = await diagnosticPackages(dshHome)
   const plugins = await Promise.all(dependencies.map(async ([packageName, spec]) => {
-    const diagnosticCode = diagnostics.get(packageName)
-    const version = await installedVersion(profileDir, packageName)
+    const recordedDiagnosticCode = diagnostics.get(packageName)
+    const missingArchive = context.failure?.missingArchive
+    let sourceArchive: string | undefined
+    if (spec.startsWith('file:')) {
+      try { sourceArchive = decodeURIComponent(spec.slice(5)).replaceAll('\\', '/').split('/').at(-1) } catch { /* Invalid locators remain unverified. */ }
+    }
+    const missingSource = context.failure?.category === 'missing-local-archive' && missingArchive !== undefined
+      && (context.failure.rootPackage === undefined || context.failure.rootPackage === packageName)
+      && sourceArchive === missingArchive
+    const blockedOperation = context.failure?.blockedPackage === packageName
+    const diagnosticCode = missingSource ? 'desktop.plugin-archive-missing' : blockedOperation ? 'desktop.plugin-operation-blocked' : undefined
+    const repairVersion = missingSource ? context.repairVersions?.[packageName] : undefined
+    const { version, installation } = await installedPackage(profileDir, packageName)
     return {
       packageName,
       ...(version === undefined ? {} : { version }),
       source: classifySource(spec, dshHome),
-      status: diagnosticCode === undefined ? 'normal' as const : 'attention' as const,
+      status: diagnosticCode !== undefined ? 'attention' as const : context.profilePaused === true ? 'paused' as const : 'unverified' as const,
+      installation,
+      activation: context.profilePaused === true ? 'paused' as const : 'unverified' as const,
+      ...(recordedDiagnosticCode === undefined ? {} : { recordedDiagnosticCode }),
+      ...(repairVersion === undefined ? {} : { repairVersion }),
       ...(diagnosticCode === undefined ? {} : { diagnosticCode }),
     }
   }))
   plugins.sort((left, right) => {
-    if (left.status !== right.status) return left.status === 'attention' ? -1 : 1
+    const rank = (status: RecoveryPluginSummary['status']): number => status === 'attention' ? 0 : 1
+    if (rank(left.status) !== rank(right.status)) return rank(left.status) - rank(right.status)
     const leftIndex = order.get(left.packageName) ?? Number.MAX_SAFE_INTEGER
     const rightIndex = order.get(right.packageName) ?? Number.MAX_SAFE_INTEGER
     return leftIndex - rightIndex || left.packageName.localeCompare(right.packageName)

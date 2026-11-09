@@ -9,6 +9,7 @@ import type {
   DesktopDataHomeSwitchResult,
 } from './desktop-data-home.ts'
 import type { PluginSnapshotRestoreSnapshot, PluginSnapshotSummary } from './plugin-snapshot-manager.ts'
+import { runRecoverySourceRepair, type RecoverySourceRepairPlan } from './recovery-source-repair.ts'
 import type { RecoveryPluginInventory, RecoveryPluginSource, RecoveryPluginSummary } from './recovery-plugins.ts'
 import { desktopDictionary } from './desktop-locale.ts'
 import { parseDesktopStartupProgress, type DesktopStartupProgress, type DesktopStartupStage } from './startup-progress.ts'
@@ -195,6 +196,14 @@ const recoveryFailures: Readonly<Record<string, LocalizedFailure>> = {
   'desktop.profile-initialize-failed': {
     zh: ['全新 Profile 初始化失败', '首次创建配置时依赖或受管文件没有准备完成。请检查日志、磁盘权限和网络设置，修复后再重试。'],
     en: ['New Profile initialization failed', 'Dependencies or managed files were not prepared during first-time setup. Check logs, disk permissions, and network settings before retrying.'],
+  },
+  'desktop.plugin-source-preflight-failed': {
+    zh: ['插件安装来源无法安全检查', '安装来源预检无法确认当前配置的完整性，插件修改已暂停。请导出诊断查看具体错误，并修复配置读取、路径或权限问题后重试；不会猜测替换用户自定义来源。'],
+    en: ['Plugin installation sources could not be checked safely', 'Source preflight could not establish configuration integrity, so plugin changes are paused. Export diagnostics for the specific error, resolve configuration, path or permission issues, then retry. Custom sources are not replaced by guesswork.'],
+  },
+  'desktop.plugin-archive-missing': {
+    zh: ['插件安装来源归档缺失', '安装来源预检发现配置引用的本地归档不存在，插件修改已暂停。请在插件列表查看具体对象；如选择“修复安装来源”，需确认改用应用内置的新版本并保留恢复备份，随后重新验证启动。'],
+    en: ['Plugin installation archive is missing', 'Source preflight found a missing local archive referenced by configuration, so plugin changes are paused. Review the affected plugin below. Repair installation source requires confirmation to replace it with the bundled version, keeps a recovery backup, and then revalidates startup.'],
   },
   'desktop.profile-transaction-rollback-failed': {
     zh: ['插件变更无法安全回滚', '安装、更新或卸载插件后的恢复事务未完成。请优先恢复插件快照，不要继续修改当前 Profile。'],
@@ -529,7 +538,8 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
     status.className = `plugin-status${plugin.status === 'attention' ? ' attention' : ''}`
     status.textContent = plugin.status === 'attention'
       ? copy.pluginAttention(plugin.diagnosticCode)
-      : copy.pluginSource(plugin.source)
+      : plugin.status === 'paused' ? copy.pluginPaused : copy.pluginUnverified
+    status.title = `${copy.pluginSource(plugin.source)} · ${plugin.installation === 'installed' ? copy.pluginInstalled : copy.pluginMissing}${plugin.recordedDiagnosticCode === undefined ? '' : ` · ${copy.pluginRecorded}: ${plugin.recordedDiagnosticCode}`}`
     const remove = document.createElement('button')
     remove.className = 'plugin-remove'
     remove.type = 'button'
@@ -576,6 +586,45 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
     })
     const actions = document.createElement('div')
     actions.className = 'plugin-actions'
+    if (plugin.repairVersion !== undefined) {
+      const repairVersion = plugin.repairVersion
+      const repair = document.createElement('button')
+      repair.type = 'button'
+      repair.className = 'plugin-rollback'
+      repair.textContent = copy.repairSource
+      const recoveryPluginsSourceRepairPlan = (): Promise<RecoverySourceRepairPlan> => ipcRenderer.invoke(
+        'dsh:desktop:recovery-plugins:source-repair-plan',
+      ) as Promise<RecoverySourceRepairPlan>
+      repair.addEventListener('click', () => {
+        repair.disabled = true
+        rollback.disabled = true
+        remove.disabled = true
+        pluginStatus.hidden = false
+        pluginStatus.textContent = copy.repairSourcePreparing
+        void runRecoverySourceRepair({ packageName: plugin.packageName, version: repairVersion }, {
+          getPlan: recoveryPluginsSourceRepairPlan,
+          confirm: targets => window.confirm(targets.map(item => copy.repairSourceConfirm(item.packageName, item.version)).join('\n\n')),
+          repair: async (selected, approved) => {
+            await ipcRenderer.invoke('dsh:desktop:recovery-plugins:repair-source', selected.packageName, selected.version, approved)
+          },
+        }).then(async (result) => {
+          if (result.state === 'prepared') {
+            await loadPlugins(true)
+            pluginStatus.hidden = false
+            pluginStatus.textContent = copy.repairSourcePrepared
+          } else if (result.state === 'blocked') {
+            pluginStatus.textContent = copy.repairSourceBlocked(result.packages.join(', '))
+          } else pluginStatus.hidden = true
+        }).catch((error: unknown) => {
+          pluginStatus.textContent = `${copy.repairSourceFailed}: ${error instanceof Error ? error.message : String(error)}`
+        }).finally(() => {
+          repair.disabled = false
+          rollback.disabled = plugin.rollbackVersion === undefined
+          remove.disabled = false
+        })
+      })
+      actions.append(repair)
+    }
     actions.append(rollback, remove)
     row.append(name, version, status, actions)
     return row
@@ -745,6 +794,17 @@ interface RecoveryCopy {
   readonly pluginLoading: string
   readonly pluginLoadFailed: string
   readonly pluginSource: (source: RecoveryPluginSource) => string
+  readonly pluginPaused: string
+  readonly pluginUnverified: string
+  readonly pluginInstalled: string
+  readonly pluginMissing: string
+  readonly pluginRecorded: string
+  readonly repairSource: string
+  readonly repairSourceConfirm: (name: string, version: string) => string
+  readonly repairSourcePreparing: string
+  readonly repairSourcePrepared: string
+  readonly repairSourceFailed: string
+  readonly repairSourceBlocked: (packages: string) => string
   readonly pluginAttention: (code?: string) => string
   readonly protectedComponents: (count: number) => string
   readonly uninstall: string
@@ -802,7 +862,11 @@ const chineseCopy: RecoveryCopy = {
   operations: { 'runtime-archive-verification': '正在校验本地运行组件', 'runtime-archive-extraction': '正在解压本地运行组件', 'prebuilt-profile-verification': '正在校验首次启动配置', 'prebuilt-profile-extraction': '正在解压首次启动配置', 'profile-read-only-check': '正在只读检查插件兼容性', 'profile-lock-wait': 'Profile 正被其他操作占用，等待其完成', 'profile-lock-diagnostics': 'Profile 正被其他操作占用，正在打开诊断模式', 'profile-diagnostics-ready': '诊断工具已就绪，正常 Profile 仍保持暂停', 'profile-check-timeout': '兼容性检查已超时，已跳过异常步骤并继续启动', 'profile-repair': '正在修复 Profile', 'profile-initialize': '正在初始化全新 Profile', 'profile-initialize-failed': '全新 Profile 初始化失败', 'process-recovery-blocked': '后台进程恢复未完成，已打开诊断模式' },
   pluginLoading: '正在读取已安装插件…', pluginLoadFailed: '无法读取插件清单',
   pluginSource: source => ({ registry: '在线安装', bundled: '桌面预装', local: '本地来源', other: '其他来源' })[source],
-  pluginAttention: code => code === undefined ? '诊断异常' : `诊断异常 · ${code}`,
+  pluginPaused: '因插件环境暂停而未启动', pluginUnverified: '尚未验证启动', pluginInstalled: '已检测到安装文件', pluginMissing: '未检测到安装文件', pluginRecorded: '历史诊断记录',
+  repairSourceBlocked: packages => `暂时无法修复：${packages} 的缺失来源没有匹配的内置版本。请先恢复这些自定义安装来源，再重试；未修改任何插件。`,
+  repairSource: '修复安装来源', repairSourceConfirm: (name, version) => `将 ${name} 的失效本地安装来源替换为应用内置的 ${version} 版本？将保留恢复备份，不修改会话和凭据；这是版本替换，不是找回原版安装包。`,
+  repairSourcePreparing: '正在准备安装来源修复…', repairSourcePrepared: '修复已准备，请重新尝试启动以验证。', repairSourceFailed: '安装来源修复失败',
+  pluginAttention: code => code === 'desktop.plugin-archive-missing' ? '安装来源归档缺失' : code === 'desktop.plugin-operation-blocked' ? '安装操作被其他依赖阻断' : '需要检查',
   protectedComponents: count => `核心组件 ${count} 项 · 已锁定保护`, uninstall: '卸载',
   rollback: '回退至上一版本', rollbackUnavailable: '未找到可恢复的旧版本快照。可查看“回退插件快照”。',
   rollbackTarget: version => `回退至 ${version}`,
@@ -846,7 +910,11 @@ const englishCopy: RecoveryCopy = {
   operations: { 'runtime-archive-verification': 'Verifying local runtime components', 'runtime-archive-extraction': 'Extracting local runtime components', 'prebuilt-profile-verification': 'Verifying the first-start Profile', 'prebuilt-profile-extraction': 'Extracting the first-start Profile', 'profile-read-only-check': 'Checking configuration without changes', 'profile-lock-wait': 'Waiting for the operation that owns the Profile', 'profile-lock-diagnostics': 'Another operation owns the Profile; opening Diagnostics', 'profile-diagnostics-ready': 'Diagnostic tools are ready; the normal Profile remains paused', 'profile-check-timeout': 'Compatibility check timed out; skipped the step and continued startup', 'profile-repair': 'Repairing the Profile', 'profile-initialize': 'Initializing a new Profile', 'profile-initialize-failed': 'New Profile initialization failed', 'process-recovery-blocked': 'Background process recovery did not complete; Diagnostics is open' },
   pluginLoading: 'Loading installed plugins…', pluginLoadFailed: 'Could not load the plugin list',
   pluginSource: source => ({ registry: 'Online install', bundled: 'Desktop preset', local: 'Local source', other: 'Other source' })[source],
-  pluginAttention: code => code === undefined ? 'Diagnostic issue' : `Diagnostic issue · ${code}`,
+  pluginPaused: 'Not started: Profile paused', pluginUnverified: 'Startup not verified', pluginInstalled: 'Installation files detected', pluginMissing: 'Installation files not detected', pluginRecorded: 'Previous diagnostic record',
+  repairSourceBlocked: packages => `Repair blocked: ${packages} have missing sources without matching bundled versions. Restore these custom sources before retrying; no plugin was changed.`,
+  repairSource: 'Repair installation source', repairSourceConfirm: (name, version) => `Replace the missing local installation source for ${name} with bundled version ${version}? A recovery backup is retained; sessions and credentials remain unchanged. This replaces the version rather than recovering the original archive.`,
+  repairSourcePreparing: 'Preparing installation-source repair…', repairSourcePrepared: 'Repair prepared. Retry startup to verify it.', repairSourceFailed: 'Installation-source repair failed',
+  pluginAttention: code => code === 'desktop.plugin-archive-missing' ? 'Installation archive missing' : code === 'desktop.plugin-operation-blocked' ? 'Installation blocked by another dependency' : 'Inspection required',
   protectedComponents: count => `${count} core components · protected`, uninstall: 'Uninstall',
   rollback: 'Roll back version', rollbackUnavailable: 'No restorable previous version was found. Check Plugin snapshots.',
   rollbackTarget: version => `Restore ${version}`,
