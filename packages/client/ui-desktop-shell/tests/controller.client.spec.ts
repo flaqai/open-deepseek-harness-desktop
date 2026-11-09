@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type {
-  DesktopBridge, DesktopCapabilities, DesktopPreferences, DesktopReleaseStatus, DownloadNetworkSettings,
+  DesktopBridge, DesktopCapabilities, DesktopPreferences, DesktopReleaseDownloadStatus, DesktopReleaseStatus, DownloadNetworkSettings,
 } from '../src/client/bridge.ts'
 import { DesktopShellController } from '../src/client/controller.ts'
 
@@ -183,4 +183,42 @@ describe('DesktopShellController', () => {
     expect(patch?.application?.source).toBe('cnb')
     expect(b.controller.getSnapshot().release.phase).toBe('available')
   })
+})
+
+it('joins pending background starts and ignores stale acknowledgements after a streamed completion', async () => {
+  const b = bench()
+  b.controller.dispose()
+  let listener: ((status: DesktopReleaseDownloadStatus) => void) | undefined
+  b.bridge.releases.onDownloadStatus = (next) => { listener = next; return () => { listener = undefined } }
+  const deferred = Promise.withResolvers<DesktopReleaseDownloadStatus>()
+  const start = vi.fn(() => deferred.promise)
+  b.bridge.releases.startDownload = start
+  const controller = new DesktopShellController(b.bridge)
+  controller.start()
+  await vi.waitFor(() => { expect(controller.getSnapshot().capabilities).not.toBeNull() })
+  const first = controller.downloadRelease()
+  expect(controller.downloadRelease()).toBe(first)
+  expect(start).toHaveBeenCalledOnce()
+  listener?.({ phase: 'ready', version: '1.2.3', fileName: 'installer.dmg' })
+  deferred.resolve({ phase: 'resolving', version: '1.2.3' })
+  await first
+  expect(controller.getSnapshot().releaseDownload.phase).toBe('ready')
+  expect(b.openInstaller).not.toHaveBeenCalled()
+  controller.dispose()
+})
+
+it('does not replace download events with a stale initial status read', async () => {
+  const b = bench()
+  b.controller.dispose()
+  let listener: ((status: DesktopReleaseDownloadStatus) => void) | undefined
+  b.bridge.releases.onDownloadStatus = (next) => { listener = next; return () => { listener = undefined } }
+  const deferred = Promise.withResolvers<DesktopReleaseDownloadStatus>()
+  b.bridge.releases.getDownloadStatus = () => deferred.promise
+  const controller = new DesktopShellController(b.bridge)
+  controller.start()
+  listener?.({ phase: 'verifying', version: '1.2.3', fileName: 'installer.dmg' })
+  deferred.resolve({ phase: 'idle' })
+  await vi.waitFor(() => { expect(controller.getSnapshot().capabilities).not.toBeNull() })
+  expect(controller.getSnapshot().releaseDownload.phase).toBe('verifying')
+  controller.dispose()
 })

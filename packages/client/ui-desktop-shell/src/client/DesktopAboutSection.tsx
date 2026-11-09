@@ -7,6 +7,7 @@ import type { CommunityFeedbackBridge, CommunityFeedbackInput } from './bridge.t
 import { DEVELOPMENT_RELEASE_VERSION, type DesktopShellController } from './controller.ts'
 import type { DownloadNetworkProjection } from './download-network-projection.ts'
 import { DownloadNetworkSettings } from './DownloadNetworkSettings.tsx'
+import { selectedReleaseDownload } from './release-download-presentation.ts'
 import css from './DesktopShell.module.css'
 
 export type DesktopAboutSectionProps = PropsRuntime<'settings.section'> & PropsLocale<'desktop-shell'> & {
@@ -52,9 +53,7 @@ export function DesktopAboutSection({ controller, feedback, downloadNetwork, ope
     : release.phase === 'checking' ? t('release.checking')
       : release.phase === 'available' ? t('release.available', { version: release.latestVersion })
         : release.phase === 'current' ? t('release.current') : t('release.error')
-  const selectedDownload = release.phase === 'available' && 'version' in releaseDownload
-    && releaseDownload.version === release.latestVersion ? releaseDownload
-    : releaseDownload.phase === 'idle' || releaseDownload.phase === 'unsupported' ? releaseDownload : { phase: 'idle' as const }
+  const selectedDownload = selectedReleaseDownload(release, releaseDownload)
   const downloadActive = selectedDownload.phase === 'resolving' || selectedDownload.phase === 'switching'
     || selectedDownload.phase === 'downloading' || selectedDownload.phase === 'verifying'
   const downloadText = selectedDownload.phase === 'resolving' ? t('release.download.resolving')
@@ -84,13 +83,29 @@ export function DesktopAboutSection({ controller, feedback, downloadNetwork, ope
     </section>
     <section ref={updateRow} aria-labelledby="desktop-release-settings-title">
       {downloadNetwork !== undefined && <DownloadNetworkSettings projection={downloadNetwork} t={t} scope="application" />}
+      {installerDownloadSupported && state.preferences !== null && <div className={css.row}>
+        <div className={css.text}>
+          <div id="background-update-label" className={css.title}>{t('release.background.title')}</div>
+          <div id="background-update-description" className={css.description}>{t('release.background.description')}</div>
+        </div>
+        <button type="button" role="switch" className={css.toggle}
+          aria-labelledby="background-update-label" aria-describedby="background-update-description"
+          aria-checked={state.preferences.backgroundUpdateDownloadEnabled === true}
+          data-enabled={state.preferences.backgroundUpdateDownloadEnabled === true} disabled={state.busy}
+          onClick={() => {
+            void controller.setPreference({ backgroundUpdateDownloadEnabled: !state.preferences?.backgroundUpdateDownloadEnabled })
+          }}>
+          <span />
+        </button>
+      </div>}
       <div className={`${css.row} ${css.aboutUpdateRow}`}>
         <div className={css.text}>
           <div id="desktop-release-settings-title" className={css.title}>{t('release.title')}</div>
           <div className={release.phase === 'error' ? css.error : css.description}>{releaseText}</div>
           {release.phase === 'available' && state.capabilities.platform === 'darwin' && state.capabilities.packaged
             && <div className={css.description}>{t('release.macosInstallHint')}</div>}
-          {release.phase === 'available' && downloadText !== null
+          {downloadActive && <div className={css.description}>{t('release.background.hint')}</div>}
+          {downloadText !== null
             && <div className={selectedDownload.phase === 'error' ? css.error : css.description}>{downloadText}</div>}
           {selectedDownload.phase === 'downloading' && <progress className={css.progress}
             aria-label={t('release.download.progressLabel')} value={selectedDownload.transferredBytes}
@@ -106,7 +121,7 @@ export function DesktopAboutSection({ controller, feedback, downloadNetwork, ope
             {selectedDownload.phase === 'error' && release.phase === 'available' && controller.downloadNetwork !== undefined
               && <Button variant="outline" disabled={state.busy} onClick={() => { void controller.switchReleaseSource() }}>
                 {t('release.download.switchSource')}</Button>}
-            {release.phase === 'available' && (installerDownloadSupported
+            {(release.phase === 'available' || downloadActive || selectedDownload.phase === 'ready') && (installerDownloadSupported
               ? selectedDownload.phase === 'ready'
                 ? <Button variant="primary" onClick={() => { void controller.openInstaller() }}>{t('release.download.open')}</Button>
                 : downloadActive

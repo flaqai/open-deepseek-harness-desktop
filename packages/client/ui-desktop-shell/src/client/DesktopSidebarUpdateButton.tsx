@@ -4,6 +4,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { DEVELOPMENT_RELEASE_VERSION, type DesktopShellController } from './controller.ts'
+import { releaseDownloadLabel, selectedReleaseDownload } from './release-download-presentation.ts'
 import css from './DesktopSidebarUpdateButton.module.css'
 
 export interface DesktopSidebarUpdateButtonInjected {
@@ -25,11 +26,12 @@ export function DesktopSidebarUpdateButton({ controller, openUpdates, t, wide }:
     : state.release.phase === 'unsupported' && state.simulatedReleaseAvailable
       ? DEVELOPMENT_RELEASE_VERSION
       : undefined
-  if (!wide || version === undefined) return null
-  const label = t('release.badge', { version })
+  const downloadLabel = releaseDownloadLabel(selectedReleaseDownload(state.release, state.releaseDownload))
+  if (!wide || (version === undefined && downloadLabel === undefined)) return null
+  const label = downloadLabel === undefined ? t('release.badge', { version: version ?? '' }) : t(downloadLabel)
   return (
     <button type="button" className={css.button} aria-label={label} title={label} onClick={openUpdates}>
-      {t('release.sidebar')}
+      {downloadLabel === undefined ? t('release.sidebar') : label}
     </button>
   )
 }

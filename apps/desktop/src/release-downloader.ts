@@ -4,6 +4,7 @@ import { createHash, type Hash } from 'node:crypto'
 import { mkdir, open, rename, rm, type FileHandle } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DesktopReleaseStatus } from './release-checker.ts'
+import { BackgroundReleaseDownloads } from './background-release-download.ts'
 import { fetchCnbReleaseIndex } from './cnb-release-source.ts'
 
 const REPOSITORY = 'flaqai/open-deepseek-harness-desktop'
@@ -374,13 +375,14 @@ export class DesktopReleaseDownloader {
   #running: Promise<DesktopReleaseDownloadStatus> | undefined
   #abortController: AbortController | undefined
   #readyPath: string | undefined
-  #readyRelease: Extract<DesktopReleaseStatus, { phase: 'available' }> | undefined
+  #selectedRelease: Extract<DesktopReleaseStatus, { phase: 'available' }> | undefined
   readonly #listeners = new Set<(status: DesktopReleaseDownloadStatus) => void>()
   readonly #apiFetch: ReleaseFetch
   readonly #systemFetch: ReleaseFetch
   readonly #assetName: string | undefined
   readonly #headerTimeoutMs: number
   readonly #idleTimeoutMs: number
+  readonly #background: BackgroundReleaseDownloads
 
   constructor(readonly options: DesktopReleaseDownloaderOptions) {
     this.#assetName = installerAssetName(options.platform, options.arch)
@@ -389,6 +391,12 @@ export class DesktopReleaseDownloader {
     this.#systemFetch = options.systemFetch ?? this.#apiFetch
     this.#headerTimeoutMs = options.headerTimeoutMs ?? DEFAULT_HEADER_TIMEOUT_MS
     this.#idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS
+    this.#background = new BackgroundReleaseDownloads(false, () => {
+      const release = this.options.getRelease()
+      if (release.phase !== 'available' || (this.#running !== undefined && !this.#matchesSelection(release))) return false
+      this.startInBackground()
+      return true
+    })
   }
 
   get status(): DesktopReleaseDownloadStatus { return this.#status }
@@ -406,21 +414,34 @@ export class DesktopReleaseDownloader {
     return status
   }
 
-  /** Forget state from another Release and cancel a download whose selected Release was withdrawn. */
+  #matchesSelection(release: Extract<DesktopReleaseStatus, { phase: 'available' }>): boolean {
+    const selected = this.#selectedRelease
+    return selected !== undefined && selected.latestVersion === release.latestVersion
+      && selected.tagName === release.tagName && (selected.source ?? 'github') === (release.source ?? 'github')
+  }
+
+  /**
+   * Apply the persisted silent-download choice without authorizing installation or cancelling manual work.
+   * @param enabled - Whether newly observed available Releases may start downloading automatically.
+   */
+  setBackgroundEnabled(enabled: boolean): void { this.#background.setEnabled(enabled) }
+
+  /** Preserve active and verified transfers during inconclusive discovery; revoke confirmed changed releases. */
   resetForRelease(release: DesktopReleaseStatus): void {
     if (this.#assetName === undefined) return
-    const statusVersion = 'version' in this.#status ? this.#status.version : undefined
-    const selected = release.phase === 'available' && statusVersion === release.latestVersion
-    if (this.#running !== undefined) {
-      if (!selected) this.#abortController?.abort()
+    if (release.phase === 'idle' || release.phase === 'checking' || release.phase === 'error') {
+      this.#background.observe(release)
       return
     }
-    if (release.phase === 'idle' || release.phase === 'checking') return
-    if (release.phase !== 'available' || (statusVersion !== undefined && !selected)) {
+    const selected = release.phase === 'available' && this.#matchesSelection(release)
+    if (this.#running !== undefined) {
+      if (!selected) this.#abortController?.abort()
+    } else if (!selected) {
       this.#readyPath = undefined
-      this.#readyRelease = undefined
+      this.#selectedRelease = undefined
       this.#publish({ phase: 'idle' })
     }
+    this.#background.observe(release)
   }
 
   /** Start or join the current verified installer download. */
@@ -428,12 +449,16 @@ export class DesktopReleaseDownloader {
     if (this.#running !== undefined) return this.#running
     const release = this.options.getRelease()
     if (this.#assetName === undefined) return Promise.resolve(this.#publish({ phase: 'unsupported' }))
+    if (this.#status.phase === 'ready' && (release.phase === 'checking' || release.phase === 'idle' || release.phase === 'error')) {
+      return Promise.resolve(this.#status)
+    }
     if (release.phase !== 'available') {
       return Promise.resolve(this.#publish({ phase: 'error', message: 'No downloadable Release is currently selected.' }))
     }
-    if (this.#status.phase === 'ready' && this.#status.version === release.latestVersion) {
+    if (this.#status.phase === 'ready' && this.#matchesSelection(release)) {
       return Promise.resolve(this.#status)
     }
+    this.#selectedRelease = release
     const controller = new AbortController()
     this.#abortController = controller
     this.#publish({ phase: 'resolving', version: release.latestVersion })
@@ -447,8 +472,18 @@ export class DesktopReleaseDownloader {
       .finally(() => {
         this.#running = undefined
         this.#abortController = undefined
+        this.#background.observe(this.options.getRelease())
       })
     return this.#running
+  }
+
+  /**
+   * Start or join a main-process transfer without waiting for the installer body.
+   * @returns Immediate shared status; completion continues through the existing status subscription.
+   */
+  startInBackground(): DesktopReleaseDownloadStatus {
+    void this.start()
+    return this.#status
   }
 
   /** Cancel only the active download owned by this manager. */
@@ -459,6 +494,7 @@ export class DesktopReleaseDownloader {
 
   /** Cancel an active transfer and wait for its temporary file cleanup. */
   async dispose(): Promise<void> {
+    this.#background.dispose()
     this.#abortController?.abort()
     await this.#running
   }
@@ -468,8 +504,8 @@ export class DesktopReleaseDownloader {
     if (this.#status.phase !== 'ready' || this.#readyPath === undefined) {
       return { error: 'The installer has not finished downloading.' }
     }
-    if (this.#readyRelease?.source === 'cnb') {
-      const readyRelease = this.#readyRelease
+    if (this.#selectedRelease?.source === 'cnb') {
+      const readyRelease = this.#selectedRelease
       const index = await fetchCnbReleaseIndex(this.#systemFetch)
       const current = index.releases.find(entry => entry.version === readyRelease.latestVersion
         && entry.tagName === readyRelease.tagName)
@@ -685,18 +721,23 @@ export class DesktopReleaseDownloader {
     await mkdir(versionDirectory, { recursive: true })
     await rm(partialPath, { force: true })
     let completed = false
+    let finalized = false
     try {
       const actualChecksum = await this.#downloadInstaller(installer, version, partialPath, signal)
       if (actualChecksum !== expectedChecksum) throw new Error('Release installer failed SHA-256 verification.')
+      throwIfUserCancelled(signal)
       await rm(finalPath, { force: true })
       await rename(partialPath, finalPath)
+      finalized = true
+      throwIfUserCancelled(signal)
       completed = true
       this.#readyPath = finalPath
-      const release = this.options.getRelease()
-      this.#readyRelease = release.phase === 'available' ? release : undefined
       return this.#publish({ phase: 'ready', version, fileName })
     } finally {
-      if (!completed) await rm(partialPath, { force: true })
+      if (!completed) {
+        await rm(partialPath, { force: true })
+        if (finalized) await rm(finalPath, { force: true })
+      }
     }
   }
 
@@ -734,24 +775,33 @@ export class DesktopReleaseDownloader {
         // A transient recheck failure cannot validate withdrawal and does not replace the active verified transfer.
       } finally { recheckRunning = false }
     }
+    const assertTransferCurrent = (): void => {
+      if (withdrawalError !== undefined) throw withdrawalError
+      throwIfUserCancelled(transferController.signal)
+    }
     const recheckTimer = setInterval(() => { void recheck() }, CNB_WITHDRAWAL_RECHECK_MS)
     let completed = false
+    let finalized = false
     try {
       let actualChecksum: string
       try { actualChecksum = await this.#downloadInstaller(asset, version, partialPath, transferController.signal, false) }
       catch (error) { throw withdrawalError ?? error }
       if (actualChecksum !== candidate.sha256) throw new Error('CNB Release installer failed SHA-256 verification.')
+      assertTransferCurrent()
       await rm(finalPath, { force: true })
       await rename(partialPath, finalPath)
+      finalized = true
+      assertTransferCurrent()
       completed = true
       this.#readyPath = finalPath
-      const release = this.options.getRelease()
-      this.#readyRelease = release.phase === 'available' ? release : undefined
       return this.#publish({ phase: 'ready', version, fileName })
     } finally {
       clearInterval(recheckTimer)
       signal.removeEventListener('abort', cancelTransfer)
-      if (!completed) await rm(partialPath, { force: true })
+      if (!completed) {
+        await rm(partialPath, { force: true })
+        if (finalized) await rm(finalPath, { force: true })
+      }
     }
   }
 }

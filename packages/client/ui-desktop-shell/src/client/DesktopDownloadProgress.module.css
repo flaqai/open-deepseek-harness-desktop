@@ -1,0 +1,37 @@
+.indicator {
+  position: absolute;
+  inset-inline-end: 12px;
+  bottom: max(6px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  min-height: 28px;
+  padding: 4px 10px;
+  box-sizing: border-box;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-s-14);
+  font-size: 12px;
+  cursor: pointer;
+}
+.label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.progress {
+  width: 104px;
+  min-width: 40px;
+  height: 4px;
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  accent-color: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
+}
+.progress::-webkit-progress-bar { background: var(--dsw-alias-border-l2); border-radius: 4px; }
+.progress::-webkit-progress-value { background: var(--dsw-alias-brand-primary-new-colorprimary-new-color); border-radius: 4px; }
+.progress::-moz-progress-bar { background: var(--dsw-alias-brand-primary-new-colorprimary-new-color); }
+.percent { min-width: 3ch; font-variant-numeric: tabular-nums; text-align: end; }
+@media (hover: hover) {
+  .indicator:hover { color: var(--dsw-alias-label-primary); }
+}
+.indicator:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }

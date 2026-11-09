@@ -802,8 +802,10 @@ function updatePreferences(raw: unknown): DesktopPreferences {
     }
     applyLaunchAtLogin(patch.launchAtLoginEnabled)
   }
-  preferences = { ...preferences, ...patch }
-  preferencesStore?.write(preferences)
+  const next = { ...preferences, ...patch }
+  preferencesStore?.write(next)
+  preferences = next
+  releaseDownloader?.setBackgroundEnabled(preferences.backgroundUpdateDownloadEnabled)
   publishPreferences()
   return preferences
 }
@@ -1907,24 +1909,30 @@ async function startApplication(): Promise<void> {
     const fetcher = await applicationFetch()
     const applicationSettings = downloadNetworkStore?.read().application
     const source = applicationSettings?.source ?? 'github'
-    releaseChecker = source === 'cnb'
+    const checker = source === 'cnb'
       ? new DesktopReleaseChecker(app.getVersion(), undefined, async () => {
         return selectCnbRelease(app.getVersion(), await fetchCnbReleaseIndex(fetcher))
       })
       : new DesktopReleaseChecker(app.getVersion(), () => fetchGitHubReleases(fetcher))
-    releaseDownloader = new DesktopReleaseDownloader({
+    releaseChecker = checker
+    const downloader = new DesktopReleaseDownloader({
       platform: process.platform, arch: process.arch,
       downloadDirectory: join(app.getPath('userData'), 'updates'),
-      getRelease: () => releaseChecker?.status ?? { phase: 'unsupported' },
+      getRelease: () => checker.status,
       openPath: path => shell.openPath(path), systemFetch: fetcher,
       ...(applicationSettings?.proxy.mode === 'system' ? {} : { apiFetch: fetcher }),
     })
-    releaseChecker.subscribe((status) => {
-      releaseDownloader?.resetForRelease(status)
+    releaseDownloader = downloader
+    checker.subscribe((status) => {
+      if (releaseChecker !== checker || releaseDownloader !== downloader) return
+      downloader.resetForRelease(status)
       mainSurface?.send(DESKTOP_IPC.releaseStatus, status)
     })
-    releaseDownloader.subscribe((status) => { mainSurface?.send(DESKTOP_IPC.releaseDownloadStatus, status) })
-    stopReleaseChecks = releaseChecker.startPolling()
+    downloader.subscribe((status) => {
+      if (releaseDownloader === downloader) mainSurface?.send(DESKTOP_IPC.releaseDownloadStatus, status)
+    })
+    downloader.setBackgroundEnabled(preferences.backgroundUpdateDownloadEnabled)
+    stopReleaseChecks = checker.startPolling()
   }
   await configureReleaseServices()
   externalToolCompatibility = new ExternalToolCompatibilityManager({
@@ -2391,11 +2399,19 @@ async function startApplication(): Promise<void> {
   })
   ipcMain.handle(DESKTOP_IPC.releasesDownloadStart, async (event) => {
     assertMainRenderer(event.sender)
-    if (releaseChecker === undefined || releaseDownloader === undefined) {
+    const checker = releaseChecker
+    const downloader = releaseDownloader
+    if (checker === undefined || downloader === undefined) {
       return { phase: 'unsupported' } satisfies DesktopReleaseDownloadStatus
     }
-    await releaseChecker.check()
-    return releaseDownloader.start()
+    if (['resolving', 'switching', 'downloading', 'verifying', 'ready'].includes(downloader.status.phase)) {
+      return downloader.startInBackground()
+    }
+    await checker.check()
+    if (releaseChecker !== checker || releaseDownloader !== downloader) {
+      return releaseDownloader?.status ?? { phase: 'unsupported' } satisfies DesktopReleaseDownloadStatus
+    }
+    return downloader.startInBackground()
   })
   ipcMain.handle(DESKTOP_IPC.releasesDownloadCancel, (event): DesktopReleaseDownloadStatus => {
     assertMainRenderer(event.sender)

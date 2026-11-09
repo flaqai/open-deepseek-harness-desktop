@@ -1,4 +1,5 @@
 /** Desktop shell settings and update copy. */
+import { BACKGROUND_UPDATE_TRANSLATIONS } from './background-update-locales.ts'
 import { COMMUNITY_TRANSLATIONS } from './community-translations/index.ts'
 import { DESKTOP_ADDITIONAL_TRANSLATIONS } from './community-translations/desktop-additions.ts'
 import { DOWNLOAD_NETWORK_TRANSLATIONS } from './download-network-locales.ts'
@@ -14,6 +15,7 @@ export const desktopLanguageTitles = {
   de: 'Sprache',
   'pt-BR': 'Idioma',
   ru: 'Язык',
+  ...BACKGROUND_UPDATE_TRANSLATIONS['de'],
 } as const
 
 /** Simplified Chinese copy owned by the desktop shell. */
@@ -291,7 +293,6 @@ export const zh = {
   'release.current': '当前已是最新版本',
   'release.available': '发现新版本 {version}',
   'release.open': '查看下载',
-  'release.download.start': '应用内下载',
   'release.download.retry': '重新下载',
   'release.download.cancel': '取消下载',
   'release.download.open': '打开安装包',
@@ -313,6 +314,7 @@ export const zh = {
   'release.developmentOpen': '去更新',
   'release.badge': '新版本 {version}',
   'release.sidebar': '有更新',
+  ...BACKGROUND_UPDATE_TRANSLATIONS['zh'],
 } satisfies Record<string, string>
 
 /** Desktop-shell dictionary key union. */
@@ -593,7 +595,6 @@ export const en = {
   'release.current': 'This is the latest version',
   'release.available': 'Version {version} is available',
   'release.open': 'View download',
-  'release.download.start': 'Download in app',
   'release.download.retry': 'Download again',
   'release.download.cancel': 'Cancel download',
   'release.download.open': 'Open installer',
@@ -615,6 +616,7 @@ export const en = {
   'release.developmentOpen': 'Update now',
   'release.badge': 'Version {version}',
   'release.sidebar': 'Update',
+  ...BACKGROUND_UPDATE_TRANSLATIONS['en'],
 } satisfies Record<DesktopShellKey, string>
 
 /** Russian dictionary checked against the English key source. */
@@ -852,7 +854,6 @@ export const ru = {
   'release.current': 'Установлена последняя версия',
   'release.available': 'Доступна версия {version}',
   'release.open': 'Открыть страницу загрузки',
-  'release.download.start': 'Скачать в приложении',
   'release.download.retry': 'Скачать заново',
   'release.download.cancel': 'Отменить загрузку',
   'release.download.open': 'Открыть установщик',
@@ -874,6 +875,7 @@ export const ru = {
   'release.developmentOpen': 'Обновить',
   'release.badge': 'Версия {version}',
   'release.sidebar': 'Есть обновление',
+  ...BACKGROUND_UPDATE_TRANSLATIONS['ru'],
 } satisfies Record<DesktopShellKey, string>
 
 /** ja copy combines historical desktop translations with current community additions. */
@@ -883,6 +885,7 @@ export const ja: Record<DesktopShellKey, string> = {
   ...DOWNLOAD_NETWORK_TRANSLATIONS['ja'],
   ...NAS_TRANSLATIONS['ja'],
   ...DESKTOP_ADDITIONAL_TRANSLATIONS['ja'],
+  ...BACKGROUND_UPDATE_TRANSLATIONS['ja'],
 }
 
 /** es copy combines historical desktop translations with current community additions. */
@@ -892,6 +895,7 @@ export const es: Record<DesktopShellKey, string> = {
   ...DOWNLOAD_NETWORK_TRANSLATIONS['es'],
   ...NAS_TRANSLATIONS['es'],
   ...DESKTOP_ADDITIONAL_TRANSLATIONS['es'],
+  ...BACKGROUND_UPDATE_TRANSLATIONS['es'],
 }
 
 /** fr copy combines historical desktop translations with current community additions. */
@@ -901,6 +905,7 @@ export const fr: Record<DesktopShellKey, string> = {
   ...DOWNLOAD_NETWORK_TRANSLATIONS['fr'],
   ...NAS_TRANSLATIONS['fr'],
   ...DESKTOP_ADDITIONAL_TRANSLATIONS['fr'],
+  ...BACKGROUND_UPDATE_TRANSLATIONS['fr'],
 }
 
 /** de copy combines historical desktop translations with current community additions. */
@@ -919,6 +924,7 @@ export const pt: Record<DesktopShellKey, string> = {
   ...DOWNLOAD_NETWORK_TRANSLATIONS['pt-BR'],
   ...NAS_TRANSLATIONS['pt-BR'],
   ...DESKTOP_ADDITIONAL_TRANSLATIONS['pt-BR'],
+  ...BACKGROUND_UPDATE_TRANSLATIONS['pt-BR'],
 }
 
 /** ko copy combines historical desktop translations with current community additions. */
@@ -928,4 +934,5 @@ export const ko: Record<DesktopShellKey, string> = {
   ...DOWNLOAD_NETWORK_TRANSLATIONS['ko'],
   ...NAS_TRANSLATIONS['ko'],
   ...DESKTOP_ADDITIONAL_TRANSLATIONS['ko'],
+  ...BACKGROUND_UPDATE_TRANSLATIONS['ko'],
 }

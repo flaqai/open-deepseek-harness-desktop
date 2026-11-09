@@ -12,6 +12,7 @@ export interface DesktopPreferences {
   notificationsEnabled: boolean
   launchAtLoginEnabled: boolean
   openBrowserOnStartup: boolean
+  backgroundUpdateDownloadEnabled: boolean
 }
 
 /** Desktop preference defaults used for a new or unreadable store. */
@@ -20,6 +21,7 @@ export const DEFAULT_DESKTOP_PREFERENCES: DesktopPreferences = Object.freeze({
   notificationsEnabled: true,
   launchAtLoginEnabled: false,
   openBrowserOnStartup: false,
+  backgroundUpdateDownloadEnabled: false,
 })
 
 /** Fields accepted by the renderer preference update bridge. */
@@ -38,6 +40,9 @@ export function normalizeDesktopPreferences(raw: unknown): DesktopPreferences {
     launchAtLoginEnabled: typeof source.launchAtLoginEnabled === 'boolean'
       ? source.launchAtLoginEnabled
       : DEFAULT_DESKTOP_PREFERENCES.launchAtLoginEnabled,
+    backgroundUpdateDownloadEnabled: typeof source.backgroundUpdateDownloadEnabled === 'boolean'
+      ? source.backgroundUpdateDownloadEnabled
+      : DEFAULT_DESKTOP_PREFERENCES.backgroundUpdateDownloadEnabled,
     openBrowserOnStartup: typeof source.openBrowserOnStartup === 'boolean'
       ? source.openBrowserOnStartup
       : DEFAULT_DESKTOP_PREFERENCES.openBrowserOnStartup,
@@ -50,7 +55,7 @@ export function parseDesktopPreferencesPatch(raw: unknown): DesktopPreferencesPa
     throw new TypeError('desktop: preference patch must be an object')
   }
   const source = raw as Record<string, unknown>
-  const allowed = new Set(['closeBehavior', 'notificationsEnabled', 'launchAtLoginEnabled', 'openBrowserOnStartup'])
+  const allowed = new Set(['closeBehavior', 'notificationsEnabled', 'launchAtLoginEnabled', 'openBrowserOnStartup', 'backgroundUpdateDownloadEnabled'])
   for (const key of Object.keys(source)) {
     if (!allowed.has(key)) throw new TypeError(`desktop: unknown preference ${key}`)
   }
@@ -78,6 +83,12 @@ export function parseDesktopPreferencesPatch(raw: unknown): DesktopPreferencesPa
       throw new TypeError('desktop: openBrowserOnStartup must be boolean')
     }
     patch.openBrowserOnStartup = source.openBrowserOnStartup
+  }
+  if ('backgroundUpdateDownloadEnabled' in source) {
+    if (typeof source.backgroundUpdateDownloadEnabled !== 'boolean') {
+      throw new TypeError('desktop: backgroundUpdateDownloadEnabled must be boolean')
+    }
+    patch.backgroundUpdateDownloadEnabled = source.backgroundUpdateDownloadEnabled
   }
   return patch
 }

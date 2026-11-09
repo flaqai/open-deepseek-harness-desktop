@@ -5,6 +5,7 @@ import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { DEVELOPMENT_RELEASE_VERSION, type DesktopShellController } from './controller.ts'
+import { releaseDownloadLabel, selectedReleaseDownload } from './release-download-presentation.ts'
 import css from './DesktopUpdateBadge.module.css'
 
 export interface DesktopUpdateBadgeInjected {
@@ -26,8 +27,9 @@ export function DesktopUpdateBadge({ controller, openUpdates, t }: DesktopUpdate
     : state.release.phase === 'unsupported' && state.simulatedReleaseAvailable
       ? DEVELOPMENT_RELEASE_VERSION
       : undefined
-  if (version === undefined) return null
-  const label = t('release.badge', { version })
+  const downloadLabel = releaseDownloadLabel(selectedReleaseDownload(state.release, state.releaseDownload))
+  if (version === undefined && downloadLabel === undefined) return null
+  const label = downloadLabel === undefined ? t('release.badge', { version: version ?? '' }) : t(downloadLabel)
   return (
     <Button
       variant="outline"

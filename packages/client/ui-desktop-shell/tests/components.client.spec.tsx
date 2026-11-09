@@ -18,6 +18,7 @@ import {
 import {
   DesktopLogDirectoryAction, type DesktopLogDirectoryActionProps,
 } from '../src/client/DesktopLogDirectoryAction.tsx'
+import { DesktopDownloadProgress, type DesktopDownloadProgressProps } from '../src/client/DesktopDownloadProgress.tsx'
 import { en } from '../src/client/locales.ts'
 import { DownloadNetworkSettings } from '../src/client/DownloadNetworkSettings.tsx'
 import { DownloadNetworkProjection } from '../src/client/download-network-projection.ts'
@@ -65,6 +66,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
     notificationsEnabled: patch.notificationsEnabled !== false,
     launchAtLoginEnabled: patch.launchAtLoginEnabled === true,
     openBrowserOnStartup: patch.openBrowserOnStartup === true,
+    backgroundUpdateDownloadEnabled: patch.backgroundUpdateDownloadEnabled === true,
   }))
   const openDownload = vi.fn(() => Promise.resolve({ error: '' }))
   const startDownload = vi.fn(() => Promise.resolve({
@@ -78,6 +80,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
   const installCommandLine = vi.fn(() => Promise.resolve({
     phase: 'installed' as const, commandPath: '/desktop/cli/bin/dsh', dataHome: '/desktop/dsh-home',
   }))
+  let downloadListener: ((value: DesktopReleaseDownloadStatus) => void) | undefined
   const bridge: DesktopBridge = {
     shell: {
       getCapabilities: () => Promise.resolve({
@@ -114,7 +117,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
       startDownload,
       cancelDownload,
       openInstaller,
-      onDownloadStatus: () => () => {},
+      onDownloadStatus: (listener) => { downloadListener = listener; return () => { downloadListener = undefined } },
     },
     desktopWeb: {
       getStatus: () => Promise.resolve(desktopWebStatus),
@@ -127,6 +130,7 @@ function setup(releaseStatus: DesktopReleaseStatus = {
   return {
     controller, updatePreferences, openDownload, startDownload, cancelDownload, openInstaller, installCommandLine,
     openDataHomeChooser, openDesktopWeb, enterRecoveryMode,
+    emitDownload: (value: DesktopReleaseDownloadStatus) => { downloadListener?.(value) },
   }
 }
 
@@ -379,7 +383,7 @@ describe('desktop shell components', () => {
     render(<DesktopAboutSection {...aboutProps(b.controller)} />)
     expect(await screen.findByText('Version 0.1.0-rc.8 is available')).toBeTruthy()
     expect(screen.getByText('Choose Replace when installing. If macOS says the app is in use, quit it completely from the menu bar first.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Download in app' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download in background' }))
     await waitFor(() => { expect(b.startDownload).toHaveBeenCalledOnce() })
     fireEvent.click(screen.getByRole('button', { name: 'Open installer' }))
     await waitFor(() => { expect(b.openInstaller).toHaveBeenCalledOnce() })
@@ -523,5 +527,95 @@ describe('desktop shell components', () => {
     await waitFor(() => { expect(b.openDataHomeChooser).toHaveBeenCalledOnce() })
     expect(screen.queryByRole('dialog', { name: 'Switch data directory' })).toBeNull()
     b.controller.dispose()
+  })
+  it('keeps a main-owned download alive when About unmounts and restores progress on reopening', async () => {
+    const b = setup()
+    const first = render(<DesktopAboutSection {...aboutProps(b.controller)} />)
+    await screen.findByRole('button', { name: 'Download in background' })
+    act(() => { b.emitDownload({ phase: 'downloading', version: '0.1.0-rc.8', fileName: 'installer.dmg',
+      transferredBytes: 40, totalBytes: 100, percent: 40 }) })
+    expect(screen.getByRole('progressbar')).toBeTruthy()
+    first.unmount()
+    expect(b.cancelDownload).not.toHaveBeenCalled()
+    act(() => { b.emitDownload({ phase: 'downloading', version: '0.1.0-rc.8', fileName: 'installer.dmg',
+      transferredBytes: 70, totalBytes: 100, percent: 70 }) })
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
+    expect(screen.getByText('Downloading 70% · 70 B / 100 B')).toBeTruthy()
+    act(() => { b.emitDownload({ phase: 'ready', version: '0.1.0-rc.8', fileName: 'installer.dmg' }) })
+    expect(screen.getByRole('button', { name: 'Open installer' })).toBeTruthy()
+    expect(b.openInstaller).not.toHaveBeenCalled()
+    b.controller.dispose()
+  })
+
+  it('persists the background preference without requesting installation', async () => {
+    const b = setup()
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
+    const toggle = await screen.findByRole('switch', { name: 'Automatically download updates in the background' })
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(toggle)
+    await waitFor(() => { expect(b.updatePreferences).toHaveBeenCalledWith({ backgroundUpdateDownloadEnabled: true }) })
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    expect(b.openInstaller).not.toHaveBeenCalled()
+    b.controller.dispose()
+  })
+
+  it('preserves progress and cancellation while metadata is being checked', async () => {
+    const b = setup({ phase: 'checking', currentVersion: '0.1.0-rc.7' }, undefined, {
+      phase: 'downloading', version: '0.1.0-rc.8', fileName: 'installer.dmg', transferredBytes: 20, totalBytes: 100, percent: 20,
+    })
+    render(<DesktopAboutSection {...aboutProps(b.controller)} />)
+    expect(await screen.findByText('Downloading 20% · 20 B / 100 B')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cancel download' })).toBeTruthy()
+    b.controller.dispose()
+  })
+
+})
+
+
+describe('desktop corner update progress', () => {
+  function props(download: DesktopReleaseDownloadStatus, release?: DesktopReleaseStatus): DesktopDownloadProgressProps {
+    const b = setup(release, undefined, download)
+    const snapshot = { ...b.controller.getSnapshot(), releaseDownload: download,
+      release: release ?? { phase: 'checking' as const, currentVersion: '0.1.0-rc.7' } }
+    b.controller.dispose()
+    return { t, openUpdates: vi.fn(),
+      useDesktopUpdate: (select: (value: typeof snapshot) => unknown) => select(snapshot),
+    } as DesktopDownloadProgressProps
+  }
+
+  it('keeps a determinate download visible outside Settings and opens details without installation', () => {
+    const p = props({ phase: 'downloading', version: '0.1.0-rc.8', fileName: 'installer.dmg', percent: 25, transferredBytes: 25, totalBytes: 100 })
+    render(<DesktopDownloadProgress {...p} />)
+    expect(screen.getByRole('progressbar').getAttribute('value')).toBe('25')
+    expect(screen.getByText('25%')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Downloading update' }))
+    expect(p.openUpdates).toHaveBeenCalledOnce()
+  })
+
+  it.each(['resolving', 'switching', 'verifying'] as const)('shows indeterminate progress while %s', (phase) => {
+    render(<DesktopDownloadProgress {...props({ phase, version: '0.1.0-rc.8', fileName: 'installer.dmg',
+      transferredBytes: 0, totalBytes: 100, resumeFromBytes: 0 })} />)
+    expect(screen.getByRole('progressbar').hasAttribute('value')).toBe(false)
+  })
+
+  it('replaces the progress bar with a ready action without automatically opening the installer', () => {
+    const p = props({ phase: 'ready', version: '0.1.0-rc.8', fileName: 'installer.dmg' })
+    render(<DesktopDownloadProgress {...p} />)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(p.openUpdates).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Update ready' }))
+    expect(p.openUpdates).toHaveBeenCalledOnce()
+  })
+
+  it.each(['idle', 'unsupported', 'cancelled', 'error'] as const)('does not reserve a corner for %s', (phase) => {
+    render(<DesktopDownloadProgress {...props(phase === 'error' ? { phase, message: 'offline' }
+      : phase === 'cancelled' ? { phase, version: '0.1.0-rc.8' } : { phase })} />)
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('hides a superseded transfer after confirmed release replacement', () => {
+    render(<DesktopDownloadProgress {...props({ phase: 'downloading', version: '0.1.0-rc.8', fileName: 'installer.dmg', percent: 50, transferredBytes: 1, totalBytes: 2 },
+      { phase: 'current', currentVersion: '0.1.0-rc.7' })} />)
+    expect(screen.queryByRole('progressbar')).toBeNull()
   })
 })

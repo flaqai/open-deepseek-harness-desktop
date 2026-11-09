@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +7,7 @@ import {
   DesktopReleaseDownloader, installerAssetName, isAllowedReleaseAssetApiUrl, isAllowedReleaseAssetUrl, isAllowedReleaseTag,
   readReleaseChecksum, type ReleaseFetch,
 } from '../src/release-downloader.ts'
+import type { DesktopReleaseStatus } from '../src/release-checker.ts'
 import { CNB_UPDATE_INDEX_URL } from '../src/cnb-release-source.ts'
 
 const tag = 'odsh-v0.1.0-rc.8'
@@ -81,7 +82,7 @@ afterEach(async () => {
 })
 
 describe('desktop Release downloader', () => {
-  it('downloads and revalidates an independently indexed CNB installer', async () => {
+  it('retains the selected CNB release through transient checks and still refuses withdrawn installers', async () => {
     const directory = await temporaryDirectory()
     const installer = Buffer.from('verified CNB installer')
     const checksum = createHash('sha256').update(installer).digest('hex')
@@ -96,15 +97,17 @@ describe('desktop Release downloader', () => {
         assets: [{ name: installerName, size: installer.byteLength, sha256: checksum, url: cnbUrl }],
       }],
     }
-    const fetchMock = vi.fn<ReleaseFetch>(input => Promise.resolve(
-      requestUrl(input) === CNB_UPDATE_INDEX_URL
-        ? new Response(JSON.stringify(index))
-        : new Response(installer),
-    ))
+    let selected: DesktopReleaseStatus = { ...releaseStatus(), source: 'cnb' }
+    const fetchMock = vi.fn<ReleaseFetch>((input) => {
+      if (requestUrl(input) === CNB_UPDATE_INDEX_URL) return Promise.resolve(new Response(JSON.stringify(index)))
+      selected = { phase: 'checking', currentVersion: '0.1.0-rc.7' }
+      manager.resetForRelease(selected)
+      return Promise.resolve(new Response(installer))
+    })
     const openPath = vi.fn(() => Promise.resolve(''))
     const manager = new DesktopReleaseDownloader({
       platform: 'darwin', arch: 'arm64', downloadDirectory: directory,
-      getRelease: () => ({ ...releaseStatus(), source: 'cnb' }),
+      getRelease: () => selected,
       openPath, systemFetch: fetchMock,
     })
 
@@ -114,6 +117,10 @@ describe('desktop Release downloader', () => {
     await expect(manager.open()).resolves.toEqual({ error: '' })
     expect(fetchMock.mock.calls.filter(([input]) => requestUrl(input) === CNB_UPDATE_INDEX_URL)).toHaveLength(2)
     expect(openPath).toHaveBeenCalledOnce()
+    index.releases[0]!.withdrawn = true
+    await expect(manager.open()).resolves.toEqual({ error: 'The CNB Release is no longer available for in-app updates.' })
+    expect(openPath).toHaveBeenCalledOnce()
+    await manager.dispose()
   })
 
   it('selects only the installer format the host can open', () => {
@@ -450,4 +457,137 @@ describe('desktop Release downloader', () => {
     await expect(first).resolves.toMatchObject({ phase: 'cancelled' })
     await expect(stat(join(directory, releaseStatus().latestVersion, `${installerName}.part`))).rejects.toMatchObject({ code: 'ENOENT' })
   })
+  it('acknowledges background starts immediately and preserves the transfer across unknown discovery states', async () => {
+    const directory = await temporaryDirectory()
+    const installer = Buffer.from('background installer')
+    const checksum = createHash('sha256').update(installer).digest('hex')
+    const asset = releaseAsset(installerName, installer, 17, checksum)
+    const body = Promise.withResolvers<Response>()
+    let selected: DesktopReleaseStatus = releaseStatus()
+    const systemFetch = vi.fn<ReleaseFetch>(() => body.promise)
+    const openPath = vi.fn(() => Promise.resolve(''))
+    const manager = new DesktopReleaseDownloader({
+      platform: 'darwin', arch: 'arm64', downloadDirectory: directory,
+      getRelease: () => selected, openPath,
+      apiFetch: () => Promise.resolve(releaseResponse([asset])), systemFetch,
+    })
+    expect(manager.startInBackground()).toMatchObject({ phase: 'resolving' })
+    const running = manager.start()
+    await vi.waitFor(() => { expect(systemFetch).toHaveBeenCalledOnce() })
+    for (const state of [
+      { phase: 'checking', currentVersion: '0.1.0-rc.7' },
+      { phase: 'idle', currentVersion: '0.1.0-rc.7' },
+      { phase: 'error', currentVersion: '0.1.0-rc.7', message: 'temporary network interruption' },
+    ] satisfies DesktopReleaseStatus[]) {
+      selected = state
+      manager.resetForRelease(state)
+      expect(manager.startInBackground()).not.toMatchObject({ phase: 'cancelled' })
+      expect(manager.start()).toBe(running)
+    }
+    body.resolve(new Response(installer))
+    await expect(running).resolves.toMatchObject({ phase: 'ready' })
+    expect(openPath).not.toHaveBeenCalled()
+    selected = { phase: 'checking', currentVersion: '0.1.0-rc.7' }
+    manager.resetForRelease(selected)
+    expect(manager.startInBackground()).toMatchObject({ phase: 'ready' })
+    await expect(manager.open()).resolves.toEqual({ error: '' })
+    expect(openPath).toHaveBeenCalledOnce()
+    await manager.dispose()
+  })
+
+  it('cancels an active background transfer only after a confirmed release withdrawal', async () => {
+    const directory = await temporaryDirectory()
+    const installer = Buffer.from('withdrawn background installer')
+    const checksum = createHash('sha256').update(installer).digest('hex')
+    const asset = releaseAsset(installerName, installer, 18, checksum)
+    const systemFetch = vi.fn<ReleaseFetch>(() => new Promise(() => {}))
+    const manager = createManager(directory, () => Promise.resolve(releaseResponse([asset])), systemFetch)
+    const running = manager.start()
+    await vi.waitFor(() => { expect(systemFetch).toHaveBeenCalledOnce() })
+    manager.resetForRelease({ phase: 'current', currentVersion: '0.1.0-rc.7' })
+    await expect(running).resolves.toMatchObject({ phase: 'cancelled' })
+    await expect(manager.open()).resolves.toMatchObject({ error: 'The installer has not finished downloading.' })
+    await manager.dispose()
+  })
+
+  it('keeps automatic background downloads opt-in and never retries a cancelled version during polling', async () => {
+    const directory = await temporaryDirectory()
+    const installer = Buffer.from('quiet installer')
+    const checksum = createHash('sha256').update(installer).digest('hex')
+    const asset = releaseAsset(installerName, installer, 19, checksum)
+    const apiFetch = vi.fn<ReleaseFetch>(() => Promise.resolve(releaseResponse([asset])))
+    const systemFetch = vi.fn<ReleaseFetch>(() => new Promise(() => {}))
+    const manager = createManager(directory, apiFetch, systemFetch)
+    manager.resetForRelease(releaseStatus())
+    expect(apiFetch).not.toHaveBeenCalled()
+    manager.setBackgroundEnabled(true)
+    const running = manager.start()
+    await vi.waitFor(() => { expect(systemFetch).toHaveBeenCalledOnce() })
+    manager.setBackgroundEnabled(false)
+    expect(manager.start()).toBe(running)
+    manager.setBackgroundEnabled(true)
+    manager.cancel()
+    await expect(running).resolves.toMatchObject({ phase: 'cancelled' })
+    for (let poll = 0; poll < 3; poll++) manager.resetForRelease(releaseStatus())
+    expect(apiFetch).toHaveBeenCalledOnce()
+    await manager.dispose()
+    manager.resetForRelease(releaseStatus())
+    manager.setBackgroundEnabled(true)
+    expect(apiFetch).toHaveBeenCalledOnce()
+  })
+
+  it('waits for an obsolete transfer to settle before automatically starting the new release', async () => {
+    const directory = await temporaryDirectory()
+    const installer = Buffer.from('new target installer')
+    const checksum = createHash('sha256').update(installer).digest('hex')
+    const oldAsset = releaseAsset(installerName, installer, 20, checksum)
+    const newTag = 'odsh-v0.1.0-rc.9'
+    const next = { ...releaseStatus(), latestVersion: '0.1.0-rc.9', tagName: newTag,
+      releaseUrl: `https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/${newTag}` }
+    const newAsset = { ...releaseAsset(installerName, installer, 21, checksum),
+      browser_download_url: `${releaseUrl.replace(tag, newTag)}${installerName}` }
+    let selected = releaseStatus()
+    const apiFetch = vi.fn<ReleaseFetch>(input => Promise.resolve(requestUrl(input) === releaseApiUrl
+      ? releaseResponse([oldAsset]) : releaseResponse([newAsset], { tag_name: newTag })))
+    const systemFetch = vi.fn<ReleaseFetch>(input => requestUrl(input).includes(newTag)
+      ? Promise.resolve(new Response(installer)) : new Promise(() => {}))
+    const openPath = vi.fn(() => Promise.resolve(''))
+    const manager = new DesktopReleaseDownloader({ platform: 'darwin', arch: 'arm64', downloadDirectory: directory,
+      getRelease: () => selected, openPath, apiFetch, systemFetch })
+    manager.setBackgroundEnabled(true)
+    manager.resetForRelease(selected)
+    await vi.waitFor(() => { expect(systemFetch).toHaveBeenCalledOnce() })
+    selected = next
+    manager.resetForRelease(next)
+    await vi.waitFor(() => { expect(manager.status).toMatchObject({ phase: 'ready', version: next.latestVersion }) })
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+    expect(systemFetch).toHaveBeenCalledTimes(2)
+    expect(openPath).not.toHaveBeenCalled()
+    await manager.dispose()
+  })
+
+  it('does not expose an installer when its release is revoked at final verification', async () => {
+    const directory = await temporaryDirectory()
+    const installer = Buffer.from('revoked during verification')
+    const checksum = createHash('sha256').update(installer).digest('hex')
+    const asset = releaseAsset(installerName, installer, 22, checksum)
+    const retainedInstaller = join(directory, releaseStatus().latestVersion, installerName)
+    await mkdir(join(directory, releaseStatus().latestVersion), { recursive: true })
+    await writeFile(retainedInstaller, installer)
+    const manager = createManager(directory,
+      () => Promise.resolve(releaseResponse([asset])), () => Promise.resolve(new Response(installer)))
+    const statuses: string[] = []
+    const unsubscribe = manager.subscribe((status) => {
+      statuses.push(status.phase)
+      if (status.phase === 'verifying') manager.resetForRelease({ phase: 'current', currentVersion: '0.1.0-rc.7' })
+    })
+    await expect(manager.start()).resolves.toMatchObject({ phase: 'cancelled' })
+    expect(statuses).not.toContain('ready')
+    expect(await readFile(retainedInstaller)).toEqual(installer)
+    await expect(manager.open()).resolves.toMatchObject({ error: 'The installer has not finished downloading.' })
+    await expect(stat(join(directory, releaseStatus().latestVersion, `${installerName}.part`))).rejects.toMatchObject({ code: 'ENOENT' })
+    unsubscribe()
+    await manager.dispose()
+  })
+
 })

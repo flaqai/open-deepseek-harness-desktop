@@ -3972,6 +3972,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-chat QuotaNoticeHost id \'chat.quota-notice\'',
       'client-ui-context-menu MenuOverlay id \'context-menu\'',
       'client-ui-desktop-shell DesktopEditableMenu id \'desktop-editable-menu\'',
+      'client-ui-desktop-shell DesktopDownloadProgress id \'desktop-download-progress\'',
       'client-ui-file-drag FileDragFeedback id \'file-drag.feedback\'',
       'client-ui-open-in-app OpenInAppToast id \'open-in-app.toast\'',
       'client-ui-plugin-manager PluginRefreshToast id \'plugin-manager.refresh-toast\'',

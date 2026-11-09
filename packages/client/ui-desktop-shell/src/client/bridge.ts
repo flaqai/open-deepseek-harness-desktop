@@ -59,6 +59,8 @@ export interface DesktopPreferences {
   notificationsEnabled: boolean
   launchAtLoginEnabled: boolean
   openBrowserOnStartup: boolean
+  /** Absent on older preload versions; disabled until explicitly enabled. */
+  backgroundUpdateDownloadEnabled?: boolean
 }
 
 /** URL-free state of the system-browser handoff. */

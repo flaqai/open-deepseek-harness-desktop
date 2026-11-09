@@ -44,6 +44,8 @@ export class DesktopShellController {
   }
   readonly #listeners = new Set<() => void>()
   #disposers: (() => void)[] = []
+  #downloadRequest: Promise<void> | undefined
+  #downloadRevision = 0
   /** Renderer-owned projection for desktop download-routing settings. */
   readonly downloadNetwork: DownloadNetworkProjection | undefined
 
@@ -77,10 +79,11 @@ export class DesktopShellController {
 
   /** Seed state from the bridge and subscribe to subsequent main-process publications. */
   start(): void {
+    const downloadRevision = this.#downloadRevision
     this.#disposers = [
       this.bridge.shell.onPreferences((preferences) => { this.#publish({ preferences }) }),
       this.bridge.releases.onStatus((release) => { this.#publish({ release }) }),
-      this.bridge.releases.onDownloadStatus((releaseDownload) => { this.#publish({ releaseDownload }) }),
+      this.bridge.releases.onDownloadStatus((releaseDownload) => { this.#downloadRevision++; this.#publish({ releaseDownload }) }),
       this.bridge.desktopWeb.onStatus((desktopWeb) => { this.#publish({ desktopWeb }) }),
     ]
     this.downloadNetwork?.start()
@@ -93,7 +96,8 @@ export class DesktopShellController {
       const [commandLine, dataHome, desktopWeb] = capabilities.runtimeKind === 'nas'
         ? [null, null, { phase: 'error' as const, message: 'Open the paired NAS HTTPS address in a browser.' }]
         : await this.#readLocalStartupState()
-      this.#publish({ capabilities, preferences, release, releaseDownload, commandLine, dataHome, desktopWeb })
+      this.#publish({ capabilities, preferences, release,
+        ...(downloadRevision === this.#downloadRevision ? { releaseDownload } : {}), commandLine, dataHome, desktopWeb })
     }).catch((error: unknown) => {
       this.#publish({ error: error instanceof Error ? error.message : String(error) })
     })
@@ -230,13 +234,21 @@ export class DesktopShellController {
   }
 
   /** Download and verify the installer selected by the main process. */
-  async downloadRelease(): Promise<void> {
-    this.#publish({ error: null })
-    try {
-      this.#publish({ releaseDownload: await this.bridge.releases.startDownload() })
-    } catch (error) {
-      this.#publish({ error: error instanceof Error ? error.message : String(error) })
+  downloadRelease(): Promise<void> {
+    if (this.#downloadRequest !== undefined) return this.#downloadRequest
+    if (['resolving', 'switching', 'downloading', 'verifying', 'ready'].includes(this.#snapshot.releaseDownload.phase)) {
+      return Promise.resolve()
     }
+    this.#publish({ error: null })
+    const downloadRevision = this.#downloadRevision
+    this.#downloadRequest = this.bridge.releases.startDownload().then((releaseDownload) => {
+      if (downloadRevision === this.#downloadRevision) this.#publish({ releaseDownload })
+    }, (error: unknown) => {
+      if (downloadRevision === this.#downloadRevision) {
+        this.#publish({ error: error instanceof Error ? error.message : String(error) })
+      }
+    }).finally(() => { this.#downloadRequest = undefined })
+    return this.#downloadRequest
   }
 
   /** Explicitly move an update retry to the other configured source. */

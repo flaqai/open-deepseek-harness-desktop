@@ -10,7 +10,7 @@ import {
 describe('desktop preferences', () => {
   it('normalizes missing and invalid fields independently', () => {
     expect(normalizeDesktopPreferences({ closeBehavior: 'quit', notificationsEnabled: 'yes' })).toEqual({
-      closeBehavior: 'quit', notificationsEnabled: true, launchAtLoginEnabled: false, openBrowserOnStartup: false,
+      closeBehavior: 'quit', notificationsEnabled: true, launchAtLoginEnabled: false, openBrowserOnStartup: false, backgroundUpdateDownloadEnabled: false,
     })
     expect(normalizeDesktopPreferences(null)).toEqual(DEFAULT_DESKTOP_PREFERENCES)
   })
@@ -18,6 +18,9 @@ describe('desktop preferences', () => {
   it('rejects unknown and mistyped renderer fields', () => {
     expect(() => parseDesktopPreferencesPatch({ closeBehavior: 'hide' })).toThrow()
     expect(() => parseDesktopPreferencesPatch({ extra: true })).toThrow()
+    expect(() => parseDesktopPreferencesPatch({ backgroundUpdateDownloadEnabled: 'yes' })).toThrow()
+    expect(parseDesktopPreferencesPatch({ backgroundUpdateDownloadEnabled: true })).toEqual({ backgroundUpdateDownloadEnabled: true })
+    expect(normalizeDesktopPreferences({ backgroundUpdateDownloadEnabled: true }).backgroundUpdateDownloadEnabled).toBe(true)
     expect(parseDesktopPreferencesPatch({ notificationsEnabled: false })).toEqual({ notificationsEnabled: false })
     expect(parseDesktopPreferencesPatch({ openBrowserOnStartup: true })).toEqual({ openBrowserOnStartup: true })
   })
@@ -29,11 +32,12 @@ describe('desktop preferences', () => {
     try {
       const store = createDesktopPreferencesStore(path, report)
       store.write({
-        closeBehavior: 'quit', notificationsEnabled: false, launchAtLoginEnabled: true, openBrowserOnStartup: true,
+        closeBehavior: 'quit', notificationsEnabled: false, launchAtLoginEnabled: true, openBrowserOnStartup: true, backgroundUpdateDownloadEnabled: true,
       })
       expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
-        closeBehavior: 'quit', notificationsEnabled: false, launchAtLoginEnabled: true, openBrowserOnStartup: true,
+        closeBehavior: 'quit', notificationsEnabled: false, launchAtLoginEnabled: true, openBrowserOnStartup: true, backgroundUpdateDownloadEnabled: true,
       })
+      expect(store.read().backgroundUpdateDownloadEnabled).toBe(true)
       writeFileSync(path, '{broken', 'utf8')
       expect(store.read()).toEqual(DEFAULT_DESKTOP_PREFERENCES)
       expect(report).toHaveBeenCalledOnce()

@@ -18,6 +18,7 @@ import { DesktopAboutSection } from './DesktopAboutSection.tsx'
 import { DesktopBrowserReturnButton } from './DesktopBrowserReturnButton.tsx'
 import { DesktopLogDirectoryAction } from './DesktopLogDirectoryAction.tsx'
 import { DesktopSidebarUpdateButton } from './DesktopSidebarUpdateButton.tsx'
+import { DesktopDownloadProgress } from './DesktopDownloadProgress.tsx'
 import { DesktopUpdateBadge } from './DesktopUpdateBadge.tsx'
 import { NasRuntimeSection } from './NasRuntimeSection.tsx'
 import { readDesktopBridge, readDesktopLocalShell } from './bridge.ts'
@@ -182,6 +183,10 @@ export function apply(ctx: Context): void {
       window.addEventListener('open-dsh:download-network', openDownloadNetwork)
       return () => { window.removeEventListener('open-dsh:download-network', openDownloadNetwork) }
     }, 'ui-desktop-shell: market download settings navigation')
+    inner.slots.inject('shell.overlay', () => inner.slots.register({
+      name: 'shell.overlay', id: 'desktop-download-progress', locale: NS,
+      inject: () => ({ hooks: { desktopUpdate: controller }, openUpdates }),
+    }, DesktopDownloadProgress))
     inner.slots.inject('settings.action', () => inner.slots.register({
       name: 'settings.action', id: 'desktop-update', order: -20, locale: NS,
       inject: () => ({
