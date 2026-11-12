@@ -26,6 +26,8 @@ This package provides Desktop settings for browser handoff, window behavior, not
 <a id="use-this-package"></a>
 ## Use this package
 
+The editable menu passes its native request point through `Menu.anchorPoint`; selection preservation and return-focus handling remain owned by the existing editing actions.
+
 Mount the package in the desktop client bundle. It activates only when the narrow `window.deepSeekHarnessDesktop` preload bridge is present and reflects capabilities reported by the Electron main process.
 
 The editable-field overlay uses the shared contextual Menu. A Conversation-dependent registrant owns native-open subscriptions and resolves the current service-owned history instance; its private projection publishes through the renderer-made hook. The business component receives only presentation facts and close, select and focus-return callbacks, without a bridge, service object or manual subscription. Electron supplies short-lived redacted context metadata, not field contents or clipboard values; the preload binds each command to the same unchanged DOM target and restores its selection before native editing. Navigation, another focused input, input mutations or an expired native token reject the action. Composer Undo/Redo reads the actual model history instead of Chromium’s flags and claims the same one-use native token before dispatching model commands; ordinary inputs continue using native Undo/Redo. Non-password editable menus always show the local spelling toggle; missing local dictionaries disable it, and the saved choice never enables external dictionary downloads. Read-only conversation text and embedded plugin frames retain their own menus.

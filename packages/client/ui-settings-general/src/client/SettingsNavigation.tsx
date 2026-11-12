@@ -539,7 +539,7 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
     </div>)}
     {contextMenu ? <Menu open contextual portal autoFocus anchor={null}
       items={menuEntries(contextMenu.target)} returnFocus={() => contextMenu.trigger}
-      getAnchorRect={() => new DOMRect(contextMenu.x, contextMenu.y, 0, 0)}
+      anchorPoint={{ x: contextMenu.x, y: contextMenu.y }}
       onClose={() => { setContextMenu(undefined) }} onSelect={(id) => { selectMenuAction(contextMenu.target, id) }} /> : null}
     {ghost ? createPortal(<div className={css.dragViewport} aria-hidden="true"
       style={{ left: ghost.viewport.left, top: ghost.viewport.top, width: ghost.viewport.width, height: ghost.viewport.height }}>

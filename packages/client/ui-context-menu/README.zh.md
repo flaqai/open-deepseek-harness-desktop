@@ -25,6 +25,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+上下文菜单通过 `Menu.anchorPoint` 传递打开时捕获的视口坐标；跟随触发元素的菜单使用 `anchorRef`。功能代码不再为菜单定位构造矩形回调。
+
 可编辑后代保留平台的编辑与拼写菜单；不可编辑引用卡片继续使用其注册的上下文操作。
 
 Web 应用 bundle 挂载此客户端插件。外部客户端插件在 `dsh.client.inject` 声明本包，导入 `/client` 类型，并注入 `contextMenus` 服务。`resolutionTimeoutMs` 限制每个提供方的准备时长（默认 1000ms）；超时后取消并忽略该提供方，显示失败提示。

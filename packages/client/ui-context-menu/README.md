@@ -25,6 +25,8 @@ Add actions to right-click menus without importing a React component. Targets re
 <a id="use-this-package"></a>
 ## Use this package
 
+Context menus pass captured viewport coordinates through `Menu.anchorPoint`; trigger-anchored pickers use `anchorRef`. Feature code does not manufacture rectangle callbacks for menu placement.
+
 Editable descendants retain the platform editing and spelling menu. Non-editable reference chips retain their registered context actions.
 
 The Web application bundle mounts this Client plugin. External Client plugins declare the package in `dsh.client.inject`, import its `/client` types, and inject the `contextMenus` service. `resolutionTimeoutMs` bounds each provider’s preparation (1000ms by default); timed-out providers are aborted and omitted with visible failure feedback.

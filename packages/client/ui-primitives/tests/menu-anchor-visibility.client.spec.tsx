@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** A portalled menu follows its anchor's interactive lifetime. */
 import { useRef, useState } from 'react'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { Menu } from '../src/Menu.tsx'
 
@@ -15,7 +15,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 it.each(['inert', 'hidden'].flatMap(attribute => [false, true].map(contextual => ({ attribute, contextual }))))(
-  'closes when the retained anchor becomes $attribute with contextual=$contextual', ({ attribute, contextual }) => {
+  'closes when the retained anchor becomes $attribute with contextual=$contextual', async ({ attribute, contextual }) => {
     function Fixture() {
       const [open, setOpen] = useState(true)
       const trigger = useRef<HTMLButtonElement>(null)
@@ -29,11 +29,11 @@ it.each(['inert', 'hidden'].flatMap(attribute => [false, true].map(contextual =>
     expect(screen.getByRole('menu')).toBeTruthy()
     view.getByTestId('owner').setAttribute(attribute, '')
     act(() => { for (const callback of [...frames.values()]) callback(0) })
-    expect(screen.queryByRole('menu')).toBeNull()
+    await waitFor(() => { expect(screen.queryByRole('menu')).toBeNull() })
     expect(view.getByTestId('owner').isConnected).toBe(true)
   })
 
-it('does not restart a contextual dismissal while its original control remains inert', () => {
+it('does not restart a contextual dismissal while its original control remains inert', async () => {
   const close = vi.fn()
   function Fixture() {
     const [exiting, setExiting] = useState<'dismiss'>()
@@ -48,7 +48,7 @@ it('does not restart a contextual dismissal while its original control remains i
   view.getByTestId('owner').setAttribute('inert', '')
   act(() => { for (const callback of [...frames.values()]) callback(0) })
   act(() => { for (const callback of [...frames.values()]) callback(0) })
-  expect(close).toHaveBeenCalledTimes(1)
+  await waitFor(() => { expect(close).toHaveBeenCalledTimes(1) })
   expect(menu.style.visibility).not.toBe('hidden')
   expect(menu.style.top).toBe(top)
 })

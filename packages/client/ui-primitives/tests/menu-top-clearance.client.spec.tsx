@@ -33,23 +33,27 @@ function openMenu(anchor: DOMRect, side: 'top' | 'bottom') {
 }
 
 describe('Menu top clearance', () => {
-  it('opens directly below an anchor that sits inside the top strip', () => {
+  it('declares bottom placement for an anchor inside the top strip', () => {
     const view = openMenu(new DOMRect(300, 14, 18, 22), 'bottom')
-    expect(view.getByRole('menu').style.top).toBe('40px')
+    expect(view.getByRole('menu').getAttribute('data-anchor-side')).toBe('bottom')
+    expect(view.getByRole('menu').style.positionAnchor).not.toBe('')
   })
 
-  it('keeps a menu that does not fit above its anchor below the top strip', () => {
+  it('declares top placement with CSS fallback when the card cannot fit above', () => {
     const view = openMenu(new DOMRect(300, 100, 18, 22), 'top')
-    expect(view.getByRole('menu').style.top).toBe('68px')
+    expect(view.getByRole('menu').getAttribute('data-anchor-side')).toBe('top')
+    expect(view.getByRole('menu').style.positionAnchor).not.toBe('')
   })
 
-  it('places a menu that does not fit above an anchor inside the top strip directly below it', () => {
+  it('leaves top-strip fallback placement to CSS rather than inline coordinates', () => {
     const view = openMenu(new DOMRect(300, 14, 18, 22), 'top')
-    expect(view.getByRole('menu').style.top).toBe('40px')
+    expect(view.getByRole('menu').getAttribute('data-anchor-side')).toBe('top')
+    expect(view.getByRole('menu').style.top).toBe('')
   })
 
-  it('keeps the top strip clear when the anchor has scrolled above the viewport', () => {
+  it('retains CSS anchoring when the trigger scrolls above the viewport', () => {
     const view = openMenu(new DOMRect(300, -30, 18, 22), 'bottom')
-    expect(view.getByRole('menu').style.top).toBe('68px')
+    expect(view.getByRole('menu').getAttribute('data-anchor-side')).toBe('bottom')
+    expect(view.getByRole('menu').style.top).toBe('')
   })
 })

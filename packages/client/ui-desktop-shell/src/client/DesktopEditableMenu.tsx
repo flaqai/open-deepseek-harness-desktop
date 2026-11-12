@@ -47,7 +47,7 @@ export function DesktopEditableMenu({ useEditableMenu, close, select, returnFocu
   return <>
     {request !== null ? <Menu contextual portal autoFocus preserveSelection open anchor={<span />}
       items={editableMenuEntries(request, t)} onSelect={select} onClose={close}
-      getAnchorRect={() => new DOMRect(request.x, request.y, 0, 0)} returnFocus={returnFocus} /> : null}
+      anchorPoint={{ x: request.x, y: request.y }} returnFocus={returnFocus} /> : null}
     {failed ? <div role="alert">{t('failed')}</div> : null}
   </>
 }
