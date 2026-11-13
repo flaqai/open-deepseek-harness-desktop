@@ -1186,6 +1186,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'toggle.collapse': 'Seitenleiste zusammenklappen'
   },
   'entryCustomization': {
+    'pinTooltip': 'An die linke Seitenleiste anpinnen',
+    'pin': '{name} an der Seitenleiste anheften',
     install: 'Weitere Plugins durchsuchen',
     create: 'Eigenes Plugin erstellen',
     'createPrompt.sidebar': 'Erstelle ein DSH-Plugin mit einem Eintrag in der linken Seitenleiste.',

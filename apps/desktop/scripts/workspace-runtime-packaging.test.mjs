@@ -77,8 +77,7 @@ test('production Office consumers pin the signed catalog engine version exactly'
   assert.equal(resolved[1], resolved[2], 'Office kit lockfile specifier must be exact')
   for (const path of [
     'packages/bundle/web-app/package.json',
-    'packages/document/office-to-pdf/package.json',
-    'packages/skill/skill-office/package.json',
+    'packages/document/office-kit/package.json',
   ]) {
     const manifest = JSON.parse(await read(path))
     const declared = manifest.dependencies?.['@deepseek-ai/libreoffice-kit']
@@ -86,4 +85,7 @@ test('production Office consumers pin the signed catalog engine version exactly'
       ?? manifest.devDependencies?.['@deepseek-ai/libreoffice-kit']
     assert.equal(declared, resolved[2], `${path} must pin the signed Office version`)
   }
+  const skills = JSON.parse(await read('packages/skill/skill-office/package.json'))
+  assert.equal(skills.dependencies?.['@deepseek-ai/libreoffice-kit'], undefined,
+    'Office skills delegate rendering to the shared Office provider rather than loading a separate kit')
 })

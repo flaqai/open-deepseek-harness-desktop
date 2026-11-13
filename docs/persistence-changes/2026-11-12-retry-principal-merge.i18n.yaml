@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-11-12-retry-principal-merge.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-11-12-retry-principal-merge.md
+/:
+  en: a77f33a0dcf12c75
+  zh: 50579ddc9b88ef21
+/2026-11-12-retry-principal-merge:
+  en: e4d1ae39bb7db400
+  zh: cc4cc4a761e79d43
+/2026-11-12-retry-principal-merge/summary:
+  en: 28a8eb12ae315d3f
+  zh: 7a53b45b9c086732
+/2026-11-12-retry-principal-merge/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 4c68b9c83c466785
+/2026-11-12-retry-principal-merge/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-11-12-retry-principal-merge/compatibility:
+  en: 05949adb1beeb4e6
+  zh: 611263259d819626
+/2026-11-12-retry-principal-merge/verification:
+  en: e93e8fe73c0662a8
+  zh: d32794ced1b07033
+/2026-11-12-retry-principal-merge/dev-note:
+  en: b75c8458928b72b9
+  zh: a1f8a33fb09d661a

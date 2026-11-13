@@ -49,7 +49,7 @@ function appendAvailable(ctx: Context, sessionId: SessionId | undefined): boolea
   const session = ctx.sessions.sessionOf(actx)?.getSnapshot()
   if (session === undefined || session.removed || session.openState !== 'open'
     || session.pendingSubmissions.length > 0) return false
-  if (session.subagent?.address.mode === 'continuable' && !session.subagent.parentAvailable) return false
+  if (session.subagent !== null && session.subagent.address.mode !== 'continuable') return false
   if (ctx.conversation.blocks.storeFor(sessionId).getSnapshot() !== undefined) return false
   const phase = ctx.conversation.input.for(actx).state.getSnapshot().phase
   return phase === 'plain'

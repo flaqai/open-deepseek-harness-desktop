@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 If the left workspace browser fails while a conversation remains open, its error view offers a local retry without restarting Harness or clearing history. Desktop retains bounded, redacted workspace-renderer errors in `harness.log`, including available stack text. Only the selected Harness main frame is observed; other console output and embedded frames are excluded, and repeated errors are rate-limited. These records support diagnosis and do not establish the cause of an earlier unrecorded failure.
 
-This checkout uses Harness 0.2.1-rc.3 and development Desktop 0.2.1-rc.3 with external Node 24.22.1. Electron is pinned to 44.9.3, electron-builder to 26.17.0, and pnpm to 11.28.5. Packaged macOS builds require macOS 13.5 or later; this records the embedded Node binary's minimum rather than promising compatibility from Electron alone.
+This checkout uses Harness 0.2.2-rc.2 and development Desktop 0.2.2-rc.2 with external Node 24.22.1. Electron is pinned to 44.9.3, electron-builder to 26.17.0, and pnpm to 11.28.5. Packaged macOS builds require macOS 13.5 or later; this records the embedded Node binary's minimum rather than promising compatibility from Electron alone.
 
 The managed Python runtime is CPython 3.12.15 from Astral's 20261021 build, retaining the cp312 wheel ABI. The standalone Node update includes [CVE-2026-111497's fix](https://nodejs.org/en/blog/release/v24.22.1); Electron instead links Chromium's Brotli, so its reported Node version alone does not determine decoder patch status. Pillow 12.3.0 still carries a separately built Brotli library without verified coverage of this fix; updating CPython does not replace it. Office native dependencies also require their own vendor verification. These source updates do not qualify a new installer or repair already-installed copies. User-selected custom interpreters remain unchanged.
 
@@ -257,6 +257,8 @@ Set `DSH_DESKTOP_SOURCE_ROOT` only when testing a different trusted checkout. Th
 About exposes application update sources and download status; General Settings retains npm download policies. Updates can use GitHub or the fixed `hecoococ/open-deepseek-harness-desktop` CNB index with system, direct, or authenticated HTTP(S) proxy routing. Desktop-managed npm installs default to `npmmirror`; users can instead select the official npm registry or a custom registry and proxy. Separate authenticated loopback endpoints route application and plugin downloads, so Electron can answer main-process proxy challenges without exposing credentials to a renderer or confusing the two policies. Market-owned catalog, README, source-archive, and Git operations retain their existing network configuration because the official market does not expose a host-managed network-policy capability. These settings do not alter model, MCP, Git SSH, or other application traffic. Proxy passwords use Electron safe storage when available and otherwise remain in memory for the current run; renderers and logs never receive them.
 
 The bundled `dshmarket` is the unmodified archive published by its upstream maintainer. Market catalog, README, source-archive, and self-update requests use the market's own network configuration. CNB discovery requires a fresh anonymous index whose assets match exact names, sizes, and SHA-256 values; the dormant synchronization workflow requires both the `CNB_SYNC_ENABLED` repository variable and `CNB_TOKEN` secret before it can mirror assets and publish that index.
+
+<a id="packaged-release-discovery"></a>
 
 ## Packaged Release discovery
 

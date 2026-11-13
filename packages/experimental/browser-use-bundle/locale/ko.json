@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "브라우저 사용 커넥터",
+    "description": "Playwright 및 DevTools 커넥터를 포함합니다. 이 번들을 선택하면 로컬 브라우저를 사용하는 Playwright가 활성화됩니다."
+  }
+}

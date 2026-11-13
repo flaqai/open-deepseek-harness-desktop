@@ -128,3 +128,17 @@ describe('Session notifier', () => {
     expect(calls).toBe(1)
   })
 })
+
+
+it('keeps unobserved frame updates lazy without scheduling unused animation frames', () => {
+  const frames = vi.fn()
+  vi.stubGlobal('requestAnimationFrame', frames)
+  const rebuild = vi.fn()
+  const notifier = new Notifier(rebuild)
+  notifier.markFrameDirty()
+  notifier.markFrameDirty()
+  expect(frames).not.toHaveBeenCalled()
+  expect(rebuild).not.toHaveBeenCalled()
+  notifier.ensureFresh()
+  expect(rebuild).toHaveBeenCalledOnce()
+})

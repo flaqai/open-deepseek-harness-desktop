@@ -215,7 +215,7 @@ import {
   type StartupDiagnosticIncident,
 } from './startup-diagnostics.ts'
 import { DesktopWebAccess, type DesktopWebStatus } from './desktop-web-access.ts'
-import { clearStaleHarnessAuthCookies } from './harness-auth-cookies.ts'
+import { authenticateHarnessWelcome, clearStaleHarnessAuthCookies } from './harness-auth-cookies.ts'
 import { shellMessages, trayMessages, dataHomeMessages } from './locales/shell.ts'
 import { sourceCopyFor } from './locales/data-home-source.ts'
 import { DesktopReturnControl } from './desktop-return-control.ts'
@@ -1214,9 +1214,8 @@ async function openInitialWorkspace(url: string, dshHome: string): Promise<void>
   }
   let backend: DesktopWelcomeBackend
   try {
-    backend = await connectDesktopWelcome(url, (input, init) => net.fetch(input, init),
-      async () => (await surface.renderer.session.cookies.get({ url }))
-        .map(cookie => `${cookie.name}=${cookie.value}`).join('; '))
+    const cookie = await authenticateHarnessWelcome(url)
+    backend = connectDesktopWelcome(url, cookie)
     const state = await backend.read()
     if (!await presentation.shouldPresent(state)) {
       await enterWorkspace()

@@ -55,37 +55,49 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
       </span>
     </button>
     <div
-      class="regionArea"
+      class="scrollRegion"
     >
       <div
-        data-slot="sidebar.workspaces"
-        style="display: contents;"
+        class="scrollArea"
       >
         <div
-          class="regionNotice regionNoticeRail"
-          role="status"
+          class="regionArea"
         >
-          <p
-            class="regionNoticeText regionNoticeHiddenText"
+          <div
+            data-slot="sidebar.workspaces"
+            style="display: contents;"
           >
-            Workspaces unavailable
-          </p>
-          <span
-            aria-label="Workspaces unavailable"
-            class="regionNoticeIcon"
-            role="img"
-            tabindex="0"
-          >
-            <svg
-              aria-hidden="true"
-              data-content="78c7e9f0"
-              data-icon="dsw-icon-warning-outline-regular"
-              height="18"
-              width="18"
-            />
-          </span>
+            <div
+              class="regionNotice regionNoticeRail"
+              role="status"
+            >
+              <p
+                class="regionNoticeText regionNoticeHiddenText"
+              >
+                Workspaces unavailable
+              </p>
+              <span
+                aria-label="Workspaces unavailable"
+                class="regionNoticeIcon"
+                role="img"
+                tabindex="0"
+              >
+                <svg
+                  aria-hidden="true"
+                  data-content="78c7e9f0"
+                  data-icon="dsw-icon-warning-outline-regular"
+                  height="18"
+                  width="18"
+                />
+              </span>
+            </div>
+          </div>
         </div>
       </div>
+      <span
+        aria-hidden="true"
+        class="scrollFade"
+      />
     </div>
     <div
       class="footArea"
@@ -236,23 +248,36 @@ exports[`sidebar shell snapshots > renders Windows caption controls in expanded 
       </span>
     </button>
     <div
-      class="regionArea"
+      class="scrollRegion"
     >
       <div
-        data-slot="sidebar.workspaces"
-        style="display: contents;"
+        class="scrollArea"
+        data-sidebar-scrollport=""
       >
         <div
-          class="regionNotice"
-          role="status"
+          class="regionArea"
         >
-          <p
-            class="regionNoticeText"
+          <div
+            data-slot="sidebar.workspaces"
+            style="display: contents;"
           >
-            Workspaces unavailable
-          </p>
+            <div
+              class="regionNotice"
+              role="status"
+            >
+              <p
+                class="regionNoticeText"
+              >
+                Workspaces unavailable
+              </p>
+            </div>
+          </div>
         </div>
       </div>
+      <span
+        aria-hidden="true"
+        class="scrollFade"
+      />
     </div>
     <div
       class="footArea"
@@ -363,37 +388,49 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
       </span>
     </button>
     <div
-      class="regionArea"
+      class="scrollRegion"
     >
       <div
-        data-slot="sidebar.workspaces"
-        style="display: contents;"
+        class="scrollArea"
       >
         <div
-          class="regionNotice regionNoticeRail"
-          role="status"
+          class="regionArea"
         >
-          <p
-            class="regionNoticeText regionNoticeHiddenText"
+          <div
+            data-slot="sidebar.workspaces"
+            style="display: contents;"
           >
-            Workspaces unavailable
-          </p>
-          <span
-            aria-label="Workspaces unavailable"
-            class="regionNoticeIcon"
-            role="img"
-            tabindex="0"
-          >
-            <svg
-              aria-hidden="true"
-              data-content="78c7e9f0"
-              data-icon="dsw-icon-warning-outline-regular"
-              height="18"
-              width="18"
-            />
-          </span>
+            <div
+              class="regionNotice regionNoticeRail"
+              role="status"
+            >
+              <p
+                class="regionNoticeText regionNoticeHiddenText"
+              >
+                Workspaces unavailable
+              </p>
+              <span
+                aria-label="Workspaces unavailable"
+                class="regionNoticeIcon"
+                role="img"
+                tabindex="0"
+              >
+                <svg
+                  aria-hidden="true"
+                  data-content="78c7e9f0"
+                  data-icon="dsw-icon-warning-outline-regular"
+                  height="18"
+                  width="18"
+                />
+              </span>
+            </div>
+          </div>
         </div>
       </div>
+      <span
+        aria-hidden="true"
+        class="scrollFade"
+      />
     </div>
     <div
       class="footArea"
@@ -544,23 +581,36 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
       </span>
     </button>
     <div
-      class="regionArea"
+      class="scrollRegion"
     >
       <div
-        data-slot="sidebar.workspaces"
-        style="display: contents;"
+        class="scrollArea"
+        data-sidebar-scrollport=""
       >
         <div
-          class="regionNotice"
-          role="status"
+          class="regionArea"
         >
-          <p
-            class="regionNoticeText"
+          <div
+            data-slot="sidebar.workspaces"
+            style="display: contents;"
           >
-            Workspaces unavailable
-          </p>
+            <div
+              class="regionNotice"
+              role="status"
+            >
+              <p
+                class="regionNoticeText"
+              >
+                Workspaces unavailable
+              </p>
+            </div>
+          </div>
         </div>
       </div>
+      <span
+        aria-hidden="true"
+        class="scrollFade"
+      />
     </div>
     <div
       class="footArea"
@@ -711,23 +761,36 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
       </span>
     </button>
     <div
-      class="regionArea"
+      class="scrollRegion"
     >
       <div
-        data-slot="sidebar.workspaces"
-        style="display: contents;"
+        class="scrollArea"
+        data-sidebar-scrollport=""
       >
         <div
-          class="regionNotice"
-          role="status"
+          class="regionArea"
         >
-          <p
-            class="regionNoticeText"
+          <div
+            data-slot="sidebar.workspaces"
+            style="display: contents;"
           >
-            工作区暂不可用
-          </p>
+            <div
+              class="regionNotice"
+              role="status"
+            >
+              <p
+                class="regionNoticeText"
+              >
+                工作区暂不可用
+              </p>
+            </div>
+          </div>
         </div>
       </div>
+      <span
+        aria-hidden="true"
+        class="scrollFade"
+      />
     </div>
     <div
       class="footArea"

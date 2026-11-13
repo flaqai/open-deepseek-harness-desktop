@@ -232,7 +232,7 @@ export class ProjectionValueStore {
     this.valuesCache = undefined
     const keyNotifier = this.channels.get(key)?.notifier
     if (publication === 'frame') {
-      keyNotifier?.markFrameDirty()
+      keyNotifier?.markDirty()
       this.anyNotifier.markFrameDirty()
     } else {
       keyNotifier?.markDirty()

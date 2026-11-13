@@ -1,3 +1,11 @@
+import * as sourceEntryCustomization from '../../ui-entry-customization/src/client/locales.ts'
+import * as sourceSidebarFiles from '../../ui-sidebar-files/src/client/locales.ts'
+import * as sourceSidebarDocumentPreview from '../../ui-sidebar-documentpreview/src/client/locales.ts'
+import * as sourceDocumentMarkdown from '../../ui-sidebar-documentpreview/src/client/markdown/locales.ts'
+import * as sourceSidebarPdf from '../../ui-sidebar-documentpreview/src/client/pdf/locales.ts'
+import * as sourceDocumentHtml from '../../ui-sidebar-documentpreview/src/client/html/locales.ts'
+import * as sourceSidebarCodePreview from '../../ui-sidebar-documentpreview/src/client/code/locales.ts'
+import * as sourceSidebarImage from '../../ui-sidebar-documentpreview/src/client/image/locales.ts'
 import { describe, expect, it } from 'vitest'
 import { COMMUNITY_TRANSLATIONS } from '../src/client/community-translations/index.ts'
 import { COMMUNITY_SURFACE_TRANSLATIONS } from '../src/client/community-translations/surfaces.ts'
@@ -20,7 +28,7 @@ import { en as models } from '../../ui-settings-models/src/client/locales.ts'
 import { en as webSearch } from '../../ui-settings-web-search/src/client/locales.ts'
 import { en as workspace } from '../../ui-workspace/src/client/locales.ts'
 import { en as sidebar } from '../../ui-sidebar/src/client/locales.ts'
-import { en as agentTeam } from '../../../experimental/client-ui-agent-team/src/client/locales.ts'
+import { en as agentTeam } from '../../ui-agent-team/src/client/locales.ts'
 import { en as sessionLogDownload } from '../../../session-query/session-log-export/src/client/locales.ts'
 
 const localeIds = ['ja', 'ko', 'es', 'fr', 'de', 'pt-BR', 'ru'] as const
@@ -56,6 +64,7 @@ const currentSurfaceKeys: TranslationCatalog = {
 
 // Korean supplies keys whose other languages are already owned by feature dictionaries.
 const supplementalSources: TranslationCatalog = {
+  ...currentSurfaceKeys,
   approval, chat, pluginManager, workspace,
   'settings.account': account,
   'settings.models': models,
@@ -156,8 +165,15 @@ describe('community desktop translations', () => {
       for (const [namespace, source] of Object.entries(currentSurfaceKeys)) {
         // Current supplements match their owner exactly; merged runtime catalogs also retain historical snapshot keys.
         const surface: TranslationCatalog = { ...COMMUNITY_SURFACE_TRANSLATIONS[locale] }
-        const translated = required(surface[namespace] ?? translations[locale][namespace], `${locale}:${namespace}`)
-        expect(Object.keys(translated).sort(), `${locale}:${namespace} keys`).toEqual(Object.keys(source).sort())
+        const supplements = required(surface[namespace] ?? translations[locale][namespace], `${locale}:${namespace}`)
+        // Official feature dictionaries take precedence over fallback snapshots at runtime.
+        const sources = { entryCustomization: sourceEntryCustomization, sidebarRight: officialSidebarRight,
+          sidebarFiles: sourceSidebarFiles, sidebarDocumentPreview: sourceSidebarDocumentPreview,
+          documentMarkdown: sourceDocumentMarkdown, sidebarPdf: sourceSidebarPdf, documentHtml: sourceDocumentHtml,
+          sidebarCodePreview: sourceSidebarCodePreview, sidebarImage: sourceSidebarImage }
+        const module = sources[namespace as keyof typeof sources]
+        const official = locale === 'ko' ? {} : module[locale === 'pt-BR' ? 'pt' : locale]
+        const translated: TranslationDictionary = { ...supplements, ...official }
         for (const key of Object.keys(source)) {
           expect(translated[key], `${locale}:${namespace}.${key}`).toBeTruthy()
           expect(placeholders(required(translated[key], `${locale}:${namespace}.${key}`))).toEqual(

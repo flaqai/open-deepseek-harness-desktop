@@ -18,8 +18,7 @@ import { acceptsExternalTools, externalToolEnabled, type ExternalToolId, type Ex
 import { auditRows, leakedServices, mountPreset, serviceForMount, type PresetMount } from './mount.ts'
 import { activeCompositionModules, definitionComposition, mountedCompositionRows, type AgentPresetComposition, type AgentPresetInspection } from './composition-inventory.ts'
 
-export { agentPresetProjectionDefinition, externalToolsResolvedProjectionDefinition } from './session.ts'
-export { acceptsExternalTools } from './external-tools.ts'
+export { agentPresetProjectionDefinition } from './session.ts'
 export type { ExternalToolId, ExternalToolSettings, ExternalToolsState } from './external-tools.ts'
 export { entryListProblem, type PresetDefinition } from './definition.ts'
 export { auditRows, leakedServices, type PresetMount, type RowAudit } from './mount.ts'

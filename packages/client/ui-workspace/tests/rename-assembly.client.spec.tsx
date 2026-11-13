@@ -26,6 +26,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import { whenAllowed } from '@deepseek-ai/dsh-api-remote-access/src/client/when-allowed.ts'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-workspace/client'
+import { SECTION_HOOK_CONTEXT, SECTION_INJECT } from './section-scroller.client.ts'
 
 // The service reads its initial locale from the browser; these specs assert
 // the shipped Chinese copy, so they state the browser they assume.
@@ -62,7 +63,7 @@ type FrameProps = PropsRenderSlots<'sidebar.workspaces' | 'shell.overlay'>
 function SidebarFrame({ renderSlot }: FrameProps) {
   return (
     <>
-      {renderSlot('sidebar.workspaces', { wide: true, expandSidebar: () => {}, dismissSidebar: () => {} })}
+      {renderSlot('sidebar.workspaces', { wide: true, expandSidebar: () => {}, dismissSidebar: () => {} }, { hookContext: SECTION_HOOK_CONTEXT })}
       {renderSlot('shell.overlay', {})}
     </>
   )
@@ -72,7 +73,7 @@ function SidebarFrame({ renderSlot }: FrameProps) {
 async function declareFrame(runtime: SlotTestRuntime): Promise<void> {
   await runtime.root.declare(
     {
-      'sidebar.workspaces': { kind: 'single', scope: 'root' },
+      'sidebar.workspaces': { kind: 'single', scope: 'root', inject: SECTION_INJECT },
       'shell.overlay': { kind: 'list', scope: 'root' },
     } as never,
     SidebarFrame as never,

@@ -1,7 +1,8 @@
+import { HARNESS_IDENTITY_TEXT } from '@deepseek-ai/dsh-system-prompt/src/identity.ts'
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt, {
-  AssembleContext, HARNESS_IDENTITY_TEXT, PromptAssembly, renderContextSections, renderContextSnapshot, renderPrompt,
+  AssembleContext, PromptAssembly, renderContextSections, renderContextSnapshot, renderPrompt,
 } from '@deepseek-ai/dsh-system-prompt'
 import type { PromptContextOrderName, PromptSectionOrderName } from '@deepseek-ai/dsh-system-prompt'
 
@@ -17,7 +18,7 @@ const SECTION_ORDER_NAMES = [
   'HARNESS_IDENTITY', 'DEPLOYMENT_PERSONA_PREFIX',
   'PLAN_POLICY', 'TEAM_POLICY', 'PTC_ONLY', 'FILE_REFERENCE', 'TOOL_BASH',
   'TOOL_PWSH', 'TOOL_READ', 'TOOL_WRITE', 'TOOL_EDIT', 'TOOL_APPLY_PATCH', 'TOOL_GLOB',
-  'TOOL_GREP', 'TOOL_JOBS', 'TOOL_PTY', 'TOOL_WEB_SEARCH', 'TOOL_WEB_FETCH',
+  'TOOL_GREP', 'TOOL_JOBS', 'TOOL_PTY', 'TOOL_PTY_PANEL', 'TOOL_WEB_SEARCH', 'TOOL_WEB_FETCH',
   'TOOL_LSP', 'TOOL_SESSION_QUERY', 'TOOL_GOAL', 'TOOL_SCHEDULE', 'TOOL_WORKFLOW',
   'TOOL_RALPH', 'TOOL_SUBAGENT', 'TOOL_REPORT', 'TOOLS_SDK',
   'DELIVERABLE_FILE_REFERENCES', 'STRUCTURED_OUTPUT',
@@ -25,7 +26,7 @@ const SECTION_ORDER_NAMES = [
 ] as const satisfies readonly PromptSectionOrderName[]
 const CONTEXT_ORDER_NAMES = [
   'WORKING_DIRECTORY',
-  'SANDBOX_POLICY', 'APPROVAL_POLICY', 'SUBAGENT_DELEGATION', 'TEAM_IDENTITY',
+  'SANDBOX_POLICY', 'APPROVAL_POLICY', 'SUBAGENT_DELEGATION',
   'HARNESS_SOURCE', 'WEB_SURFACE',
 ] as const satisfies readonly PromptContextOrderName[]
 function contributed(assembly: PromptAssembly): PromptAssembly['sections'] {

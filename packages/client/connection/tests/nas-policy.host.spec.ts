@@ -38,6 +38,17 @@ it('explicitly grants workspace and session reads, denies readonly writes and da
     expect(decide(action, [{ kind: 'session', id: session.id }])).toBe('allow')
     expect(decide(action, [{ kind: 'session', id: SessionId('unlisted-session') }])).toBe('deny')
   }
+  // Rc.2 renamed the existing read-only preview service; operation/output methods are not grants.
+  const checkOfficePreview = (): void => {
+    expect(decide('officeKit/generation')).toBe('allow')
+    expect(decide('officeKit/render', [{ kind: 'session', id: session.id }])).toBe('allow')
+    expect(decide('officeKit/render', [{ kind: 'session', id: SessionId('unlisted-session') }])).toBe('deny')
+    for (const action of ['officeToPdf/render', 'officeToPdf/generation', 'officeKit/convert',
+      'officeKit/convertTo', 'officeKit/recalculate', 'officeKit/renderImages', 'officeKit/unknown'] as const) {
+      expect(decide(action, [{ kind: 'session', id: session.id }])).toBe('deny')
+    }
+  }
+  checkOfficePreview()
   expect(decide('liveshareShares/create', [{ kind: 'session', id: session.id }])).toBe('deny')
   expect(decide('workspace/follow', [{ kind: 'workspace', id: workspaceId }])).toBe('allow')
   expect(decide('session/page', [{ kind: 'session', id: SessionId('unlisted-session') }])).toBe('deny')
@@ -47,6 +58,7 @@ it('explicitly grants workspace and session reads, denies readonly writes and da
     'schedule/view', 'schedule/history', 'schedule/deleteInactive', 'event:schedule/changed'] as const) expect(decide(action)).toBe('deny')
   device.mockReturnValue({ id: 'device', role: 'user', name: 'Device',
     createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 1000).toISOString() })
+  checkOfficePreview()
   expect(decide('session/create')).toBe('allow')
   expect(decide('session/prompt', [{ kind: 'session', id: session.id }])).toBe('allow')
   expect(decide('event:user-questions/request')).toBe('allow')

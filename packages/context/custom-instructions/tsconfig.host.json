@@ -5,7 +5,7 @@
     "outDir": "lib/types",
     "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
   },
-  "files": ["src/index.ts", "src/types.ts"],
+  "files": ["src/index.ts", "src/types.ts", "src/prompt.ts"],
   "references": [
     { "path": "../../core/agent" },
     { "path": "../../core/session" },

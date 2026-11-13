@@ -57,7 +57,7 @@ function contentLength(url: string, cache: string): number {
 
 /** Return signed-catalog metadata for the official npm tarball without repackaging it. */
 export function officialOfficeArtifact(target: OfficialOfficeTarget, root: string, cache: string): OfficialOfficeArtifact {
-  const require = createRequire(join(root, 'packages', 'document', 'office-to-pdf', 'package.json'))
+  const require = createRequire(join(root, 'packages', 'document', 'office-kit', 'package.json'))
   const kitManifest = require.resolve('@deepseek-ai/libreoffice-kit/package.json')
   const kit = JSON.parse(readFileSync(kitManifest, 'utf8')) as {
     version: string

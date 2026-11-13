@@ -1,4 +1,4 @@
-/** Current rc.1 right-sidebar and document-preview copy for every community locale. */
+/** Current rc.2 right-sidebar and document-preview copy for every community locale. */
 import { COMMUNITY_TRANSLATIONS } from './index.ts'
 
 type Dictionary = Record<string, string>

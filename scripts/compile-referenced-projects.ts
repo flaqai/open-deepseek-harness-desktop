@@ -164,12 +164,13 @@ function pnpmStep(id: LibraryStepId, label: string, args: readonly string[], nee
 }
 
 /**
- * List the package-library build steps in Host, Desktop, then Client dependency order.
+ * List package-library build steps in Host, then Client dependency order.
  * Source-only Typert generation supplies declarations before any package compilation.
- * Client compilation waits for Host and Desktop bundling because split compiler faces
+ * Client compilation waits for Host bundling because split compiler faces
  * rewrite shared lib/types files consumed by those bundles.
  * @param root - Repository root containing the compiler and bundle configurations.
- * @param faces - `host` lists Typert generation, Host compilation, and bundling; `all` adds Desktop and Client.
+ * @param faces - `host` lists Typert generation, Host compilation, and bundling; `all` adds Client.
+ * The community Desktop shell builds separately.
  * @param mode - Check package types by default; benchmark emission defers diagnostics to required full builds.
  * @returns Steps with explicit compiler and bundle dependencies.
  * @throws If an aggregate configuration is invalid.
@@ -225,7 +226,7 @@ function stepFailure(step: LibraryStep, exit: number | NodeJS.Signals | null): E
 }
 
 /**
- * Emit package libraries serially in Host, Desktop, then Client dependency order.
+ * Emit package libraries serially in Host, then Client dependency order.
  * @param root - Repository root containing the compiler and bundle configurations.
  * @param hostOnly - Stop after Typert generation, Host compilation, and bundling.
  * @param mode - Check package types by default; benchmark emission defers diagnostics to required full builds.

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-nas-protocol",
   "description": "Versioned fixed-route JSON protocol shared by NAS Runtime and Desktop adapters",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -22,7 +22,10 @@
   },
   "files": [
     "lib/index.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ],
   "license": "MIT",
   "peerDependencies": {

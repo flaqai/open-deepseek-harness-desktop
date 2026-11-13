@@ -1,6 +1,6 @@
 /** Trusted server-local NAS administrator recovery; no network transport is opened. */
 import { Context } from '@deepseek-ai/cordis'
-import { createNasAdministratorRecovery } from '@deepseek-ai/dsh-client-connection'
+import { createNasAdministratorRecovery } from '@deepseek-ai/dsh-client-connection/nas-access'
 import { LocalCredentialProvider, CREDENTIALS_FILENAME } from '@deepseek-ai/dsh-credentials-local'
 import { join, resolve } from 'node:path'
 

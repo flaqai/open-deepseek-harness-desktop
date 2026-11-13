@@ -295,7 +295,7 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
   }
   handlers.current = {
     finish, cancel: stop,
-    key: (event) => { if (move.current) interaction(move.current).onKeyDown(event as unknown as ReactKeyboardEvent<HTMLButtonElement>) },
+    key: (event) => { if (move.current) interaction(move.current).onKeyDown(event) },
     track: (event) => {
       if (pointerId.current !== event.pointerId) return
       if (armed.current !== undefined && Math.hypot(event.clientX - origin.current.x, event.clientY - origin.current.y) > 8) {
@@ -428,8 +428,8 @@ export function SettingsNavigation({ rows, layout, active, t, mutate, onSelect, 
         frame.current = requestAnimationFrame(() => { handlers.current.tick() })
       }, 200)
     },
-    onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-      if (keyboardContext(event, targetForMove(source))) return
+    onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement> | KeyboardEvent) => {
+      if ('nativeEvent' in event && keyboardContext(event, targetForMove(source))) return
       if (event.key === ' ' && !move.current) {
         event.preventDefault(); move.current = source; pointerId.current = undefined
         suppress.current = true; project(layout); rail.current?.focus(); return

@@ -66,7 +66,8 @@ export type { ConfigLedger, OfficialItem } from './config-ledger.ts'
 export type { PluginManagerFace } from './manager-store.ts'
 export type { PluginManagerLocaleKey } from './locales.ts'
 export type {
-  ConfigPageForm, PluginActivationOwnerProps, PluginAddActionsProps, PluginBundleActionProps, PluginTabInstall, PluginTabProps,
+  ConfigPageForm, PluginActivationOwnerProps, PluginBundleActionProps, PluginAddActionsProps,
+  PluginTabInstall, PluginTabProps, PluginTabUpdate,
   PluginConfigViewProps, PluginDetailProps, PluginPackageRef, PluginRowRef, PluginsSubject,
 } from './slot-contract.ts'
 

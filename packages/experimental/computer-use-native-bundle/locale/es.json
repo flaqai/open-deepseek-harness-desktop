@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Uso nativo del ordenador",
+    "description": "Incluye el proveedor nativo de CUA; al seleccionar este paquete se activan sus herramientas y pueden requerirse permisos del sistema."
+  }
+}

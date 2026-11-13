@@ -81,3 +81,18 @@ describe('platform application menus', () => {
     expect(isDesktopCommand('copy')).toBe(true)
   })
 })
+
+
+it('provides both macOS plain-text paste accelerators without changing Windows or Linux menus', () => {
+  const state = { platform: 'darwin', locale: 'en', development: false, maximized: false, fullscreen: false }
+  const edit = applicationMenuTemplate(state as Parameters<typeof applicationMenuTemplate>[0], () => {})
+    .find(item => item.id === 'edit')?.submenu as { role?: string; accelerator?: string; visible?: boolean }[]
+  expect(edit.filter(item => item.role === 'pasteAndMatchStyle').map(item => item.accelerator))
+    .toEqual(['Shift+Command+V', 'Option+Shift+Command+V'])
+  expect(edit.find(item => item.accelerator === 'Option+Shift+Command+V')?.visible).toBe(false)
+  for (const platform of ['win32', 'linux']) {
+    const other = applicationMenuTemplate({ ...state, platform } as Parameters<typeof applicationMenuTemplate>[0], () => {})
+      .find(item => item.id === 'edit')?.submenu as { role?: string }[]
+    expect(other.some(item => item.role === 'pasteAndMatchStyle')).toBe(false)
+  }
+})

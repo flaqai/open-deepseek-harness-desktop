@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Utilisation native de l’ordinateur",
+    "description": "Inclut le fournisseur CUA natif ; sélectionner ce module active ses outils et peut nécessiter des autorisations système."
+  }
+}

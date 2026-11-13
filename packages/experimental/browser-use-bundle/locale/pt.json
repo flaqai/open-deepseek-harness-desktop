@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Conectores de uso do navegador",
+    "description": "Inclui conectores Playwright e DevTools; selecionar este pacote ativa o Playwright com um navegador local."
+  }
+}

@@ -20,7 +20,7 @@ const READ: readonly RemoteAccessAction[] = [
   'session/list', 'session/search', 'session/page', 'session/events', 'session/state', 'session/observeEvent', 'session/observeProjections', 'session/observeState', 'session/follow', 'session/projections', 'session/control',
   'session/attachment', 'session/modelCatalog', 'workspace/follow',
   'workspaceFiles/read', 'workspaceFiles/readBytes', 'workspaceFiles/stat', 'workspaceFiles/list', 'workspaceFiles/changes',
-  'officeToPdf/render', 'officeToPdf/generation',
+  'officeKit/render', 'officeKit/generation',
   'event:api-session/activity', 'event:api-session/added', 'event:api-session/error', 'event:api-session/removed', 'event:api-session/status',
 ]
 const WRITE: readonly RemoteAccessAction[] = [

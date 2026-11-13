@@ -167,8 +167,8 @@
   gap: 14px;
   min-height: 320px;
   border-radius: 12px;
-  background: #fff;
-  color: #111;
+  background: var(--dsw-alias-community-settings-plugin-inventory-loadingpanel-background-0);
+  color: var(--dsw-alias-community-settings-plugin-inventory-loadingpanel-color-1);
   font-size: 14px;
   line-height: 22px;
   font-weight: 500;
@@ -178,7 +178,7 @@
   width: 38px;
   height: 38px;
   box-sizing: border-box;
-  border: 4px solid #111;
+  border: var(--dsw-alias-community-settings-plugin-inventory-loadingspinner-border-2);
   border-right-color: transparent;
   border-radius: 50%;
   corner-shape: round;

@@ -239,14 +239,12 @@ describe('package dependency scope', () => {
       '@deepseek-ai/dsh-util-values',
     ])
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-deque']).toEqual(['Deque'])
-    expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-nas-protocol']).toEqual([
-      'NAS_PROTOCOL_V1', 'NasProtocolViolation',
-    ])
+    expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-nas-protocol']).toBeUndefined()
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-home-paths']).toBeUndefined()
     expect(PACKAGE_DEPENDENCY_POLICY.duplicateSafePackages).not.toContain('@deepseek-ai/dsh-home-paths')
     expect(PACKAGE_DEPENDENCY_POLICY.duplicateSafePackages).not.toContain('@deepseek-ai/dsh-nas-protocol')
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-home-paths']).toEqual(['resolveDshHome'])
-    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-nas-protocol']).toEqual(['isNasRole'])
+    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-nas-protocol']).toEqual(['NAS_PROTOCOL_V1', 'isNasRole', 'NasProtocolViolation'])
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-settings']).toBeUndefined()
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/schemastery']).toEqual(['default'])
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-session/types']).toBeUndefined()
@@ -260,7 +258,7 @@ describe('package dependency scope', () => {
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-experimental-forge'])
       .toEqual(['changeRequestKey'])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-experimental-worktree'])
-      .toEqual(['generatedWorktreeName'])
+      .toEqual(['generatedWorktreeName', 'CREATED_RECORD', 'createdWorktreeSchema'])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-fs']).toEqual(['FsError'])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-session'])
       .toEqual(['SESSION_FORMAT_VERSION', 'appendPluginRecord', 'pluginRecordOf'])

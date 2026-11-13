@@ -8,7 +8,7 @@
 
 左侧工作区浏览区域在对话仍打开时发生故障，会显示局部重试入口，不重启 Harness 或清空历史。桌面端把有限长度、脱敏后的工作区前端错误及可取得的堆栈写入 `harness.log`。仅监听当前选中 Harness 的主框架，排除其他控制台输出及内嵌框架，并限制重复错误的记录频率。这些记录用于后续诊断，不能据此确认此前未记录故障的原因。
 
-本工作区使用 Harness 0.2.1-rc.3 和开发版 Desktop 0.2.1-rc.3，以及外部 Node 24.22.1。Electron 固定为 44.9.3，electron-builder 固定为 26.17.0，pnpm 固定为 11.28.5。macOS 安装版要求 macOS 13.5 或更高版本；这是内置 Node 二进制的最低要求，不能只根据 Electron 推断系统兼容性。
+本工作区使用 Harness 0.2.2-rc.2 和开发版 Desktop 0.2.2-rc.2，以及外部 Node 24.22.1。Electron 固定为 44.9.3，electron-builder 固定为 26.17.0，pnpm 固定为 11.28.5。macOS 安装版要求 macOS 13.5 或更高版本；这是内置 Node 二进制的最低要求，不能只根据 Electron 推断系统兼容性。
 
 托管 Python 运行时采用 Astral 20261021 构建的 CPython 3.12.15，保留 cp312 wheel 包 ABI。独立 Node 更新包含 [CVE-2026-111497 修复](https://nodejs.org/en/blog/release/v24.22.1)；Electron 则链接 Chromium 的 Brotli，不能只凭其显示的 Node 版本判断解码库补丁状态。Pillow 12.3.0 仍携带独立构建、尚未验证包含该修复的 Brotli 库，更新 CPython 不会替换它。Office 原生依赖也需单独核验供应方修复。这些源码更新不代表新安装包已验收，也不会修复已经安装的副本。用户选择的自定义解释器保持不变。
 
@@ -257,6 +257,8 @@ Electron 主进程不经过 shell，直接启动 `node apps/cli/lib/bin.js web -
 “关于”提供应用更新源与下载状态；“通用设置”保留 npm 下载策略。应用更新可以使用 GitHub 或固定的 `hecoococ/open-deepseek-harness-desktop` CNB 索引，并可选择系统代理、直接连接或带认证的 HTTP(S) 代理。由 Desktop 管理的 npm 安装默认使用 `npmmirror`，也可选择 npm 官方源或自定义 registry 与代理。应用下载和插件下载分别使用经过认证的回环端点，因此 Electron 可以在主进程发起请求时回应代理认证质询，且无需向渲染进程暴露凭据或混用两类策略。官方市场尚未为其自行执行的目录、README、源码归档和 Git 操作提供宿主管理网络策略，因此这些操作继续使用市场原有网络配置。这些设置不会改变模型、MCP、Git SSH 或其他应用流量。系统支持时，Electron 安全存储保存代理密码；否则密码只在本次运行的内存中保留，渲染层和日志均无法取得密码。
 
 预装的 `dshmarket` 使用其上游维护者发布的未修改归档。市场列表、README、源码归档和自身更新请求使用市场自己的网络配置。CNB 发现只接受未过期的匿名索引，且其中的附件必须匹配精确文件名、大小和 SHA-256；只有同时配置仓库变量 `CNB_SYNC_ENABLED` 和 Secret `CNB_TOKEN` 后，休眠的同步工作流才会镜像附件并发布该索引。
+
+<a id="packaged-release-discovery"></a>
 
 ## 打包版本的 Release 发现
 

@@ -11,7 +11,7 @@ English | [中文](guide.zh.md)
 
 `@deepseek-ai/dsh-client-ui-primitives` replaces `Menu.getAnchorRect` with `anchorRef` for an external trigger or `anchorPoint` for a pointer-triggered menu. Portaled menus use the official rc.2 CSS anchor positioning implementation. Browsers must support its CSS anchor properties; placement follows the layout viewport rather than constraining every panel to the visual viewport. Existing selection preservation, checkbox rows and keyboard actions remain available.
 
-This community migration retains `useAnchoredPosition` and `AnchoredPositionOptions` for custom panels outside Menu. Their later migration is separate; consumers must not assume they have already been removed.
+`useAnchoredPosition` and `AnchoredPositionOptions` are removed. Custom panels must assign a unique CSS `anchor-name` to their trigger and the matching `position-anchor` to their popup, with CSS-owned placement and size limits.
 
 ## Migration
 

@@ -1,8 +1,10 @@
 {
   "name": "@deepseek-ai/dsh-custom-instructions",
   "description": "Global and Workspace-scoped user-authored model instructions",
-  "version": "0.2.1-rc.3",
-  "publishConfig": { "access": "public" },
+  "version": "0.2.2-rc.2",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
@@ -12,13 +14,27 @@
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "exports": {
-    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
-    "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
   },
-  "files": ["locale/*.json", "lib/index.js", "lib/client.js", "lib/types/**/*.d.ts"],
+  "files": [
+    "locale/*.json",
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
+  ],
   "scripts": {
     "bundle": "tsdown",
     "watch": "tsdown --watch"

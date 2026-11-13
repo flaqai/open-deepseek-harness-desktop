@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "ブラウザー操作コネクター",
+    "description": "Playwright と DevTools のコネクターを同梱します。このバンドルを選択すると、ローカルブラウザーを使用する Playwright が有効になります。"
+  }
+}

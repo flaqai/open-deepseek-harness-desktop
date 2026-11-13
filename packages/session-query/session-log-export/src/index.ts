@@ -24,7 +24,6 @@ export {
   DEFAULT_SESSION_LOG_COMPRESSION_LEVEL,
   flushLiveSessionLog,
   readSessionLogText,
-  redactCustomInstructionsInSessionLog,
   serializeSessionLog,
   SESSION_LOG_FILENAME,
   sessionLogExportDeps,

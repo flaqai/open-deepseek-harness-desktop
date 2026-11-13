@@ -140,19 +140,19 @@
 }
 
 .toolMark[data-tool='claude-code'] {
-  --tool-accent: #d97757;
+  --tool-accent: var(--dsw-alias-community-settings-plugin-inventory-toolmark-data-tool-claude-code---tool-accent-0);
 }
 
 .toolMark[data-tool='workbuddy'] {
-  --tool-accent: #5b6ff5;
+  --tool-accent: var(--dsw-alias-community-settings-plugin-inventory-toolmark-data-tool-workbuddy---tool-accent-1);
 }
 
 .toolMark[data-tool='hermes'] {
-  --tool-accent: #b7791f;
+  --tool-accent: var(--dsw-alias-community-settings-plugin-inventory-toolmark-data-tool-hermes---tool-accent-2);
 }
 
 .toolMark[data-tool='trae'] {
-  --tool-accent: #20c981;
+  --tool-accent: var(--dsw-alias-community-settings-plugin-inventory-toolmark-data-tool-trae---tool-accent-3);
 }
 
 .toolMark[data-tool='browser-use'] {

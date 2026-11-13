@@ -1186,6 +1186,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'toggle.collapse': 'Réduire la barre latérale'
   },
   'entryCustomization': {
+    'pinTooltip': 'Épingler sur la barre latérale gauche',
+    'pin': 'Épingler {name} à la barre latérale',
     install: 'Parcourir les autres plugins',
     create: 'Créer votre plugin',
     'createPrompt.sidebar': 'Crée un plugin DSH avec une entrée dans la barre latérale gauche.',

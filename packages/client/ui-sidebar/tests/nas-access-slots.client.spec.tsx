@@ -26,7 +26,7 @@ describe('NAS role permissions through the Slot renderer', () => {
         useShortcuts={selector => selector([])} selectPanel={() => {}}
         useEntryPins={selector => selector([])} useEntryActions={selector => selector(false)}
         setPinned={() => {}} trackEntryClick={() => {}}
-        startSession={createSession} toggleSidebar={() => {}} renderSlot={() => null} t={t} />
+        startSession={createSession} toggleSidebar={() => {}} renderSlot={() => null} renderFactorySlot={() => null} t={t} />
     }
     runtime.slots.register({ name: 'root' }, Frame)
     runtime.renderRoot()

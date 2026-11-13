@@ -30,7 +30,7 @@ describe('SessionLogDownloadController', () => {
       'dsh-session-session-export-controller.zip',
     )
     expect(controller.store.getSnapshot().bySession[SID]).toEqual({
-      open: true, status: 'success', error: null,
+      order: 0, open: true, status: 'success', error: null,
     })
   })
 
@@ -59,6 +59,47 @@ describe('SessionLogDownloadController', () => {
     expect(savePreference).toHaveBeenLastCalledWith('exclude')
   })
 
+  it('keeps confirmation order and one active operation when a disclosure choice is confirmed', async () => {
+    const response = Promise.withResolvers<Response>()
+    const fetcher = vi.fn(() => response.promise)
+    const controller = new SessionLogDownloadController(fetcher, vi.fn(), {
+      getPreference: () => 'ask', setPreference: async () => {},
+    })
+    await controller.download(SID)
+    const first = controller.store.getSnapshot().bySession[SID]
+    controller.setIncludeCustomInstructions(SID, true)
+    await controller.download(SID)
+    expect(controller.store.getSnapshot().bySession[SID]?.includeCustomInstructions).toBe(true)
+    expect(controller.store.getSnapshot().bySession[SID]?.order).toBe(first?.order)
+    await controller.download('another' as SessionId)
+    const pending = controller.confirm(SID)
+    expect(controller.store.getSnapshot().bySession[SID]?.order).toBe(0)
+    expect(controller.store.getSnapshot().bySession.another?.order).toBe(1)
+    controller.dismiss(SID)
+    const active = controller.download(SID)
+    expect(controller.store.getSnapshot().bySession[SID]?.open).toBe(false)
+    response.resolve(new Response('zip'))
+    await Promise.all([pending, active])
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(controller.store.getSnapshot().bySession[SID]?.open).toBe(false)
+    await controller.dispose()
+    const before = controller.store.getSnapshot()
+    await controller.download('after-disposal' as SessionId)
+    expect(controller.store.getSnapshot()).toBe(before)
+  })
+
+  it('contains a failed disclosure-preference save without starting the export', async () => {
+    const fetcher = vi.fn(async () => new Response('zip'))
+    const controller = new SessionLogDownloadController(fetcher, vi.fn(), {
+      getPreference: () => 'ask', setPreference: async () => { throw new Error('preference refused') },
+    })
+    await controller.download(SID)
+    controller.setRemember(SID, true)
+    await expect(controller.confirm(SID)).resolves.toBeUndefined()
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(controller.store.getSnapshot().bySession[SID]).toMatchObject({ order: 0, status: 'error', error: 'preference refused' })
+  })
+
   it('collapses concurrent gestures and preserves a dismissed dialog', async () => {
     const response = Promise.withResolvers<Response>()
     const fetcher = vi.fn(() => response.promise)
@@ -82,6 +123,7 @@ describe('SessionLogDownloadController', () => {
     )
     await http.download(SID)
     expect(http.store.getSnapshot().bySession[SID]).toEqual({
+      order: 0,
       open: true,
       status: 'error',
       error: 'Export failed: HTTP 500 backend unavailable',
@@ -119,6 +161,55 @@ describe('SessionLogDownloadController', () => {
     await expect(pending).resolves.toBeUndefined()
     expect(signal?.aborted).toBe(true)
     await expect(controller.download(SID)).resolves.toBeUndefined()
+    await controller.dispose()
+  })
+
+  it('waits for every aborted preflight and never saves a late successful response', async () => {
+    const first = Promise.withResolvers<Response>(), second = Promise.withResolvers<Response>()
+    const signals: AbortSignal[] = []
+    const save = vi.fn()
+    const fetcher = vi.fn((_input: string | URL, init?: RequestInit) => {
+      if (init?.signal === undefined || init.signal === null) throw new Error('Missing cancellation signal')
+      signals.push(init.signal)
+      return signals.length === 1 ? first.promise : second.promise
+    })
+    const controller = new SessionLogDownloadController(fetcher, save)
+    const a = controller.download(SID)
+    const b = controller.download('another' as SessionId)
+    const beforeDisposal = controller.store.getSnapshot()
+    let disposed = false
+    const disposal = controller.dispose().then(() => { disposed = true })
+    expect(signals.every(signal => signal.aborted)).toBe(true)
+    first.resolve(new Response('late ZIP'))
+    await a
+    expect(disposed).toBe(false)
+    second.reject(new Error('aborted second preflight'))
+    await b
+    await disposal
+    expect(disposed).toBe(true)
+    expect(save).not.toHaveBeenCalled()
+    expect(controller.store.getSnapshot()).toBe(beforeDisposal)
+  })
+
+  it('keeps per-operation initiation order across concurrent Sessions and repeated requests', async () => {
+    const response = Promise.withResolvers<Response>()
+    const fetcher = vi.fn(() => response.promise)
+    const save = vi.fn()
+    const controller = new SessionLogDownloadController(fetcher, save)
+    const first = controller.download(SID)
+    const other = controller.download('another' as SessionId)
+    const initial = controller.store.getSnapshot()
+    expect(initial.bySession[SID]?.order).toBe(0)
+    expect(initial.bySession.another?.order).toBe(1)
+    controller.dismiss(SID)
+    expect(controller.download(SID)).toBe(first)
+    expect(controller.store.getSnapshot().bySession[SID]).toMatchObject({ open: false, order: 0 })
+    response.resolve(new Response('zip'))
+    await Promise.all([first, other])
+    expect(save).toHaveBeenCalledTimes(2)
+    await controller.download(SID)
+    expect(controller.store.getSnapshot().bySession[SID]).toMatchObject({ open: true, order: 2 })
+    expect(controller.store.getSnapshot().bySession.another?.order).toBe(1)
     await controller.dispose()
   })
 

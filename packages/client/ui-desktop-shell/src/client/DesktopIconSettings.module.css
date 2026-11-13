@@ -10,8 +10,8 @@
   width: 56px;
   height: 40px;
   border-radius: 10px;
-  background-color: #e9ebee;
-  background-image: repeating-conic-gradient(#cfd3d8 0% 25%, #eef0f2 0% 50%);
+  background-color: var(--dsw-alias-community-desktop-shell-traypreview-background-color-0);
+  background-image: var(--dsw-alias-community-desktop-shell-traypreview-background-image-1);
   background-position: 0 0;
   background-size: 12px 12px;
   box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 12%);
@@ -24,11 +24,11 @@
 .modal { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); }
 .modalContent { min-height: 0; overflow-y: auto; overscroll-behavior: contain; --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2); --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2); }
 .editor { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.viewport { position: relative; width: min(280px, 100%); aspect-ratio: 1; flex: none; overflow: hidden; touch-action: none; user-select: none; cursor: grab; border-radius: 12px; outline: 1px solid var(--dsw-alias-border-l2); background: repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 0 / 16px 16px; }
+.viewport { position: relative; width: min(280px, 100%); aspect-ratio: 1; flex: none; overflow: hidden; touch-action: none; user-select: none; cursor: grab; border-radius: 12px; outline: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-community-desktop-shell-viewport-background-2); }
 .viewport:active { cursor: grabbing; }
 .viewport:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 4px; }
 .viewport img, .preview img { position: absolute; pointer-events: none; height: auto; }
-.grid { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to right, transparent 33%, #ffffff66 33%, #ffffff66 33.5%, transparent 33.5%, transparent 66%, #ffffff66 66%, #ffffff66 66.5%, transparent 66.5%), linear-gradient(to bottom, transparent 33%, #ffffff66 33%, #ffffff66 33.5%, transparent 33.5%, transparent 66%, #ffffff66 66%, #ffffff66 66.5%, transparent 66.5%); }
+.grid { position: absolute; inset: 0; pointer-events: none; background: var(--dsw-alias-community-desktop-shell-grid-background-3); }
 .zoom { display: flex; align-items: center; width: 100%; gap: 12px; font-size: 13px; }
 .zoom input { flex: 1; min-width: 0; }
 .previews { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; }
@@ -36,5 +36,5 @@
 .previewCrop { position: absolute; overflow: hidden; corner-shape: round; }
 .sample { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; }
 .sample span:last-child { font-size: 10px; }
-.sample[data-background='light'] { background: #f4f4f5; color: #222; }
-.sample[data-background='dark'] { background: #232429; color: #eee; }
+.sample[data-background='light'] { background: var(--dsw-alias-community-desktop-shell-sample-data-background-light-background-4); color: var(--dsw-alias-community-desktop-shell-sample-data-background-light-color-5); }
+.sample[data-background='dark'] { background: var(--dsw-alias-community-desktop-shell-sample-data-background-dark-background-6); color: var(--dsw-alias-community-desktop-shell-sample-data-background-dark-color-7); }

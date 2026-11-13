@@ -1,3 +1,4 @@
+import { HARNESS_IDENTITY_TEXT } from './identity.ts'
 /**
  * Registry for ordered system sections, dynamic context, tool schemas, and prompt variables.
  *
@@ -150,6 +151,7 @@ const SECTION_ORDERS = {
   TOOL_GREP: 1500,
   TOOL_JOBS: 1600,
   TOOL_PTY: 1700,
+  TOOL_PTY_PANEL: 1710,
   TOOL_WEB_SEARCH: 2000,
   TOOL_WEB_FETCH: 2100,
   TOOL_LSP: 2200,
@@ -179,7 +181,6 @@ const CONTEXT_ORDERS = {
   SANDBOX_POLICY: 110,
   APPROVAL_POLICY: 115,
   SUBAGENT_DELEGATION: 120,
-  TEAM_IDENTITY: 125,
   // Process-specific paths and endpoints stay out of the cached system prompt.
   HARNESS_SOURCE: 200,
   WEB_SURFACE: 210,
@@ -200,7 +201,7 @@ export const PERSONA_PREFIX_SECTION = 'deployment:persona-prefix'
 export const PERSONA_SUFFIX_SECTION = 'deployment:persona-suffix'
 
 /** Fixed first-party opener shared by prompt assembly and exact-output tests. */
-export const HARNESS_IDENTITY_TEXT = 'You are an AI agent powered by DeepSeek Harness. Write all user-visible text in the language of the user\'s latest request unless the user explicitly asks for another language. This includes replies, progress updates, tool descriptions, and approval justifications.'
+
 
 /** Valid variable names: how they are written between the braces. */
 const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/

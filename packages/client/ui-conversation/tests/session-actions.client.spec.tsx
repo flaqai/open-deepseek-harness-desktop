@@ -58,7 +58,7 @@ function sessionSnapshot(running = false): SessionSnapshot {
   return {
     sessionId: SID, pendingSubmissions: [], running, subagent: null,
     removed: false, openState: 'open', openError: null, hasMore: false,
-    loadingOlder: false, promptError: null, blank: false, lastAgentError: null,
+    loadingOlder: false, historyWasPartial: false, historyLoadStatus: 'idle', promptError: null, blank: false, lastAgentError: null,
     promptAttempted: true, awaitingFirstTurn: false,
   }
 }

@@ -8,7 +8,7 @@
  * control-stream projection routing pre- and post-instantiation, the list
  * rows' title projection).
  */
-import { describe, expect } from 'vitest'
+import { describe, expect, vi, onTestFinished } from 'vitest'
 import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
 import { SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { ok, type RemoteMock } from '@deepseek-ai/dsh-remote-mock'
@@ -370,4 +370,31 @@ describe('manager frame routing', () => {
     expect(manager.get(sid('s1')).projections.get('title')).toBeUndefined()
     await manager.dispose()
   })
+})
+
+it('publishes per-key control state before a single batched list frame and ignores detached listeners', async () => {
+  const store = new ProjectionValueStore()
+  const frames: FrameRequestCallback[] = []
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
+  onTestFinished(() => { vi.unstubAllGlobals() })
+  const local: unknown[] = []
+  const list: unknown[] = []
+  const stopKey = store.faceOf('test/marks').subscribe(() => { local.push(store.get('test/marks')) })
+  const stopList = store.subscribeAny(() => { list.push(store.get('test/marks')) })
+  store.apply('test/marks', { marks: ['first'] }, SessionSeq(1))
+  store.apply('test/marks', { marks: ['second'] }, SessionSeq(2))
+  await Promise.resolve()
+  expect(local).toEqual([{ marks: ['second'] }])
+  expect(list).toEqual([])
+  expect(frames).toHaveLength(1)
+  frames.shift()!(0)
+  expect(list).toEqual([{ marks: ['second'] }])
+  store.apply('test/marks', { marks: ['third'] }, SessionSeq(3))
+  stopKey()
+  stopList()
+  await Promise.resolve()
+  frames.shift()!(0)
+  expect(local).toHaveLength(1)
+  expect(list).toHaveLength(1)
+  expect(store.get('test/marks')).toEqual({ marks: ['third'] })
 })

@@ -14,16 +14,14 @@
  * portal's synthetic events through the strip, which is why the press guards
  * below remain necessary.
  */
-import { MenuItemButton, MenuSurface, useAnchoredPosition } from '@deepseek-ai/dsh-client-ui-primitives'
-import { Children, useEffect, useMemo, useRef } from 'react'
+import { MenuItemButton, MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Children, useEffect, useId, useLayoutEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { focusWithoutRing, modalSelector, observeComposition } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { DockLabels } from '../contract/adapter.ts'
 import css from './dockkit.module.css'
 
-/** Gap between the opening control and the menu, and the viewport margin kept clear. */
-const MENU_GAP = 4
 
 /** What the menu offers, where it anchors, and how it closes. */
 export interface TabMenuProps {
@@ -43,10 +41,15 @@ export function TabMenu({ labels, anchor, onClose, onDismiss, extras }: TabMenuP
   const self = useRef<HTMLDivElement | null>(null)
   const hasItems = onClose !== undefined || Children.toArray(extras).some(item => item !== '')
 
-  const anchorRef = useMemo(() => ({ current: anchor }), [anchor])
-  const position = useAnchoredPosition({
-    open: hasItems, anchorRef, panelRef: self, gap: MENU_GAP, margin: MENU_GAP, frameClearance: false,
-  })
+  const id = useId()
+  const anchorName = `--dsh-tab-menu-${id.replaceAll(':', '')}`
+  useLayoutEffect(() => {
+    if (!hasItems) return
+    const previous = anchor.style.getPropertyValue('anchor-name')
+    const priority = anchor.style.getPropertyPriority('anchor-name')
+    anchor.style.setProperty('anchor-name', anchorName)
+    return () => { anchor.style.setProperty('anchor-name', previous, priority) }
+  }, [anchor, anchorName, hasItems])
 
   useEffect(() => {
     const menu = self.current
@@ -90,8 +93,8 @@ export function TabMenu({ labels, anchor, onClose, onDismiss, extras }: TabMenuP
       ref={self}
       role="menu"
       data-dockkit-tab-menu
-      // Unplaced for one layout pass: measured, then positioned.
-      style={position ?? { visibility: 'hidden', top: 0, left: 0 }}
+      // CSS tracks the trigger through layout, zoom and scrolling.
+      style={{ positionAnchor: anchorName }}
       // Portal events reach the owning chip: a press would start its drag,
       // a click would focus it, and a middle click would close it.
       onPointerDown={(event) => { event.stopPropagation() }}

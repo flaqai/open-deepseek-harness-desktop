@@ -13,8 +13,10 @@ import {
 import { DiagnosticLabManager, type DiagnosticLabRunSnapshot } from '../src/diagnostic-lab.ts'
 
 const roots: string[] = []
+const stopRuns: (() => Promise<void>)[] = []
 
 afterEach(async () => {
+  for (const stop of stopRuns.splice(0)) await stop()
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
@@ -89,6 +91,8 @@ async function productionBench(): Promise<{
     }
   }
 
+  let settleRun!: () => void
+  const settled = new Promise<void>((resolve) => { settleRun = resolve })
   const manager = new DiagnosticLabManager({
     root: join(root, 'lab'),
     activeDshHome: activeHome,
@@ -129,7 +133,15 @@ async function productionBench(): Promise<{
         output: JSON.stringify({ conflicts }),
       }
     },
-    onSnapshot: () => {},
+    onSnapshot: (snapshot) => {
+      if (['active', 'failed', 'cancelled'].includes(snapshot.phase)) settleRun()
+    },
+  })
+  stopRuns.push(async () => {
+    const run = manager.current()
+    if (run === undefined) return
+    manager.cancel(run.runId)
+    await settled
   })
   return { root, manager }
 }

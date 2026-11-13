@@ -39,7 +39,7 @@ export class Notifier {
   markFrameDirty(): void {
     this.dirty = true
     this.notifyPending = true
-    if (this.scheduled !== 'none') return
+    if (this.scheduled !== 'none' || this.listeners.size === 0) return
     this.schedule(typeof globalThis.requestAnimationFrame === 'function' ? 'frame' : 'microtask')
   }
 

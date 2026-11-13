@@ -1,5 +1,6 @@
+import { HARNESS_IDENTITY_TEXT } from '@deepseek-ai/dsh-system-prompt/src/identity.ts'
 import { Context } from '@deepseek-ai/cordis'
-import SystemPrompt, { HARNESS_IDENTITY_TEXT, renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { createScope, type ScopeKey } from '@deepseek-ai/dsh-scope'
 import { describe, expect, it } from 'vitest'
 import * as Persona from '@deepseek-ai/dsh-persona'

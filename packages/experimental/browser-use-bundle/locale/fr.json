@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Connecteurs de navigation",
+    "description": "Inclut les connecteurs Playwright et DevTools ; sélectionner ce module active Playwright avec un navigateur local."
+  }
+}

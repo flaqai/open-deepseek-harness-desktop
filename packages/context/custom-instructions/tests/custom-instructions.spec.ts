@@ -1,10 +1,11 @@
+import { renderCustomInstruction } from '../src/prompt.ts'
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { AgentRegistry } from '@deepseek-ai/dsh-agent'
 import { SystemPrompt, renderContextSections } from '@deepseek-ai/dsh-system-prompt'
 import { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import { updateVolatile } from '@deepseek-ai/cosmokit'
-import { apply, Config, renderCustomInstruction } from '../src/index.ts'
+import { apply, Config } from '../src/index.ts'
 
 describe('custom instructions', () => {
   it('renders attributed immutable revisions and disables blank content', () => {

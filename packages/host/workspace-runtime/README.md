@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This adapter exposes an application-managed Python payload through `load_workspace_dependencies`. The trusted Desktop process supplies absolute paths; the plugin validates the payload metadata and paths before registering the tool. With `office: true`, it also registers the packaged DOCX, PPTX, and XLSX skills. It never downloads, extracts, activates, or removes a payload.
+This adapter exposes an application-managed Python payload through `load_workspace_dependencies`. The trusted Desktop process supplies absolute paths; the plugin validates the payload metadata and paths before registering the tool. With `office: true`, it also registers the packaged DOCX, PPTX, and XLSX skills with `pythonEnvironment: workspace-dependencies`, so authoring uses the managed or user-selected Python returned by this adapter. It never downloads, extracts, activates, or removes a payload.
 
 **Runtime invariant:** No companion is published. The Desktop runtime manager verifies the payload before this adapter mounts it in a Profile.
 

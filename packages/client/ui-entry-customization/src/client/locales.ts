@@ -1,5 +1,7 @@
 /** Copy for the More menu rows: navigation actions, and Creator draft prompts per region. */
 export const en = {
+  'pinTooltip': 'Pin to left sidebar',
+  'pin': 'Pin {name} to sidebar',
   install: 'Browse other plugins',
   create: 'Create your plugin',
   'createPrompt.sidebar': 'Create a DSH plugin with a left sidebar entry.',
@@ -9,6 +11,8 @@ export const en = {
 
 /** Chinese counterpart of the entry-customization dictionary. */
 export const zh: Record<keyof typeof en, string> = {
+  'pinTooltip': '固定到左侧栏',
+  'pin': '将{name}固定到侧边栏',
   install: '浏览更多插件',
   create: '创建你的插件',
   'createPrompt.sidebar': '创建一个带左侧栏入口的 DSH 插件。',
@@ -19,6 +23,8 @@ export const zh: Record<keyof typeof en, string> = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   ...en,
+  'pinTooltip': '左サイドバーに固定',
+  'pin': '{name}をサイドバーに固定',
   'install': '他のプラグインを探す',
   'create': 'プラグインを作成',
   'createPrompt.sidebar': '左サイドバーにエントリを持つ DSH プラグインを作成します。',
@@ -29,6 +35,8 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   ...en,
+  'pinTooltip': 'Fijar a la barra lateral izquierda',
+  'pin': 'Fijar {name} en la barra lateral',
   install: 'Explorar otros complementos',
   create: 'Crea tu complemento',
   'createPrompt.sidebar': 'Cree un complemento DSH con una entrada en la barra lateral izquierda.',
@@ -39,6 +47,8 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   ...en,
+  'pinTooltip': 'Épingler sur la barre latérale gauche',
+  'pin': 'Épingler {name} à la barre latérale',
   install: "Parcourir d'autres plugins",
   create: 'Créez votre plugin',
   'createPrompt.sidebar': 'Créez un plugin DSH avec une entrée dans la barre latérale gauche.',
@@ -49,6 +59,8 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   ...en,
+  'pinTooltip': 'An die linke Seitenleiste anpinnen',
+  'pin': '{name} an der Seitenleiste anheften',
   install: 'Durchsuchen Sie andere Plugins',
   create: 'Erstellen Sie Ihr Plugin',
   'createPrompt.sidebar': 'Erstellen Sie ein DSH-Plugin mit einem Eintrag in der linken Seitenleiste.',
@@ -59,6 +71,8 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   ...en,
+  'pinTooltip': 'Закрепить на левой боковой панели',
+  'pin': 'Закрепить {name} на боковой панели',
   install: 'Просмотрите другие плагины',
   create: 'Создайте свой плагин',
   'createPrompt.sidebar': 'Создайте плагин DSH с записью на левой боковой панели.',
@@ -69,6 +83,8 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   ...en,
+  'pinTooltip': 'Fixar na barra lateral esquerda',
+  'pin': 'Fixar {name} na barra lateral',
   install: 'Procure outros plug-ins',
   create: 'Crie seu plug-in',
   'createPrompt.sidebar': 'Crie um plug-in DSH com uma entrada na barra lateral esquerda.',

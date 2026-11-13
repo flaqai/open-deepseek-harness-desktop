@@ -177,7 +177,7 @@ async function extractArchive(
 export async function isPackagedRuntimeReady(destination: string): Promise<boolean> {
   return await exists(join(destination, 'lib', 'bin.js'))
     && await exists(join(destination, 'node_modules'))
-    && await exists(join(destination, 'node_modules', '@deepseek-ai', 'cosmokit'))
+    && await exists(join(destination, 'node_modules', '@deepseek-ai/cosmokit'))
     && await exists(join(destination, 'package-runtime', 'bin', 'node'))
     && await exists(join(destination, 'package-runtime', 'bin', 'pnpm'))
     && await exists(join(destination, '.desktop-runtime-v3'))

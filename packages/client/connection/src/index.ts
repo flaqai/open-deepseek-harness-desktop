@@ -16,7 +16,6 @@ import { HostConnectionService } from './rpc-host.ts'
 import { NasAccess, type NasDeploymentConfig } from './nas-access.ts'
 import { installNasPolicy } from './nas-policy.ts'
 import { nasRouteGuard } from './nas-route-policy.ts'
-export { NasAccess, createNasAdministratorRecovery } from './nas-access.ts'
 import { ConnectionRecoveryConfigSchema, resolveConnectionConfig, type ConnectionRecoveryConfig } from './recovery-config.ts'
 
 export type {

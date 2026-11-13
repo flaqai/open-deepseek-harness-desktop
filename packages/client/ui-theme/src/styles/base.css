@@ -38,3 +38,55 @@ body {
 [data-dsh-automatic-focus]:focus:focus-visible {
   outline: none;
 }
+
+/* Community artwork and branded previews keep their exact palette here. Feature
+ * styles consume these aliases, so palette ownership remains in ui-theme. */
+:root {
+  --dsw-alias-community-chat-turnstatus-background-0: linear-gradient(
+    90deg,
+    var(--dsw-static-deepseek-500) 0%,
+    var(--dsw-static-deepseek-500) 40%,
+    var(--dsw-static-deepseek-200) 50%,
+    var(--dsw-static-deepseek-500) 60%,
+    var(--dsw-static-deepseek-500) 100%
+  );
+  --dsw-alias-community-bubble-whale-veil: linear-gradient(rgb(244 251 255 / 68%), rgb(244 251 255 / 80%));
+  --dsw-alias-community-desktop-shell-traypreview-background-color-0: #e9ebee;
+  --dsw-alias-community-desktop-shell-traypreview-background-image-1: repeating-conic-gradient(#cfd3d8 0% 25%, #eef0f2 0% 50%);
+  --dsw-alias-community-desktop-shell-viewport-background-2: repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 0 / 16px 16px;
+  --dsw-alias-community-desktop-shell-grid-background-3: linear-gradient(to right, transparent 33%, #ffffff66 33%, #ffffff66 33.5%, transparent 33.5%, transparent 66%, #ffffff66 66%, #ffffff66 66.5%, transparent 66.5%), linear-gradient(to bottom, transparent 33%, #ffffff66 33%, #ffffff66 33.5%, transparent 33.5%, transparent 66%, #ffffff66 66%, #ffffff66 66.5%, transparent 66.5%);
+  --dsw-alias-community-desktop-shell-sample-data-background-light-background-4: #f4f4f5;
+  --dsw-alias-community-desktop-shell-sample-data-background-light-color-5: #222;
+  --dsw-alias-community-desktop-shell-sample-data-background-dark-background-6: #232429;
+  --dsw-alias-community-desktop-shell-sample-data-background-dark-color-7: #eee;
+  --dsw-alias-community-desktop-shell-toggle-span-background-0: var(--dsw-static-neutral-bluish-00);
+  --dsw-alias-community-desktop-shell-button-color-0: #fff;
+  --dsw-alias-community-settings-plugin-inventory-toolmark-data-tool-claude-code---tool-accent-0: #d97757;
+  --dsw-alias-community-settings-plugin-inventory-toolmark-data-tool-workbuddy---tool-accent-1: #5b6ff5;
+  --dsw-alias-community-settings-plugin-inventory-toolmark-data-tool-hermes---tool-accent-2: #b7791f;
+  --dsw-alias-community-settings-plugin-inventory-toolmark-data-tool-trae---tool-accent-3: #20c981;
+  --dsw-alias-community-settings-plugin-inventory-loadingpanel-background-0: #fff;
+  --dsw-alias-community-settings-plugin-inventory-loadingpanel-color-1: #111;
+  --dsw-alias-community-settings-plugin-inventory-loadingspinner-border-2: 4px solid #111;
+  --dsw-alias-community-theme-skinpreview-background-0: #f7f8fa;
+  --dsw-alias-community-theme-skinpreview-data-preview-dark-background-1: #1e222b;
+  --dsw-alias-community-theme-skinpreview-data-preview-system-background-2: linear-gradient(110deg, #f7f8fa 50%, #1e222b 50%);
+  --dsw-alias-community-theme-skinpreview-data-preview-ocean-background-3: radial-gradient(circle at 75% 18%, #1889cb, #06192c 62%);
+  --dsw-alias-community-theme-skinpreview-data-preview-moonlight-background-4: radial-gradient(circle at 22% 20%, #b8c7ff 0 8%, #252c58 30%, #11172f 75%);
+  --dsw-alias-community-theme-skinpreview-data-preview-bubble-background-5: radial-gradient(circle at 80% 20%, #fff 0 6%, transparent 7%), linear-gradient(145deg, #edfbff, #dcecff 60%, #f2e9ff);
+  --dsw-alias-community-theme-skinpreview-data-preview-inspiration-collage-background-6: radial-gradient(circle at 84% 18%, #f0c928 0 4%, transparent 5%),
+    linear-gradient(132deg, transparent 0 69%, rgb(239 112 100 / 32%) 70% 76%, transparent 77%),
+    linear-gradient(145deg, #f1faf8 8%, #e2f3f0 62%, #a8dce6 100%);
+  --dsw-alias-community-theme-skinpreview-data-preview-starlight-background-7: radial-gradient(circle at 78% 24%, #9d8cff, #111a34 45%, #0a1022 78%);
+  --dsw-alias-community-theme-skinpreview-data-preview-pirate-background-8: radial-gradient(circle at 82% 30%, #f0b35c, #1e5255 38%, #0d1c22 76%);
+  --dsw-alias-community-theme-skinpreview-data-preview-shinobi-background-9: linear-gradient(145deg, #150c11 10%, #321820 58%, #ff735c 140%);
+  --dsw-alias-community-theme-skinpreview-data-preview-rift-background-10: radial-gradient(circle at 76% 32%, #67e8c2, #123a34 42%, #061b1a 78%);
+  --dsw-alias-community-theme-previewsidebar-background-11: rgb(0 40 70 / 12%);
+  --dsw-alias-community-theme-previewsidebar-border-right-12: 1px solid rgb(255 255 255 / 18%);
+  --dsw-alias-community-theme-previewbubble-background-13: rgb(83 145 214 / 38%);
+  --dsw-alias-community-theme-previewcomposer-background-14: rgb(255 255 255 / 62%);
+  --dsw-alias-community-theme-backgroundpreview-data-focus-right-after-border-right-15: 1px solid rgb(255 255 255 / 34%);
+  --dsw-alias-community-theme-backgroundpreview-data-focus-right-after-background-16: linear-gradient(90deg, rgb(5 13 24 / 46%) 0 62%, transparent 82%);
+  --dsw-alias-community-theme-custompreview-background-17: linear-gradient(145deg, #60bfe9, #766eea);
+  --dsw-alias-community-theme-custompreview-color-18: white;
+}

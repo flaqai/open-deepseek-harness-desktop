@@ -28,7 +28,7 @@ describe('native desktop welcome', () => {
     }
     const connection = ctx.connection as HostConnectionService
     const shared = connection.createSharedFetchHandler('/api')
-    const backend = await connectDesktopWelcome('http://127.0.0.1:1234/', async (input, init) =>
+    const backend = connectDesktopWelcome('http://127.0.0.1:1234/', 'host-cookie', async (input, init) =>
       init?.method === 'POST' ? shared.fetch(new Request(input, init), connection.browserPeer) : new Response(''))
     await expect(backend.analyticsEnabled()).resolves.toBe(enabled ?? false)
     if (enabled === true) {
@@ -37,7 +37,7 @@ describe('native desktop welcome', () => {
   })
 
   it.each([401, 403, 500])('reports an analytics HTTP %s failure instead of treating it as an absent service', async (status) => {
-    const backend = await connectDesktopWelcome('http://127.0.0.1:1234/', async (_input, init) =>
+    const backend = connectDesktopWelcome('http://127.0.0.1:1234/', 'host-cookie', async (_input, init) =>
       new Response('', { status: init?.method === 'POST' ? status : 200 }))
     await expect(backend.analyticsEnabled()).rejects.toThrow(`Web request failed (${String(status)})`)
   })
@@ -67,10 +67,13 @@ describe('native desktop welcome', () => {
         'credentials/set': undefined,
       }
       expect(input).toContain(`/api/${request.method}`)
+      expect(new Headers(init.headers).get('cookie')).toBe('host-cookie')
+      expect(input).not.toContain('one-time')
+      expect(init.redirect).toBe('error')
       return Response.json({ type: 'server-response', rpcId: request.rpcId, result: { ok: true, value: values[request.method] } })
     }
-    const backend = await connectDesktopWelcome('http://127.0.0.1:1234/?auth=one-time', send)
-    expect(await backend.read()).toEqual({ loggedIn: false, hasApiKey: false, writable: true, localePreference: 'zh-CN' })
+    const backend = connectDesktopWelcome('http://127.0.0.1:1234/?auth=one-time', 'host-cookie', send)
+    expect(await backend.read()).toEqual({ loggedIn: false, hasApiKey: false, writable: true, localePreference: 'zh-CN', themePreference: 'system' })
     expect(await backend.save('sk-valid')).toEqual({ ok: true })
     expect(await backend.save('invalid key')).toEqual({ ok: false })
     expect(calls.filter(call => call === 'credentials/set')).toHaveLength(1)

@@ -911,22 +911,17 @@ describe('DockSurface', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('anchors below the chip and clamps the menu when the chip extends past the viewport', () => {
+  it('binds the menu to the clicked chip and removes the anchor on dismissal', () => {
     const controller = seededController()
-    let left = 10
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return this.hasAttribute('data-dockkit-tab') ? box(left, 4, 60, 26) : box(0, 0, 0, 0)
-    })
-    const { unmount } = renderSurface(controller, spyIntents())
-    fireEvent.contextMenu(screen.getByRole('tab'))
-    expect(screen.getByRole('menu').style.top).toBe('34px')
-    expect(screen.getByRole('menu').style.left).toBe('10px')
-    unmount()
-
-    left = window.innerWidth + 100
     renderSurface(controller, spyIntents())
-    fireEvent.contextMenu(screen.getByRole('tab'))
-    expect(screen.getByRole('menu').style.left).toBe(`${window.innerWidth - 4}px`)
+    const tab = screen.getByRole('tab')
+    fireEvent.contextMenu(tab)
+    const anchorName = tab.style.getPropertyValue('anchor-name')
+    expect(anchorName).toMatch(/^--dsh-tab-menu-/)
+    expect(screen.getByRole('menu').style.getPropertyValue('position-anchor')).toBe(anchorName)
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(tab.style.getPropertyValue('anchor-name')).toBe('')
   })
 
   it('offers no copy or float item: those gestures are the embedder\'s API and the drag', () => {

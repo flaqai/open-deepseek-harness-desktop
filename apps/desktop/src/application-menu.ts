@@ -147,7 +147,11 @@ export function applicationMenuTemplate(
     group('file', [item('new-session'), item('open-config'),
       ...(['darwin', 'win32'].includes(state.platform) ? [item('open-web')] : []), separator,
       ...(!mac ? [item('settings'), separator] : []), item('close'), ...(!mac ? [item('quit')] : [])]),
-    group('edit', [item('undo'), item('redo'), separator, item('cut'), item('copy'), item('paste'), item('select-all'),
+    group('edit', [item('undo'), item('redo'), separator, item('cut'), item('copy'), item('paste'),
+      ...(mac ? [
+        { role: 'pasteAndMatchStyle' as const, accelerator: 'Shift+Command+V' },
+        { role: 'pasteAndMatchStyle' as const, accelerator: 'Option+Shift+Command+V', visible: false, acceleratorWorksWhenHidden: true },
+      ] : []), item('select-all'),
       ...(mac ? [separator, item('emoji')] : [])]),
     group('view', [item('zoom-in'), item('zoom-out'), item('zoom-reset'), separator, item('fullscreen'),
       ...(state.development ? [separator, item('devtools')] : [])]),

@@ -1189,6 +1189,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'toggle.collapse': 'Свернуть боковую панель'
   },
   'entryCustomization': {
+    'pinTooltip': 'Закрепить на левой боковой панели',
+    'pin': 'Закрепить {name} на боковой панели',
     install: 'Просмотреть другие плагины',
     create: 'Создать свой плагин',
     'createPrompt.sidebar': 'Создай плагин DSH с пунктом в левой боковой панели.',

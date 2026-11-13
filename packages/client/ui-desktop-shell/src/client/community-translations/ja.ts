@@ -1186,6 +1186,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'toggle.collapse': 'サイドバーを折りたたむ'
   },
   'entryCustomization': {
+    'pinTooltip': '左サイドバーに固定',
+    'pin': '{name}をサイドバーに固定',
     install: '他のプラグインを見る',
     create: 'プラグインを作成',
     'createPrompt.sidebar': '左サイドバーに入口を持つ DSH プラグインを作成してください。',

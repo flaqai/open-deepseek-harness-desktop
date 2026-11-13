@@ -11,7 +11,7 @@ description: "客户端 Menu 调用方须将矩形回调替换为元素引用或
 
 `@deepseek-ai/dsh-client-ui-primitives` 将 `Menu.getAnchorRect` 替换为用于外部触发元素的 `anchorRef` 或用于指针菜单的 `anchorPoint`。Portal 菜单使用官方 rc.2 的 CSS 锚点定位实现，浏览器须支持对应属性；定位跟随布局视口，不再将所有面板约束在视觉视口内。既有选区保留、复选行及键盘操作仍可使用。
 
-本次社区迁移为 Menu 之外的自定义面板保留 `useAnchoredPosition` 和 `AnchoredPositionOptions`。这些面板的迁移另行进行，调用方不能假定它们已经移除。
+`useAnchoredPosition` 和 `AnchoredPositionOptions` 已移除。自定义面板须为触发元素设置唯一的 CSS `anchor-name`，并为弹层设置对应的 `position-anchor`，在 CSS 中声明定位和尺寸限制。
 
 ## 迁移
 

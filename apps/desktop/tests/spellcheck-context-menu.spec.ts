@@ -11,13 +11,15 @@ function fixture() {
     copy: vi.fn(), paste: vi.fn(), selectAll: vi.fn(),
     session: { addWordToSpellCheckerDictionary: vi.fn() },
   })
+  const editableContents: Pick<WebContents, 'getURL' | 'isDestroyed' | 'send' | 'replaceMisspelling' | 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'selectAll'> = renderer
+  const webContents = editableContents as WebContents
   const spelling = { available: true, enabled: () => true, setEnabled: vi.fn() }
   let trusted = true
   vi.mocked(ipcMain).handle.mockClear()
-  const dispose = installSpellingContextMenu(renderer as unknown as WebContents, () => trusted, spelling)
+  const dispose = installSpellingContextMenu(webContents, () => trusted, spelling)
   const handler = vi.mocked(ipcMain).handle.mock.calls[0]![1]
   const invoke = (event: Electron.IpcMainInvokeEvent, action: unknown): void => { handler(event, action) }
-  const event = { sender: renderer, senderFrame: renderer.mainFrame } as unknown as Electron.IpcMainInvokeEvent
+  const event = { sender: webContents, senderFrame: renderer.mainFrame as Electron.WebFrameMain } as Electron.IpcMainInvokeEvent
   const params = {
     isEditable: true, formControlType: 'input-text', misspelledWord: 'wrold', dictionarySuggestions: ['world', 'word'],
     frame: renderer.mainFrame, frameURL: renderer.getURL(), x: 4, y: 5,

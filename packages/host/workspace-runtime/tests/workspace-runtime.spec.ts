@@ -11,7 +11,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as workspaceRuntime from '../src/index.ts'
-import { readWorkspaceRuntimePayload, resolveWorkspaceDependencies } from '../src/index.ts'
+import { readWorkspaceRuntimePayload, resolveWorkspaceDependencies } from '../src/payload.ts'
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))) })
@@ -113,8 +113,10 @@ describe('host workspace-runtime adapter', () => {
       await ctx.loader.await()
       for (const entry of ctx.loader.entries()) await entry.fiber?.await()
       expect((await ctx.skills.list()).map(skill => skill.name)).toEqual([
-        'office', 'office-docx', 'office-export-pdf', 'office-pptx', 'office-recalculate', 'office-render', 'office-xlsx',
+        'office', 'office-docx', 'office-pptx', 'office-xlsx',
       ])
+      expect((await ctx.skills.get('office-docx'))?.content).toContain('call `load_workspace_dependencies`')
+      expect((await ctx.skills.get('office-docx'))?.content).not.toContain('`python3` or `python` on PATH')
       expect(ctx.tools.schemas().map(tool => tool.name)).toEqual(['load_workspace_dependencies'])
       const entry = [...ctx.loader.entries()].find(entry => entry.options.name === 'workspace-runtime')
       await entry?.fiber?.dispose()

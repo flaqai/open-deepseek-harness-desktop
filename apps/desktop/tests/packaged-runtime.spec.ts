@@ -14,7 +14,7 @@ async function createRuntime(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-packaged-runtime-'))
   roots.push(root)
   await mkdir(join(root, 'lib'), { recursive: true })
-  await mkdir(join(root, 'node_modules', '@deepseek-ai', 'cosmokit'), { recursive: true })
+  await mkdir(join(root, 'node_modules', '@deepseek-ai/cosmokit'), { recursive: true })
   await mkdir(join(root, 'package-runtime', 'bin'), { recursive: true })
   await writeFile(join(root, 'lib', 'bin.js'), '')
   await writeFile(join(root, 'package-runtime', 'bin', 'node'), '')

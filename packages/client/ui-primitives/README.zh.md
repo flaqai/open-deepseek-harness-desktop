@@ -69,7 +69,6 @@ kind: "package-library"
 | `HoverCard`、`HoverCardGroup` | 可阅读、可选带复制按钮的悬停预览；物理列表可选择让卡片共享首次显示等待，并互斥显示。 |
 | `DraggableImage` | 通过显式传递与反馈回调提供原图拖放。 |
 | `ImageLightbox` | 共享图片浮层，支持焦点恢复与 Esc 关闭。 |
-| `useAnchoredPosition` | 随浏览器缩放、滚动和尺寸变化持续跟随锚点的 fixed 面板坐标。 |
 | `Toast` | 顶部居中的瞬时横幅，保持时长由所有者的 `holdMs` 决定。 |
 | `SettingsForm`、`SettingsValueField`、`SettingsSecretField` | 插件设置页的框架与控件：框架以 `labels` 接收文案，只在按钮点击时保存，卸载即丢弃；值字段显示暂存文本以及已覆盖标签和重置；密文字段每次为空，请求浏览器不要自动填入已保存的密码，只报告是否已配置。 |
 | `SettingsFormModel`、`settingsNumberField`、`settingsTextField` | 这类页面背后基于设置 scope 的暂存编辑模型：草稿先暂存、保存时写入，字段是否被覆盖看用户层是否含有它，未落地的保存保留草稿。 |
@@ -99,7 +98,7 @@ kind: "package-library"
 
 ### 控件与图标
 
-Portal 模式的 `Menu` 使用 CSS 锚点相对布局视口定位，保留 12px 边距和共享桌面顶部避让。`anchorRef` 指向外部入口元素；`anchorPoint` 捕获上下文菜单的鼠标 client 坐标，每次打开仅校正一次 Safari 可视视口偏移。`getAnchorRect` 不再是 Menu 属性。锚点宽度匹配与可用空间回退由 CSS 负责；子菜单有足够空间时在侧边打开，否则转为带返回入口的单页。Menu 需要浏览器支持 CSS 锚点定位，不提供 JavaScript 定位回退；其他自定义面板在独立迁移前仍可使用单独导出的 `useAnchoredPosition`。`autoFocus` 等待外部锚点可用后聚焦首个可用行，支持上下方向键及 Home/End，并在 Escape 时恢复焦点。社区复选菜单行、菜单名称和保留选区的指针操作继续可用。
+Portal 模式的 `Menu` 使用 CSS 锚点相对布局视口定位，保留 12px 边距和共享桌面顶部避让。`anchorRef` 指向外部入口元素；`anchorPoint` 捕获上下文菜单的鼠标 client 坐标，每次打开仅校正一次 Safari 可视视口偏移。`getAnchorRect` 不再是 Menu 属性。锚点宽度匹配与可用空间回退由 CSS 负责；子菜单有足够空间时在侧边打开，否则转为带返回入口的单页。Menu 需要浏览器支持 CSS 锚点定位，不提供 JavaScript 定位回退；自定义面板也采用 CSS 锚点，`useAnchoredPosition` 和 `AnchoredPositionOptions` 已不再导出。`autoFocus` 等待外部锚点可用后聚焦首个可用行，支持上下方向键及 Home/End，并在 Escape 时恢复焦点。社区复选菜单行、菜单名称和保留选区的指针操作继续可用。
 
 `Tooltip` 在悬停或键盘聚焦时读取锚点位置，再根据 `ResizeObserver` 提供的边框盒尺寸调整气泡。首次定位前保持隐藏，优先使用指定方向，再尝试相反方向和垂直于该方向的两侧；只要某一侧容得下，就沿锚点平移而不遮挡锚点。左右放置保留 10px 间距，上下放置使用 `gap`（默认 8px）。宽高限制在视口内并保留 12px 边距；文本自动换行，超出视口高度的内容在固定气泡后可滚动。若所有方向都放不下，则使用稳定的视口内回退位置，可能遮挡锚点。视口尺寸变化会重新读取锚点坐标，标签尺寸变化则复用坐标；定位不会同步测量气泡，也不会触发 React 渲染。 触摸按下会关闭未固定的提示，且不会触发悬停提示，包括触摸后的兼容鼠标事件。只有 `(any-hover: hover)` 表明存在可悬停的输入设备时，鼠标进入才会打开提示，从而排除 iOS 因已点击图标变化而生成的鼠标进入事件。仅有触摸输入的设备仍可使用键盘聚焦提示和显式点击打开的说明。信息按钮可显式启用 `openOnClick`，通过鼠标或触摸点击固定气泡供阅读，并将内容关联为锚点的无障碍描述；再次点击、Escape、Tab 或外部 pointerdown 会关闭。普通操作按钮在触摸点击时直接执行操作，不显示 Tooltip。可选的 `onlyWhenClipped` 只在气泡即将显示时锚点或其内部某个 HTML 元素横向溢出才显示气泡，因此重复被省略号截断文本的标签只在能补充信息时出现。
 
@@ -174,7 +173,7 @@ Portal 模式的 `Menu` 使用 CSS 锚点相对布局视口定位，保留 12px 
 | [`src/code-highlighting.ts`](src/code-highlighting.ts) | 共享的文件名 grammar 选择与惰性逐行高亮 |
 | [`src/input-modality.ts`](src/input-modality.ts) | 全文档输入模态，发布到 `<html>` |
 | [`src/plugin-artwork.tsx`](src/plugin-artwork.tsx) | 固定配色插件插画，SVG def id 按实例生成 |
-| [`src/useAnchoredPosition.ts`](src/useAnchoredPosition.ts) / [`src/useAnchoredMaxHeight.ts`](src/useAnchoredMaxHeight.ts) | 浮动面板与浮层几何钩子 |
+| [`src/useAnchoredMaxHeight.ts`](src/useAnchoredMaxHeight.ts) | 浮动面板与浮层几何钩子 |
 | [`src/settings-form/`](src/settings-form/) | 设置页套件：基于设置 scope 的暂存表单模型、值字段与密文字段、表单框架 |
 
 <a id="input-modality"></a>

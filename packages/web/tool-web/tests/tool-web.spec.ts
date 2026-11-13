@@ -1,3 +1,4 @@
+import { HARNESS_IDENTITY_TEXT } from '@deepseek-ai/dsh-system-prompt/src/identity.ts'
 import { ToolExecutionPipeline } from '@deepseek-ai/dsh-tools/pipeline'
 import { executeToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
@@ -7,7 +8,7 @@ import type { Agent, ModelSelection } from '@deepseek-ai/dsh-agent'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import TurndownService from 'turndown'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import SystemPrompt, { HARNESS_IDENTITY_TEXT, renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type ResolvedToolSet, type ToolExecutionInput, type ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import WebRuntime from '@deepseek-ai/dsh-web'
@@ -978,6 +979,32 @@ describe('searchMaxQueries is plugin config', () => {
     expect(out.isError).toBe(true)
     expect(out.content).toEqual([{ type: 'text', text: 'Error: queries must contain at most 2 queries' }])
     expect(seen).toEqual([])
+    await fiber.dispose()
+  })
+
+  it('accepts 10 queries by default, returns a source for each, and rejects 11', async () => {
+    const seen: string[] = []
+    const provider: WebSearchProvider = {
+      id: 'stub-search',
+      available: () => available,
+      search: (request) => {
+        seen.push(request.query)
+        return Promise.resolve({
+          sources: [1, 2].map(rank => ({ url: `https://${request.query}.test/${rank}` })),
+          truncated: false,
+        })
+      },
+    }
+    const { fiber, call } = await mountTools({ webConfig: { searchProvider: 'stub-search' }, search: provider })
+    const queries = Array.from({ length: 10 }, (_, index) => `q${index}`)
+    const out = await call('web_search', { queries })
+    expect(out.isError).toBeFalsy()
+    expect(seen).toEqual(queries)
+    const text = JSON.stringify(out.content)
+    for (const query of queries) expect(text).toContain(`https://${query}.test/1`)
+    expect(text).not.toContain('.test/2')
+    const rejected = await call('web_search', { queries: [...queries, 'q10'] })
+    expect(rejected.content).toEqual([{ type: 'text', text: 'Error: queries must contain at most 10 queries' }])
     await fiber.dispose()
   })
 

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Browsersteuerung: Konnektoren",
+    "description": "Enthält Playwright- und DevTools-Konnektoren; die Auswahl dieses Pakets aktiviert Playwright mit einem lokalen Browser."
+  }
+}

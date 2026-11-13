@@ -37,3 +37,34 @@ export async function clearStaleHarnessAuthCookies(
   await Promise.all(names.map(name => store.remove(url, name)))
   return names.length
 }
+
+/**
+ * Exchange the current local startup token without reading or updating a browser cookie jar.
+ * @param harnessUrl - Current supervised Host URL, including its launch token.
+ * @param send - Node HTTP client; redirects are never followed.
+ * @returns The one Host-owned authentication cookie for native welcome RPC and streams.
+ * @throws When the origin, exchange response or authentication cookie is invalid.
+ */
+export async function authenticateHarnessWelcome(
+  harnessUrl: string,
+  send: typeof fetch = fetch,
+): Promise<string> {
+  const origin = loopbackCookieUrl(harnessUrl)
+  const response = await send(harnessUrl, { redirect: 'manual', credentials: 'omit' })
+  try {
+    const location = response.headers.get('location')
+    if (response.status !== 303 || location === null || new URL(location, harnessUrl).href !== origin) {
+      throw new Error('desktop welcome: Web authentication failed')
+    }
+    const cookies = response.headers.getSetCookie().map(value => value.split(';', 1)[0] ?? '')
+      .filter((value) => {
+        const separator = value.indexOf('=')
+        return separator > 0 && separator < value.length - 1 && HARNESS_AUTH_COOKIE.test(value.slice(0, separator))
+      })
+    const cookie = cookies[0]
+    if (cookies.length !== 1 || cookie === undefined) throw new Error('desktop welcome: Host authentication cookie is missing or ambiguous')
+    return cookie
+  } finally {
+    await response.body?.cancel()
+  }
+}

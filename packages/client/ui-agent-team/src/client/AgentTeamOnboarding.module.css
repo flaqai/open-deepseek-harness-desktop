@@ -1,0 +1,95 @@
+.composerHint {
+  display: inline-flex;
+  align-items: stretch;
+  flex-direction: column;
+  min-width: 0;
+  max-width: min(520px, 100%);
+  border: 1px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 42%, transparent);
+  border-radius: 999px;
+  corner-shape: round;
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, var(--dsw-alias-bg-base));
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.prompt,
+.dismiss {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 6px 4px 10px;
+  font: inherit;
+}
+
+.prompt span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+
+.prompt:hover {
+  color: var(--dsw-alias-label-primary);
+}
+}
+
+.dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  corner-shape: round;
+}
+
+@media (hover: hover) {
+
+.dismiss:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+}
+
+.prompt:focus-visible,
+.dismiss:focus-visible {
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 1px;
+}
+
+@media (max-width: 680px) {
+  .composerHint {
+    max-width: calc(100vw - 32px);
+  }
+
+  .prompt,
+  .dismiss {
+    min-height: 44px;
+  }
+
+  .dismiss {
+    min-width: 44px;
+  }
+}
+
+.location {
+  padding: 6px 10px 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.hintActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

@@ -1,3 +1,4 @@
+import { renderCustomInstruction } from './prompt.ts'
 /** Global and Workspace-scoped user instructions injected into every matching Agent. */
 
 import type { Context, Volatile } from '@deepseek-ai/cordis'
@@ -15,7 +16,6 @@ import {
 } from './types.ts'
 
 export type * from './types.ts'
-export { CUSTOM_INSTRUCTION_MAX_CHARS, CUSTOM_INSTRUCTIONS_SETTINGS_NAMESPACE } from './types.ts'
 
 /** Cordis plugin name. */
 export const name = 'custom-instructions'
@@ -32,15 +32,6 @@ const VersionSchema: z<CustomInstructionVersion> = z.object({
 const HistorySchema: z<CustomInstructionHistory> = z.object({
   activeVersion: z.string().min(1),
   versions: z.array(VersionSchema).default([]),
-})
-
-/** Runtime schema for the settings document section. */
-export const SettingsSchema: z<CustomInstructionSettings> = z.object({
-  global: HistorySchema.default({ versions: [] }),
-  workspaces: z.dict(HistorySchema).default({}),
-  diagnosticExport: z.object({
-    preference: z.union(['ask', 'include', 'exclude']).default('ask'),
-  }).default({ preference: 'ask' }),
 })
 
 /** Profile-owned live values; the settings form writes only these fields. */
@@ -69,20 +60,6 @@ function activeVersion(history: {
   return history.versions.find(version => version.id === history.activeVersion)
 }
 
-/**
- * Render one saved revision with stable attribution for Session diagnostics.
- * @param scope - global or Workspace identity.
- * @param version - active immutable revision.
- * @returns model-visible text, or an empty contribution when disabled.
- */
-export function renderCustomInstruction(
-  scope: string,
-  version: CustomInstructionVersion | undefined,
-): string {
-  if (version === undefined || version.text.trim().length === 0) return ''
-  const scopeAttribute = scope === 'global' ? 'global' : `workspace:${scope}`
-  return `<custom-instructions scope="${scopeAttribute}" version="${version.id}">\n${version.text}\n</custom-instructions>`
-}
 
 function workspaceIdOf(ctx: Context, agent: Agent): string | undefined {
   const cwd = agent.session.header.cwd

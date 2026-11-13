@@ -10,7 +10,7 @@ let remembered = defaults
  */
 export function usePanelSize(): {
   style: CSSProperties
-  start: (edge: string, event: ReactPointerEvent<HTMLElement>) => void
+  start: (edge: string, event: Pick<ReactPointerEvent<HTMLElement>, 'button' | 'clientX' | 'clientY' | 'pointerId' | 'preventDefault' | 'stopPropagation'>) => void
   reset: () => void
   dividerDragging: boolean
 } {

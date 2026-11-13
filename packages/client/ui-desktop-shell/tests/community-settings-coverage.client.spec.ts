@@ -11,7 +11,7 @@ import { en as en7 } from '../../ui-settings-web-search/src/client/locales.ts'
 import { en as en8 } from '../../ui-theme/src/client/locales.ts'
 import { en as en9 } from '../../ui-trajectory/src/client/locales.ts'
 import { en as en10 } from '../../ui-workspace/src/client/locales.ts'
-import { en as en11 } from '../../../experimental/client-ui-agent-team/src/client/locales.ts'
+import { en as en11 } from '../../ui-agent-team/src/client/locales.ts'
 import { en as en12 } from '../../../session-query/session-log-export/src/client/locales.ts'
 
 it('keeps every community settings label translated in Korean with matching format arguments', () => {

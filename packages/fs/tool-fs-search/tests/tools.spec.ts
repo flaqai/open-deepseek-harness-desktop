@@ -1,3 +1,4 @@
+import { HARNESS_IDENTITY_TEXT } from '@deepseek-ai/dsh-system-prompt/src/identity.ts'
 /**
  * Consumer-surface tests for the search tools over a FAKE subprocess service
  * and a FAKE spill backend, exercised through `executeToolFixture()` so nothing
@@ -19,7 +20,7 @@ import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import { join, sep } from 'node:path'
 import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ContextFormed } from '@deepseek-ai/dsh-llm'
-import SystemPrompt, { HARNESS_IDENTITY_TEXT, renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { TOOL_ABORTED_BEFORE_DISPATCH, type ToolExecution, type ToolExecutionToken } from '@deepseek-ai/dsh-tools'
 import { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import type { SubprocessCollectedOutputs, SubprocessHandle, SubprocessOutcome, SubprocessOutputRead, SubprocessOutputReader, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
@@ -257,6 +258,12 @@ describe('registration', () => {
     expect(prompt).toContain('Use the grep tool')
     const glob = ctx.tools.schemas().find(schema => schema.name === 'glob')
     expect(glob?.description).toContain('sampled across top-level entries')
+  })
+
+  it('declares glob and grep parallel-safe', async () => {
+    const { ctx } = await setup()
+    expect(ctx.tools.get('glob')?.isConcurrencySafe?.({ pattern: '*.ts' })).toBe(true)
+    expect(ctx.tools.get('grep')?.isConcurrencySafe?.({ pattern: 'x' })).toBe(true)
   })
 
   it('stays pending until ctx.subprocess exists (inject)', async () => {
@@ -754,8 +761,14 @@ describe('glob results', () => {
 
   it('validates arguments (blank pattern, blank path)', async () => {
     const { ctx } = await setup()
-    expect(text(await call(ctx, 'glob', { pattern: '  ' }))).toContain('pattern must be a non-empty string')
-    expect(text(await call(ctx, 'glob', { pattern: '*', path: ' ' }))).toContain('path must be a non-empty string')
+    for (const [args, message] of [
+      [{ pattern: '  ' }, 'pattern must be a non-empty string'],
+      [{ pattern: '*', path: ' ' }, 'path must be a non-empty string'],
+    ] as const) {
+      const result = await call(ctx, 'glob', args)
+      expect(text(result)).toContain(message)
+      expect(result.error?.info).toEqual({ name: 'ToolArgsError', code: 'INVALID_ARGS' })
+    }
   })
 
   it('threads a valid path through to the spawn as the plain search root element', async () => {
@@ -1100,16 +1113,23 @@ describe('grep results', () => {
     const result = await call(ctx, 'grep', args)
     expect(result.isError).toBe(true)
     expect(text(result)).toContain(message)
+    expect(result.error?.info).toEqual({ name: 'ToolArgsError', code: 'INVALID_ARGS' })
     expect(subprocess.spawns).toHaveLength(0)
   })
 
   it('validates arguments (empty pattern, blank path, bad include)', async () => {
     const { ctx } = await setup()
-    expect(text(await call(ctx, 'grep', { pattern: '' }))).toContain('pattern must be a non-empty string')
-    expect(text(await call(ctx, 'grep', { pattern: 'x', path: '  ' }))).toContain('path must be a non-empty string')
-    expect(text(await call(ctx, 'grep', { pattern: 'x', include: '  ' }))).toContain('include must be a non-empty glob')
-    expect(text(await call(ctx, 'grep', { pattern: 'x', include: '!*.ts' }))).toContain('negated patterns')
-    expect(text(await call(ctx, 'grep', { pattern: 'x', include: '*.ts,*.js' }))).toContain('comma-separated list')
+    for (const [args, message] of [
+      [{ pattern: '' }, 'pattern must be a non-empty string'],
+      [{ pattern: 'x', path: '  ' }, 'path must be a non-empty string'],
+      [{ pattern: 'x', include: '  ' }, 'include must be a non-empty glob'],
+      [{ pattern: 'x', include: '!*.ts' }, 'negated patterns'],
+      [{ pattern: 'x', include: '*.ts,*.js' }, 'comma-separated list'],
+    ] as const) {
+      const result = await call(ctx, 'grep', args)
+      expect(text(result)).toContain(message)
+      expect(result.error?.info).toEqual({ name: 'ToolArgsError', code: 'INVALID_ARGS' })
+    }
   })
 
   it('accepts a whitespace-only pattern (a legitimate regex) and brace alternation in include', async () => {

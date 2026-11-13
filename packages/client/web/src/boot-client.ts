@@ -4,13 +4,33 @@
  * activation. `AppWebEntry` and the whole-client test carrier both call it.
  * @module @deepseek-ai/dsh-client-web/src/boot-client
  */
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Fiber } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import type { BootManifest, ClientModuleLoader } from '@deepseek-ai/dsh-client-modules/client'
 import { STATE_LABELS } from './loader-status.ts'
 
 /** Entry state label as the boot page renders it. */
 export type EntryStateLabel = (typeof STATE_LABELS)[keyof typeof STATE_LABELS] | 'loading' | 'failed'
+
+/**
+ * Entry names whose presence defines a usable Web client.
+ *
+ * The list is global rather than page or profile metadata. A name absent from
+ * the boot manifest does not affect startup; a listed entry that is present
+ * must activate. The list covers the module system, Session control, the
+ * renderer and application frame, and the Session view with its sidebar. It is
+ * the minimum fatal set: an entry that a listed entry waits on leaves it
+ * inactive, so that entry's failure also rejects startup.
+ */
+const requiredClientEntryNames = new Set<string>([
+  '@deepseek-ai/dsh-client-modules',
+  '@deepseek-ai/dsh-api-session-controller',
+  '@deepseek-ai/dsh-client-ui-renderer',
+  '@deepseek-ai/dsh-client-ui-layout',
+  '@deepseek-ai/dsh-client-ui-session',
+  '@deepseek-ai/dsh-client-ui-chat',
+  '@deepseek-ai/dsh-client-ui-sidebar',
+])
 
 /** Inputs of {@link bootClient}. */
 export interface ClientBootOptions {
@@ -28,10 +48,11 @@ export interface ClientBootOptions {
  * Compose the client: `ctx.plugin(Loader)`, `loader.internal = modules`, one
  * `loader.create({ name })` per manifest row, `loader.await()`, then
  * {@link assertEntriesActive}. A row whose module cannot be imported is marked
- * failed; the Loader logs its import error and the module system records it.
- * Official application-shell failures reject startup; optional extensions warn.
+ * failed; the Loader logs its import error, the module system records it, and
+ * the audit reports that error text per entry.
  * @param options - context, module system, manifest, optional progress sink.
- * @returns resolves after required entries are active; rejects with their audit report otherwise.
+ * @returns resolves after the audit accepts the tree, including after optional-entry warnings;
+ * rejects with the audit report when a required entry is inactive.
  */
 export async function bootClient(options: ClientBootOptions): Promise<void> {
   const { ctx, manifest, onEntryState } = options
@@ -53,48 +74,76 @@ export async function bootClient(options: ClientBootOptions): Promise<void> {
   }
 
   await loader.await()
-  assertEntriesActive(ctx, options.modules)
-}
-
-/** Official client packages are part of the application shell; external packages are optional extensions. */
-function isRequiredEntry(name: string): boolean {
-  return name.startsWith('@deepseek-ai/')
+  await assertEntriesActive(ctx, options.modules)
 }
 
 /**
  * Audit entries that failed import/apply or still wait on missing services.
- * External package failures are warnings; official application-shell failures
- * remain fatal.
+ * An inactive entry named in the required list rejects startup; other
+ * inactive entries produce one warning and leave active siblings running.
+ * A failed entry reports its recorded activation error; reading it awaits
+ * only failed fibers, which have settled by the time the Loader has.
  * @param ctx - root Context carrying the Loader.
- * @param modules - optional module-system import errors for actionable diagnostics.
- * @throws {Error} listing every non-active required entry with its reason.
+ * @param modules - the module system whose recorded import failures name why an entry
+ *   has no fiber; a row with no record points at the console. An entry without a fiber
+ *   failed to import or was rejected at creation (its module exports no plugin); like the
+ *   Host audit's `failed to import`, both are reported as an import failure.
+ * @param warn - sink for the optional-entry warning.
+ * @returns resolves after any optional-entry warning.
+ * @throws {Error} rejects when a required entry is inactive, listing every non-active entry with its
+ *   reason and marking the required ones; no warning is written in that case.
  */
-export function assertEntriesActive(ctx: Context, modules?: Pick<ClientModuleLoader, 'importError'>): void {
-  const requiredFailures: string[] = []
-  const optionalFailures: string[] = []
+export async function assertEntriesActive(
+  ctx: Context,
+  modules: Pick<ClientModuleLoader, 'importError'>,
+  warn: (message: string) => void = (message) => { console.warn(message) },
+): Promise<void> {
+  const failures: { name: string; reason: string }[] = []
   for (const entry of ctx.loader.entries()) {
     const name = entry.options.name
-    const failures = isRequiredEntry(name) ? requiredFailures : optionalFailures
     if (entry.fiber === undefined) {
-      const importError = modules?.importError(name)
-      failures.push(importError === undefined
-        ? `${name}: import failed (see console for the import error)`
-        : `${name}: import failed: ${importError.message}`)
+      const importError = modules.importError(name)
+      failures.push({
+        name,
+        reason: importError === undefined
+          ? 'import failed (see console for the import error)'
+          : `import failed: ${importError.message}`,
+      })
       continue
     }
     const state = STATE_LABELS[entry.fiber.state]
     if (state === 'active') continue
     if (state === 'pending') {
       const missing = Object.keys(entry.fiber.inject).filter(service => ctx.get(service) === undefined)
-      failures.push(`${name}: pending (waiting for service${missing.length === 1 ? '' : 's'}: ${missing.join(', ') || 'unknown'})`)
+      failures.push({ name, reason: `pending (waiting for service${missing.length === 1 ? '' : 's'}: ${missing.join(', ') || 'unknown'})` })
+    } else if (state === 'failed') {
+      failures.push({ name, reason: await activationFailure(entry.fiber) })
     } else {
-      failures.push(`${name}: ${state}`)
+      failures.push({ name, reason: state })
     }
   }
-  if (optionalFailures.length > 0) {
-    ctx.logger.warn(`web boot: optional client plugin${optionalFailures.length === 1 ? '' : 's'} did not activate\n${optionalFailures.join('\n')}`)
+  if (failures.length === 0) return
+  const isRequired = (name: string): boolean => requiredClientEntryNames.has(name)
+  const required = failures.filter(({ name }) => isRequired(name)).length
+  if (required > 0) {
+    const lines = failures.map(({ name, reason }) => `${name}${isRequired(name) ? ' (required)' : ''}: ${reason}`)
+    throw new Error(`web boot: ${String(required)} required ${entryNoun(required)} did not activate\n${lines.join('\n')}`)
   }
-  if (requiredFailures.length > 0) {
-    throw new Error(`web boot: ${String(requiredFailures.length)} entr${requiredFailures.length === 1 ? 'y' : 'ies'} did not activate\n${requiredFailures.join('\n')}`)
+  const lines = failures.map(({ name, reason }) => `${name}: ${reason}`)
+  warn(`web boot: warning: ${String(failures.length)} ${entryNoun(failures.length)} did not activate\n${lines.join('\n')}`)
+}
+
+/** Singular or plural noun for an entry count in audit reports. */
+function entryNoun(count: number): string {
+  return count === 1 ? 'entry' : 'entries'
+}
+
+/** A failed fiber's recorded activation error; Cordis exposes it only through `await()`, which rethrows it. */
+async function activationFailure(fiber: Pick<Fiber, 'await'>): Promise<string> {
+  try {
+    await fiber.await()
+  } catch (error) {
+    return `failed: ${String(error)}`
   }
+  return 'failed'
 }

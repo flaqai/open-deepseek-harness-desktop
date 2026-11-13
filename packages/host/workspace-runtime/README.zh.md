@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-此适配模块通过 `load_workspace_dependencies` 暴露由应用管理的 Python 载荷。受信任的桌面主进程提供绝对路径；插件在注册工具前校验载荷元数据和路径。配置 `office: true` 时，它还会注册随应用提供的 DOCX、PPTX 和 XLSX 技能。它本身不下载、解压、启用或删除载荷。
+此适配模块通过 `load_workspace_dependencies` 暴露由应用管理的 Python 载荷。受信任的桌面主进程提供绝对路径；插件在注册工具前校验载荷元数据和路径。配置 `office: true` 时，它还会以 `pythonEnvironment: workspace-dependencies` 注册随应用提供的 DOCX、PPTX 和 XLSX 技能，让创作使用此适配器返回的托管或用户选定的 Python。它本身不下载、解压、启用或删除载荷。
 
 **运行时不变量：**不发布配套组件。Desktop 运行时管理器先校验载荷，此适配器再通过 Profile 挂载载荷。
 

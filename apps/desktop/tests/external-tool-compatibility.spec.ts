@@ -3,7 +3,8 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import manifestJson from '../external-tools/manifests/0.2.2-rc.1/external-tools-compatibility.v2.json'
+import desktopPackageJson from '../package.json'
+import manifestJson from '../external-tools/manifests/0.2.2-rc.2/external-tools-compatibility.v2.json'
 import alpha223ManifestJson from '../external-tools/manifests/0.2.2-alpha.3/external-tools-compatibility.v2.json'
 import rc223ManifestJson from '../external-tools/manifests/0.2.1-rc.2.3/external-tools-compatibility.v2.json'
 import rc222ManifestJson from '../external-tools/manifests/0.2.1-rc.2.2/external-tools-compatibility.v2.json'
@@ -61,11 +62,11 @@ function response(bytes: Uint8Array): Response {
 
 describe('external tool compatibility', () => {
   it('separates the new Desktop identity from published alpha and rc.2 coordinates', () => {
-    expect(manifestJson.desktopVersion).toBe('0.2.2-rc.1')
-    expect(manifestJson.revision).toBe(26)
-    expect(manifestJson.reviewedSourceVersion).toBe('0.2.2-rc.1')
-    expect(manifestJson.issuedAt).toBe('2026-11-06T00:00:00.000Z')
-    expect(manifestJson.expiresAt).toBe('2027-05-06T00:00:00.000Z')
+    expect(manifestJson.desktopVersion).toBe(desktopPackageJson.version)
+    expect(manifestJson.revision).toBe(27)
+    expect(manifestJson.reviewedSourceVersion).toBe(manifestJson.desktopVersion)
+    expect(manifestJson.issuedAt).toBe('2026-11-12T00:00:00.000Z')
+    expect(manifestJson.expiresAt).toBe('2027-05-12T00:00:00.000Z')
     expect(EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY).toEqual(manifestJson)
     expect(alpha223ManifestJson.desktopVersion).toBe('0.2.2-alpha.3')
     expect(alpha223ManifestJson.reviewedSourceVersion).toBe('0.2.2-alpha.3')
@@ -90,7 +91,7 @@ describe('external tool compatibility', () => {
     expect(alpha4ManifestJson.reviewedSourceVersion).toBe('0.2.1-alpha.4')
     expect(alpha4ManifestJson.revision).toBe(18)
     for (const toolId of ['codex', 'claude-code'] as const) {
-      expect(manifestJson.tools[toolId].version).toBe('0.2.2-rc.1')
+      expect(manifestJson.tools[toolId].version).toBe(manifestJson.reviewedSourceVersion)
       expect(manifestJson.tools[toolId].integrity).not.toBe(alpha223ManifestJson.tools[toolId].integrity)
       expect(manifestJson.tools[toolId].runtimePackage).toEqual(alpha223ManifestJson.tools[toolId].runtimePackage)
       expect(manifestJson.tools[toolId].integrity).not.toBe(rc223ManifestJson.tools[toolId].integrity)
@@ -122,7 +123,7 @@ describe('external tool compatibility', () => {
     const published = { name: coordinate.packageName, version: coordinate.version, dependencies,
       peerDependencies: { '@deepseek-ai/dsh-subagent': '0.2.1-alpha.3' } }
     expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, published) })
-      .toThrow('does not accept current core 0.2.2-rc.1')
+      .toThrow(`does not accept current core ${provider.version}`)
     expect(() => { assertExternalToolPublishedProvider(manifest, 'codex', provider, {
       ...published, peerDependencies: { '@deepseek-ai/dsh-subagent': '^0.2.1-alpha.3' },
     }) }).not.toThrow()
@@ -196,7 +197,7 @@ describe('external tool compatibility', () => {
       fetch: fetchMock,
       verifyBundle: async () => {},
     })
-    await expect(manager.resolve('codex')).resolves.toMatchObject({ version: '0.2.2-rc.1', source: 'embedded' })
+    await expect(manager.resolve('codex')).resolves.toMatchObject({ version: manifestJson.tools.codex.version, source: 'embedded' })
   })
 
   it('shares an in-flight refresh across concurrent tool requests', async () => {
@@ -235,7 +236,7 @@ describe('external tool compatibility', () => {
   it('parses exact pins and never creates a floating package spec', () => {
     const manifest = parseExternalToolCompatibilityManifest(manifestJson)
     expect(resolveExternalToolCoordinate(manifest, 'codex', 'embedded')).toMatchObject({
-      packageSpec: '@deepseek-ai/dsh-subagent-codex@0.2.2-rc.1',
+      packageSpec: `${manifestJson.tools.codex.packageName}@${manifestJson.tools.codex.version}`,
       source: 'embedded',
     })
   })
@@ -257,7 +258,7 @@ describe('external tool compatibility', () => {
     })
 
     await expect(manager.resolve('claude-code')).resolves.toMatchObject({
-      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.2-rc.1',
+      packageSpec: `${manifestJson.tools['claude-code'].packageName}@${manifestJson.tools['claude-code'].version}`,
       source: 'remote',
     })
     expect(verifyBundle).toHaveBeenCalledOnce()

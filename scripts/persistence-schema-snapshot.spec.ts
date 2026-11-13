@@ -2,7 +2,8 @@
 
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { parseHistoricalPersistenceSnapshot, parsePersistenceSnapshot } from './persistence-changes.ts'
+import { fileURLToPath } from 'node:url'
+import { classifyPersistenceChange, loadPersistenceHistory, parseHistoricalPersistenceSnapshot, parsePersistenceSnapshot } from './persistence-changes.ts'
 import { canonicalizeSchema, encodePersistenceSnapshot, schemaDigest, type PersistenceSchemaInventory, type SchemaNode } from './persistence-schema-model.ts'
 import { reviewPersistenceSchemas } from './persistence-review.ts'
 import { renderPersistenceSchemaDefinitions } from './render-persistence-schema.ts'
@@ -149,5 +150,41 @@ describe('released inline persistence acknowledgements', () => {
     const current = inventory()
     const legacy = { ...current, roots: current.roots.map(root => ({ ...root, digest: '0'.repeat(64) })) }
     expect(() => parsePersistenceSnapshot(JSON.stringify(legacy))).toThrow('digest mismatch')
+  })
+})
+
+
+describe('retry and principal persistence merge acknowledgement', () => {
+  const mergeId = '2026-11-12-retry-principal-merge'
+  const read = (id: string) => {
+    const path = new URL(`../docs/persistence-changes/${id}.schema.json`, import.meta.url)
+    const text = readFileSync(path, 'utf8')
+    return { path, text, snapshot: parsePersistenceSnapshot(text) }
+  }
+
+  it.each(['2026-10-27-retry-control-input', '2026-10-28-nas-liveshare-principal-merge'])(
+    'retains %s and reports compatibility review in both reader directions', (id) => {
+      const parent = read(id)
+      const merged = read(mergeId)
+      expect(merged.snapshot.roots.map(root => root.key)).toEqual(parent.snapshot.roots.map(root => root.key))
+      for (const after of merged.snapshot.roots) {
+        const before = parent.snapshot.roots.find(root => root.key === after.key)!
+        const forward = classifyPersistenceChange(before, after)
+        const backward = classifyPersistenceChange(after, before)
+        expect(forward.some(change => change.kind === 'union-variants-changed' && change.requiresCompatibilityReview)).toBe(true)
+        expect(backward.some(change => change.kind === 'union-variants-changed' && change.requiresCompatibilityReview)).toBe(true)
+        expect(forward.every(change => !['root-removed', 'root-classification-changed'].includes(change.kind))).toBe(true)
+      }
+      expect(parsePersistenceSnapshot(encodePersistenceSnapshot(parent.snapshot))).toEqual(parent.snapshot)
+      expect(readFileSync(parent.path, 'utf8')).toBe(parent.text)
+    },
+  )
+
+  it('joins both parent chains into one current tip per affected root', () => {
+    const history = loadPersistenceHistory(fileURLToPath(new URL('..', import.meta.url)))
+    for (const root of read(mergeId).snapshot.roots) {
+      expect(history.tips.get(root.key)?.id).toBe(mergeId)
+      expect(history.tips.get(root.key)?.root?.digest).toBe(root.digest)
+    }
   })
 })

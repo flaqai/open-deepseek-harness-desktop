@@ -153,10 +153,10 @@ export async function readPluginInventory(ctx: Context): Promise<LoaderPluginInv
 }
 
 /** Default cap for each collected package-manager stream. */
-export const DEFAULT_INSTALL_OUTPUT_MAX_BYTES = 64 * 1024
+const DEFAULT_INSTALL_OUTPUT_MAX_BYTES = 64 * 1024
 
 /** Default grace before a cancelled installer process is killed. */
-export const DEFAULT_INSTALL_TERMINATION_GRACE_MS = 3_000
+const DEFAULT_INSTALL_TERMINATION_GRACE_MS = 3_000
 
 /** Profile plugin-installer resource policy. */
 export interface Config {
@@ -267,16 +267,16 @@ const REPAIR_REPORT_PREFIX = 'dsh: profile dependency health '
 
 const EXPERIMENTAL_CAPABILITY_RECIPES = {
   'browser-use-playwright-visible': {
-    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.1',
-    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-rc.1'],
+    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.2',
+    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-rc.2'],
   },
   'browser-use-devtools-visible': {
-    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.1',
-    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-rc.1'],
+    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.2',
+    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-rc.2'],
   },
   'computer-use-native': {
-    packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.1',
-    dependencies: ['@deepseek-ai/dsh-computer-use@0.2.2-rc.1'],
+    packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.2',
+    dependencies: ['@deepseek-ai/dsh-computer-use@0.2.2-rc.2'],
   },
   'computer-use-mcp': {
     packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.0-rc.2',

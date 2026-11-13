@@ -58,7 +58,7 @@ it('denies external files, escaping directory links and home control files witho
   vi.spyOn(access, 'device').mockReturnValue({ id: 'reader', role: 'readonly', name: 'Reader',
     createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 100_000).toISOString() })
   await installNasPolicy(ctx, access)
-  await ctx.plugin(WorkspaceFiles, { maxBytes: 1024, maxFileBytes: 1024, maxLines: 100, maxEntries: 100 })
+  await ctx.plugin(WorkspaceFiles, { ...new WorkspaceFiles.Config(), maxBytes: 1024, maxFileBytes: 1024, maxLines: 100, maxEntries: 100 })
   await ctx.plugin(TypertGatewayService)
   const reader = new Peer(ctx, { principal: { kind: 'nas', deviceId: 'reader' } })
   const owner = new Peer(ctx, { principal: { kind: 'owner' } })

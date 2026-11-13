@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Native Computersteuerung",
+    "description": "Enthält den nativen CUA-Anbieter; die Auswahl dieses Pakets aktiviert dessen Werkzeuge und erfordert möglicherweise Systemberechtigungen."
+  }
+}

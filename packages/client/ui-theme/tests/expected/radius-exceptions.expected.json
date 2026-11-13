@@ -73,11 +73,7 @@
     ".instruction: border-radius: 16px",
     ".delivery: border-radius: 8px"
   ],
-  "ui-selection-actions/src/client/SelectionActions.module.css": [
-    ".toolbar: border-radius: 12px",
-    ".action: border-radius: 9px"
-  ],
-  "ui-settings-account/src/client/AccountNotice.module.css": [
+  "ui-account-notifications/src/client/AccountNotifications.module.css": [
     ".card: border-radius: 16px"
   ],
   "ui-settings-account/src/client/DesktopOnboarding.module.css": [

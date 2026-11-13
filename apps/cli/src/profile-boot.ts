@@ -619,6 +619,17 @@ function configuredExternalBundles(profile: string): string[] {
 }
 
 /**
+ * Render a profile name as an RFC 9110 `User-Agent` product version: bytes outside `tchar`, and `%`, are percent-encoded,
+ * so spaces, `/`, and non-ASCII names stay readable and reversible.
+ * @param name - the booted profile name.
+ * @returns the encoded name.
+ */
+export function userAgentProfile(name: string): string {
+  // encodeURIComponent leaves only `(` and `)` outside tchar.
+  return encodeURIComponent(name).replace(/[()]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+}
+
+/**
  * Boot one profile invocation end to end and leave process lifetime to the
  * mounted plugins (or to a one-shot runner the composition mounts).
  * @param options - environment snapshot, profile name, overlays, and the booted app's own arguments.
@@ -780,6 +791,8 @@ async function runProfileAttempt(options: RunProfileOptions): Promise<{ ctx: Con
  * @returns Settled root context and shutdown controller.
  */
 export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown }> {
+  // Model providers see which profile sent a request.
+  process.env.DSH_USER_AGENT_SUFFIX = `dsh-profile/${userAgentProfile(options.profile)}`
   try {
     return await runProfileAttempt(options)
   } catch (error) {

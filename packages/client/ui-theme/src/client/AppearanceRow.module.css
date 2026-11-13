@@ -53,25 +53,22 @@
 }
 .selected { border-color: var(--dsw-alias-state-business-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 15%, transparent); }
 
-.skinPreview { position: relative; display: block; height: 74px; overflow: hidden; border-radius: 9px; background: #f7f8fa; }
-.skinPreview[data-preview='dark'] { background: #1e222b; }
-.skinPreview[data-preview='system'] { background: linear-gradient(110deg, #f7f8fa 50%, #1e222b 50%); }
-.skinPreview[data-preview='ocean'] { background: radial-gradient(circle at 75% 18%, #1889cb, #06192c 62%); }
-.skinPreview[data-preview='moonlight'] { background: radial-gradient(circle at 22% 20%, #b8c7ff 0 8%, #252c58 30%, #11172f 75%); }
-.skinPreview[data-preview='bubble'] { background: radial-gradient(circle at 80% 20%, #fff 0 6%, transparent 7%), linear-gradient(145deg, #edfbff, #dcecff 60%, #f2e9ff); }
+.skinPreview { position: relative; display: block; height: 74px; overflow: hidden; border-radius: 9px; background: var(--dsw-alias-community-theme-skinpreview-background-0); }
+.skinPreview[data-preview='dark'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-dark-background-1); }
+.skinPreview[data-preview='system'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-system-background-2); }
+.skinPreview[data-preview='ocean'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-ocean-background-3); }
+.skinPreview[data-preview='moonlight'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-moonlight-background-4); }
+.skinPreview[data-preview='bubble'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-bubble-background-5); }
 .skinPreview[data-preview='inspiration-collage'] {
-  background:
-    radial-gradient(circle at 84% 18%, #f0c928 0 4%, transparent 5%),
-    linear-gradient(132deg, transparent 0 69%, rgb(239 112 100 / 32%) 70% 76%, transparent 77%),
-    linear-gradient(145deg, #f1faf8 8%, #e2f3f0 62%, #a8dce6 100%);
+  background: var(--dsw-alias-community-theme-skinpreview-data-preview-inspiration-collage-background-6);
 }
-.skinPreview[data-preview='starlight'] { background: radial-gradient(circle at 78% 24%, #9d8cff, #111a34 45%, #0a1022 78%); }
-.skinPreview[data-preview='pirate'] { background: radial-gradient(circle at 82% 30%, #f0b35c, #1e5255 38%, #0d1c22 76%); }
-.skinPreview[data-preview='shinobi'] { background: linear-gradient(145deg, #150c11 10%, #321820 58%, #ff735c 140%); }
-.skinPreview[data-preview='rift'] { background: radial-gradient(circle at 76% 32%, #67e8c2, #123a34 42%, #061b1a 78%); }
-.previewSidebar { position: absolute; inset: 0 auto 0 0; width: 24%; background: rgb(0 40 70 / 12%); border-right: 1px solid rgb(255 255 255 / 18%); }
-.previewBubble { position: absolute; top: 23px; right: 12px; width: 42%; height: 14px; border-radius: 7px; background: rgb(83 145 214 / 38%); }
-.previewComposer { position: absolute; right: 12px; bottom: 9px; left: 34%; height: 15px; border-radius: 7px; background: rgb(255 255 255 / 62%); box-shadow: 0 2px 7px rgb(0 31 63 / 12%); }
+.skinPreview[data-preview='starlight'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-starlight-background-7); }
+.skinPreview[data-preview='pirate'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-pirate-background-8); }
+.skinPreview[data-preview='shinobi'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-shinobi-background-9); }
+.skinPreview[data-preview='rift'] { background: var(--dsw-alias-community-theme-skinpreview-data-preview-rift-background-10); }
+.previewSidebar { position: absolute; inset: 0 auto 0 0; width: 24%; background: var(--dsw-alias-community-theme-previewsidebar-background-11); border-right: var(--dsw-alias-community-theme-previewsidebar-border-right-12); }
+.previewBubble { position: absolute; top: 23px; right: 12px; width: 42%; height: 14px; border-radius: 7px; background: var(--dsw-alias-community-theme-previewbubble-background-13); }
+.previewComposer { position: absolute; right: 12px; bottom: 9px; left: 34%; height: 15px; border-radius: 7px; background: var(--dsw-alias-community-theme-previewcomposer-background-14); box-shadow: 0 2px 7px rgb(0 31 63 / 12%); }
 
 .backgroundPreview,
 .customPreview { display: grid; place-items: center; height: 76px; overflow: hidden; border-radius: 9px; background-color: var(--dsw-alias-bg-layer-2); background-position: center; background-size: cover; }
@@ -80,8 +77,8 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-right: 1px solid rgb(255 255 255 / 34%);
-  background: linear-gradient(90deg, rgb(5 13 24 / 46%) 0 62%, transparent 82%);
+  border-right: var(--dsw-alias-community-theme-backgroundpreview-data-focus-right-after-border-right-15);
+  background: var(--dsw-alias-community-theme-backgroundpreview-data-focus-right-after-background-16);
   pointer-events: none;
 }
 .backgroundPreview[data-background='none'] { background-image: linear-gradient(145deg, var(--dsw-alias-bg-layer-1), var(--dsw-alias-bg-layer-2)); }
@@ -93,7 +90,7 @@
 .backgroundPreview[data-background='pirate-horizon'] { background-image: url('/theme-backgrounds/pirate-horizon.webp'); }
 .backgroundPreview[data-background='shinobi-ember'] { background-image: url('/theme-backgrounds/shinobi-ember.webp'); }
 .backgroundPreview[data-background='rift-arena'] { background-image: url('/theme-backgrounds/rift-arena.webp'); }
-.customPreview { background: linear-gradient(145deg, #60bfe9, #766eea); color: white; font-size: 24px; }
+.customPreview { background: var(--dsw-alias-community-theme-custompreview-background-17); color: var(--dsw-alias-community-theme-custompreview-color-18); font-size: 24px; }
 .fileInput { display: none; }
 .uploadRow { display: flex; align-items: center; gap: 12px; min-height: 34px; }
 
@@ -125,6 +122,12 @@
 
 @media (min-width: 721px) and (max-width: 1040px) {
   .skinGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Selected cube: platform fill + the selected border. */
+.selected {
+  background: var(--dsw-alias-bg-module-platform);
+  border-color: var(--dsw-alias-border-selected);
 }
 
 /* Narrow settings panel: all three cubes share one row instead of wrapping to

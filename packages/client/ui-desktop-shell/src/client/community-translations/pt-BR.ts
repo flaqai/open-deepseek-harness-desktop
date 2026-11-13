@@ -1186,6 +1186,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     'toggle.collapse': 'Recolher barra lateral'
   },
   'entryCustomization': {
+    'pinTooltip': 'Fixar na barra lateral esquerda',
+    'pin': 'Fixar {name} na barra lateral',
     install: 'Explorar outros plugins',
     create: 'Criar seu plugin',
     'createPrompt.sidebar': 'Crie um plugin DSH com uma entrada na barra lateral esquerda.',

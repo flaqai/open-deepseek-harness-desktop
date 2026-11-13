@@ -9,7 +9,7 @@
   border-radius: 999px;
   corner-shape: round;
   background: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
-  color: #fff;
+  color: var(--dsw-alias-community-desktop-shell-button-color-0);
   font: inherit;
   font-size: 12px;
   font-weight: 600;

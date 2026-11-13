@@ -153,7 +153,7 @@ async function assertArchiveIdentity(path: string, entry: BundledPluginManifestE
     let text = ''
     item.on('data', (chunk: Buffer) => { text += chunk.toString('utf8') })
     item.on('end', () => {
-      try { identity = JSON.parse(text) as unknown } catch { identity = undefined }
+      try { identity = JSON.parse(text) } catch { identity = undefined }
     })
   } })
   if (count !== 1 || record(identity).name !== entry.packageName || record(identity).version !== entry.version) {
@@ -231,7 +231,7 @@ export async function repairLegacyBundledPluginSources(options: LegacyBundledPlu
           }
         }
         after = `${JSON.stringify(manifest, null, 2)}\n`
-      } else after = stringify(pruneLocators(parse(before) as unknown, repaired.map(issue => issue.dependencySpec)))
+      } else after = stringify(pruneLocators(parse(before), repaired.map(issue => issue.dependencySpec)))
       if (after !== before) changes.push({ path, before, after })
     }
   }

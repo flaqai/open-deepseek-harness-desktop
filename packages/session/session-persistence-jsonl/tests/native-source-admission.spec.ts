@@ -55,6 +55,23 @@ describe.each(modes)('native message-source admission ($compression, $access)', 
     expect(await readFile(path)).toEqual(bytes)
   })
 
+  it.each(['user', 'retry'].flatMap(kind => [
+    { kind, rpcId: 'correlated-input', principal: { kind: 'owner' } },
+    { kind, rpcId: 'correlated-input', principal: { kind: 'nas', deviceId: 'historical-device' } },
+    { kind, rpcId: 'correlated-input', principal: { kind: 'share-viewer', shareId: 'historical-share', actor: {
+      providerId: 'self-hosted', tenantId: 'tenant', subjectId: 'viewer',
+    } } },
+  ]))('preserves merged $kind metadata for $principal.kind without granting runtime identity', async (source) => {
+    const { ctx, path, bytes, event } = await stored(source)
+    const handle = await ctx.sessionPersistence.open(id, access)
+    try {
+      expect((await handle.read()).events[0]).toEqual(event)
+    } finally {
+      await handle.close()
+    }
+    expect(await readFile(path)).toEqual(bytes)
+  })
+
   it('preserves external attribution and own JSON metadata without a producer installed', async () => {
     const source = JSON.parse('{"kind":"external-producer","__proto__":{"retain":true},"metadata":{"count":1}}') as unknown
     const { ctx, path, bytes, event } = await stored(source)

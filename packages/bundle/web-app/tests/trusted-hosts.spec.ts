@@ -1,6 +1,7 @@
 /** NAS-only LAN authority sampling alongside explicit invocation trust. */
 import { describe, expect, it, vi } from 'vitest'
-import { resolveLanTrust, type Config } from '../src/index.ts'
+import type { Config } from '../src/index.ts'
+import { resolveLanTrust } from '../src/lan-trust.ts'
 
 vi.mock('node:os', () => ({
   networkInterfaces: () => ({

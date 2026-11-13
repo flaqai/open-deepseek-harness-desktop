@@ -10,7 +10,7 @@ import { expect, it, onTestFinished } from 'vitest'
 import { CUA_APPLICATION, CUA_ARCHITECTURES, CUA_MANIFEST, cuaApplicationDigest, readCuaApplication, sealCuaApplication, stageCuaHelperPayload, verifyCuaHelperPayload } from './payload.ts'
 import { verifyCuaHelperTarball } from './verify-tarball.ts'
 
-const identity = { version: '1.0.0', commit: 'a'.repeat(40) }
+const identity = { sourceDigest: 'a'.repeat(64), buildKey: 'b'.repeat(64) }
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'cua-payload-test-'))
   onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
@@ -28,7 +28,7 @@ function fixture() {
     chmodSync(join(application, 'Contents/MacOS/dsh-cua-native'), 0o755)
     return { architecture, bundle: sealCuaApplication(directory, application) }
   })
-  const manifest = { schemaVersion: 1, ...identity, teamId: 'ABCDEFGHIJ', applications }
+  const manifest = { schemaVersion: 2, ...identity, version: '1.0.0', commit: 'a'.repeat(40), teamId: 'ABCDEFGHIJ', applications }
   writeFileSync(join(payload, CUA_MANIFEST), JSON.stringify(manifest))
   return { root, payload, manifest, directory: join(payload, 'native/bin/darwin-arm64') }
 }
@@ -72,7 +72,7 @@ it.skipIf(process.platform === 'win32')('keeps npm tarball bytes when reusing a 
     mkdirSync(output)
     stageCuaHelperPayload(f.payload, packageRoot, identity)
     writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({
-      name: '@deepseek-ai/dsh-experimental-cua-macos', version: identity.version, type: 'module',
+      name: '@deepseek-ai/dsh-experimental-cua-macos', version: f.manifest.version, type: 'module',
       files: ['lib/index.js', 'native/bin', CUA_MANIFEST],
     }))
     writeFileSync(join(packageRoot, 'lib/index.js'), 'export const provider = "fixture";\n')
@@ -103,11 +103,11 @@ it.skipIf(process.platform === 'win32')('keeps npm tarball bytes when reusing a 
   expect(rebuilt.equals(first)).toBe(false)
 })
 
-it.skipIf(process.platform === 'win32').each(['version', 'commit', 'architecture', 'missing', 'extra', 'permissions', 'symlink'] as const)('rejects %s damage before staging', (damage) => {
+it.skipIf(process.platform === 'win32').each(['source digest', 'build key', 'architecture', 'missing', 'extra', 'permissions', 'symlink'] as const)('rejects %s damage before staging', (damage) => {
   const f = fixture()
   const before = readCuaApplication(f.directory)
-  if (damage === 'version') f.manifest.version = '2.0.0'
-  if (damage === 'commit') f.manifest.commit = 'b'.repeat(40)
+  if (damage === 'source digest') f.manifest.sourceDigest = 'c'.repeat(64)
+  if (damage === 'build key') f.manifest.buildKey = 'c'.repeat(64)
   if (damage === 'architecture') f.manifest.applications[1] = f.manifest.applications[0]!
   if (damage === 'missing') rmSync(join(before.application, 'Contents/Info.plist'))
   if (damage === 'extra') cpSync(before.application, join(f.directory, 'old-generation', CUA_APPLICATION), { recursive: true })
