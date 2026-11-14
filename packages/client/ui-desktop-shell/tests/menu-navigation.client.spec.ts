@@ -14,6 +14,7 @@ describe('desktop product navigation', () => {
   it.each([
     ['market', 'market'], ['plugin-restore', 'plugin-restore'], ['diagnostics', 'diagnostics'],
     ['external-tools', 'external-tools'], ['im', 'xmanrui-dsh-im'],
+    ['models', 'models'], ['custom-instructions', 'custom-instructions'], ['nas', 'nas-runtime'],
   ])('opens %s through settings navigation', async (command, sectionId) => {
     const navigation = bench()
     await navigateDesktopMenu(command, navigation)
@@ -45,7 +46,9 @@ describe('desktop product navigation', () => {
   it('reports absent plugin pages and rejects arbitrary destinations without installing', () => {
     const navigation = bench()
     navigation.hasSection.mockReturnValue(false)
-    expect(() => { void navigateDesktopMenu('market', navigation) }).toThrow('Plugin unavailable')
+    for (const command of ['market', 'models', 'custom-instructions', 'nas']) {
+      expect(() => { void navigateDesktopMenu(command, navigation) }).toThrow('Plugin unavailable')
+    }
     expect(() => { void navigateDesktopMenu('https://example.com', navigation) }).toThrow('Plugin unavailable')
     expect(navigation.open).not.toHaveBeenCalled()
   })

@@ -2,6 +2,7 @@
 import type { ApplicationMenuCopy } from '../application-menu.ts'
 
 const ja: ApplicationMenuCopy = {
+  models: 'モデル設定…', 'custom-instructions': 'カスタム指示…', nas: 'NAS (Beta)…', recovery: '診断と復旧',
   app: 'Open DeepSeek Harness Desktop', file: 'ファイル', edit: '編集', view: '表示', tools: 'ツール', window: 'ウインドウ', help: 'ヘルプ', more: 'その他',
   about: 'Open DeepSeek Harness Desktop について', settings: '設定…', updates: 'アップデートを確認…', 'new-session': '新しい会話',
   'open-config': '設定ファイルを開く', 'open-web': 'ブラウザで開く', close: 'ウインドウを閉じる', quit: '完全に終了',
@@ -20,6 +21,7 @@ const ja: ApplicationMenuCopy = {
 }
 
 const ko: ApplicationMenuCopy = {
+  models: '모델 설정…', 'custom-instructions': '사용자 지정 지침…', nas: 'NAS (Beta)…', recovery: '진단 및 복구',
   app: 'Open DeepSeek Harness Desktop', file: '파일', edit: '편집', view: '보기', tools: '도구', window: '창', help: '도움말', more: '더 보기',
   about: 'Open DeepSeek Harness Desktop 정보', settings: '설정…', updates: '업데이트 확인…', 'new-session': '새 대화',
   'open-config': '구성 파일 열기', 'open-web': '브라우저에서 열기', close: '창 닫기', quit: '완전히 종료', undo: '실행 취소', redo: '다시 실행',
@@ -37,6 +39,7 @@ const ko: ApplicationMenuCopy = {
 }
 
 const es: ApplicationMenuCopy = {
+  models: 'Ajustes de modelos…', 'custom-instructions': 'Instrucciones personalizadas…', nas: 'NAS (Beta)…', recovery: 'Diagnóstico y recuperación',
   app: 'Open DeepSeek Harness Desktop', file: 'Archivo', edit: 'Edición', view: 'Ver', tools: 'Herramientas', window: 'Ventana', help: 'Ayuda', more: 'Más',
   about: 'Acerca de Open DeepSeek Harness Desktop', settings: 'Ajustes…', updates: 'Buscar actualizaciones…', 'new-session': 'Nueva conversación',
   'open-config': 'Abrir archivo de configuración', 'open-web': 'Abrir en el navegador', close: 'Cerrar ventana', quit: 'Salir completamente',
@@ -55,6 +58,7 @@ const es: ApplicationMenuCopy = {
 }
 
 const fr: ApplicationMenuCopy = {
+  models: 'Réglages des modèles…', 'custom-instructions': 'Instructions personnalisées…', nas: 'NAS (Beta)…', recovery: 'Diagnostic et récupération',
   app: 'Open DeepSeek Harness Desktop', file: 'Fichier', edit: 'Édition', view: 'Présentation', tools: 'Outils', window: 'Fenêtre', help: 'Aide', more: 'Plus',
   about: 'À propos d’Open DeepSeek Harness Desktop', settings: 'Réglages…', updates: 'Rechercher les mises à jour…', 'new-session': 'Nouvelle conversation',
   'open-config': 'Ouvrir le fichier de configuration', 'open-web': 'Ouvrir dans le navigateur', close: 'Fermer la fenêtre', quit: 'Quitter complètement',
@@ -73,6 +77,7 @@ const fr: ApplicationMenuCopy = {
 }
 
 const de: ApplicationMenuCopy = {
+  models: 'Modelleinstellungen…', 'custom-instructions': 'Eigene Anweisungen…', nas: 'NAS (Beta)…', recovery: 'Diagnose und Wiederherstellung',
   app: 'Open DeepSeek Harness Desktop', file: 'Datei', edit: 'Bearbeiten', view: 'Ansicht', tools: 'Werkzeuge', window: 'Fenster', help: 'Hilfe', more: 'Mehr',
   about: 'Über Open DeepSeek Harness Desktop', settings: 'Einstellungen…', updates: 'Nach Updates suchen…', 'new-session': 'Neue Unterhaltung',
   'open-config': 'Konfigurationsdatei öffnen', 'open-web': 'Im Browser öffnen', close: 'Fenster schließen', quit: 'Vollständig beenden',
@@ -91,6 +96,7 @@ const de: ApplicationMenuCopy = {
 }
 
 const ptBR: ApplicationMenuCopy = {
+  models: 'Configurações de modelos…', 'custom-instructions': 'Instruções personalizadas…', nas: 'NAS (Beta)…', recovery: 'Diagnóstico e recuperação',
   app: 'Open DeepSeek Harness Desktop', file: 'Arquivo', edit: 'Editar', view: 'Visualizar', tools: 'Ferramentas', window: 'Janela', help: 'Ajuda', more: 'Mais',
   about: 'Sobre o Open DeepSeek Harness Desktop', settings: 'Configurações…', updates: 'Verificar atualizações…', 'new-session': 'Nova conversa',
   'open-config': 'Abrir arquivo de configuração', 'open-web': 'Abrir no navegador', close: 'Fechar janela', quit: 'Sair completamente',

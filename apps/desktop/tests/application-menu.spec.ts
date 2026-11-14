@@ -12,13 +12,29 @@ describe('platform application menus', () => {
     const menu = applicationMenuTemplate({ ...state, platform }, vi.fn())
     expect(menu.map(item => item.id)).toEqual([...(platform === 'darwin' ? ['app'] : []), 'file', 'edit', 'view', 'tools', 'window', 'help'])
     const items = flatten(menu)
-    for (const id of ['about', 'new-session', 'settings', 'updates', 'market', 'snapshots', 'phone', 'im', 'cli-command', 'restart', 'quit']) {
+    for (const id of ['about', 'new-session', 'settings', 'updates', 'market', 'snapshots', 'models', 'custom-instructions', 'nas', 'cli-command', 'restart', 'quit']) {
       expect(items.filter(item => item.id === id)).toHaveLength(1)
     }
     expect(items.some(item => item.id === 'open-web')).toBe(platform !== 'linux')
     expect(items.find(item => item.id === 'close')?.accelerator).toBeUndefined()
     expect(items.some(item => item.id === 'devtools')).toBe(false)
     expect(items.some(item => item.role === 'services')).toBe(platform === 'darwin')
+  })
+  it.each(['darwin', 'win32', 'linux'] as const)('groups native tools without third-party shortcuts on %s', (platform) => {
+    const menu = applicationMenuTemplate({ ...state, platform }, vi.fn())
+    const items = flatten(menu)
+    expect(items.some(item => item.id === 'im' || item.id === 'phone')).toBe(false)
+    const tools = menu.find(item => item.id === 'tools')?.submenu
+    if (!Array.isArray(tools)) throw new Error('missing Tools menu')
+    expect(tools.filter(item => item.type !== 'separator').map(item => item.id))
+      .toEqual(['external-tools', 'models', 'custom-instructions', 'nas', 'market', 'recovery', 'cli-command', 'restart'])
+    const recovery = tools.find(item => item.id === 'recovery')?.submenu
+    if (!Array.isArray(recovery)) throw new Error('missing Recovery menu')
+    expect(recovery.filter(item => item.type !== 'separator').map(item => item.id))
+      .toEqual(['diagnostics', 'plugin-restore', 'snapshots', 'logs'])
+    const file = menu.find(item => item.id === 'file')?.submenu
+    expect(Array.isArray(file) && file.some(item => item.id === 'data-home')).toBe(true)
+    expect(items.filter(item => item.id === 'logs')).toHaveLength(1)
   })
   it('localizes and dispatches commands while leaving update installation to Settings', () => {
     const execute = vi.fn()
@@ -75,6 +91,10 @@ describe('platform application menus', () => {
     expect(commandEnabled('about', { ...state, ready: false, clientAvailable: true })).toBe(true)
     expect(commandEnabled('about', { ...state, ready: false, clientAvailable: false })).toBe(false)
     expect(commandEnabled('about', { ...state, busy: true })).toBe(false)
+    for (const command of ['models', 'custom-instructions', 'nas'] as const) {
+      expect(commandEnabled(command, { ...state, ready: false })).toBe(false)
+      expect(commandEnabled(command, { ...state, busy: true })).toBe(false)
+    }
     for (const command of ['logs', 'docs'] as const) expect(commandEnabled(command, { ...state, ready: false, busy: true })).toBe(true)
     expect(isDesktopCommand('file:///private')).toBe(false)
     expect(isDesktopCommand('__proto__')).toBe(false)

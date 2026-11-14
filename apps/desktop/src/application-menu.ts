@@ -9,7 +9,7 @@ export const DESKTOP_COMMANDS = [
   'about', 'settings', 'updates', 'new-session', 'open-config', 'open-web', 'close', 'quit',
   'undo', 'redo', 'cut', 'copy', 'paste', 'select-all', 'zoom-in', 'zoom-out', 'zoom-reset',
   'fullscreen', 'market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools',
-  'phone', 'im', 'data-home', 'restart', 'show', 'minimize', 'maximize',
+  'phone', 'im', 'models', 'custom-instructions', 'nas', 'data-home', 'restart', 'show', 'minimize', 'maximize',
   'docs', 'repository', 'feedback', 'logs', 'devtools', 'emoji', 'cli-command',
 ] as const
 /** Whitelisted desktop command identifier. */
@@ -17,10 +17,11 @@ export type DesktopCommand = typeof DESKTOP_COMMANDS[number]
 /** Product navigation commands delivered only to the Harness renderer. */
 export const CLIENT_COMMANDS = [
   'new-session', 'about', 'settings', 'updates', 'market', 'plugin-restore', 'diagnostics',
-  'snapshots', 'external-tools', 'phone', 'im', 'data-home',
+  'snapshots', 'external-tools', 'phone', 'im', 'models', 'custom-instructions', 'nas', 'data-home',
 ] as const satisfies readonly DesktopCommand[]
 
 const en = {
+  models: 'Model settings…', 'custom-instructions': 'Custom instructions…', nas: 'NAS (Beta)…', recovery: 'Diagnostics & recovery',
   app: DESKTOP_PRODUCT_NAME, file: 'File', edit: 'Edit', view: 'View', tools: 'Tools', window: 'Window', help: 'Help', more: 'More',
   about: `About ${DESKTOP_PRODUCT_NAME}`, settings: 'Settings…', updates: 'Check for Updates…',
   'new-session': 'New Conversation', 'open-config': 'Open Configuration File', 'open-web': 'Open in Browser', close: 'Close Window', quit: 'Quit Completely',
@@ -42,6 +43,7 @@ const en = {
 /** Exact copy surface shared by every desktop-owned application menu locale. */
 export type ApplicationMenuCopy = typeof en
 const zh: typeof en = {
+  models: '模型设置…', 'custom-instructions': '自定义提示词…', nas: 'NAS (Beta)…', recovery: '诊断与恢复',
   app: DESKTOP_PRODUCT_NAME, file: '文件', edit: '编辑', view: '视图', tools: '工具', window: '窗口', help: '帮助', more: '更多',
   about: `关于 ${DESKTOP_PRODUCT_NAME}`, settings: '设置…', updates: '检查更新…', 'new-session': '新对话',
   'open-config': '打开配置文件', 'open-web': '在浏览器中打开', close: '关闭窗口', quit: '完整退出', undo: '撤销', redo: '重做', cut: '剪切',
@@ -59,6 +61,7 @@ const zh: typeof en = {
   community: '由 FLAQ AI 维护的社区独立发行版，并非 DeepSeek 官方产品。',
 }
 const ru: typeof en = {
+  models: 'Настройки моделей…', 'custom-instructions': 'Пользовательские инструкции…', nas: 'NAS (Beta)…', recovery: 'Диагностика и восстановление',
   app: DESKTOP_PRODUCT_NAME, file: 'Файл', edit: 'Правка', view: 'Вид', tools: 'Инструменты', window: 'Окно', help: 'Справка', more: 'Ещё',
   about: `Об ${DESKTOP_PRODUCT_NAME}`, settings: 'Настройки…', updates: 'Проверить обновления…', 'new-session': 'Новый диалог',
   'open-config': 'Открыть файл конфигурации', 'open-web': 'Открыть в браузере', close: 'Закрыть окно', quit: 'Полностью выйти', undo: 'Отменить', redo: 'Повторить', cut: 'Вырезать',
@@ -144,7 +147,7 @@ export function applicationMenuTemplate(
     ...(mac ? [{ id: 'app', label: t.app, submenu: [item('about'), separator, item('settings'), item('updates'), separator,
       { label: t.services, role: 'services' as const }, separator, { label: t.hide, role: 'hide' as const },
       { label: t['hide-others'], role: 'hideOthers' as const }, { label: t.unhide, role: 'unhide' as const }, separator, item('quit')] }] : []),
-    group('file', [item('new-session'), item('open-config'),
+    group('file', [item('new-session'), separator, item('open-config'), item('data-home'),
       ...(['darwin', 'win32'].includes(state.platform) ? [item('open-web')] : []), separator,
       ...(!mac ? [item('settings'), separator] : []), item('close'), ...(!mac ? [item('quit')] : [])]),
     group('edit', [item('undo'), item('redo'), separator, item('cut'), item('copy'), item('paste'),
@@ -155,8 +158,11 @@ export function applicationMenuTemplate(
       ...(mac ? [separator, item('emoji')] : [])]),
     group('view', [item('zoom-in'), item('zoom-out'), item('zoom-reset'), separator, item('fullscreen'),
       ...(state.development ? [separator, item('devtools')] : [])]),
-    group('tools', ['market', 'plugin-restore', 'diagnostics', 'snapshots', 'external-tools', 'phone', 'im', 'data-home', 'cli-command', 'restart'].map(command => item(command as DesktopCommand))),
+    group('tools', [item('external-tools'), item('models'), item('custom-instructions'), item('nas'), separator,
+      item('market'), separator,
+      { id: 'recovery', label: t.recovery, submenu: [item('diagnostics'), item('plugin-restore'), item('snapshots'), separator, item('logs')] },
+      separator, item('cli-command'), separator, item('restart')]),
     group('window', [item('show'), item('minimize'), item('maximize')]),
-    group('help', [item('docs'), item('repository'), item('feedback'), item('logs'), ...(!mac ? [separator, item('updates'), item('about')] : [])]),
+    group('help', [item('docs'), item('repository'), item('feedback'), ...(!mac ? [separator, item('updates'), item('about')] : [])]),
   ]
 }

@@ -2,7 +2,7 @@
 const sections: Readonly<Record<string, string>> = {
   settings: 'general', about: 'about', updates: 'about', market: 'market', 'plugin-restore': 'plugin-restore',
   diagnostics: 'diagnostics', snapshots: 'diagnostics', 'external-tools': 'external-tools',
-  im: 'xmanrui-dsh-im', 'data-home': 'general',
+  im: 'xmanrui-dsh-im', 'data-home': 'general', models: 'models', 'custom-instructions': 'custom-instructions', nas: 'nas-runtime',
 }
 
 /** Dependencies of the restricted native-menu navigation adapter. */
