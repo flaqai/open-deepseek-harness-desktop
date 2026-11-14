@@ -776,6 +776,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-file-actions':
         specifier: workspace:*
         version: link:../../packages/client/ui-file-actions
+      '@deepseek-ai/dsh-error':
+        specifier: workspace:*
+        version: link:../../packages/util/error
       '@deepseek-ai/dsh-http-proxy':
         specifier: workspace:*
         version: link:../../packages/util/http-proxy

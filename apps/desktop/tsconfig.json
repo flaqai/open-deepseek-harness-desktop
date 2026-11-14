@@ -13,6 +13,9 @@
   ],
   "references": [
     {
+      "path": "../../packages/util/error"
+    },
+    {
       "path": "../../packages/client/ui-sidebar-browser/tsconfig.host.json"
     },
     {

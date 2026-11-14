@@ -14,6 +14,7 @@
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-atomic-write": "workspace:*",
     "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
+    "@deepseek-ai/dsh-error": "workspace:*",
     "@deepseek-ai/dsh-http-proxy": "workspace:*",
     "@deepseek-ai/dsh-nas-protocol": "workspace:*",
     "@deepseek-ai/dsh-subprocess": "workspace:*",
