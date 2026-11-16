@@ -85,11 +85,13 @@ The export includes the live session's newest events: the host endpoint flushes 
 
 The root dialog identifies the exported Session by ID and reports preparing, download started, or failed. Switching conversations keeps it visible. Different Sessions download concurrently, while their dialogs appear one at a time in initiation order; closing one reveals the next open dialog. Closing does not cancel the download or reopen its dialog on settlement. Repeated requests for the same in-flight Session share its operation and keep its original position; a new request after settlement takes a new position.
 
+A reference that cannot be read because its attachment is missing or invalid is omitted and listed in `attachments-missing.txt`; other failures still abort the export. Cancellation and an abandoned download close open attachment streams.
+
 Attachment collection reads declared content fields of built-in Session events and completed assistant stream blocks, including flat V4 tool-role messages. Unknown event payloads and unrelated fields remain unchanged in the exported log but do not cause attachment reads.
 
 ### Failures
 
-The dialog shows a preparation error when the preflight fails before ZIP streaming starts — for example an unreachable or misconfigured host endpoint. A descendant or attachment read failure after the browser accepts the GET is reported by the browser download manager, not by the dialog. A Markdown preparation failure reports a toast asking the user to retry the Session read; a clipboard write failure reports a separate toast asking the user to check clipboard permission. Neither reports success for a partial or missing transcript, and no pending toast is shown.
+The dialog shows a preparation error when the preflight fails before ZIP streaming starts — for example an unreachable or misconfigured host endpoint. A descendant read failure, or an attachment read failure other than a missing object, is reported by the browser download manager after the browser accepts the GET, not by the dialog. A Markdown preparation failure reports a toast asking the user to retry the Session read; a clipboard write failure reports a separate toast asking the user to check clipboard permission. Neither reports success for a partial or missing transcript, and no pending toast is shown.
 
 -----
 

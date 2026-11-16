@@ -85,7 +85,7 @@ describe('Node compatibility self-hosted routing', () => {
     expect(job.strategy['fail-fast']).toBe(false)
     expect(job.strategy.matrix.include).toEqual([
       { node: '24.9', name: 'node 24.9', runner: 'ubuntu-latest', gate_concurrency: '1' },
-      { node: 26, name: 'node 26', runner: 'ubuntu-latest', gate_concurrency: '1' },
+      { node: '26.12.1', name: 'node 26', runner: 'ubuntu-latest', gate_concurrency: '1' },
     ])
     expect(job.env.DSH_GATE_CONCURRENCY).toBe('${{ matrix.gate_concurrency }}')
     expect(job.steps.map(step => step.run)).toContain('pnpm run check:node-compat')
@@ -108,7 +108,11 @@ describe('Node compatibility self-hosted routing', () => {
       )
     }
     expect(job.steps[0]?.with).toEqual({ 'persist-credentials': false })
-    expect(job.steps.some(step => step.uses?.startsWith('actions/cache/'))).toBe(false)
+    // The verified bubblewrap archive is the one remote cache this job restores
+    // and saves; it must stay excluded from the persistent self-hosted pool.
+    const remoteCaches = job.steps.filter(step => step.uses?.startsWith('actions/cache/'))
+    expect(remoteCaches.length).toBeGreaterThan(0)
+    for (const step of remoteCaches) expect(step.if).toContain("vars.DSH_CI_FAILOVER_LINUX != 'selfhosted'")
   })
 
   it('overrides runner exports inside setup-node without affecting later Node processes', () => {

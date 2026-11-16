@@ -731,24 +731,32 @@ describe('PluginInventoryGateway', () => {
     expect(subprocess.spawns[0]?.argv).toContain('configure-experimental-capability')
   })
 
-  it('installs and composes a reviewed Browser Use provider as one guarded recipe', async () => {
+  it.each([
+    ['browser-use-playwright-visible', '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp', '@deepseek-ai/dsh-browser-use'],
+    ['browser-use-devtools-visible', '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp', '@deepseek-ai/dsh-browser-use'],
+    ['computer-use-native', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native', '@deepseek-ai/dsh-computer-use'],
+    ['computer-use-mcp', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp', '@deepseek-ai/dsh-computer-use'],
+  ] as const)('installs and composes the current %s provider as one guarded recipe', async (recipe, provider, dependency) => {
     const { inventory, subprocess } = await harness()
-    const packageSpec = '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.2'
+    const packageSpec = `${provider}@${getDshRuntimeVersion()}`
     const started = inventory.startInstall({
       profile: 'web',
       packageSpec,
-      experimentalCapability: 'browser-use-playwright-visible',
+      experimentalCapability: recipe,
     })
     await expect.poll(() => inventory.getInstall(started.installId).phase).toBe('succeeded')
     expect(subprocess.spawns.map(spawn => spawn.argv.slice(-2))).toEqual([
-      ['add', '@deepseek-ai/dsh-browser-use@0.2.2-rc.2'],
+      ['add', `${dependency}@${getDshRuntimeVersion()}`],
       ['add', packageSpec],
-      ['configure-experimental-capability', 'browser-use-playwright-visible'],
+      ['configure-experimental-capability', recipe],
     ])
     expect(() => inventory.startInstall({
       profile: 'web',
       packageSpec,
-      experimentalCapability: 'computer-use-native',
+      experimentalCapability: recipe === 'computer-use-native' ? 'browser-use-playwright-visible' : 'computer-use-native',
+    })).toThrow(/invalid experimental capability/)
+    expect(() => inventory.startInstall({
+      profile: 'web', packageSpec: `${provider}@0.2.1-alpha.1`, experimentalCapability: recipe,
     })).toThrow(/invalid experimental capability/)
   })
 

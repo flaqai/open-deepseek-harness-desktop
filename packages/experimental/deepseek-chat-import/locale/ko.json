@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "DeepSeek 대화 가져오기",
+    "description": "새 대화 옆의 버튼으로 DeepSeek 웹사이트에서 내보낸 대화 ZIP을 업로드하세요. 각 대화가 선택한 작업공간의 세션으로 추가됩니다.",
+    "detail": "docs/DETAIL.md"
+  }
+}

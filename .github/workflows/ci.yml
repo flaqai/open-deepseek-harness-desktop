@@ -180,6 +180,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
 
+      # The persistent self-hosted pool keeps ~/.cache between jobs on its own
+      # layout, so the archive cache follows the hosted-only pnpm store guard.
+      - name: Restore verified bubblewrap archive
+        id: bubblewrap-cache
+        if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.cache/dsh-ci/bubblewrap
+          key: bubblewrap-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-ci-bubblewrap.sh') }}
+
       - name: Install dependencies and prepare bubblewrap
         run: |
           pnpm install --frozen-lockfile &
@@ -192,6 +202,16 @@ jobs:
           wait "$sandbox_pid" || sandbox_status=$?
           if (( install_status != 0 )); then exit "$install_status"; fi
           exit "$sandbox_status"
+
+      # The save step is skipped on a hit. A restored archive whose digest fails
+      # is re-downloaded but not re-saved (the key already exists), so a tampered
+      # entry survives until eviction; that needs deliberate cache poisoning.
+      - name: Save verified bubblewrap archive
+        if: (vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]') && steps.bubblewrap-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: ~/.cache/dsh-ci/bubblewrap
+          key: bubblewrap-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-ci-bubblewrap.sh') }}
 
       - name: Run exhaustive coverage
         run: pnpm run check:ci:coverage
@@ -338,6 +358,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
+      # The persistent self-hosted pool keeps ~/.cache between jobs on its own
+      # layout, so the archive cache follows the hosted-only pnpm store guard.
+      - name: Restore verified bubblewrap archive
+        id: bubblewrap-cache
+        if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.cache/dsh-ci/bubblewrap
+          key: bubblewrap-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-ci-bubblewrap.sh') }}
+
       - name: Install dependencies and prepare bubblewrap
         run: |
           pnpm install --frozen-lockfile &
@@ -350,6 +380,13 @@ jobs:
           wait "$sandbox_pid" || sandbox_status=$?
           if (( install_status != 0 )); then exit "$install_status"; fi
           exit "$sandbox_status"
+
+      - name: Save verified bubblewrap archive
+        if: (vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]') && steps.bubblewrap-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: ~/.cache/dsh-ci/bubblewrap
+          key: bubblewrap-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-ci-bubblewrap.sh') }}
 
       # Blacksmith's Ubuntu HTTP archive endpoints can be unreachable while HTTPS works.
       - name: Use HTTPS for Ubuntu archives on Blacksmith
@@ -415,13 +452,8 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - node: '22.19'
-            name: node 22.19
-            runner: ubuntu-latest
-            gate_concurrency: '1'
-          # Pinned inside 24.0-24.11.1: those releases carry the v1 internal
-          # loader while reporting major 24, and every other job tracks the
-          # latest 24, which is v2. A bare `24` here would retest that same v2.
+          # Pin the supported floor, whose internal loader is v1. Primary
+          # jobs use the reviewed security runtime and exercise v2 (24.12.0+).
           - node: '24.9'
             name: node 24.9
             runner: ubuntu-latest
@@ -469,8 +501,25 @@ jobs:
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile
 
+      # The persistent self-hosted pool keeps ~/.cache between jobs on its own
+      # layout, so the archive cache follows the hosted-only pnpm store guard.
+      - name: Restore verified bubblewrap archive
+        id: bubblewrap-cache
+        if: vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.cache/dsh-ci/bubblewrap
+          key: bubblewrap-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-ci-bubblewrap.sh') }}
+
       - name: Prepare bubblewrap (unrestrict userns)
         run: bash scripts/prepare-ci-bubblewrap.sh
+
+      - name: Save verified bubblewrap archive
+        if: (vars.DSH_CI_FAILOVER_LINUX != 'selfhosted' || github.event.pull_request.user.login == 'dependabot[bot]') && steps.bubblewrap-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: ~/.cache/dsh-ci/bubblewrap
+          key: bubblewrap-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-ci-bubblewrap.sh') }}
 
       - name: Run compatibility smokes
         env:

@@ -69,6 +69,17 @@ it('permits preview reads and user uploads while denying readonly uploads, unkno
   expect((await call('/api/present.open', 'admin')).status).toBe(403)
 })
 
+it.each(['admin', 'user', 'readonly'])('gates DeepSeek archive uploads for the %s device before importing', async (role) => {
+  const { connection, admit } = await setup()
+  const importArchive = vi.fn(async () => new Response('imported'))
+  const path = '/api/deepseek-chat-import/archive'
+  connection.fetch.register({ path, methods: ['POST'], requestBody: 'streaming', fetch: importArchive })
+  const handler = connection.createSharedFetchHandler('/api')
+  const response = await handler.fetch(new Request(`http://localhost${path}`, { method: 'POST', body: 'archive' }), admit(role))
+  expect(response.status).toBe(role === 'admin' ? 200 : 403)
+  expect(importArchive).toHaveBeenCalledTimes(role === 'admin' ? 1 : 0)
+})
+
 it('aborts active device scopes at expiry and refuses a new request with the expired credential', async () => {
   vi.useFakeTimers()
   const { connection, admit } = await setup()

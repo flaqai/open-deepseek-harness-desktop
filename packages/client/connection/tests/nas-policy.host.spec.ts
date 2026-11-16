@@ -49,6 +49,7 @@ it('explicitly grants workspace and session reads, denies readonly writes and da
     }
   }
   checkOfficePreview()
+  expect(decide('deepseekChatImport/limits')).toBe('deny')
   expect(decide('liveshareShares/create', [{ kind: 'session', id: session.id }])).toBe('deny')
   expect(decide('workspace/follow', [{ kind: 'workspace', id: workspaceId }])).toBe('allow')
   expect(decide('session/page', [{ kind: 'session', id: SessionId('unlisted-session') }])).toBe('deny')
@@ -59,6 +60,7 @@ it('explicitly grants workspace and session reads, denies readonly writes and da
   device.mockReturnValue({ id: 'device', role: 'user', name: 'Device',
     createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 1000).toISOString() })
   checkOfficePreview()
+  expect(decide('deepseekChatImport/limits')).toBe('deny')
   expect(decide('session/create')).toBe('allow')
   expect(decide('session/prompt', [{ kind: 'session', id: session.id }])).toBe('allow')
   expect(decide('event:user-questions/request')).toBe('allow')

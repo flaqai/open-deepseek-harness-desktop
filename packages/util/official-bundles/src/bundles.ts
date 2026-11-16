@@ -71,6 +71,7 @@ export const OPTIONAL_BUNDLES: readonly string[] = [
   '@deepseek-ai/dsh-experimental-forge-bundle',
   '@deepseek-ai/dsh-browser-use-bundle',
   '@deepseek-ai/dsh-computer-use-native-bundle',
+  '@deepseek-ai/dsh-deepseek-chat-import',
 ]
 
 /** Public DSH release members available through the ordinary on-demand bundle installer. */

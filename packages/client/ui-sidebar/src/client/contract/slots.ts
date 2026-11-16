@@ -53,7 +53,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * package's 'sidebar' entry (declaring is claiming); ui-workspace
      * registers the browser. The shell displays an unavailable notice for an
      * empty slot and a user-triggered local retry for a failed registration.
-     * The browser The section renders inside the sidebar viewport,
+     * The section renders inside the sidebar viewport,
      * which is a size container one viewport tall and a scroll-state container,
      * and binds its own vertical scroller through `useSectionScroller`.
      */
@@ -77,6 +77,17 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * package's 'sidebar' entry; each action receives only the column state.
      */
     'sidebar.footer.action': { kind: 'list'; scope: 'root'; owner: SidebarFooterActionOwnerProps }
+    /**
+     * HOC layer around the inner content of the New-session row — the Tooltip
+     * and button the shell passes as `children`, rendered only while the Peer
+     * may create Sessions. An occupant receives that content and returns it,
+     * possibly wrapped, together with its own controls, so it decorates the
+     * row without adding a wrapper element. Occupants nest around the content
+     * instead of rendering beside it: one that adds nothing must return
+     * `children`, and with no occupant the content renders unchanged.
+     * Declared by this package's 'sidebar' entry.
+     */
+    'sidebar.session.action': { kind: 'hoc'; scope: 'root'; owner: SidebarSessionActionOwnerProps }
   }
 }
 
@@ -203,6 +214,12 @@ export interface SidebarFooterActionOwnerProps {
   wide: boolean
 }
 
+/** Owner share of the New-session row's HOC layer. */
+export interface SidebarSessionActionOwnerProps {
+  /** Whether the sidebar renders wide content (false = 56px rail). */
+  wide: boolean
+}
+
 /**
  * Registrant-private injected share (arrives via the register inject
  * factory). The renderer binds the panel metadata source to usePanels.
@@ -253,5 +270,6 @@ export type SidebarRootComponentProps =
     | 'sidebar.settings'
     | 'sidebar.settings.action'
     | 'sidebar.footer.action'
+    | 'sidebar.session.action'
   >
   & PropsRenderFactories & InjectFace<SidebarRootInjected> & PropsLocale<'sidebar'>

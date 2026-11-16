@@ -11,7 +11,10 @@ describe('external tool compatibility bridge', () => {
     ['browser-use-playwright', 'browser-use-playwright-mcp'],
     ['browser-use-devtools', 'browser-use-chrome-devtools-mcp'],
     ['computer-use-native', 'computer-use-cua-driver-native'],
-  ] as const)('keeps the %s selection compatible with its preinstalled provider', async (toolId, directory) => {
+    ['computer-use-mcp', 'computer-use-cua-driver-mcp'],
+    ['browser-use-stagehand', 'browser-use-stagehand-native'],
+    ['auto-review', 'auto-review'],
+  ] as const)('keeps the %s selection compatible with its source provider version', async (toolId, directory) => {
     const manifest: unknown = JSON.parse(readFileSync(new URL(`../../../experimental/${directory}/package.json`, import.meta.url), 'utf8'))
     if (typeof manifest !== 'object' || manifest === null || !('name' in manifest) || typeof manifest.name !== 'string'
       || !('version' in manifest) || typeof manifest.version !== 'string') throw new Error('invalid provider manifest')
@@ -38,7 +41,7 @@ describe('external tool compatibility bridge', () => {
   it('uses the exact embedded browser fallback without a desktop bridge', async () => {
     await expect(resolveExternalToolInstallRequest('claude-code')).resolves.toEqual({
       profile: 'web',
-      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.2-rc.2',
+      packageSpec: '@deepseek-ai/dsh-subagent-claude-code@0.2.2-rc.3',
     })
   })
 
@@ -55,19 +58,19 @@ describe('external tool compatibility bridge', () => {
     expect(resolve).not.toHaveBeenCalled()
   })
 
-  it('resolves Auto review to the reviewed alpha.1 bundle', async () => {
+  it('resolves Auto review to the reviewed rc.3 bundle', async () => {
     await expect(resolveExternalToolInstallRequest('auto-review')).resolves.toEqual({
       profile: 'web',
-      packageSpec: '@deepseek-ai/dsh-experimental-auto-review@0.2.1-alpha.1',
+      packageSpec: '@deepseek-ai/dsh-experimental-auto-review@0.2.2-rc.3',
     })
   })
 
   it.each([
-    ['browser-use-playwright', '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.2'],
-    ['browser-use-devtools', '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.2'],
-    ['browser-use-stagehand', '@deepseek-ai/dsh-experimental-browser-use-stagehand-native@0.2.1-alpha.1'],
-    ['computer-use-native', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.2'],
-    ['computer-use-mcp', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.1-alpha.1'],
+    ['browser-use-playwright', '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.3'],
+    ['browser-use-devtools', '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.3'],
+    ['browser-use-stagehand', '@deepseek-ai/dsh-experimental-browser-use-stagehand-native@0.2.2-rc.3'],
+    ['computer-use-native', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.3'],
+    ['computer-use-mcp', '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.2-rc.3'],
   ] as const)('resolves %s to its reviewed provider version', async (toolId, packageSpec) => {
     await expect(resolveExternalToolInstallRequest(toolId)).resolves.toEqual({
       profile: 'web',
@@ -81,7 +84,7 @@ describe('external tool compatibility bridge', () => {
       'browser-use-playwright-visible',
     )).resolves.toEqual({
       profile: 'web',
-      packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.2',
+      packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.3',
       experimentalCapability: 'browser-use-playwright-visible',
     })
   })

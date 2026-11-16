@@ -20,7 +20,8 @@ import { en, ja, es, fr, de, ru, pt, zh, type SidebarKey } from './locales.ts'
 export type {
   SidebarBrandMarkOwnerProps, SidebarBrandNameOwnerProps, SidebarFooterActionOwnerProps,
   SidebarPanelActionEntry, SidebarPanelActionsOwnerProps, SidebarPanelIconOwnerProps, SidebarPanelMetadata,
-  SidebarRootComponentProps, SidebarRootInjected, SidebarSectionOwnerProps, SidebarSettingsOwnerProps, SidebarSettingsActionOwnerProps,
+  SidebarRootComponentProps, SidebarRootInjected, SidebarSectionOwnerProps, SidebarSessionActionOwnerProps,
+  SidebarSettingsOwnerProps, SidebarSettingsActionOwnerProps,
   SectionScroller, SidebarSectionHookContext, SidebarSectionInjected, UseSectionScroller,
 } from './contract/slots.ts'
 export type { SidebarKey } from './locales.ts'
@@ -102,6 +103,7 @@ export function apply(ctx: ClientContext): void {
         'sidebar.settings': { kind: 'single', scope: 'root' },
         'sidebar.settings.action': { kind: 'list', scope: 'root' },
         'sidebar.footer.action': { kind: 'list', scope: 'root' },
+        'sidebar.session.action': { kind: 'hoc', scope: 'root' },
       },
       inject: injectProps,
     }, SidebarRoot)

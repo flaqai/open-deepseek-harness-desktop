@@ -14,6 +14,7 @@ $script:keepOldFiles = $false
 $script:recreateResources = $false
 $script:breakLogAfterProcess = $false
 $script:runArguments = @()
+$script:runDirectories = @()
 $script:tamperUninstaller = $false
 $script:replaceUninstallerWithLink = $false
 $script:fixtureLink = $null
@@ -43,6 +44,7 @@ public static class DshUpgradeFixtureNative {
 function Invoke-DesktopUninstallerProcess($Executable, $Arguments, $WorkingDirectory) {
   $script:runs += $Executable
   $script:runArguments += $Arguments
+  $script:runDirectories += $WorkingDirectory
   $next = $script:outcomes[0]
   $script:outcomes = @($script:outcomes | Select-Object -Skip 1)
   if ($next.launched -and $next.exitCode -eq 0) {
@@ -97,12 +99,17 @@ function Run-UpgradeCase([string]$Name, [object[]]$Outcomes, [int]$Expected, [in
   $script:outcomes = $Outcomes
   $script:runs = @()
   $script:runArguments = @()
+  $script:runDirectories = @()
   $script:waits = 0
   $code = Invoke-DesktopOldUninstall -InstallDirectory $install -UninstallerPath $uninstaller -UninstallerName 'Uninstall Test Desktop.exe' -AppExecutable 'Test Desktop.exe' -UninstallArguments '/currentuser --updated --keep-shortcuts' -TemporaryDirectory $temporary -DiagnosticDirectory $diagnostics
   Assert-Upgrade (@($code).Count -eq 1) "$Name returned more than one exit result"
   Assert-Upgrade ($code -eq $Expected) "$Name returned $code rather than $Expected"
   Assert-Upgrade ($script:runs.Count -eq $Runs) "$Name executed $($script:runs.Count) times"
   Assert-Upgrade ($script:waits -eq $Waits) "$Name waited $($script:waits) times"
+  Assert-Upgrade ($script:runDirectories.Count -eq $Runs) "$Name did not record every uninstaller working directory"
+  foreach ($directory in $script:runDirectories) {
+    Assert-Upgrade ([string]::Equals([IO.Path]::GetFullPath($directory), [IO.Path]::GetFullPath($temporary), [StringComparison]::OrdinalIgnoreCase)) "$Name must start every uninstaller outside the replaceable installation directory, including fallback and retry launches."
+  }
   if ($Runs -gt 0) { Assert-Upgrade ($script:runArguments[0].Contains('/KEEP_APP_DATA /currentuser --updated --keep-shortcuts _?=' + $install)) "$Name lost data-preservation, mode, or actual old-directory arguments" }
   $trace = Get-Content -LiteralPath (Join-Path $diagnostics 'upgrade.jsonl') -Raw
   Assert-Upgrade ($trace.Contains('old install')) "$Name did not retain the actual old directory"
@@ -132,6 +139,7 @@ function Run-RefusedUpgradeCase([string]$Name, [scriptblock]$Configure, [int]$Ex
   $script:outcomes = @(@{ launched = $true; exitCode = 0 })
   $script:runs = @()
   $script:runArguments = @()
+  $script:runDirectories = @()
   $script:waits = 0
   & $Configure $parameters
   $code = Invoke-DesktopOldUninstall @parameters
