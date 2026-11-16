@@ -80,9 +80,9 @@ GitHub publication triggers `sync-cnb-desktop-releases.yml` through the `release
 4. Run the anonymous verifier against the exact local handoff. It fetches `desktop-update-v1.json`, requires a non-expired entry whose version and tag match the GitHub Release and whose `withdrawn` value is `false`, compares all eight package names, sizes and SHA-256 values, and probes every indexed installer URL:
 
    ```sh
-  node "$skill/scripts/verify-cnb-desktop-release.mjs" \
-    odsh-v<version> \
-    "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/release/<version>"
+   node "$skill/scripts/verify-cnb-desktop-release.mjs" \
+     odsh-v<version> \
+     "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/release/<version>"
    ```
 
 5. Record the verifier's index revision, generation time, expiry, Release URL and eight package results. Never log the CNB token or credential-bearing clone URL. The synchronization index defaults to a six-hour lifetime: release events still refresh it immediately, while the longer lifetime tolerates delayed hourly runners without keeping withdrawn versions eligible indefinitely.
@@ -94,3 +94,13 @@ GitHub and CNB cannot be committed atomically. If GitHub succeeds and CNB fails,
 ## 6. Publication completion
 
 Report both public Release URLs, the GitHub tag target, title, prerelease/latest state, nine verified project-uploaded GitHub assets, eight verified CNB packages, CNB sync run, anonymous index revision and expiry, and the local notes and installer directories. GitHub's generated source ZIP and TAR are additional page entries, so the page shows eleven entries. Do not describe the release as fully published until both providers pass their verification.
+
+## 7. Update READMEs after publication
+
+After both destinations pass verification, update `README.md`, `README.zh.md`, and every existing localized README linked by the language switcher. Use the verified Release identity rather than the development manifest alone.
+
+- Update the release announcement, GitHub/CNB Release and download hyperlinks, checksum links, upstream baseline and any matching version-heading anchors. Use only published installer filenames; leave unrelated historical references intact.
+- Add a concise, localized summary near the front, derived from the previous public Release and the final published notes. Distinguish new behavior from retained features; do not claim unverified platform results or guessed bundled-plugin versions.
+- Preserve language-switch links and supported-model information. Translate the new summary across the existing README languages and re-record affected bilingual pairing sidecars.
+- Check relative links, heading anchors, translation consistency and the changed public URLs. Fix documentation-check failures directly. Apply the active resource limit and run expensive checks sequentially.
+- Keep this as a documentation-only follow-up to the published source. Never move the release tag, replace installer bytes, or rebuild solely for README changes. Commit and push under the existing task authorization when it covers those actions; otherwise report the prepared local changes. Include README status in the final report.
