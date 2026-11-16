@@ -1,7 +1,7 @@
 {
   "schema": "open-dsh/upstream-integration/v1",
   "functionalBaseline": {
-    "ref": "dsh-v0.2.2-rc.2"
+    "ref": "dsh-v0.2.2-rc.3"
   },
   "historyAlignment": {
     "ref": "upstream/master",
