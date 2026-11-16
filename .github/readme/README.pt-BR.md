@@ -10,7 +10,7 @@ Idiomas: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[A v0.2.2-rc.1 já está disponível](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).** Esta versão integra DeepSeek Harness oficial `dsh-v0.2.2-rc.1`, melhora a recuperação da lista de espaços de trabalho, citações, menus e Configurações e inclui recursos de navegador e controle do computador pré-instalados. **Compatível com DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, atualização 1017).**
+> **[A v0.2.2-rc.2 já está disponível](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2).** Esta versão integra DeepSeek Harness oficial `dsh-v0.2.2-rc.2`, melhora a recuperação da lista de espaços de trabalho, citações, menus e Configurações e inclui recursos de navegador e controle do computador pré-instalados. **Compatível com DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, atualização 1017).**
 >
 > Embora o nome contenha `rc`, esta versão foi publicada como um Release normal no GitHub. Faça backup das conversas e configurações importantes antes de atualizar e inclua logs ou relatórios de diagnóstico relevantes ao comunicar problemas.
 
@@ -19,6 +19,13 @@ Open DeepSeek Harness Desktop é uma distribuição independente e mantida pela 
 > [!NOTE]
 >
 > Este repositório não é um produto oficial da DeepSeek. Ele continua em prévia; formatos de dados, políticas de compatibilidade e instalação ainda podem evoluir.
+
+## Novidades da versão 0.2.2-rc.2
+
+- A integração do rc.2 oficial melhora o carregamento do histórico, a prévia de PDFs com várias páginas, a busca de arquivos, a revisão de código e a colaboração entre subagentes.
+- Os downloads de atualizações continuam após fechar as configurações, com progresso no canto da janela. O download automático vem desativado; o usuário decide quando instalar e reiniciar.
+- Após confirmação, a recuperação pode substituir arquivos locais ausentes por pacotes incluídos verificados da versão exata. A instalação e o estado real de inicialização são apresentados separadamente.
+- Os menus nativos mantêm o mercado de plugins, adicionam atalhos para modelos, instruções personalizadas e NAS e agrupam diagnóstico, recuperação, snapshots e logs.
 
 ## Principais recursos atuais
 
@@ -180,7 +187,7 @@ Suporta sistema, claro, escuro e oito temas de produto, oito ilustrações integ
 
 ## Download e instalação
 
-Baixe o pacote adequado em [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).
+Baixe o pacote adequado em [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2).
 
 | Sistema | Arquitetura | Pacote |
 | --- | --- | --- |
@@ -192,7 +199,7 @@ Baixe o pacote adequado em [GitHub Releases](https://github.com/flaqai/open-deep
 
 Verifique os arquivos com SHA256SUMS. Builds macOS usam assinatura ad-hoc e não são notarizados; se o Gatekeeper bloquear, use **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**. O Windows pode exibir aviso de reputação para builds novos ou sem assinatura.
 
-Se o Release escolhido oferecer `DeepSeek-Harness-windows-x64.zip`, extraia todo o arquivo em uma pasta separada e execute `Open DeepSeek Harness Desktop.exe`. A versão ZIP dispensa instalação, não cria registros de instalação nem registra PATH automaticamente. Configurações e histórico continuam no diretório padrão de dados do usuário e não acompanham a pasta ZIP. Não extraia o ZIP sobre uma instalação existente. O `0.2.2-rc.1` publicado também oferece o ZIP para Windows.
+Se o Release escolhido oferecer `DeepSeek-Harness-windows-x64.zip`, extraia todo o arquivo em uma pasta separada e execute `Open DeepSeek Harness Desktop.exe`. A versão ZIP dispensa instalação, não cria registros de instalação nem registra PATH automaticamente. Configurações e histórico continuam no diretório padrão de dados do usuário e não acompanham a pasta ZIP. Não extraia o ZIP sobre uma instalação existente. O `0.2.2-rc.2` publicado também oferece o ZIP para Windows.
 
 Excluir manualmente a pasta do programa antigo pode deixar registros que bloqueiam a reinstalação. A ferramenta geral de reparo está em [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md); builds Windows que a incluem também a fornecem em `resources/support/windows-install-repair/` dentro da pasta do programa. Ela verifica os registros deste aplicativo e, após sua confirmação, faz backup antes do reparo; não exclui configurações, histórico ou arquivos do programa.
 

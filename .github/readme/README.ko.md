@@ -10,7 +10,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.2-rc.1이 출시되었습니다](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).** 공식 DeepSeek Harness `dsh-v0.2.2-rc.1`을 통합하고 세션 요약 및 종료 시 저장 수정을 포함합니다. 커뮤니티 버전은 작업 공간 목록 복구, 공식 인용 기능 연결, 오른쪽 클릭 메뉴와 브라우저·컴퓨터 조작 기능 사전 설치를 제공합니다. **DeepSeek 4.1-1017(DeepSeek-V4.1-Flash, 1017 업데이트)을 지원합니다.**
+> **[v0.2.2-rc.2이 출시되었습니다](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2).** 공식 DeepSeek Harness `dsh-v0.2.2-rc.2`을 통합하고 세션 요약 및 종료 시 저장 수정을 포함합니다. 커뮤니티 버전은 작업 공간 목록 복구, 공식 인용 기능 연결, 오른쪽 클릭 메뉴와 브라우저·컴퓨터 조작 기능 사전 설치를 제공합니다. **DeepSeek 4.1-1017(DeepSeek-V4.1-Flash, 1017 업데이트)을 지원합니다.**
 >
 > 버전 이름에는 `rc`가 포함되어 있지만 GitHub에서는 일반 Release로 게시되었습니다. 업그레이드 전에 중요한 설정과 대화를 백업하고, 문제를 보고할 때 관련 로그나 진단 보고서를 첨부해 주세요.
 
@@ -19,6 +19,13 @@ Open DeepSeek Harness Desktop는 [DeepSeek Harness](https://github.com/deepseek-
 > [!NOTE]
 >
 > 이 저장소는 DeepSeek의 공식 제품이 아닙니다. 현재 프리뷰 단계이므로 데이터 형식, 플러그인 호환 정책, 설치 방식이 계속 변경될 수 있습니다.
+
+## 0.2.2-rc.2의 새로운 기능
+
+- 공식 rc.2를 통합해 기록 로딩, 여러 페이지 PDF 미리보기, 파일 검색, 코드 검토 및 하위 에이전트 협업을 개선했습니다.
+- 설정을 닫아도 업데이트 다운로드가 계속되며 화면 모서리에 진행률이 표시됩니다. 자동 다운로드는 기본적으로 꺼져 있고 설치와 재시작은 사용자가 결정합니다.
+- 로컬 아카이브가 없으면 확인 후 정확히 일치하는 검증된 내장 패키지로 복구할 수 있습니다. 설치 여부와 실제 시작 상태를 구분합니다.
+- 기본 메뉴에 플러그인 마켓을 유지하고 모델, 사용자 지정 지침 및 NAS로 바로 이동하는 항목을 추가했습니다. 진단, 복구, 스냅샷과 로그를 함께 배치했습니다.
 
 ## 현재 주요 기능
 
@@ -186,7 +193,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 ## 다운로드 및 설치
 
-[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1)에서 운영체제에 맞는 파일을 다운로드하세요.
+[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2)에서 운영체제에 맞는 파일을 다운로드하세요.
 
 | 운영체제 | 아키텍처 | 패키지 |
 | --- | --- | --- |
@@ -198,7 +205,7 @@ Cordis Context, Service, Symbol은 버전 번호뿐 아니라 물리 모듈의 �
 
 SHA256SUMS로 다운로드를 검증하세요. macOS 빌드는 ad-hoc 서명이고 공증되지 않았습니다. 차단되면 “시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기”를 사용하세요. Windows에서는 서명되지 않았거나 새로 게시된 앱에 평판 경고가 나타날 수 있습니다.
 
-선택한 Release에 `DeepSeek-Harness-windows-x64.zip`이 있다면 전체를 별도 폴더에 압축 해제한 뒤 `Open DeepSeek Harness Desktop.exe`를 실행하세요. ZIP 버전은 설치가 필요 없으며 설치 레지스트리 항목이나 PATH를 자동 등록하지 않습니다. 설정과 기록은 표준 사용자 데이터 디렉터리에 저장되므로 ZIP 폴더를 옮겨도 함께 이동하지 않습니다. 기존 설치 폴더에 덮어 압축 해제하지 마세요. 공개된 0.2.2-rc.1에는 Windows ZIP도 포함됩니다.
+선택한 Release에 `DeepSeek-Harness-windows-x64.zip`이 있다면 전체를 별도 폴더에 압축 해제한 뒤 `Open DeepSeek Harness Desktop.exe`를 실행하세요. ZIP 버전은 설치가 필요 없으며 설치 레지스트리 항목이나 PATH를 자동 등록하지 않습니다. 설정과 기록은 표준 사용자 데이터 디렉터리에 저장되므로 ZIP 폴더를 옮겨도 함께 이동하지 않습니다. 기존 설치 폴더에 덮어 압축 해제하지 마세요. 공개된 0.2.2-rc.2에는 Windows ZIP도 포함됩니다.
 
 이전 프로그램 폴더를 수동으로 삭제하면 남은 설치 기록이 재설치를 막을 수 있습니다. 범용 복구 도구는 [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md)에 있으며, 도구가 포함된 Windows 빌드는 프로그램 폴더의 `resources/support/windows-install-repair/`에도 제공합니다. 이 앱의 등록 정보를 확인하고 사용자 동의를 받은 후 백업하여 복구하며, 설정·기록·프로그램 파일은 삭제하지 않습니다.
 

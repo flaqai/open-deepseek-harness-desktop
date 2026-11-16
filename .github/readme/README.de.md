@@ -10,7 +10,7 @@ Sprachen: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.2.2-rc.1 ist verfügbar](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1).** Diese Version integriert das offizielle DeepSeek Harness `dsh-v0.2.2-rc.1`, verbessert die Wiederherstellung der Arbeitsbereichsliste, Zitate, Kontextmenüs und Einstellungen und enthält vorinstallierte Browser- und Computersteuerung. **DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, Update 1017) wird unterstützt.**
+> **[v0.2.2-rc.2 ist verfügbar](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2).** Diese Version integriert das offizielle DeepSeek Harness `dsh-v0.2.2-rc.2`, verbessert die Wiederherstellung der Arbeitsbereichsliste, Zitate, Kontextmenüs und Einstellungen und enthält vorinstallierte Browser- und Computersteuerung. **DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, Update 1017) wird unterstützt.**
 >
 > Obwohl der Versionsname `rc` enthält, ist sie auf GitHub als reguläres Release veröffentlicht. Sichern Sie wichtige Unterhaltungen und Konfigurationen vor dem Upgrade und fügen Sie Problemmeldungen relevante Protokolle oder Diagnoseberichte bei.
 
@@ -19,6 +19,13 @@ Open DeepSeek Harness Desktop ist eine unabhängige, von der Community gepflegte
 > [!NOTE]
 >
 > Dieses Repository ist kein offizielles DeepSeek-Produkt. Es befindet sich weiterhin in der Vorschau; Datenformate, Kompatibilitätsregeln und Installation können sich noch ändern.
+
+## Neu in 0.2.2-rc.2
+
+- Die Integration des offiziellen rc.2 verbessert das Laden des Verlaufs, mehrseitige PDF-Vorschauen, Dateisuche, Code-Reviews und die Zusammenarbeit von Subagenten.
+- Update-Downloads laufen nach dem Schließen der Einstellungen weiter; der Fortschritt erscheint in der Fensterecke. Automatische Downloads sind standardmäßig aus. Installation und Neustart bleiben Ihre Entscheidung.
+- Fehlende lokale Archive können nach Bestätigung durch exakt passende, geprüfte mitgelieferte Pakete ersetzt werden. Installation und tatsächlicher Startstatus werden getrennt angezeigt.
+- Die nativen Menüs behalten den Plugin-Markt, bieten direkte Einträge für Modelle, eigene Anweisungen und NAS und bündeln Diagnose, Wiederherstellung, Snapshots und Protokolle.
 
 ## Aktuelle Hauptfunktionen
 
@@ -180,7 +187,7 @@ Unterstützt System, Hell, Dunkel und acht Produkt-Themes, acht integrierte Illu
 
 ## Download und Installation
 
-Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.1) herunter.
+Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2) herunter.
 
 | System | Architektur | Paket |
 | --- | --- | --- |
@@ -192,7 +199,7 @@ Laden Sie das passende Paket von [GitHub Releases](https://github.com/flaqai/ope
 
 Prüfen Sie Dateien mit SHA256SUMS. macOS-Builds sind ad-hoc signiert und nicht notarisiert; bei einer Gatekeeper-Sperre wählen Sie **Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen**. Windows kann für neue oder unsignierte Builds eine Reputationswarnung anzeigen.
 
-Falls das gewählte Release `DeepSeek-Harness-windows-x64.zip` anbietet, entpacken Sie das gesamte Archiv in einen eigenen Ordner und starten Sie `Open DeepSeek Harness Desktop.exe`. Die ZIP-Ausgabe benötigt keine Installation und registriert weder Installationseinträge noch automatisch PATH. Einstellungen und Verlauf bleiben im normalen Benutzerdatenverzeichnis und ziehen nicht mit dem ZIP-Ordner um. Entpacken Sie nicht über eine bestehende Installation. Das veröffentlichte `0.2.2-rc.1` enthält auch die Windows-ZIP-Ausgabe.
+Falls das gewählte Release `DeepSeek-Harness-windows-x64.zip` anbietet, entpacken Sie das gesamte Archiv in einen eigenen Ordner und starten Sie `Open DeepSeek Harness Desktop.exe`. Die ZIP-Ausgabe benötigt keine Installation und registriert weder Installationseinträge noch automatisch PATH. Einstellungen und Verlauf bleiben im normalen Benutzerdatenverzeichnis und ziehen nicht mit dem ZIP-Ordner um. Entpacken Sie nicht über eine bestehende Installation. Das veröffentlichte `0.2.2-rc.2` enthält auch die Windows-ZIP-Ausgabe.
 
 Nach dem manuellen Löschen des alten Programmordners können verwaiste Installationseinträge eine Neuinstallation blockieren. Das allgemeine Reparaturwerkzeug liegt unter [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md); Windows-Builds mit diesem Werkzeug enthalten es auch unter `resources/support/windows-install-repair/` im Programmordner. Es prüft die Einträge dieser Anwendung und sichert sie nach Ihrer Bestätigung vor der Reparatur; Einstellungen, Verlauf und Programmdateien werden nicht gelöscht.
 
