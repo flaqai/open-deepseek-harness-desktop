@@ -267,20 +267,20 @@ const REPAIR_REPORT_PREFIX = 'dsh: profile dependency health '
 
 const EXPERIMENTAL_CAPABILITY_RECIPES = {
   'browser-use-playwright-visible': {
-    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.3',
-    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-rc.3'],
+    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.4',
+    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-rc.4'],
   },
   'browser-use-devtools-visible': {
-    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.3',
-    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-rc.3'],
+    packageSpec: '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.4',
+    dependencies: ['@deepseek-ai/dsh-browser-use@0.2.2-rc.4'],
   },
   'computer-use-native': {
-    packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.3',
-    dependencies: ['@deepseek-ai/dsh-computer-use@0.2.2-rc.3'],
+    packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.4',
+    dependencies: ['@deepseek-ai/dsh-computer-use@0.2.2-rc.4'],
   },
   'computer-use-mcp': {
-    packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.2-rc.3',
-    dependencies: ['@deepseek-ai/dsh-computer-use@0.2.2-rc.3'],
+    packageSpec: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.2-rc.4',
+    dependencies: ['@deepseek-ai/dsh-computer-use@0.2.2-rc.4'],
   },
 } as const satisfies Record<ExperimentalCapabilityRecipe, {
   readonly packageSpec: string
