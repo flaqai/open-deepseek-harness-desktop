@@ -67,7 +67,7 @@ async function bootComposition(web: Record<string, unknown>, environment: Record
     { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek-api-key' },
     { id: 'llm-deepseek-account', name: '@deepseek-ai/dsh-llm-deepseek-account' },
     { id: 'web', name: '@deepseek-ai/dsh-web', config: { searchProvider: 'deepseek-search-api', fetchProvider: 'deepseek-fetch-api' } },
-    { id: 'web-deepseek-api', name: '@deepseek-ai/dsh-web-deepseek-api', config: web },
+    { id: 'web-deepseek-api', name: '@deepseek-ai/dsh-web-deepseek-api', config: { enabled: true, ...web } },
   ]))
   const ctx: Context = await boot('web-deepseek-api-composition', configPath, [], (host) => {
     const modules: ModuleLoaderV2 = {
@@ -102,6 +102,27 @@ function entry(ctx: Context, id: string) {
 }
 
 describe('web-deepseek-api over the real model routes', () => {
+  it('refuses configured API requests while disabled without dispatching or replacing selections', async () => {
+    const searchRegistrations = vi.spyOn(WebRuntime.prototype, 'registerSearchProvider')
+    const fetchRegistrations = vi.spyOn(WebRuntime.prototype, 'registerFetchProvider')
+    try {
+      const { ctx, sent } = await bootComposition({ enabled: false }, { DEEPSEEK_API_KEY: 'chat-key' })
+      const search = searchRegistrations.mock.calls.find(([provider]) => provider.id === 'deepseek-search-api')![0]
+      const fetch = fetchRegistrations.mock.calls.find(([provider]) => provider.id === 'deepseek-fetch-api')![0]
+      expect([search.available(), fetch.available()]).toEqual([false, false])
+      expect([await search.ready?.(undefined), await fetch.ready?.(undefined)]).toEqual([false, false])
+      // Selection failures stay visible as structured execution errors; the seam intentionally does not hide tools.
+      expect([await ctx.web.searchReady(undefined), await ctx.web.fetchReady(undefined)]).toEqual([true, true])
+      await expect(ctx.web.search({ query: 'private question' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' })
+      await expect(ctx.web.fetch({ url: 'https://example.test/' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' })
+      expect(ctx.web.listProviders().search.map(provider => provider.id)).toContain('deepseek-search-api')
+      expect(sent()).toEqual([])
+    } finally {
+      searchRegistrations.mockRestore()
+      fetchRegistrations.mockRestore()
+    }
+  })
+
   it('serves a user with only DEEPSEEK_API_KEY by default, at the origin DEEPSEEK_BASE_URL names', async () => {
     const { ctx, sent } = await bootComposition({}, {
       DEEPSEEK_API_KEY: 'chat-key', DEEPSEEK_BASE_URL: 'https://internal.deepseek.test/anthropic',

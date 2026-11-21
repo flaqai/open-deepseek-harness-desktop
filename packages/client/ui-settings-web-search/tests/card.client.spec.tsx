@@ -53,6 +53,7 @@ function shipped(): WebSearchCardState {
     providersFailed: false,
     search: { selected: 'deepseek-search-api', options: SEARCH_OPTIONS, kind: 'deepseek', auto: false },
     fetch: { selected: 'http', options: FETCH_OPTIONS, kind: 'local', auto: false },
+    apiEnabled: field('false'),
     count: field('10'),
     searchBilling: { value: 'auto', overridden: false, advancedOverride: [] },
     fetchBilling: undefined,
@@ -207,8 +208,8 @@ describe('WebSearchCard billing', () => {
 describe('WebSearchCard', () => {
   it('offers legacy search in both locales and renders its own settings', () => {
     const { actions } = renderPage(legacy())
-    expect(searchMenu().textContent).toBe('DeepSeek (legacy)')
-    expect(zh.providerLegacy).toBe('DeepSeek（旧版）')
+    expect(searchMenu().textContent).toBe('DeepSeek server-side search')
+    expect(zh.providerLegacy).toBe('DeepSeek 服务端搜索')
     expect(screen.queryByLabelText(en.count)).toBeNull()
     fireEvent.change(screen.getByLabelText(en.credential), { target: { value: 'new-key' } })
     fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://messages.test/v1' } })
@@ -395,6 +396,27 @@ describe('WebSearchCard', () => {
     expect(actions.selectProvider).toHaveBeenCalledTimes(1)
   })
 
+  it('explains automatic Search selection with the guide link, and shows no provider panel under it', () => {
+    const base = shipped()
+    renderPage({ ...base, search: { ...base.search, selected: '', kind: 'none', auto: true } })
+    expect(searchMenu().textContent).toBe(en.providerAuto)
+    expect(screen.getByText(en.searchAutoHint)).toBeTruthy()
+    expect(screen.getByRole('link', { name: en.searchGuide }).getAttribute('href')).toBe(en.searchGuideUrl)
+    expect(screen.queryByLabelText(en.count)).toBeNull()
+  })
+
+  it('does not explain automatic Search selection while a provider is selected or under automatic Fetch selection', () => {
+    const base = shipped()
+    renderPage({
+      ...base,
+      search: { ...base.search, selected: 'deepseek-official', kind: 'none', auto: true },
+      fetch: { ...base.fetch, selected: '', kind: 'none', auto: true },
+    })
+    expect(fetchMenu().textContent).toBe(en.providerAuto)
+    expect(screen.queryByText(en.searchAutoHint)).toBeNull()
+    expect(screen.queryByRole('link', { name: en.searchGuide })).toBeNull()
+  })
+
   it('reports a failed provider list read in each section and retries it', () => {
     const { actions } = renderPage({ ...shipped(), providersFailed: true })
     for (const name of [en.searchSection, en.fetchSection]) {
@@ -461,5 +483,21 @@ describe('WebSearchCard', () => {
     expect(screen.getByText(en.invalidCount)).toBeTruthy()
     expect(screen.getByLabelText(en.count).getAttribute('aria-invalid')).toBe('true')
     expect(screen.getByRole('button', { name: en.save })).toHaveProperty('disabled', true)
+  })
+})
+
+describe('Search/Fetch API opt-in', () => {
+  it('stages explicit consent without saving or replacing provider selections', () => {
+    const { actions } = renderPage()
+    const checkbox = screen.getByRole('checkbox', { name: en.apiEnabled })
+    expect((checkbox as HTMLInputElement).checked).toBe(false)
+    fireEvent.click(checkbox)
+    expect(actions.edit).toHaveBeenCalledWith('enabled', 'true')
+    expect(actions.save).not.toHaveBeenCalled()
+    expect(actions.selectProvider).not.toHaveBeenCalled()
+  })
+  it('does not offer writable consent on a read-only connection', () => {
+    renderPage({ ...shipped(), writable: false })
+    expect(screen.getByRole('checkbox', { name: en.apiEnabled }).disabled).toBe(true)
   })
 })

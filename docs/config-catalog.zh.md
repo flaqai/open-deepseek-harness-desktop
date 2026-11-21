@@ -4984,7 +4984,7 @@ export type ApprovalPolicy = 'ask' | 'never'
 ## `@deepseek-ai/dsh-web`
 
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/web/web/src/index.ts:62`](../packages/web/web/src/index.ts)
+- `source`: [`packages/web/web/src/index.ts:77`](../packages/web/web/src/index.ts)
 
 ```ts config-catalog
 /**
@@ -4996,7 +4996,10 @@ export type ApprovalPolicy = 'ask' | 'never'
  * fields rather than introduce a hidden priority chain.
  */
 export interface WebRuntimeConfig {
-  /** Explicit search provider id. Omitted = auto-select when exactly one usable. */
+  /**
+   * Explicit search provider id. Omitted = the usable DeepSeek provider assigned to the route of the model
+   * request, and otherwise auto-select when exactly one usable.
+   */
   readonly searchProvider: Volatile<string | undefined>
   /** Explicit fetch provider id. Omitted = auto-select when exactly one usable. */
   readonly fetchProvider: Volatile<string | undefined>
@@ -5070,6 +5073,8 @@ export interface Config {
  * without error and have no effect.
  */
 export interface Config {
+  /** Explicit permission for independently billed Search/Fetch API requests. Defaults to false. */
+  enabled: Volatile<boolean>
   /** Search API results per search, from 1 through 50; a smaller request bound wins. Defaults to 10. */
   count: Volatile<number>
   /**

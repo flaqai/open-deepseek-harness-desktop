@@ -32,7 +32,7 @@ import {
   plainOptions as plainOfficialOptions, resolveAdapterOptions as resolveOfficialOptions, type Config as OfficialRouteConfig,
 } from '@deepseek-ai/dsh-llm-deepseek-api-key'
 import type { Session } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-web'
+import { WebError } from '@deepseek-ai/dsh-web'
 import { DeepSeekFetchApiProvider } from './fetch.ts'
 import {
   DEEPSEEK_DEFAULT_COUNT, DEEPSEEK_SEARCH_REQUESTS_PER_SECOND, DEEPSEEK_WEB_API_BASE_URL, DeepSeekSearchApiProvider,
@@ -62,6 +62,8 @@ export const inject = ['web']
  * without error and have no effect.
  */
 export interface Config {
+  /** Explicit permission for independently billed Search/Fetch API requests. Defaults to false. */
+  enabled: Volatile<boolean>
   /** Search API results per search, from 1 through 50; a smaller request bound wins. Defaults to 10. */
   count: Volatile<number>
   /**
@@ -97,6 +99,7 @@ export interface Config {
 }
 
 export const Config = z.object({
+  enabled: z.boolean().default(false).volatile(),
   count: z.number().step(1).min(1).max(50).default(DEEPSEEK_DEFAULT_COUNT).volatile(),
   searchRequestsPerSecond: z.number().step(1).min(1).default(DEEPSEEK_SEARCH_REQUESTS_PER_SECOND).volatile(),
   sendOriginalQuestion: z.boolean().default(true).volatile(),
@@ -172,10 +175,20 @@ export function apply(ctx: Context, config: Config): void {
     : { baseURL: config.fetchBaseURL.get(), ref: config.fetchApiKeyEnv.get(), billing: config.fetchBilling.get() }
   const target = (capability: Capability, llmProvider: string | undefined) =>
     resolveTarget(ctx, capability, own(capability), llmProvider)
-  const current = (capability: Capability) =>
-    target(capability, ctx.get('agents')?.currentInitiator()?.session.requestContext()?.provider)
-  const ready = (capability: Capability) => (llmProvider: string | undefined): Promise<boolean> =>
-    isDeepSeekWebAuthReady(target(capability, llmProvider).auth, CAPABILITY[capability].path)
+  const requireEnabled = (): void => {
+    if (!config.enabled.get()) throw new WebError(
+      'DeepSeek Search/Fetch API is disabled. '
+        + 'Enable web-deepseek-api.enabled in Web search and fetch settings before sending requests.',
+      'WEB_PROVIDER_CONFIGURED_UNAVAILABLE',
+    )
+  }
+  const current = (capability: Capability) => {
+    requireEnabled()
+    return target(capability, ctx.get('agents')?.currentInitiator()?.session.requestContext()?.provider)
+  }
+  const ready = (capability: Capability) => (llmProvider: string | undefined): Promise<boolean> => config.enabled.get()
+    ? isDeepSeekWebAuthReady(target(capability, llmProvider).auth, CAPABILITY[capability].path)
+    : Promise.resolve(false)
   const searchApi = new DeepSeekSearchApiProvider(() => ({
     ...current('search'),
     count: config.count.get(),
@@ -188,16 +201,16 @@ export function apply(ctx: Context, config: Config): void {
   ctx.web.registerSearchProvider({
     id: searchApi.id,
     description: searchApi.description,
-    available: () => searchApi.available(),
+    available: () => config.enabled.get() && searchApi.available(),
     ready: ready('search'),
     search: (request, signal) => searchApi.search(request, signal),
   })
   ctx.web.registerFetchProvider({
     id: fetchApi.id,
     description: fetchApi.description,
-    available: () => fetchApi.available(),
+    available: () => config.enabled.get() && fetchApi.available(),
     ready: ready('fetch'),
-    fetch: (request, signal) => fetchApi.fetch(request, signal),
+    fetch: async (request, signal) => fetchApi.fetch(request, signal),
   })
 }
 

@@ -19,7 +19,7 @@ export const downloadSizeData: {
   'choices': {
     'browser-use-playwright-attach': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.4',
+        '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.5',
       ],
       'targets': {
         'darwin-arm64': {
@@ -27,7 +27,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -35,7 +35,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -43,7 +43,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -51,14 +51,14 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },
     },
     'browser-use-devtools-attach': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.4',
+        '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.5',
       ],
       'targets': {
         'darwin-arm64': {
@@ -66,7 +66,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -74,7 +74,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -82,7 +82,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -90,14 +90,14 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },
     },
     'browser-use-stagehand': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-stagehand-native@0.2.2-rc.4',
+        '@deepseek-ai/dsh-experimental-browser-use-stagehand-native@0.2.2-rc.5',
       ],
       'targets': {
         'darwin-arm64': {
@@ -105,7 +105,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -113,7 +113,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -121,7 +121,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -129,14 +129,14 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },
     },
     'auto-review': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-auto-review@0.2.2-rc.4',
+        '@deepseek-ai/dsh-experimental-auto-review@0.2.2-rc.5',
       ],
       'targets': {
         'darwin-arm64': {
@@ -144,7 +144,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -152,7 +152,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -160,7 +160,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -168,7 +168,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },
@@ -206,8 +206,8 @@ export const downloadSizeData: {
     },
     'browser-use-playwright-visible': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.4',
-        '@deepseek-ai/dsh-browser-use@0.2.2-rc.4',
+        '@deepseek-ai/dsh-experimental-browser-use-playwright-mcp@0.2.2-rc.5',
+        '@deepseek-ai/dsh-browser-use@0.2.2-rc.5',
       ],
       'targets': {
         'darwin-arm64': {
@@ -215,7 +215,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -223,7 +223,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -231,7 +231,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -239,15 +239,15 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },
     },
     'browser-use-devtools-visible': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.4',
-        '@deepseek-ai/dsh-browser-use@0.2.2-rc.4',
+        '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp@0.2.2-rc.5',
+        '@deepseek-ai/dsh-browser-use@0.2.2-rc.5',
       ],
       'targets': {
         'darwin-arm64': {
@@ -255,7 +255,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -263,7 +263,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -271,7 +271,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -279,15 +279,15 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },
     },
     'computer-use-native': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.4',
-        '@deepseek-ai/dsh-computer-use@0.2.2-rc.4',
+        '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native@0.2.2-rc.5',
+        '@deepseek-ai/dsh-computer-use@0.2.2-rc.5',
       ],
       'targets': {
         'darwin-arm64': {
@@ -295,7 +295,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -303,7 +303,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -311,7 +311,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -319,15 +319,15 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },
     },
     'computer-use-mcp': {
       'specs': [
-        '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.2-rc.4',
-        '@deepseek-ai/dsh-computer-use@0.2.2-rc.4',
+        '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp@0.2.2-rc.5',
+        '@deepseek-ai/dsh-computer-use@0.2.2-rc.5',
       ],
       'targets': {
         'darwin-arm64': {
@@ -335,7 +335,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
             'The standalone CUA Driver application is not measured by npm archive metadata',
           ],
         },
@@ -344,7 +344,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
             'The standalone CUA Driver application is not measured by npm archive metadata',
           ],
         },
@@ -353,7 +353,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
             'The standalone CUA Driver application is not measured by npm archive metadata',
           ],
         },
@@ -362,7 +362,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
             'The standalone CUA Driver application is not measured by npm archive metadata',
           ],
         },
@@ -370,7 +370,7 @@ export const downloadSizeData: {
     },
     'codex': {
       'specs': [
-        '@deepseek-ai/dsh-subagent-codex@0.2.2-rc.4',
+        '@deepseek-ai/dsh-subagent-codex@0.2.2-rc.5',
         '@openai/codex@0.153.4',
       ],
       'targets': {
@@ -379,7 +379,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -387,7 +387,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -395,7 +395,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -403,14 +403,14 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },
     },
     'claude-code': {
       'specs': [
-        '@deepseek-ai/dsh-subagent-claude-code@0.2.2-rc.4',
+        '@deepseek-ai/dsh-subagent-claude-code@0.2.2-rc.5',
         '@anthropic-ai/claude-agent-sdk@0.3.263',
       ],
       'targets': {
@@ -419,7 +419,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'darwin-x64': {
@@ -427,7 +427,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'win32-x64': {
@@ -435,7 +435,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
         'linux-x64': {
@@ -443,7 +443,7 @@ export const downloadSizeData: {
           'additionalUnknown': true,
           'packageCount': 0,
           'warnings': [
-            'Recipe updated to 0.2.2-rc.4; dependency download size has not been measured',
+            'Recipe updated to 0.2.2-rc.5; dependency download size has not been measured',
           ],
         },
       },

@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-将插件与 `dsh-web` 一起挂载，并选择它的提供方。内置配置挂载此插件，为搜索选择它的 Search API（`deepseek-search-api`），为抓取选择本地 HTTP 抓取。在**插件 > 内置插件配置 > 网页搜索与获取**中，在**搜索**下拉框选择 **DeepSeek Search API** 会选中 `deepseek-search-api`，在**获取**下拉框选择 **DeepSeek Fetch API** 会选中 `deepseek-fetch-api`；两个下拉框分别保存，选择其他条目即改用其他提供方。下拉框选中这两个提供方之一时，其下方的**计费方式**下拉框写入 `searchBilling` 或 `fetchBilling`：**自动**、**已登录的 DeepSeek 账号**或 **DeepSeek API Key**。保存的选择从下一次操作开始生效。
+将插件与 `dsh-web` 一起挂载，并选择它的提供方。内置配置挂载此插件，不配置搜索提供方，并为抓取选择本地 HTTP 抓取；未配置时仅在其 Search API（`deepseek-search-api`）已显式启用且可用时优先选择它，但为 DeepSeek 模型路由上的模型请求发起的搜索优先选择[旧版 Messages 搜索](../web/README.zh.md#provider-selection)。首选提供方不可用时，「自动选择」要求恰好存在一个可用的替代提供方。在**插件 > 内置插件配置 > 网页搜索与获取**中，在**搜索**下拉框选择 **DeepSeek Search API** 会选中 `deepseek-search-api`，在**获取**下拉框选择 **DeepSeek Fetch API** 会选中 `deepseek-fetch-api`；两个下拉框分别保存，选择其他条目即改用其他提供方。下拉框选中这两个提供方之一时，其下方的**计费方式**下拉框写入 `searchBilling` 或 `fetchBilling`：**自动**、**已登录的 DeepSeek 账号**或 **DeepSeek API Key**。保存的选择从下一次操作开始生效。
 
 ```yaml
 - name: '@deepseek-ai/dsh-web'
@@ -33,12 +33,14 @@ kind: "package-reference"
     fetchProvider: deepseek-fetch-api
 - name: '@deepseek-ai/dsh-web-deepseek-api'
   config:
+    enabled: true
     searchBaseURL: https://search.example.test/api/v1/tools
     searchApiKeyEnv: DEEPSEEK_SEARCH_API_KEY
 ```
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
+| `enabled` | `false` | 明确允许单独计费的 Search/Fetch API 请求 |
 | `count` | `10` | Search API 每次搜索的结果数，为 1 至 50 的整数；请求中更小的 `maxResults` 优先 |
 | `searchRequestsPerSecond` | `5` | 本插件实例在任意一秒窗口内最多发送的 Search 请求数，与服务的账号级 5 QPS 限制一致；后续搜索排队等待，等待时间计入调用方的超时 |
 | `sendOriginalQuestion` | `true` | 将触发搜索的用户提示截取至 128 个字符，作为 Search API 的 `ori_question` 发送 |
@@ -52,6 +54,8 @@ kind: "package-reference"
 两个字段都未设置的能力按其计费方式，请求所选 DeepSeek 模型路由解析后的 Messages 基础地址的 origin 下的 `/v1/tools/search` 与 `/v1/tools/fetch`，因此官方 `https://api.deepseek.com/anthropic` 或 `DEEPSEEK_BASE_URL` 覆盖值分别得到 `https://api.deepseek.com/v1/tools`，或覆盖值的 origin 加 `/v1/tools`。`dsh` 启动器从启动环境或 `$DSH_HOME/.env` 接受 `DEEPSEEK_BASE_URL`，绝不从项目 `.env` 接受（[app-boot](../../boot/app-boot/README.zh.md)）。单独配置的基础地址填写完整的 API 基础地址，包含路径前缀，但不包含操作名；使用其他前缀（例如 `/api/v1/tools`）的部署需要填写其完整基础地址。空字段视为未设置。这些单独配置的字段只能在 YAML 中设置，优先于计费方式；设置页只为这两个提供方显示计费方式下拉框。早期设置中保存的 `baseURL`、`apiKeyEnv` 与 `apiKey` 字段可以正常加载，但不再生效。
 
 真实 API 测试要求同时设置 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_SEARCH_API_TEST_BASE_URL`，后者包含 API 路径前缀。
+
+Search/Fetch API 默认关闭。请显式设置 `enabled: true`，或在网页搜索与获取设置中勾选启用并保存。关闭时两个提供方均不可用且未就绪，直接操作也在读取凭据或发起网络请求前失败。关闭不会清除端点、计费和提供方选择，也不会改写自定义提供方。NAS 设置写入仍仅限管理员。
 
 <a id="authentication"></a>
 ### 鉴权

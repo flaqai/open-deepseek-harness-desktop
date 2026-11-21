@@ -88,7 +88,7 @@ async function mount(setup: Setup): Promise<{ ctx: Context; sent: () => Sent[] }
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-search-api', fetchProvider: 'deepseek-fetch-api' })
-  await ctx.plugin(webApiPlugin, setup.config ?? {})
+  await ctx.plugin(webApiPlugin, { enabled: true, ...setup.config })
   return {
     ctx,
     sent: () => fetchMock.mock.calls.map(([endpoint, init]) => {
@@ -691,6 +691,7 @@ describe('route resolver failures', () => {
 describe('billing settings', () => {
   it('defaults both capabilities to automatic billing and rejects an unknown billing', () => {
     const config = webApiPlugin.Config({})
+    expect(config.enabled.get()).toBe(false)
     expect([config.searchBilling.get(), config.fetchBilling.get()]).toEqual(['auto', 'auto'])
     // @ts-expect-error A stored settings file can carry a value outside the billing union.
     expect(() => webApiPlugin.Config({ searchBilling: 'session' })).toThrow()

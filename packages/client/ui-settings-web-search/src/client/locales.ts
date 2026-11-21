@@ -4,9 +4,9 @@ import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** Locale keys the page renders. */
 export type WebSearchSettingsLocaleKey =
-  | 'searchApiPrivacy' | 'searchApiProviderChange'
+  | 'apiEnabled' | 'searchApiPrivacy' | 'searchApiProviderChange'
   | 'title' | 'description' | 'searchSection' | 'fetchSection'
-  | 'providerDeepSeek' | 'providerLocal' | 'providerDeepSeekFetch' | 'providerMissing' | 'providerAuto'
+  | 'providerDeepSeek' | 'providerLocal' | 'providerDeepSeekFetch' | 'providerMissing' | 'providerAuto' | 'searchAutoHint'
   | 'providerLegacy' | 'legacyKeyHint' | 'maxUses' | 'maxUsesHint' | 'invalidMaxUses'
   | 'providersFailed' | 'retry'
   | 'pluginProviderHint' | 'searchGuide' | 'searchGuideUrl'
@@ -20,6 +20,7 @@ export type WebSearchSettingsLocaleKey =
 
 /** English copy. */
 export const en: Record<WebSearchSettingsLocaleKey, string> = {
+  apiEnabled: 'Enable the independently billed Search/Fetch APIs (off by default)',
   searchApiPrivacy: 'The Search and Fetch APIs are billed separately. By default, Search may send the first 128 Unicode characters of your latest question after collapsing whitespace. To disable this, set sendOriginalQuestion: false on the web-deepseek-api plugin in your profile configuration.',
   searchApiProviderChange: 'Search and fetch providers are selected independently. Saving replaces only the choices you edited; existing custom providers remain unchanged until you select a replacement and save.',
   title: 'Web search and fetch',
@@ -27,7 +28,7 @@ export const en: Record<WebSearchSettingsLocaleKey, string> = {
   searchSection: 'Web search provider',
   fetchSection: 'Web fetch provider',
   providerDeepSeek: 'DeepSeek Search API',
-  providerLegacy: 'DeepSeek (legacy)',
+  providerLegacy: 'DeepSeek server-side search',
   legacyKeyHint: 'Uses the signed-in account on account-model requests; otherwise uses this API key ({ref}), shared with Models by default.',
   maxUses: 'Maximum searches per request',
   maxUsesHint: 'Maximum server-side searches per Messages request: a positive integer, default 5.',
@@ -36,6 +37,7 @@ export const en: Record<WebSearchSettingsLocaleKey, string> = {
   providerDeepSeekFetch: 'DeepSeek Fetch API',
   providerMissing: '{id} (not loaded)',
   providerAuto: 'Automatic',
+  searchAutoHint: 'Follows the conversation model: DeepSeek models prefer server-side search with no per-search charge but extra model tokens; other models prefer Search API, available only after explicit enablement. If unavailable, only a single available provider can be used as fallback.',
   providersFailed: "Couldn't load the provider list, so this menu may be incomplete.",
   retry: 'Retry',
   pluginProviderHint: 'Configure this provider in its own plugin settings.',
@@ -69,6 +71,7 @@ export const en: Record<WebSearchSettingsLocaleKey, string> = {
 
 /** Simplified Chinese copy. */
 export const zh: Record<WebSearchSettingsLocaleKey, string> = {
+  apiEnabled: '启用单独计费的 Search/Fetch API（默认关闭）',
   searchApiPrivacy: 'Search 与 Fetch API 单独计费。Search 默认可能发送最近一次提问折叠空白后的前 128 个 Unicode 字符。如需关闭原问题发送，请在 Profile 配置中为 web-deepseek-api 插件设置 sendOriginalQuestion: false。',
   searchApiProviderChange: '搜索与获取提供方可独立选择。保存仅替换你修改的选项；已有自定义提供方会保留，直到你主动选择替代项并保存。',
   title: '网页搜索与获取',
@@ -76,7 +79,7 @@ export const zh: Record<WebSearchSettingsLocaleKey, string> = {
   searchSection: '网页搜索提供方',
   fetchSection: '网页获取提供方',
   providerDeepSeek: 'DeepSeek Search API',
-  providerLegacy: 'DeepSeek（旧版）',
+  providerLegacy: 'DeepSeek 服务端搜索',
   legacyKeyHint: '账号模型发起的请求使用已登录账号；其他请求使用此 API Key（{ref}），默认与「模型」页共用',
   maxUses: '单次请求最多搜索次数',
   maxUsesHint: '每次 Messages 请求允许的服务端搜索次数上限，须为正整数，默认 5',
@@ -85,6 +88,7 @@ export const zh: Record<WebSearchSettingsLocaleKey, string> = {
   providerDeepSeekFetch: 'DeepSeek Fetch API',
   providerMissing: '{id}（未加载）',
   providerAuto: '自动选择',
+  searchAutoHint: '跟随会话模型：DeepSeek 模型优先使用服务端搜索，不按次收费但会消耗额外模型 Token；其他模型优先使用仅在明确启用后可用的 Search API。首选不可用时，仅在恰好有一个可用提供方时回退。',
   providersFailed: '无法读取提供方列表，此菜单可能不完整',
   retry: '重试',
   pluginProviderHint: '请在该插件自己的设置中配置',
@@ -127,6 +131,7 @@ export function formLabels(t: (key: WebSearchSettingsLocaleKey) => string): Sett
 
 /** Japanese copy, checked against the English keys. */
 export const ja = {
+  apiEnabled: '別途課金の Search/Fetch API を有効化（既定で無効）',
   'searchApiPrivacy': 'Search と Fetch API は別途課金されます。Search は既定で、直近の質問の空白をまとめた先頭 128 Unicode 文字を送信する場合があります。送信を無効にするには、Profile の web-deepseek-api プラグイン設定で sendOriginalQuestion: false を指定してください。',
   'searchApiProviderChange': '検索と取得のプロバイダーは個別に選択します。保存すると変更した選択肢のみ置き換えられます。既存のカスタムプロバイダーは、別のものを選択して保存するまで維持されます。',
   'title': 'Web 検索と取得',
@@ -134,7 +139,7 @@ export const ja = {
   'searchSection': 'Web 検索プロバイダー',
   'fetchSection': 'Web 取得プロバイダー',
   'providerDeepSeek': 'DeepSeek Search API',
-  'providerLegacy': 'DeepSeek（旧版）',
+  'providerLegacy': 'DeepSeek サーバー側検索',
   'legacyKeyHint': 'アカウントモデルのリクエストではログイン中のアカウントを使い、それ以外ではこの API キー（{ref}、既定ではモデル設定と共有）を使います。',
   'maxUses': 'リクエストごとの最大検索回数',
   'maxUsesHint': 'Messages リクエストごとのサーバー側検索回数の上限です。正の整数で、既定値は 5 です。',
@@ -143,6 +148,7 @@ export const ja = {
   'providerDeepSeekFetch': 'DeepSeek Fetch API',
   'providerMissing': '{id}（未読み込み）',
   'providerAuto': '自動',
+  searchAutoHint: '会話モデルに従います。DeepSeek モデルは検索単位の料金はなく追加のモデル Token を消費するサーバー側検索を優先し、他のモデルは明示的な有効化が必要な Search API を優先します。優先先が利用できない場合、利用可能な提供元が 1 つだけなら代替します。',
   'providersFailed': 'プロバイダー一覧を読み込めなかったため、このメニューは不完全な可能性があります。',
   'retry': '再試行',
   'pluginProviderHint': 'このプロバイダーは、そのプラグイン自身の設定で構成してください。',
@@ -176,6 +182,7 @@ export const ja = {
 
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
+  apiEnabled: 'Activar las API Search/Fetch con facturación independiente (desactivadas por defecto)',
   'searchApiPrivacy': 'Las API de Search y Fetch se facturan por separado. Search puede enviar por defecto los primeros 128 caracteres Unicode de tu última pregunta tras normalizar los espacios. Para evitarlo, establece sendOriginalQuestion: false en la configuración del complemento web-deepseek-api de tu Profile.',
   'searchApiProviderChange': 'Los proveedores de búsqueda y obtención se eligen por separado. Al guardar solo se sustituyen las opciones editadas; los proveedores personalizados se conservan hasta que elijas un sustituto y guardes.',
   title: 'Búsqueda y obtención web',
@@ -183,7 +190,7 @@ export const es = {
   searchSection: 'Proveedor de búsqueda web',
   fetchSection: 'Proveedor de obtención web',
   providerDeepSeek: 'DeepSeek Search API',
-  providerLegacy: 'DeepSeek (heredado)',
+  providerLegacy: 'Búsqueda en servidor de DeepSeek',
   legacyKeyHint: 'Las solicitudes del modelo de cuenta usan la cuenta conectada; las demás usan esta clave API ({ref}), compartida con Modelos de forma predeterminada.',
   maxUses: 'Búsquedas máximas por solicitud',
   maxUsesHint: 'Máximo de búsquedas del servidor por solicitud Messages: entero positivo, predeterminado 5.',
@@ -192,6 +199,7 @@ export const es = {
   providerDeepSeekFetch: 'DeepSeek Fetch API',
   providerMissing: '{id} (no cargado)',
   providerAuto: 'Automático',
+  searchAutoHint: 'Sigue el modelo: DeepSeek prefiere la búsqueda en servidor, sin cargo por búsqueda pero con consumo adicional de tokens; los demás prefieren Search API, que requiere activación explícita. Si no está disponible, solo se usa una alternativa cuando hay un único proveedor disponible.',
   providersFailed: 'No se pudo cargar la lista de proveedores, por lo que este menú puede estar incompleto.',
   retry: 'Reintentar',
   pluginProviderHint: 'Configure este proveedor en la configuración de su propio complemento.',
@@ -225,6 +233,7 @@ export const es = {
 
 /** French dictionary, checked against the English keys. */
 export const fr = {
+  apiEnabled: 'Activer les API Search/Fetch facturées séparément (désactivées par défaut)',
   'searchApiPrivacy': 'Les API Search et Fetch sont facturées séparément. Par défaut, Search peut envoyer les 128 premiers caractères Unicode de votre dernière question après normalisation des espaces. Pour désactiver cet envoi, définissez sendOriginalQuestion: false dans la configuration du plugin web-deepseek-api de votre Profile.',
   'searchApiProviderChange': 'Les fournisseurs de recherche et de récupération se choisissent séparément. L’enregistrement remplace uniquement les choix modifiés ; les fournisseurs personnalisés sont conservés tant que vous ne choisissez pas de remplaçant.',
   title: 'Recherche et récupération web',
@@ -232,7 +241,7 @@ export const fr = {
   searchSection: 'Fournisseur de recherche web',
   fetchSection: 'Fournisseur de récupération web',
   providerDeepSeek: 'DeepSeek Search API',
-  providerLegacy: 'DeepSeek (ancienne version)',
+  providerLegacy: 'Recherche côté serveur DeepSeek',
   legacyKeyHint: 'Les requêtes du modèle de compte utilisent le compte connecté ; les autres utilisent cette clé API ({ref}), partagée avec Modèles par défaut.',
   maxUses: 'Recherches maximales par requête',
   maxUsesHint: 'Maximum de recherches côté serveur par requête Messages : entier positif, 5 par défaut.',
@@ -241,6 +250,7 @@ export const fr = {
   providerDeepSeekFetch: 'DeepSeek Fetch API',
   providerMissing: '{id} (non chargé)',
   providerAuto: 'Automatique',
+  searchAutoHint: 'Suit le modèle : DeepSeek privilégie la recherche serveur, sans frais par recherche mais avec des tokens supplémentaires ; les autres privilégient Search API, à activer explicitement. Le repli nécessite un seul fournisseur disponible.',
   providersFailed: 'Impossible de charger la liste des fournisseurs ; ce menu peut être incomplet.',
   retry: 'Réessayer',
   pluginProviderHint: 'Configurez ce fournisseur dans les paramètres de son propre plugin.',
@@ -274,6 +284,7 @@ export const fr = {
 
 /** German dictionary, checked against the English keys. */
 export const de = {
+  apiEnabled: 'Separat berechnete Search/Fetch-APIs aktivieren (standardmäßig aus)',
   'searchApiPrivacy': 'Search- und Fetch-APIs werden separat abgerechnet. Search kann standardmäßig die ersten 128 Unicode-Zeichen Ihrer letzten Frage nach dem Zusammenfassen von Leerraum senden. Deaktivieren Sie dies mit sendOriginalQuestion: false in der Profile-Konfiguration des Plugins web-deepseek-api.',
   'searchApiProviderChange': 'Such- und Abrufanbieter werden getrennt gewählt. Beim Speichern werden nur geänderte Optionen ersetzt; bestehende benutzerdefinierte Anbieter bleiben erhalten, bis du einen Ersatz auswählst und speicherst.',
   title: 'Websuche und Webabruf',
@@ -281,7 +292,7 @@ export const de = {
   searchSection: 'Anbieter für Websuche',
   fetchSection: 'Anbieter für Webabruf',
   providerDeepSeek: 'DeepSeek Search API',
-  providerLegacy: 'DeepSeek (Legacy)',
+  providerLegacy: 'DeepSeek-Serversuche',
   legacyKeyHint: 'Kontomodellanfragen verwenden das angemeldete Konto; andere verwenden diesen API-Schlüssel ({ref}), standardmäßig mit Modelle geteilt.',
   maxUses: 'Maximale Suchen pro Anfrage',
   maxUsesHint: 'Maximale serverseitige Suchen pro Messages-Anfrage: positive Ganzzahl, Standard 5.',
@@ -290,6 +301,7 @@ export const de = {
   providerDeepSeekFetch: 'DeepSeek Fetch API',
   providerMissing: '{id} (nicht geladen)',
   providerAuto: 'Automatisch',
+  searchAutoHint: 'Folgt dem Modell: DeepSeek bevorzugt Serversuche ohne Preis pro Suche, aber mit zusätzlichen Modell-Token; andere bevorzugen die ausdrücklich zu aktivierende Search API. Ein Ersatz wird nur bei genau einem verfügbaren Anbieter gewählt.',
   providersFailed: 'Die Anbieterliste konnte nicht geladen werden, daher ist dieses Menü möglicherweise unvollständig.',
   retry: 'Erneut versuchen',
   pluginProviderHint: 'Konfigurieren Sie diesen Anbieter in den Einstellungen seines eigenen Plugins.',
@@ -323,6 +335,7 @@ export const de = {
 
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
+  apiEnabled: 'Включить отдельно оплачиваемые API Search/Fetch (по умолчанию выключены)',
   'searchApiPrivacy': 'API Search и Fetch оплачиваются отдельно. По умолчанию Search может отправлять первые 128 символов Unicode последнего вопроса после нормализации пробелов. Чтобы отключить отправку вопроса, задайте sendOriginalQuestion: false в настройках плагина web-deepseek-api в Profile.',
   'searchApiProviderChange': 'Провайдеры поиска и загрузки выбираются независимо. Сохранение заменяет только изменённые варианты. Пользовательские провайдеры сохраняются, пока вы явно не выберете замену и не сохраните её.',
   title: 'Веб-поиск и загрузка',
@@ -330,7 +343,7 @@ export const ru = {
   searchSection: 'Поставщик веб-поиска',
   fetchSection: 'Поставщик загрузки веб-страниц',
   providerDeepSeek: 'DeepSeek Search API',
-  providerLegacy: 'DeepSeek (прежняя версия)',
+  providerLegacy: 'Серверный поиск DeepSeek',
   legacyKeyHint: 'Запросы модели аккаунта используют активный аккаунт; остальные — этот ключ API ({ref}), по умолчанию общий с настройками моделей.',
   maxUses: 'Максимум поисков на запрос',
   maxUsesHint: 'Максимум серверных поисков на запрос Messages: положительное целое, по умолчанию 5.',
@@ -339,6 +352,7 @@ export const ru = {
   providerDeepSeekFetch: 'DeepSeek Fetch API',
   providerMissing: '{id} (не загружен)',
   providerAuto: 'Автоматически',
+  searchAutoHint: 'Следует модели: DeepSeek предпочитает серверный поиск без платы за поиск, но с расходом дополнительных токенов; остальные — Search API после явного включения. Замена возможна только при единственном доступном провайдере.',
   providersFailed: 'Не удалось загрузить список поставщиков, поэтому это меню может быть неполным.',
   retry: 'Повторить',
   pluginProviderHint: 'Настройте этого поставщика в настройках его собственного плагина.',
@@ -372,6 +386,7 @@ export const ru = {
 
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
+  apiEnabled: 'Ativar APIs Search/Fetch cobradas separadamente (desativadas por padrão)',
   'searchApiPrivacy': 'As APIs Search e Fetch são cobradas separadamente. Por padrão, Search pode enviar os primeiros 128 caracteres Unicode da última pergunta após normalizar os espaços. Para desativar o envio, defina sendOriginalQuestion: false na configuração do plug-in web-deepseek-api do seu Profile.',
   'searchApiProviderChange': 'Os provedores de pesquisa e obtenção são selecionados separadamente. Salvar substitui apenas as opções alteradas; os provedores personalizados permanecem até você escolher uma alternativa e salvar.',
   title: 'Pesquisa e obtenção na web',
@@ -379,7 +394,7 @@ export const pt = {
   searchSection: 'Provedor de pesquisa na web',
   fetchSection: 'Provedor de obtenção na web',
   providerDeepSeek: 'DeepSeek Search API',
-  providerLegacy: 'DeepSeek (legado)',
+  providerLegacy: 'Pesquisa no servidor da DeepSeek',
   legacyKeyHint: 'Pedidos do modelo de conta usam a conta conectada; os demais usam esta chave API ({ref}), compartilhada com Modelos por padrão.',
   maxUses: 'Máximo de pesquisas por pedido',
   maxUsesHint: 'Máximo de pesquisas no servidor por pedido Messages: inteiro positivo, padrão 5.',
@@ -388,6 +403,7 @@ export const pt = {
   providerDeepSeekFetch: 'DeepSeek Fetch API',
   providerMissing: '{id} (não carregado)',
   providerAuto: 'Automático',
+  searchAutoHint: 'Segue o modelo: DeepSeek prefere pesquisa no servidor, sem cobrança por pesquisa, mas com tokens adicionais; outros preferem Search API, que exige ativação explícita. Só há alternativa quando existe um único provedor disponível.',
   providersFailed: 'Não foi possível carregar a lista de provedores, por isso este menu pode estar incompleto.',
   retry: 'Tentar novamente',
   pluginProviderHint: 'Configure este provedor nas configurações do próprio plugin.',

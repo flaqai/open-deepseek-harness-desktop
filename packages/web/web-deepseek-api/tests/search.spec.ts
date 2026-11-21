@@ -218,7 +218,7 @@ describe('Search API triggering question', () => {
       await ctx.plugin(AgentRegistry)
       await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-search-api' })
       ctx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot([{ source: 'process', values: { DEEPSEEK_API_KEY: 'ds-key' } }]))
-      await ctx.plugin(webApiPlugin, config)
+      await ctx.plugin(webApiPlugin, { enabled: true, ...config })
       const messages = [
         userMessage('m1', { kind: 'user' }, [{ type: 'text', text: 'Earlier question' }]),
         userMessage('m2', { kind: 'user' }, [
@@ -252,7 +252,7 @@ describe('Search API configuration and failures', () => {
     try {
       await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-search-api' })
       ctx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot([{ source: 'process', values: { DEEPSEEK_API_KEY: 'ds-key' } }]))
-      await ctx.plugin(webApiPlugin, {})
+      await ctx.plugin(webApiPlugin, { enabled: true })
       await ctx.web.search({ query: 'q' })
       expect(fetchMock.mock.calls[0]?.[0]).toBe(`${DEEPSEEK_WEB_API_BASE_URL}/search`)
       expect(DEEPSEEK_WEB_API_BASE_URL).toBe('https://api.deepseek.com/v1/tools')
@@ -266,7 +266,7 @@ describe('Search API configuration and failures', () => {
     try {
       await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-search-api' })
       ctx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot([{ source: 'process', values: { DEEPSEEK_API_KEY: 'ds-key' } }]))
-      await ctx.plugin(webApiPlugin, { searchBaseURL: 'not a url' })
+      await ctx.plugin(webApiPlugin, { enabled: true, searchBaseURL: 'not a url' })
       await expect(ctx.web.search({ query: 'q' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' })
       expect(fetchMock).not.toHaveBeenCalled()
     } finally { await ctx.fiber.dispose() }

@@ -36,7 +36,7 @@ let handler: Handler
 let ctx: Context
 let fiber: Awaited<ReturnType<Context['plugin']>>
 // web_search and web_fetch are conditional registrations, so calls run inside an agent's step admission.
-const agent = { id: SessionId('tool-web-integration') } as Agent
+const agent = { id: SessionId('tool-web-integration'), session: { requestContext: () => undefined } } as Agent
 
 beforeEach(async () => {
   handler = (_req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end('<h1>Hello</h1><p>World</p>') }
@@ -54,7 +54,7 @@ beforeEach(async () => {
   })
   await ctx.plugin(WebFetchLocal, {})
   ctx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot([{ source: 'process', values: { DEEPSEEK_API_KEY: 'search-key' } }]))
-  await ctx.plugin(WebDeepSeekApi, { searchBaseURL: SEARCH_API_BASE, sendOriginalQuestion: false })
+  await ctx.plugin(WebDeepSeekApi, { enabled: true, searchBaseURL: SEARCH_API_BASE, sendOriginalQuestion: false })
   // The shipped deployment shape: the tool-call budget is declared by tool-web
   // config (default 30s, attached as ToolDefinition.timeoutMs) and enforced by
   // the zero-config timeout-policy plugin, set above the provider backstop so the

@@ -3,6 +3,9 @@
 
 const dictionaries: Record<string, Record<string, string>> = {
   'settings.webSearch': {
+    'apiEnabled': '별도 요금 Search/Fetch API 활성화 (기본값: 꺼짐)',
+    'providerLegacy': 'DeepSeek 서버 측 검색',
+    'searchAutoHint': '대화 모델에 따릅니다. DeepSeek 모델은 검색 건별 요금은 없지만 추가 모델 Token을 사용하는 서버 측 검색을 우선하며, 다른 모델은 명시적으로 활성화해야 하는 Search API를 우선합니다. 우선 제공자를 사용할 수 없으면 사용 가능한 제공자가 하나뿐일 때만 대체합니다.',
     'searchApiPrivacy': 'Search 및 Fetch API는 별도로 요금이 부과됩니다. Search는 기본적으로 최신 질문의 공백을 정리한 후 처음 128개의 Unicode 문자를 전송할 수 있습니다. 전송하지 않으려면 Profile의 web-deepseek-api 플러그인 설정에서 sendOriginalQuestion: false를 지정하세요.',
     'searchApiProviderChange': '검색과 가져오기 제공자는 각각 선택합니다. 저장하면 변경한 항목만 교체되며, 기존 사용자 지정 제공자는 대안을 직접 선택하고 저장할 때까지 유지됩니다.',
   },

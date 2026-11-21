@@ -47,6 +47,7 @@
 # DEEPSEEK_API_KEY the launching environment exports.
 - id: web-deepseek-api
   config:
+    enabled: true
     searchApiKeyEnv: DSH_KEYLESS_SMOKE_SEARCH_KEY
     fetchApiKeyEnv: DSH_KEYLESS_SMOKE_FETCH_KEY
 

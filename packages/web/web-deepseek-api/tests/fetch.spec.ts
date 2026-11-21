@@ -66,7 +66,7 @@ describe('DeepSeek Fetch API', () => {
     try {
       await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-search-api', fetchProvider: 'deepseek-fetch-api' })
       ctx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot([{ source: 'process', values: { DEEPSEEK_API_KEY: 'ds-key' } }]))
-      const fiber = await ctx.plugin(webApiPlugin, { fetchBaseURL: BASE })
+      const fiber = await ctx.plugin(webApiPlugin, { enabled: true, fetchBaseURL: BASE })
       await expect(ctx.web.fetch({ url: 'https://example.com' })).resolves.toMatchObject({ body: { content: 'body' } })
       await fiber.dispose()
       await expect(ctx.web.fetch({ url: 'https://example.com' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_MISSING' })

@@ -24,7 +24,7 @@ Search and fetch the web through the DeepSeek Search and Fetch APIs: one direct 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the plugin alongside `dsh-web` and select its providers. Shipped profiles mount it and select its Search API (`deepseek-search-api`) for search and local HTTP fetch for fetch. In **Plugins > Built-in plugin settings > Web search and fetch**, choosing **DeepSeek Search API** in the **Search** menu selects `deepseek-search-api` and choosing **DeepSeek Fetch API** in the **Fetch** menu selects `deepseek-fetch-api`; each menu is saved independently, and choosing another entry restores another provider. While a menu selects one of these providers, its **Billing** menu below writes `searchBilling` or `fetchBilling`: **Automatic**, **Signed-in DeepSeek account**, or **DeepSeek API key**. A saved selection applies to the next operation.
+Mount the plugin alongside `dsh-web` and select its providers. Shipped profiles mount it, configure no search provider, and select local HTTP fetch for fetch; an unconfigured search prefers its Search API (`deepseek-search-api`) only when explicitly enabled and usable, except for a model request on a DeepSeek model route, which prefers [legacy Messages search](../web/README.md#provider-selection). If the preferred provider is unavailable, Automatic requires exactly one usable alternative. In **Plugins > Built-in plugin settings > Web search and fetch**, choosing **DeepSeek Search API** in the **Search** menu selects `deepseek-search-api` and choosing **DeepSeek Fetch API** in the **Fetch** menu selects `deepseek-fetch-api`; each menu is saved independently, and choosing another entry restores another provider. While a menu selects one of these providers, its **Billing** menu below writes `searchBilling` or `fetchBilling`: **Automatic**, **Signed-in DeepSeek account**, or **DeepSeek API key**. A saved selection applies to the next operation.
 
 ```yaml
 - name: '@deepseek-ai/dsh-web'
@@ -33,12 +33,14 @@ Mount the plugin alongside `dsh-web` and select its providers. Shipped profiles 
     fetchProvider: deepseek-fetch-api
 - name: '@deepseek-ai/dsh-web-deepseek-api'
   config:
+    enabled: true
     searchBaseURL: https://search.example.test/api/v1/tools
     searchApiKeyEnv: DEEPSEEK_SEARCH_API_KEY
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
+| `enabled` | `false` | Explicit permission for independently billed Search/Fetch API requests |
 | `count` | `10` | Search API results per search, an integer from 1 to 50; a smaller `maxResults` on the request wins |
 | `searchRequestsPerSecond` | `5` | Most Search requests this plugin instance sends in any one-second window, matching the service's account-wide 5 QPS limit; later searches wait, and the wait counts against the caller's timeout |
 | `sendOriginalQuestion` | `true` | Send the triggering human prompt, cut to 128 characters, as the Search API's `ori_question` |
@@ -52,6 +54,8 @@ Mount the plugin alongside `dsh-web` and select its providers. Shipped profiles 
 A capability with neither field follows its billing and reaches `/v1/tools/search` and `/v1/tools/fetch` under the origin of the selected DeepSeek model route's resolved Messages base URL, so the official `https://api.deepseek.com/anthropic`, or a `DEEPSEEK_BASE_URL` override, becomes `https://api.deepseek.com/v1/tools`, or the override's origin with `/v1/tools`. The `dsh` launcher accepts `DEEPSEEK_BASE_URL` from the launching environment or `$DSH_HOME/.env`, never from a project `.env` ([app-boot](../../boot/app-boot/README.md)). Fill an own base URL with the complete API base, including its path prefix and excluding the operation name; a deployment with another prefix, such as `/api/v1/tools`, needs its complete base. An empty field counts as unset. The own fields are YAML-only and take precedence over billing; the settings page shows only the billing menu for these providers. Stored `baseURL`, `apiKeyEnv`, and `apiKey` fields of earlier settings load without error and have no effect.
 
 Run the real API tests with `DEEPSEEK_API_KEY` and `DEEPSEEK_SEARCH_API_TEST_BASE_URL`; both are required, and the latter includes the API path prefix.
+
+The Search/Fetch APIs are disabled by default. Set `enabled: true` explicitly, or enable and save the checkbox in Web search and fetch settings. While disabled, both providers are unavailable and not ready, and direct operations fail before reading credentials or dispatching network requests. Disabling preserves endpoint, billing, and provider selections; it never rewrites a custom provider. NAS settings writes remain administrator-only.
 
 <a id="authentication"></a>
 ### Authentication

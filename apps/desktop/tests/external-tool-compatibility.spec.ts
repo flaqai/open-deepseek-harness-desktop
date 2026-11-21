@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import desktopPackageJson from '../package.json'
-import manifestJson from '../external-tools/manifests/0.2.2-rc.4/external-tools-compatibility.v2.json'
+import manifestJson from '../external-tools/manifests/0.2.2-rc.5/external-tools-compatibility.v2.json'
+import previousRc4ManifestJson from '../external-tools/manifests/0.2.2-rc.4/external-tools-compatibility.v2.json'
 import previousRc3ManifestJson from '../external-tools/manifests/0.2.2-rc.3/external-tools-compatibility.v2.json'
 import previousRc2ManifestJson from '../external-tools/manifests/0.2.2-rc.2/external-tools-compatibility.v2.json'
 import alpha223ManifestJson from '../external-tools/manifests/0.2.2-alpha.3/external-tools-compatibility.v2.json'
@@ -65,11 +66,14 @@ function response(bytes: Uint8Array): Response {
 describe('external tool compatibility', () => {
   it('separates the new Desktop identity from published alpha and previous release coordinates', () => {
     expect(manifestJson.desktopVersion).toBe(desktopPackageJson.version)
-    expect(manifestJson.revision).toBe(29)
+    expect(manifestJson.revision).toBe(30)
     expect(manifestJson.reviewedSourceVersion).toBe(manifestJson.desktopVersion)
-    expect(manifestJson.issuedAt).toBe('2026-11-18T00:00:00.000Z')
-    expect(manifestJson.expiresAt).toBe('2027-05-18T00:00:00.000Z')
+    expect(manifestJson.issuedAt).toBe('2026-11-19T00:00:00.000Z')
+    expect(manifestJson.expiresAt).toBe('2027-05-19T00:00:00.000Z')
     expect(EMBEDDED_EXTERNAL_TOOL_COMPATIBILITY).toEqual(manifestJson)
+    expect(previousRc4ManifestJson.desktopVersion).toBe('0.2.2-rc.4')
+    expect(previousRc4ManifestJson.revision).toBe(29)
+    expect(previousRc4ManifestJson.tools.codex.version).toBe('0.2.2-rc.4')
     expect(previousRc3ManifestJson.desktopVersion).toBe('0.2.2-rc.3')
     expect(previousRc3ManifestJson.revision).toBe(28)
     expect(previousRc3ManifestJson.tools.codex.version).toBe('0.2.2-rc.3')

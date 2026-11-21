@@ -28,12 +28,34 @@ function captureAuthorization(): () => (string | null)[] {
 async function mount(ctx: Context, config: Record<string, unknown>, environment: Record<string, string>): Promise<void> {
   ctx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot([{ source: 'process', values: environment }]))
   await ctx.plugin(WebRuntime, { searchProvider: 'deepseek-search-api' })
-  await ctx.plugin(webApiPlugin, config)
+  await ctx.plugin(webApiPlugin, { enabled: true, ...config })
 }
 
 afterEach(() => { vi.unstubAllGlobals() })
 
 describe('web-deepseek-api API-key resolution', () => {
+  it('defaults off and also blocks direct registered-provider calls before credential reads or network', async () => {
+    const fetchMock = vi.fn()
+    const describeCredential = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = new Context()
+    try {
+      ctx.provide('credentials', { describe: describeCredential, resolve: vi.fn() } as never)
+      await ctx.plugin(WebRuntime, {})
+      const searches = vi.spyOn(ctx.web, 'registerSearchProvider')
+      const fetches = vi.spyOn(ctx.web, 'registerFetchProvider')
+      await ctx.plugin(webApiPlugin, {})
+      const search = searches.mock.calls[0]![0]
+      const fetch = fetches.mock.calls[0]![0]
+      expect([search.available?.(), fetch.available?.()]).toEqual([false, false])
+      expect([await search.ready?.(undefined), await fetch.ready?.(undefined)]).toEqual([false, false])
+      await expect(search.search({ query: 'private question' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' })
+      await expect(fetch.fetch({ url: 'https://example.test/' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE' })
+      expect(describeCredential).not.toHaveBeenCalled()
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('resolves the referenced credential for each request, so a stored or rotated key needs no restart', async () => {
     const authorization = captureAuthorization()
     const dir = await mkdtemp(join(tmpdir(), 'dsh-web-deepseek-api-credentials-'))

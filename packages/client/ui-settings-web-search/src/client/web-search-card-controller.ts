@@ -71,7 +71,7 @@ const DEFAULT_API_KEY_REF = 'DEEPSEEK_API_KEY'
 const API_KEY_FIELD = 'legacyApiKey'
 
 /** Settings-section fields the face edits as text. */
-export type WebSectionField = 'count' | 'messagesBaseURL' | 'maxUses'
+export type WebSectionField = 'enabled' | 'count' | 'messagesBaseURL' | 'maxUses'
 
 /** The legacy key control. */
 export type WebApiKeyField = 'legacyApiKey'
@@ -102,6 +102,8 @@ export type WebBilling = 'auto' | 'account' | 'api-key'
 
 /** The Search and Fetch API fields this page edits. */
 export interface WebApiSettings {
+  /** Explicit permission for the independently billed Search/Fetch APIs; absent means disabled. */
+  enabled?: boolean
   /** Search API results per search. */
   count?: number
   /** Credential the Search API sends. */
@@ -172,6 +174,8 @@ export interface WebProviderSectionState<K extends string> {
 
 /** What the web search and fetch page renders. */
 export interface WebSearchCardState extends SettingsFormShell {
+  /** API consent control, absent when its settings namespace is unavailable. */
+  apiEnabled?: SettingsFieldState
   /** Invalid edits or failed saves that changing providers must keep visible. */
   selectionBlocked: boolean
   /**
@@ -290,6 +294,12 @@ export class WebSearchCardController {
       settingsTextField('searchProvider'), settingsTextField('fetchProvider'),
     ], [{ field: API_KEY_FIELD, write: text => this.writeKey(text) }])
     this.api = new SettingsFormModel(scopes.api, [
+      {
+        field: 'enabled',
+        format: value => value === true ? 'true' : 'false',
+        parse: text => text === 'true' ? { kind: 'set', value: true }
+          : text === 'false' ? { kind: 'set', value: false } : undefined,
+      },
       {
         ...settingsNumberField('count'),
         parse: (text) => {
@@ -460,6 +470,7 @@ export class WebSearchCardController {
         kind: this.fetchKind(),
         auto: base?.fetchProvider === undefined,
       },
+      ...this.api.shell().available ? { apiEnabled: this.api.field('enabled') } : {},
       count: this.api.field('count'),
       searchBilling: this.searchKind() === 'deepseek' ? this.billing('search') : undefined,
       fetchBilling: this.fetchKind() === 'deepseek' ? this.billing('fetch') : undefined,

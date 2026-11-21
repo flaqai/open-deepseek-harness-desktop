@@ -89,7 +89,7 @@ function bench(options: { accept?: boolean; configured?: boolean | Record<string
 type SelectionLayers = { value?: WebProviderSelection; base?: WebProviderSelection; user?: WebProviderSelection }
 
 /** The API section the shipped composition resolves: the schema defaults. */
-const API_DEFAULTS: WebApiSettings = { count: 10 }
+const API_DEFAULTS: WebApiSettings = { enabled: false, count: 10 }
 
 /**
  * Serve all three sections, with the shipped selection unless one is given,
@@ -1059,6 +1059,37 @@ describe('WebSearchCardController automatic selection', () => {
       await vi.waitFor(() => { expect(b.state().dirty).toBe(false) })
       expect(b.web.mutate).toHaveBeenLastCalledWith([{ op: 'unset', path: ['searchProvider'] }], undefined)
       expect(b.state().search).toMatchObject({ selected: '', auto: true })
+    } finally { b.controller.dispose() }
+  })
+})
+
+describe('WebSearchCardController API permission', () => {
+  it('saves explicit API permission without overwriting custom provider selections', async () => {
+    const b = bench({ accept: true })
+    const custom = { searchProvider: 'exa', fetchProvider: 'jina' }
+    try {
+      serve(b, { value: custom, user: custom })
+      expect(b.state().apiEnabled?.text).toBe('false')
+      b.face.edit('enabled', 'true')
+      expect(b.api.mutate).not.toHaveBeenCalled()
+      b.face.save()
+      await vi.waitFor(() => { expect(b.state().dirty).toBe(false) })
+      expect(b.api.scope.getSnapshot().user).toEqual({ enabled: true })
+      expect(b.web.mutate).not.toHaveBeenCalled()
+      expect(b.web.scope.getSnapshot().value).toEqual(custom)
+    } finally { b.controller.dispose() }
+  })
+  it('retains failed consent as an unsaved edit and discards back to the confirmed off state', async () => {
+    const b = bench()
+    try {
+      serve(b)
+      b.face.edit('enabled', 'true')
+      b.api.mutate.mockResolvedValue(false)
+      b.face.save()
+      await vi.waitFor(() => { expect(b.state().failed).toBe(true) })
+      expect(b.api.scope.getSnapshot().value?.enabled).toBe(false)
+      b.face.discard()
+      expect(b.state().apiEnabled?.text).toBe('false')
     } finally { b.controller.dispose() }
   })
 })
