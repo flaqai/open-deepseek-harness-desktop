@@ -498,6 +498,6 @@ describe('Search/Fetch API opt-in', () => {
   })
   it('does not offer writable consent on a read-only connection', () => {
     renderPage({ ...shipped(), writable: false })
-    expect(screen.getByRole('checkbox', { name: en.apiEnabled }).disabled).toBe(true)
+    expect(screen.getByRole('checkbox', { name: en.apiEnabled })).toHaveProperty('disabled', true)
   })
 })
