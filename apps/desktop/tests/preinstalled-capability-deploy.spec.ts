@@ -39,8 +39,12 @@ it('keeps hidden bundle dependencies resolvable from the deployed Harness anchor
     pkg('@deepseek-ai/dsh', version, { dependencies: Object.fromEntries(bundles.map(name => ['@deepseek-ai/dsh-' + name, 'workspace:*'])), devDependencies: { 'fixture-dev-only': 'workspace:*' } })
     pkg('fixture-dev-only')
     for (const name of bundles) {
-      const manifest = JSON.parse(readFileSync(resolve(repository, `packages/experimental/${name}/package.json`), 'utf8')) as { name: string; dependencies: Record<string, string> }
-      pkg(manifest.name, version, { dependencies: manifest.dependencies })
+      const manifest = JSON.parse(readFileSync(resolve(repository, `packages/experimental/${name}/package.json`), 'utf8')) as {
+        name: string
+        version: string
+        dependencies: Record<string, string>
+      }
+      pkg(manifest.name, manifest.version, { dependencies: manifest.dependencies })
     }
     pkg('@deepseek-ai/dsh-browser-use'); pkg('@deepseek-ai/dsh-computer-use')
     // External binaries are inert local fixture packages, with explicit workspace
@@ -72,6 +76,9 @@ it('keeps hidden bundle dependencies resolvable from the deployed Harness anchor
       const actual = JSON.parse(readFileSync(deployedRequire.resolve(name + '/package.json'), 'utf8')) as Manifest
       const original = JSON.parse(readFileSync(join(sourceDirectory, 'package.json'), 'utf8')) as Manifest
       expect({ name: actual.name, version: actual.version }).toEqual({ name: original.name, version: original.version })
+      if (bundles.some(bundle => name === '@deepseek-ai/dsh-' + bundle)) {
+        expect(actual.version, `${name} must match the deployed Harness generation`).toBe(version)
+      }
     }
     expect(() => deployedRequire.resolve('fixture-dev-only/package.json')).toThrow()
     rmSync(join(deployed, 'node_modules/@deepseek-ai/dsh-experimental-browser-use-playwright-mcp'), { recursive: true, force: true })
