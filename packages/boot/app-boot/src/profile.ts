@@ -847,7 +847,9 @@ export function resolveProfileLoaderModule(
   try {
     candidates = resolvePackage({ name: packageName, exports: manifest.exports }, subpath)
   } catch (error) {
-    if ((error as Error).message.startsWith('No known conditions for ')) return undefined
+    const message = error instanceof Error ? error.message : undefined
+    if (message === `Missing "${subpath}" specifier in "${packageName}" package`
+      || message?.startsWith('No known conditions for ') === true) return undefined
     throw error
   }
   for (const candidate of candidates ?? []) {

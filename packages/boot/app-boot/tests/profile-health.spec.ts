@@ -554,6 +554,77 @@ describe('profile composition inspection', () => {
     })
   })
 
+  it('attributes a removed exported subpath to its Loader and preserves unrelated bundles', () => {
+    const { anchor } = stageHarness()
+    const coreName = '@deepseek-ai/dsh-subagent'
+    const coreDir = join(dirname(anchor), 'node_modules', coreName)
+    const hostManifest = JSON.parse(readFileSync(anchor, 'utf8')) as { dependencies: Record<string, string> }
+    hostManifest.dependencies[coreName] = '1.0.0'
+    writeManifest(anchor, hostManifest)
+    writeManifest(join(coreDir, 'package.json'), {
+      name: coreName, version: '1.0.0', exports: { '.': './index.js', './internal': './internal.js' },
+    })
+    writeFileSync(join(coreDir, 'index.js'), 'export {}\n')
+    writeFileSync(join(coreDir, 'internal.js'), 'export {}\n')
+    const home = temporaryDirectory('dsh-health-home-')
+    const profileDir = resolveProfileDir('web', home)
+    initProfile(profileDir, [])
+    const broken = 'fixture-removed-subpath'
+    const healthy = 'fixture-healthy-bundle'
+    for (const packageName of [broken, healthy]) {
+      const pluginDir = join(profileDir, 'node_modules', packageName)
+      writeManifest(join(pluginDir, 'package.json'), {
+        name: packageName, version: '1.0.0', exports: './index.js', dsh: { bundle: { patch: './cordis.patch.yml' } },
+      })
+      writeFileSync(join(pluginDir, 'index.js'), packageName === broken
+        ? `import '${coreName}/internal'\nexport function apply() {}\n` : 'export function apply() {}\n')
+      writeFileSync(join(pluginDir, 'cordis.patch.yml'), `- insert:\n  - id: ${packageName}\n    name: ${packageName}\n`)
+    }
+    writeProfileManifest(profileDir, {
+      dependencies: { [broken]: '1.0.0', [healthy]: '1.0.0' },
+      dsh: { profile: { bundles: [broken, healthy] } },
+    })
+    const options = { binName: 'test', profile: 'web', installAnchor: anchor, home }
+    expect(inspectUnresolvableProfileBundleEntries(options)).toEqual([])
+    // Keep the physical file: only the public exports declaration changes, as on a core upgrade.
+    writeManifest(join(coreDir, 'package.json'), { name: coreName, version: '1.0.0', exports: { '.': './index.js' } })
+    expect(inspectUnresolvableProfileBundleEntries(options)).toEqual([expect.objectContaining({
+      rootPackage: broken, entryId: broken, moduleName: broken,
+      failureKind: 'loader-dependency', missingModule: `${coreName}/internal`, importerPackage: broken,
+    })])
+    const result = repairProfileDependencies({
+      ...options,
+      runPackageManager: () => {
+        if (readProfileManifest('test', profileDir).dependencies?.[broken] === undefined) {
+          rmSync(join(profileDir, 'node_modules', broken), { recursive: true, force: true })
+        }
+        return { exitCode: 0 }
+      },
+    })
+    expect(result).toMatchObject({
+      status: 'quarantined',
+      quarantined: [{ packageName: broken, reason: 'loader-dependency-unavailable' }],
+      issues: [{ code: 'loader.dependency-unavailable', attribution: { rootPackage: broken, missingModule: `${coreName}/internal` } }],
+    })
+    expect(readProfileManifest('test', profileDir).dependencies).toEqual({ [healthy]: '1.0.0' })
+    expect(readProfileManifest('test', profileDir).dsh?.profile?.bundles).toEqual([healthy])
+    expect(inspectUnresolvableProfileBundleEntries(options)).toEqual([])
+    expect(existsSync(join(coreDir, 'internal.js'))).toBe(true)
+    expect(result.quarantined.some(item => item.packageName === coreName)).toBe(false)
+  })
+
+  it('keeps malformed manifests and unsafe export targets fatal', () => {
+    const home = temporaryDirectory('dsh-health-home-')
+    const profileDir = resolveProfileDir('web', home)
+    initProfile(profileDir, [])
+    const packageName = 'fixture-invalid-export'
+    const manifestPath = join(profileDir, 'node_modules', packageName, 'package.json')
+    writeManifest(manifestPath, { name: packageName, exports: { '.': '../outside.js' } })
+    expect(() => resolveProfileLoaderModule(profileDir, packageName)).toThrow('resolves outside its package')
+    writeFileSync(manifestPath, '{invalid')
+    expect(() => resolveProfileLoaderModule(profileDir, packageName)).toThrow(SyntaxError)
+  })
+
   it('accepts a static peer supplied by the installation runtime but not the Profile', async () => {
     const { anchor } = stageHarness()
     const runtimeVersion = getDshRuntimeVersion()

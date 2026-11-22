@@ -22,6 +22,16 @@ afterEach(() => {
 })
 
 describe('profile diagnostic v2', () => {
+  it.each([
+    'Missing "./internal" specifier in "@deepseek-ai/dsh-subagent" package',
+    'No known conditions for "./internal" specifier in "@deepseek-ai/dsh-subagent" package',
+    'ERR_PACKAGE_PATH_NOT_EXPORTED: package subpath is not defined by exports',
+  ])('classifies unowned export failures without inventing a plugin owner: %s', (message) => {
+    const diagnostic = classifyProfileDiagnostic({ source: 'profile', phase: 'preflight', value: new Error(message) })
+    expect(diagnostic.code).toBe('profile.module-resolution')
+    expect(diagnostic.attribution).toBeUndefined()
+  })
+
   it.each<[string, ProfileDiagnosticCode, string]>([
     ['ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED allowBuilds', 'pnpm.build-script-blocked', 'security'],
     ['ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION', 'pnpm.minimum-release-age', 'security'],
