@@ -377,7 +377,6 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
     failureMessage.textContent = query.get('message') ?? copy.recoveryDescription
     failureContext.hidden = true
   }
-  const fullFailure = [failureTitle.textContent, failureMessage.textContent, failureContext.textContent, query.get('logPath')].filter(Boolean).join('\n')
   const summary = document.createElement('p')
   summary.className = 'failure-summary'
   summary.textContent = summarizeFailure(failureMessage.textContent)
@@ -392,11 +391,22 @@ export function installLoadingPage(ipcRenderer: IpcRenderer): void {
     fr: 'Copier le diagnostic', de: 'Diagnose kopieren', ru: 'Копировать диагностику',
     'pt-BR': 'Copiar diagnóstico', ko: '진단 복사',
   })
+  const copyFailure = desktopDictionary(requestedLocale, {
+    zh: '复制诊断失败', en: 'Could not copy diagnostics', ja: '診断をコピーできませんでした', es: 'No se pudo copiar el diagnóstico',
+    fr: 'Impossible de copier le diagnostic', de: 'Diagnose konnte nicht kopiert werden', ru: 'Не удалось скопировать диагностику',
+    'pt-BR': 'Não foi possível copiar o diagnóstico', ko: '진단을 복사하지 못했습니다',
+  })
   const originalCopyLabel = copyDiagnostic.textContent
   copyDiagnostic.addEventListener('click', () => {
-    void Promise.resolve().then(() => navigator.clipboard.writeText(fullFailure)).then(() => {
+    copyDiagnostic.disabled = true
+    copyDiagnostic.title = ''
+    void ipcRenderer.invoke('dsh:desktop:recovery:copy-diagnostic').then(() => {
       copyDiagnostic.textContent = `✓ ${originalCopyLabel}`
-    }, () => { copyDiagnostic.textContent = copy.exportFailed }).finally(() => {
+    }, (error: unknown) => {
+      copyDiagnostic.textContent = copyFailure
+      copyDiagnostic.title = `${copyFailure}: ${error instanceof Error ? error.message : String(error)}`
+    }).finally(() => {
+      copyDiagnostic.disabled = false
       setTimeout(() => { copyDiagnostic.textContent = originalCopyLabel }, 2000)
     })
   })

@@ -80,6 +80,8 @@ The bundled `dsh-better-sidebar` 0.24.1 supports DSH 0.2.0. [Upstream release no
 <a id="application-menus"></a>
 The recovery plugin list separates installation-file presence from startup verification. A paused Profile marks plugins as not started; saved diagnostic records remain historical evidence rather than proof of a current failure. Missing archive evidence identifies the dependency whose source is unavailable separately from the installation operation it blocked. For a matching bundled plugin, “Repair installation source” requires confirmation of the replacement version and prepares a candidate for startup validation. The exported recovery diagnostic includes bounded, redacted error causes and operation identity; no individual plugin is declared activated merely because the Host is ready.
 
+Recovery diagnostic copying uses the native clipboard only for the local loading page’s main frame. Desktop supplies and redacts the bounded diagnostic text; other renderers, embedded frames and NAS cannot invoke this operation. A copy failure is reported separately from JSON report export, and browser clipboard permissions remain unchanged.
+
 ## Application menus
 
 Recovery preview, quick restart and complete exit refuse an active or unreadable Profile mutation lock, including plugin-market operations launched outside Desktop's own task queue. Retry after the operation finishes; the guard never deletes a lock. A live orphaned installer requires process diagnosis before recovery, not forced lock removal.

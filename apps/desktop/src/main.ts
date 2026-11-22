@@ -16,7 +16,8 @@ import {
 import { lstat, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { homedir, release, tmpdir, userInfo } from 'node:os'
 import { basename, delimiter, dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { copyRecoveryDiagnostic } from './recovery-diagnostic-copy.ts'
 import {
   app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, net,
   Notification, powerMonitor, safeStorage, session, shell, Tray,
@@ -2571,6 +2572,19 @@ async function startApplication(): Promise<void> {
       },
     })
     return profileMutation.readRecovery(activeMenuHome, readDesktopRecoveryInventory)
+  })
+  ipcMain.handle('dsh:desktop:recovery:copy-diagnostic', (event) => {
+    assertMainRenderer(event.sender)
+    return copyRecoveryDiagnostic({ sender: event.sender, frame: event.senderFrame, url: event.senderFrame?.url ?? '' }, {
+      sender: mainSurface?.renderer,
+      mainFrame: mainSurface?.renderer.mainFrame,
+      loadingUrl: pathToFileURL(LOADING_PAGE).href,
+      local: bootNasRuntime() === undefined,
+    }, () => ({
+      text: [latestRecoveryDiagnostic?.diagnosticCode, latestRecoveryFailure, latestRecoveryDiagnostic?.evidence,
+        startupProgress.detail].filter(Boolean).join('\n'),
+      ...(activeMenuHome === undefined ? {} : { home: activeMenuHome }),
+    }), text => clipboard.writeText(text))
   })
   ipcMain.handle('dsh:desktop:recovery:export', async (event) => {
     assertMainRenderer(event.sender)
