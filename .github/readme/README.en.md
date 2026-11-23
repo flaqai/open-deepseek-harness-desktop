@@ -12,7 +12,7 @@ Languages: [简体中文](../../README.md) · English · [日本語](README.ja.m
 
 > [!IMPORTANT]
 >
-> **[v0.2.2-rc.2 is now available](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2).** Built on official [DeepSeek Harness `dsh-v0.2.2-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.2), this release **supports DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, 1017 update)**. Matching official Flash models display a `1017` badge in the model selector.
+> **[v0.2.2-rc.5 is now available](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.5).** Built on official [DeepSeek Harness `dsh-v0.2.2-rc.5`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.5), this release **supports DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, 1017 update)**. Matching official Flash models display a `1017` badge in the model selector.
 >
 > Although the version contains `rc`, the community build is published as a regular GitHub Release. Back up important configuration before upgrading, and include relevant logs or diagnostic reports when reporting problems.
 
@@ -30,12 +30,13 @@ Installers include Node.js, pnpm, and the Harness runtime, so users do not need 
 >
 > This repository is not an official DeepSeek product. It is an open-source community project built on DeepSeek Harness and remains in preview; local data formats, plugin compatibility policies, and installation details may continue to evolve.
 
-## New in 0.2.2-rc.2
+## New in 0.2.2-rc.5
 
-- Official rc.2 integration improves history loading, multi-page PDF previews, file search, code review and subagent collaboration.
-- Background update downloads continue after Settings closes, with corner progress. Automatic downloading defaults to off; users still choose when to install and restart.
-- Plugin recovery can replace missing local archives with exact, verified bundled packages after confirmation, and distinguishes installation from actual startup status.
-- Native menus retain Plugin Market, add direct model, custom-instruction and NAS destinations, and group diagnostics, recovery, snapshots and logs.
+- Integrates official rc.3 through rc.5, including model content-refusal handling and the LiveShare tunnel Worker's startup fix.
+- Automatic search follows the actual model route and prioritizes explicit choices. Independently billed Search/Fetch APIs remain off by default, require explicit enablement and preserve custom configuration.
+- Fixes compatibility inspection crashing on removed plugin exports; only confirmed incompatible plugins are isolated.
+- Diagnostics copy redacted information through a restricted native clipboard operation and distinguish copy failures from export failures.
+- Bundled plugin updates: `dshmarket` 1.78.0 · `dsh-pocket` 2.13.2 · `dsh-mermaid` 0.5.2 · `dsh-context` 0.87.0
 
 ## Current feature highlights
 
@@ -396,9 +397,9 @@ Switch between system, light, dark, and eight product themes; pair them with eig
   </tr>
 </table>
 
-### Synchronized with DeepSeek Harness 0.2.2-rc.2
+### Synchronized with DeepSeek Harness 0.2.2-rc.5
 
-The community Release uses official [`dsh-v0.2.2-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.2) as its core baseline, supports DeepSeek 4.1-1017, and includes session-summary and shutdown-state fixes. Community integrations add workspace-list recovery, official quotation actions, context menus and preinstalled browser/computer-use capabilities. Search/Fetch API is off by default and can be enabled explicitly. The community desktop continues to provide independent data directories, three NAS permission roles, work runtimes, candidate plugin transactions, diagnostic recovery, bundled plugins, and GitHub/CNB update channels. Back up important conversations, workspaces, and configuration before upgrading; older clients are not guaranteed to read conversations written by the new version.
+The community Release uses official [`dsh-v0.2.2-rc.5`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.5) as its core baseline, supports DeepSeek 4.1-1017, and includes session-summary and shutdown-state fixes. Community integrations add workspace-list recovery, official quotation actions, context menus and preinstalled browser/computer-use capabilities. Search/Fetch API is off by default and can be enabled explicitly. The community desktop continues to provide independent data directories, three NAS permission roles, work runtimes, candidate plugin transactions, diagnostic recovery, bundled plugins, and GitHub/CNB update channels. Back up important conversations, workspaces, and configuration before upgrading; older clients are not guaranteed to read conversations written by the new version.
 
 ## What you can do
 
@@ -411,17 +412,17 @@ The community Release uses official [`dsh-v0.2.2-rc.2`](https://github.com/deeps
 
 ## Installation
 
-Download builds only from this project's [`v0.2.2-rc.2` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2):
+Download builds only from this project's [`v0.2.2-rc.5` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.5):
 
 | Platform | Architecture | Release package | Status |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon (`arm64`) | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-macos-arm64.zip) | Available |
-| macOS | Intel (`x64`) | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-macos-x64.zip) | Available |
-| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-windows-x64.exe) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-windows-x64.zip) | Available |
-| Linux | Debian / Ubuntu (`x64`) | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-linux-x64.deb) | Available |
-| Linux | Fedora / RHEL (`x64`) | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-linux-x64.rpm) | Available |
+| macOS | Apple Silicon (`arm64`) | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-macos-arm64.zip) | Available |
+| macOS | Intel (`x64`) | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-macos-x64.zip) | Available |
+| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-windows-x64.exe) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-windows-x64.zip) | Available |
+| Linux | Debian / Ubuntu (`x64`) | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-linux-x64.deb) | Available |
+| Linux | Fedora / RHEL (`x64`) | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-linux-x64.rpm) | Available |
 
-The Release also includes [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/SHA256SUMS). Verify downloads before installation; only files actually present on this project's Releases page are public release artifacts.
+The Release also includes [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/SHA256SUMS). Verify downloads before installation; only files actually present on this project's Releases page are public release artifacts.
 
 ### macOS
 

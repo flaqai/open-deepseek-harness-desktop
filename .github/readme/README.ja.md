@@ -14,7 +14,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.2-rc.2 を公開しました](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2)。** 公式 DeepSeek Harness `dsh-v0.2.2-rc.2` を統合し、セッション要約と終了時保存の修正を取り込みました。コミュニティ版ではワークスペース一覧の復旧、公式引用機能との連携、右クリックメニューとブラウザー・デスクトップ操作の同梱を提供します。 **DeepSeek 4.1-1017（DeepSeek-V4.1-Flash、1017 更新）に対応しています。**
+> **[v0.2.2-rc.5 を公開しました](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.5)。** 公式 DeepSeek Harness `dsh-v0.2.2-rc.5` を統合し、セッション要約と終了時保存の修正を取り込みました。コミュニティ版ではワークスペース一覧の復旧、公式引用機能との連携、右クリックメニューとブラウザー・デスクトップ操作の同梱を提供します。 **DeepSeek 4.1-1017（DeepSeek-V4.1-Flash、1017 更新）に対応しています。**
 >
 > バージョン名には `rc` が含まれていますが、GitHub では通常の Release として公開しています。アップグレード前に重要な設定と会話をバックアップし、問題を報告する際はログまたは診断レポートを添付してください。
 
@@ -24,12 +24,13 @@ Open DeepSeek Harness Desktop は、[DeepSeek Harness](https://github.com/deepse
 >
 > 本リポジトリは DeepSeek の公式製品ではありません。現在もプレビュー段階であり、データ形式、互換性ポリシー、インストール方法は今後変更される可能性があります。
 
-## 0.2.2-rc.2 の新機能
+## 0.2.2-rc.5 の新機能
 
-- 公式 rc.2 を統合し、履歴読み込み、複数ページ PDF のプレビュー、ファイル検索、コードレビュー、サブエージェント連携を改善しました。
-- 設定を閉じても更新のダウンロードを継続し、画面隅に進捗を表示します。自動ダウンロードは初期状態で無効で、インストールと再起動はユーザーが選択します。
-- ローカルアーカイブが見つからない場合、確認後に同一バージョンの検証済み同梱パッケージで修復できます。インストール済みと実際の起動状態を区別します。
-- ネイティブメニューにプラグインマーケットを残し、モデル設定、カスタム指示、NAS への入口を追加しました。診断、復旧、スナップショット、ログをまとめています。
+- 公式 rc.3～rc.5 を統合し、モデルのコンテンツ拒否処理と LiveShare トンネル Worker の起動を修正しました。
+- 自動検索は実際のモデル経路に従い、明示的な選択を優先します。別料金の Search/Fetch API は初期状態で無効で、明示的な有効化が必要です。独自の設定は保持します。
+- 削除されたエクスポートを参照するプラグインで互換性検査が停止する問題を修正し、非互換が確認されたプラグインのみ隔離します。
+- 診断情報は機密情報を除去して制限付きネイティブクリップボード処理でコピーし、コピー失敗とエクスポート失敗を区別します。
+- 同梱プラグイン更新：`dshmarket` 1.78.0 · `dsh-pocket` 2.13.2 · `dsh-mermaid` 0.5.2 · `dsh-context` 0.87.0
 
 ## 現在の主な機能
 
@@ -206,7 +207,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 ## ダウンロードとインストール
 
-[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2) から対象パッケージを入手してください。
+[GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.5) から対象パッケージを入手してください。
 
 | OS | アーキテクチャ | パッケージ |
 | --- | --- | --- |
@@ -218,7 +219,7 @@ Cordis の Context、Service、Symbol はバージョン番号だけでなく物
 
 SHA256SUMS で完全性を確認してください。macOS 版は ad-hoc 署名で未公証です。Gatekeeper が阻止した場合は「システム設定 → プライバシーとセキュリティ → このまま開く」を使用してください。Windows では未署名・新規公開アプリの評価警告が出る場合があります。
 
-選択した Release に `DeepSeek-Harness-windows-x64.zip` がある場合は、全体を独立したフォルダーに展開して `Open DeepSeek Harness Desktop.exe` を実行できます。ZIP 版はインストール不要で、インストール用のレジストリ登録や PATH の自動登録を行いません。設定と履歴は通常のユーザーデータディレクトリに保存され、ZIP フォルダーを移動しても一緒には移動しません。既存のインストール先に上書き展開しないでください。公開済み 0.2.2-rc.2 には Windows ZIP も含まれています。
+選択した Release に `DeepSeek-Harness-windows-x64.zip` がある場合は、全体を独立したフォルダーに展開して `Open DeepSeek Harness Desktop.exe` を実行できます。ZIP 版はインストール不要で、インストール用のレジストリ登録や PATH の自動登録を行いません。設定と履歴は通常のユーザーデータディレクトリに保存され、ZIP フォルダーを移動しても一緒には移動しません。既存のインストール先に上書き展開しないでください。公開済み 0.2.2-rc.5 には Windows ZIP も含まれています。
 
 旧プログラムフォルダーを手動で削除すると、残ったインストール記録によって再インストールできない場合があります。汎用修復ツールは [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md) にあります。このツールを含む Windows ビルドでは、プログラムフォルダー内の `resources/support/windows-install-repair/` にも配置されます。本アプリの登録情報を検証し、ユーザーの確認後にバックアップしてから修復します。設定、履歴、プログラムファイルは削除しません。
 

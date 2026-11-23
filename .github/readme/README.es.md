@@ -10,7 +10,7 @@ Idiomas: [简体中文](../../README.md) · [English](README.en.md) · [日本�
 
 > [!IMPORTANT]
 >
-> **[v0.2.2-rc.2 ya está disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2).** Esta versión integra DeepSeek Harness oficial `dsh-v0.2.2-rc.2` y las correcciones de resúmenes de sesión y guardado al cerrar. La edición comunitaria añade recuperación de la lista de espacios de trabajo, integración con las citas oficiales, menús contextuales y capacidades preinstaladas de navegador y control del ordenador. **Compatible con DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, actualización 1017).**
+> **[v0.2.2-rc.5 ya está disponible](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.5).** Esta versión integra DeepSeek Harness oficial `dsh-v0.2.2-rc.5` y las correcciones de resúmenes de sesión y guardado al cerrar. La edición comunitaria añade recuperación de la lista de espacios de trabajo, integración con las citas oficiales, menús contextuales y capacidades preinstaladas de navegador y control del ordenador. **Compatible con DeepSeek 4.1-1017 (DeepSeek-V4.1-Flash, actualización 1017).**
 >
 > Aunque el nombre contiene `rc`, se publica como una versión normal en GitHub. Haz una copia de seguridad de las conversaciones y la configuración importante antes de actualizar y adjunta registros o informes de diagnóstico al comunicar problemas.
 
@@ -20,12 +20,13 @@ Open DeepSeek Harness Desktop es una distribución independiente y mantenida por
 >
 > Este repositorio no es un producto oficial de DeepSeek. Sigue en fase preliminar y pueden evolucionar el formato de datos, las políticas de compatibilidad y la instalación.
 
-## Novedades de 0.2.2-rc.2
+## Novedades de 0.2.2-rc.5
 
-- La integración de rc.2 oficial mejora la carga del historial, la vista previa de PDF de varias páginas, la búsqueda de archivos, la revisión de código y la colaboración entre subagentes.
-- Las descargas de actualizaciones continúan al cerrar Ajustes, con progreso en una esquina. La descarga automática está desactivada por defecto; el usuario decide cuándo instalar y reiniciar.
-- La recuperación puede sustituir archivos locales ausentes por paquetes incluidos verificados de la versión exacta, previa confirmación. Distingue la instalación del estado real de inicio.
-- Los menús nativos conservan el mercado de plugins, añaden accesos a modelos, instrucciones personalizadas y NAS, y agrupan diagnóstico, recuperación, instantáneas y registros.
+- Integra las versiones oficiales rc.3 a rc.5, incluido el manejo del rechazo de contenido del modelo y la corrección del inicio del Worker del túnel LiveShare.
+- La búsqueda automática sigue la ruta real del modelo y prioriza las elecciones explícitas. Las API Search/Fetch, con facturación independiente, siguen desactivadas por defecto, requieren activación explícita y conservan la configuración personalizada.
+- Corrige el fallo de la comprobación de compatibilidad ante exportaciones eliminadas; solo se aíslan plugins cuya incompatibilidad está confirmada.
+- El diagnóstico copia información depurada mediante una operación restringida del portapapeles nativo y distingue los errores de copia de los de exportación.
+- Plugins preinstalados actualizados: `dshmarket` 1.78.0 · `dsh-pocket` 2.13.2 · `dsh-mermaid` 0.5.2 · `dsh-context` 0.87.0
 
 ## Funciones principales actuales
 
@@ -193,7 +194,7 @@ Admite sistema, claro, oscuro y ocho temas de producto, ocho ilustraciones inclu
 
 ## Descargar e instalar
 
-Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2).
+Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.5).
 
 | Sistema | Arquitectura | Paquete |
 | --- | --- | --- |
@@ -205,7 +206,7 @@ Descarga el archivo apropiado desde [GitHub Releases](https://github.com/flaqai/
 
 Verifica los archivos con SHA256SUMS. Las compilaciones de macOS usan firma ad-hoc y no están notarizadas; si Gatekeeper las bloquea, usa **Ajustes del sistema → Privacidad y seguridad → Abrir igualmente**. Windows puede mostrar una advertencia de reputación para una compilación nueva o sin firma.
 
-Si la Release elegida ofrece `DeepSeek-Harness-windows-x64.zip`, extrae el archivo completo en una carpeta independiente y ejecuta `Open DeepSeek Harness Desktop.exe`. La versión ZIP no requiere instalación ni crea registros de instalación ni registra PATH automáticamente. La configuración y el historial permanecen en el directorio de datos de usuario habitual y no se trasladan con la carpeta ZIP. No extraigas el ZIP sobre una instalación existente. La versión publicada 0.2.2-rc.2 también incluye un ZIP de Windows.
+Si la Release elegida ofrece `DeepSeek-Harness-windows-x64.zip`, extrae el archivo completo en una carpeta independiente y ejecuta `Open DeepSeek Harness Desktop.exe`. La versión ZIP no requiere instalación ni crea registros de instalación ni registra PATH automáticamente. La configuración y el historial permanecen en el directorio de datos de usuario habitual y no se trasladan con la carpeta ZIP. No extraigas el ZIP sobre una instalación existente. La versión publicada 0.2.2-rc.5 también incluye un ZIP de Windows.
 
 Borrar manualmente la carpeta del programa anterior puede dejar registros que bloquean la reinstalación. La herramienta general de reparación está en [`tools/windows-install-repair/`](../../tools/windows-install-repair/README.md); las compilaciones de Windows que la incluyen también la proporcionan en `resources/support/windows-install-repair/` dentro de la carpeta del programa. Verifica los registros de esta aplicación y, tras tu confirmación, los respalda antes de repararlos; no elimina configuración, historial ni archivos del programa.
 

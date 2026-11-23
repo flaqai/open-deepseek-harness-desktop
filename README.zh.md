@@ -12,7 +12,7 @@
 
 > [!IMPORTANT]
 >
-> **[v0.2.2-rc.2 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.2-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.2) 为核心，**支持 DeepSeek 4.1-1017（DeepSeek-V4.1-Flash，1017 更新）**，模型选择器会为匹配的官方 Flash 模型显示 `1017` 标记。
+> **[v0.2.2-rc.5 已发布，欢迎下载体验](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.5)。** 本版本以官方 [DeepSeek Harness `dsh-v0.2.2-rc.5`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.5) 为核心，**支持 DeepSeek 4.1-1017（DeepSeek-V4.1-Flash，1017 更新）**，模型选择器会为匹配的官方 Flash 模型显示 `1017` 标记。
 >
 > 虽然版本名包含 `rc`，社区构建已在 GitHub 上按正式 Release 发布。升级前仍建议备份重要配置，并将遇到的问题连同日志或诊断报告反馈给我们。
 
@@ -30,12 +30,13 @@ Open DeepSeek Harness Desktop 是由社区独立维护的 [DeepSeek Harness](htt
 >
 > 本仓库并非 DeepSeek 官方产品，而是基于 DeepSeek Harness 的社区开源项目。项目仍处于预览阶段，本地数据结构、插件兼容策略和安装方式可能继续演进。
 
-## 0.2.2-rc.2 本版新增
+## 0.2.2-rc.5 本版新增
 
-- 同步官方 rc.2：改进历史消息加载、多页 PDF 预览、文件搜索、代码审阅和子代理协作。
-- 后台更新下载：关闭设置后继续下载，右下角显示进度；自动下载默认关闭，安装与重启仍由用户决定。
-- 插件恢复：缺失本地归档时，可在确认后使用精确匹配的已校验预装包修复；区分文件已安装与实际启动状态。
-- 原生菜单整理：保留插件市场，直接进入模型、自定义提示词和 NAS，将诊断、恢复、快照与日志集中分组。
+- 同步官方 rc.3～rc.5，包含模型内容拒绝处理与 LiveShare 隧道 Worker 启动修正。
+- 自动搜索按实际模型路由选择提供方，显式选择优先；独立计费的 Search／Fetch API 默认关闭，需主动启用，保留自定义配置。
+- 修复插件引用已移除导出入口时兼容检查崩溃的问题，仅隔离已确认不兼容的插件。
+- 诊断页使用受控原生剪贴板复制脱敏信息，明确区分复制与导出失败。
+- 预装插件更新：`dshmarket` 1.78.0 · `dsh-pocket` 2.13.2 · `dsh-mermaid` 0.5.2 · `dsh-context` 0.87.0
 
 ## 当前功能亮点
 
@@ -381,23 +382,23 @@ Codex 与 Claude Code 不再随安装包捆绑，以减小下载体积并避免�
   </tr>
 </table>
 
-## 同步 DeepSeek Harness 0.2.2-rc.2
+## 同步 DeepSeek Harness 0.2.2-rc.5
 
-当前社区 Release 以官方 [`dsh-v0.2.2-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.2) 为核心基线，支持 DeepSeek 4.1-1017，并同步会话摘要与关闭保存修复；社区补充工作区列表故障恢复、官方引用对接、右键菜单和预装浏览器／桌面操作能力。Search/Fetch API 默认关闭，按需启用；社区桌面继续提供独立数据目录、NAS 三级权限、工作运行时、候选插件事务、诊断恢复、预置插件和 GitHub/CNB 更新渠道。升级前请备份重要会话、工作区和配置；旧版客户端不保证能读取新版写入的会话数据。
+当前社区 Release 以官方 [`dsh-v0.2.2-rc.5`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.5) 为核心基线，支持 DeepSeek 4.1-1017，并同步会话摘要与关闭保存修复；社区补充工作区列表故障恢复、官方引用对接、右键菜单和预装浏览器／桌面操作能力。Search/Fetch API 默认关闭，按需启用；社区桌面继续提供独立数据目录、NAS 三级权限、工作运行时、候选插件事务、诊断恢复、预置插件和 GitHub/CNB 更新渠道。升级前请备份重要会话、工作区和配置；旧版客户端不保证能读取新版写入的会话数据。
 
 ## 下载安装
 
-请只从本项目的 [`v0.2.2-rc.2` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.2) 页面下载安装包：
+请只从本项目的 [`v0.2.2-rc.5` Release](https://github.com/flaqai/open-deepseek-harness-desktop/releases/tag/odsh-v0.2.2-rc.5) 页面下载安装包：
 
 | 平台 | 架构 | 发行包 | 状态 |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
-| macOS | Intel（`x64`） | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-macos-x64.zip) | 已提供 |
-| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-windows-x64.exe) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-windows-x64.zip) | 已提供 |
-| Linux | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-linux-x64.deb) | 已提供 |
-| Linux | Fedora / RHEL（`x64`） | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
+| macOS | Apple Silicon（`arm64`） | [`DeepSeek-Harness-macos-arm64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-macos-arm64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-macos-arm64.zip) | 已提供 |
+| macOS | Intel（`x64`） | [`DeepSeek-Harness-macos-x64.dmg`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-macos-x64.dmg) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-macos-x64.zip) | 已提供 |
+| Windows | `x64` | [`DeepSeek-Harness-windows-x64.exe`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-windows-x64.exe) / [`.zip`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-windows-x64.zip) | 已提供 |
+| Linux | Debian / Ubuntu（`x64`） | [`DeepSeek-Harness-linux-x64.deb`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-linux-x64.deb) | 已提供 |
+| Linux | Fedora / RHEL（`x64`） | [`DeepSeek-Harness-linux-x64.rpm`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/DeepSeek-Harness-linux-x64.rpm) | 已提供 |
 
-Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.2/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
+Release 同时提供 [`SHA256SUMS`](https://github.com/flaqai/open-deepseek-harness-desktop/releases/download/odsh-v0.2.2-rc.5/SHA256SUMS)。安装前建议校验下载文件；只有实际出现在本项目 Releases 页面中的文件才属于公开发行产物。
 
 ### macOS
 
